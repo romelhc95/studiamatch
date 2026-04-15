@@ -1,0 +1,9 @@
+requests
+python-dotenv
+beautifulsoup4
+playwright
+playwright-stealth
+psycopg2-binary
+pg8000
+PyPDF2
+google-generativeai

@@ -1,0 +1,168 @@
+name: StudIAMatch Production Pipeline
+
+on:
+  schedule:
+    # Nivel 3: Integridad y Vigencia (Diario 05:00 AM UTC)
+    - cron: '0 5 * * *'
+    # Nivel 2: Carga Maestra (Semanal - Domingos 02:00 AM UTC)
+    - cron: '0 2 * * 0'
+    # Nivel 1: Descubrimiento (Mensual - Cada 1ero 00:00 AM UTC)
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      level:
+        description: 'Nivel de operación a ejecutar (1, 2, 3)'
+        required: true
+        default: '3'
+
+jobs:
+  # -----------------------------------------------------------------
+  # NIVEL 1: DESCUBRIMIENTO MENSUAL
+  # -----------------------------------------------------------------
+  discovery:
+    name: 'Nivel 1: Descubrimiento Mensual'
+    if: github.event.schedule == '0 0 1 * *' || github.event.inputs.level == '1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Discovery
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/core/discovery_institutions.py
+
+  # -----------------------------------------------------------------
+  # NIVEL 2: ORQUESTACIÓN SEMANAL (GENERA EL PLAN)
+  # -----------------------------------------------------------------
+  orchestrate:
+    name: 'Nivel 2: Orquestación Semanal'
+    if: github.event.schedule == '0 2 * * 0' || github.event.inputs.level == '2'
+    runs-on: ubuntu-latest
+    outputs:
+      workers: '[1, 2, 3, 4, 5]'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate Plan
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/core/master_orchestrator.py 5
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestration-plan
+          path: orchestration_plan.json
+
+  # -----------------------------------------------------------------
+  # NIVEL 2: WORKERS PARALELOS (5 MÁQUINAS SIMULTÁNEAS)
+  # -----------------------------------------------------------------
+  harvest:
+    name: 'Worker ${{ matrix.worker_id }}'
+    needs: orchestrate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        worker_id: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: orchestration-plan
+      - name: Run Worker
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/core/worker_runner.py ${{ matrix.worker_id }} orchestration_plan.json
+
+  # -----------------------------------------------------------------
+  # NIVEL 2.5: POST-PROCESAMIENTO (ENRIQUECIMIENTO + SEGMENTACIÓN)
+  # Siempre se ejecuta al finalizar los Workers, incluso si alguno falló
+  # -----------------------------------------------------------------
+  post_process:
+    name: 'Nivel 2.5: Enriquecimiento y Segmentación'
+    needs: harvest
+    if: always() && (github.event.schedule == '0 2 * * 0' || github.event.inputs.level == '2')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🧠 LLM Enrichment (Gemini)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/core/llm_enrichment_worker.py
+
+      - name: 📊 Taxonomy & Category Audit
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/maintenance/taxonomy_roi_audit.py
+
+      - name: 🔍 Metadata Quality Report
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/maintenance/metadata_quality_report.py
+
+      - name: 📋 Upload Quality Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report-${{ github.run_id }}
+          path: docs/metadata_quality_report.md
+          retention-days: 30
+
+  # -----------------------------------------------------------------
+  # NIVEL 3: INTEGRIDAD DIARIA
+  # -----------------------------------------------------------------
+  integrity:
+    name: 'Nivel 3: Integridad Diaria'
+    if: github.event.schedule == '0 5 * * *' || github.event.inputs.level == '3'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Integrity Ping
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/core/integrity_ping.py
