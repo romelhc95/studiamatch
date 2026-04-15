@@ -92,8 +92,10 @@ def call_cloudflare(prompt: str) -> str | None:
         })
         if res.status_code == 200:
             return res.json()["result"]["response"]
+        else:
+            print(f"  [Cloudflare Error] Status {res.status_code}: {res.text}")
     except Exception as e:
-        print(f"  [Cloudflare Error]: {e}")
+        print(f"  [Cloudflare Error] Exception: {e}")
     return None
 
 def enrich_course(course: dict, provider: str = "auto") -> dict | None:
