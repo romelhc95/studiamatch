@@ -1,0 +1,27 @@
+.gemini/
+.env*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+.idea/
+.vscode/
+
+gha-creds-*.json
+# Reportes de Agentes (ECC)
+# docs/ se mantiene rastreado para auditoría
+
+legacy/
+scripts/legacy/
+*.tmp
+*.bak
+.DS_Store
