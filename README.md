@@ -1,42 +1,53 @@
 # StudIAMatch - Tech Education Intelligence
 
-StudIAMatch es una plataforma premium diseñada para auditar y comparar la oferta educativa tecnológica en Perú, permitiendo a los usuarios tomar decisiones basadas en ROI, calidad curricular e impacto salarial.
+StudIAMatch es la plataforma líder en **inteligencia educativa tecnológica** en Perú. Nuestra misión es democratizar el acceso a datos reales para que estudiantes y profesionales tomen decisiones basadas en **ROI (Retorno de Inversión)**, calidad curricular e impacto salarial, eliminando el sesgo institucional.
 
-## 🚀 Estado del Proyecto: Fase 8.1 Certificada
-El sistema ha alcanzado su madurez visual y funcional con la implementación del **Rediseño Premium Retráctil**.
+## 🚀 El Enfoque StudIAMatch
+A diferencia de los buscadores de cursos tradicionales, StudIAMatch audita cada programa bajo una matriz rigurosa de **14 pilares de calidad**:
+1.  **Transparencia de Inversión**: Costos claros y actualizados.
+2.  **Impacto Salarial**: Vinculación con salarios reales del mercado peruano (Matriz 2026).
+3.  **Cálculo de ROI**: Fórmula dinámica que estima el tiempo de recuperación de la inversión.
+4.  **Calidad Curricular**: Auditoría de contenido técnico.
+5.  **Social Proof**: Sistema de ratings y reviews verificado.
+6.  **Nivel de Seniority**: Clasificación inteligente (Jr/Mid/Sr).
+7.  ... (y otros 8 pilares estratégicos de auditoría).
 
-### Novedades de la Fase 8.1
-- **UX Inmersiva**: Catálogo de 3 columnas que se expande al 100% del ancho para una visualización cinematográfica.
-- **Filtros Inteligentes**: Sidebar retráctil dinámico que permite filtrar por Verticales IT (Ciberseguridad, AI, Cloud), Institución y Rango de Precios sin sacrificar espacio.
-- **Branding Premium**: Cada tarjeta de curso destaca ahora la institución de origen con un lenguaje visual elegante y badges de alta visibilidad.
-- **Data Integrada**: Motor de búsqueda y filtrado 100% calibrado para detectar instituciones como "New Horizons", eliminando bugs de visibilidad de datos.
-- **Arquitectura**: Next.js 16 con Turbopack y Supabase REST API (Join de datos en tiempo real en frontend).
+## 🛠️ Arquitectura y "Golden Pipeline"
+El sistema opera mediante un flujo de datos autónomo diseñado para la escalabilidad nacional:
 
-## 🛠️ Stack Tecnológico
-- **Frontend**: Next.js 16 (App Router), Tailwind CSS, Lucide Icons.
-- **Backend**: Supabase (PostgreSQL + REST API).
-- **Ingeniería**: Harvesters automáticos en Python (Playwright) para New Horizons y otras instituciones.
+1.  **Descubrimiento (The Explorer)**: Rastreo mensual de nuevas instituciones y programas.
+2.  **Harvesting (The Collector)**: Scrapers especializados en Python (Playwright) para extracción masiva.
+3.  **Enriquecimiento IA (The Brain)**: Integración con **Cloudflare Workers AI (Llama 3)** y **GitHub Models** para procesar los 14 pilares de forma autónoma.
+4.  **Auditoría de Integridad**: Verificación diaria de enlaces (404) y coherencia taxonómica.
+5.  **Visualización Premium**: Interfaz minimalista y compacta construida con Next.js 15+ y Turbopack.
 
-## 📦 Instalación y Ejecución
+## 💻 Stack Tecnológico
+- **Frontend**: Next.js 15/16 (App Router), Tailwind CSS (Vanilla), Lucide React.
+- **Backend**: Supabase (PostgreSQL, RLS, PostgREST).
+- **IA/ML**: Cloudflare Workers AI, GitHub Models (GPT-4o mini / Llama 3).
+- **Automation**: GitHub Actions (Golden Pipeline CI/CD), Python 3.11 (Playwright).
 
-1. **Clonar y configurar**:
-   ```bash
-   cd web
-   npm install
-   ```
+## 📦 Configuración Local
 
-2. **Variables de Entorno**:
-   Configurar `.env.local` con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+1.  **Requisitos**: Node.js 20+, Python 3.11+.
+2.  **Instalación Frontend**:
+    ```bash
+    cd web
+    npm install
+    ```
+3.  **Variables de Entorno** (`.env.local`):
+    - `NEXT_PUBLIC_SUPABASE_URL`
+    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    - `CLOUDFLARE_API_TOKEN` (para el Golden Pipeline)
+4.  **Ejecutar Desarrollo**:
+    ```bash
+    npm run dev
+    ```
 
-3. **Ejecutar**:
-   ```bash
-   npm run dev
-   ```
-
-## 📊 Módulos de Datos
-- **Harvester New Horizons**: Script automatizado en `scripts/newhorizons_harvester.py` que extrae y sincroniza cursos mensualmente.
-- **Filtros Verticales**: Categorización automática basada en palabras clave para Ciberseguridad, AI & Data Science, Cloud Computing y Desarrollo.
+## 🔄 Gobernanza de Ramas
+- **`main`**: Código certificado para producción.
+- **`certificacion`**: Entorno de validación y QA final.
+- **`desarrollo`**: Rama activa para nuevas funcionalidades y experimentos de IA.
 
 ---
-© 2026 StudIAMatch - Auditoría Educativa Tech
-
+© 2026 StudIAMatch · Data-driven decisions for Tech Education.
