@@ -205,37 +205,49 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-brand-slate font-sans selection:bg-brand-mint/30">
-      {/* Hero Section - Compact & Minimalist */}
-      <section className="mx-auto max-w-7xl px-8 pt-10 pb-4">
-        <div className="relative overflow-hidden rounded-[2rem] bg-[#0A0F1C] p-12 text-white shadow-premium">
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
-            <div className="max-w-2xl space-y-6 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 rounded-full bg-brand-blue/20 px-4 py-1.5 border border-brand-blue/30 backdrop-blur-md">
-                <div className="h-1.5 w-1.5 rounded-full bg-brand-mint animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-mint">StudIAMatch · Data-driven decisions</span>
+      {/* Hero Section - High-End Analytical Aesthetic */}
+      <section className="relative mx-auto max-w-7xl px-8 pt-16 pb-12 overflow-hidden">
+        {/* Background Decorative Mesh Filter */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-40">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-blue/20 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[10%] right-[-5%] w-[30%] h-[30%] bg-brand-mint/15 rounded-full blur-[100px]" />
+        </div>
+
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#0A0F1C] p-16 text-white shadow-2xl border border-white/5">
+          {/* Animated Matrix-like Grid */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+               style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+          
+          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16">
+            <div className="max-w-3xl space-y-8 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2.5 rounded-full bg-white/5 px-5 py-2 border border-white/10 backdrop-blur-md">
+                <div className="h-2 w-2 rounded-full bg-brand-mint shadow-[0_0_10px_#4ade80]" />
+                <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white/80">StudIAMatch · The Intelligence Layer</span>
               </div>
-              <h1 className="text-4xl font-extrabold leading-[1.1] md:text-5xl tracking-tight">
-                Decisiones <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-mint">basadas en datos</span> para tu futuro profesional.
+              
+              <h1 className="text-5xl font-black leading-[1.05] md:text-7xl tracking-tighter">
+                Auditoría <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue via-brand-mint to-brand-blue bg-[length:200%_auto] animate-gradient-x">imparcial</span> para tu carrera.
               </h1>
-              <p className="text-sm md:text-base text-slate-400 font-medium max-w-lg leading-relaxed">
-                Compara contenido, inversión y ROI real en un solo lugar. Auditoría imparcial de programas de tecnología en el Perú.
+              
+              <p className="text-lg md:text-xl text-slate-400 font-medium max-w-xl leading-relaxed">
+                No elijas por promesas, elige por <span className="text-white">retorno financiero</span>. La primera base de datos auditada de educación tech en el Perú.
               </p>
 
-              <div id="hero-search" className="flex flex-col sm:flex-row gap-3 pt-4 scroll-mt-32">
+              <div id="hero-search" className="flex flex-col sm:flex-row gap-4 pt-4 scroll-mt-32 max-w-2xl">
                 <div className="relative flex-1 group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-brand-blue transition-colors" />
                   <Input
-                    placeholder="¿Qué quieres estudiar?"
-                    className="pl-11 h-12 bg-white/5 border-white/10 text-white rounded-xl text-xs font-bold placeholder:text-slate-600 focus:bg-white/10 focus:ring-2 focus:ring-brand-blue/50 transition-all shadow-inner"
+                    placeholder="¿En qué área quieres especializarte?"
+                    className="pl-14 h-16 bg-white/5 border-white/10 text-white rounded-2xl text-sm font-bold placeholder:text-slate-600 focus:bg-white/10 focus:ring-2 focus:ring-brand-blue/50 transition-all shadow-2xl"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <Button
                   onClick={() => document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-brand-blue hover:bg-brand-blue/90 text-white font-black rounded-xl px-10 h-12 text-[11px] tracking-widest uppercase shadow-xl shadow-brand-blue/20 transition-transform active:scale-95"
+                  className="bg-brand-blue hover:bg-brand-blue/90 text-white font-black rounded-2xl px-12 h-16 text-[12px] tracking-widest uppercase shadow-2xl shadow-brand-blue/40 transition-all hover:scale-[1.02] active:scale-95"
                 >
-                  Buscar
+                  Analizar
                 </Button>
               </div>
             </div>
@@ -365,19 +377,17 @@ export default function Home() {
                   showFilters ? "lg:grid-cols-2" : "lg:grid-cols-3"
                 )}>
                   {paginatedCourses.map((course) => (
-                    <article key={course.id} className="group relative flex flex-col justify-between rounded-2xl border border-brand-gray/50 bg-white p-6 shadow-premium transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-brand-blue/30 overflow-hidden">
-                      <div className="space-y-5">
-                        <div className="flex flex-col gap-2">
+                    <article key={course.id} className="group relative flex flex-col justify-between rounded-[2.5rem] border border-brand-gray/50 bg-white p-8 shadow-premium transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:border-brand-blue/30 overflow-hidden">
+                      <div className="space-y-6">
+                        <div className="flex flex-col gap-4">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-brand-blue bg-brand-blue/5 px-2 py-1 rounded">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
                               {course.institution_name}
                             </span>
-                            <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                              <GraduationCap className="h-4 w-4" />
-                            </div>
+                            <div className="h-2 w-2 rounded-full bg-brand-mint/40" />
                           </div>
-                          <Link href={`/courses/${cleanSlug(course.slug)}`}>
-                            <h3 className="text-base font-black text-brand-slate leading-tight line-clamp-2 h-10 group-hover:text-brand-blue transition-colors">
+                          <Link href={`/courses/${cleanSlug(course.slug)}`} className="group/title">
+                            <h3 className="text-xl font-black text-brand-slate leading-tight uppercase tracking-tight group-hover/title:text-brand-blue transition-colors">
                               {course.name}
                             </h3>
                           </Link>
