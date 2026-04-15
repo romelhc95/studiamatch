@@ -49,17 +49,36 @@ export interface Institution {
 }
 
 /**
- * Normalizes a text to be used as a URL-friendly slug.
+ * Derives a URL-friendly slug from the course's real URL.
+ * Falls back to normalizing the text slug if no URL is available.
  */
-export function cleanSlug(text: string): string {
-  if (!text) return "";
-  return text
+export function cleanSlug(slugOrUrl: string, url?: string): string {
+  // If a real URL is available, extract the last meaningful path segment
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      const last = segments[segments.length - 1];
+      if (last && last.length > 2) {
+        return last
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+      }
+    } catch {
+      // URL parsing failed, fall through to text normalization
+    }
+  }
+
+  if (!slugOrUrl) return "";
+  return slugOrUrl
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
-    .trim();
+    .replace(/^-|-$/g, "");
 }
 
 /**

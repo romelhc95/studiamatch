@@ -92,8 +92,8 @@ export default function Home() {
       try {
         const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
         const [cRes, iRes] = await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=*,categories(name)&order=created_at.desc`, { headers }),
-          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=*`, { headers })
+          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,categories(name)&order=created_at.desc`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name`, { headers })
         ]);
         const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
 
@@ -215,8 +215,8 @@ export default function Home() {
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-brand-blue/20 rounded-full blur-[120px]" />
         <div className="absolute top-0 right-1/4 w-64 h-64 bg-brand-mint/10 rounded-full blur-[100px]" />
 
-        <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-16">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-12">
+        <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-10 md:pt-20 md:pb-16">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 lg:gap-12">
             <div className="max-w-2xl space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 border border-white/[0.08]">
                 <div className="h-1.5 w-1.5 rounded-full bg-brand-mint" />
@@ -297,8 +297,8 @@ export default function Home() {
 
           {/* Sidebar */}
           <aside className={cn(
-            "shrink-0 transition-all duration-300 overflow-hidden",
-            showFilters ? "w-full lg:w-64 opacity-100" : "w-0 opacity-0 pointer-events-none"
+            "shrink-0 transition-all duration-300",
+            showFilters ? "w-full lg:w-64 opacity-100 max-h-[2000px]" : "w-0 max-h-0 opacity-0 pointer-events-none overflow-hidden"
           )}>
             <div className="space-y-1.5 bg-slate-50/50 rounded-xl p-3 border border-slate-100">
               {[
@@ -367,8 +367,8 @@ export default function Home() {
           <main className="flex-1 min-w-0">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="h-64 rounded-xl bg-slate-50 animate-pulse" />
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-40 rounded-xl bg-slate-50 animate-pulse" />
                 ))}
               </div>
             ) : filteredCourses.length > 0 ? (
@@ -385,7 +385,7 @@ export default function Home() {
                         <span className="text-[11px] font-medium text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">{course.course_type || "Programa"}</span>
                       </div>
 
-                      <Link href={`/courses/${cleanSlug(course.slug)}`} className="group/title flex-1">
+                      <Link href={`/courses/${cleanSlug(course.slug, course.url)}`} className="group/title flex-1">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
                           {course.name}
                         </h3>
@@ -413,7 +413,7 @@ export default function Home() {
 
                     {/* Card Actions */}
                     <div className="px-5 pb-4 pt-0 flex items-center gap-2">
-                      <Link href={`/courses/${cleanSlug(course.slug)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
+                      <Link href={`/courses/${cleanSlug(course.slug, course.url)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
                         Ver detalle <ArrowRight className="h-3 w-3" />
                       </Link>
                       <button
