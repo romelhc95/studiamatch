@@ -235,28 +235,23 @@ export default function CourseDetailClient({ slug }: { slug: string }) {
         });
         let data = await response.json();
 
-        // 2. Si falla (común por acentos en DB), búsqueda robusta por normalización
+        // 2. Si falla, búsqueda por ILIKE (parcial) — mucho más rápido que descargar todos
         if (!data || data.length === 0) {
-          console.warn("⚠️ No encontrado por slug exacto, aplicando búsqueda resiliente...");
-          const allUrl = `${SUPABASE_URL}/rest/v1/courses?select=*,institutions(name),categories(name)`;
-          const allRes = await fetch(allUrl, {
+          console.warn("⚠️ No encontrado por slug exacto, buscando por coincidencia parcial...");
+          // Extraer palabras clave del slug para buscar con ILIKE
+          const keywords = slug.replace(/-/g, '%');
+          const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${keywords}*&select=*,institutions(name),categories(name)&limit=5`;
+          const likeRes = await fetch(likeUrl, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
           });
-          const allCourses = await allRes.json();
+          const likeCourses = await likeRes.json();
           
-          if (Array.isArray(allCourses)) {
+          if (Array.isArray(likeCourses) && likeCourses.length > 0) {
+            // Si hay múltiples resultados, buscar la coincidencia más cercana
             const target = cleanSlug(slug);
-            const found = allCourses.find(c => {
-              // Match by DB slug
-              if (cleanSlug(c.slug) === target) return true;
-              // Match by URL-derived slug
-              if (c.url && cleanSlug(c.slug, c.url) === target) return true;
-              return false;
-            });
-            if (found) {
-              data = [found];
-              console.log("🎯 Coincidencia encontrada mediante normalización:", found.name);
-            }
+            const best = likeCourses.find(c => cleanSlug(c.slug) === target || (c.url && cleanSlug(c.slug, c.url) === target)) || likeCourses[0];
+            data = [best];
+            console.log("🎯 Coincidencia encontrada por ILIKE:", best.name);
           }
         }
 

@@ -209,57 +209,57 @@ export default function Home() {
       {/* ── Hero ────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-brand-slate" />
-        {/* Subtle grid overlay */}
         <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-        {/* Gradient glow */}
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-brand-blue/20 rounded-full blur-[120px]" />
-        <div className="absolute top-0 right-1/4 w-64 h-64 bg-brand-mint/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-1/4 w-64 h-64 md:w-96 md:h-96 bg-brand-blue/20 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-1/4 w-48 h-48 bg-brand-mint/10 rounded-full blur-[80px]" />
 
-        <div className="relative mx-auto max-w-6xl px-6 pt-12 pb-10 md:pt-20 md:pb-16">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8 lg:gap-12">
-            <div className="max-w-2xl space-y-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 border border-white/[0.08]">
+        <div className="relative mx-auto max-w-6xl px-6 pt-8 pb-8 md:pt-14 md:pb-12">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-10">
+            <div className="max-w-2xl space-y-3 md:space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 border border-white/[0.08]">
                 <div className="h-1.5 w-1.5 rounded-full bg-brand-mint" />
-                <span className="text-[12px] font-medium text-white/60">StudIAMatch · Data-driven decisions</span>
+                <span className="text-[11px] font-medium text-white/50">
+                  Stud<span className="text-brand-blue font-bold">IA</span>Match · Data-driven decisions
+                </span>
               </div>
 
-              <h1 className="text-4xl md:text-[3.25rem] font-bold leading-[1.1] tracking-tight text-white text-balance">
+              <h1 className="text-2xl md:text-4xl font-bold leading-[1.15] tracking-tight text-white text-balance">
                 Elige tu próximo programa con{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-mint">datos reales</span>
               </h1>
 
-              <p className="text-[15px] md:text-base text-slate-400 leading-relaxed max-w-lg">
-                Compara inversión, contenido y retorno financiero. Auditoría imparcial de programas tech en Perú.
+              <p className="text-[13px] md:text-[15px] text-slate-400 leading-relaxed max-w-lg">
+                Compara inversión, contenido y retorno financiero de programas tech en Perú.
               </p>
 
-              <div id="hero-search" className="flex flex-col sm:flex-row gap-2.5 pt-2 max-w-xl scroll-mt-32">
+              <div id="hero-search" className="flex flex-col sm:flex-row gap-2 pt-1 max-w-xl scroll-mt-32">
                 <div className="relative flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   <Input
                     placeholder="¿Qué quieres estudiar?"
-                    className="pl-10 h-11 bg-white/[0.06] border-white/[0.08] text-white rounded-lg text-[13px] placeholder:text-slate-600 focus:bg-white/[0.1] focus:ring-1 focus:ring-brand-blue/40 transition-all"
+                    className="pl-10 h-10 bg-white/[0.06] border-white/[0.08] text-white rounded-lg text-[13px] placeholder:text-slate-600 focus:bg-white/[0.1] focus:ring-1 focus:ring-brand-blue/40 transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <Button
                   onClick={() => document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold rounded-lg px-6 h-11 text-[13px] transition-all hover:shadow-lg hover:shadow-brand-blue/25 active:scale-[0.98]"
+                  className="bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold rounded-lg px-5 h-10 text-[13px] transition-all hover:shadow-lg hover:shadow-brand-blue/25 active:scale-[0.98]"
                 >
                   Buscar
                 </Button>
               </div>
             </div>
 
-            {/* Stats pill */}
-            <div className="flex items-center gap-6 lg:gap-8">
+            {/* Stats — hidden on mobile */}
+            <div className="hidden md:flex items-center gap-6">
               <div className="text-center">
-                <p className="text-3xl md:text-4xl font-bold text-white tabular-nums">+{allCourses.length || 0}</p>
+                <p className="text-3xl font-bold text-white tabular-nums">+{allCourses.length || 0}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Programas</p>
               </div>
-              <div className="h-10 w-px bg-white/10" />
+              <div className="h-8 w-px bg-white/10" />
               <div className="text-center">
-                <p className="text-3xl md:text-4xl font-bold text-brand-mint tabular-nums">{Object.keys(stats.institutions).length}</p>
+                <p className="text-3xl font-bold text-brand-mint tabular-nums">{Object.keys(stats.institutions).length}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Instituciones</p>
               </div>
             </div>
