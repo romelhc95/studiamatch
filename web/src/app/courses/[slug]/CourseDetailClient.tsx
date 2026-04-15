@@ -246,7 +246,13 @@ export default function CourseDetailClient({ slug }: { slug: string }) {
           
           if (Array.isArray(allCourses)) {
             const target = cleanSlug(slug);
-            const found = allCourses.find(c => cleanSlug(c.slug) === target);
+            const found = allCourses.find(c => {
+              // Match by DB slug
+              if (cleanSlug(c.slug) === target) return true;
+              // Match by URL-derived slug
+              if (c.url && cleanSlug(c.slug, c.url) === target) return true;
+              return false;
+            });
             if (found) {
               data = [found];
               console.log("🎯 Coincidencia encontrada mediante normalización:", found.name);
