@@ -116,52 +116,27 @@ class UniversalHarvester:
             await page.goto(url, wait_until="domcontentloaded", timeout=45000)
             await asyncio.sleep(3) # Wait for potential JS rendering
 
+            # Extract Raw HTML for later analysis if needed
+            raw_html = await page.content()
+
             # 1. Extract JSON-LD (Schema.org)
-            course_data = await self._extract_json_ld(page)
+            json_ld = await self._extract_json_ld(page)
             
             # 2. Extract OpenGraph Tags
-            og_data = await self._extract_og_tags(page)
+            og_tags = await self._extract_og_tags(page)
             
             # 3. HTML Heuristics
-            title = await self._extract_title(page, og_data, course_data)
-            description = await self._extract_description(page, og_data, course_data)
+            title = await self._extract_title(page, og_tags, json_ld)
+            description = await self._extract_description(page, og_tags, json_ld)
             
-            if not self._is_valid_title(title):
-                logger.warning(f"Invalid title detected for {url}: {title}")
-                return None
-
-            # Get duration, price, mode if possible
-            duration = await self._find_text_pattern(page, [r"\d+\s*ciclos", r"\d+\s*semestres", r"\d+\s*años", r"duración"])
-            mode = await self._detect_mode(page)
-            price_text = await self._find_text_pattern(page, [r"inversión", r"precio", r"costo", r"s/."])
-            
-            price_pen = None
-            price_status = "consultar"
-            if price_text:
-                price_match = re.search(r'S/\s*([\d,.]+)', price_text, re.IGNORECASE)
-                if price_match:
-                    try:
-                        price_pen = float(price_match.group(1).replace(",", ""))
-                        price_status = "publicado"
-                    except: pass
-
-            # Syllabus search (looking for common headers)
-            syllabus = await self._extract_section(page, ["temario", "contenido", "módulos", "plan de estudios"])
-            target_audience = await self._extract_section(page, ["dirigido a", "público"])
-
+            # Basic info for harvesting record
             return {
-                "name": clean_course_name(title),
+                "name": title,
                 "url": url,
-                "price_pen": price_pen,
-                "price_status": price_status,
-                "mode": mode,
-                "duration": duration[:100] if duration else "10 ciclos",
-                "category": standardize_category(title),
-                "course_type": infer_course_type(title),
                 "description_long": description,
-                "target_audience": target_audience,
-                "syllabus": syllabus,
-                "institution_slug": self.institution.get('slug')
+                "json_ld": json_ld,
+                "og_tags": og_tags,
+                "raw_html": raw_html[:500000] # Limit size to 500k to support large pages
             }
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
@@ -288,57 +263,35 @@ class UniversalHarvester:
                     return content.strip()
         return ""
 
-    def save_to_db(self, item):
-        if not item or not item.get('name'): return
+    def save_to_staging_raw(self, item):
+        if not item or not item.get('url'): return
         
         try:
-            inst_id = self.institution.get('id')
-            
-            import unicodedata
-            def slugify(text):
-                text = unicodedata.normalize('NFD', text)
-                text = text.encode('ascii', 'ignore').decode('utf-8')
-                text = text.lower()
-                text = re.sub(r'[^a-z0-9-]', '-', text)
-                text = re.sub(r'-+', '-', text)
-                return text.strip('-')
-
-            course_slug = slugify(item['name'])[:250]
-
-            course_data = {
-                "institution_id": inst_id,
-                "name": item['name'],
-                "slug": course_slug,
+            harvest_data = {
+                "institution_id": self.institution.get('id'),
                 "url": item['url'],
-                "price_pen": item['price_pen'],
-                "price_status": item['price_status'],
-                "mode": item['mode'],
-                "duration": item.get('duration', ''),
-                "category": item.get('category', 'General'),
-                "course_type": item.get('course_type', 'Curso'),
-                "description_long": item.get('description_long', ''),
-                "target_audience": item.get('target_audience', ''),
-                "syllabus": item.get('syllabus', ''),
-                "is_active": True,
-                "last_scraped_at": datetime.now().isoformat()
+                "raw_name": item.get('name'),
+                "raw_description": item.get('description_long'),
+                "raw_html": item.get('raw_html'),
+                "raw_json_ld": item.get('raw_json_ld'),
+                "raw_og_tags": item.get('raw_og_tags'),
+                "status": "pending"
             }
             
-            upsert_headers = self.headers.copy()
-            upsert_headers["Prefer"] = "resolution=merge-duplicates"
-            
+            # Use on_conflict=url to avoid duplicates effectively
             res = requests.post(
-                f"{self.api_url}/courses?on_conflict=institution_id,name,slug",
-                headers=upsert_headers,
-                json=course_data
+                f"{self.api_url}/staging_raw?on_conflict=url",
+                headers=self.headers,
+                json=harvest_data
             )
             
             if res.status_code in [201, 204, 200]:
-                logger.info(f"Saved: {item['name']}")
+                logger.info(f"Harvested to Staging: {item['url']}")
             else:
-                logger.error(f"Error saving {item['name']}: {res.text}")
+                logger.error(f"Error harvesting {item['url']}: {res.text}")
                 
         except Exception as e:
-            logger.error(f"Processing error for {item['name']}: {e}")
+            logger.error(f"Harvesting error for {item['url']}: {e}")
 
 
 async def main():
@@ -371,7 +324,7 @@ async def main():
         for url in urls:
             data = await harvester.scrape_course_detail(page, url)
             if data:
-                harvester.save_to_db(data)
+                harvester.save_to_staging_raw(data)
             await asyncio.sleep(2) 
             
         await browser.close()

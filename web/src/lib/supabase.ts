@@ -5,9 +5,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // In development, we allow it but log a warning. In production, this should be set in the platform.
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error("Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  // In development, we allow it but log a warning.
+  // In production build time, we log a warning but don't throw to allow static export to finish.
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || !process.env.NODE_ENV;
+  
+  if (process.env.NODE_ENV === 'production' && !isBuildTime) {
+    console.error("❌ Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   } else {
     console.warn("⚠️ Supabase environment variables are missing. Some features might not work correctly.");
   }

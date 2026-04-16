@@ -11,14 +11,25 @@ export async function generateMetadata({ params }: { params: Promise<{ instituti
   };
 }
 
+export const dynamic = 'force-static';
+
 export async function generateStaticParams() {
   try {
+    // Si no hay variables de entorno, no intentamos el fetch para evitar errores de URL inválida
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.warn("Skipping dynamic params generation: Missing environment variables.");
+      return [];
+    }
+
     const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-      }
+      },
+      next: { revalidate: 3600 }
     });
+
+    if (!response.ok) return [];
 
     const courses = await response.json();
     if (!Array.isArray(courses)) return [];
