@@ -2,14 +2,12 @@ name: StudIAMatch Golden Pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * 0' # Semanal: Descubrimiento Total (Dom 00:00)
-    - cron: '0 5 * * *' # Diario: Enriquecimiento y Auditoría (05:00)
+    - cron: '0 5 * * *' # Diario: Solo se ejecutará en 'main' (Producción) por defecto de GitHub
+  workflow_dispatch:      # Manual: Permitido para todas las ramas (Desarrollo/Certificación)
   push:
     branches: [ main, desarrollo, certificacion ]
-  workflow_dispatch:      # Manual: Ejecución bajo demanda
 
 jobs:
-  # Nivel 1: Descubrimiento y Extracción
   harvesting:
     name: "1. Discovery & Harvesting"
     runs-on: ubuntu-latest
@@ -35,7 +33,6 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/core/master_orchestrator.py --limit 20
 
-  # Nivel 2: Enriquecimiento IA (Los 14 Pilares)
   ia_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
     needs: harvesting
@@ -62,7 +59,6 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scripts/core/llm_enrichment_worker.py --provider auto
 
-  # Nivel 3: QA y Auditoría de Integridad
   quality_audit:
     name: "3. Integrity & ROI Audit"
     needs: ia_enrichment
@@ -83,4 +79,22 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/maintenance/quality_assurance_audit.py
+        run: |
+          echo "🔍 Ejecutando Auditoría de Integridad General..."
+          python scripts/maintenance/quality_assurance_audit.py
+          
+      - name: Run Taxonomy & ROI Audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PYTHONIOENCODING: utf-8
+        run: |
+          echo "🚀 Ejecutando Auditoría Crítica de Taxonomía y ROI..."
+          python scripts/maintenance/taxonomy_roi_audit.py
+          
+      - name: Upload Audit Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-reports-${{ github.ref_name }}
+          path: docs/qa-engineer/
