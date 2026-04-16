@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 HARVESTERS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harvesters")
 
 def get_active_institutions():
@@ -81,18 +81,27 @@ def split_into_groups(institutions, n):
     return groups
 
 def main():
-    # Number of workers (passed as argument or default to 1)
+    # Number of workers and limit (parsed from arguments)
     n_workers = 1
-    if len(sys.argv) > 1:
-        try:
-            n_workers = int(sys.argv[1])
-        except ValueError:
-            pass
+    limit = 999
+    
+    for i, arg in enumerate(sys.argv):
+        if arg == "--limit" and i + 1 < len(sys.argv):
+            try:
+                limit = int(sys.argv[i+1])
+            except ValueError: pass
+        elif i == 1 and not arg.startswith("-"):
+            try:
+                n_workers = int(arg)
+            except ValueError: pass
 
-    print(f"Orchestrating for {n_workers} workers...")
+    print(f"Orchestrating for {n_workers} workers (Limit: {limit})...")
     
     institutions = get_active_institutions()
-    print(f"Found {len(institutions)} active institutions.")
+    if limit < len(institutions):
+        institutions = institutions[:limit]
+        
+    print(f"Processing {len(institutions)} active institutions.")
     
     groups = split_into_groups(institutions, n_workers)
     
@@ -116,9 +125,38 @@ def main():
         
     print(f"Orchestration plan saved to {output_file}")
     
-    # Also print to stdout for GitHub Actions output capture if needed
-    # (Using a compact format for GH Actions output if requested, but JSON file is better for complexity)
-    # print(json.dumps(output))
+    # --- ejecución ---
+    print("\nStarting task execution...")
+    import subprocess
+    
+    for task in institutions:
+        script = task.get('harvester_script')
+        name = task.get('name')
+        print(f"[PROCESS] Running harvester for: {name} ({script})")
+        
+        # Preparamos los argumentos
+        cmd = ["python", script]
+        
+        # El Universal Harvester NECESITA el JSON de la institución como argumento
+        if "universal_harvester.py" in script:
+            cmd.append(json.dumps(task))
+            
+        # Pasamos variables de entorno necesarias al subproceso
+        env = os.environ.copy()
+        
+        try:
+            # Ejecutamos con un límite de tiempo para evitar bloqueos infinitos
+            process = subprocess.run(
+                cmd, 
+                env=env,
+                timeout=300 # 5 minutos por institución
+            )
+            if process.returncode == 0:
+                print(f"[OK] {name} completed successfully.")
+            else:
+                print(f"[WARN] {name} failed: {process.stderr[:200]}")
+        except Exception as e:
+            print(f"[ERROR] Critical error in {name}: {e}")
 
 if __name__ == "__main__":
     main()
