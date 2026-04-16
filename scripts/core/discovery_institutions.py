@@ -5,8 +5,12 @@ from bs4 import BeautifulSoup
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is not set.")
+    exit(1)
 
 headers = {
     "apikey": SUPABASE_KEY,

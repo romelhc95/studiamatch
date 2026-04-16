@@ -31,8 +31,12 @@ logger = logging.getLogger("UniversalHarvester")
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.error("❌ CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is not set in environment.")
+    sys.exit(1)
 
 class UniversalHarvester:
     def __init__(self, institution_data):
@@ -49,51 +53,20 @@ class UniversalHarvester:
 
     async def discover_courses(self, page):
         """
-        Attempts to find course URLs by checking sitemaps and recursive crawling.
+        Attempts to find course URLs by crawling or checking sitemaps.
         """
         start_url = self.institution.get('website_url')
         if not start_url:
             logger.error(f"No website URL for institution: {self.institution.get('name')}")
             return []
 
-        logger.info(f"Starting MASSIVE discovery for {self.institution.get('name')} at {start_url}")
+        logger.info(f"Starting discovery for {self.institution.get('name')} at {start_url}")
         
-        # 1. Try Sitemap Discovery (Fastest)
-        sitemap_urls = await self._discover_via_sitemap(start_url)
-        if sitemap_urls:
-            logger.info(f"Sitemap discovery found {len(sitemap_urls)} URLs.")
-            self.course_urls.update(sitemap_urls)
+        # 1. Try recursive crawl with conservative limits
+        await self._recursive_crawl(page, start_url)
 
-        # 2. Recursive Crawling (BFS) - if needed or to supplement
-        if len(self.course_urls) < 10:
-            logger.info("Sitemap insufficient. Starting recursive BFS crawl...")
-            await self._recursive_crawl(page, start_url, max_depth=2)
-
-        logger.info(f"Total discovery found {len(self.course_urls)} potential course URLs.")
+        logger.info(f"Discovery found {len(self.course_urls)} potential course URLs.")
         return list(self.course_urls)
-
-    async def _discover_via_sitemap(self, base_url):
-        """Tries to locate and parse sitemaps."""
-        sitemaps = [
-            urljoin(base_url, "/sitemap.xml"),
-            urljoin(base_url, "/sitemap_index.xml")
-        ]
-        
-        found_urls = set()
-        for s_url in sitemaps:
-            try:
-                logger.info(f"Trying sitemap: {s_url}")
-                response = requests.get(s_url, timeout=10)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.content, 'xml')
-                    locs = soup.find_all('loc')
-                    for loc in locs:
-                        url = loc.text.strip()
-                        if self._is_potential_course_url(url):
-                            found_urls.add(url)
-            except Exception as e:
-                logger.debug(f"Sitemap {s_url} not found or error: {e}")
-        return found_urls
 
     async def _recursive_crawl(self, page, start_url, max_depth=2):
         """Exploring the site using BFS to find courses."""
@@ -102,53 +75,62 @@ class UniversalHarvester:
         
         while queue:
             current_url, depth = queue.pop(0)
-            if depth > max_depth or len(self.course_urls) > 500:
+            if depth > max_depth or len(self.course_urls) > 150:
                 break
                 
             try:
-                logger.info(f"Crawling depth {depth}: {current_url}")
+                logger.info(f"Checking {current_url} (Depth: {depth})")
                 await page.goto(current_url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
                 
+                # Extract links that look like courses
                 links = await page.query_selector_all("a")
                 for link in links:
                     href = await link.get_attribute("href")
                     if not href: continue
                     
-                    full_url = urljoin(current_url, href).split('#')[0].rstrip('/')
+                    full_url = urljoin(current_url, href)
+                    if full_url in visited: continue
                     
-                    if full_url not in visited and self._is_internal_link(full_url):
-                        visited.add(full_url)
-                        
-                        if self._is_potential_course_url(full_url):
-                            self.course_urls.add(full_url)
-                        
-                        # Only continue crawling if it looks like a menu or catalog page
-                        if self._is_navigational_url(full_url):
+                    if self._is_potential_course_url(full_url):
+                        self.course_urls.add(full_url)
+                    elif depth < max_depth:
+                        # Add to queue if same domain and looks like a listing / navigation
+                        if self._is_internal_nav_url(full_url):
+                            visited.add(full_url)
                             queue.append((full_url, depth + 1))
-                            
+                
+                if len(self.course_urls) > 150:
+                    break
             except Exception as e:
-                logger.warning(f"Error crawling {current_url}: {e}")
+                logger.warning(f"Failed to check {current_url}: {e}")
 
-    def _is_internal_link(self, url):
+    def _is_internal_nav_url(self, url):
         base_domain = urlparse(self.institution.get('website_url')).netloc
-        return urlparse(url).netloc == base_domain
-
-    def _is_navigational_url(self, url):
-        """Heuristic for pages that likely contain links to many courses."""
-        nav_keywords = ["carreras", "programas", "cursos", "oferta", "academica", "posgrado", "pregrado"]
-        return any(k in url.lower() for k in nav_keywords)
+        parsed = urlparse(url)
+        if parsed.netloc != base_domain:
+            return False
+        
+        # Avoid obvious noise
+        noise = ["/login", "/cart", "/search", "/tag/", "/category/", "wp-json", "/auth"]
+        if any(n in url.lower() for n in noise):
+            return False
+            
+        return True
 
     def _is_potential_course_url(self, url):
         """Heuristic to identify course detail pages."""
-        if not self._is_internal_link(url): return False
-            
-        # Avoid assets and common junk
-        if any(url.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.zip', '.doc', '.docx', '.mp4']):
+        # Must be same domain
+        base_domain = urlparse(self.institution.get('website_url')).netloc
+        if urlparse(url).netloc != base_domain:
             return False
             
-        # Keywords in URL that strongly indicate a course detail
-        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion", "carrera", "pyp"]
+        # Avoid assets
+        if any(url.endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.zip', '.doc']):
+            return False
+            
+        # Keywords in URL
+        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion", "carrera"]
         return any(k in url.lower() for k in keywords)
 
     async def scrape_course_detail(self, page, url):
@@ -160,27 +142,52 @@ class UniversalHarvester:
             await page.goto(url, wait_until="domcontentloaded", timeout=45000)
             await asyncio.sleep(3) # Wait for potential JS rendering
 
-            # Extract Raw HTML for later analysis if needed
-            raw_html = await page.content()
-
             # 1. Extract JSON-LD (Schema.org)
-            json_ld = await self._extract_json_ld(page)
+            course_data = await self._extract_json_ld(page)
             
             # 2. Extract OpenGraph Tags
-            og_tags = await self._extract_og_tags(page)
+            og_data = await self._extract_og_tags(page)
             
             # 3. HTML Heuristics
-            title = await self._extract_title(page, og_tags, json_ld)
-            description = await self._extract_description(page, og_tags, json_ld)
+            title = await self._extract_title(page, og_data, course_data)
+            description = await self._extract_description(page, og_data, course_data)
             
-            # Basic info for harvesting record
+            if not self._is_valid_title(title):
+                logger.warning(f"Invalid title detected for {url}: {title}")
+                return None
+
+            # Get duration, price, mode if possible
+            duration = await self._find_text_pattern(page, [r"\d+\s*ciclos", r"\d+\s*semestres", r"\d+\s*años", r"duración"])
+            mode = await self._detect_mode(page)
+            price_text = await self._find_text_pattern(page, [r"inversión", r"precio", r"costo", r"s/."])
+            
+            price_pen = None
+            price_status = "consultar"
+            if price_text:
+                price_match = re.search(r'S/\s*([\d,.]+)', price_text, re.IGNORECASE)
+                if price_match:
+                    try:
+                        price_pen = float(price_match.group(1).replace(",", ""))
+                        price_status = "publicado"
+                    except: pass
+
+            # Syllabus search (looking for common headers)
+            syllabus = await self._extract_section(page, ["temario", "contenido", "módulos", "plan de estudios"])
+            target_audience = await self._extract_section(page, ["dirigido a", "público"])
+
             return {
-                "name": title,
+                "name": clean_course_name(title),
                 "url": url,
+                "price_pen": price_pen,
+                "price_status": price_status,
+                "mode": mode,
+                "duration": duration[:100] if duration else "10 ciclos",
+                "category": standardize_category(title),
+                "course_type": infer_course_type(title),
                 "description_long": description,
-                "json_ld": json_ld,
-                "og_tags": og_tags,
-                "raw_html": raw_html[:500000] # Limit size to 500k to support large pages
+                "target_audience": target_audience,
+                "syllabus": syllabus,
+                "institution_slug": self.institution.get('slug')
             }
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
@@ -307,59 +314,68 @@ class UniversalHarvester:
                     return content.strip()
         return ""
 
-    def save_to_staging_raw(self, item):
-        if not item or not item.get('url'): return
+    def save_to_db(self, item):
+        if not item or not item.get('name'): return
         
         try:
-            harvest_data = {
-                "institution_id": self.institution.get('id'),
+            inst_id = self.institution.get('id')
+            
+            import unicodedata
+            def slugify(text):
+                text = unicodedata.normalize('NFD', text)
+                text = text.encode('ascii', 'ignore').decode('utf-8')
+                text = text.lower()
+                text = re.sub(r'[^a-z0-9-]', '-', text)
+                text = re.sub(r'-+', '-', text)
+                return text.strip('-')
+
+            course_slug = slugify(item['name'])[:250]
+
+            course_data = {
+                "institution_id": inst_id,
+                "name": item['name'],
+                "slug": course_slug,
                 "url": item['url'],
-                "raw_name": item.get('name'),
-                "raw_description": item.get('description_long'),
-                "raw_html": item.get('raw_html'),
-                "raw_json_ld": item.get('raw_json_ld'),
-                "raw_og_tags": item.get('raw_og_tags'),
-                "status": "pending"
+                "price_pen": item['price_pen'],
+                "price_status": item['price_status'],
+                "mode": item['mode'],
+                "duration": item.get('duration', ''),
+                "category": item.get('category', 'General'),
+                "course_type": item.get('course_type', 'Curso'),
+                "description_long": item.get('description_long', ''),
+                "target_audience": item.get('target_audience', ''),
+                "syllabus": item.get('syllabus', ''),
+                "is_active": True,
+                "last_scraped_at": datetime.now().isoformat()
             }
             
-            # Use on_conflict=url to avoid duplicates effectively
+            upsert_headers = self.headers.copy()
+            upsert_headers["Prefer"] = "resolution=merge-duplicates"
+            
             res = requests.post(
-                f"{self.api_url}/staging_raw?on_conflict=url",
-                headers=self.headers,
-                json=harvest_data
+                f"{self.api_url}/courses?on_conflict=institution_id,name,slug",
+                headers=upsert_headers,
+                json=course_data
             )
             
             if res.status_code in [201, 204, 200]:
-                logger.info(f"Harvested to Staging: {item['url']}")
+                logger.info(f"Saved: {item['name']}")
             else:
-                logger.error(f"Error harvesting {item['url']}: {res.text}")
+                logger.error(f"Error saving {item['name']}: {res.text}")
                 
         except Exception as e:
-            logger.error(f"Harvesting error for {item['url']}: {e}")
+            logger.error(f"Processing error for {item['name']}: {e}")
 
 
 async def main():
     if len(sys.argv) < 2:
-        logger.error("Usage: python universal_harvester.py '<json_string>' or python universal_harvester.py --file <path_to_json>")
+        logger.error("No institution JSON provided.")
         return
 
-    inst_data = None
-    if sys.argv[1] == "--file" and len(sys.argv) > 2:
-        try:
-            with open(sys.argv[2], 'r') as f:
-                inst_data = json.load(f)
-        except Exception as e:
-            logger.error(f"Error reading file {sys.argv[2]}: {e}")
-            return
-    else:
-        try:
-            inst_data = json.loads(sys.argv[1])
-        except Exception as e:
-            logger.error(f"Error parsing institution JSON string: {e}")
-            return
-
-    if not inst_data:
-        logger.error("No valid institution data provided.")
+    try:
+        inst_data = json.loads(sys.argv[1])
+    except Exception as e:
+        logger.error(f"Error parsing institution data: {e}")
         return
 
     harvester = UniversalHarvester(inst_data)
@@ -374,17 +390,13 @@ async def main():
         
         urls = await harvester.discover_courses(page)
         
-        # Increased limit for V2 Mass Discovery
-        # We process a larger batch to stay true to "ALL" URLs requirement
-        max_to_process = 100 
-        urls_to_process = urls[:max_to_process]
-        
-        logger.info(f"Preparing to scrape {len(urls_to_process)} out of {len(urls)} discovered URLs.")
+        # Limit to 10 for universal harvester to avoid broad crawling
+        urls = urls[:10] 
 
-        for url in urls_to_process:
+        for url in urls:
             data = await harvester.scrape_course_detail(page, url)
             if data:
-                harvester.save_to_staging_raw(data)
+                harvester.save_to_db(data)
             await asyncio.sleep(2) 
             
         await browser.close()
