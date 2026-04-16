@@ -1,6 +1,15 @@
 # Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
-## Contexto de Trabajo (WORKING-CONTEXT)
+## 🎯 Premisas Obligatorias de Ingeniería (Nivel 0)
+
+> [!IMPORTANT]
+> **Aislamiento Total y Paridad Linux**: Queda estrictamente prohibido ejecutar comandos de desarrollo (npm, python, audit) directamente en el host Windows. 
+> Todo comando **DEBE** ser ejecutado dentro del contenedor `studiamatch-dev` (Debian) para garantizar la paridad del 100% con los servidores de despliegue (Cloudflare/Linux).
+>
+> **Comando Base Mandatorio**:
+> `docker exec -it studiamatch-dev [comando]`
+
+## 🛠 Estado Actual del Proyecto (WORKING-CONTEXT)
 - **Estado Actual**: Fase 31 (TIER 1 - Desarrollo) ✅ ESTABILIZADO.
 - **Último Hito**: IA Multi-Cloud (100 cursos/batch) operativa y gratuita.
 - **Próxima Acción**: Iniciar configuración TIER 2 (Certificación).
@@ -205,16 +214,16 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 3. **Auditoría de Integridad en Producción** (Script)
    - Acción: Ejecutar `quality_assurance_audit.py` apuntando al nuevo proyecto.
 
-## Fase 33: Dominios y Cloudflare (studiomatch.com) [ ] Pendiente
+## Fase 33: Dominios y Cloudflare (studiamatch.com) [ ] Pendiente
 1. **Configuración de Cloudflare Pages**:
-   - `main branch` -> Dominio: `studiomatch.com` (Vía Hostinger CNAME/A).
-   - `certificacion branch` -> Dominio: `cert.studiomatch.com` o similar.
+   - `main branch` -> Dominio: `studiamatch.com` (Vía Hostinger CNAME/A).
+   - `certificacion branch` -> Dominio: `cert.studiamatch.com` o similar.
    - `desarrollo branch` -> Dominio: `studiamatch.pages.dev`.
 2. **Propagación DNS y SSL**:
    - Acción: Validar certificados SSL gestionados por Cloudflare para los 3 niveles.
    - Acción: Configurar redireccionamientos de seguridad HSTS.
 3. **Custom Domain en Supabase**:
-   - Acción: Configurar Custom Domain en Supabase para `db.studiomatch.com` (Opcional, Pro feature).
+   - Acción: Configurar Custom Domain en Supabase para `db.studiamatch.com` (Opcional, Pro feature).
 4. **Optimización de Seguridad y Performance** (Cloudflare)
    - Acción: Habilitar Proxy (naranja), SSL Full (Strict), y reglas de WAF básicas.
    - Acción: Configurar redirección de `www` a non-www.
