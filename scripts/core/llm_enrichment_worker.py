@@ -140,21 +140,31 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
         try:
             response_text = p_func(prompt)
             if response_text:
-                text = re.sub(r"```json|```", "", response_text).strip()
-                data = json.loads(text)
-                # Mapeo correcto a las columnas reales de la base de datos
-                duration_val = data.get("duration_value", "")
-                duration_unit = data.get("duration_unit", "Semanas")
-                full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
+                json_match = re.search(r"(\{.*\})", response_text, re.DOTALL)
+                if json_match:
+                    try:
+                        data = json.loads(json_match.group(1))
+                        # Mapeo correcto a las columnas reales de la base de datos
+                        duration_val = data.get("duration_value", "")
+                        duration_unit = data.get("duration_unit", "Semanas")
+                        full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
 
-                return {
-                    "objectives": data.get("objectives", ""),
-                    "target_audience": data.get("target_audience", ""),
-                    "syllabus": data.get("syllabus", ""),
-                    "seniority_level": data.get("seniority", "Junior"),
-                    "duration": full_duration
-                }
-        except:
+                        import time
+                        time.sleep(1.5) # Anti-429
+                        
+                        return {
+                            "objectives": data.get("objectives", ""),
+                            "target_audience": data.get("target_audience", ""),
+                            "syllabus": data.get("syllabus", ""),
+                            "seniority_level": data.get("seniority", "Junior"),
+                            "duration": full_duration
+                        }
+                    except Exception as e:
+                        print(f"  [Parse Error] JSON inválido: {e}")
+                else:
+                    print(f"  [Parse Error] No se encontró bloque JSON")
+        except Exception as e:
+            print(f"  [Provider Error] {p_name}: {e}")
             continue
     return None
 
