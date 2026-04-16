@@ -39,6 +39,13 @@ def run_taxonomy_roi_audit():
     
     issues = []
     
+    if not courses:
+        print("ℹ️ No hay cursos activos para auditar en este momento.")
+        return
+
+    total_courses = len(courses)
+    print(f"📊 Auditando {total_courses} cursos...")
+    
     for c in courses:
         error = []
         # A. Validación de Categoría (ID vs Texto)

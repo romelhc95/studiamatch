@@ -65,7 +65,8 @@ def run_audit():
         f.write(f"# Reporte de Coherencia y Calidad V2 (Rutas Dinámicas)\n\n")
         f.write(f"- **Total Cursos Auditados:** {total_courses}\n")
         f.write(f"- **Cursos con Observaciones:** {len(flagged_courses)}\n")
-        f.write(f"- **Salud del Catálogo:** {((total_courses - len(flagged_courses)) / total_courses) * 100:.2f}%\n\n")
+        health_score = ((total_courses - len(flagged_courses)) / total_courses) * 100 if total_courses > 0 else 0
+        f.write(f"- **Salud del Catálogo:** {health_score:.2f}%\n\n")
         f.write("## Hallazgos de Navegación y Datos\n\n")
         for c in flagged_courses:
             # New URL format: /courses/[institution]/[slug]
