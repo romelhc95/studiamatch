@@ -10,28 +10,34 @@ Este documento describe el flujo de despliegue para el entorno de desarrollo de 
 
 ## 2. Flujo de Trabajo
 1. Los desarrollos se inician en ramas de `feature/*`.
-2. Al realizar un commit en `desarrollo`, Cloudflare Pages dispara un despliegue automático.
-3. El entorno utiliza variables de desarrollo (Free) para no afectar datos productivos.
+2. Al realizar un commit en `desarrollo`, se dispara un build automático en Cloudflare Pages.
+3. Este entorno (Tier 1) utiliza el proyecto de Supabase Free para aislar datos de experimentación.
 
-## 3. Configuración de Secretos (GitHub)
-Los secretos están configurados en el GitHub Environment `Development`:
-- `SUPABASE_URL`: URL del proyecto Supabase Free.
-- `SUPABASE_SERVICE_ROLE_KEY`: Llave maestra para actualizaciones de backend (IA).
-- `SUPABASE_KEY`: Llave pública (Anon).
-- `CF_API_TOKEN`: Token para Cloudflare Workers AI.
-- `CF_ACCOUNT_ID`: ID de cuenta de Cloudflare.
-- `GH_MODELS_TOKEN` (Opcional): Para fallback a GitHub Models.
+## 3. Configuración de Visualización (Dashboard Cloudflare)
+Para que la web de desarrollo (Preview) muestre los datos de Supabase, debe configurar el Dashboard de Cloudflare:
+1. **Acceso**: Ir a Workers & Pages > Proyecto `studiamatch`.
+2. **Variables de Entorno**:
+   - Ir a **Settings** > **Environment Variables**.
+   - En la sección **PREVIEW**, agregar:
+     - `NEXT_PUBLIC_SUPABASE_URL`: Su URL de Supabase Dev.
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Su Anon Key de Supabase Dev.
+3. **Despliegues**: Asegurar que los despliegues automáticos para la rama `desarrollo` estén activados.
 
-## 4. Estrategia "Data Drip" (Enriquecimiento)
-El ambiente de desarrollo ejecuta un proceso de IA gratuito cada noche:
-- **Modelo**: `llama-3-8b-instruct` (Cloudflare).
-- **Límite**: 50-100 cursos/día.
-- **Cuota**: Se mantiene bajo las 10,000 neuronas gratuitas diarias de Cloudflare.
-- **Calidad**: Solo procesa cursos con >150 caracteres en descripción.
+## 4. Secretos de Backend (GitHub Actions)
+Configurados en el Environment `Development` de GitHub para el pipeline de IA:
+- `SUPABASE_URL`: URL del proyecto Supabase.
+- `SUPABASE_SERVICE_ROLE_KEY`: Permisos de edición para la IA.
+- `CF_API_TOKEN` & `CF_ACCOUNT_ID`: Para el motor de Cloudflare AI.
+- `GH_MODELS_TOKEN`: Para fallback multi-cloud.
 
-## 5. Gatekeeper
+## 5. Estrategia "Data Drip" (Enriquecimiento IA)
+- **Ejecución**: Diaria vía GitHub Actions.
+- **Cuota**: Limitada a 100 cursos/día para mantenerse en tier gratuito.
+- **Calidad**: Filtro activo de >150 caracteres para descripción inicial.
+
+## 6. Gatekeeper y Calidad
 - **Responsable**: `@SDLC-Chief`
-- **Criterio de Aprobación**: Batch de enriquecimiento con Éxitos > 90% y Build de Cloudflare exitoso.
+- **Métrica de Éxito**: Tasa de enriquecimiento > 90% y auditoría de integridad (`quality_assurance_audit.py`) sin fallos críticos.
 
 ---
-*Ultima actualización: 2026-04-15 (Estabilización Tier 1 completada)*
+*Ultima actualización: 2026-04-16 (Fase 31.5 - Estabilización Visual Completa)*
