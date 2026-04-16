@@ -14,14 +14,13 @@ Este documento describe el flujo de despliegue para el entorno de desarrollo de 
 3. Este entorno (Tier 1) utiliza el proyecto de Supabase Free para aislar datos de experimentación.
 
 ## 3. Configuración de Visualización (Dashboard Cloudflare)
-Para que la web de desarrollo (Preview) muestre los datos de Supabase, debe configurar el Dashboard de Cloudflare:
-1. **Acceso**: Ir a Workers & Pages > Proyecto `studiamatch`.
-2. **Variables de Entorno**:
-   - Ir a **Settings** > **Environment Variables**.
-   - En la sección **PREVIEW**, agregar:
-     - `NEXT_PUBLIC_SUPABASE_URL`: Su URL de Supabase Dev.
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Su Anon Key de Supabase Dev.
-3. **Despliegues**: Asegurar que los despliegues automáticos para la rama `desarrollo` estén activados.
+Para que la web de desarrollo (Preview) muestre los datos de Supabase de forma automática, configure estos campos exactos:
+1. **Root Directory**: `/web`
+2. **Build command**: `npm install && npm run build`
+3. **Build output directory**: `out`
+4. **Variables de Entorno (PREVIEW)**:
+   - `NEXT_PUBLIC_SUPABASE_URL`: Su URL de Supabase Dev.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Su Anon Key de Supabase Dev.
 
 ## 4. Secretos de Backend (GitHub Actions)
 Configurados en el Environment `Development` de GitHub para el pipeline de IA:
