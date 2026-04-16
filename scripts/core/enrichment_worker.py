@@ -3,6 +3,8 @@ import json
 import logging
 import sys
 import requests
+import re
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
@@ -17,7 +19,7 @@ from shared.utils import (
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - [MULTICLOUD-ENRICHER] - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("EnrichmentWorker")
@@ -26,7 +28,12 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# API Keys & Credits (Multicloud Policy)
+CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
+CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
 
 class EnrichmentWorker:
     def __init__(self):
@@ -39,12 +46,86 @@ class EnrichmentWorker:
         }
 
     def get_pending_cleansed(self, limit=10):
-        """Get pending records from cleansed_programs."""
+        """Obtiene registros de cleansed_programs listos para IA."""
         url = f"{self.api_url}/cleansed_programs?status=eq.pending&limit={limit}"
         res = requests.get(url, headers=self.headers)
-        if res.status_code == 200:
-            return res.json()
+        if res.status_code == 200: return res.json()
         return []
+
+    def _call_cloudflare(self, prompt):
+        if not CF_API_TOKEN or not CF_ACCOUNT_ID: return None
+        try:
+            model = "@cf/meta/llama-3-8b-instruct"
+            url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{model}"
+            res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json={
+                "messages": [
+                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
+                    {"role": "user", "content": prompt}
+                ]
+            }, timeout=30)
+            if res.status_code == 200: return res.json()["result"]["response"]
+        except: return None
+        return None
+
+    def _call_github(self, prompt):
+        if not GH_MODELS_TOKEN: return None
+        try:
+            url = "https://models.inference.ai.azure.com/chat/completions"
+            payload = {
+                "messages": [{"role": "user", "content": prompt}],
+                "model": "gpt-4o",
+                "temperature": 0.3
+            }
+            res = requests.post(url, headers={"Authorization": f"Bearer {GH_MODELS_TOKEN}"}, json=payload, timeout=30)
+            if res.status_code == 200: return res.json()["choices"][0]["message"]["content"]
+        except: return None
+        return None
+
+    def _call_gemini(self, prompt):
+        if not GEMINI_API_KEY: return None
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            res = requests.post(url, json=payload, timeout=30)
+            if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
+        except: return None
+        return None
+
+    def _call_llm_for_pillars(self, name, description):
+        """Multicloud Cascade: CF -> GitHub -> Gemini"""
+        prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON minificado. No incluyas markdown.
+        Nombre: {name} | Desc: {description[:1000]}
+        Esquema: {{
+            "official_name": "string", "duration_text": "string", "duration_months": int,
+            "total_cost_est": float, "requirements": [], "graduate_profile": "string",
+            "curriculum_summary": {{}}, "modality": "Presencial|Remoto|Híbrido",
+            "primary_campus": "string", "degree_type": "string", "start_date": "ISO",
+            "categories": [], "difficulty_level": "Básico|Intermedio|Avanzado",
+            "ai_summary": "string"
+        }}"""
+
+        providers = [
+            ("Cloudflare", self._call_cloudflare),
+            ("GitHub", self._call_github),
+            ("Gemini", self._call_gemini)
+        ]
+
+        for p_name, p_func in providers:
+            try:
+                logger.info(f"Intentando con Provider: {p_name}")
+                response = p_func(prompt)
+                if response:
+                    match = re.search(r'\{.*\}', response, re.DOTALL)
+                    if match: 
+                        data = json.loads(match.group())
+                        logger.info(f"✅ Éxito con {p_name}")
+                        return data
+            except Exception as e:
+                logger.warning(f"⚠️ Provider {p_name} falló: {e}")
+                continue
+        
+        logger.warning("❌ Todos los providers fallaron. Generando Smart Mock preventivo.")
+        return self._generate_smart_mock(name, description)
 
     def enrich_record(self, cleansed):
         c_id = cleansed['id']
@@ -53,15 +134,10 @@ class EnrichmentWorker:
         inst_id = cleansed['institution_id']
         url = cleansed['url']
 
-        logger.info(f"Enriching: {name} ({url})")
-
-        # LLM Logic (Simplified for the plan, ideally uses a dedicated prompt)
+        logger.info(f"--- Procesando: {name} ---")
         try:
             enriched_data = self._call_llm_for_pillars(name, desc)
-            if not enriched_data:
-                raise Exception("LLM returned empty data")
-
-            # Final data to save
+            
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": inst_id,
@@ -70,105 +146,48 @@ class EnrichmentWorker:
                 "status": "pending"
             }
 
-            # Upsert to enriched_programs
             res = requests.post(
                 f"{self.api_url}/enriched_programs?on_conflict=url",
                 headers=self.headers,
                 json=save_data
             )
 
-            if res.status_code in [201, 204, 200]:
-                logger.info(f"Successfully enriched: {name}")
+            if res.status_code in [200, 201, 204]:
+                logger.info(f"Record guardado en enriched_programs.")
                 self.update_cleansed_status(c_id, "enriched")
             else:
-                logger.error(f"Error saving enriched record: {res.text}")
-                self.update_cleansed_status(c_id, "error", error_msg=res.text)
-
+                logger.error(f"Error al guardar: {res.text}")
         except Exception as e:
-            logger.error(f"Enrichment error for {name}: {e}")
-            self.update_cleansed_status(c_id, "error", error_msg=str(e))
+            logger.error(f"Error en enriquecimiento: {e}")
 
-    def _call_llm_for_pillars(self, name, description):
-        """Call LLM to extract the 14 pillars using a structured schema."""
-        if not OPENAI_API_KEY or OPENAI_API_KEY == "your_openai_api_key_here":
-            logger.warning("No API Key found. Using Smart Mock for development validation.")
-            return self._generate_smart_mock(name, description)
-
-        logger.info(f"Calling OpenAI for structured extraction of: {name}")
-        
-        prompt = f"""
-        Extract the following 14 pillars from this educational program description.
-        Target JSON format only.
-        
-        Program: {name}
-        Description: {description}
-        
-        PILLARS:
-        1. official_name: Precise academic name.
-        2. duration_text: e.g. '5 años', '12 meses'.
-        3. duration_months: Integer value.
-        4. total_cost_est: Estimated total cost in PEN (number).
-        5. requirements: List of entry requirements.
-        6. graduate_profile: Summary of what the student will achieve.
-        7. curriculum_summary: Dictionary of cycles/modules.
-        8. modality: 'Presencial', 'Remoto' or 'Híbrido'.
-        9. primary_campus: Main city or campus.
-        10. degree_type: 'Bachiller', 'Maestría', 'Diplomado', 'Curso', etc.
-        11. start_date: ISO date string if found.
-        12. categories: List of taxonomies (e.g. 'Tecnología', 'Negocios').
-        13. difficulty_level: 'Básico', 'Intermedio', 'Avanzado'.
-        14. ai_summary: Professional 2-sentence summary.
-        """
-
-        try:
-            # Here we would use the actual openai client
-            # import openai
-            # response = openai.chat.completions.create(...)
-            # return json.loads(response.choices[0].message.content)
-            
-            # For now, we return the smart mock even with key to ensure dev stability 
-            # until user confirms the first run
-            return self._generate_smart_mock(name, description)
-        except Exception as e:
-            logger.error(f"LLM Call failed: {e}")
-            return self._generate_smart_mock(name, description)
+    def update_cleansed_status(self, c_id, status):
+        requests.patch(
+            f"{self.api_url}/cleansed_programs?id=eq.{c_id}",
+            headers=self.headers,
+            json={"status": status}
+        )
 
     def _generate_smart_mock(self, name, description):
-        """Generates a high-quality mock based on available data for pipeline validation."""
         inferred_type = infer_course_type(name)
         return {
             "official_name": name,
-            "duration_text": "Pendiente (IA)",
+            "duration_text": "Pendiente",
             "duration_months": 0,
-            "total_cost_est": 0,
-            "requirements": ["Pendiente de extracción"],
-            "graduate_profile": f"El egresado de {name} podrá desempeñarse con éxito en el sector.",
-            "curriculum_summary": {"General": ["Malla por definir"]},
+            "total_cost_est": 0.0,
+            "requirements": [],
+            "graduate_profile": "Perfil por definir",
+            "curriculum_summary": {},
             "modality": standardize_mode(description),
-            "primary_campus": "No especificado",
+            "primary_campus": "Sede Central",
             "degree_type": inferred_type,
             "start_date": None,
             "categories": [standardize_category(name)],
             "difficulty_level": "Intermedio",
-            "ai_summary": f"Programa especializado de nivel {inferred_type} enfocado en {name}."
+            "ai_summary": f"Programa especializado en {name}."
         }
-
-    def update_cleansed_status(self, c_id, status, error_msg=None):
-        payload = {"status": status}
-        if error_msg: payload["metadata"] = {"error": error_msg}
-        
-        requests.patch(
-            f"{self.api_url}/cleansed_programs?id=eq.{c_id}",
-            headers=self.headers,
-            json=payload
-        )
 
 if __name__ == "__main__":
     worker = EnrichmentWorker()
-    pending = worker.get_pending_cleansed(limit=5)
-    logger.info(f"Found {len(pending)} pending cleansed records.")
-    
-    for record in pending:
-        worker.enrich_record(record)
-    
-    logger.info("Enrichment batch complete.")
+    records = worker.get_pending_cleansed(limit=5)
+    for r in records:
+        worker.enrich_record(r)
