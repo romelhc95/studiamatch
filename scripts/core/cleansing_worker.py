@@ -48,8 +48,13 @@ class CleansingWorker:
             return res.json()
         return []
 
-    def is_invalid_course(self, name, description, html=""):
+    def is_invalid_course(self, name, description, url="", html=""):
         """Heuristics to identify non-course pages."""
+        low_url = url.lower()
+        url_blacklist = ["/noticias/", "/noticia/", "/blog/", "/eventos/", "/comunicados/", "/articulo/", "/articulos/"]
+        if any(pattern in low_url for pattern in url_blacklist):
+            return "url_blacklist_match"
+
         if not name or len(name) < 5:
             return "name_too_short"
             
@@ -82,7 +87,7 @@ class CleansingWorker:
         logger.info(f"Cleansing: {url}")
 
         # 1. Validation
-        discard_reason = self.is_invalid_course(raw_name, raw_desc, raw_html)
+        discard_reason = self.is_invalid_course(raw_name, raw_desc, url, raw_html)
         if discard_reason:
             logger.warning(f"Discarding {url}: {discard_reason}")
             self.update_staging_status(r_id, "discarded", discard_reason=discard_reason)

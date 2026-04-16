@@ -262,27 +262,32 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 4. **Validación de la Muestra en Conflictos**:
    - [ ] Re-procesar URL de UPC Marketing para validar limpieza automática del nombre. [/] En curso
 
- ## Fase 36: Pipeline de Datos de Alta Fidelidad (ETL StudIAMatch) [/] En curso
-1. **Infraestructura de Datos (Estaciones 1-4)**:
-   - [x] Crear tabla `staging_raw` (Data bruta, HTML, Metatags). [x] Completado
-   - [x] Crear tabla `cleansed_programs` (Data limpia, tipada, sin slogans). [x] Completado
-   - [x] Crear tabla `enriched_programs` (14 pilares extraídos por IA). [x] Completado
-   - [x] Habilitar `pgvector` para búsqueda semántica. [x] Completado
-2. **Motor de Limpieza (Stage 2)**:
-   - [x] Crear `cleansing_worker.py` para mover de Staging a Cleansed. [x] Completado
-   - [x] Implementar deduplicación multi-sede (Arequipa != Lima). [x] Completado
-   - [x] Validador de nombres y exclusión de headers institucionales. [x] Completado
-3. **Motor de Inteligencia (Stage 3 - 14 Pilares)**:
-   - [x] Crear `enrichment_worker.py` para mover de Cleansed a Enriched. [x] Completado
-   - [/] Extracción obligatoria de: Precio, Duración, Malla, Grado, Requisitos, etc. [/] En curso (Mocked)
-   - [ ] Lógica de re-intento para campos nulos. [ ] Pendiente
-4. **Sincronización y Vectorización (Stage 4)**:
-   - [x] Crear `sync_vector_worker.py` para sincronizar a producción. [x] Completado
-   - [/] Migración final a `courses` y generación de embeddings. [/] En curso
-5. **Universal Harvester v2 (Exploración Masiva)**:
-   - [ ] Motor de Sitemap XML para extracción al 100%. [ ] Pendiente
-   - [ ] BFS Crawling (Navegación recursiva de 3 niveles). [ ] Pendiente
-   - [ ] Soporte para Infinite Scroll y Dynamic Content (Playwright). [ ] Pendiente
+ ## Fase 36: Pipeline de Datos de Alta Fidelidad (4 Estaciones) [/] En curso
+
+Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementando un flujo ETL (Extract, Transform, Load) de grado industrial.
+
+### 🚉 Las 4 Estaciones del Dato
+1.  **Estación 1: `staging_raw` (Harvesting)**:
+    - [x] Motor de descubrimiento masivo (Sitemaps + BFS Crawl). [x] Completado
+    - [x] Almacenamiento de HTML bruto (Límite 500k chars). [x] Completado
+    - [x] Casos de éxito: **UTP (100 URLs)** y **DMC (100 URLs)**. [x] Completado
+2.  **Estación 2: `cleansed_programs` (Cleansing)**:
+    - [x] Script `cleansing_worker.py` funcional. [x] Completado
+    - [ ] Ejecutar limpieza masiva para DMC/UTP (Eliminar slogans y duplicados). [ ] Pendiente
+    - [ ] Deduplicación multi-sede activa. [ ] Pendiente
+3.  **Estación 3: `enriched_programs` (Enrichment - IA)**:
+    - [ ] **Implementación de IA Real** (OpenAI/Gemini) en `enrichment_worker.py`. [ ] Pendiente
+    - [ ] Extracción obligatoria de los **14 Pilares de Metadata**:
+        1. Nombre del Curso | 2. Institución | 3. Precio | 4. Moneda | 5. Duración | 6. Modalidad | 7. Sede/Localidad | 8. Grado Académico | 9. Requisitos | 10. Malla Curricular (Resumen) | 11. Fecha de Inicio | 12. Categoría Taxonómica | 13. Nivel (Jr/Mid/Sr) | 14. URL de Brochure/Inscripción |
+4.  **Estación 4: `courses` (Production & Vector Sync)**:
+    - [x] Script `sync_vector_worker.py` base. [x] Completado
+    - [ ] Generación de Embeddings para búsqueda semántica. [ ] Pendiente
+    - [ ] Publicación final en la Web. [ ] Pendiente
+
+### 🚀 Estado Actual: "Transición Estación 1 a 2"
+- **DMC**: 100 registros en Stage 1 (Raw).
+- **UTP**: 100 registros en Stage 1 (Raw).
+- **Próxima Tarea**: Ejecutar limpieza y activar IA real para extracción de pilares.
 
 
 ## Riesgos y Mitigaciones

@@ -46,20 +46,38 @@ class SyncVectorWorker:
 
         logger.info(f"Syncing to Production: {name}")
 
-        # Map Enriched Pillars to Courses Schema
+        # Map Enriched Pillars to Courses Schema with robust list handling
+        def list_to_str(val):
+            if isinstance(val, list):
+                return ", ".join([str(v) for v in val if v])
+            return str(val) if val else ""
+
+        # Generate unique slug (include location and short ID if needed)
+        base_slug = slugify(name)
+        location = enriched.get('location', 'Nacional')
+        
+        # Add location if specific
+        if location and location not in ["Nacional", "Nacional/No especificado"]:
+            base_slug = f"{base_slug}-{slugify(location)}"
+        
+        # Add a short unique identifier from the original ID to guarantee uniqueness
+        # while keeping the URL readable
+        short_id = str(e_id).split('-')[0]
+        full_slug = f"{base_slug}-{short_id}"
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
-            "slug": slugify(name),
+            "slug": full_slug,
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
             "mode": enriched.get('modality'),
             "duration": enriched.get('duration_text'),
             "description_long": enriched.get('ai_summary'),
-            "requirements": ", ".join(enriched.get('requirements', [])),
-            "certification": ", ".join(enriched.get('certifications', [])),
+            "requirements": list_to_str(enriched.get('requirements')),
+            "certification": list_to_str(enriched.get('certifications')),
             "course_type": enriched.get('degree_type'),
-            "category": enriched.get('categories')[0] if enriched.get('categories') else None,
+            "category": enriched.get('categories')[0] if enriched.get('categories') and isinstance(enriched.get('categories'), list) else None,
             "is_active": True,
             "last_scraped_at": "now()"
         }
