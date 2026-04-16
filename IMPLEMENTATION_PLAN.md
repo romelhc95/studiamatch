@@ -1,9 +1,9 @@
 # Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
 ## Contexto de Trabajo (WORKING-CONTEXT)
-- **Estado Actual**: Fase 31 (Iniciada). Configurando TIER 1: Desarrollo.
-- **Último Hito**: Auditoría de datos "Gold Standard" completada.
-- **Próxima Acción**: Configurar secretos de GitHub para el ambiente Desarrollo.
+- **Estado Actual**: Fase 31 (TIER 1 - Desarrollo) ✅ ESTABILIZADO.
+- **Último Hito**: IA Multi-Cloud (100 cursos/batch) operativa y gratuita.
+- **Próxima Acción**: Iniciar configuración TIER 2 (Certificación).
 
 ---
 
@@ -171,26 +171,25 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 4. **Auditoría de Salud de Rutas**: Ejecutado script de integridad validando que el 100% de las rutas dinámicas resuelven correctamente sin errores "Lo sentimos...". [x] Completado
 5. **Reporte Formal**: Actualizado [reporte_duplicidad_integridad.md](file:///c:/Users/Romel/Proyectos/studiamatch/docs/qa-engineer/reporte_duplicidad_integridad.md). [x] Completado
 
-## Fase 30: Automatización Core Flow (CI/CD + AI) [/] En curso
-1. **Investigación de Costos LLM**: Evaluados Cloudflare Workers AI (10k neurons free) y GitHub Models (Beta Gratis). [x] Completado
+### Fase 30: Automatización Core Flow (CI/CD + AI) [x] COMPLETADO
+1. **Investigación de Costos LLM**: Cloudflare (10k neurons gratis) vs GitHub Models. [x] Completado.
 2. **Infraestructura de GitHub Actions**:
-   - [x] Creado `.github/workflows/daily_ingestion.yml` para flujo diario automatizado.
-   - [ ] Configurar Secrets en el repositorio (SUPABASE_URL, GH_MODELS_TOKEN). [ ] Pendiente
-3. **Worker de Enriquecimiento (LLM)**:
-   - [ ] Adaptar `llm_enrichment_worker.py` para compatibilidad con la API de GitHub Models. [ ] Pendiente
-4. **Estrategia de Low-Cost**: Implementar balanceo de carga para rotar entre modelos gratuitos en caso de cuota agotada. [ ] Pendiente
+   - [x] `.github/workflows/daily_ingestion.yml` activo en rama `desarrollo`.
+   - [x] Secrets configurados en Environment `Development`.
+3. **Estrategia "Data Drip" (IA Multi-Cloud)**:
+   - [x] Límite dinámico (100 cursos: 50 CF + 50 GH/Gemini).
+   - [x] Filtro de calidad (Min 150 chars en descripción).
+   - [x] Fallback automático anti-429 (Cloudflare -> GitHub -> Gemini).
 
-## Fase 31: Migración a Supabase Pro (Producción) [ ] Pendiente
-1. **Aprovisionamiento de Cuenta Pro** (Admin Console)
-   - Acción: Actualizar la organización actual al plan Pro.
-2. **Setup de Branching en Supabase** (Dashboard)
-   - Acción: Activar 'Supabase Branching' para que `certificacion` y `desarrollo` puedan tener sus propios aislados si es necesario, o mantener proyectos separados.
-3.   - [x] Certificación de Calidad de Datos (Auditoría "Gold Standard"). [x] Completado
-   - [ ] **Configuración de TIER 1 (Desarrollo)**:
-     - Acción: El usuario debe crear el Environment `Development` en GitHub.
-     - Acción: Agregar Secrets al Environment: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (del proyecto Free actual).
-     - Acción: Agregar Secrets Globales (si no están): `CF_API_TOKEN`, `CF_ACCOUNT_ID` (para Cloudflare Workers AI).
-   - `PROD_SUPABASE_URL`: Proyecto Pro (Main).
+## Fase 31: Estabilización TIER 1 (Desarrollo) [x] COMPLETADO
+- [x] Configuración de Environments en GitHub.
+- [x] Validación de 100% de éxitos en batch de enriquecimiento.
+- [x] Documentación técnica en `docs/deployment/deploy_desarrollo.md`.
+
+## Fase 32: Configuración TIER 2 (Certificación) [/] EN CURSO
+- [ ] Creación de proyecto Supabase aislado para QA/Certificación.
+- [ ] Configuración de secretos en Environment `Certification`.
+- [ ] Merge de rama `desarrollo` -> `certificacion`.
 
 ## Fase 32: Migración de Datos y Esquema [ ] Pendiente
 1. **Sincronización de Esquema** (DB Migration)
