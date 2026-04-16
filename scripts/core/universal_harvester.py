@@ -340,13 +340,26 @@ class UniversalHarvester:
 
 async def main():
     if len(sys.argv) < 2:
-        logger.error("No institution JSON provided.")
+        logger.error("Usage: python universal_harvester.py '<json_string>' or python universal_harvester.py --file <path_to_json>")
         return
 
-    try:
-        inst_data = json.loads(sys.argv[1])
-    except Exception as e:
-        logger.error(f"Error parsing institution data: {e}")
+    inst_data = None
+    if sys.argv[1] == "--file" and len(sys.argv) > 2:
+        try:
+            with open(sys.argv[2], 'r') as f:
+                inst_data = json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading file {sys.argv[2]}: {e}")
+            return
+    else:
+        try:
+            inst_data = json.loads(sys.argv[1])
+        except Exception as e:
+            logger.error(f"Error parsing institution JSON string: {e}")
+            return
+
+    if not inst_data:
+        logger.error("No valid institution data provided.")
         return
 
     harvester = UniversalHarvester(inst_data)
