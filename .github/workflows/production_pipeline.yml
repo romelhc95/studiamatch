@@ -11,8 +11,7 @@ jobs:
   harvesting:
     name: "1. Discovery & Harvesting"
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    environment: Production
     steps:
       - uses: actions/checkout@v4
       
@@ -37,8 +36,7 @@ jobs:
     name: "2. AI Enrichment (14 Pillars)"
     needs: harvesting
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    environment: Production
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -63,8 +61,7 @@ jobs:
     name: "3. Integrity & ROI Audit"
     needs: ia_enrichment
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    environment: Production
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
