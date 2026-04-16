@@ -12,13 +12,15 @@ export async function generateMetadata({ params }: { params: Promise<{ instituti
 }
 
 export const dynamic = 'force-static';
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
+  const defaultPath = [{ institution: 'pucp', slug: 'estudios-generales' }];
+  
   try {
-    // Si no hay variables de entorno, no intentamos el fetch para evitar errores de URL inválida
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      console.warn("Skipping dynamic params generation: Missing environment variables.");
-      return [];
+      console.warn("⚠️ No environment variables found for static generation. Using defaults.");
+      return defaultPath;
     }
 
     const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
@@ -29,26 +31,27 @@ export async function generateStaticParams() {
       next: { revalidate: 3600 }
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) return defaultPath;
 
     const courses = await response.json();
-    if (!Array.isArray(courses)) return [];
+    if (!Array.isArray(courses) || courses.length === 0) return defaultPath;
 
-    return courses
+    const paths = courses
       .filter((c: any) => c.slug && c.institutions?.slug)
       .map((c: any) => ({
         institution: cleanSlug(c.institutions.slug),
         slug: cleanSlug(c.slug, c.url)
       }));
+
+    return paths.length > 0 ? paths : defaultPath;
   } catch (error) {
-    console.error("Error generating static params:", error);
-    return [];
+    console.error("❌ Error generating static params:", error);
+    return defaultPath;
   }
 }
 
 export default async function CourseDetailPage(props: { params: Promise<{ institution: string, slug: string }> }) {
-  const params = await props.params;
-  const { institution, slug } = params;
+  const { institution, slug } = await props.params;
   if (!slug || !institution) return null;
 
   return (
