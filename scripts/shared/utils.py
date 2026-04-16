@@ -1,4 +1,19 @@
 import re
+import unicodedata
+
+def slugify(text):
+    """
+    Standardizes a string into a URL-friendly slug.
+    Normalizes unicode (NFD) to handle characters like 'í' -> 'i'.
+    """
+    if not text:
+        return ""
+    text = unicodedata.normalize('NFD', text)
+    text = text.encode('ascii', 'ignore').decode('utf-8')
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9-]', '-', text)
+    text = re.sub(r'-+', '-', text)
+    return text.strip('-')
 
 def standardize_mode(mode_str):
     """

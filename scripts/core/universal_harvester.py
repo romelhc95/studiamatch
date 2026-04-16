@@ -294,8 +294,16 @@ class UniversalHarvester:
         try:
             inst_id = self.institution.get('id')
             
-            course_slug = item['name'].lower().replace(" ", "-").replace("/", "-")[:250]
-            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug)
+            import unicodedata
+            def slugify(text):
+                text = unicodedata.normalize('NFD', text)
+                text = text.encode('ascii', 'ignore').decode('utf-8')
+                text = text.lower()
+                text = re.sub(r'[^a-z0-9-]', '-', text)
+                text = re.sub(r'-+', '-', text)
+                return text.strip('-')
+
+            course_slug = slugify(item['name'])[:250]
 
             course_data = {
                 "institution_id": inst_id,

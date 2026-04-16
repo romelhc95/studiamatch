@@ -28,7 +28,7 @@ function CompareContent() {
 
     const fetchCourses = async () => {
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=*,institutions(name),categories(name)`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=*,institutions(name,slug),categories(name)`, {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
@@ -42,6 +42,7 @@ function CompareContent() {
           .map(c => ({
             ...c,
             institution_name: c.institutions?.name || "StudIAMatch",
+            institution_slug: c.institutions?.slug || "general",
             category: c.categories?.name || c.category
           }));
           
@@ -185,12 +186,12 @@ function CompareContent() {
 
               {/* Action Buttons */}
               <div className="p-8 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-brand-gray/30 dark:border-white/10 flex flex-col gap-3">
-                <Link href={`/courses/${course.slug}`} className="w-full">
+                <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="w-full">
                   <Button className="w-full bg-brand-mint hover:bg-brand-mint/90 text-brand-slate font-black h-14 rounded-2xl shadow-lg shadow-brand-mint/10 border-0 uppercase tracking-widest text-xs">
                     Solicitar Info
                   </Button>
                 </Link>
-                <Link href={`/courses/${course.slug}`} className="w-full">
+                <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="w-full">
                   <Button variant="outline" className="w-full text-[10px] font-black h-12 rounded-2xl border-brand-gray/50 hover:bg-brand-blue/5 hover:text-brand-blue hover:border-brand-blue transition-all uppercase tracking-widest">
                     Ver Detalle Programa
                   </Button>
