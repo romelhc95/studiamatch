@@ -19,8 +19,12 @@ logger = logging.getLogger("SyncVectorWorker")
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.error("❌ CRITICAL ERROR: SUPABASE_URL or SUPABASE_KEY is not set.")
+    sys.exit(1)
 
 class SyncVectorWorker:
     def __init__(self):
