@@ -14,8 +14,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 # API Keys
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_MODELS_TOKEN")
+GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN") or os.getenv("GITHUB_MODELS_TOKEN")
 CF_API_TOKEN = os.getenv("CF_API_TOKEN") or os.getenv("CLOUDFLARE_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID") or os.getenv("CLOUDFLARE_ACCOUNT_ID")
 
@@ -127,9 +127,10 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
     # Orden de prioridad para el Golden Pipeline gratuito/bajo costo
     providers_queue = []
     if provider == "auto":
+        # Cascada inteligente: Primero el más barato/rápido
         providers_queue = [
-            ("github", call_github_models),
             ("cloudflare", call_cloudflare),
+            ("github", call_github_models),
             ("gemini", call_gemini)
         ]
     elif provider == "github": providers_queue = [("github", call_github_models)]
@@ -139,30 +140,36 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
     for p_name, p_func in providers_queue:
         try:
             response_text = p_func(prompt)
-            if response_text:
-                json_match = re.search(r"(\{.*\})", response_text, re.DOTALL)
-                if json_match:
-                    try:
-                        data = json.loads(json_match.group(1))
-                        # Mapeo correcto a las columnas reales de la base de datos
-                        duration_val = data.get("duration_value", "")
-                        duration_unit = data.get("duration_unit", "Semanas")
-                        full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
+            if not response_text: continue
+            
+            # Limpieza agresiva de JSON
+            json_match = re.search(r"(\{.*\})", response_text, re.DOTALL)
+            if json_match:
+                try:
+                    raw_json = json_match.group(1)
+                    # Limpiar saltos de línea internos en strings y comas colgadas
+                    clean_json = re.sub(r',\s*\}', '}', raw_json)
+                    data = json.loads(clean_json)
+                    
+                    # Mapeo a DB
+                    duration_val = data.get("duration_value", "")
+                    duration_unit = data.get("duration_unit", "Semanas")
+                    full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
 
-                        import time
-                        time.sleep(1.5) # Anti-429
-                        
-                        return {
-                            "objectives": data.get("objectives", ""),
-                            "target_audience": data.get("target_audience", ""),
-                            "syllabus": data.get("syllabus", ""),
-                            "seniority_level": data.get("seniority", "Junior"),
-                            "duration": full_duration
-                        }
-                    except Exception as e:
-                        print(f"  [Parse Error] JSON inválido: {e}")
-                else:
-                    print(f"  [Parse Error] No se encontró bloque JSON")
+                    import time
+                    time.sleep(1) # Throttle anti-429
+                    
+                    return {
+                        "objectives": data.get("objectives", ""),
+                        "target_audience": data.get("target_audience", ""),
+                        "syllabus": data.get("syllabus", ""),
+                        "seniority_level": data.get("seniority", "Junior"),
+                        "duration": full_duration
+                    }
+                except Exception as e:
+                    print(f"  [Parse Error] JSON inválido en {p_name}: {e}")
+            else:
+                print(f"  [Parse Error] No JSON en {p_name}")
         except Exception as e:
             print(f"  [Provider Error] {p_name}: {e}")
             continue

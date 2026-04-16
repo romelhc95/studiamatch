@@ -36,7 +36,9 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: python scripts/core/llm_enrichment_worker.py --provider cloudflare
+          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/core/llm_enrichment_worker.py --provider auto
 
       - name: Run Integrity Audit
         env:
