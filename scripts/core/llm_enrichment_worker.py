@@ -161,7 +161,10 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
 def update_course_metadata(course_id: str, updates: dict) -> bool:
     url = f"{SUPABASE_URL}/rest/v1/courses?id=eq.{course_id}"
     res = requests.patch(url, headers=headers, json=updates)
-    return res.status_code in [200, 204]
+    if res.status_code not in [200, 204]:
+        print(f"    [Supabase Error] Status {res.status_code}: {res.text}")
+        return False
+    return True
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
