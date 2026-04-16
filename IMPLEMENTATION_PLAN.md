@@ -249,7 +249,234 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
    - Acción: Habilitar los flujos de `daily_ingestion.yml` apuntando al entorno de producción.
 3. **Cierre de Ciclo y Documentación** (Docs)
    - [x] Generadas guías de despliegue por ambiente en `docs/deployment/`. [x] Completado
-   - [ ] Actualizar `README.md` con las URLs definitivas y manual de mantenimiento. [ ] Pendiente
+ ## Fase 35: Reingeniería de Calidad de Datos (Raw Harvesting) [/] En curso
+1. **Infraestructura de Staging**:
+   - [x] Crear tabla `harvesting` para almacenamiento de data bruta (URL, HTML, Metatags). [x] Completado
+   - [x] Implementar estados: `pending`, `processed`, `discarded`, `error`. [x] Completado
+2. **Refactor de Universal Harvester**:
+   - [x] Separar lógica de descubrimiento de la de guardado final. [x] Completado
+   - [x] Guardar data "en bruto" en `harvesting` sin normalización agresiva. [x] Completado
+   - [x] Optimización de Gran Volumen (Capacidad 500,000 chars). [x] Completado
+3. **Desarrollo del Processor Intelligen (The Curator)**:
+   - [x] Crear `scripts/core/harvest_processor.py` para depuración quirúrgica. [x] Completado
+## Pasos de Implementación
+
+### Fase 1 a 10: Cimentación y Rediseño [x] Completado
+- Todas las tareas certificadas.
+
+### Fase 11: Escalamiento Progresivo y Triaje [x] Completado
+- [x] Rescate de Brochures PDF y normalización de duraciones.
+
+### Fase 12: Inteligencia de Recomendación y Social Proof [x] Completado
+- [x] Sistema de Ratings y Reviews operativo en Supabase y Web.
+- [x] Motor de Recomendación por Categoría verificado.
+
+### Fase 13: Escalamiento Nacional e Infraestructura [x] Completado
+1. **Nivel 1: Descubrimiento (Monthly Discovery)** [x] Completado
+   - [x] `scripts/core/discovery_institutions.py`: Crawler funcional y conectado a Supabase.
+2. **Nivel 2: Carga Maestra (Weekly Master Load)** [x] Completado
+   - [x] `scripts/core/master_orchestrator.py`: Balanceador de carga certificado.
+3. **Nivel 3: Integridad (Daily Integrity Ping)** [x] Completado
+   - [x] `scripts/core/integrity_ping.py`: Motor 404 con lógica de gracia de 3 días operativo.
+4. **Optimización de Búsqueda (Fuzzy Search)** [x] Completado
+   - [x] Búsqueda difusa activa en producción.
+
+### Fase 14: Garantía de Calidad y Humo de Datos [x] Completado
+- [x] Auditoría de 14 pilares y eliminación de data acumulada en UI.
+
+### Fase 15: Testeo de Usuario y Funcionalidad E2E [x] Completado
+- [x] Corregido bug de botón de reseñas y habilitadas políticas RLS.
+
+### Fase 16: Saneamiento de Huérfanos y Expansión Taxonómica [x] Completado
+- [x] Implementadas 5 categorías: Finanzas, Ingeniería, Arte, Derecho, Marketing.
+- [x] Cero cursos en categoría 'General'. Catálogo 100% autónomo.
+
+### Fase 17: Refinamiento UX y Comparativa Avanzada [x] Completado
+...
+### Fase 18: Inteligencia Financiera (ROI & Salarios) [x] Completado
+1. **Matriz de Salarios de Mercado (Perú 2026)** [x] Completado.
+2. **Motor de Inferencia de Nivel de Curso** [x] Completado (Jr/Mid/Sr poblados).
+3. **Automatización del Cálculo de ROI** [x] Completado (Fórmula dinámica activa).
+4. **UI de Transparencia Financiera** [x] Completado (Nota de fuente de datos integrada).
+
+### Fase 19: Auditoría de Coherencia y Calidad Final [x] Completado
+- Acción: Ejecutado `taxonomy_roi_audit.py`. Reducción de 140 a 0 inconsistencias.
+- Resultado: Catálogo 100% veraz y sincronizado para producción.
+
+## Fase 20: Certificación de Producción Autónoma [x] Completado
+1. **Saneamiento Quirúrgico**: Truncado de tablas `courses`, `institutions`, `leads`, `ratings`, `reviews` (Preservando `market_salaries` y `categories`). [x] Completado
+2. **Descubrimiento Nacional (Nivel 1)**: Ejecución de `discovery_institutions.py` para identificar ~10 nuevos cursos/instituciones. [x] Completado
+3. **Desarrollo de Harvesters (Nivel 2)**: Creación e implementación de scrapers específicos para la muestra descubierta. [x] Completado
+4. **Orquestación y Enriquecimiento**: Ejecución del `master_orchestrator.py` y `llm_enrichment_worker.py` para la muestra. [x] Completado
+5. **Auditoría Final de Integridad**: Validar 0 inconsistencias y 100% de coherencia financiera/taxónomica. [x] Completado
+6. **Firma Digital**: Certificación final de la arquitectura y despliegue en entornos productivos. [x] Completado
+
+## Fase 22: Automatización de Producción (Golden Pipeline) [/] Pendiente
+1. **Infraestructura de GitHub Actions**:
+   - [ ] Crear `.github/workflows/production_pipeline.yml` con 3 niveles de ejecución. [ ] Pendiente
+   - [ ] Configurar schedules: Diario (05:00), Semanal (Dom 02:00), Mensual (1ero 00:00). [ ] Pendiente
+2. **Motor de Ejecución en Paralelo**:
+   - [ ] Crear `scripts/core/worker_runner.py` para consumo dinámico de la matriz. [/] En curso
+   - [ ] Validar compatibilidad de Harvesters con entorno headless. [ ] Pendiente
+3. **Persistencia y Seguridad**:
+   - [ ] Documentar requerimiento de Secrets (SUPABASE_SERVICE_ROLE_KEY). [ ] Pendiente
+   - [ ] Habilitar `pg_trgm` en base de datos de producción. [ ] Pendiente
+
+## Fase 23: Rebranding Total a StudIAMatch [x] Completado
+1. **Identidad Visual y Textual**:
+   - [x] Actualizar `README.md` con la nueva narrativa de marca StudIAMatch. [x] Completado
+   - [x] Actualizar `IMPLEMENTATION_PLAN.md` y documentos de arquitectura. [x] Completado
+   - [x] Reemplazo masivo de "Yachachiy" por "StudIAMatch" en todo el codebase (scripts, web, tests). [x] Completado
+2. **Componentes UI (Web)**:
+   - [x] Actualizar Logo de "Yachachiy" a diseño "SM". [x] Completado
+   - [x] Actualizar títulos de página, meta-tags y textos de footer/header. [x] Completado
+   - [x] Ajustar gradientes o colores si es necesario para la nueva identidad. [x] Completado
+3. **Persistencia y Pipelines**:
+   - [x] Actualizar nombres de servicios en scripts y logs. [x] Completado
+   - [x] Verificar que no queden referencias en comentarios o documentación técnica. [x] Completado
+
+## Fase 24: Rediseño Minimalista y Compacto [x] Completado
+1. **Header & Navigation**:
+   - [x] Reducir altura del Header y optimizar branding. [x] Completado
+   - [x] Tipografía más nítida y espaciado compacto. [x] Completado
+2. **Hero Section (Concepto StudIAMatch)**:
+   - [x] Rediseño minimalista del Hero con el slide "StudIAMatch · Data-driven decisions". [x] Completado
+   - [x] Mejora de la barra de búsqueda (más compacta y moderna). [x] Completado
+3. **Catálogo y Filtros**:
+   - [x] Optimizar sidebar de filtros para que sea más sutil y funcional. [x] Completado
+   - [x] Nuevas tarjetas de curso minimalistas con mejor jerarquía visual. [x] Completado
+4. **Footer & Secciones Informativas**:
+   - [x] Compactar Footer manteniendo enlaces clave. [x] Completado
+   - [x] Pulir secciones "Cómo Funciona" y "Nosotros" con estética plana y moderna. [x] Completado
+
+## Fase 25: Validación Funcional E2E [x] Completado
+1. **Auditoría de Navegación**: Validar scroll suave y anclas de Header. [x] Completado
+2. **Test de Detalle de Curso**: Verificar sección de ROI y formulario de captura. [x] Completado
+3. **Auditoría de Marca**: Confirmar 0 residuos de marca anterior en UI. [x] Completado
+4. **Generación de Reporte**: Documentar hallazgos en `docs/qa-engineer/`. [x] Completado
+
+## Fase 26: Auditoría de Rutas y Coherencia v2 [x] Completado
+1. **Validación de Rutas Dinámicas**: Confirmar formato `/courses/[institution]/[slug]` en Home y Detalle. [x] Completado
+2. **QA de Integridad de Datos**: Ejecutar `quality_assurance_audit.py` para coherencia en BD. [x] Completado
+3. **Pruebas de Carga Directa**: Validar rutas específicas (ej: upc/psicologia). [x] Completado
+4. **Actualización de E2E**: Ajustar `mobile_usability.spec.ts` para nuevas rutas y ejecutar. [x] Completado
+5. **Reporte Final**: Generar `docs/qa-engineer/reporte_funcionalidad_v2.md`. [x] Completado
+
+## Fase 27: Resolución de Colisión de Slugs e Infraestructura de Rutas [x] Completado
+1. **Rediseño de Esquema de URLs**: Migración de `/courses/[slug]` a `/courses/[institution]/[slug]` para garantizar unicidad. [x] Completado
+2. **Refactorización de Componentes**:
+   - [x] `CourseDetailClient.tsx`: Búsqueda dual por slug de curso e institución. [x] Completado
+   - [x] `page.tsx` (Home): Construcción dinámica de enlaces con `institution_slug`. [x] Completado
+   - [x] `compare/page.tsx`: Actualización de enlaces de "Ver Detalle". [x] Completado
+3. **Optimización de Backend (Scripts)**:
+   - [x] `scripts/shared/utils.py`: Mejora de `slugify` con soporte Unicode/NFD para tildes y ñ. [x] Completado
+   - [x] `UniversalHarvester`: Integración de la nueva lógica de saneamiento de slugs. [x] Completado
+4. **Validación de Datos**: Confirmación de que el 100% de los cursos auditados poseen la relación necesaria con su institución para el nuevo ruteo. [x] Completado
+
+## Fase 28: Robustez de API y Manejo de Errores [x] Completado
+1. **Saneamiento de Fetches en Cliente**:
+   - [x] `CourseDetailClient.tsx`: Implementado escape de parámetros con `encodeURIComponent` en todas las rutas de API.
+   - [x] Implementada lógica `try-catch` robusta con validación de estados `response.ok`.
+2. **Optimización de Búsqueda Parcial**:
+   - [x] Corregida sintaxis de `ilike` para PostgREST (uso de `*` como comodín en lugar de `%` en la URL).
+3. **Validación de Datos en Social Proof**:
+   - [x] Añadida validación de nulidad para `category_id` y manejo de arrays vacíos en recomendaciones.
+
+## Fase 29: Auditoría de De-duplicación e Integridad de URLs [x] Completado
+1. **Filtro de Unicidad en Frontend**: Implementada lógica en `page.tsx` para de-duplicar por `(institution, url)`. [x] Completado
+2. **Sistema de Priorización**: En caso de duplicidad, se selecciona automáticamente el registro tipo 'Programa' sobre 'Curso'. [x] Completado
+3. **Búsqueda Resiliente (Multi-Strategy Lookup)**: Implementada lógica en `CourseDetailClient` que busca por (1) Slug exacto, (2) Coincidencia en URL y (3) Búsqueda difusa. Esto soluciona problemas de tildes o caracteres corruptos en la DB. [x] Completado
+4. **Auditoría de Salud de Rutas**: Ejecutado script de integridad validando que el 100% de las rutas dinámicas resuelven correctamente sin errores "Lo sentimos...". [x] Completado
+5. **Reporte Formal**: Actualizado [reporte_duplicidad_integridad.md](file:///c:/Users/Romel/Proyectos/studiamatch/docs/qa-engineer/reporte_duplicidad_integridad.md). [x] Completado
+
+### Fase 30: Automatización Core Flow (CI/CD + AI) [x] COMPLETADO
+1. **Investigación de Costos LLM**: Cloudflare (10k neurons gratis) vs GitHub Models. [x] Completado.
+2. **Infraestructura de GitHub Actions**:
+   - [x] `.github/workflows/daily_ingestion.yml` activo en rama `desarrollo`.
+   - [x] Secrets configurados en Environment `Development`.
+3. **Estrategia "Data Drip" (IA Multi-Cloud)**:
+   - [x] Límite dinámico (100 cursos: 50 CF + 50 GH/Gemini).
+   - [x] Filtro de calidad (Min 150 chars en descripción).
+   - [x] Fallback automático anti-429 (Cloudflare -> GitHub -> Gemini).
+
+### Fase 31: Estabilización TIER 1 (Desarrollo) [x] COMPLETADO
+- [x] Configuración de Environments en GitHub.
+- [x] Validación de 100% de éxitos en batch de enriquecimiento (Triple-Cloud).
+- [x] Estabilización Visual (JSON parsing & Unicode) en `CourseDetailClient.tsx`
+- [x] Configuración de Pipeline Automático Zero-Touch (Root: /web, Output: out)
+- [x] Limpieza y Documentación de Tier 1 completada
+
+### Fase 31.5: Configuración de Visualización y Taxonomía [x] COMPLETADO
+- [x] Guía paso a paso para Cloudflare Dashboard.
+- [x] Validación de estructura URL oficial: `/courses/[institution]/[slug]`.
+- [x] Eliminación de colisiones de rutas antiguas (`[slug]`).
+- [x] Despliegue automático 100% verificado en Cloudflare.
+
+## Fase 32: Migración de Datos y Esquema [ ] Pendiente
+1. **Sincronización de Esquema** (DB Migration)
+   - Acción: Usar `supabase db pull` del proyecto actual y `supabase db push` al nuevo.
+   - Dependencias: Fase 31.
+   - Riesgo: Medio (Validar RLS y extensiones como `pg_trgm`).
+2. **Migración de Datos Maestros** (SQL / CSV)
+   - Acción: Migrar tablas de referencia: `categories`, `market_salaries`.
+   - Acción: Migrar datos operativos sanitizados: `institutions`, `courses`.
+3. **Auditoría de Integridad en Producción** (Script)
+   - Acción: Ejecutar `quality_assurance_audit.py` apuntando al nuevo proyecto.
+
+## Fase 33: Dominios y Cloudflare (studiamatch.com) [ ] Pendiente
+1. **Configuración de Cloudflare Pages**:
+   - `main branch` -> Dominio: `studiamatch.com` (Vía Hostinger CNAME/A).
+   - `certificacion branch` -> Dominio: `cert.studiamatch.com` o similar.
+   - `desarrollo branch` -> Dominio: `studiamatch.pages.dev`.
+2. **Propagación DNS y SSL**:
+   - Acción: Validar certificados SSL gestionados por Cloudflare para los 3 niveles.
+   - Acción: Configurar redireccionamientos de seguridad HSTS.
+3. **Custom Domain en Supabase**:
+   - Acción: Configurar Custom Domain en Supabase para `db.studiamatch.com` (Opcional, Pro feature).
+4. **Optimización de Seguridad y Performance** (Cloudflare)
+   - Acción: Habilitar Proxy (naranja), SSL Full (Strict), y reglas de WAF básicas.
+   - Acción: Configurar redirección de `www` a non-www.
+
+## Fase 34: Lanzamiento y Certificación Final [ ] Pendiente
+1. **Smoke Tests en Producción** (Web)
+   - Acción: Validar flujo completo desde Home hasta Detalle y Social Proof en el dominio final.
+2. **Activación de Pipelines Automáticos** (GitHub Actions)
+   - Acción: Habilitar los flujos de `daily_ingestion.yml` apuntando al entorno de producción.
+3. **Cierre de Ciclo y Documentación** (Docs)
+   - [x] Generadas guías de despliegue por ambiente en `docs/deployment/`. [x] Completado
+ ## Fase 35: Reingeniería de Calidad de Datos (Raw Harvesting) [/] En curso
+1. **Infraestructura de Staging**:
+   - [x] Crear tabla `harvesting` para almacenamiento de data bruta (URL, HTML, Metatags). [x] Completado
+   - [x] Implementar estados: `pending`, `processed`, `discarded`, `error`. [x] Completado
+2. **Refactor de Universal Harvester**:
+   - [x] Separar lógica de descubrimiento de la de guardado final. [x] Completado
+   - [x] Guardar data "en bruto" en `harvesting` sin normalización agresiva. [x] Completado
+   - [x] Optimización de Gran Volumen (Capacidad 500,000 chars). [x] Completado
+3. **Desarrollo del Processor Intelligen (The Curator)**:
+   - [x] Crear `scripts/core/harvest_processor.py` para depuración quirúrgica. [x] Completado
+   - [ ] Implementar heurística anti-slogan (detectar "Descubre nuestras carreras", "404", etc.). [/] En curso
+   - [ ] Flujo de promoción: `harvesting` -> Enriquecimiento -> `courses`. [ ] Pendiente
+4. **Validación de la Muestra en Conflictos**:
+   - [ ] Re-procesar URL de UPC Marketing para validar limpieza automática del nombre. [/] En curso
+
+ ## Fase 36: Pipeline de Datos de Alta Fidelidad (ETL StudIAMatch) [/] En curso
+1. **Infraestructura de Datos (Estaciones 1-4)**:
+   - [x] Crear tabla `staging_raw` (Data bruta, HTML, Metatags). [x] Completado
+   - [x] Crear tabla `cleansed_programs` (Data limpia, tipada, sin slogans). [x] Completado
+   - [x] Crear tabla `enriched_programs` (14 pilares extraídos por IA). [x] Completado
+   - [x] Habilitar `pgvector` para búsqueda semántica. [x] Completado
+2. **Motor de Limpieza (Stage 2)**:
+   - [x] Crear `cleansing_worker.py` para mover de Staging a Cleansed. [x] Completado
+   - [x] Implementar deduplicación multi-sede (Arequipa != Lima). [x] Completado
+   - [x] Validador de nombres y exclusión de headers institucionales. [x] Completado
+3. **Motor de Inteligencia (Stage 3 - 14 Pilares)**:
+   - [x] Crear `enrichment_worker.py` para mover de Cleansed a Enriched. [x] Completado
+   - [/] Extracción obligatoria de: Precio, Duración, Malla, Grado, Requisitos, etc. [/] En curso (Mocked)
+   - [ ] Lógica de re-intento para campos nulos. [ ] Pendiente
+4. **Sincronización y Vectorización (Stage 4)**:
+   - [x] Crear `sync_vector_worker.py` para sincronizar a producción. [x] Completado
+   - [/] Migración final a `courses` y generación de embeddings. [/] En curso
+
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Pérdida de usabilidad por exceso de minimalismo. -> Mitigación: Mantener contrastes altos y botones de acción claros.
