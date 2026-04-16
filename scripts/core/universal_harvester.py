@@ -49,62 +49,106 @@ class UniversalHarvester:
 
     async def discover_courses(self, page):
         """
-        Attempts to find course URLs by crawling or checking sitemaps.
+        Attempts to find course URLs by checking sitemaps and recursive crawling.
         """
         start_url = self.institution.get('website_url')
         if not start_url:
             logger.error(f"No website URL for institution: {self.institution.get('name')}")
             return []
 
-        logger.info(f"Starting discovery for {self.institution.get('name')} at {start_url}")
+        logger.info(f"Starting MASSIVE discovery for {self.institution.get('name')} at {start_url}")
         
-        # 1. Try common paths for education programs
-        common_paths = [
-            "/oferta-academica", "/cursos", "/diplomados", "/posgrado", 
-            "/programas", "/educacion-continua", "/extension-universitaria"
+        # 1. Try Sitemap Discovery (Fastest)
+        sitemap_urls = await self._discover_via_sitemap(start_url)
+        if sitemap_urls:
+            logger.info(f"Sitemap discovery found {len(sitemap_urls)} URLs.")
+            self.course_urls.update(sitemap_urls)
+
+        # 2. Recursive Crawling (BFS) - if needed or to supplement
+        if len(self.course_urls) < 10:
+            logger.info("Sitemap insufficient. Starting recursive BFS crawl...")
+            await self._recursive_crawl(page, start_url, max_depth=2)
+
+        logger.info(f"Total discovery found {len(self.course_urls)} potential course URLs.")
+        return list(self.course_urls)
+
+    async def _discover_via_sitemap(self, base_url):
+        """Tries to locate and parse sitemaps."""
+        sitemaps = [
+            urljoin(base_url, "/sitemap.xml"),
+            urljoin(base_url, "/sitemap_index.xml")
         ]
         
-        to_check = [start_url]
-        for path in common_paths:
-            to_check.append(urljoin(start_url, path))
-
-        for url in to_check:
+        found_urls = set()
+        for s_url in sitemaps:
             try:
-                logger.info(f"Checking {url}")
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(2)
+                logger.info(f"Trying sitemap: {s_url}")
+                response = requests.get(s_url, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'xml')
+                    locs = soup.find_all('loc')
+                    for loc in locs:
+                        url = loc.text.strip()
+                        if self._is_potential_course_url(url):
+                            found_urls.add(url)
+            except Exception as e:
+                logger.debug(f"Sitemap {s_url} not found or error: {e}")
+        return found_urls
+
+    async def _recursive_crawl(self, page, start_url, max_depth=2):
+        """Exploring the site using BFS to find courses."""
+        queue = [(start_url, 0)]
+        visited = {start_url}
+        
+        while queue:
+            current_url, depth = queue.pop(0)
+            if depth > max_depth or len(self.course_urls) > 500:
+                break
                 
-                # Extract links that look like courses
+            try:
+                logger.info(f"Crawling depth {depth}: {current_url}")
+                await page.goto(current_url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(1)
+                
                 links = await page.query_selector_all("a")
                 for link in links:
                     href = await link.get_attribute("href")
                     if not href: continue
                     
-                    full_url = urljoin(url, href)
-                    if self._is_potential_course_url(full_url):
-                        self.course_urls.add(full_url)
-                
-                if len(self.course_urls) > 50: # Limit discovery for a single run
-                    break
+                    full_url = urljoin(current_url, href).split('#')[0].rstrip('/')
+                    
+                    if full_url not in visited and self._is_internal_link(full_url):
+                        visited.add(full_url)
+                        
+                        if self._is_potential_course_url(full_url):
+                            self.course_urls.add(full_url)
+                        
+                        # Only continue crawling if it looks like a menu or catalog page
+                        if self._is_navigational_url(full_url):
+                            queue.append((full_url, depth + 1))
+                            
             except Exception as e:
-                logger.warning(f"Failed to check {url}: {e}")
+                logger.warning(f"Error crawling {current_url}: {e}")
 
-        logger.info(f"Discovery found {len(self.course_urls)} potential course URLs.")
-        return list(self.course_urls)
+    def _is_internal_link(self, url):
+        base_domain = urlparse(self.institution.get('website_url')).netloc
+        return urlparse(url).netloc == base_domain
+
+    def _is_navigational_url(self, url):
+        """Heuristic for pages that likely contain links to many courses."""
+        nav_keywords = ["carreras", "programas", "cursos", "oferta", "academica", "posgrado", "pregrado"]
+        return any(k in url.lower() for k in nav_keywords)
 
     def _is_potential_course_url(self, url):
         """Heuristic to identify course detail pages."""
-        # Must be same domain
-        base_domain = urlparse(self.institution.get('website_url')).netloc
-        if urlparse(url).netloc != base_domain:
+        if not self._is_internal_link(url): return False
+            
+        # Avoid assets and common junk
+        if any(url.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.zip', '.doc', '.docx', '.mp4']):
             return False
             
-        # Avoid assets
-        if any(url.endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.zip', '.doc']):
-            return False
-            
-        # Keywords in URL
-        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion"]
+        # Keywords in URL that strongly indicate a course detail
+        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion", "carrera", "pyp"]
         return any(k in url.lower() for k in keywords)
 
     async def scrape_course_detail(self, page, url):
@@ -317,11 +361,14 @@ async def main():
         
         urls = await harvester.discover_courses(page)
         
-        # Limit to 5 for universal harvester to avoid broad crawling in a single pass
-        # unless configured otherwise.
-        urls = urls[:10] 
+        # Increased limit for V2 Mass Discovery
+        # We process a larger batch to stay true to "ALL" URLs requirement
+        max_to_process = 100 
+        urls_to_process = urls[:max_to_process]
+        
+        logger.info(f"Preparing to scrape {len(urls_to_process)} out of {len(urls)} discovered URLs.")
 
-        for url in urls:
+        for url in urls_to_process:
             data = await harvester.scrape_course_detail(page, url)
             if data:
                 harvester.save_to_staging_raw(data)
