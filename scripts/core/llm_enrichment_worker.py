@@ -142,13 +142,17 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
             if response_text:
                 text = re.sub(r"```json|```", "", response_text).strip()
                 data = json.loads(text)
+                # Mapeo correcto a las columnas reales de la base de datos
+                duration_val = data.get("duration_value", "")
+                duration_unit = data.get("duration_unit", "Semanas")
+                full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
+
                 return {
                     "objectives": data.get("objectives", ""),
                     "target_audience": data.get("target_audience", ""),
                     "syllabus": data.get("syllabus", ""),
-                    "seniority": data.get("seniority", "Junior"),
-                    "duration_value": data.get("duration_value", ""),
-                    "duration_unit": data.get("duration_unit", "Semanas")
+                    "seniority_level": data.get("seniority", "Junior"),
+                    "duration": full_duration
                 }
         except:
             continue
