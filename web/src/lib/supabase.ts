@@ -32,10 +32,8 @@ export interface Course {
   category?: string;
   description_long?: string;
   objectives?: string;
-  learning_outcomes?: string;
   target_audience?: string;
   requirements?: string;
-  subcategory?: string;
   course_type?: string;
   brochure_url?: string;
   brochure_text?: string;

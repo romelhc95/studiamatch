@@ -10,9 +10,14 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## 🛠 Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 31 (TIER 1 - Desarrollo) ✅ ESTABILIZADO.
-- **Último Hito**: IA Multi-Cloud (100 cursos/batch) operativa y gratuita.
-- **Próxima Acción**: Iniciar configuración TIER 2 (Certificación).
+- **Estado Actual**: Fase 2.0 (TIER 2 - Certificación) ✅ CERTIFICADO.
+- **Último Hito**: Auditoría de Taxonomía con 0 errores y Golden Pipeline operativo.
+- **Próxima Acción**: Aprovisionamiento de Supabase Pro y despliegue en `studiamatch.com`.
+
+## 🚀 Hoja de Ruta: Lanzamiento Producción
+- [ ] **Migración de Schema**: Replicar tablas, RLS e índices en el proyecto Pro.
+- [ ] **Data Seeding**: Primer harvesting masivo para poblar la base de datos oficial.
+- [ ] **Domain Mapping**: Configurar DNS en Cloudflare para `studiamatch.com`.
 
 ---
 
@@ -173,6 +178,15 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
    - [x] `UniversalHarvester`: Integración de la nueva lógica de saneamiento de slugs. [x] Completado
 4. **Validación de Datos**: Confirmación de que el 100% de los cursos auditados poseen la relación necesaria con su institución para el nuevo ruteo. [x] Completado
 
+## Fase 28: Robustez de API y Manejo de Errores [x] Completado
+1. **Saneamiento de Fetches en Cliente**:
+   - [x] `CourseDetailClient.tsx`: Implementado escape de parámetros con `encodeURIComponent` en todas las rutas de API.
+   - [x] Implementada lógica `try-catch` robusta con validación de estados `response.ok`.
+2. **Optimización de Búsqueda Parcial**:
+   - [x] Corregida sintaxis de `ilike` para PostgREST (uso de `*` como comodín en lugar de `%` en la URL).
+3. **Validación de Datos en Social Proof**:
+   - [x] Añadida validación de nulidad para `category_id` y manejo de arrays vacíos en recomendaciones.
+
 ## Fase 29: Auditoría de De-duplicación e Integridad de URLs [x] Completado
 1. **Filtro de Unicidad en Frontend**: Implementada lógica en `page.tsx` para de-duplicar por `(institution, url)`. [x] Completado
 2. **Sistema de Priorización**: En caso de duplicidad, se selecciona automáticamente el registro tipo 'Programa' sobre 'Curso'. [x] Completado
@@ -236,15 +250,6 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 3. **Cierre de Ciclo y Documentación** (Docs)
    - [x] Generadas guías de despliegue por ambiente en `docs/deployment/`. [x] Completado
    - [ ] Actualizar `README.md` con las URLs definitivas y manual de mantenimiento. [ ] Pendiente
-
-## Fase 28: Robustez de API y Manejo de Errores [x] Completado
-1. **Saneamiento de Fetches en Cliente**:
-   - [x] `CourseDetailClient.tsx`: Implementado escape de parámetros con `encodeURIComponent` en todas las rutas de API.
-   - [x] Implementada lógica `try-catch` robusta con validación de estados `response.ok`.
-2. **Optimización de Búsqueda Parcial**:
-   - [x] Corregida sintaxis de `ilike` para PostgREST (uso de `*` como comodín en lugar de `%` en la URL).
-3. **Validación de Datos en Social Proof**:
-   - [x] Añadida validación de nulidad para `category_id` y manejo de arrays vacíos en recomendaciones.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Pérdida de usabilidad por exceso de minimalismo. -> Mitigación: Mantener contrastes altos y botones de acción claros.
