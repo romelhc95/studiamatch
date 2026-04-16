@@ -15,7 +15,7 @@ headers = {
 
 # Definición de los 14 Pilares para Auditoría
 PILLARS = [
-    "name", "mode", "address", "price_pen", "description", 
+    "name", "mode", "address", "price_pen", "description_long", 
     "duration", "start_date_text", "target_audience", "syllabus", 
     "brochure_url", "objectives", "requirements", "certification", "benefits"
 ]

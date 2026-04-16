@@ -19,11 +19,23 @@ def run_taxonomy_roi_audit():
     
     # 1. Obtener datos de referencia (Salarios de Mercado)
     res_salaries = requests.get(f"{SUPABASE_URL}/rest/v1/market_salaries?select=*", headers=headers)
-    market_map = {s['category_id']: s for s in res_salaries.json()}
+    salaries_data = res_salaries.json()
+    
+    if not isinstance(salaries_data, list):
+        print(f"❌ Error al obtener salarios: {json.dumps(salaries_data)}")
+        return
+        
+    market_map = {s['category_id']: s for s in salaries_data}
     
     # 2. Obtener todos los cursos activos
     res_courses = requests.get(f"{SUPABASE_URL}/rest/v1/courses?is_active=eq.true&select=id,name,category,category_id,expected_monthly_salary,roi_months,seniority_level,price_pen", headers=headers)
-    courses = res_courses.json()
+    courses_data = res_courses.json()
+    
+    if not isinstance(courses_data, list):
+        print(f"❌ Error al obtener cursos: {json.dumps(courses_data)}")
+        return
+        
+    courses = courses_data
     
     issues = []
     
