@@ -151,7 +151,12 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
                     clean_json = re.sub(r',\s*\}', '}', raw_json)
                     data = json.loads(clean_json)
                     
-                    # Mapeo a DB
+                    # Mapeo a DB (Convertir listas a strings limpios con saltos de línea)
+                    def clean_field(val):
+                        if isinstance(val, list):
+                            return "\n".join([f"- {str(i).strip()}" for i in val])
+                        return str(val).strip()
+
                     duration_val = data.get("duration_value", "")
                     duration_unit = data.get("duration_unit", "Semanas")
                     full_duration = f"{duration_val} {duration_unit}".strip() if duration_val else None
@@ -160,9 +165,9 @@ Responde ÚNICAMENTE con un JSON válido y minificado:
                     time.sleep(1) # Throttle anti-429
                     
                     return {
-                        "objectives": data.get("objectives", ""),
-                        "target_audience": data.get("target_audience", ""),
-                        "syllabus": data.get("syllabus", ""),
+                        "objectives": clean_field(data.get("objectives", "")),
+                        "target_audience": clean_field(data.get("target_audience", "")),
+                        "syllabus": clean_field(data.get("syllabus", "")),
                         "seniority_level": data.get("seniority", "Junior"),
                         "duration": full_duration
                     }
