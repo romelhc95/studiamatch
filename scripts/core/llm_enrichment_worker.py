@@ -178,7 +178,7 @@ def update_course_metadata(course_id: str, updates: dict) -> bool:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument("--limit", type=int, default=50)
     parser.add_argument("--provider", type=str, default="auto", choices=["auto", "github", "gemini", "cloudflare"])
     args = parser.parse_args()
 
@@ -186,16 +186,22 @@ if __name__ == "__main__":
     courses = get_courses_to_enrich(limit=args.limit)
     print(f"  → {len(courses)} cursos encontrados.")
 
-    success, error = 0, 0
+    success, error, skipped = 0, 0, 0
     for course in courses:
-        print(f"  → Procesando: {course['name'][:40]}...")
+        desc = course.get("description_long", "")
+        if not desc or len(desc) < 150:
+            print(f"  ⏭️ Saltando: Descripción muy corta ({len(desc) if desc else 0} chars)")
+            skipped += 1
+            continue
+
+        print(f"  → Procesando ({success+error+skipped+1}/{len(courses)}): {course['name'][:40]}...")
         enriched = enrich_course(course, args.provider)
         if enriched and update_course_metadata(course["id"], enriched):
             print(f"    ✅ OK")
             success += 1
         else:
-            print(f"    ❌ Error/Skip")
+            print(f"    ❌ Error")
             error += 1
-        time.sleep(2) # Throttle suave
+        time.sleep(1.5) # Throttle suave anti-429
 
-    print(f"\n[{datetime.now().isoformat()}] ✅ Finalizado. Éxitos: {success} | Errores: {error}")
+    print(f"\n[{datetime.now().isoformat()}] ✅ Finalizado. Éxitos: {success} | Errores: {error} | Saltados: {skipped}")
