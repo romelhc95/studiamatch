@@ -184,8 +184,9 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 ## Fase 31: Estabilización TIER 1 (Desarrollo) [x] COMPLETADO
 - [x] Configuración de Environments en GitHub.
 - [x] Validación de 100% de éxitos en batch de enriquecimiento (Triple-Cloud).
-- [x] Solución de visualización Unicode/JSON en detalle de curso.
-- [x] Documentación técnica en `docs/deployment/deploy_desarrollo.md`.
+- [x] Estabilización Visual (JSON parsing & Unicode) en `CourseDetailClient.tsx`
+- [x] Configuración de Pipeline Automático Zero-Touch (Root: /web, Output: out)
+- [x] Limpieza y Documentación de Tier 1 completada
 
 ## Fase 31.5: Configuración de Visualización Live [/] EN CURSO
 - [x] Guía paso a paso para Cloudflare Dashboard.
