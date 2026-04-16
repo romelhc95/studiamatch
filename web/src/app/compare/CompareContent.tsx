@@ -18,6 +18,7 @@ export default function CompareContent() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const idsString = searchParams.get("ids") || "";
 
   useEffect(() => {
     setMounted(true);
@@ -25,8 +26,8 @@ export default function CompareContent() {
 
   useEffect(() => {
     if (!mounted) return;
-    const idsString = searchParams.get("ids");
     if (!idsString) {
+      setLoading(false);
       router.push("/");
       return;
     }
@@ -39,23 +40,26 @@ export default function CompareContent() {
 
     const fetchCourses = async () => {
       try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=*,institutions(name,slug),categories(name)`, {
+        const queryIds = ids.join(',');
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=*,institutions(name,slug),categories(name)`, {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
           }
         });
-        const rawData: any[] = await response.json();
+        
+        if (!response.ok) throw new Error("Failed to fetch courses");
+        
+        const rawData = await response.json();
+        const dataArray = Array.isArray(rawData) ? rawData : [];
         
         // Map relationship data
-        const enriched = rawData
-          .filter(c => ids.includes(c.id))
-          .map(c => ({
-            ...c,
-            institution_name: c.institutions?.name || "StudIAMatch",
-            institution_slug: c.institutions?.slug || "general",
-            category: c.categories?.name || c.category
-          }));
+        const enriched = dataArray.map(c => ({
+          ...c,
+          institution_name: c.institutions?.name || "StudIAMatch",
+          institution_slug: c.institutions?.slug || "general",
+          category: c.categories?.name || c.category
+        }));
           
         setCourses(enriched);
       } catch (error) {
@@ -66,7 +70,7 @@ export default function CompareContent() {
     };
 
     fetchCourses();
-  }, [searchParams, router]);
+  }, [mounted, idsString, router]); 
 
   const handleRemove = (id: string) => {
     const updatedCourses = courses.filter(c => c.id !== id);
