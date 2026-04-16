@@ -51,7 +51,6 @@ interface Course {
   target_audience?: string;
   requirements?: string;
   syllabus?: string;
-  subcategory?: string;
   course_type?: string;
   brochure_url?: string;
   brochure_text?: string;
@@ -551,7 +550,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     <div className="space-y-4">
                       <h2 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-brand-blue" /> Visión del Programa</h2>
                       <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
-                        {course.description ? renderText(course.description) : (course.description_long ? renderText(course.description_long.split('\n\n')[0]) : "Este programa representa una oportunidad estratégica de especialización.")}
+                        {course.description_long ? renderText(course.description_long.split('\n\n')[0]) : "Este programa representa una oportunidad estratégica de especialización."}
                       </div>
                     </div>
                     
