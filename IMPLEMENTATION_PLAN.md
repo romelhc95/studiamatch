@@ -183,13 +183,13 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 
 ## Fase 31: Estabilización TIER 1 (Desarrollo) [x] COMPLETADO
 - [x] Configuración de Environments en GitHub.
-- [x] Validación de 100% de éxitos en batch de enriquecimiento.
+- [x] Validación de 100% de éxitos en batch de enriquecimiento (Triple-Cloud).
+- [x] Solución de visualización Unicode/JSON en detalle de curso.
 - [x] Documentación técnica en `docs/deployment/deploy_desarrollo.md`.
 
-## Fase 32: Configuración TIER 2 (Certificación) [/] EN CURSO
-- [ ] Creación de proyecto Supabase aislado para QA/Certificación.
-- [ ] Configuración de secretos en Environment `Certification`.
-- [ ] Merge de rama `desarrollo` -> `certificacion`.
+## Fase 31.5: Configuración de Visualización Live [/] EN CURSO
+- [x] Guía paso a paso para Cloudflare Dashboard.
+- [ ] Validación de URL de Preview (`desarrollo`).
 
 ## Fase 32: Migración de Datos y Esquema [ ] Pendiente
 1. **Sincronización de Esquema** (DB Migration)
