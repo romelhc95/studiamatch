@@ -92,18 +92,39 @@ export default function Home() {
       try {
         const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
         const [cRes, iRes] = await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,categories(name)&order=created_at.desc`, { headers }),
-          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name`, { headers })
+          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
         ]);
         const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
 
         if (Array.isArray(cData) && Array.isArray(iData)) {
           const enriched = cData.map((course: any) => ({
             ...course,
-            institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
+            institution_name: course.institutions?.name || iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
+            institution_slug: course.institutions?.slug || iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
             category: course.categories?.name || course.category
           }));
-          setAllCourses(enriched);
+
+          // De-duplicación por URL e Institución
+          // Si dos registros tienen la misma URL en la misma institución, son el mismo curso real.
+          const uniqueMap = new Map<string, any>();
+          
+          enriched.forEach((course: any) => {
+            const key = `${course.institution_id}-${course.url || course.slug}`;
+            const existing = uniqueMap.get(key);
+            
+            if (!existing) {
+              uniqueMap.set(key, course);
+            } else {
+              // Si ya existe, preferir "Programa" sobre "Curso"
+              if (course.course_type === 'Programa' && existing.course_type !== 'Programa') {
+                uniqueMap.set(key, course);
+              }
+              // Si ambos son lo mismo, el que ya está se queda (ordenado por created_at desc)
+            }
+          });
+
+          setAllCourses(Array.from(uniqueMap.values()));
         }
       } catch (error) {
         console.error("Error cargando datos:", error);
@@ -180,6 +201,18 @@ export default function Home() {
         c.institution_name?.toLowerCase().trim() === activeFilters.selectedInstitution.toLowerCase().trim()
       );
     }
+
+    // Deduplicación visual: Un solo curso por combinación de slug e institución
+    const uniqueMap = new Map<string, Course>();
+    result.forEach(c => {
+      const key = `${c.institution_slug}-${c.slug}`;
+      const existing = uniqueMap.get(key);
+      // Priorizar el que tenga precio o nombre más descriptivo
+      if (!existing || (!existing.price_pen && c.price_pen) || (c.name.length > existing.name.length)) {
+        uniqueMap.set(key, c);
+      }
+    });
+    result = Array.from(uniqueMap.values());
 
     return result.filter(c => {
       if (activeFilters.modes.length > 0 && !activeFilters.modes.includes(c.mode)) return false;
@@ -385,7 +418,7 @@ export default function Home() {
                         <span className="text-[11px] font-medium text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">{course.course_type || "Programa"}</span>
                       </div>
 
-                      <Link href={`/courses/${cleanSlug(course.slug, course.url)}`} className="group/title flex-1">
+                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="group/title flex-1">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
                           {course.name}
                         </h3>
@@ -413,10 +446,9 @@ export default function Home() {
 
                     {/* Card Actions */}
                     <div className="px-5 pb-4 pt-0 flex items-center gap-2">
-                      <Link href={`/courses/${cleanSlug(course.slug, course.url)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
+                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
                         Ver detalle <ArrowRight className="h-3 w-3" />
-                      </Link>
-                      <button
+                      </Link>                      <button
                         onClick={() => {
                           setCompareList(prev => {
                             if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
