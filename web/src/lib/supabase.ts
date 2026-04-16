@@ -8,16 +8,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || !process.env.NODE_ENV;
   
   if (process.env.NODE_ENV === 'production' && !isBuildTime) {
-    console.error("❌ Missing Supabase environment variables.");
+    console.error("❌ Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   } else {
-    // DIAGNÓSTICO DE BUILD
-    const urlStatus = supabaseUrl ? `Presente (${supabaseUrl.substring(0, 10)}...)` : "AUSENTE";
-    const keyStatus = supabaseAnonKey ? `Presente (${supabaseAnonKey.substring(0, 10)}...)` : "AUSENTE";
-    console.warn(`[BUILD-DIAG] URL: ${urlStatus} | KEY: ${keyStatus}`);
-  }
-} else {
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    console.log(`✅ Supabase detectado exitosamente: ${supabaseUrl.substring(0, 15)}...`);
+    console.warn("⚠️ Supabase environment variables are missing. Defaulting to empty strings.");
   }
 }
 
