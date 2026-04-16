@@ -188,9 +188,11 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 - [x] Configuración de Pipeline Automático Zero-Touch (Root: /web, Output: out)
 - [x] Limpieza y Documentación de Tier 1 completada
 
-## Fase 31.5: Configuración de Visualización Live [/] EN CURSO
+## Fase 31.5: Configuración de Visualización y Taxonomía [x] COMPLETADO
 - [x] Guía paso a paso para Cloudflare Dashboard.
-- [ ] Validación de URL de Preview (`desarrollo`).
+- [x] Validación de estructura URL oficial: `/courses/[institution]/[slug]`.
+- [x] Eliminación de colisiones de rutas antiguas (`[slug]`).
+- [x] Despliegue automático 100% verificado en Cloudflare.
 
 ## Fase 32: Migración de Datos y Esquema [ ] Pendiente
 1. **Sincronización de Esquema** (DB Migration)

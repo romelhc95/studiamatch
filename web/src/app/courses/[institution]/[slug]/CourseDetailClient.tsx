@@ -62,6 +62,7 @@ interface Course {
 export default function CourseDetailClient({ institutionSlug, courseSlug }: { institutionSlug: string, courseSlug: string }) {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,6 +78,10 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [userNickname, setUserNickname] = useState("");
   const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
   const [socialSuccess, setSocialSuccess] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmitSocial = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -355,6 +360,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       fetchSocialProofAndRelated();
     }
   }, [course]);
+
+  if (!mounted) return null;
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">

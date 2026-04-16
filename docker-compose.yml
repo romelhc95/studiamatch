@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: studiamatch-dev
+    volumes:
+      - .:/app
+      - /app/web/node_modules
+      - /app/venv
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
