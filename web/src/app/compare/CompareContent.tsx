@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus
 } from "lucide-react";
 import Link from "next/link";
@@ -66,9 +66,9 @@ export default function CompareContent() {
       router.push("/");
       return;
     }
-    
+
     const ids = idsString.split(",");
-    
+
     const fetchCourses = async () => {
       try {
         setLoading(true);
@@ -79,12 +79,12 @@ export default function CompareContent() {
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
           }
         });
-        
+
         if (!response.ok) throw new Error("Failed to fetch courses");
-        
+
         const rawData = await response.json();
         const dataArray = Array.isArray(rawData) ? rawData : [];
-        
+
         const enriched = dataArray.map(c => {
           // Cálculo seguro de ROI en el frontend si falla el backend
           const investment = c.price_pen || 0;
@@ -99,7 +99,7 @@ export default function CompareContent() {
             category: c.categories?.name || c.category
           };
         });
-          
+
         setCourses(enriched);
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
@@ -114,7 +114,7 @@ export default function CompareContent() {
   const handleRemove = (id: string) => {
     const updatedCourses = courses.filter(c => c.id !== id);
     setCourses(updatedCourses);
-    
+
     const newIds = updatedCourses.map(c => c.id).join(",");
     if (newIds) {
       router.push(`/compare?ids=${newIds}`);
@@ -151,14 +151,14 @@ export default function CompareContent() {
             {courses.map((course) => (
               <Card key={course.id} className="relative overflow-hidden border-brand-gray/50 dark:border-white/10 shadow-premium flex flex-col rounded-3xl bg-white dark:bg-zinc-900/40 hover:shadow-2xl transition-all hover:-translate-y-1">
                 <div className="h-2 bg-brand-blue w-full" />
-                <button 
+                <button
                   onClick={() => handleRemove(course.id)}
                   className="absolute top-4 right-4 h-8 w-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm"
                   title="Retirar de la comparativa"
                 >
                   <Plus className="h-4 w-4 rotate-45" />
                 </button>
-                
+
                 <div className="p-8 flex-1 space-y-8">
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
