@@ -7,3 +7,6 @@ psycopg2-binary
 pg8000
 PyPDF2
 google-generativeai
+aiohttp
+lxml
+curl_cffi

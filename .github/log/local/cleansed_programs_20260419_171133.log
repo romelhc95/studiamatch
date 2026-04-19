@@ -1,0 +1,19 @@
+2026-04-19 17:11:33,252 - INFO - Loaded 24 exclusion patterns from DB.
+2026-04-19 17:11:33,253 - INFO - --- Starting Station 1.5: High Fidelity Cleansing ---
+2026-04-19 17:11:33,727 - INFO - Bulk Upsert: 14 courses promoted.
+2026-04-19 17:11:34,146 - INFO - Bulk Upsert: 11 courses promoted.
+2026-04-19 17:11:34,765 - INFO - Bulk Upsert: 17 courses promoted.
+2026-04-19 17:11:35,263 - INFO - Bulk Upsert: 7 courses promoted.
+2026-04-19 17:11:35,909 - INFO - Bulk Upsert: 10 courses promoted.
+2026-04-19 17:11:36,446 - INFO - Bulk Upsert: 2 courses promoted.
+2026-04-19 17:11:36,718 - INFO - Bulk Upsert: 3 courses promoted.
+2026-04-19 17:11:37,199 - INFO - Bulk Upsert: 2 courses promoted.
+2026-04-19 17:11:37,502 - INFO - Bulk Upsert: 3 courses promoted.
+2026-04-19 17:11:37,841 - INFO - Bulk Upsert: 2 courses promoted.
+2026-04-19 17:11:38,323 - INFO - Bulk Upsert: 11 courses promoted.
+2026-04-19 17:11:38,883 - INFO - Bulk Upsert: 25 courses promoted.
+2026-04-19 17:11:39,243 - INFO - Bulk Upsert: 6 courses promoted.
+2026-04-19 17:11:39,891 - INFO - Bulk Upsert: 24 courses promoted.
+2026-04-19 17:11:40,546 - INFO - Bulk Upsert: 31 courses promoted.
+2026-04-19 17:11:40,781 - INFO - Bulk Upsert: 7 courses promoted.
+2026-04-19 17:11:40,818 - INFO - Session finished. Total courses promoted: 175

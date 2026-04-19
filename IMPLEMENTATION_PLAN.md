@@ -3,6 +3,8 @@
 ## 🎯 Premisas Obligatorias de Ingeniería (Nivel 0)
 
 > [!IMPORTANT]
+> **Documentación de Referencia (Golden Pipeline)**: El diseño arquitectónico, el flujo ETL de 4 estaciones y el diccionario de datos maestro se rigen estrictamente por lo definido en [docs/architecture/Documento_Detallado_workflow](docs/architecture/Documento_Detallado_workflow). Este documento es la "Única Fuente de Verdad" para la lógica de datos.
+>
 > **Aislamiento Total y Paridad Linux**: Queda estrictamente prohibido ejecutar comandos de desarrollo (npm, python, audit) directamente en el host Windows. 
 > Todo comando **DEBE** ser ejecutado dentro del contenedor `studiamatch-dev` (Debian) para garantizar la paridad del 100% con los servidores de despliegue (Cloudflare/Linux).
 >
@@ -11,8 +13,8 @@
 
 ## 🛠 Estado Actual del Proyecto (WORKING-CONTEXT)
 - **Estado Actual**: Fase 2.0 (TIER 2 - Certificación) ✅ CERTIFICADO.
-- **Último Hito**: Auditoría de Taxonomía con 0 errores y Golden Pipeline operativo.
-- **Próxima Acción**: Aprovisionamiento de Supabase Pro y despliegue en `studiamatch.com`.
+- **Último Hito**: Consolidación de pipelines de datos y reingeniería de calidad.
+- **Próxima Acción**: Implementar de-duplicación inteligente por Redirección y Canonical (Fase 39.1).
 
 ## 🚀 Hoja de Ruta: Lanzamiento Producción
 - [ ] **Migración de Schema**: Replicar tablas, RLS e índices en el proyecto Pro.
@@ -44,7 +46,21 @@ El código viajará de forma ascendente cumpliendo "Puertas de Calidad" en cada 
 
 ---
 
-## Arquitectura del Cerebro de Datos (Core Flow)
+## Arquitectura de Ejecución (Macro-Estrategia)
+La ejecución del sistema se divide en 3 Fases Generales (FG) para optimizar costos, eficiencia y responsabilidades:
+
+* **FG1: Mapeo Institucional (Frecuencia: Mensual)**
+  - **Objetivo**: Descubrir y registrar nuevas universidades e institutos licenciados por MINEDU.
+  - **Script Principal**: `register_institution.py` (o procesos de Nivel 1).
+* **FG2: Carga Masiva y Delta Scraping (Frecuencia: Semanal)**
+  - **Objetivo**: Extracción exhaustiva del catálogo de cursos. La carga inicial obtiene toda la información de las webs institucionales. Las ejecuciones posteriores aplican "Delta Scraping" (mediante Hashing) para extraer y procesar *solo* lo nuevo o modificado, reduciendo radicalmente el costo.
+  - **Flujo de Scripts**: `universal_harvester.py` -> `cleansing_worker.py` -> `enrichment_worker.py` -> `sync_vector_worker.py` -> auditorías.
+* **FG3: Integridad y Periodo de Gracia (Frecuencia: Diaria)**
+  - **Objetivo**: Validar la disponibilidad de los enlaces existentes (404).
+  - **Mecanismo**: Comprobar si el curso sigue activo. Si falla, entra en un "Periodo de Gracia" de 3 días antes de inactivarse. Esto desliga al harvester de la verificación diaria.
+  - **Script Principal**: `integrity_ping.py`.
+
+## Arquitectura del Cerebro de Datos (Flujo ETL Histórico)
 1. **Descubrimiento (The Explorer)** [x] Completado.
 2. **Harvesting de URLs (The Collector)** [x] Completado.
 3. **Extracción de Data Bruta (Deep Scrape)** [x] Completado.
@@ -53,13 +69,11 @@ El código viajará de forma ascendente cumpliendo "Puertas de Calidad" en cada 
 6. **Taxonomía Automática (Motor de Reglas)** [x] Completado.
 7. **Visualización UX (Next.js 15)** [x] Completado (Detalle de 14 pilares y Social Proof funcionales).
 
----
-
 ## Estructura de Scripts (Producción)
 Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
-- `scripts/core/`: Orquestación y Harvester Universal (Motor Maestro).
+- `scripts/core/`: Orquestación, Universal Harvester (FG2) y Mapeo (FG1).
 - `scripts/harvesters/`: Scrapers específicos por institución.
-- `scripts/maintenance/`: Auditoría de calidad y Ping de integridad (404).
+- `scripts/maintenance/`: Auditoría de calidad y Ping de integridad 404/Gracia (FG3).
 - `scripts/legacy/`: Historial de desarrollo y scripts de un solo uso.
 
 ## Pasos de Implementación
@@ -114,16 +128,16 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 5. **Auditoría Final de Integridad**: Validar 0 inconsistencias y 100% de coherencia financiera/taxónomica. [x] Completado
 6. **Firma Digital**: Certificación final de la arquitectura y despliegue en entornos productivos. [x] Completado
 
-## Fase 22: Automatización de Producción (Golden Pipeline) [/] Pendiente
+## Fase 22: Automatización de Producción (Golden Pipeline) [x] Completado
 1. **Infraestructura de GitHub Actions**:
-   - [ ] Crear `.github/workflows/production_pipeline.yml` con 3 niveles de ejecución. [ ] Pendiente
-   - [ ] Configurar schedules: Diario (05:00), Semanal (Dom 02:00), Mensual (1ero 00:00). [ ] Pendiente
+   - [x] Crear `.github/workflows/production_pipeline.yml` con 3 niveles de ejecución. [x] Completado
+   - [x] Configurar schedules: Diario (05:00), Semanal (Dom 02:00), Mensual (1ero 00:00). [x] Completado
 2. **Motor de Ejecución en Paralelo**:
-   - [ ] Crear `scripts/core/worker_runner.py` para consumo dinámico de la matriz. [/] En curso
-   - [ ] Validar compatibilidad de Harvesters con entorno headless. [ ] Pendiente
+   - [x] Crear `scripts/core/worker_runner.py` para consumo dinámico de la matriz. [x] Completado
+   - [x] Validar compatibilidad de Harvesters con entorno headless. [x] Completado
 3. **Persistencia y Seguridad**:
-   - [ ] Documentar requerimiento de Secrets (SUPABASE_SERVICE_ROLE_KEY). [ ] Pendiente
-   - [ ] Habilitar `pg_trgm` en base de datos de producción. [ ] Pendiente
+   - [x] Documentar requerimiento de Secrets (SUPABASE_SERVICE_ROLE_KEY). [x] Completado
+   - [x] Habilitar `pg_trgm` en base de datos de producción. [x] Completado
 
 ## Fase 23: Rebranding Total a StudIAMatch [x] Completado
 1. **Identidad Visual y Textual**:
@@ -190,7 +204,7 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 2. **Sistema de Priorización**: En caso de duplicidad, se selecciona automáticamente el registro tipo 'Programa' sobre 'Curso'. [x] Completado
 3. **Búsqueda Resiliente (Multi-Strategy Lookup)**: Implementada lógica en `CourseDetailClient` que busca por (1) Slug exacto, (2) Coincidencia en URL y (3) Búsqueda difusa. Esto soluciona problemas de tildes o caracteres corruptos en la DB. [x] Completado
 4. **Auditoría de Salud de Rutas**: Ejecutado script de integridad validando que el 100% de las rutas dinámicas resuelven correctamente sin errores "Lo sentimos...". [x] Completado
-5. **Reporte Formal**: Actualizado [reporte_duplicidad_integridad.md](file:///c:/Users/Romel/Proyectos/studiamatch/docs/qa-engineer/reporte_duplicidad_integridad.md). [x] Completado
+5. **Reporte Formal**: Actualizado `docs/qa-engineer/reporte_duplicidad_integridad.md`. [x] Completado
 
 ### Fase 30: Automatización Core Flow (CI/CD + AI) [x] COMPLETADO
 1. **Investigación de Costos LLM**: Cloudflare (10k neurons gratis) vs GitHub Models. [x] Completado.
@@ -247,7 +261,8 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
    - Acción: Habilitar los flujos de `daily_ingestion.yml` apuntando al entorno de producción.
 3. **Cierre de Ciclo y Documentación** (Docs)
    - [x] Generadas guías de despliegue por ambiente en `docs/deployment/`. [x] Completado
- ## Fase 35: Reingeniería de Calidad de Datos (Raw Harvesting) [/] En curso
+
+## Fase 35: Reingeniería de Calidad de Datos (Raw Harvesting) [x] Completado
 1. **Infraestructura de Staging**:
    - [x] Crear tabla `harvesting` para almacenamiento de data bruta (URL, HTML, Metatags). [x] Completado
    - [x] Implementar estados: `pending`, `processed`, `discarded`, `error`. [x] Completado
@@ -257,12 +272,12 @@ Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
    - [x] Optimización de Gran Volumen (Capacidad 500,000 chars). [x] Completado
 3. **Desarrollo del Processor Intelligen (The Curator)**:
    - [x] Crear `scripts/core/harvest_processor.py` para depuración quirúrgica. [x] Completado
-   - [ ] Implementar heurística anti-slogan (detectar "Descubre nuestras carreras", "404", etc.). [/] En curso
-   - [ ] Flujo de promoción: `harvesting` -> Enriquecimiento -> `courses`. [ ] Pendiente
+   - [x] Implementar heurística anti-slogan (detectar "Descubre nuestras carreras", "404", etc.). [x] Completado
+   - [x] Flujo de promoción: `harvesting` -> Enriquecimiento -> `courses`. [x] Completado
 4. **Validación de la Muestra en Conflictos**:
-   - [ ] Re-procesar URL de UPC Marketing para validar limpieza automática del nombre. [/] En curso
+   - [x] Re-procesar URL de UPC Marketing para validar limpieza automática del nombre. [x] Completado
 
- ## Fase 36: Pipeline de Datos de Alta Fidelidad (4 Estaciones) [/] En curso
+## Fase 36: Pipeline de Datos de Alta Fidelidad (4 Estaciones) [x] Completado
 
 Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementando un flujo ETL (Extract, Transform, Load) de grado industrial.
 
@@ -273,26 +288,18 @@ Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementa
     - [x] Casos de éxito: **UTP (100 URLs)** y **DMC (100 URLs)**. [x] Completado
 2.  **Estación 2: `cleansed_programs` (Cleansing)**:
     - [x] Script `cleansing_worker.py` funcional. [x] Completado
-    - [ ] Ejecutar limpieza masiva para DMC/UTP (Eliminar slogans y duplicados). [ ] Pendiente
-    - [ ] Deduplicación multi-sede activa. [ ] Pendiente
+    - [x] Ejecutar limpieza masiva para DMC/UTP (Eliminar slogans y duplicados). [x] Completado
+    - [x] Deduplicación multi-sede activa. [x] Completado
 3.  **Estación 3: `enriched_programs` (Enrichment - IA)**:
-    - [ ] **Implementación de IA Real** (OpenAI/Gemini) en `enrichment_worker.py`. [ ] Pendiente
-    - [ ] Extracción obligatoria de los **14 Pilares de Metadata**:
-        1. Nombre del Curso | 2. Institución | 3. Precio | 4. Moneda | 5. Duración | 6. Modalidad | 7. Sede/Localidad | 8. Grado Académico | 9. Requisitos | 10. Malla Curricular (Resumen) | 11. Fecha de Inicio | 12. Categoría Taxonómica | 13. Nivel (Jr/Mid/Sr) | 14. URL de Brochure/Inscripción |
+    - [x] **Implementación de IA Real** (OpenAI/Gemini) en `enrichment_worker.py`. [x] Completado
+    - [x] Extracción obligatoria de los **14 Pilares de Metadata**. [x] Completado
 4.  **Estación 4: `courses` (Production & Vector Sync)**:
     - [x] Script `sync_vector_worker.py` base. [x] Completado
-    - [ ] Generación de Embeddings para búsqueda semántica. [ ] Pendiente
-    - [ ] Publicación final en la Web. [ ] Pendiente
+    - [x] Generación de Embeddings para búsqueda semántica. [x] Completado
+    - [x] Publicación final en la Web. [x] Completado
 
-### 🚀 Estado Actual: "Transición Estación 1 a 2"
-- **DMC**: 100 registros en Stage 1 (Raw).
-- **UTP**: 100 registros en Stage 1 (Raw).
-- **Próxima Tarea**: Ejecutar limpieza y activar IA real para extracción de pilares.
-
-
-## Riesgos y Mitigaciones
-- **Riesgo**: Pérdida de usabilidad por exceso de minimalismo. -> Mitigación: Mantener contrastes altos y botones de acción claros.
-- **Riesgo**: Incomatibilidad con datos de Supabase. -> Mitigación: Asegurar que los componentes manejen estados `loading` y `error`.
+### 🚀 Estado Actual: "Consolidación de Estaciones ETL Completada"
+- Las 4 estaciones están integradas y funcionales en producción.
 
 ## Fase 37: Estabilización de Pipeline y Producción (Oficial 5 Fases) [x] Finalizado
 **Estado**: Operativo y Automatizado.
@@ -303,3 +310,61 @@ Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementa
 - [x] **Fase 3 (Production Sync)**: Activado `sync_vector_worker.py` con slugs persistentes.
 - [x] **Fase 4 (ROI-QA Audit)**: Integración final de auditoría de calidad de datos en cada carrera.
 - [x] **Golden Pipeline**: YAML optimizado a 5 Jobs secuenciales para máxima trazabilidad.
+
+## Fase 38: Refactorización de universal_harvester.py (Estrategia Stealth Harvesting FG2) [x] Completado
+El objetivo fue transformar el harvester en un motor de alta resiliencia y sigilo capaz de alimentar el "cerebro" de la plataforma con +20k registros sin disparar bloqueos de WAFs avanzados (Akamai/Cloudflare).
+
+1. **Protocolo de Sigilo (Stealth) y Evasión**:
+   - [x] **Suplantación TLS (JA3/JA4)**: Sustituir `aiohttp` por `curl_cffi` para mimetizar la huella TLS de navegadores reales. [x] Completado
+   - [x] **Coherencia de Headers**: Implementar rotación de `User-Agent` sincronizada con headers `Sec-CH-UA` y firma TLS. [x] Completado
+   - [ ] **Soporte de Proxies**: Configurar pool de Proxies Residenciales Rotativos para distribución de IPs. (Pendiente para escalamiento masivo).
+2. **Resiliencia y Concurrencia Responsable**:
+   - [x] **Semáforos por Dominio**: `asyncio.Semaphore(3)` para limitar la carga por servidor. [x] Completado
+   - [x] **Delays Adaptativos (Jitter)**: Pausas aleatorias de 2-5s entre peticiones. [x] Completado
+   - [x] **Patrón Circuit Breaker**: Abortar automáticamente el scraping de una institución tras 3 errores 403/429 consecutivos. [x] Completado
+3. **Checkpointing Inmediato y Persistencia**:
+   - [x] **Estado 'Discovered'**: Persistir URLs en `staging_raw` inmediatamente tras el descubrimiento (Sitemap/BFS) para evitar re-escaneos. [x] Completado
+   - [x] **Gestión de Chunks**: Procesar la cola de extracción en lotes atómicos que permitan reanudación tras fallos. [x] Completado
+4. **Optimización de Datos (Delta Scraping)**:
+   - [x] **Content Hashing**: Solo ejecutar `Upsert` si el hash del contenido limpio ha cambiado. [x] Completado
+   - [x] **Sanitización de Backlog**: Implementada lógica `_load_existing_urls` para saltar el descubrimiento de URLs que ya existen en la DB. [x] Completado
+
+## Fase 39: Reingeniería y Afinación del Cleansing Worker (Estación 1.5) [x] Completado
+Objetivo: Transformar `cleansing_worker.py` en un filtro de alta fidelidad con motor de exclusión por institución, consolidación de sedes y limpieza profunda de HTML.
+
+1. **Infraestructura de Datos**:
+   - [x] **Tabla de Exclusión**: Crear `crawler_exclusions` para filtrar URLs por patrón (ej. /noticias/, /becas/). [x] Completado
+   - [x] **Autogeneración de IDs**: Habilitar `gen_random_uuid()` por defecto en `cleansed_programs`. [x] Completado
+2. **Refactorización del Worker (Afinación Quirúrgica)**:
+   - [x] **Motor de Exclusión Inteligente**: Cargar reglas de `crawler_exclusions` en el worker para validación por patrón absoluto. [x] Completado
+   - [x] **Limpieza Profunda (BeautifulSoup)**: Eliminación de `<head>`, `<header>`, `<footer>`, `<nav>` y elementos con clases de ruido (`menu, sidebar, social`). [x] Completado
+   - [x] **Detección de Soft 404**: Bloqueo automático de páginas que cargan pero indican "Página no encontrada". [x] Completado
+   - [x] **Filtro de Caducidad Histórica**: Descarte de contenido con años obsoletos (2018-2024) en URL o texto. [x] Completado
+   - [x] **Consolidación de Sibling Pages**: Agrupación de sub-páginas (Beneficios, Plana, Malla) en un único registro maestro (1:1). [x] Completado
+3. **Mantenimiento y Saneamiento**:
+   - [x] **Truncado de Plata**: Limpiar `cleansed_programs` para eliminar data con ruido anterior. [x] Completado
+   - [x] **Re-procesamiento Masivo**: Resetear `staging_raw` a 'pending' y ejecutar la nueva lógica sobre los +1,000 registros. [x] Completado
+
+**Resultado Final:** ~156 programas académicos puros de alta fidelidad promovidos (Reducción de >70% de ruido).
+
+## Fase 39.1: De-duplicación Inteligente por Redirección y Canonical [/] Pendiente de Revisión
+Objetivo: Resolver el problema de múltiples rutas apuntando al mismo contenido (caso New Horizons) capturando la "Fuente de Verdad" técnica definida por el servidor y SEO.
+
+1. **Infraestructura de Datos (SQL)**:
+   - [ ] **Esquema de Alta Fidelidad**: Añadir columnas `effective_url` y `canonical_url` en `staging_raw` y `cleansed_programs`.
+   - [ ] **Índice Compuesto**: Migrar el índice UNIQUE de `cleansed_programs` a la tupla `(institution_id, effective_url)` para evitar colisiones entre instituciones.
+2. **Refactorización de Captura (Harvester)**:
+   - [ ] **Captura de URL Final**: Almacenar `response.url` tras redirecciones automáticas de `curl_cffi` o Playwright.
+   - [ ] **Extracción de Canonical**: Implementar regex/BeautifulSoup para extraer `<link rel="canonical">` como prioridad de de-duplicación.
+3. **Lógica de Consolidación (Cleanser)**:
+   - [ ] **Normalización Robusta**: Implementar `normalize_url` para remover query strings, fragmentos y unificar el `trailing slash`.
+   - [ ] **Pivot de Agrupación**: Cambiar la lógica de consolidación para que use `canonical_url` (prioridad) o `effective_url` (fallback) como clave de unión.
+   - [ ] **Trazabilidad de Linaje**: Registrar `sibling_staging_ids` en los metadatos para auditar qué URLs originales fueron "comprimidas".
+4. **Certificación y Sanity Check**:
+   - [ ] **Test de New Horizons**: Validar que las rutas divergentes de TOGAF se fusionen en un único registro maestro.
+   - [ ] **Validación de Fallback**: Confirmar el uso de `COALESCE` para operar con URLs originales si no hay redirección detectada.
+
+## Riesgos y Mitigaciones
+- **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
+- **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
+- **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
