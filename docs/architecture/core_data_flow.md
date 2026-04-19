@@ -10,8 +10,8 @@ El flujo de datos se divide en 4 estaciones desacopladas para garantizar la máx
 ```mermaid
 graph TD
     %% PASO CERO: INSTITUCIONES
-    subgraph "PASO 0: Registro de Entidades"
-        Z[Nuevas Instituciones/Dominios] -->|Manual o Discovery| Y(register_institution.py)
+    subgraph "FASE 0: Registro de Entidades"
+        Z[Nuevas Instituciones/Dominios] -->|Manual o Discovery| Y(register_searching_institution.py)
         Y -->|Registro Maestro| X[(Tabla: institutions)]
     end
 
@@ -27,7 +27,7 @@ graph TD
     subgraph "FASE 2: AI Enrichment (14 Pillars)"
         E --> G(enrichment_worker.py)
         G -->|Extracción Estructurada| H[(Tabla: enriched_programs)]
-        I[OpenAI / Gemini] <-->|Prompt Ingeniería| G
+        I[Cloudflare / Gemini / Github] <-->|Prompt Ingeniería| G
     end
 
     %% FASE 3

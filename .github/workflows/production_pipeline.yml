@@ -29,7 +29,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/core/discovery_institutions.py
+        run: python scripts/cloud/core/discovery_institutions.py
 
   # -------------------------------------------------------------
   # PHASE 1: Massive Discovery & Harvesting
@@ -38,10 +38,14 @@ jobs:
     name: "1. Discovery & Harvesting"
     needs: phase_0_inventory
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.48.0-noble
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Install lsb-release
+        run: apt-get update && apt-get install -y lsb-release
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -50,12 +54,13 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
+          # The container already has the libraries, but we ensure the browsers match the python package version
           playwright install chromium
       - name: Run Master Orchestrator (Includes Harvester & Cleansing)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/core/master_orchestrator.py --limit 15
+        run: python scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima
 
   # -------------------------------------------------------------
   # PHASE 2: AI Enrichment (14 Metadata Pillars)
@@ -82,7 +87,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python scripts/core/enrichment_worker.py
+        run: python scripts/cloud/core/enrichment_worker.py
 
   # -------------------------------------------------------------
   # PHASE 3: Integrity & Production Sync
@@ -105,7 +110,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/core/sync_vector_worker.py
+        run: python scripts/cloud/core/sync_vector_worker.py
 
   # -------------------------------------------------------------
   # PHASE 4: ROI & QA Audit
@@ -128,13 +133,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/maintenance/quality_assurance_audit.py
+        run: python scripts/cloud/maintenance/quality_assurance_audit.py
       - name: Taxonomy & ROI Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PYTHONIOENCODING: utf-8
-        run: python scripts/maintenance/taxonomy_roi_audit.py
+        run: python scripts/cloud/maintenance/taxonomy_roi_audit.py
       - name: Upload Final Audit Reports
         if: always()
         uses: actions/upload-artifact@v4

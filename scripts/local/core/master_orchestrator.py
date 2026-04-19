@@ -1,0 +1,81 @@
+import subprocess
+import logging
+import sys
+import os
+import requests
+import json
+
+# Add root directory to sys.path for shared imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.db_client import get_db_client
+
+db = get_db_client()
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - [ORCHESTRATOR] - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("MasterOrchestrator")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+def run_script(script_path, args=None):
+    cmd = [sys.executable, script_path]
+    if args:
+        cmd.extend(args)
+    
+    logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
+    # Explicitly pass environment to subprocess
+    result = subprocess.run(cmd, capture_output=False, env=os.environ.copy())
+    
+    if result.returncode == 0:
+        logger.info(f"✅ [STAGE SUCCESS] {script_path}")
+        return True
+    else:
+        logger.error(f"❌ [STAGE FAILED] {script_path} (Exit Code: {result.returncode})")
+        return False
+
+def get_institutions(limit=10):
+    """Fetch institutions to harvest."""
+    try:
+        return db.select('institutions', columns="id,name,slug,website_url", limit=limit)
+    except Exception as e:
+        logger.error(f"Failed to fetch institutions: {e}")
+    return []
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
+    args = parser.parse_args()
+
+    # DB credentials handled by db_client
+
+    # 🚉 PHASE 1: Discovery & Harvesting
+    logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
+    institutions = get_institutions(limit=args.limit)
+    logger.info(f"Found {len(institutions)} institutions to harvest.")
+
+    for inst in institutions:
+        logger.info(f"### Processing Institution: {inst['name']} ({inst['slug']})")
+        # Ensure we convert RealDictRow to dict and serialize cleanly
+        inst_json = json.dumps(dict(inst))
+        run_script("scripts/local/core/universal_harvester.py", [inst_json])
+
+    # 🚉 PHASE 1.5: Cleansing
+    logger.info("--- PHASE 1.5: CLEANSING ---")
+    if not run_script("scripts/local/core/cleansing_worker.py"):
+        logger.warning("Cleansing step failed, but continuing pipeline...")
+
+    # 🚉 PHASE 2: AI Enrichment (En el pipeline YAML se ejecuta por separado para mejor visibilidad, 
+    # pero lo dejamos aquí como fallback o ejecución local)
+    # logger.info("--- PHASE 2: AI ENRICHMENT ---")
+    # run_script("scripts/core/enrichment_worker.py")
+
+    logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,1382 @@
+PS C:\Users\Romel\Proyectos\studiamatch>
+PS C:\Users\Romel\Proyectos\studiamatch> act workflow_dispatch -W .github/workflows/production_pipeline.yml --env-file .env.local
+time="2026-04-18T10:15:09-05:00" level=info msg="Using docker host 'npipe:////./pipe/docker_engine', and daemon socket 'npipe:////./pipe/docker_engine'"
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] 🚀  Start image=catthehacker/ubuntu:act-latest
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/0. Institution Inventory] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main actions/checkout@v4 [607.344ms]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓  ::group::Installed versions
+| (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓  ::endgroup::
+| [command]/opt/hostedtoolcache/Python/3.11.14/x64/bin/pip cache dir
+| /root/.cache/pip
+| pip cache is not found
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Setup Python [2.9400861s]
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: cache-hit=false
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: aiohttp in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 10)) (3.13.5)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (2.6.1)
+| Requirement already satisfied: aiosignal>=1.4.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.4.0)
+| Requirement already satisfied: attrs>=17.3.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (26.1.0)
+| Requirement already satisfied: frozenlist>=1.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.8.0)
+| Requirement already satisfied: multidict<7.0,>=4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (6.7.1)
+| Requirement already satisfied: propcache>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (0.4.1)
+| Requirement already satisfied: yarl<2.0,>=1.17.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.23.0)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Install Dependencies [850.7019ms]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Run Discovery Institutions
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| DB_CLIENT: Falling back to standard dotenv search
+| INFO: Iniciando Descubrimiento de Instituciones Nivel 1...
+| SKIP: Universidad de Lima ya existe en el catálogo.
+| SKIP: Universidad del Pacífico ya existe en el catálogo.
+| SKIP: IDAT ya existe en el catálogo.
+| SKIP: SENATI ya existe en el catálogo.
+| SKIP: UPC ya existe en el catálogo.
+| SKIP: USIL ya existe en el catálogo.
+| SKIP: Universidad Continental ya existe en el catálogo.
+| SKIP: UTP ya existe en el catálogo.
+| SKIP: UNMSM ya existe en el catálogo.
+| SKIP: UNI ya existe en el catálogo.
+|
+| SUCCESS: Descubrimiento finalizado. 0 nuevas instituciones encontradas.
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Run Discovery Institutions [420.9271ms]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Post Setup Python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/cache-save/index.js] user= workdir=
+| (node:95) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /mnt/c/Users/Romel/Proyectos/studiamatch --files-from manifest.txt --use-compress-program zstdmt
+| Cache Size: ~0 MB (39342 B)
+| Cache saved successfully
+| Cache saved with the key: setup-python-Linux-x64-24.04-Ubuntu-python-3.11.14-pip-f0ce2eebdaeed75db717c576efdc90c00bdca807d128f92ddd7119034c89e9c9
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Post Setup Python [345.8376ms]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] Cleaning up container for job 0. Institution Inventory
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] 🏁  Job succeeded
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] 🚀  Start image=catthehacker/ubuntu:act-latest
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main actions/checkout@v4 [614.4398ms]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓  ::group::Installed versions
+| (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓  ::endgroup::
+| [command]/opt/hostedtoolcache/Python/3.11.14/x64/bin/pip cache dir
+| /root/.cache/pip
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ***
+| Cache Size: ~0 MB (39342 B)
+| [command]/usr/bin/tar -xf /tmp/a1902178-246d-49fa-b281-0688db31340a/cache.tzst -P -C /mnt/c/Users/Romel/Proyectos/studiamatch --use-compress-program unzstd
+| Cache restored successfully
+| Cache restored from key: setup-python-linux-x64-24.04-ubuntu-python-3.11.14-pip-f0ce2eebdaeed75db717c576efdc90c00bdca807d128f92ddd7119034c89e9c9
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main Setup Python [3.0323379s]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: cache-hit=false
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: aiohttp in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 10)) (3.13.5)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (2.6.1)
+| Requirement already satisfied: aiosignal>=1.4.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.4.0)
+| Requirement already satisfied: attrs>=17.3.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (26.1.0)
+| Requirement already satisfied: frozenlist>=1.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.8.0)
+| Requirement already satisfied: multidict<7.0,>=4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (6.7.1)
+| Requirement already satisfied: propcache>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (0.4.1)
+| Requirement already satisfied: yarl<2.0,>=1.17.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.23.0)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+| Downloading Chrome for Testing 145.0.7632.6 (playwright chromium v1208) from https://cdn.playwright.dev/chrome-for-testing-public/145.0.7632.6/linux64/chrome-linux64.zip
+| (node:104) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+167.3 MiB [] 100% 0.0s
+| Chrome for Testing 145.0.7632.6 (playwright chromium v1208) downloaded to /root/.cache/ms-playwright/chromium-1208
+| Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+| (node:115) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+2.3 MiB [] 100% 0.0s
+| FFmpeg (playwright ffmpeg v1011) downloaded to /root/.cache/ms-playwright/ffmpeg-1011
+| Downloading Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) from https://cdn.playwright.dev/chrome-for-testing-public/145.0.7632.6/linux64/chrome-headless-shell-linux64.zip
+| (node:126) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+110.9 MiB [] 100% 0.0s
+| Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) downloaded to /root/.cache/ms-playwright/chromium_headless_shell-1208
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main Install Dependencies [26.9821542s]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Run Master Orchestrator (Includes Harvester & Cleansing)
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| DB_CLIENT: Falling back to standard dotenv search
+| 2026-04-18 15:15:52,575 - [ORCHESTRATOR] - INFO - --- PHASE 1: DISCOVERY & HARVESTING ---
+| 2026-04-18 15:15:52,577 - [ORCHESTRATOR] - INFO - Found 15 institutions to harvest.
+| 2026-04-18 15:15:52,577 - [ORCHESTRATOR] - INFO - ### Processing Institution: Universidad de Lima (universidad-de-lima)
+| 2026-04-18 15:15:52,577 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "ccd04100-1bde-427b-b94f-ab24ae233a2a", "name": "Universidad de Lima", "slug": "universidad-de-lima", "website_url": "https://www.ulima.edu.pe/"}
+| 2026-04-18 15:15:53,053 - INFO - Starting discovery for Universidad de Lima at https://www.ulima.edu.pe/
+| 2026-04-18 15:15:53,053 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml
+| 2026-04-18 15:15:53,303 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=1
+| 2026-04-18 15:15:53,819 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=2
+| 2026-04-18 15:15:54,111 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=3
+| 2026-04-18 15:15:54,410 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=4
+| 2026-04-18 15:15:54,682 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=5
+| 2026-04-18 15:15:54,954 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=6
+| 2026-04-18 15:15:55,220 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=7
+| 2026-04-18 15:15:55,495 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=8
+| 2026-04-18 15:15:55,761 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=9
+| 2026-04-18 15:15:56,013 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=10
+| 2026-04-18 15:15:56,292 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=11
+| 2026-04-18 15:15:56,547 - INFO - Checking sitemap: https://www.ulima.edu.pe/sitemap.xml?page=12
+| 2026-04-18 15:15:57,206 - INFO - Sitemap discovery found 1407 potential courses.
+| 2026-04-18 15:15:57,206 - INFO - Starting Async BFS Crawl from https://www.ulima.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:16:28,673 - INFO - Total Discovery found 1421 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-5cXP0O --remote-debugging-pipe --no-startup-window
+| <launched> pid=158
+| [pid=158][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-5cXP0O --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=158
+|   - [pid=158][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=158] <gracefully close start>
+|   - [pid=158] <kill>
+|   - [pid=158] <will force kill>
+|   - [pid=158] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=158] <process did exit: exitCode=127, signal=null>
+|   - [pid=158] starting temporary directories cleanup
+|   - [pid=158] finished temporary directories cleanup
+|   - [pid=158] <gracefully close end>
+|
+| 2026-04-18 15:16:29,147 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:16:29,147 - [ORCHESTRATOR] - INFO - ### Processing Institution: Universidad del Pacífico (universidad-del-pacífico)
+| 2026-04-18 15:16:29,147 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "cf64d254-733d-4a92-8a2d-5df5b9dc80ac", "name": "Universidad del Pac\u00edfico", "slug": "universidad-del-pac\u00edfico", "website_url": "https://www.up.edu.pe/"}
+| 2026-04-18 15:16:29,449 - INFO - Starting discovery for Universidad del Pacífico at https://www.up.edu.pe/
+| 2026-04-18 15:16:29,450 - INFO - Checking sitemap: https://www.up.edu.pe/sitemap.xml
+| 2026-04-18 15:16:29,564 - WARNING - Failed to fetch sitemap https://www.up.edu.pe/sitemap.xml: Server disconnected
+| 2026-04-18 15:16:29,565 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:16:29,565 - INFO - Starting Async BFS Crawl from https://www.up.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:17:08,579 - INFO - Total Discovery found 80 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-Yb19dt --remote-debugging-pipe --no-startup-window
+| <launched> pid=175
+| [pid=175][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-Yb19dt --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=175
+|   - [pid=175][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=175] <gracefully close start>
+|   - [pid=175] <kill>
+|   - [pid=175] <will force kill>
+|   - [pid=175] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=175] <process did exit: exitCode=127, signal=null>
+|   - [pid=175] starting temporary directories cleanup
+|   - [pid=175] finished temporary directories cleanup
+|   - [pid=175] <gracefully close end>
+|
+| 2026-04-18 15:17:09,028 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:17:09,028 - [ORCHESTRATOR] - INFO - ### Processing Institution: IDAT (idat)
+| 2026-04-18 15:17:09,028 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "2aa0d175-bfbd-46d0-b84c-14083d2336b0", "name": "IDAT", "slug": "idat", "website_url": "https://www.idat.edu.pe/"}
+| 2026-04-18 15:17:09,346 - INFO - Starting discovery for IDAT at https://www.idat.edu.pe/
+| 2026-04-18 15:17:09,346 - INFO - Checking sitemap: https://www.idat.edu.pe/sitemap.xml
+| 2026-04-18 15:17:09,709 - INFO - Sitemap discovery found 60 potential courses.
+| 2026-04-18 15:17:09,709 - INFO - Starting Async BFS Crawl from https://www.idat.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:17:21,025 - INFO - Total Discovery found 60 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-CW5AOk --remote-debugging-pipe --no-startup-window
+| <launched> pid=191
+| [pid=191][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-CW5AOk --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=191
+|   - [pid=191][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=191] <gracefully close start>
+|   - [pid=191] <kill>
+|   - [pid=191] <will force kill>
+|   - [pid=191] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=191] <process did exit: exitCode=127, signal=null>
+|   - [pid=191] starting temporary directories cleanup
+|   - [pid=191] finished temporary directories cleanup
+|   - [pid=191] <gracefully close end>
+|
+| 2026-04-18 15:17:21,470 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:17:21,470 - [ORCHESTRATOR] - INFO - ### Processing Institution: SENATI (senati)
+| 2026-04-18 15:17:21,470 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "7091517e-db4f-4f91-a822-db50974acbba", "name": "SENATI", "slug": "senati", "website_url": "https://www.senati.edu.pe/"}
+| 2026-04-18 15:17:21,775 - INFO - Starting discovery for SENATI at https://www.senati.edu.pe/
+| 2026-04-18 15:17:21,775 - INFO - Checking sitemap: https://www.senati.edu.pe/sitemap.xml
+| 2026-04-18 15:17:22,808 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:17:22,808 - INFO - Starting Async BFS Crawl from https://www.senati.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:17:57,104 - INFO - Total Discovery found 31 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-t4rjP0 --remote-debugging-pipe --no-startup-window
+| <launched> pid=208
+| [pid=208][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-t4rjP0 --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=208
+|   - [pid=208][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=208] <gracefully close start>
+|   - [pid=208] <kill>
+|   - [pid=208] <will force kill>
+|   - [pid=208] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=208] <process did exit: exitCode=127, signal=null>
+|   - [pid=208] starting temporary directories cleanup
+|   - [pid=208] finished temporary directories cleanup
+|   - [pid=208] <gracefully close end>
+|
+| 2026-04-18 15:17:57,567 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:17:57,567 - [ORCHESTRATOR] - INFO - ### Processing Institution: UPC (upc)
+| 2026-04-18 15:17:57,567 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "442d7f1c-c6fe-4c85-8f0d-68cc55993193", "name": "UPC", "slug": "upc", "website_url": "https://www.upc.edu.pe/"}
+| 2026-04-18 15:17:57,887 - INFO - Starting discovery for UPC at https://www.upc.edu.pe/
+| 2026-04-18 15:17:57,888 - INFO - Checking sitemap: https://www.upc.edu.pe/sitemap.xml
+| 2026-04-18 15:17:58,430 - INFO - Sitemap discovery found 4 potential courses.
+| 2026-04-18 15:17:58,430 - INFO - Starting Async BFS Crawl from https://www.upc.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:17:59,250 - INFO - Total Discovery found 4 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-VKoyAV --remote-debugging-pipe --no-startup-window
+| <launched> pid=224
+| [pid=224][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-VKoyAV --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=224
+|   - [pid=224][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=224] <gracefully close start>
+|   - [pid=224] <kill>
+|   - [pid=224] <will force kill>
+|   - [pid=224] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=224] <process did exit: exitCode=127, signal=null>
+|   - [pid=224] starting temporary directories cleanup
+|   - [pid=224] finished temporary directories cleanup
+|   - [pid=224] <gracefully close end>
+|
+| 2026-04-18 15:17:59,649 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:17:59,649 - [ORCHESTRATOR] - INFO - ### Processing Institution: USIL (usil)
+| 2026-04-18 15:17:59,649 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "755ce274-f7cd-44d7-985c-817f80f5f38e", "name": "USIL", "slug": "usil", "website_url": "https://www.usil.edu.pe/"}
+| 2026-04-18 15:17:59,945 - INFO - Starting discovery for USIL at https://www.usil.edu.pe/
+| 2026-04-18 15:17:59,945 - INFO - Checking sitemap: https://www.usil.edu.pe/sitemap.xml
+| 2026-04-18 15:18:00,411 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:18:00,411 - INFO - Starting Async BFS Crawl from https://www.usil.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:18:00,813 - INFO - Total Discovery found 0 potential course URLs.
+| 2026-04-18 15:18:00,813 - WARNING - No course URLs found for USIL
+| 2026-04-18 15:18:00,860 - [ORCHESTRATOR] - INFO - ✅ [STAGE SUCCESS] scripts/cloud/core/universal_harvester.py
+| 2026-04-18 15:18:00,860 - [ORCHESTRATOR] - INFO - ### Processing Institution: Universidad Continental (universidad-continental)
+| 2026-04-18 15:18:00,860 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "ba945423-f295-434d-9082-48c726b0fe8e", "name": "Universidad Continental", "slug": "universidad-continental", "website_url": "https://ucontinental.edu.pe/"}
+| 2026-04-18 15:18:01,155 - INFO - Starting discovery for Universidad Continental at https://ucontinental.edu.pe/
+| 2026-04-18 15:18:01,156 - INFO - Checking sitemap: https://ucontinental.edu.pe/sitemap.xml
+| 2026-04-18 15:18:01,944 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap.xml
+| 2026-04-18 15:18:04,327 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap2.xml
+| 2026-04-18 15:18:06,970 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap3.xml
+| 2026-04-18 15:18:12,399 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap4.xml
+| 2026-04-18 15:18:15,182 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap5.xml
+| 2026-04-18 15:18:18,132 - INFO - Checking sitemap: https://ucontinental.edu.pe/post-sitemap6.xml
+| 2026-04-18 15:18:20,394 - INFO - Checking sitemap: https://ucontinental.edu.pe/page-sitemap.xml
+| 2026-04-18 15:18:20,822 - INFO - Checking sitemap: https://ucontinental.edu.pe/category-sitemap.xml
+| 2026-04-18 15:18:21,087 - INFO - Sitemap discovery found 437 potential courses.
+| 2026-04-18 15:18:21,087 - INFO - Starting Async BFS Crawl from https://ucontinental.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:18:30,918 - INFO - Total Discovery found 440 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-bO2RjZ --remote-debugging-pipe --no-startup-window
+| <launched> pid=243
+| [pid=243][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-bO2RjZ --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=243
+|   - [pid=243][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=243] <gracefully close start>
+|   - [pid=243] <kill>
+|   - [pid=243] <will force kill>
+|   - [pid=243] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=243] <process did exit: exitCode=127, signal=null>
+|   - [pid=243] starting temporary directories cleanup
+|   - [pid=243] finished temporary directories cleanup
+|   - [pid=243] <gracefully close end>
+|
+| 2026-04-18 15:18:31,346 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:18:31,346 - [ORCHESTRATOR] - INFO - ### Processing Institution: UTP (utp)
+| 2026-04-18 15:18:31,346 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "556c359b-55ec-4c1a-b6a5-177c6983da25", "name": "UTP", "slug": "utp", "website_url": "https://www.utp.edu.pe/"}
+| 2026-04-18 15:18:31,648 - INFO - Starting discovery for UTP at https://www.utp.edu.pe/
+| 2026-04-18 15:18:31,648 - INFO - Checking sitemap: https://www.utp.edu.pe/sitemap.xml
+| 2026-04-18 15:18:32,202 - INFO - Sitemap discovery found 1 potential courses.
+| 2026-04-18 15:18:32,202 - INFO - Starting Async BFS Crawl from https://www.utp.edu.pe/ (Max Depth: 3)
+| /mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py:138: XMLParsedAsHTMLWarning: It looks like you're using an HTML parser to parse an XML document.
+|
+| Assuming this really is an XML document, what you're doing might work, but you should know that using an XML parser will be more reliable. To parse this document as XML, make sure you have the Python package 'lxml' installed, and pass the keyword argument `features="xml"` into the BeautifulSoup constructor.
+|
+| If you want or need to use an HTML parser on this document, you can make this warning go away by filtering it. To do that, run this code before calling the BeautifulSoup constructor:
+|
+|     from bs4 import XMLParsedAsHTMLWarning
+|     import warnings
+|
+|     warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+|
+|   soup = BeautifulSoup(html, 'html.parser')
+| 2026-04-18 15:19:35,998 - INFO - Total Discovery found 26 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-5OoG0g --remote-debugging-pipe --no-startup-window
+| <launched> pid=259
+| [pid=259][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-5OoG0g --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=259
+|   - [pid=259][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=259] <gracefully close start>
+|   - [pid=259] <kill>
+|   - [pid=259] <will force kill>
+|   - [pid=259] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=259] <process did exit: exitCode=127, signal=null>
+|   - [pid=259] starting temporary directories cleanup
+|   - [pid=259] finished temporary directories cleanup
+|   - [pid=259] <gracefully close end>
+|
+| 2026-04-18 15:19:36,486 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:19:36,486 - [ORCHESTRATOR] - INFO - ### Processing Institution: UNMSM (unmsm)
+| 2026-04-18 15:19:36,486 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "48177d13-e476-468f-99f3-87371b4a1bae", "name": "UNMSM", "slug": "unmsm", "website_url": "https://unmsm.edu.pe/"}
+| 2026-04-18 15:19:36,843 - INFO - Starting discovery for UNMSM at https://unmsm.edu.pe/
+| 2026-04-18 15:19:36,843 - INFO - Checking sitemap: https://unmsm.edu.pe/sitemap.xml
+| 2026-04-18 15:19:37,691 - INFO - Sitemap discovery found 3 potential courses.
+| 2026-04-18 15:19:37,691 - INFO - Starting Async BFS Crawl from https://unmsm.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:19:43,509 - INFO - Total Discovery found 30 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-OsVPsh --remote-debugging-pipe --no-startup-window
+| <launched> pid=275
+| [pid=275][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-OsVPsh --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=275
+|   - [pid=275][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=275] <gracefully close start>
+|   - [pid=275] <kill>
+|   - [pid=275] <will force kill>
+|   - [pid=275] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=275] <process did exit: exitCode=127, signal=null>
+|   - [pid=275] starting temporary directories cleanup
+|   - [pid=275] finished temporary directories cleanup
+|   - [pid=275] <gracefully close end>
+|
+| 2026-04-18 15:19:43,998 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:19:43,998 - [ORCHESTRATOR] - INFO - ### Processing Institution: UNI (uni)
+| 2026-04-18 15:19:43,998 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "fb5c5e61-1afc-4dc4-b771-d3595ed329c2", "name": "UNI", "slug": "uni", "website_url": "https://www.uni.edu.pe/"}
+| 2026-04-18 15:19:44,386 - INFO - Starting discovery for UNI at https://www.uni.edu.pe/
+| 2026-04-18 15:19:44,386 - INFO - Checking sitemap: https://www.uni.edu.pe/sitemap.xml
+| 2026-04-18 15:19:44,696 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:19:44,696 - INFO - Starting Async BFS Crawl from https://www.uni.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:20:24,071 - INFO - Total Discovery found 36 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-iz2rMc --remote-debugging-pipe --no-startup-window
+| <launched> pid=291
+| [pid=291][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-iz2rMc --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=291
+|   - [pid=291][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=291] <gracefully close start>
+|   - [pid=291] <kill>
+|   - [pid=291] <will force kill>
+|   - [pid=291] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=291] <process did exit: exitCode=127, signal=null>
+|   - [pid=291] starting temporary directories cleanup
+|   - [pid=291] finished temporary directories cleanup
+|   - [pid=291] <gracefully close end>
+|
+| 2026-04-18 15:20:24,514 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:20:24,515 - [ORCHESTRATOR] - INFO - ### Processing Institution: New Horizons Perú (new-horizons-peru)
+| 2026-04-18 15:20:24,515 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "24cc140d-de25-4ef1-9316-b897b451be50", "name": "New Horizons Per\u00fa", "slug": "new-horizons-peru", "website_url": "https://www.newhorizons.edu.pe/"}
+| 2026-04-18 15:20:24,820 - INFO - Starting discovery for New Horizons Perú at https://www.newhorizons.edu.pe/
+| 2026-04-18 15:20:24,820 - INFO - Checking sitemap: https://www.newhorizons.edu.pe/sitemap.xml
+| 2026-04-18 15:20:26,273 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:20:26,273 - INFO - Starting Async BFS Crawl from https://www.newhorizons.edu.pe/ (Max Depth: 3)
+| /mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py:138: XMLParsedAsHTMLWarning: It looks like you're using an HTML parser to parse an XML document.
+|
+| Assuming this really is an XML document, what you're doing might work, but you should know that using an XML parser will be more reliable. To parse this document as XML, make sure you have the Python package 'lxml' installed, and pass the keyword argument `features="xml"` into the BeautifulSoup constructor.
+|
+| If you want or need to use an HTML parser on this document, you can make this warning go away by filtering it. To do that, run this code before calling the BeautifulSoup constructor:
+|
+|     from bs4 import XMLParsedAsHTMLWarning
+|     import warnings
+|
+|     warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+|
+|   soup = BeautifulSoup(html, 'html.parser')
+| 2026-04-18 15:20:45,820 - INFO - Total Discovery found 79 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-mEibxl --remote-debugging-pipe --no-startup-window
+| <launched> pid=307
+| [pid=307][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-mEibxl --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=307
+|   - [pid=307][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=307] <gracefully close start>
+|   - [pid=307] <kill>
+|   - [pid=307] <will force kill>
+|   - [pid=307] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=307] <process did exit: exitCode=127, signal=null>
+|   - [pid=307] starting temporary directories cleanup
+|   - [pid=307] finished temporary directories cleanup
+|   - [pid=307] <gracefully close end>
+|
+| 2026-04-18 15:20:46,278 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:20:46,278 - [ORCHESTRATOR] - INFO - ### Processing Institution: Pontificia Universidad Católica del Perú (pucp)
+| 2026-04-18 15:20:46,278 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "b3969350-3df5-44c1-85c5-787cbb877494", "name": "Pontificia Universidad Cat\u00f3lica del Per\u00fa", "slug": "pucp", "website_url": "https://www.pucp.edu.pe/"}
+| 2026-04-18 15:20:46,587 - INFO - Starting discovery for Pontificia Universidad Católica del Perú at https://www.pucp.edu.pe/
+| 2026-04-18 15:20:46,587 - INFO - Checking sitemap: https://www.pucp.edu.pe/sitemap.xml
+| 2026-04-18 15:20:47,167 - INFO - Sitemap discovery found 8 potential courses.
+| 2026-04-18 15:20:47,167 - INFO - Starting Async BFS Crawl from https://www.pucp.edu.pe/ (Max Depth: 3)
+| 2026-04-18 15:21:22,744 - INFO - Total Discovery found 24 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-UTQdcE --remote-debugging-pipe --no-startup-window
+| <launched> pid=323
+| [pid=323][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-UTQdcE --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=323
+|   - [pid=323][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=323] <gracefully close start>
+|   - [pid=323] <kill>
+|   - [pid=323] <will force kill>
+|   - [pid=323] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=323] <process did exit: exitCode=127, signal=null>
+|   - [pid=323] starting temporary directories cleanup
+|   - [pid=323] finished temporary directories cleanup
+|   - [pid=323] <gracefully close end>
+|
+| 2026-04-18 15:21:23,173 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:21:23,173 - [ORCHESTRATOR] - INFO - ### Processing Institution: SmartData (smartdata)
+| 2026-04-18 15:21:23,173 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "5e3257be-1c70-457d-98d8-191a5b964045", "name": "SmartData", "slug": "smartdata", "website_url": "https://smartdata.com.pe/"}
+| 2026-04-18 15:21:24,171 - INFO - Starting discovery for SmartData at https://smartdata.com.pe/
+| 2026-04-18 15:21:24,171 - INFO - Checking sitemap: https://smartdata.com.pe/sitemap.xml
+| 2026-04-18 15:21:26,109 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:21:26,109 - INFO - Starting Async BFS Crawl from https://smartdata.com.pe/ (Max Depth: 3)
+| 2026-04-18 15:21:26,416 - INFO - Total Discovery found 0 potential course URLs.
+| 2026-04-18 15:21:26,416 - WARNING - No course URLs found for SmartData
+| 2026-04-18 15:21:26,461 - [ORCHESTRATOR] - INFO - ✅ [STAGE SUCCESS] scripts/cloud/core/universal_harvester.py
+| 2026-04-18 15:21:26,461 - [ORCHESTRATOR] - INFO - ### Processing Institution: DMC (dmc)
+| 2026-04-18 15:21:26,461 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "c64123d6-f00e-4c89-86a8-7706845c0483", "name": "DMC", "slug": "dmc", "website_url": "https://dmc.pe/"}
+| 2026-04-18 15:21:26,757 - INFO - Starting discovery for DMC at https://dmc.pe/
+| 2026-04-18 15:21:26,757 - INFO - Checking sitemap: https://dmc.pe/sitemap.xml
+| 2026-04-18 15:21:30,162 - INFO - Checking sitemap: http://dmc.pe/post-sitemap.xml
+| 2026-04-18 15:21:31,789 - INFO - Checking sitemap: http://dmc.pe/page-sitemap.xml
+| 2026-04-18 15:21:33,133 - INFO - Checking sitemap: http://dmc.pe/cliente-sitemap.xml
+| 2026-04-18 15:21:34,322 - INFO - Checking sitemap: http://dmc.pe/egresado-sitemap.xml
+| 2026-04-18 15:21:35,388 - INFO - Checking sitemap: http://dmc.pe/malla-curricular-sitemap.xml
+| 2026-04-18 15:21:36,902 - INFO - Checking sitemap: http://dmc.pe/pregunta-frecuente-sitemap.xml
+| 2026-04-18 15:21:38,115 - INFO - Checking sitemap: http://dmc.pe/termino-y-condicion--sitemap.xml
+| 2026-04-18 15:21:39,339 - INFO - Checking sitemap: http://dmc.pe/product-sitemap.xml
+| 2026-04-18 15:21:40,695 - INFO - Checking sitemap: http://dmc.pe/profesores-sitemap.xml
+| 2026-04-18 15:21:41,995 - INFO - Checking sitemap: http://dmc.pe/yaymail_template-sitemap.xml
+| 2026-04-18 15:21:43,214 - INFO - Checking sitemap: http://dmc.pe/bricks_template-sitemap.xml
+| 2026-04-18 15:21:44,398 - INFO - Checking sitemap: http://dmc.pe/partner-sitemap.xml
+| 2026-04-18 15:21:45,786 - INFO - Checking sitemap: http://dmc.pe/category-sitemap.xml
+| 2026-04-18 15:21:48,899 - INFO - Checking sitemap: http://dmc.pe/categoria-pregunta-sitemap.xml
+| 2026-04-18 15:21:53,568 - INFO - Checking sitemap: http://dmc.pe/categoria-termino-y-condicion-sitemap.xml
+| 2026-04-18 15:22:00,860 - INFO - Checking sitemap: http://dmc.pe/perfil-curso-sitemap.xml
+| 2026-04-18 15:22:05,452 - INFO - Checking sitemap: http://dmc.pe/ruta-de-aprendizaje-sitemap.xml
+| 2026-04-18 15:22:10,276 - INFO - Checking sitemap: http://dmc.pe/product_cat-sitemap.xml
+| 2026-04-18 15:22:14,979 - INFO - Checking sitemap: http://dmc.pe/product_tag-sitemap.xml
+| 2026-04-18 15:22:19,816 - INFO - Checking sitemap: http://dmc.pe/author-sitemap.xml
+| 2026-04-18 15:22:24,558 - INFO - Sitemap discovery found 58 potential courses.
+| 2026-04-18 15:22:24,558 - INFO - Starting Async BFS Crawl from https://dmc.pe/ (Max Depth: 3)
+| 2026-04-18 15:22:52,933 - INFO - Total Discovery found 61 potential course URLs.
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 417, in <module>
+|     asyncio.run(main())
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+|     return runner.run(main)
+|            ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+|     return self._loop.run_until_complete(task)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+|     return future.result()
+|            ^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/universal_harvester.py", line 393, in main
+|     browser = await p.chromium.launch(headless=True)
+|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/async_api/_generated.py", line 14547, in launch
+|     await self._impl_obj.launch(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 97, in launch
+|     await self._channel.send(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+|     return await self._connection.wrap_api_call(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+|     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+| playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed
+| Browser logs:
+|
+| <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-vRHxaM --remote-debugging-pipe --no-startup-window
+| <launched> pid=342
+| [pid=342][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+| Call log:
+|   - <launching> /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,BoundaryEventDispatchTracksNodeRemoval,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument,OptimizationHints --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/tmp/playwright_chromiumdev_profile-vRHxaM --remote-debugging-pipe --no-startup-window
+|   - <launched> pid=342
+|   - [pid=342][err] /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file: No such file or directory
+|   - [pid=342] <gracefully close start>
+|   - [pid=342] <kill>
+|   - [pid=342] <will force kill>
+|   - [pid=342] exception while trying to kill process: Error: kill ESRCH
+|   - [pid=342] <process did exit: exitCode=127, signal=null>
+|   - [pid=342] starting temporary directories cleanup
+|   - [pid=342] finished temporary directories cleanup
+|   - [pid=342] <gracefully close end>
+|
+| 2026-04-18 15:22:53,368 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/universal_harvester.py (Exit Code: 1)
+| 2026-04-18 15:22:53,368 - [ORCHESTRATOR] - INFO - ### Processing Institution: TEST-ADAPTER-PATCHED (test-slug-4385b2a0-f456-482f-8754-f68b50b74a7f)
+| 2026-04-18 15:22:53,368 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/universal_harvester.py {"id": "4385b2a0-f456-482f-8754-f68b50b74a7f", "name": "TEST-ADAPTER-PATCHED", "slug": "test-slug-4385b2a0-f456-482f-8754-f68b50b74a7f", "website_url": "http://test.com"}
+| 2026-04-18 15:22:53,682 - INFO - Starting discovery for TEST-ADAPTER-PATCHED at http://test.com
+| 2026-04-18 15:22:53,682 - INFO - Checking sitemap: http://test.com/sitemap.xml
+| 2026-04-18 15:22:53,776 - WARNING - Failed to fetch sitemap http://test.com/sitemap.xml: Cannot connect to host test.com:80 ssl:default [Name or service not known]
+| 2026-04-18 15:22:53,776 - INFO - Sitemap discovery found 0 potential courses.
+| 2026-04-18 15:22:53,776 - INFO - Starting Async BFS Crawl from http://test.com (Max Depth: 3)
+| 2026-04-18 15:22:53,778 - INFO - Total Discovery found 0 potential course URLs.
+| 2026-04-18 15:22:53,778 - WARNING - No course URLs found for TEST-ADAPTER-PATCHED
+| 2026-04-18 15:22:53,826 - [ORCHESTRATOR] - INFO - ✅ [STAGE SUCCESS] scripts/cloud/core/universal_harvester.py
+| 2026-04-18 15:22:53,826 - [ORCHESTRATOR] - INFO - --- PHASE 1.5: CLEANSING ---
+| 2026-04-18 15:22:53,826 - [ORCHESTRATOR] - INFO - 🚀 [STAGE START] scripts/cloud/core/cleansing_worker.py
+| DB_CLIENT: Falling back to standard dotenv search
+| 2026-04-18 15:22:53,984 - INFO - Found 4 pending raw records.
+| 2026-04-18 15:22:53,984 - INFO - Cleansing: https://dmc.pe/producto/programa-de-certificacion-en-azure
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/cleansing_worker.py", line 173, in <module>
+|     worker.process_record(record)
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/core/cleansing_worker.py", line 119, in process_record
+|     res = self.db.upsert('cleansed_programs', cleansed_data, on_conflict="url")
+|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/shared/db_client.py", line 76, in upsert
+|     return self._upsert_local(table, data, on_conflict)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/shared/db_client.py", line 140, in _upsert_local
+|     cur.execute(query, values)
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/psycopg2/extras.py", line 236, in execute
+|     return super().execute(query, vars)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+| psycopg2.ProgrammingError: can't adapt type 'dict'
+| 2026-04-18 15:22:54,023 - [ORCHESTRATOR] - ERROR - ❌ [STAGE FAILED] scripts/cloud/core/cleansing_worker.py (Exit Code: 1)
+| 2026-04-18 15:22:54,024 - [ORCHESTRATOR] - WARNING - Cleansing step failed, but continuing pipeline...
+| 2026-04-18 15:22:54,024 - [ORCHESTRATOR] - INFO - 🏁 ORCHESTRATOR LOOP FINISHED.
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main Run Master Orchestrator (Includes Harvester & Cleansing) [7m1.6177772s]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Post Setup Python
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/cache-save/index.js] user= workdir=
+| (node:348) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /mnt/c/Users/Romel/Proyectos/studiamatch --files-from manifest.txt --use-compress-program zstdmt
+| Cache Size: ~0 MB (39335 B)
+| Cache saved successfully
+| Cache saved with the key: setup-python-Linux-x64-24.04-Ubuntu-python-3.11.14-pip-f0ce2eebdaeed75db717c576efdc90c00bdca807d128f92ddd7119034c89e9c9
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Post Setup Python [361.0511ms]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] Cleaning up container for job 1. Discovery & Harvesting
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] 🏁  Job succeeded
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] 🚀  Start image=catthehacker/ubuntu:act-latest
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Main actions/checkout@v4 [676.5772ms]
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ❓  ::group::Installed versions
+| (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ❓  ::endgroup::
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Main Setup Python [2.6937762s]
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: aiohttp in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 10)) (3.13.5)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (2.6.1)
+| Requirement already satisfied: aiosignal>=1.4.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.4.0)
+| Requirement already satisfied: attrs>=17.3.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (26.1.0)
+| Requirement already satisfied: frozenlist>=1.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.8.0)
+| Requirement already satisfied: multidict<7.0,>=4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (6.7.1)
+| Requirement already satisfied: propcache>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (0.4.1)
+| Requirement already satisfied: yarl<2.0,>=1.17.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.23.0)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Main Install Dependencies [878.0355ms]
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Main Multicloud AI Enrichment
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| DB_CLIENT: Falling back to standard dotenv search
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Main Multicloud AI Enrichment [395.4171ms]
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Post Setup Python
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/cache-save/index.js] user= workdir=
+| (node:74) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Post Setup Python [263.104ms]
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] Cleaning up container for job 2. AI Enrichment (14 Pillars)
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/2. AI Enrichment (14 Pillars)] 🏁  Job succeeded
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] 🚀  Start image=catthehacker/ubuntu:act-latest
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Main actions/checkout@v4 [590.6398ms]
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ❓  ::group::Installed versions
+| (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ❓  ::endgroup::
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Main Setup Python [2.6762604s]
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: aiohttp in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 10)) (3.13.5)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (2.6.1)
+| Requirement already satisfied: aiosignal>=1.4.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.4.0)
+| Requirement already satisfied: attrs>=17.3.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (26.1.0)
+| Requirement already satisfied: frozenlist>=1.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.8.0)
+| Requirement already satisfied: multidict<7.0,>=4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (6.7.1)
+| Requirement already satisfied: propcache>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (0.4.1)
+| Requirement already satisfied: yarl<2.0,>=1.17.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.23.0)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Main Install Dependencies [880.0181ms]
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Main Sync to Production Courses
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| DB_CLIENT: Falling back to standard dotenv search
+| 2026-04-18 15:23:13,425 - INFO - Found 0 pending enriched records.
+| 2026-04-18 15:23:13,425 - INFO - Sync batch complete.
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Main Sync to Production Courses [402.3125ms]
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Post Setup Python
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/cache-save/index.js] user= workdir=
+| (node:74) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Post Setup Python [259.6802ms]
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] Cleaning up container for job 3. Integrity & Sync
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/3. Integrity & Sync          ] 🏁  Job succeeded
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] 🚀  Start image=catthehacker/ubuntu:act-latest
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker pull image=catthehacker/ubuntu:act-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker create image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker run image=catthehacker/ubuntu:act-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ☁  git clone 'https://github.com/actions/upload-artifact' # ref=v4
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ✅  Success - Main actions/checkout@v4 [581.4102ms]
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❓  ::group::Installed versions
+| (node:31) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❓  ::endgroup::
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ✅  Success - Main Setup Python [2.5979412s]
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: aiohttp in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 10)) (3.13.5)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (2.6.1)
+| Requirement already satisfied: aiosignal>=1.4.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.4.0)
+| Requirement already satisfied: attrs>=17.3.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (26.1.0)
+| Requirement already satisfied: frozenlist>=1.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.8.0)
+| Requirement already satisfied: multidict<7.0,>=4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (6.7.1)
+| Requirement already satisfied: propcache>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (0.4.1)
+| Requirement already satisfied: yarl<2.0,>=1.17.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from aiohttp->-r requirements.txt (line 10)) (1.23.0)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ✅  Success - Main Install Dependencies [902.1024ms]
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Main Quality Assurance Audit
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| 🚀 Iniciando Auditoría de Coherencia y Calidad (Fase 26)...
+| Traceback (most recent call last):
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connection.py", line 204, in _new_conn
+|     sock = connection.create_connection(
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/util/connection.py", line 85, in create_connection
+|     raise err
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/util/connection.py", line 73, in create_connection
+|     sock.connect(sa)
+| ConnectionRefusedError: [Errno 111] Connection refused
+|
+| The above exception was the direct cause of the following exception:
+|
+| Traceback (most recent call last):
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+|     response = self._make_request(
+|                ^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connectionpool.py", line 493, in _make_request
+|     conn.request(
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connection.py", line 500, in request
+|     self.endheaders()
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/http/client.py", line 1298, in endheaders
+|     self._send_output(message_body, encode_chunked=encode_chunked)
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/http/client.py", line 1058, in _send_output
+|     self.send(msg)
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/http/client.py", line 996, in send
+|     self.connect()
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connection.py", line 331, in connect
+|     self.sock = self._new_conn()
+|                 ^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connection.py", line 219, in _new_conn
+|     raise NewConnectionError(
+| urllib3.exceptions.NewConnectionError: HTTPConnection(host='localhost', port=54321): Failed to establish a new connection: [Errno 111] Connection refused
+|
+| The above exception was the direct cause of the following exception:
+|
+| Traceback (most recent call last):
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/adapters.py", line 645, in send
+|     resp = conn.urlopen(
+|            ^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+|     retries = retries.increment(
+|               ^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/urllib3/util/retry.py", line 535, in increment
+|     raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+|     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+| urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='localhost', port=54321): Max retries exceeded with url: /rest/v1/courses?select=*,institutions(slug)&is_active=eq.true (Caused by NewConnectionError("HTTPConnection(host='localhost', port=54321): Failed to establish a new connection: [Errno 111] Connection refused"))
+|
+| During handling of the above exception, another exception occurred:
+|
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/maintenance/quality_assurance_audit.py", line 81, in <module>
+|     run_audit()
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/cloud/maintenance/quality_assurance_audit.py", line 27, in run_audit
+|     res = requests.get(url, headers=headers)
+|           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/api.py", line 73, in get
+|     return request("get", url, params=params, **kwargs)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/api.py", line 59, in request
+|     return session.request(method=method, url=url, **kwargs)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/sessions.py", line 592, in request
+|     resp = self.send(prep, **send_kwargs)
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/sessions.py", line 706, in send
+|     r = adapter.send(request, **kwargs)
+|         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/adapters.py", line 678, in send
+|     raise ConnectionError(e, request=request)
+| requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=54321): Max retries exceeded with url: /rest/v1/courses?select=*,institutions(slug)&is_active=eq.true (Caused by NewConnectionError("HTTPConnection(host='localhost', port=54321): Failed to establish a new connection: [Errno 111] Connection refused"))
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❌  Failure - Main Quality Assurance Audit [328.8913ms]
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] exitcode '1': failure
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Main Upload Final Audit Reports
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-upload-artifact@v4/ dst=/var/run/act/actions/actions-upload-artifact@v4/
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   🐳  docker exec cmd=[/opt/acttoolcache/node/24.14.1/x64/bin/node /var/run/act/actions/actions-upload-artifact@v4/dist/upload/index.js] user= workdir=
+| (node:74) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+| With the provided path, there will be 18 files uploaded
+| Artifact name is valid!
+| Root directory input is valid!
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❗  ::error::Unable to get the ACTIONS_RUNTIME_TOKEN env variable
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ❌  Failure - Main Upload Final Audit Reports [2.0529868s]
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] exitcode '1': failure
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/4. ROI & QA Audit            ] 🏁  Job failed
+Error: Job '4. ROI & QA Audit' failed
+PS C:\Users\Romel\Proyectos\studiamatch>
