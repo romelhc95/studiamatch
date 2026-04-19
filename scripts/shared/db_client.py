@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 import re
 import urllib.parse
 
-# Try to load env files from the root of the project (4 levels up from this script)
-root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Try to load env files from the root of the project (3 levels up from this script: scripts/shared/db_client.py)
+root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 env_local = os.path.join(root_dir, '.env.local')
 env_std = os.path.join(root_dir, '.env')
 

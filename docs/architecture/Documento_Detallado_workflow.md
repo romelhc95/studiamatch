@@ -75,7 +75,7 @@ graph TD
     | `staging_raw` | `INSERT / UPDATE` | Almacena el `raw_html`, metadatos de rastreo y `content_hash`. |
 
 ### 2.5. Saneamiento (FG2 - Fase 1.5)
-*   **Script**: `scripts/cloud/core/cleansing_worker.py`.
+*   **Script**: `scripts/core/cleansing_worker.py`.
 *   **Propósito**: Limpieza de HTML crudo (eliminación de scripts, navs, footers) para reducir el consumo de tokens y normalización de metadatos JSON.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |

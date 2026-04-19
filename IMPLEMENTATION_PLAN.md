@@ -347,24 +347,24 @@ Objetivo: Transformar `cleansing_worker.py` en un filtro de alta fidelidad con m
 
 **Resultado Final:** ~156 programas académicos puros de alta fidelidad promovidos (Reducción de >70% de ruido).
 
-## Fase 39.1: De-duplicación Inteligente por Redirección y Canonical [/] Pendiente de Revisión
+## Fase 39.1: De-duplicación Inteligente por Redirección y Canonical [x] Completado
 Objetivo: Resolver el problema de múltiples rutas apuntando al mismo contenido (caso New Horizons) capturando la "Fuente de Verdad" técnica definida por el servidor y SEO.
 
 1. **Infraestructura de Datos (SQL)**:
-   - [ ] **Esquema de Alta Fidelidad**: Añadir columnas `effective_url` y `canonical_url` en `staging_raw` y `cleansed_programs`.
-   - [ ] **Índice Compuesto**: Migrar el índice UNIQUE de `cleansed_programs` a la tupla `(institution_id, effective_url)` para evitar colisiones entre instituciones.
+   - [x] **Esquema de Alta Fidelidad**: Añadir columnas `effective_url` y `canonical_url` en `staging_raw` y `cleansed_programs`. [x] Completado
+   - [x] **Índice Compuesto**: Migrar el índice UNIQUE de `cleansed_programs` a la tupla `(institution_id, effective_url)` para evitar colisiones entre instituciones. [x] Completado
 2. **Refactorización de Captura (Harvester)**:
-   - [ ] **Captura de URL Final**: Almacenar `response.url` tras redirecciones automáticas de `curl_cffi` o Playwright.
-   - [ ] **Extracción de Canonical**: Implementar regex/BeautifulSoup para extraer `<link rel="canonical">` como prioridad de de-duplicación.
+   - [x] **Captura de URL Final**: Almacenar `response.url` tras redirecciones automáticas de `curl_cffi` o Playwright. [x] Completado
+   - [x] **Extracción de Canonical**: Implementar regex/BeautifulSoup para extraer `<link rel="canonical">` como prioridad de de-duplicación. [x] Completado
 3. **Lógica de Consolidación (Cleanser)**:
-   - [ ] **Normalización Robusta**: Implementar `normalize_url` para remover query strings, fragmentos y unificar el `trailing slash`.
-   - [ ] **Pivot de Agrupación**: Cambiar la lógica de consolidación para que use `canonical_url` (prioridad) o `effective_url` (fallback) como clave de unión.
-   - [ ] **Trazabilidad de Linaje**: Registrar `sibling_staging_ids` en los metadatos para auditar qué URLs originales fueron "comprimidas".
+   - [x] **Normalización Robusta**: Implementar `normalize_url` para remover query strings, fragmentos y unificar el `trailing slash`. [x] Completado
+   - [x] **Pivot de Agrupación**: Cambiar la lógica de consolidación para que use `canonical_url` (prioridad) o `effective_url` (fallback) como clave de unión. [x] Completado
+   - [x] **Trazabilidad de Linaje**: Registrar `sibling_staging_ids` en los metadatos para auditar qué URLs originales fueron "comprimidas". [x] Completado
 4. **Certificación y Sanity Check**:
-   - [ ] **Test de New Horizons**: Validar que las rutas divergentes de TOGAF se fusionen en un único registro maestro.
-   - [ ] **Validación de Fallback**: Confirmar el uso de `COALESCE` para operar con URLs originales si no hay redirección detectada.
+   - [x] **Test de New Horizons**: Validar que las rutas divergentes de TOGAF se fusionen en un único registro maestro. [x] Completado
+   - [x] **Validación de Fallback**: Confirmar el uso de `COALESCE` para operar con URLs originales si no hay redirección detectada. [x] Completado
 
-## Fase 40: Refactorización de Infraestructura CI/CD [/] En curso
+## Fase 40: Refactorización de Infraestructura CI/CD [x] Completado
 Objetivo: Migrar el pipeline monolítico hacia un sistema de 3 flujos atómicos (Mensual, Semanal, Diario) para optimizar costos de computación y mejorar la observabilidad en la nube.
 
 1. **Estructura de Workflows (GitHub Actions)**:
@@ -375,13 +375,48 @@ Objetivo: Migrar el pipeline monolítico hacia un sistema de 3 flujos atómicos 
    - [x] **Jobs Secuenciales**: Separación de 'Harvesting' y 'Cleansing' en jobs independientes para identificar cuellos de botella. [x] Completado
    - [x] **Delegación del Orquestador**: Modificación de `master_orchestrator.py` para permitir la delegación de fases a GitHub Actions vía flags (`--skip-cleansing`). [x] Completado
 3. **Mantenimiento y Protocolo Local -> Nube (Smart Sync)**:
-   - [ ] **Protocolo de Sincronización**: Automatización del flujo de subida de cambios locales a Supabase Free.
+   - [x] **Protocolo de Sincronización**: Automatización del flujo de subida de cambios locales a Supabase Free. [x] Completado
      1. Ejecutar `python scripts/local/maintenance/sync_local_to_cloud.py`.
      2. El script detectará diferencias y realizará **Bulk Upserts** vía API REST (evitando el colapso del navegador por SQL pesado).
      3. Confirmar en el Dashboard de Supabase que los registros (especialmente `cleansed_programs`) se han actualizado sin duplicados.
-   - [ ] **Esquema Estructural**: Para cambios en la estructura de tablas (DDL), utilizar el bloque SQL ligero de la arquitectura y ejecutarlo en el SQL Editor (Frecuencia: Solo cuando cambien los campos).
+   - [x] **Esquema Estructural**: Para cambios en la estructura de tablas (DDL), utilizar el bloque SQL ligero de la arquitectura y ejecutarlo en el SQL Editor (Frecuencia: Solo cuando cambien los campos). [x] Completado
+
+## Fase 41: Saneamiento y Preparación para Repositorio Público [/] En curso
+Objetivo: Blindar el repositorio para su apertura al público (Open Source) asegurando la total ausencia de secretos, saneamiento de código histórico y estandarización de la estructura de directorios.
+
+1. **Estructura Maestra de Directorios (ECC Standard)**:
+   - `.github/agents/`: Definición de especialistas SDLC (Cerebro del Proyecto).
+   - `.github/workflows/`: Pipelines de automatización industrial (FG1, FG2, FG3).
+   - `db/migrations/`: DDL controlado para replicación de base de datos.
+   - `docs/`: Reportes de auditoría y memoria técnica (Pilar de Calidad).
+   - `scripts/core/`: Motores universales (Harvester, Processor, Sync).
+   - `scripts/harvesters/`: Scrapers específicos (Lógica de extracción).
+   - `scripts/maintenance/`: Scripts de salud e integridad.
+   - `scripts/shared/`: Utilidades comunes y clientes de API.
+   - `web/`: Frontend Next.js 15 (Directorio raíz del despliegue).
+   - `local/`: **Caja Negra (Ignorado)**. Contiene scripts experimentales, backups de SQL y logs locales.
+
+2. **Protocolo de Seguridad "Zero-Leak"**:
+   - [x] **Aislamiento de Secretos**: Uso mandatorio de `.env` (ignorado) y GitHub Secrets. Prohibido hardcoding de URLs o Keys.
+   - [x] **Sanitización de Git History**: Auditoría mediante `trufflehog` o similar para asegurar que no hay secretos en commits antiguos.
+   - [x] **Supabase RLS Policy**: Todas las tablas públicas deben tener políticas de solo lectura habilitadas por defecto.
+   - [x] **Sanitización de Datos**: El pipeline de 4 estaciones (FG2) garantiza que solo datos públicos y limpios lleguen a la tabla `courses`.
+
+3. **Saneamiento Quirúrgico de Archivos**:
+   - [x] Migración de scripts de un solo uso a `scripts/legacy/`.
+   - [x] Eliminación de comentarios redundantes y "TODOs" sensibles.
+   - [x] Normalización de licencias y créditos en cada script principal.
+
+4. **Definition of Done (DoD) para Apertura Pública**:
+   - [ ] **Limpia Total**: Ningún archivo `.env`, `.bak`, `.tmp` o credencial JSON en el rastreo de Git.
+   - [ ] **Documentación Completa**: `README.md` actualizado con guía de "Self-Hosting" y arquitectura.
+   - [ ] **Pruebas Verificadas**: Suite de tests en `.github/workflows/` pasando al 100%.
+   - [ ] **Escudo de Calidad**: Reporte de `security-auditor` validando el estado del repositorio.
+
+---
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
 - **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
+- **Riesgo (Nuevo)**: Filtración accidental de secretos en repo público. -> Mitigación: Revisión obligatoria con escáner de secretos antes del primer `public push`.

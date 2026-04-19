@@ -71,12 +71,12 @@ def main():
         logger.info(f"### Processing Institution: {inst['name']} ({inst['slug']})")
         # Ensure we convert to dict and serialize cleanly
         inst_json = json.dumps(dict(inst))
-        run_script("scripts/cloud/core/universal_harvester.py", [inst_json])
+        run_script("scripts/core/universal_harvester.py", [inst_json])
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:
         logger.info("--- PHASE 1.5: CLEANSING ---")
-        if not run_script("scripts/cloud/core/cleansing_worker.py"):
+        if not run_script("scripts/core/cleansing_worker.py"):
             logger.warning("Cleansing step failed, but continuing pipeline...")
     else:
         logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
