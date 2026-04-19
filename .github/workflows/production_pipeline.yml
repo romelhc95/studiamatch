@@ -19,22 +19,16 @@ jobs:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install lsb-release
-        run: apt-get update && apt-get install -y lsb-release
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install Dependencies
+      - name: Install dependencies (system python)
         run: |
-          pip install -r requirements.txt
+          apt-get update && apt-get install -y python3-pip
+          pip3 install --break-system-packages -r requirements.txt
           playwright install chromium
       - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
+        run: python3 scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------
