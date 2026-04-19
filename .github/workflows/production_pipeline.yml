@@ -1,42 +1,17 @@
-name: StudIAMatch Golden Pipeline
+name: FG2 - StudIAMatch Golden Pipeline
 
 on:
   schedule:
-    - cron: '0 5 * * *' # Diario: 5 AM
+    - cron: '0 2 * * 0' # Semanal: Domingo 02:00 UTC
   workflow_dispatch:      # Manual
   push:
     branches: [ main, desarrollo, certificacion ]
 
 jobs:
-  # -------------------------------------------------------------
-  # PHASE 0: Institution Inventory Management
-  # -------------------------------------------------------------
-  phase_0_inventory:
-    name: "0. Institution Inventory"
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install Dependencies
-        run: pip install -r requirements.txt
-      - name: Run Discovery Institutions
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/core/discovery_institutions.py
-
-  # -------------------------------------------------------------
-  # PHASE 1: Massive Discovery & Harvesting
+  # 🚉 STATION 1: Massive Discovery & Harvesting
   # -------------------------------------------------------------
   phase_1_harvesting:
-    name: "1. Discovery & Harvesting"
-    needs: phase_0_inventory
+    name: "1. Massive Harvesting"
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.48.0-noble
@@ -54,19 +29,17 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -r requirements.txt
-          # The container already has the libraries, but we ensure the browsers match the python package version
           playwright install chromium
-      - name: Run Master Orchestrator (Includes Harvester & Cleansing)
+      - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima
+        run: python scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
 
+  # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------
-  # PHASE 2: AI Enrichment (14 Metadata Pillars)
-  # -------------------------------------------------------------
-  phase_2_enrichment:
-    name: "2. AI Enrichment (14 Pillars)"
+  phase_1_5_cleansing:
+    name: "1.5. High Fidelity Cleansing"
     needs: phase_1_harvesting
     runs-on: ubuntu-latest
     environment:
@@ -77,6 +50,30 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+      - name: Run Cleansing Worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/cloud/core/cleansing_worker.py
+
+  # 🚉 STATION 2: AI Enrichment (14 Metadata Pillars)
+  # -------------------------------------------------------------
+  phase_2_enrichment:
+    name: "2. AI Enrichment (14 Pillars)"
+    needs: phase_1_5_cleansing
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
       - name: Install Dependencies
         run: pip install -r requirements.txt
       - name: Multicloud AI Enrichment
@@ -89,8 +86,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scripts/cloud/core/enrichment_worker.py
 
-  # -------------------------------------------------------------
-  # PHASE 3: Integrity & Production Sync
+  # 🚉 STATION 3: Production Sync (Vectors & Slugs)
   # -------------------------------------------------------------
   phase_3_sync:
     name: "3. Integrity & Sync"
@@ -104,6 +100,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
       - name: Install Dependencies
         run: pip install -r requirements.txt
       - name: Sync to Production Courses
@@ -112,8 +109,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/cloud/core/sync_vector_worker.py
 
-  # -------------------------------------------------------------
-  # PHASE 4: ROI & QA Audit
+  # 🚉 STATION 4: ROI & QA Audit
   # -------------------------------------------------------------
   phase_4_audit:
     name: "4. ROI & QA Audit"
@@ -127,6 +123,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
       - name: Install Dependencies
         run: pip install -r requirements.txt
       - name: Quality Assurance Audit

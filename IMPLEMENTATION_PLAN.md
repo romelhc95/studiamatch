@@ -364,6 +364,20 @@ Objetivo: Resolver el problema de múltiples rutas apuntando al mismo contenido 
    - [ ] **Test de New Horizons**: Validar que las rutas divergentes de TOGAF se fusionen en un único registro maestro.
    - [ ] **Validación de Fallback**: Confirmar el uso de `COALESCE` para operar con URLs originales si no hay redirección detectada.
 
+## Fase 40: Refactorización de Infraestructura CI/CD [/] En curso
+Objetivo: Migrar el pipeline monolítico hacia un sistema de 3 flujos atómicos (Mensual, Semanal, Diario) para optimizar costos de computación y mejorar la observabilidad en la nube.
+
+1. **Estructura de Workflows (GitHub Actions)**:
+   - [x] **FG1 - Institution Inventory**: Flujo mensual para descubrimiento de nuevas semillas (`fg1_inventory.yml`). [x] Completado
+   - [x] **FG2 - Golden Pipeline**: Flujo semanal de alto volumen con jobs secuenciales aislados (`production_pipeline.yml`). [x] Completado
+   - [x] **FG3 - Integrity Management**: Flujo diario ligero para validación de 404s (`fg3_integrity.yml`). [x] Completado
+2. **Observabilidad y Resiliencia**:
+   - [x] **Jobs Secuenciales**: Separación de 'Harvesting' y 'Cleansing' en jobs independientes para identificar cuellos de botella. [x] Completado
+   - [x] **Delegación del Orquestador**: Modificación de `master_orchestrator.py` para permitir la delegación de fases a GitHub Actions vía flags (`--skip-cleansing`). [x] Completado
+3. **Mantenimiento**:
+   - [ ] **Configuración de Schedules**: Validar que los CRONs coincidan con la zona horaria de operación (Lima UTC-5).
+   - [ ] **Auditoría de Logs**: Implementar retención de artefactos de auditoría por 30 días en cada flujo.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.

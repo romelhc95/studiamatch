@@ -1,0 +1,27 @@
+﻿name: FG1 - Institution Inventory Management
+
+on:
+  schedule:
+    - cron: '0 0 1 * *' # Mensual: Día 1 a las 00:00 UTC
+  workflow_dispatch:      # Manual
+
+jobs:
+  inventory:
+    name: \"0. Institution Inventory\"
+    runs-on: ubuntu-latest
+    environment:
+      name: \${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+      - name: Run Discovery Institutions
+        env:
+          SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/cloud/core/discovery_institutions.py
