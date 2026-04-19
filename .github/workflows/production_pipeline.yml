@@ -28,7 +28,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python3 scripts/cloud/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
+        run: python3 scripts/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------
@@ -51,7 +51,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/core/cleansing_worker.py
+        run: python scripts/core/cleansing_worker.py
 
   # 🚉 STATION 2: AI Enrichment (14 Metadata Pillars)
   # -------------------------------------------------------------
@@ -78,7 +78,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python scripts/cloud/core/enrichment_worker.py
+        run: python scripts/core/enrichment_worker.py
 
   # 🚉 STATION 3: Production Sync (Vectors & Slugs)
   # -------------------------------------------------------------
@@ -101,7 +101,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/core/sync_vector_worker.py
+        run: python scripts/core/sync_vector_worker.py
 
   # 🚉 STATION 4: ROI & QA Audit
   # -------------------------------------------------------------
@@ -124,13 +124,13 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/cloud/maintenance/quality_assurance_audit.py
+        run: python scripts/maintenance/quality_assurance_audit.py
       - name: Taxonomy & ROI Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PYTHONIOENCODING: utf-8
-        run: python scripts/cloud/maintenance/taxonomy_roi_audit.py
+        run: python scripts/maintenance/taxonomy_roi_audit.py
       - name: Upload Final Audit Reports
         if: always()
         uses: actions/upload-artifact@v4

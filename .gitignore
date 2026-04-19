@@ -25,3 +25,12 @@ scripts/legacy/
 *.tmp
 *.bak
 .DS_Store
+
+# Entorno Local (ECC Local)
+local/
+scripts/local/
+scratch/
+db/exports/
+*.log
+run_log.txt
+.github/log/local/
