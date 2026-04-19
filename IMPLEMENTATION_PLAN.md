@@ -374,9 +374,12 @@ Objetivo: Migrar el pipeline monolítico hacia un sistema de 3 flujos atómicos 
 2. **Observabilidad y Resiliencia**:
    - [x] **Jobs Secuenciales**: Separación de 'Harvesting' y 'Cleansing' en jobs independientes para identificar cuellos de botella. [x] Completado
    - [x] **Delegación del Orquestador**: Modificación de `master_orchestrator.py` para permitir la delegación de fases a GitHub Actions vía flags (`--skip-cleansing`). [x] Completado
-3. **Mantenimiento**:
-   - [ ] **Configuración de Schedules**: Validar que los CRONs coincidan con la zona horaria de operación (Lima UTC-5).
-   - [ ] **Auditoría de Logs**: Implementar retención de artefactos de auditoría por 30 días en cada flujo.
+3. **Mantenimiento y Protocolo Local -> Nube (Smart Sync)**:
+   - [ ] **Protocolo de Sincronización**: Automatización del flujo de subida de cambios locales a Supabase Free.
+     1. Ejecutar `python scripts/local/maintenance/sync_local_to_cloud.py`.
+     2. El script detectará diferencias y realizará **Bulk Upserts** vía API REST (evitando el colapso del navegador por SQL pesado).
+     3. Confirmar en el Dashboard de Supabase que los registros (especialmente `cleansed_programs`) se han actualizado sin duplicados.
+   - [ ] **Esquema Estructural**: Para cambios en la estructura de tablas (DDL), utilizar el bloque SQL ligero de la arquitectura y ejecutarlo en el SQL Editor (Frecuencia: Solo cuando cambien los campos).
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

@@ -28,10 +28,10 @@ class DatabaseClient:
     Switches automatically between local PostgreSQL (direct SQL) 
     and Supabase Cloud (Rest API) based on environment.
     """
-    def __init__(self):
-        self.supabase_url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-        self.supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-        self.database_url = os.getenv("DATABASE_URL")
+    def __init__(self, supabase_url=None, supabase_key=None, database_url="DEFAULT"):
+        self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
+        self.supabase_key = supabase_key if supabase_key is not None else (os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
+        self.database_url = database_url if database_url != "DEFAULT" else os.getenv("DATABASE_URL")
         
         # Handle Docker-to-Host connectivity automatically
         # Inside 'act' or Docker containers, localhost/127.0.0.1 won't reach the host.
