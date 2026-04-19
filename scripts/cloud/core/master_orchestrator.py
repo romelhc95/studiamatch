@@ -51,6 +51,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
+    parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
     args = parser.parse_args()
 
     excluded_slugs = args.exclude.split(',') if args.exclude else []
@@ -73,14 +74,12 @@ def main():
         run_script("scripts/cloud/core/universal_harvester.py", [inst_json])
 
     # 🚉 PHASE 1.5: Cleansing
-    logger.info("--- PHASE 1.5: CLEANSING ---")
-    if not run_script("scripts/cloud/core/cleansing_worker.py"):
-        logger.warning("Cleansing step failed, but continuing pipeline...")
-
-    # 🚉 PHASE 2: AI Enrichment (En el pipeline YAML se ejecuta por separado para mejor visibilidad, 
-    # pero lo dejamos aquí como fallback o ejecución local)
-    # logger.info("--- PHASE 2: AI ENRICHMENT ---")
-    # run_script("scripts/core/enrichment_worker.py")
+    if not args.skip_cleansing:
+        logger.info("--- PHASE 1.5: CLEANSING ---")
+        if not run_script("scripts/cloud/core/cleansing_worker.py"):
+            logger.warning("Cleansing step failed, but continuing pipeline...")
+    else:
+        logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
 
     logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
 

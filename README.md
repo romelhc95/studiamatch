@@ -13,19 +13,17 @@ A diferencia de los buscadores de cursos tradicionales, StudIAMatch audita cada 
 7.  ... (y otros 8 pilares estratégicos de auditoría).
 
 ## 🛠️ Arquitectura y "Golden Pipeline"
-El sistema opera mediante un flujo de datos autónomo diseñado para la escalabilidad nacional:
+El sistema opera mediante un flujo de datos atómico y resiliente, diseñado para la escalabilidad nacional y la evasión de bloqueos (Stealth):
 
-1.  **Descubrimiento (The Explorer)**: Rastreo mensual de nuevas instituciones y programas.
-2.  **Harvesting (The Collector)**: Scrapers especializados en Python (Playwright) para extracción masiva.
-3.  **Enriquecimiento IA (The Brain)**: Integración con **Cloudflare Workers AI (Llama 3)** y **GitHub Models** para procesar los 14 pilares de forma autónoma.
-4.  **Auditoría de Integridad**: Verificación diaria de enlaces (404) y coherencia taxonómica.
-5.  **Visualización Premium**: Interfaz minimalista y compacta construida con Next.js 15+ y Turbopack.
+1.  **FG1: Mapeo Institucional (Mensual)**: Descubrimiento y registro de nuevas semillas académicas licenciadas por MINEDU.
+2.  **FG2: Cosecha Masiva y Saneamiento (Semanal)**: Extracción exhaustiva usando **TLS Impersonation (curl_cffi)** y limpieza de alta fidelidad para alimentar el cerebro de IA.
+3.  **FG3: Integridad Diaria (Diario)**: Verificación automática de enlaces (404) con lógica de periodo de gracia de 3 días.
 
 ## 💻 Stack Tecnológico
-- **Frontend**: Next.js 15/16 (App Router), Tailwind CSS (Vanilla), Lucide React.
-- **Backend**: Supabase (PostgreSQL, RLS, PostgREST).
-- **IA/ML**: Cloudflare Workers AI, GitHub Models (GPT-4o mini / Llama 3).
-- **Automation**: GitHub Actions (Golden Pipeline CI/CD), Python 3.11 (Playwright).
+- **Frontend**: Next.js 15+ (App Router), Tailwind CSS, Lucide React.
+- **Backend**: Supabase (PostgreSQL 15, pgvector, PostgREST).
+- **IA/ML**: Cloudflare Workers AI (Llama 3), GitHub Models (GPT-4o), Google Gemini 1.5 Flash.
+- **Automation**: GitHub Actions (3 Independent Flows), Python 3.11 (curl_cffi, BeautifulSoup4, Playwright).
 
 ## 📦 Configuración Local
 
