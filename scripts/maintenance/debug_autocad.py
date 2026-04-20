@@ -2,8 +2,8 @@ import os
 import requests
 import json
 
-SUPABASE_URL = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-SUPABASE_KEY = "sb_publishable_rTQDiEIQYGn0q5VgCdEZlA__F8fDp0E"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 headers = {
     "apikey": SUPABASE_KEY,
