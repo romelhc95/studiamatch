@@ -2,9 +2,9 @@ import os
 import requests
 import json
 
-# Credenciales Pro dadas por el usuario
-SUPABASE_URL = "https://zogdcvlqxanzqbvkkdar.supabase.co"
-SUPABASE_KEY = "REMOVED_HISTORICAL_CREDENTIAL_002"
+# Credenciales Pro
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
 # El SQL maestro saneado
 sql_query = """
