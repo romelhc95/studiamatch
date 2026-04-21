@@ -8,31 +8,10 @@ import json
 # Add root directory to sys.path for shared imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
+from shared.utils import setup_lima_logging
 
 db = get_db_client()
-
-# Setup logging
-import time
-from datetime import datetime, timezone, timedelta
-
-class LimaFormatter(logging.Formatter):
-    def formatTime(self, record, datefmt=None):
-        # Convert to Lima Time (UTC-5)
-        lima_tz = timezone(timedelta(hours=-5))
-        dt = datetime.fromtimestamp(record.created, tz=lima_tz)
-        if datefmt:
-            return dt.strftime(datefmt)
-        return dt.isoformat()
-
-handler = logging.StreamHandler(sys.stdout)
-formatter = LimaFormatter("%(asctime)s - [ORCHESTRATOR] - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[handler]
-)
-logger = logging.getLogger("MasterOrchestrator")
+logger = setup_lima_logging("MasterOrchestrator")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -67,6 +46,9 @@ def get_institutions(limit=10):
 
 def main():
     import argparse
+    import time
+    global_start = time.time()
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
@@ -74,8 +56,6 @@ def main():
     args = parser.parse_args()
 
     excluded_slugs = args.exclude.split(',') if args.exclude else []
-
-    # DB credentials handled by db_client
 
     # 🚉 PHASE 1: Discovery & Harvesting
     logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
@@ -88,9 +68,9 @@ def main():
 
     for inst in institutions:
         logger.info(f"### Processing Institution: {inst['name']} ({inst['slug']})")
-        # Ensure we convert to dict and serialize cleanly
         inst_json = json.dumps(dict(inst))
-        run_script("scripts/core/universal_harvester.py", [inst_json])
+        # Pass global start to sub-process
+        run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)])
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:

@@ -15,27 +15,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import (
     clean_course_name,
     slugify,
-    standardize_mode
+    standardize_mode,
+    setup_lima_logging
 )
 from shared.db_client import get_db_client, DatabaseClient
 
 # Setup logging
 load_dotenv()
-log_dir = os.path.join(".github", "log", "local")
-os.makedirs(log_dir, exist_ok=True)
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = f"cleansed_programs_{timestamp}.log"
-log_path = os.path.join(log_dir, log_filename)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(log_path, encoding='utf-8')
-    ],
-)
-logger = logging.getLogger("CleansingWorker")
+logger = setup_lima_logging("CleansingWorker")
 
 def normalize_url(url: str) -> str:
     if not url: return ""

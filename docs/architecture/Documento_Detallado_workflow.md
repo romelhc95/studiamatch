@@ -246,6 +246,7 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `price_status` | TEXT | `sync` (W) | `publicado` o `consultar` (si no hay precio claro). |
 | `mode` | TEXT | `sync` (W) | Modalidad final mostrada al usuario. |
 | `duration` | TEXT | `sync` (W) | Tiempo de estudio final. |
+| `category` | TEXT | `sync` (W) | Nombre de la categoría principal (redundancia para auditoría rápida). |
 | `category_id` | UUID | Trigger BD (W) | FK a la categoría oficial (asignada por reglas). |
 | `category_confirmed`| BOOL | Auditoría | Indica si un humano validó la categoría asignada. |
 | `url` | TEXT | `sync` (W) | Enlace directo a la fuente oficial. |

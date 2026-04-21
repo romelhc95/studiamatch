@@ -23,17 +23,14 @@ from shared.utils import (
     infer_course_type,
     standardize_category,
     slugify,
-    get_random_user_agent
+    get_random_user_agent,
+    setup_lima_logging,
+    normalize_url
 )
 from shared.db_client import get_db_client
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger("UniversalHarvester")
+logger = setup_lima_logging("UniversalHarvester")
 
 load_dotenv()
 
@@ -308,15 +305,22 @@ class UniversalHarvester:
             logger.error(f"Failed DB save: {e}")
 
 async def main():
-    # Example for manual run: python universal_harvester.py '{"id": "...", "name": "UP", "website_url": "..."}'
-    if len(sys.argv) < 2:
-        logger.error("No institution JSON provided.")
-        return
-
+    import argparse
     import time
-    start_time = time.time()
     
-    inst = json.loads(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("institution", help="JSON string of the institution")
+    parser.add_argument("--global-start", type=float, help="Timestamp when the master orchestrator started")
+    args = parser.parse_args()
+
+    start_time = time.time()
+    global_start = args.global_start or start_time
+    
+    # ⏱️ TIME GUARD CONFIG (GitHub Actions 6h limit)
+    # We exit gracefully at 5h 40m (20400s) to allow subsequent stages to run
+    MAX_RUN_TIME = 20400 
+    
+    inst = json.loads(args.institution)
     harvester = UniversalHarvester(inst)
     
     urls = await harvester.discover_courses()
@@ -325,6 +329,12 @@ async def main():
         browser = await p.chromium.launch(headless=True)
         async with AsyncSession() as session:
             for i, url in enumerate(urls):
+                # Check Time Guard
+                elapsed_total = time.time() - global_start
+                if elapsed_total > MAX_RUN_TIME:
+                    logger.warning(f"⚠️ [TIME GUARD] Límite de ejecución alcanzado ({elapsed_total/3600:.2f}h). Realizando cierre elegante...")
+                    break
+
                 logger.info(f"Processing {i+1}/{len(urls)}: {url}")
                 page = await browser.new_page(user_agent=get_random_user_agent())
                 item = await harvester.scrape_course_detail(session, page, url)

@@ -1,7 +1,31 @@
 import re
 import unicodedata
-
 import random
+import logging
+import sys
+from datetime import datetime, timezone, timedelta
+
+class LimaFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # Convert to Lima Time (UTC-5)
+        lima_tz = timezone(timedelta(hours=-5))
+        dt = datetime.fromtimestamp(record.created, tz=lima_tz)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.isoformat()
+
+def setup_lima_logging(name: str):
+    """Configures a logger with Lima Time formatting."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = LimaFormatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        
+    return logger
 
 def get_random_user_agent():
     """

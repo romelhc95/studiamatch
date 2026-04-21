@@ -13,19 +13,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import (
     infer_course_type,
     standardize_mode,
-    standardize_category
+    standardize_category,
+    setup_lima_logging
 )
 from shared.db_client import get_db_client
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - [MULTICLOUD-ENRICHER] - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger("EnrichmentWorker")
-
 load_dotenv()
+logger = setup_lima_logging("EnrichmentWorker")
 
 # DB connection is now handled by DBClient
 
