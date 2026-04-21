@@ -442,7 +442,22 @@ Objetivo: Blindar el repositorio para su apertura al pÃºblico (Open Source) as
    - **EstaciÃ³n 2 (Enrichment)**: GestiÃ³n inteligente de cuotas. Al fragmentar la carga, el "Brain" procesa lotes manejables sin disparar errores 429 (Too Many Requests).
    - **EstaciÃ³n 3 (Production Sync)**: SincronizaciÃ³n incremental. La tabla `courses` se actualiza de forma atÃ³mica por instituciÃ³n, garantizando integridad referencial en todo momento.
 
-   ## Riesgos y Mitigaciones
+   ## Fase 43: Saneamiento de Integridad de Datos y Esquema Cloud [/] En curso
+Objetivo: Resolver las discrepancias entre el esquema local y Supabase Free (Development) para asegurar que el pipeline de IA y auditoría funcione sin errores de columna o tipo de dato.
+
+1. **Ajustes de Esquema en Supabase Free**:
+   - [ ] **Soporte de Auditoría**: Añadir columna `category` y otros 10 campos técnicos faltantes en la tabla `courses`.
+   - [ ] **Normalización de Tipos**: Asegurar que `requirements` y `categories` en `enriched_programs` sean compatibles con la carga masiva.
+2. **Mejoras en Trabajadores (IA & Sync)**:
+   - [x] **Enrichment Type-Safety**: Refactorizado `enrichment_worker.py` para normalizar listas a texto antes del guardado. [x] Completado
+   - [x] **Sync Robustness**: Actualizado `sync_vector_worker.py` para manejar categorías desde múltiples formatos (List/String). [x] Completado
+3. **Re-activación Institucional**:
+   - [x] **U. de Lima**: Eliminada la exclusión forzada en `production_pipeline.yml` para iniciar su recolección desde la nube. [x] Completado
+4. **Criterios de Éxito**:
+   - [ ] Ejecución exitosa de `taxonomy_roi_audit.py` en GitHub Actions sin errores de "column not found".
+   - [ ] Población exitosa de `enriched_programs` sin fallos de serialización JSON.
+
+## Riesgos y Mitigaciones
 ## Fase 42: Telemetría de Ejecución y Orquestación Inteligente [x] Completado
 Objetivo: Implementar inteligencia de orquestación basada en datos históricos de ejecución para garantizar la escalabilidad y evitar los límites de tiempo de la nube.
 
@@ -461,6 +476,21 @@ Objetivo: Implementar inteligencia de orquestación basada en datos históricos 
    - [x] **Precisión Horaria**: Implementado `LimaFormatter` (UTC-5) para legibilidad de logs en horario local. [x] Completado
 
 **Resultado Final:** El sistema es ahora capaz de auto-equilibrarse, procesando primero las universidades que llevan más tiempo sin ser actualizadas y limitando la carga diaria para no exceder las 6 horas de GitHub.
+
+## Fase 43: Saneamiento de Integridad de Datos y Esquema Cloud [/] En curso
+Objetivo: Resolver las discrepancias entre el esquema local y Supabase Free (Development) para asegurar que el pipeline de IA y auditoría funcione sin errores de columna o tipo de dato.
+
+1. **Ajustes de Esquema en Supabase Free**:
+   - [ ] **Soporte de Auditoría**: Añadir columna `category` y otros 10 campos técnicos faltantes en la tabla `courses`.
+   - [ ] **Normalización de Tipos**: Asegurar que `requirements` y `categories` en `enriched_programs` sean compatibles con la carga masiva.
+2. **Mejoras en Trabajadores (IA & Sync)**:
+   - [x] **Enrichment Type-Safety**: Refactorizado `enrichment_worker.py` para normalizar listas a texto antes del guardado. [x] Completado
+   - [x] **Sync Robustness**: Actualizado `sync_vector_worker.py` para manejar categorías desde múltiples formatos (List/String). [x] Completado
+3. **Re-activación Institucional**:
+   - [x] **U. de Lima**: Eliminada la exclusión forzada en `production_pipeline.yml` para iniciar su recolección desde la nube. [x] Completado
+4. **Criterios de Éxito**:
+   - [ ] Ejecución exitosa de `taxonomy_roi_audit.py` en GitHub Actions sin errores de "column not found".
+   - [ ] Población exitosa de `enriched_programs` sin fallos de serialización JSON.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

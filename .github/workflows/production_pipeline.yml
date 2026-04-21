@@ -26,7 +26,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python3 scripts/core/master_orchestrator.py --limit 15 --exclude universidad-de-lima --skip-cleansing
+        run: python3 scripts/core/master_orchestrator.py --limit 15 --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------
