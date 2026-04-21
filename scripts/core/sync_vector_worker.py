@@ -55,6 +55,14 @@ class SyncVectorWorker:
         short_id = str(e_id).split('-')[0]
         full_slug = f"{base_slug}-{short_id}"
 
+        # Robust category extraction
+        raw_categories = enriched.get('categories')
+        main_category = None
+        if isinstance(raw_categories, list) and raw_categories:
+            main_category = raw_categories[0]
+        elif isinstance(raw_categories, str) and raw_categories:
+            main_category = raw_categories.split(',')[0].strip()
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
@@ -67,7 +75,7 @@ class SyncVectorWorker:
             "requirements": list_to_str(enriched.get('requirements')),
             "certification": list_to_str(enriched.get('certifications')),
             "course_type": enriched.get('degree_type'),
-            "category": enriched.get('categories')[0] if enriched.get('categories') and isinstance(enriched.get('categories'), list) else None,
+            "category": main_category,
             "is_active": True,
             "last_scraped_at": "now()"
         }

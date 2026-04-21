@@ -129,11 +129,19 @@ class EnrichmentWorker:
         try:
             enriched_data = self._call_llm_for_pillars(name, desc)
             
+            # 🛡️ Data Type Normalization for DB (List -> String)
+            def list_to_str(val):
+                if isinstance(val, list):
+                    return ", ".join([str(v) for v in val if v])
+                return str(val) if val else ""
+
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": inst_id,
                 "url": url,
                 **enriched_data,
+                "requirements": list_to_str(enriched_data.get("requirements")),
+                "categories": list_to_str(enriched_data.get("categories")),
                 "status": "pending"
             }
 

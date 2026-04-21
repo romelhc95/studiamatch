@@ -57,10 +57,8 @@ def get_institutions(limit=10):
     """Fetch institutions to harvest, prioritizing those not processed recently."""
     try:
         # Use ordering to implement Round-Robin/Rolling Shard logic
-        # NULLS FIRST puts new or never-processed institutions at the beginning
         return db.select('institutions', 
                          columns="id,name,slug,website_url,last_harvest_at", 
-                         filters="status=eq.active", # Optional: filter by active status
                          order="last_harvest_at.asc.nullsfirst", 
                          limit=limit)
     except Exception as e:
