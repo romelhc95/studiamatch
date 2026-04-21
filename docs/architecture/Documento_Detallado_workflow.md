@@ -8,8 +8,8 @@ Este documento detalla el pipeline de automatización ejecutado en **GitHub Acti
 graph TD
     subgraph Triggers ["GitHub Actions Triggers"]
         T1(["Mensual (1ro 00:00)"]) -- "Inicia FG1" --> J0
-        T2(["Semanal (Dom 02:00)"]) -- "Inicia FG2" --> J1
-        T3(["Diario (05:00)"]) -- "Inicia FG3" --> J_Integrity
+        T2(["Diario (02:00 UTC)"]) -- "Rolling Shard FG2" --> J1
+        T3(["Diario (05:00 UTC)"]) -- "Inicia FG3" --> J_Integrity
     end
 
     subgraph Data_Pipeline ["Golden Pipeline(Execution Flow)"]
@@ -68,11 +68,12 @@ graph TD
 
 ### 2. Massive Harvesting (FG2 - Fase 1)
 *   **Script**: `scripts/core/master_orchestrator.py` (Llama a `universal_harvester.py`).
-*   **Propósito**: Rastreo profundo de Sitemaps y URLs para extraer HTML crudo.
+*   **Propósito**: Rastreo profundo de Sitemaps y URLs para extraer HTML crudo. Utiliza una estrategia de **Rolling Shards** (fragmentación diaria) para procesar un grupo de instituciones por día basadas en su última fecha de ejecución (`last_harvest_at`), evitando el límite de 6 horas de GitHub Actions.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
-    | `staging_raw` | `INSERT / UPDATE` | Almacena el `raw_html`, metadatos de rastreo y `content_hash`. |
+    | `staging_raw` | `INSERT / UPDATE` | Almacena el `raw_html`, `effective_url`, `canonical_url` y `content_hash`. |
+    | `institutions` | `UPDATE` | Registra el timestamp (`last_harvest_at`) y la duración de la sesión. |
 
 ### 2.5. Saneamiento (FG2 - Fase 1.5)
 *   **Script**: `scripts/core/cleansing_worker.py`.
@@ -171,6 +172,8 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `website_url` | TEXT | `harvester` (R) | URL de inicio para los algoritmos de Discovery (Sitemaps/BFS). |
 | `location_lat/long`| NUMERIC| Backend (R) | Coordenadas para geolocalización en mapas del Frontend. |
 | `address` | TEXT | Frontend (R) | Dirección física de la sede principal de la institución. |
+| `last_harvest_at`| TZ | `harvester` (W) | Marca de tiempo de la última recolección exitosa. |
+| `last_harvest_duration_sec`| INT | `harvester` (W) | Tiempo total (segundos) que tomó procesar la institución. |
 | `created_at/updated_at`| TZ | Auditoría | Trazabilidad de creación y cambios en el registro maestro. |
 
 ### 2. `staging_raw` (Estación 1: Bronce / Datos Crudos)
@@ -187,6 +190,8 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `status` | TEXT | Todos (RW) | Estado del flujo: `discovered`, `pending`, `processed`. |
 | `discard_reason` | TEXT | `cleanser` (W) | Motivo por el cual la página fue ignorada (ej: es una noticia). |
 | `processing_error` | TEXT | `cleanser` (W) | Log de errores técnicos durante el intento de limpieza. |
+| `effective_url` | TEXT | `harvester` (W) | URL final tras todas las redirecciones automáticas. |
+| `canonical_url` | TEXT | `harvester` (W) | URL canónica oficial definida en el tag HTML. |
 | `content_hash` | TEXT | `harvester` (RW) | Hash SHA256 para detectar si la web cambió (Delta Scraping). |
 | `last_harvested_at`| TZ | `harvester` (W) | Fecha del último contacto exitoso con el servidor de origen. |
 | `metadata` | JSONB | Todos (W) | Contenedor flexible para logs de red y telemetría. |
@@ -204,6 +209,8 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `location` | TEXT | `cleanser` (W) | Campus o sede detectada en la página. |
 | `base_price` | NUMERIC| `cleanser` (W) | Monto numérico detectado mediante Regex monetario. |
 | `currency` | TEXT | `cleanser` (W) | Símbolo de moneda detectado (PEN, USD). |
+| `effective_url` | TEXT | `cleanser` (W) | URL final capturada; parte de la clave única compuesta. |
+| `canonical_url` | TEXT | `cleanser` (W) | Identidad SEO del curso; prioridad para la de-duplicación. |
 | `status` | TEXT | `enricher` (R) | Estado para la siguiente fase: `pending`, `enriched`. |
 | `metadata` | JSONB | `cleanser` (W) | Parámetros técnicos del proceso de limpieza. |
 
