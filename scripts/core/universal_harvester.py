@@ -45,7 +45,8 @@ def normalize_url(url: str) -> str:
         return url.rstrip('/')
 
 class UniversalHarvester:
-    def __init__(self, institution):
+    def __init__(self, institution, global_start=None):
+        import time
         self.institution = institution
         self.db = get_db_client()
         self.visited_urls = set()
@@ -56,10 +57,25 @@ class UniversalHarvester:
         self.MAX_DEPTH = 3
         self.semaphore = asyncio.Semaphore(3)
         self.circuit_open = False
+        
+        # ⏱️ TIME GUARD CONFIG (Global awareness)
+        self.global_start = global_start or time.time()
+        self.MAX_RUN_TIME = 20400 # 5h 40m (20,400s)
+
         self.blacklist_patterns = [
             r'/noticias/', r'/blog/', r'/eventos/', r'/medios/', r'/prensa/',
             r'\.pdf$', r'\.jpg$', r'\.png$', r'\.xls', r'\.doc'
         ]
+
+    def check_time_guard(self):
+        """Checks if the global execution time limit has been reached."""
+        import time
+        elapsed = time.time() - self.global_start
+        if elapsed > self.MAX_RUN_TIME:
+            logger.warning(f"⚠️ [TIME GUARD] Límite de ejecución global alcanzado ({elapsed/3600:.2f}h). Solicitando detención...")
+            self.circuit_open = True
+            return True
+        return False
 
     def _extract_canonical(self, html_content):
         """Extracts the <link rel='canonical'> href from HTML."""
@@ -108,6 +124,8 @@ class UniversalHarvester:
 
     async def _fetch_sitemap(self, session, sitemap_url):
         """Recursively fetches and parses sitemaps."""
+        if self.check_time_guard(): return []
+        
         logger.info(f"Checking Sitemap: {sitemap_url}")
         links = []
         resp = await self._safe_request(session, sitemap_url)
@@ -117,11 +135,13 @@ class UniversalHarvester:
             root = ET.fromstring(resp.content)
             # Handle sitemap indexes
             for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
+                if self.check_time_guard(): break
                 loc = sitemap.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
                 links.extend(await self._fetch_sitemap(session, loc))
             
             # Handle standard urlset
             for url in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
+                if self.check_time_guard(): break
                 loc = url.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
                 links.append(loc)
         except Exception as e:
@@ -136,7 +156,7 @@ class UniversalHarvester:
         
         async with AsyncSession() as session:
             while queue and len(self.course_urls) < 500: # Safety cap per institution
-                if self.circuit_open: break
+                if self.circuit_open or self.check_time_guard(): break
                 
                 # Process in small parallel batches to respect the server
                 current_batch = [queue.pop(0) for _ in range(min(len(queue), 3))]
@@ -147,6 +167,7 @@ class UniversalHarvester:
                 
                 results = await asyncio.gather(*tasks)
                 for links, next_depth in results:
+                    if self.check_time_guard(): break
                     for link in links:
                         if self._is_potential_course_url(link):
                             if link not in self.course_urls:
@@ -165,7 +186,7 @@ class UniversalHarvester:
 
     async def _fetch_and_parse(self, session, url, depth):
         links = []
-        if self.circuit_open: return list(set(links)), depth + 1
+        if self.circuit_open or self.check_time_guard(): return list(set(links)), depth + 1
 
         try:
             response = await self._safe_request(session, url)
@@ -206,6 +227,7 @@ class UniversalHarvester:
             sitemap_links = await self._fetch_sitemap(session, sitemap_url)
         
         for link in sitemap_links:
+            if self.check_time_guard(): break
             if self._is_potential_course_url(link):
                 if link not in self.course_urls and link not in existing_urls:
                     self.course_urls.add(link)
@@ -321,7 +343,7 @@ async def main():
     MAX_RUN_TIME = 20400 
     
     inst = json.loads(args.institution)
-    harvester = UniversalHarvester(inst)
+    harvester = UniversalHarvester(inst, global_start=global_start)
     
     urls = await harvester.discover_courses()
     

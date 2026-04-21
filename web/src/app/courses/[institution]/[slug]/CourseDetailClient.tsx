@@ -494,7 +494,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-brand-gray/50">
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inicio</p><p className="font-black text-xs text-brand-blue uppercase">{course.start_date_text || "Consultar"}</p></div>
-                <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Ubicación</p><p className="font-black text-xs text-brand-slate uppercase truncate">{course.address || "Sede Central"}</p></div>
+                <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inversión</p><p className="font-black text-xs text-brand-slate uppercase truncate">{course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Duración</p><p className="font-black text-xs text-brand-slate uppercase">{course.duration || "N/A"}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Modalidad</p><p className="font-black text-xs text-brand-slate uppercase">{course.mode}</p></div>
               </div>
@@ -709,7 +709,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           <div className="lg:col-span-1">
             <Card className="sticky top-24 overflow-hidden border-brand-gray/50 shadow-2xl rounded-[2rem] p-10 bg-white border-0">
               <div className="mb-10 text-center lg:text-left">
-                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Solicitar Auditoría</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Solicitar Asesoría</h3>
                 <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                   Recibe el plan detallado y asesoría imparcial sobre este programa.
                 </p>
@@ -761,7 +761,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     <CheckCircle className="h-10 w-10 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">Solicitud enviada</h3>
-                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un auditor se pondrá en contacto pronto.</p>
+                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
                 </div>
               )}
             </Card>
