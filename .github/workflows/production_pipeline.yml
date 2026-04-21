@@ -2,10 +2,8 @@ name: FG2 - StudIAMatch Golden Pipeline
 
 on:
   schedule:
-    - cron: '0 2 * * 0' # Semanal: Domingo 02:00 UTC
+    - cron: '0 2 * * *' # Diario: 02:00 UTC (Rolling Shard)
   workflow_dispatch:      # Manual
-  push:
-    branches: [ main, desarrollo, certificacion ]
 
 jobs:
   # 🚉 STATION 1: Massive Discovery & Harvesting

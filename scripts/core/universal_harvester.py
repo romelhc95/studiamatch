@@ -313,6 +313,9 @@ async def main():
         logger.error("No institution JSON provided.")
         return
 
+    import time
+    start_time = time.time()
+    
     inst = json.loads(sys.argv[1])
     harvester = UniversalHarvester(inst)
     
@@ -331,6 +334,17 @@ async def main():
                     harvester._save_to_staging(item)
                 await page.close()
             await browser.close()
+
+    # 📊 Update Telemetry in institutions table
+    duration = int(time.time() - start_time)
+    try:
+        harvester.db.patch("institutions", filters=f"id=eq.{inst['id']}", data={
+            "last_harvest_at": datetime.now().isoformat(),
+            "last_harvest_duration_sec": duration
+        })
+        logger.info(f"✅ Telemetry updated for {inst['name']}: {duration}s")
+    except Exception as e:
+        logger.error(f"Failed to update telemetry: {e}")
 
 if __name__ == "__main__":
     if sys.platform == "win32":
