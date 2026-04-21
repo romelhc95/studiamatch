@@ -12,10 +12,25 @@ from shared.db_client import get_db_client
 db = get_db_client()
 
 # Setup logging
+import time
+from datetime import datetime, timezone, timedelta
+
+class LimaFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # Convert to Lima Time (UTC-5)
+        lima_tz = timezone(timedelta(hours=-5))
+        dt = datetime.fromtimestamp(record.created, tz=lima_tz)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.isoformat()
+
+handler = logging.StreamHandler(sys.stdout)
+formatter = LimaFormatter("%(asctime)s - [ORCHESTRATOR] - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - [ORCHESTRATOR] - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[handler]
 )
 logger = logging.getLogger("MasterOrchestrator")
 
