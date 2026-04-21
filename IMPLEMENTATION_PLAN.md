@@ -443,23 +443,24 @@ Objetivo: Blindar el repositorio para su apertura al pÃºblico (Open Source) as
    - **EstaciÃ³n 3 (Production Sync)**: SincronizaciÃ³n incremental. La tabla `courses` se actualiza de forma atÃ³mica por instituciÃ³n, garantizando integridad referencial en todo momento.
 
    ## Riesgos y Mitigaciones
-## Fase 42: Telemetría de Ejecución y Refinamiento de Triggers CI/CD [x] Completado
-Objetivo: Implementar inteligencia de orquestación basada en datos históricos de ejecución y optimizar los costos de GitHub Actions mediante disparadores manuales/programados.
+## Fase 42: Telemetría de Ejecución y Orquestación Inteligente [x] Completado
+Objetivo: Implementar inteligencia de orquestación basada en datos históricos de ejecución para garantizar la escalabilidad y evitar los límites de tiempo de la nube.
 
 1. **Ampliación de Telemetría (DB)**:
    - [x] **Columnas de Seguimiento**: Añadidas `last_harvest_at` y `last_harvest_duration_sec` a la tabla `institutions`. [x] Completado
    - [x] **Esquema como Código**: Actualizados `db/production_init.sql` y `db/PRODUCTION_MASTER.sql`. [x] Completado
 2. **Refactorización de Lógica (Scripts)**:
-   - [x] **Registro de Tiempos**: `universal_harvester.py` ahora captura la duración total de la sesión y actualiza la tabla maestra al finalizar. [x] Completado
-   - [x] **Priorización Inteligente**: `master_orchestrator.py` ordena instituciones por `last_harvest_at NULLS FIRST`, garantizando un ciclo Round-Robin automático (Sharding Dinámico). [x] Completado
+   - [x] **Registro de Tiempos**: `universal_harvester.py` captura la duración total de la sesión y actualiza la tabla maestra. [x] Completado
+   - [x] **Priorización Inteligente**: `master_orchestrator.py` ordena instituciones por `last_harvest_at.asc.nullsfirst`, garantizando un ciclo Round-Robin automático. [x] Completado
+   - [x] **Soporte de Ordenación**: Actualizado `db_client.py` para soportar parámetros de ordenación (ORDER BY) compatibles con PostgREST. [x] Completado
 3. **Optimización CI/CD (Workflows)**:
    - [x] **Control de Disparadores**: Eliminado el trigger `push` de `production_pipeline.yml`. [x] Completado
-   - [x] **Políticas de Ejecución**:
-     - Rama `desarrollo`: Solo ejecución **Manual**.
-     - Rama `main`: Ejecución **Programada (CRON Diario)** y **Manual**.
-   - [x] **Ahorro de Cuota**: Se mitiga el consumo accidental de minutos por commits frecuentes. [x] Completado
+   - [x] **Políticas de Ejecución**: 
+     - Desarrollo: 100% Manual.
+     - Producción (Main): Manual + CRON Diario (02:00 UTC). [x] Completado
+   - [x] **Precisión Horaria**: Implementado `LimaFormatter` (UTC-5) para legibilidad de logs en horario local. [x] Completado
 
-**Veredicto:** El sistema es ahora 100% autónomo, capaz de decidir quién se procesa hoy para no exceder los límites de tiempo de la nube.
+**Resultado Final:** El sistema es ahora capaz de auto-equilibrarse, procesando primero las universidades que llevan más tiempo sin ser actualizadas y limitando la carga diaria para no exceder las 6 horas de GitHub.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

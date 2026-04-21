@@ -58,15 +58,16 @@ class DatabaseClient:
         if not self.use_local and (not self.supabase_url or not self.supabase_key):
             print("Warning: No DB configuration found (neither Local nor Cloud).")
 
-    def select(self, table, filters=None, columns="*", limit=None):
+    def select(self, table, filters=None, columns="*", limit=None, order=None):
         """
         Generic select. 
         Filters should be in PostgREST style for compatibility: "col=eq.val"
+        Order should be in PostgREST style: "col.asc" or "col.desc.nullsfirst"
         """
         if self.use_local:
-            return self._select_local(table, filters, columns, limit)
+            return self._select_local(table, filters, columns, limit, order)
         else:
-            return self._select_api(table, filters, columns, limit)
+            return self._select_api(table, filters, columns, limit, order)
 
     def insert(self, table, data):
         """Generic insert."""
@@ -96,7 +97,7 @@ class DatabaseClient:
         """Serializes dicts to JSON strings for psycopg2."""
         return [json.dumps(v) if isinstance(v, dict) else v for v in data.values()]
 
-    def _select_local(self, table, filters, columns, limit):
+    def _select_local(self, table, filters, columns, limit, order):
         if columns == "count":
             query = f"SELECT COUNT(*) as count FROM {table}"
         else:
@@ -108,6 +109,16 @@ class DatabaseClient:
             if where_clauses:
                 query += " WHERE " + " AND ".join(where_clauses)
         
+        if order:
+            # Handle "col.asc.nullsfirst" -> "col ASC NULLS FIRST"
+            parts = order.split('.')
+            col = parts[0]
+            direction = "ASC" if "asc" in parts else "DESC"
+            nulls = ""
+            if "nullsfirst" in parts: nulls = " NULLS FIRST"
+            if "nullslast" in parts: nulls = " NULLS LAST"
+            query += f" ORDER BY {col} {direction}{nulls}"
+
         if limit and columns != "count":
             query += f" LIMIT {limit}"
             
@@ -218,7 +229,7 @@ class DatabaseClient:
             "Content-Type": "application/json"
         }
 
-    def _select_api(self, table, filters, columns, limit):
+    def _select_api(self, table, filters, columns, limit, order):
         if columns == "count":
             url = f"{self.supabase_url}/rest/v1/{table}?select=count"
         else:
@@ -226,6 +237,8 @@ class DatabaseClient:
             
         if filters:
             url += f"&{filters}"
+        if order:
+            url += f"&order={order}"
         if limit:
             url += f"&limit={limit}"
             
