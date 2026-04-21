@@ -60,7 +60,7 @@ class UniversalHarvester:
         
         # ⏱️ TIME GUARD CONFIG (Global awareness)
         self.global_start = global_start or time.time()
-        self.MAX_RUN_TIME = 20400 # 5h 40m (20,400s)
+        self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
 
         self.blacklist_patterns = [
             r'/noticias/', r'/blog/', r'/eventos/', r'/medios/', r'/prensa/',
