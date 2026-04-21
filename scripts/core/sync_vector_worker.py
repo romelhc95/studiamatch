@@ -7,18 +7,12 @@ from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify
+from shared.utils import slugify, setup_lima_logging
 from shared.db_client import get_db_client
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger("SyncVectorWorker")
-
 load_dotenv()
+logger = setup_lima_logging("SyncVectorWorker")
 
 # Supabase credentials are now handled by db_client
 
