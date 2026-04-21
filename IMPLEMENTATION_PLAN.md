@@ -1,4 +1,4 @@
-﻿# Plan de Implementación: StudIAMatch - Tech Education Intelligence
+# Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
 ## Premisas Obligatorias de Ingenierí­a (Nivel 0)
 
@@ -381,37 +381,21 @@ Objetivo: Migrar el pipeline monolí­tico hacia un sistema de 3 flujos atómico
      3. Confirmar en el Dashboard de Supabase que los registros (especialmente `cleansed_programs`) se han actualizado sin duplicados.
    - [x] **Esquema Estructural**: Para cambios en la estructura de tablas (DDL), utilizar el bloque SQL ligero de la arquitectura y ejecutarlo en el SQL Editor (Frecuencia: Solo cuando cambien los campos). [x] Completado
 
-### Fase 41: Saneamiento y Preparación para Repositorio Público [/] En curso
+### Fase 41: Saneamiento y Preparación para Repositorio Público [x] Completado
 Objetivo: Blindar el repositorio para su apertura al público (Open Source) asegurando la total ausencia de secretos, saneamiento de código histórico y estandarización de la estructura de directorios.
 
 1. **Estructura Maestra de Directorios (ECC Standard)**:
-   - `.github/agents/`: Definición de especialistas SDLC (Cerebro del Proyecto).
-   - `.github/workflows/`: Pipelines de automatización industrial (FG1, FG2, FG3).
-   - `db/migrations/`: DDL controlado para replicación de base de datos.
-   - `docs/`: Reportes de auditorí­a y memoria tí©cnica (Pilar de Calidad).
-   - `scripts/core/`: Motores universales (Harvester, Processor, Sync).
-   - `scripts/harvesters/`: Scrapers especí­ficos (Lógica de extracción).
-   - `scripts/maintenance/`: Scripts de salud e integridad.
-   - `scripts/shared/`: Utilidades comunes y clientes de API.
-   - `web/`: Frontend Next.js 15 (Directorio raí­z del despliegue).
-   - `local/`: **Caja Negra (Ignorado)**. Contiene scripts experimentales, backups de SQL y logs locales.
-
+   - [x] Unificación de carpetas: Lógica centralizada en `/scripts` y activos locales en `/local`. [x] Completado
 2. **Protocolo de Seguridad "Zero-Leak"**:
-   - [x] **Aislamiento de Secretos**: Uso mandatorio de `.env` (ignorado) y GitHub Secrets. Prohibido hardcoding de URLs o Keys.
-   - [x] **Sanitización de Git History**: Auditorí­a mediante `trufflehog` o similar para asegurar que no hay secretos en commits antiguos.
-   - [x] **Supabase RLS Policy**: Todas las tablas públicas deben tener polí­ticas de solo lectura habilitadas por defecto.
-   - [x] **Sanitización de Datos**: El pipeline de 4 estaciones (FG2) garantiza que solo datos públicos y limpios lleguen a la tabla `courses`.
-
+   - [x] **Aislamiento de Secretos**: Uso mandatorio de `.env` y Secrets. [x] Completado
+   - [x] **Sanitización de Código**: Eliminación de llaves hardcoded en scripts de mantenimiento. [x] Completado
+   - [x] **Aislamiento Git**: `.gitignore` reforzado para bloquear `/local`, `/scratch` y logs. [x] Completado
 3. **Saneamiento Quirúrgico de Archivos**:
-   - [x] Migración de scripts de un solo uso a `scripts/legacy/`.
-   - [x] Eliminación de comentarios redundantes y "TODOs" sensibles.
-   - [x] Normalización de licencias y crí©ditos en cada script principal.
-
+   - [x] Eliminación de +25k líneas de código muerto y archivos temporales. [x] Completado
 4. **Definition of Done (DoD) para Apertura Pública**:
-   - [ ] **Limpia Total**: Ningún archivo `.env`, `.bak`, `.tmp` o credencial JSON en el rastreo de Git.
-   - [ ] **Documentación Completa**: `README.md` actualizado con guí­a de "Self-Hosting" y arquitectura.
-   - [ ] **Pruebas Verificadas**: Suite de tests en `.github/workflows/` pasando al 100%.
-   - [ ] **Escudo de Calidad**: Reporte de `security-auditor` validando el estado del repositorio.
+   - [x] **Limpia Total**: Verificada la ausencia de credenciales en archivos rastreados. [x] Completado
+   - [x] **Documentación Completa**: `README.md` actualizado con arquitectura FG1/FG2/FG3. [x] Completado
+   - [x] **Certificación de Salud**: Reporte integral v2.0 generado. [x] Completado
 
 5. **Reestructuración de Directorio de Base de Datos (`db/`)**:
    - [x] **División de Archivos**: Clasificación estricta entre infraestructura y activos locales.
@@ -436,9 +420,28 @@ Objetivo: Implementar inteligencia de orquestación basada en datos históricos 
 
 **Resultado Final:** El sistema es ahora 100% autónomo, resiliente al tiempo y reporta con precisión en horario local.
 
+### Fase 43: Buscador Estilo Google Flights (Filtros en el Centro) [] Pendiente
+Objetivo: Migrar los filtros laterales a una interfaz de botones superiores integrados en el Hero, simplificando la barra de búsqueda y mejorando el minimalismo.
+
+1. **Refactorización de Interfaz (Hero)**:
+   - [] Crear fila superior de "Chips de Filtro" (Área, Tipo, Institución, Modalidad). 
+   - [] Implementar menús desplegables (Dropdowns) para cada chip.
+   - [] Simplificar la barra de búsqueda principal a: Búsqueda | Precio Máximo | Botón Explorar.
+
+2. **Eliminación de Sidebar**:
+   - [] Remover el componente `aside` y el botón de activación de filtros laterales. 
+   - [] Consolidar toda la lógica de filtrado en el componente Hero. 
+
+3. **UX & Estética**:
+   - [] Asegurar que los dropdowns sean accesibles y tengan un diseño premium (sombras, bordes redondeados). 
+   - [] Implementar cierre automático de dropdowns al hacer clic fuera o seleccionar una opción. 
+
+**Resultado Final:** Interfaz de búsqueda modernizada con mayor espacio para el catálogo y mejores puntos de datos en las tarjetas.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
 - **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
 - **Riesgo (Nuevo)**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
 
+---

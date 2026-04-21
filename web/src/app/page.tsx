@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, SlidersHorizontal } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, SlidersHorizontal, Building2, Globe, Coins, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course, type Institution } from "@/lib/supabase";
@@ -16,7 +16,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourseForInfo, setSelectedCourseForInfo] = useState<Course | null>(null);
   const [modalType, setModalType] = useState<'recommendation' | 'info'>('recommendation');
-  const [showFilters, setShowFilters] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const [activeFilters, setActiveFilters] = useState({
     priceMin: "",
@@ -31,9 +31,6 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
   const [courseTypes, setCourseTypes] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<string>("Todos");
-
-  // Accordion state
-  const [expandedFilter, setExpandedFilter] = useState<string | null>("area");
 
   // INTELLIGENT FILTERS: Only show options that have courses
   const stats = useMemo(() => {
@@ -92,7 +89,7 @@ export default function Home() {
       try {
         const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
         const [cRes, iRes] = await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
           fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
         ]);
         const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
@@ -205,7 +202,7 @@ export default function Home() {
     // Deduplicación visual: Un solo curso por combinación de slug e institución
     const uniqueMap = new Map<string, Course>();
     result.forEach(c => {
-      const key = `${c.institution_slug}-${c.slug}`;
+      const key = `${(c as any).institution_slug}-${c.slug}`;
       const existing = uniqueMap.get(key);
       // Priorizar el que tenga precio o nombre más descriptivo
       if (!existing || (!existing.price_pen && c.price_pen) || (c.name.length > existing.name.length)) {
@@ -261,26 +258,106 @@ export default function Home() {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-mint">datos reales</span>
               </h1>
 
-              <p className="text-[13px] md:text-[15px] text-slate-400 leading-relaxed max-w-lg">
+              <p className="text-sm md:text-base text-slate-300 leading-relaxed max-w-lg font-medium">
                 Compara inversión, contenido y retorno financiero de programas tech en Perú.
               </p>
 
-              <div id="hero-search" className="flex flex-col sm:flex-row gap-2 pt-1 max-w-xl scroll-mt-32">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <Input
-                    placeholder="¿Qué quieres estudiar?"
-                    className="pl-10 h-10 bg-white/[0.06] border-white/[0.08] text-white rounded-lg text-[13px] placeholder:text-slate-600 focus:bg-white/[0.1] focus:ring-1 focus:ring-brand-blue/40 transition-all"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+              <div id="hero-search" className="pt-2 max-w-4xl scroll-mt-32 w-full">
+                {/* ── Filter Chips (Google Flights Style) ──────────────── */}
+                <div className="flex flex-wrap items-center gap-2 mb-3 px-1 overflow-x-auto no-scrollbar pb-1">
+                  {[
+                    { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
+                    { id: 'tipo', label: 'Tipo', icon: GraduationCap, current: selectedType, setter: setSelectedType, options: activeTypes },
+                    { id: 'inst', label: 'Institución', icon: Building2, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), options: activeInstitutions },
+                    { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: ["Todas", "Presencial", "Semipresencial", "Remoto", "Híbrido"] },
+                  ].map((filter) => (
+                    <div key={filter.id} className="relative">
+                      <button
+                        onClick={() => setActiveDropdown(activeDropdown === filter.id ? null : filter.id)}
+                        className={cn(
+                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all border",
+                          activeDropdown === filter.id || (filter.current !== "Todos" && filter.current !== "Todas" && filter.current !== "Cualquier precio")
+                            ? "bg-brand-blue/10 border-brand-blue text-brand-blue shadow-sm"
+                            : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20"
+                        )}
+                      >
+                        <filter.icon className="h-3.5 w-3.5" />
+                        <span className="max-w-[120px] truncate">{filter.current === "Todos" || filter.current === "Todas" || filter.current === "Cualquier precio" ? filter.label : filter.current}</span>
+                        <ChevronDown className={cn("h-3 w-3 opacity-50 transition-transform", activeDropdown === filter.id && "rotate-180")} />
+                      </button>
+
+                      {activeDropdown === filter.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setActiveDropdown(null)} />
+                          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-elevated border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                            <div className="p-1.5 max-h-72 overflow-y-auto custom-scrollbar">
+                              {filter.options.map((opt) => (
+                                <button
+                                  key={opt}
+                                  onClick={() => {
+                                    filter.setter(opt === "Cualquier precio" ? "" : opt);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-3 py-2 rounded-lg text-[13px] transition-all flex items-center justify-between",
+                                    filter.current === opt || (opt === "Cualquier precio" && filter.current === "")
+                                      ? "bg-brand-blue text-white font-semibold"
+                                      : "hover:bg-slate-50 text-slate-600"
+                                  )}
+                                >
+                                  <span className="truncate">{opt}</span>
+                                  {filter.id !== 'modalidad' && filter.id !== 'precio' && opt !== "Todos" && opt !== "Todas" && (
+                                    <span className={cn(
+                                      "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
+                                      filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
+                                    )}>
+                                      {(stats as any)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
+                                    </span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  onClick={() => document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold rounded-lg px-5 h-10 text-[13px] transition-all hover:shadow-lg hover:shadow-brand-blue/25 active:scale-[0.98]"
-                >
-                  Buscar
-                </Button>
+
+                {/* ── Main Search Bar ──────────────────────────── */}
+                <div className="flex flex-col md:flex-row shadow-2xl rounded-2xl bg-white p-2 gap-2 focus-within:ring-4 focus-within:ring-brand-blue/20 transition-all border border-white/10 group">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-slate-300 group-focus-within:text-brand-blue transition-colors" />
+                    </div>
+                    <Input
+                      placeholder="¿Qué quieres estudiar hoy? (Nombre, tecnología o palabra clave)"
+                      className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="h-10 w-px bg-slate-100 self-center hidden md:block" />
+
+                  <div className="relative w-full md:w-36 flex items-center px-4">
+                    <Coins className="h-5 w-5 text-slate-300 mr-2 shrink-0" />
+                    <Input
+                      type="number"
+                      placeholder="Máx S/"
+                      className="h-14 bg-transparent border-0 text-brand-slate font-semibold text-base placeholder:text-slate-400 focus-visible:ring-0 px-0 w-full"
+                      value={activeFilters.priceMax}
+                      onChange={(e) => setActiveFilters({ ...activeFilters, priceMax: e.target.value })}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() => document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="w-full md:w-auto bg-brand-blue hover:bg-brand-blue/90 text-white font-bold rounded-xl px-10 h-14 text-sm transition-all hover:shadow-lg active:scale-[0.98]"
+                  >
+                    Explorar
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -304,99 +381,14 @@ export default function Home() {
       <div id="programas" className="mx-auto max-w-6xl px-6 py-8 scroll-mt-16">
 
         {/* Controls */}
-        <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Programas</h2>
             <p className="text-[13px] text-slate-400 mt-0.5">{filteredCourses.length} resultados</p>
           </div>
-          <Button
-            onClick={() => setShowFilters(!showFilters)}
-            variant="outline"
-            size="sm"
-            className={cn(
-              "rounded-lg h-9 px-4 text-[13px] font-medium border transition-all gap-2",
-              showFilters ? "bg-brand-slate text-white border-brand-slate" : "border-slate-200 text-slate-600 hover:border-slate-300"
-            )}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filtros
-            {Object.values(activeFilters).filter(v => v !== "" && v !== "Todas" && (Array.isArray(v) ? v.length > 0 : true) && v !== true).length > 0 && (
-              <Badge className="ml-1 bg-brand-blue text-white border-0 text-[10px] h-5 px-1.5">{Object.values(activeFilters).filter(v => v !== "" && v !== "Todas" && (Array.isArray(v) ? v.length > 0 : true) && v !== true).length}</Badge>
-            )}
-          </Button>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 relative items-start">
-
-          {/* Sidebar */}
-          <aside className={cn(
-            "shrink-0 transition-all duration-300",
-            showFilters ? "w-full lg:w-64 opacity-100 max-h-[2000px]" : "w-0 max-h-0 opacity-0 pointer-events-none overflow-hidden"
-          )}>
-            <div className="space-y-1.5 bg-slate-50/50 rounded-xl p-3 border border-slate-100">
-              {[
-                { id: 'area', label: 'Área', icon: TrendingUp, options: activeCategories, current: selectedCategory, setter: setSelectedCategory, statsKey: 'categories' },
-                { id: 'tipo', label: 'Tipo', icon: GraduationCap, options: activeTypes, current: selectedType, setter: setSelectedType, statsKey: 'types' },
-                { id: 'inst', label: 'Institución', icon: Search, options: activeInstitutions, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), statsKey: 'institutions' },
-              ].map((group) => (
-                <div key={group.id} className="rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFilter(expandedFilter === group.id ? null : group.id)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white rounded-lg transition-colors"
-                  >
-                    <span className="text-[13px] font-medium text-slate-600 flex items-center gap-2">
-                      <group.icon className="h-3.5 w-3.5 text-slate-400" /> {group.label}
-                    </span>
-                    <ChevronDown className={cn("h-3 w-3 text-slate-300 transition-transform", expandedFilter === group.id && "rotate-180")} />
-                  </button>
-                  <div className={cn("px-1 pb-2 space-y-0.5 max-h-48 overflow-y-auto custom-scrollbar", expandedFilter !== group.id && "hidden")}>
-                    {group.options.map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => group.setter(opt)}
-                        className={cn(
-                          "w-full text-left px-3 py-2 rounded-md text-[13px] transition-all flex items-center justify-between",
-                          group.current === opt
-                            ? "bg-brand-blue text-white font-medium"
-                            : "hover:bg-white text-slate-500"
-                        )}
-                      >
-                        <span className="truncate">{opt}</span>
-                        {opt !== "Todos" && opt !== "Todas" && (
-                          <span className={cn(
-                            "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
-                            group.current === opt ? "bg-white/20" : "text-slate-300"
-                          )}>
-                            {(stats as any)[group.statsKey][opt]}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Price Range */}
-              <div className="rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setExpandedFilter(expandedFilter === 'price' ? null : 'price')}
-                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white rounded-lg transition-colors"
-                >
-                  <span className="text-[13px] font-medium text-slate-600">Inversión</span>
-                  <ChevronDown className={cn("h-3 w-3 text-slate-300 transition-transform", expandedFilter === 'price' && "rotate-180")} />
-                </button>
-                <div className={cn("px-3 pb-3 pt-1", expandedFilter !== 'price' && "hidden")}>
-                  <div className="flex items-center gap-2">
-                    <Input placeholder="Mín" type="number" className="h-9 rounded-md bg-white border-slate-200 text-[13px] px-3" value={activeFilters.priceMin} onChange={(e) => setActiveFilters({ ...activeFilters, priceMin: e.target.value })} />
-                    <span className="text-slate-300">—</span>
-                    <Input placeholder="Máx" type="number" className="h-9 rounded-md bg-white border-slate-200 text-[13px] px-3" value={activeFilters.priceMax} onChange={(e) => setActiveFilters({ ...activeFilters, priceMax: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          {/* Cards Grid */}
           <main className="flex-1 min-w-0">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -405,10 +397,7 @@ export default function Home() {
                 ))}
               </div>
             ) : filteredCourses.length > 0 ? (
-              <div className={cn(
-                "grid grid-cols-1 md:grid-cols-2 gap-4 transition-all duration-300",
-                showFilters ? "lg:grid-cols-2" : "lg:grid-cols-3"
-              )}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-all duration-300">
                 {paginatedCourses.map((course) => (
                   <article key={course.id} className="group flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
                     {/* Card Body */}
@@ -428,27 +417,35 @@ export default function Home() {
                         <p className="text-[12px] text-slate-400 mt-1.5">{course.category}</p>
                       )}
 
-                      {/* Metadata row */}
-                      <div className="flex items-center gap-4 mt-4 pt-3 border-t border-slate-50">
-                        <div>
-                          <p className="text-[11px] text-slate-400">Inversión</p>
-                          <p className="text-[14px] font-semibold text-brand-slate tabular-nums">
-                            {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}
-                          </p>
-                        </div>
-                        <div className="h-6 w-px bg-slate-100" />
-                        <div>
-                          <p className="text-[11px] text-slate-400">Modalidad</p>
-                          <p className="text-[14px] font-semibold text-brand-slate capitalize">{course.mode}</p>
+                      <div className="mt-4 pt-3 border-t border-slate-50">
+                        <div className="grid grid-cols-2 gap-y-3">
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inversión</p>
+                            <p className="text-[13px] font-semibold text-brand-slate tabular-nums truncate">
+                              {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Modalidad</p>
+                            <p className="text-[13px] font-semibold text-brand-slate capitalize truncate">{course.mode || "No especificada"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Duración</p>
+                            <p className="text-[13px] font-semibold text-brand-slate truncate">{(course as any).duration || "No especificada"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inicio</p>
+                            <p className="text-[13px] font-semibold text-brand-slate truncate">{(course as any).start_date_text || "Consultar"}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Card Actions */}
                     <div className="px-5 pb-4 pt-0 flex items-center gap-2">
                       <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
                         Ver detalle <ArrowRight className="h-3 w-3" />
-                      </Link>                      <button
+                      </Link>
+                      <button
                         onClick={() => {
                           setCompareList(prev => {
                             if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
@@ -476,7 +473,6 @@ export default function Home() {
                   </article>
                 ))}
 
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-4 col-span-full pt-6">
                     <Button
@@ -512,7 +508,7 @@ export default function Home() {
                 <Search className="h-10 w-10 text-slate-200 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-400">Sin resultados</h3>
                 <p className="text-[13px] text-slate-400 mt-1 mb-6">Intenta con otros filtros.</p>
-                <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedCategory("Todos"); setActiveFilters({ priceMin: "", priceMax: "", modes: [], durations: [], selectedInstitution: "Todas", includeConsultar: true }); }} className="rounded-lg text-[13px]">Reiniciar filtros</Button>
+                <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedCategory("Todos"); setActiveFilters({ ...activeFilters, priceMax: "", modes: [] }); }} className="rounded-lg text-[13px]">Reiniciar filtros</Button>
               </div>
             )}
           </main>
