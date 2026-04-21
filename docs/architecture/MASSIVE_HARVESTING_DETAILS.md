@@ -73,7 +73,7 @@ flowchart TD
         H3{Circuit Breaker & Health Check}
         H4[Descargar HTML Crudo con curl_cffi]
         H5[Calcular Content Hash]
-        H6{\"¿Hash Existe y Sin Cambios?\"}
+        H6{"¿Hash Existe y Sin Cambios?"}
     end
 
     %% Errores y Skip
@@ -84,14 +84,14 @@ flowchart TD
     O1 --> O2
     O2 --> H1
     H1 -->|Pasa URL candidata| H2
-    H2 -- \"Inválida\" --> Log_Error
-    H2 -- \"Válida\" --> H3
-    H3 -- \"Falla 429/403\" --> Log_Error
-    H3 -- \"OK\" --> H4
+    H2 -- "Inválida" --> Log_Error
+    H2 -- "Válida" --> H3
+    H3 -- "Falla 429/403" --> Log_Error
+    H3 -- "OK" --> H4
     H4 --> H5
     H5 --> H6
-    H6 -- \"Sí (Omitir)\" --> Log_Error
-    H6 -- \"No (Nuevo/Update)\" --> DB_Staging
+    H6 -- "Sí (Omitir)" --> Log_Error
+    H6 -- "No (Nuevo/Update)" --> DB_Staging
 ```
 
 ## 6. Definición de Éxito de la Fase (DoD)
