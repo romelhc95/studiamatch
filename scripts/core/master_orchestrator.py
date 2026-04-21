@@ -47,7 +47,10 @@ def get_institutions(limit=10):
 def main():
     import argparse
     import time
-    global_start = time.time()
+    
+    # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
+    env_start = os.getenv("JOB_START_TIME")
+    global_start = float(env_start) if env_start else time.time()
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")

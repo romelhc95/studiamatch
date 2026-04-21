@@ -22,10 +22,13 @@ jobs:
           apt-get update && apt-get install -y python3-pip
           pip3 install --break-system-packages -r requirements.txt
           playwright install chromium
+      - name: Set Job Start Time
+        run: echo "JOB_START_TIME=$(date +%s)" >> $GITHUB_ENV
       - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JOB_START_TIME: ${{ env.JOB_START_TIME }}
         run: python3 scripts/core/master_orchestrator.py --limit 15 --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
