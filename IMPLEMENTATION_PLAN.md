@@ -419,10 +419,51 @@ Objetivo: Blindar el repositorio para su apertura al pÃºblico (Open Source) as
    - [x] **División de Archivos**: Clasificación estricta entre infraestructura y activos locales.
      - **Core Infrastructure (permanecen en `db/`)**: Archivos de esquema puro y migraciones controladas (`production_init.sql`, `PRODUCTION_MASTER.sql`, `production_seed.sql` y el directorio `migrations/`).
      - **Local Assets (movidos a `local/db/`)**: Exportaciones de datos, volcados SQL masivos (ej. `MIGRATE_TO_SUPABASE.sql`) y backups temporales.
-   - [x] **Certificación de Limpieza**: Se auditó el contenido de `db/` verificando la ausencia total de secretos, contraseñas o cadenas de conexión. Los esquemas son seguros para exposición pública.
+   - [x] **CertificaciÃ³n de Limpieza**: Se auditÃ³ el contenido de `db/` verificando la ausencia total de secretos, contraseÃ±as o cadenas de conexiÃ³n. Los esquemas son seguros para exposiciÃ³n pÃºblica.
+
+   ## Fase 42: ReestructuraciÃ³n de EjecuciÃ³n FG2 (Anti-Timeout & Sharding) [ ] Pendiente
+   Objetivo: Optimizar el pipeline de datos masivos para operar dentro de los lÃ­mites de GitHub Actions, garantizando la escalabilidad a +20,000 cursos sin interrupciones por timeout.
+
+   1. **GestiÃ³n de LÃ­mites de GitHub Actions**:
+   - **Job (6h)**: LÃ­mite crÃ­tico. Se rediseÃ±arÃ¡n los scripts para que ninguna tarea individual (Scraping o Enriquecimiento) exceda este tiempo.
+   - **Workflow (72h)**: LÃ­mite global. La fragmentaciÃ³n permitirÃ¡ que el workflow sume muchas horas mediante jobs paralelos o secuenciales cortos.
+
+   2. **Estrategia de Sharding (FragmentaciÃ³n)**:
+   - **Matriz de EjecuciÃ³n**: Implementar `strategy: matrix` en `.github/workflows/production_pipeline.yml` para procesar grupos de instituciones en paralelo.
+   - **Orquestador por Slugs**: Modificar `master_orchestrator.py` para aceptar el flag `--include-only [slug1,slug2]` permitiendo ejecuciones quirÃºrgicas.
+
+   3. **Nuevo Flujo de EjecuciÃ³n: "Rolling Daily Shards"**:
+   - **Abandono del Monolito Semanal**: Se deja de procesar las 14 instituciones en un solo bloque el domingo.
+   - **DistribuciÃ³n Diaria**: El catÃ¡logo se divide en 7 fragmentos (uno por dÃ­a de la semana).
+   - **Beneficio**: ActualizaciÃ³n constante del catÃ¡logo, mitigaciÃ³n de picos de carga en Supabase y cumplimiento estricto del Free Tier de Cloudflare AI (10k neurons/dÃ­a).
+
+   4. **OperaciÃ³n de Estaciones en Esquema Fragmentado**:
+   - **EstaciÃ³n 1.5 (Cleansing)**: Ejecutada por shard. Limpia solo lo recolectado en la sesiÃ³n actual, manteniendo la latencia baja.
+   - **EstaciÃ³n 2 (Enrichment)**: GestiÃ³n inteligente de cuotas. Al fragmentar la carga, el "Brain" procesa lotes manejables sin disparar errores 429 (Too Many Requests).
+   - **EstaciÃ³n 3 (Production Sync)**: SincronizaciÃ³n incremental. La tabla `courses` se actualiza de forma atÃ³mica por instituciÃ³n, garantizando integridad referencial en todo momento.
+
+   ## Riesgos y Mitigaciones
+## Fase 42: Telemetría de Ejecución y Refinamiento de Triggers CI/CD [x] Completado
+Objetivo: Implementar inteligencia de orquestación basada en datos históricos de ejecución y optimizar los costos de GitHub Actions mediante disparadores manuales/programados.
+
+1. **Ampliación de Telemetría (DB)**:
+   - [x] **Columnas de Seguimiento**: Añadidas `last_harvest_at` y `last_harvest_duration_sec` a la tabla `institutions`. [x] Completado
+   - [x] **Esquema como Código**: Actualizados `db/production_init.sql` y `db/PRODUCTION_MASTER.sql`. [x] Completado
+2. **Refactorización de Lógica (Scripts)**:
+   - [x] **Registro de Tiempos**: `universal_harvester.py` ahora captura la duración total de la sesión y actualiza la tabla maestra al finalizar. [x] Completado
+   - [x] **Priorización Inteligente**: `master_orchestrator.py` ordena instituciones por `last_harvest_at NULLS FIRST`, garantizando un ciclo Round-Robin automático (Sharding Dinámico). [x] Completado
+3. **Optimización CI/CD (Workflows)**:
+   - [x] **Control de Disparadores**: Eliminado el trigger `push` de `production_pipeline.yml`. [x] Completado
+   - [x] **Políticas de Ejecución**:
+     - Rama `desarrollo`: Solo ejecución **Manual**.
+     - Rama `main`: Ejecución **Programada (CRON Diario)** y **Manual**.
+   - [x] **Ahorro de Cuota**: Se mitiga el consumo accidental de minutos por commits frecuentes. [x] Completado
+
+**Veredicto:** El sistema es ahora 100% autónomo, capaz de decidir quién se procesa hoy para no exceder los límites de tiempo de la nube.
 
 ## Riesgos y Mitigaciones
-- **Riesgo**: Bloqueos persistentes de IP local. -> MitigaciÃ³n: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
-- **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> MitigaciÃ³n: Mantener `aiohttp` como fallback con headers bÃ¡sicos.
-- **Riesgo**: SaturaciÃ³n de DB por inserts masivos de descubrimiento. -> MitigaciÃ³n: Batch inserts para el estado 'discovered'.
-- **Riesgo (Nuevo)**: FiltraciÃ³n accidental de secretos en repo pÃºblico. -> MitigaciÃ³n: RevisiÃ³n obligatoria con escÃ¡ner de secretos antes del primer `public push`.
+- **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
+- **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
+- **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
+- **Riesgo (Nuevo)**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
+
