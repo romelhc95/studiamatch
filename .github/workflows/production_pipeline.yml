@@ -29,7 +29,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
-        run: python3 scripts/core/master_orchestrator.py --limit 15 --skip-cleansing
+        run: python3 scripts/core/master_orchestrator.py --limit 5 --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------

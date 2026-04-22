@@ -70,7 +70,30 @@ def main():
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
     for inst in institutions:
-        logger.info(f"### Processing Institution: {inst['name']} ({inst['slug']})")
+        inst_id = inst['id']
+        inst_name = inst['name']
+        last_harvest = inst['last_harvest_at']
+        
+        # 🛡️ FRESHNESS GUARD: Skip if already dense (>50 urls) and updated in the last 3 days (72h)
+        if last_harvest:
+            try:
+                # Handle ISO format from DB
+                from datetime import datetime, timezone, timedelta
+                last_dt = datetime.fromisoformat(last_harvest.replace('Z', '+00:00'))
+                now_dt = datetime.now(timezone.utc)
+                
+                if (now_dt - last_dt) < timedelta(days=3):
+                    # Quick count in staging_raw
+                    res = db.select('staging_raw', filters=f"institution_id=eq.{inst_id}", columns="count")
+                    count = res[0]['count'] if res else 0
+                    
+                    if count > 50:
+                        logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
+                        continue
+            except Exception as e:
+                logger.warning(f"Failed to check freshness for {inst_name}: {e}")
+
+        logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
         inst_json = json.dumps(dict(inst))
         # Pass global start to sub-process
         run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)])

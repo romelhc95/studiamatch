@@ -232,8 +232,11 @@ class UniversalHarvester:
                 if link not in self.course_urls and link not in existing_urls:
                     self.course_urls.add(link)
                     self._save_discovered_url(link)
-                
-        if not self.circuit_open:
+        
+        # 🚀 FAST PATH: If sitemap gave us enough NEW courses, skip the slow BFS crawl
+        if len(self.course_urls) > 50:
+            logger.info(f"🚀 [FAST PATH] Found {len(self.course_urls)} courses via Sitemap. Skipping slow BFS crawl.")
+        elif not self.circuit_open:
             await self._bfs_crawl(start_url)
         
         final_urls = [url for url in list(self.course_urls) if url not in existing_urls]
