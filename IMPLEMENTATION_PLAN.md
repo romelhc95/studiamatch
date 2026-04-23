@@ -23,15 +23,27 @@
 
 ---
 
-## Estrategia de Ambientes (ECC Tiering)
+## Estrategia de Ambientes (Cloud-First Architecture)
 
-Para garantizar la estabilidad de **StudIAMatch**, el flujo de trabajo se divide en tres entornos estancos vinculados a sus respectivas ramas de Git:
+Para garantizar la paridad total y seguridad, **StudIAMatch** utiliza una arquitectura basada exclusivamente en la nube (Supabase), eliminando la necesidad de bases de datos locales. Los secretos se gestionan mediante **GitHub Environments** para evitar cualquier exposición en el repositorio.
 
-| Nivel | Rama Git | Propósito | Infraestructura (DB) | Frontend (Hosting) | Documentación
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TIER 1: Desarrollo** | `desarrollo` | Iteración rápida y refactor. | Supabase Free (Actual) | `studiamatch.pages.dev` | `docs/deployment/deploy_desarrollo.md` |
-| **TIER 2: Certificación** | `certificacion` | QA, Pruebas de Carga y E2E. | Supabase Free / QA Branch | `staging.studiomatch.com` | `docs/deployment/deploy_certificacion.md` |
-| **TIER 3: Producción** | `main` | Servicio estable y escalable. | **Supabase Pro** | `studiomatch.com` | `docs/deployment/deploy_produccion.md` |
+| Nivel | Rama Git | Environment (GitHub) | Infraestructura (DB) | Propósito |
+| :--- | :--- | :--- | :--- | :--- |
+| **TIER 1: Desarrollo** | `desarrollo` | `Development` | **Supabase Free** | Iteración rápida, Data Drip (IA) y Debug. |
+| **TIER 2: Certificación** | `certificacion` | `Certification` | **Supabase Free** | QA, Pruebas de Carga y Auditoría ROI. |
+| **TIER 3: Producción** | `main` | `Production` | **Supabase Pro** | Servicio estable y escalable. |
+
+> [!WARNING]
+> **Gestión de Secretos**: Los secretos `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` deben configurarse en sus respectivos entornos de GitHub. Nunca deben incluirse en archivos subidos al repositorio.
+
+---
+
+## Arquitectura de Ejecución (SDLC)
+La ejecución del sistema se centraliza en la API de Supabase:
+
+1. **Desarrollo Local**: Utiliza `.env.local` (ignorado por Git) apuntando a **Supabase Free**.
+2. **Pipelines de GitHub**: Inyectan credenciales según el ambiente detectado por la rama.
+3. **Persistencia**: La data generada por el pipeline de IA en `desarrollo` es inmediatamente visible para el desarrollador local al compartir la misma instancia de base de datos.
 
 ---
 
@@ -420,23 +432,46 @@ Objetivo: Implementar inteligencia de orquestación basada en datos históricos 
 
 **Resultado Final:** El sistema es ahora 100% autónomo, resiliente al tiempo y reporta con precisión en horario local.
 
-### Fase 43: Buscador Estilo Google Flights (Filtros en el Centro) [] Pendiente
+### Fase 43: Buscador Estilo Google Flights (Filtros en el Centro) [x] Completado
 Objetivo: Migrar los filtros laterales a una interfaz de botones superiores integrados en el Hero, simplificando la barra de búsqueda y mejorando el minimalismo.
 
 1. **Refactorización de Interfaz (Hero)**:
-   - [] Crear fila superior de "Chips de Filtro" (Área, Tipo, Institución, Modalidad). 
-   - [] Implementar menús desplegables (Dropdowns) para cada chip.
-   - [] Simplificar la barra de búsqueda principal a: Búsqueda | Precio Máximo | Botón Explorar.
+   - [x] Crear fila superior de "Chips de Filtro" (Área, Tipo, Institución, Modalidad). 
+   - [x] Implementar menús desplegables (Dropdowns) para cada chip.
+   - [x] Simplificar la barra de búsqueda principal a: Búsqueda | Precio Máximo | Botón Explorar.
 
 2. **Eliminación de Sidebar**:
-   - [] Remover el componente `aside` y el botón de activación de filtros laterales. 
-   - [] Consolidar toda la lógica de filtrado en el componente Hero. 
+   - [x] Remover el componente `aside` y el botón de activación de filtros laterales. 
+   - [x] Consolidar toda la lógica de filtrado en el componente Hero. 
 
 3. **UX & Estética**:
-   - [] Asegurar que los dropdowns sean accesibles y tengan un diseño premium (sombras, bordes redondeados). 
-   - [] Implementar cierre automático de dropdowns al hacer clic fuera o seleccionar una opción. 
+   - [x] Asegurar que los dropdowns sean accesibles y tengan un diseño premium (sombras, bordes redondeados). 
+   - [x] Implementar cierre automático de dropdowns al hacer clic fuera o seleccionar una opción. 
 
 **Resultado Final:** Interfaz de búsqueda modernizada con mayor espacio para el catálogo y mejores puntos de datos en las tarjetas.
+
+### Fase 44: Estabilización Cloud-First y Correcciones Core [x] Completado
+Objetivo: Migrar el SDLC al modelo Supabase-Only, resolver el truncamiento de filtros en móviles y poblar el catálogo con las instituciones pendientes.
+
+1. **Migración a Cloud-First (Supabase Everywhere)**:
+   - [x] Eliminación de PostgreSQL local en `docker-compose.yml` para evitar discrepancias de entorno.
+   - [x] Actualización de `db_client.py` para forzar conexión vía API REST (Modo Cloud por defecto) si la DB local falla.
+   - [x] Definición estricta de variables `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` mapeadas por GitHub Environments.
+
+2. **Optimización de UI y Responsive**:
+   - [x] **Filtros Móviles**: Corrección del contenedor `overflow-x-auto` que cortaba verticalmente los menús.
+   - [x] **Overlay Móvil**: Implementación de un `backdrop-blur` fijo (`z-index: 60`) con menú emergente centrado para evitar recortes de interfaz.
+   - [x] **Generación Dinámica (`dynamicParams`)**: Corrección de error 404 en el detalle de nuevos cursos permitiendo la compilación en tiempo de ejecución de las páginas.
+
+3. **Reparación del Pipeline de Datos (Categorías)**:
+   - [x] **Upserts de Enriquecimiento**: Cambio del índice de conflicto a `cleansed_id` para evitar fallos de restricción única en `enriched_programs`.
+   - [x] **Mapeo Heurístico Inteligente**: Modificación de `harvest_processor.py` para que lea de `staging_raw` en lugar de `harvesting` (tabla inexistente). Se añadió una heurística básica para poblar de inmediato las categorías en `courses` (ej: "Finanzas", "Data Analytics") y activar los filtros dinámicos.
+   - [x] **Promoción de Instituciones**: Se inyectaron +300 registros de DMC, U. del Pacífico y New Horizons para asegurar diversidad en la interfaz.
+
+4. **Corrección de Esquema (Formulario Leads)**:
+   - [x] Identificación y resolución de Error 400 (`PGRST204`) mediante la inclusión (vía SQL Editor) de la columna faltante `is_late_enrollment_request` (BOOLEAN DEFAULT false) en la tabla `leads`.
+
+**Resultado Final:** Catálogo con +400 registros navegables, filtros responsivos totalmente poblados con metadata cruzada y sistema de captación de leads operativo contra Supabase Free.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

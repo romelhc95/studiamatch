@@ -288,8 +288,14 @@ export default function Home() {
 
                       {activeDropdown === filter.id && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setActiveDropdown(null)} />
-                          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-elevated border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                          {/* Overlay para móvil */}
+                          <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm md:hidden" onClick={() => setActiveDropdown(null)} />
+                          <div className="fixed inset-0 z-40 hidden md:block" onClick={() => setActiveDropdown(null)} />
+                          
+                          <div className={cn(
+                            "absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left",
+                            "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:absolute md:top-full md:left-0 md:translate-x-0 md:translate-y-0"
+                          )}>
                             <div className="p-1.5 max-h-72 overflow-y-auto custom-scrollbar">
                               {filter.options.map((opt) => (
                                 <button
@@ -331,7 +337,7 @@ export default function Home() {
                       <Search className="h-5 w-5 text-slate-300 group-focus-within:text-brand-blue transition-colors" />
                     </div>
                     <Input
-                      placeholder="¿Qué quieres estudiar hoy? (Nombre, tecnología o palabra clave)"
+                      placeholder="¿Qué quieres estudiar hoy?"
                       className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -341,7 +347,6 @@ export default function Home() {
                   <div className="h-10 w-px bg-slate-100 self-center hidden md:block" />
 
                   <div className="relative w-full md:w-36 flex items-center px-4">
-                    <Coins className="h-5 w-5 text-slate-300 mr-2 shrink-0" />
                     <Input
                       type="number"
                       placeholder="Máx S/"
