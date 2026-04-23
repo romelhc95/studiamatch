@@ -34,7 +34,7 @@ class EnrichmentWorker:
     def __init__(self):
         self.db = get_db_client()
 
-    def get_pending_cleansed(self, limit=10):
+    def get_pending_cleansed(self, limit=None):
         """Obtiene registros de cleansed_programs listos para IA."""
         return self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
 
@@ -185,6 +185,7 @@ class EnrichmentWorker:
 
 if __name__ == "__main__":
     worker = EnrichmentWorker()
-    records = worker.get_pending_cleansed(limit=5)
+    records = worker.get_pending_cleansed() # Sin límite para procesar todo el shard
+    logger.info(f"🚀 Iniciando procesamiento de {len(records)} registros pendientes.")
     for r in records:
         worker.enrich_record(r)
