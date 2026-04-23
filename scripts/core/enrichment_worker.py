@@ -77,17 +77,48 @@ class EnrichmentWorker:
         except: return None
         return None
 
+    def _clean_json_response(self, text):
+        """Clean and repair common LLM JSON errors."""
+        if not text: return None
+        
+        # 1. Remove markdown code blocks
+        text = re.sub(r'```json\s*', '', text)
+        text = re.sub(r'```\s*', '', text)
+        
+        # 2. Extract only the content between the first { and the last }
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if not match: return None
+        json_str = match.group()
+        
+        # 3. Basic syntax repairs
+        # Remove trailing commas before a closing brace or bracket
+        json_str = re.sub(r',\s*\}', '}', json_str)
+        json_str = re.sub(r',\s*\]', ']', json_str)
+        
+        return json_str
+
     def _call_llm_for_pillars(self, name, description):
         """Multicloud Cascade: CF -> GitHub -> Gemini"""
-        prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON minificado. No incluyas markdown.
-        Nombre: {name} | Desc: {description[:1000]}
-        Esquema: {{
-            "official_name": "string", "duration_text": "string", "duration_months": int,
-            "total_cost_est": float, "requirements": [], "graduate_profile": "string",
-            "curriculum_summary": {{}}, "modality": "Presencial|Remoto|Híbrido",
-            "primary_campus": "string", "degree_type": "string", "start_date": "ISO",
-            "categories": [], "difficulty_level": "Básico|Intermedio|Avanzado",
-            "ai_summary": "string"
+        prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro. No incluyas explicaciones ni markdown.
+        Nombre: {name}
+        Descripción: {description[:1200]}
+
+        Esquema Requerido:
+        {{
+            "official_name": "Nombre formal del programa",
+            "duration_text": "Ej: 6 meses, 24 horas",
+            "duration_months": 0,
+            "total_cost_est": 0.0,
+            "requirements": ["Requisito 1", "Requisito 2"],
+            "graduate_profile": "Perfil del egresado",
+            "curriculum_summary": {{"modulo1": "descripcion", "modulo2": "descripcion"}},
+            "modality": "Presencial|Remoto|Híbrido",
+            "primary_campus": "Sede o Ciudad",
+            "degree_type": "Maestría|Diplomado|Curso|Taller",
+            "start_date": "YYYY-MM-DD",
+            "categories": ["Categoría 1", "Categoría 2"],
+            "difficulty_level": "Básico|Intermedio|Avanzado",
+            "ai_summary": "Resumen ejecutivo de 3 líneas"
         }}"""
 
         providers = [
@@ -99,15 +130,22 @@ class EnrichmentWorker:
         for p_name, p_func in providers:
             try:
                 logger.info(f"Intentando con Provider: {p_name}")
-                response = p_func(prompt)
-                if response:
-                    match = re.search(r'\{.*\}', response, re.DOTALL)
-                    if match: 
-                        data = json.loads(match.group())
+                raw_response = p_func(prompt)
+                if not raw_response:
+                    continue
+                
+                clean_json = self._clean_json_response(raw_response)
+                if clean_json:
+                    try:
+                        data = json.loads(clean_json)
                         logger.info(f"✅ Éxito con {p_name}")
                         return data
+                    except json.JSONDecodeError as je:
+                        logger.warning(f"⚠️ {p_name} devolvió JSON inválido: {je}. Raw: {raw_response[:200]}...")
+                else:
+                    logger.warning(f"⚠️ {p_name} no devolvió un bloque JSON válido.")
             except Exception as e:
-                logger.warning(f"⚠️ Provider {p_name} falló: {e}")
+                logger.warning(f"⚠️ Error inesperado con {p_name}: {e}")
                 continue
         
         logger.warning("❌ Todos los providers fallaron. Generando Smart Mock preventivo.")
