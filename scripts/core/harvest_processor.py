@@ -28,129 +28,94 @@ logger = logging.getLogger("HarvestProcessor")
 
 load_dotenv()
 
-# Credentials handled by db_client
-
 class HarvestProcessor:
     def __init__(self):
         self.db = get_db_client()
+        # Mapeo manual de categorías para poblar filtros rápidamente
+        self.cat_map = {
+            "Data Science & IA": "d10b87c4-7b95-47ed-9b06-74c36435d4e4",
+            "Data Analytics": "31e042f0-1571-4bc7-800e-f63e26820ac0",
+            "Marketing y Ventas": "69dae276-bd42-47d2-ad2f-5e0bcb9d2e75",
+            "Finanzas y Legal": "028906bf-aa60-47e2-b11f-382073be8f67",
+            "Gestión y Agilidad": "4a0de3b6-30de-456e-8301-b1c993d99cfc",
+            "Logística y Operaciones": "90866a67-9cf3-45e5-ad74-49dc1cd6cef6",
+            "Tecnología": "811644b2-b226-43cd-9a6f-bfca066a1cc2",
+            "Desarrollo y Web": "56396b45-7eab-40c1-a373-6187069e33a6"
+        }
 
-    def get_pending_harvests(self, limit=100):
-        # We simplify the select to remove joins for better local compatibility
-        # since institutions(slug) was not being used in the logic.
-        return self.db.select('harvesting', filters="status=eq.pending", limit=limit)
+    def get_pending_records(self, limit=100):
+        # Procesar tanto los descubiertos como los que no tienen categoría
+        return self.db.select('staging_raw', filters="status=eq.discovered", limit=limit)
 
-    def is_invalid_course(self, name, description, html=""):
-        """Heuristics to identify non-course pages."""
-        if not name or len(name) < 5:
-            return "name_too_short"
-            
-        blacklist = [
-            "descubre nuestras", "explorar carreras", "oferta académica", 
-            "página no encontrada", "404", "error", "portal", "home",
-            "inicio", "contactanos", "nosotros", "malla curricular",
-            "admision", "revisa nuestro", "conoce mas", "universidad peruana",
-            "todos los derechos", "facultad de", "escuela de", "lista de cursos"
-        ]
-        
-        low_name = name.lower()
-        for b in blacklist:
-            if b in low_name:
-                return f"blacklist_match:{b}"
-        
-        if not description or len(description) < 100:
-            return "description_too_short"
+    def get_unmapped_courses(self, limit=100):
+        return self.db.select('courses', filters="category_id=is.null", limit=limit)
 
-        return None
+    def process_record(self, record, is_full_course=False):
+        if not is_full_course:
+            url = record['url']
+            raw_name = record.get('raw_name') or url.split('/')[-1].replace('-', ' ').replace('_', ' ').title()
+            inst_id = record['institution_id']
+            clean_name = clean_course_name(raw_name)
+            course_id = None
+        else:
+            course_id = record['id']
+            url = record['url']
+            clean_name = record['name']
+            inst_id = record['institution_id']
 
-    def process_record(self, harvest):
-        h_id = harvest['id']
-        url = harvest['url']
-        raw_name = harvest.get('raw_name') or ""
-        raw_desc = harvest.get('raw_description') or ""
-        raw_html = harvest.get('raw_html') or ""
-        inst_id = harvest['institution_id']
-
-        logger.info(f"Processing: {url}")
-
-        # 1. Validation
-        discard_reason = self.is_invalid_course(raw_name, raw_desc, raw_html)
-        if discard_reason:
-            logger.warning(f"Discarding {url}: {discard_reason}")
-            self.update_harvest_status(h_id, "discarded", discard_reason=discard_reason)
-            return
-
-        # 2. Cleaning & Normalization
-        clean_name = clean_course_name(raw_name)
+        course_slug = slugify(clean_name)
         course_type = infer_course_type(clean_name)
-        category = standardize_category("", clean_name)
         
-        # Mode detection from raw content
-        mode = self._detect_mode(raw_desc + " " + raw_html)
-        
-        # Price detection
-        price_pen, price_status = self._extract_price(raw_desc + " " + raw_html)
+        # Heurística mejorada para categorías
+        cat_name = "Tecnología" # Default
+        cn = clean_name.lower()
+        if any(x in cn for x in ['data', 'analytics', 'bi', 'power bi']): cat_name = "Data Analytics"
+        if any(x in cn for x in ['ia', 'inteligencia artificial', 'machine learning', 'python']): cat_name = "Data Science & IA"
+        if any(x in cn for x in ['marketing', 'ventas', 'comercial']): cat_name = "Marketing y Ventas"
+        if any(x in cn for x in ['finanzas', 'contabilidad', 'tributaria', 'legal', 'niif', 'tesoreria']): cat_name = "Finanzas y Legal"
+        if any(x in cn for x in ['gestion', 'proyectos', 'mba', 'administracion', 'liderazgo', 'compliance']): cat_name = "Gestión y Agilidad"
+        if any(x in cn for x in ['operaciones', 'logistica', 'compras']): cat_name = "Logística y Operaciones"
+        if any(x in cn for x in ['desarrollo', 'web', 'full stack', 'app']): cat_name = "Desarrollo y Web"
 
-        # 3. Save to Courses
+        cat_id = self.cat_map.get(cat_name)
+
         course_data = {
             "institution_id": inst_id,
             "name": clean_name,
-            "slug": slugify(clean_name),
+            "slug": course_slug,
             "url": url,
-            "price_pen": price_pen,
-            "price_status": price_status,
-            "mode": mode,
-            "category": category,
+            "category_id": cat_id,
             "course_type": course_type,
-            "description_long": raw_desc,
             "is_active": True,
+            "is_verified": True,
             "last_scraped_at": datetime.now().isoformat()
         }
 
-        # Upsert to courses (using URL as unique key)
-        res = self.db.upsert('courses', course_data, on_conflict="url")
+        if course_id:
+            res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=course_data)
+        else:
+            res = self.db.upsert('courses', course_data, on_conflict="url")
 
         if res:
-            logger.info(f"Successfully promoted to courses: {clean_name}")
-            self.update_harvest_status(h_id, "processed")
+            logger.info(f"MAPPED: {clean_name} -> {cat_name}")
+            if not is_full_course:
+                self.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={"status": "processed"})
         else:
-            logger.error(f"Error promoting {url}")
-            self.update_harvest_status(h_id, "error", error_msg="DB Error")
-
-    def _detect_mode(self, text):
-        text = text.lower()
-        if any(k in text for k in ["semipresencial", "híbrido", "hibrido", "blended"]):
-            return "Híbrido"
-        if any(k in text for k in ["remoto", "virtual", "a distancia", "online"]):
-            return "Remoto"
-        return "Presencial"
-
-    def _extract_price(self, text):
-        # Very basic regex for Peruvian Sole
-        price_match = re.search(r'S/\s*([\d,.]+)', text, re.IGNORECASE)
-        if price_match:
-            try:
-                price_str = price_match.group(1).replace(",", "")
-                price_pen = float(price_str)
-                # Validation: A course rarely costs more than 1,000,000 PEN
-                # If it's higher, it's likely a phone number or metadata error
-                if 10 < price_pen < 1000000:
-                    return price_pen, "publicado"
-            except: pass
-        return None, "consultar"
-
-    def update_harvest_status(self, h_id, status, discard_reason=None, error_msg=None):
-        payload = {"status": status}
-        if discard_reason: payload["discard_reason"] = discard_reason
-        if error_msg: payload["processing_error"] = error_msg
-        
-        self.db.patch('harvesting', filters=f"id=eq.{h_id}", data=payload)
+            logger.error(f"FAILED: {url}")
 
 if __name__ == "__main__":
     processor = HarvestProcessor()
-    pending = processor.get_pending_harvests(limit=50)
-    logger.info(f"Found {len(pending)} pending harvests.")
     
-    for record in pending:
-        processor.process_record(record)
-    
-    logger.info("Batch processing complete.")
+    # 1. Mapear cursos existentes sin categoría
+    logger.info("Fase 1: Mapeando categorías de cursos existentes...")
+    existing = processor.get_unmapped_courses(limit=200)
+    for r in existing:
+        processor.process_record(r, is_full_course=True)
+
+    # 2. Promocionar nuevos
+    logger.info("Fase 2: Promocionando nuevos registros desde staging...")
+    records = processor.get_pending_records(limit=200)
+    for r in records:
+        processor.process_record(r)
+        
+    logger.info("✅ Proceso de normalización completado.")

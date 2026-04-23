@@ -22,8 +22,6 @@ from shared.db_client import get_db_client
 load_dotenv()
 logger = setup_lima_logging("EnrichmentWorker")
 
-# DB connection is now handled by DBClient
-
 # API Keys & Credits (Multicloud Policy)
 CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
@@ -35,8 +33,27 @@ class EnrichmentWorker:
         self.db = get_db_client()
 
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs listos para IA."""
-        return self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
+        """Obtiene registros de cleansed_programs o directamente de courses para IA."""
+        try:
+            res = self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
+            if res and len(res) > 0:
+                return res
+        except:
+            pass
+            
+        logger.info("No hay registros en cleansed_programs, intentando con tabla courses...")
+        # Filtrar cursos que no tengan tipo o duración (indicador de falta de enriquecimiento)
+        res = self.db.select('courses', filters="course_type=eq.", limit=limit)
+        normalized = []
+        for r in res:
+            normalized.append({
+                "id": r['id'],
+                "clean_name": r['name'],
+                "clean_description": r.get('description_long') or r['name'],
+                "institution_id": r['institution_id'],
+                "url": r['url']
+            })
+        return normalized
 
     def _call_cloudflare(self, prompt):
         if not CF_API_TOKEN or not CF_ACCOUNT_ID: return None
@@ -78,152 +95,84 @@ class EnrichmentWorker:
         return None
 
     def _clean_json_response(self, text):
-        """Clean and repair common LLM JSON errors."""
         if not text: return None
-        
-        # 1. Remove markdown code blocks
         text = re.sub(r'```json\s*', '', text)
         text = re.sub(r'```\s*', '', text)
-        
-        # 2. Extract only the content between the first { and the last }
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if not match: return None
         json_str = match.group()
-        
-        # 3. Basic syntax repairs
-        # Remove trailing commas before a closing brace or bracket
         json_str = re.sub(r',\s*\}', '}', json_str)
         json_str = re.sub(r',\s*\]', ']', json_str)
-        
         return json_str
 
     def _call_llm_for_pillars(self, name, description):
-        """Multicloud Cascade: CF -> GitHub -> Gemini"""
-        prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro. No incluyas explicaciones ni markdown.
+        prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
         Nombre: {name}
         Descripción: {description[:1200]}
+        Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": 0.0, "requirements": [], "graduate_profile": "", "curriculum_summary": {{}}, "modality": "Presencial|Remoto", "primary_campus": "", "degree_type": "Maestría|Diplomado|Curso", "start_date": "", "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
-        Esquema Requerido:
-        {{
-            "official_name": "Nombre formal del programa",
-            "duration_text": "Ej: 6 meses, 24 horas",
-            "duration_months": 0,
-            "total_cost_est": 0.0,
-            "requirements": ["Requisito 1", "Requisito 2"],
-            "graduate_profile": "Perfil del egresado",
-            "curriculum_summary": {{"modulo1": "descripcion", "modulo2": "descripcion"}},
-            "modality": "Presencial|Remoto|Híbrido",
-            "primary_campus": "Sede o Ciudad",
-            "degree_type": "Maestría|Diplomado|Curso|Taller",
-            "start_date": "YYYY-MM-DD",
-            "categories": ["Categoría 1", "Categoría 2"],
-            "difficulty_level": "Básico|Intermedio|Avanzado",
-            "ai_summary": "Resumen ejecutivo de 3 líneas"
-        }}"""
-
-        providers = [
-            ("Cloudflare", self._call_cloudflare),
-            ("GitHub", self._call_github),
-            ("Gemini", self._call_gemini)
-        ]
-
-        for p_name, p_func in providers:
+        for p_name, p_func in [("Cloudflare", self._call_cloudflare), ("GitHub", self._call_github), ("Gemini", self._call_gemini)]:
             try:
-                logger.info(f"Intentando con Provider: {p_name}")
-                raw_response = p_func(prompt)
-                if not raw_response:
-                    continue
-                
-                clean_json = self._clean_json_response(raw_response)
-                if clean_json:
-                    try:
-                        data = json.loads(clean_json)
-                        logger.info(f"✅ Éxito con {p_name}")
-                        return data
-                    except json.JSONDecodeError as je:
-                        logger.warning(f"⚠️ {p_name} devolvió JSON inválido: {je}. Raw: {raw_response[:200]}...")
-                else:
-                    logger.warning(f"⚠️ {p_name} no devolvió un bloque JSON válido.")
-            except Exception as e:
-                logger.warning(f"⚠️ Error inesperado con {p_name}: {e}")
-                continue
-        
-        logger.warning("❌ Todos los providers fallaron. Generando Smart Mock preventivo.")
+                raw = p_func(prompt)
+                clean = self._clean_json_response(raw)
+                if clean:
+                    logger.info(f"✅ Éxito con {p_name}")
+                    return json.loads(clean)
+            except: continue
         return self._generate_smart_mock(name, description)
 
     def enrich_record(self, cleansed):
-        c_id = cleansed['id']
-        name = cleansed['clean_name']
-        desc = cleansed['clean_description']
-        inst_id = cleansed['institution_id']
-        url = cleansed['url']
-
+        c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched_data = self._call_llm_for_pillars(name, desc)
+            enriched = self._call_llm_for_pillars(name, desc)
             
-            # 🛡️ Data Type Normalization for DB
-            def normalize_field(val):
+            def normalize(val):
                 if isinstance(val, (list, dict)):
                     return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])
                 return str(val) if val is not None else ""
 
             save_data = {
                 "cleansed_id": c_id,
-                "institution_id": inst_id,
-                "url": url,
-                "official_name": enriched_data.get("official_name"),
-                "duration_text": enriched_data.get("duration_text"),
-                "duration_months": enriched_data.get("duration_months"),
-                "total_cost_est": enriched_data.get("total_cost_est"),
-                "requirements": normalize_field(enriched_data.get("requirements")),
-                "graduate_profile": enriched_data.get("graduate_profile"),
-                "curriculum_summary": normalize_field(enriched_data.get("curriculum_summary")),
-                "modality": enriched_data.get("modality"),
-                "primary_campus": enriched_data.get("primary_campus"),
-                "degree_type": enriched_data.get("degree_type"),
-                "start_date": enriched_data.get("start_date"),
-                "categories": normalize_field(enriched_data.get("categories")),
-                "difficulty_level": enriched_data.get("difficulty_level"),
-                "ai_summary": enriched_data.get("ai_summary"),
+                "institution_id": cleansed['institution_id'],
+                "url": cleansed['url'],
+                "official_name": enriched.get("official_name"),
+                "duration_text": enriched.get("duration_text"),
+                "duration_months": enriched.get("duration_months"),
+                "total_cost_est": enriched.get("total_cost_est"),
+                "requirements": normalize(enriched.get("requirements")),
+                "graduate_profile": enriched.get("graduate_profile"),
+                "curriculum_summary": normalize(enriched.get("curriculum_summary")),
+                "modality": enriched.get("modality"),
+                "primary_campus": enriched.get("primary_campus"),
+                "degree_type": enriched.get("degree_type"),
+                "start_date": enriched.get("start_date"),
+                "categories": normalize(enriched.get("categories")),
+                "difficulty_level": enriched.get("difficulty_level"),
+                "ai_summary": enriched.get("ai_summary"),
                 "status": "pending"
             }
 
-            res = self.db.upsert('enriched_programs', save_data, on_conflict="url")
-
-            if res:
-                logger.info(f"Record guardado en enriched_programs.")
-                self.update_cleansed_status(c_id, "enriched")
-            else:
-                logger.error(f"Error al guardar en enriched_programs")
+            self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
+            self.sync_to_courses(c_id, enriched)
+            logger.info(f"Record guardado y sincronizado.")
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
 
-    def update_cleansed_status(self, c_id, status):
-        self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": status})
+    def sync_to_courses(self, course_id, data):
+        update_data = {
+            "course_type": data.get("degree_type", "Curso"),
+            "duration": data.get("duration_text", "Consultar"),
+            "mode": data.get("modality", "Presencial")
+        }
+        self.db.patch('courses', filters=f"id=eq.{course_id}", data=update_data)
 
     def _generate_smart_mock(self, name, description):
-        inferred_type = infer_course_type(name)
-        return {
-            "official_name": name,
-            "duration_text": "Pendiente",
-            "duration_months": 0,
-            "total_cost_est": 0.0,
-            "requirements": [],
-            "graduate_profile": "Perfil por definir",
-            "curriculum_summary": {},
-            "modality": standardize_mode(description),
-            "primary_campus": "Sede Central",
-            "degree_type": inferred_type,
-            "start_date": None,
-            "categories": [standardize_category(name)],
-            "difficulty_level": "Intermedio",
-            "ai_summary": f"Programa especializado en {name}."
-        }
+        return {"official_name": name, "duration_text": "Consultar", "degree_type": "Curso", "modality": "Presencial"}
 
 if __name__ == "__main__":
     worker = EnrichmentWorker()
-    records = worker.get_pending_cleansed() # Sin límite para procesar todo el shard
-    logger.info(f"🚀 Iniciando procesamiento de {len(records)} registros pendientes.")
+    records = worker.get_pending_cleansed(limit=5)
+    logger.info(f"🚀 Procesando {len(records)} registros.")
     for r in records:
-        worker.enrich_record(r)
+        if r and isinstance(r, dict): worker.enrich_record(r)
