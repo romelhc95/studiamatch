@@ -108,6 +108,10 @@ class CleansingWorker:
             except: break
 
     def is_invalid_course(self, name: str, description: str, url: str, inst_id: str, clean_text: str = "") -> Optional[str]:
+        if name is None: name = ""
+        if description is None: description = ""
+        if url is None: url = ""
+        
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
             if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
