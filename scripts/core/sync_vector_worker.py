@@ -20,7 +20,7 @@ class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
 
-    def get_pending_enriched(self, limit=50):
+    def get_pending_enriched(self, limit=500):
         return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
 
     def sync_to_production(self, enriched):
