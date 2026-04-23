@@ -255,20 +255,27 @@ class DatabaseClient:
     def _insert_api(self, table, data):
         url = f"{self.supabase_url}/rest/v1/{table}"
         res = requests.post(url, headers=self._get_headers(), json=data)
-        return res.json() if res.status_code in [200, 201, 204] else None
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {res.text}")
+        return None
 
     def _patch_api(self, table, filters, data):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
         res = requests.patch(url, headers=self._get_headers(), json=data)
-        return {"status": "success"} if res.status_code in [200, 204] else {"status": "error"}
+        if res.status_code in [200, 204]:
+            return {"status": "success"}
+        print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {res.text}")
+        return {"status": "error"}
 
     def _upsert_api(self, table, data, on_conflict):
         url = f"{self.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
         headers = self._get_headers()
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
         res = requests.post(url, headers=headers, json=data)
-        if res.status_code in [200, 201]:
-            return res.json()
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        print(f"DB_CLIENT_API_ERROR (Upsert): {res.status_code} - {res.text}")
         return None
 
 def get_db_client():
