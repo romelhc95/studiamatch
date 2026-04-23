@@ -276,15 +276,17 @@ class UniversalHarvester:
             description = await self._extract_description(page, og_tags, json_ld)
             
             return {
-                "name": title,
+                "raw_name": title,
                 "url": url,
                 "effective_url": eff_url,
                 "canonical_url": can_url,
-                "description_long": description,
-                "json_ld": json_ld,
-                "og_tags": og_tags,
+                "raw_description": description,
+                "raw_json_ld": json_ld,
+                "raw_og_tags": og_tags,
                 "raw_html": raw_html[:50000],
-                "content_hash": content_hash
+                "content_hash": content_hash,
+                "institution_id": self.institution['id'],
+                "status": "pending"
             }
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
