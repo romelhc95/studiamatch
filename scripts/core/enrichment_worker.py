@@ -124,19 +124,30 @@ class EnrichmentWorker:
         try:
             enriched_data = self._call_llm_for_pillars(name, desc)
             
-            # 🛡️ Data Type Normalization for DB (List -> String)
-            def list_to_str(val):
-                if isinstance(val, list):
-                    return ", ".join([str(v) for v in val if v])
-                return str(val) if val else ""
+            # 🛡️ Data Type Normalization for DB
+            def normalize_field(val):
+                if isinstance(val, (list, dict)):
+                    return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])
+                return str(val) if val is not None else ""
 
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": inst_id,
                 "url": url,
-                **enriched_data,
-                "requirements": list_to_str(enriched_data.get("requirements")),
-                "categories": list_to_str(enriched_data.get("categories")),
+                "official_name": enriched_data.get("official_name"),
+                "duration_text": enriched_data.get("duration_text"),
+                "duration_months": enriched_data.get("duration_months"),
+                "total_cost_est": enriched_data.get("total_cost_est"),
+                "requirements": normalize_field(enriched_data.get("requirements")),
+                "graduate_profile": enriched_data.get("graduate_profile"),
+                "curriculum_summary": normalize_field(enriched_data.get("curriculum_summary")),
+                "modality": enriched_data.get("modality"),
+                "primary_campus": enriched_data.get("primary_campus"),
+                "degree_type": enriched_data.get("degree_type"),
+                "start_date": enriched_data.get("start_date"),
+                "categories": normalize_field(enriched_data.get("categories")),
+                "difficulty_level": enriched_data.get("difficulty_level"),
+                "ai_summary": enriched_data.get("ai_summary"),
                 "status": "pending"
             }
 
