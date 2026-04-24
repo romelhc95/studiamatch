@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ instituti
 }
 
 export const dynamic = 'force-static';
-export const dynamicParams = true;
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const defaultPath = [{ institution: 'pucp', slug: 'estudios-generales' }];
