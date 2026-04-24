@@ -473,10 +473,29 @@ Objetivo: Migrar el SDLC al modelo Supabase-Only, resolver el truncamiento de fi
 
 **Resultado Final:** Catálogo con +400 registros navegables, filtros responsivos totalmente poblados con metadata cruzada y sistema de captación de leads operativo contra Supabase Free.
 
+### Fase 45: Refinamiento de UX, Filtros en Cascada y Persistencia [x] Completado
+Objetivo: Finalizar la interfaz de búsqueda con filtros inteligentes que se comuniquen entre sí, resolver problemas visuales de menús recortados y garantizar la persistencia del estado mediante la URL.
+
+1. **Corrección de UI (Clipping & Hero)**:
+   - [x] Eliminación de `overflow-hidden` en el contenedor Hero para permitir la visualización completa de los dropdowns.
+   - [x] Reubicación de elementos decorativos en una capa `pointer-events-none` para no interferir con los clics.
+
+2. **Filtros en Cascada (Interdependientes)**:
+   - [x] Implementación de la lógica `getFilteredExcluding` para que cada dropdown solo muestre opciones con resultados disponibles basados en los otros filtros activos.
+   - [x] Añadidos contadores dinámicos (*badges*) en los menús desplegables que reflejan el contexto actual de búsqueda.
+
+3. **Persistencia de Estado (URL Sync)**:
+   - [x] Integración de `useSearchParams` y `useRouter` para sincronizar filtros (`q`, `area`, `tipo`, `inst`, `modalidad`, `max`, `sort`) con la URL.
+   - [x] Implementación de `Suspense` para cumplir con los estándares de Next.js en el manejo de parámetros de búsqueda.
+   - [x] Verificación del botón "Limpiar todo" para resetear tanto el estado local como los parámetros de la URL.
+
+**Resultado Final:** Una experiencia de búsqueda premium, resiliente a la navegación y con retroalimentación visual inteligente sobre la disponibilidad de cursos.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
 - **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
-- **Riesgo (Nuevo)**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
+- **Riesgo**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
+- **Riesgo (Nuevo)**: Complejidad computacional en filtros en cascada con catálogos masivos. -> Mitigación: Uso de `useMemo` y potencial implementación de debouncing para búsquedas de texto.
 
 ---
