@@ -64,13 +64,21 @@ def is_soft_404(text: str) -> bool:
 
 def detect_obsolete_dates(text: str, url: str = "", name: str = "") -> Optional[str]:
     today = datetime.now()
-    year_match = re.search(r'\b(20[0-1][0-9]|202[0-4])\b', f"{url} {name}")
-    if year_match: return f"hard_obsolete_year:{year_match.group(1)}"
-    for year in [str(y) for y in range(2000, today.year)]:
-        if re.search(r'(?:inicio|clases|admisi[óo]n|fecha|ciclo|semestre).*?\b' + year + r'\b', text, re.IGNORECASE | re.DOTALL):
-            return f"obsolete_year:{year}"
-    if "2025" in text and today.year == 2026:
-        if re.search(r'(?:hasta el|desde el|inicia|comienza).*?2025', text, re.IGNORECASE): return "obsolete_date_2025"
+    current_year = today.year
+    
+    # 1. Buscar cualquier año de 4 dígitos (2000-2029) en URL o Nombre
+    # Si el año es menor al actual, es obsoleto de inmediato (Hard Exclusion)
+    year_match = re.findall(r'\b(20[0-2][0-9])\b', f"{url} {name}")
+    if year_match:
+        for y in year_match:
+            if int(y) < current_year:
+                return f"hard_obsolete_year:{y}"
+    
+    # 2. Buscar menciones de años pasados en el cuerpo del texto con contexto de fechas
+    for year in [str(y) for y in range(2000, current_year)]:
+        if re.search(r'(?:inicio|clases|admisi[óo]n|fecha|ciclo|semestre|vencimiento).*?\b' + year + r'\b', text, re.IGNORECASE | re.DOTALL):
+            return f"obsolete_year_context:{year}"
+            
     return None
 
 def extract_price(text: str) -> Tuple[Optional[float], str]:

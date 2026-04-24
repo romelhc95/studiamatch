@@ -491,6 +491,21 @@ Objetivo: Finalizar la interfaz de búsqueda con filtros inteligentes que se com
 
 **Resultado Final:** Una experiencia de búsqueda premium, resiliente a la navegación y con retroalimentación visual inteligente sobre la disponibilidad de cursos.
 
+### Fase 46: Saneamiento de Ruido y Reglas de Vigencia Temporales [x] Completado
+Objetivo: Eliminar páginas de baja calidad (agendas, tags, agradecimientos) y asegurar que el catálogo no contenga oferta educativa obsoleta basándose en el año actual.
+
+1. **Limpieza Quirúrgica (U. Lima)**:
+   - [x] Registro de nuevos patrones de exclusión: `/tags/`, `/mooc/`, `/agenda/`, `agradecimiento` y `/publicaciones/`.
+   - [x] Ejecución de script de saneamiento cascada eliminando +600 registros de base y +250 registros finales.
+   - [x] De-duplicación manual del slug crítico `architecture-and-design-culture`.
+
+2. **Automatización de Reglas de Vigencia (Worker)**:
+   - [x] **Regla de Año Actual**: Modificación de `cleansing_worker.py` para que identifique años de 4 dígitos en URL o Nombre.
+   - [x] **Hard Exclusion**: Si se detecta un año anterior al actual (2026), el registro se descarta automáticamente con el motivo `hard_obsolete_year`.
+   - [x] **Contextual Scan**: Escaneo de palabras clave (inicio, clases, admisión) junto a años pasados en el cuerpo del texto para descartar contenido histórico.
+
+**Resultado Final:** Catálogo de U. Lima reducido de ~320 a 60 registros de alta calidad (100% vigentes). Sistema blindado contra re-ingreso de data obsoleta.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
