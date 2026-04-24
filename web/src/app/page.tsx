@@ -1,17 +1,30 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, SlidersHorizontal, Building2, Globe, Coins, LayoutGrid } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, SlidersHorizontal, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course, type Institution } from "@/lib/supabase";
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-brand-slate flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div></div>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || "");
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourseForInfo, setSelectedCourseForInfo] = useState<Course | null>(null);
@@ -19,39 +32,129 @@ export default function Home() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const [activeFilters, setActiveFilters] = useState({
-    priceMin: "",
-    priceMax: "",
-    modes: [] as string[],
+    priceMin: searchParams.get('min') || "",
+    priceMax: searchParams.get('max') || "",
+    modes: searchParams.get('modalidad') ? searchParams.get('modalidad')!.split(',') : [] as string[],
     durations: [] as string[],
-    selectedInstitution: "Todas",
+    selectedInstitution: searchParams.get('inst') || "Todas",
     includeConsultar: true
   });
 
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
   const [courseTypes, setCourseTypes] = useState<string[]>([]);
-  const [selectedType, setSelectedType] = useState<string>("Todos");
+  const [selectedType, setSelectedType] = useState<string>(searchParams.get('tipo') || "Todos");
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>((searchParams.get('sort') as any) || null);
 
-  // INTELLIGENT FILTERS: Only show options that have courses
+  // Sync state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('q', searchTerm);
+    if (selectedCategory !== "Todos") params.set('area', selectedCategory);
+    if (selectedType !== "Todos") params.set('tipo', selectedType);
+    if (activeFilters.selectedInstitution !== "Todas") params.set('inst', activeFilters.selectedInstitution);
+    if (activeFilters.modes.length > 0) params.set('modalidad', activeFilters.modes.join(','));
+    if (activeFilters.priceMax) params.set('max', activeFilters.priceMax);
+    if (sortOrder) params.set('sort', sortOrder);
+
+    const queryString = params.toString();
+    const url = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(url, { scroll: false });
+  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router]);
+
+  // ── Cascading Filters Logic ───────────────────────
+  // Helper to get filtered courses excluding one specific filter
+  const getFilteredExcluding = (excludeKey: string) => {
+    let result = [...allCourses];
+    
+    // Search filter
+    if (searchTerm && excludeKey !== 'search') {
+      const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const s = norm(searchTerm);
+      result = result.filter(c => norm(c.name || "").includes(s) || norm(c.institution_name || "").includes(s));
+    }
+    
+    // Category filter
+    if (selectedCategory !== "Todos" && excludeKey !== 'area') {
+      result = result.filter(c => c.category === selectedCategory);
+    }
+    
+    // Type filter
+    if (selectedType !== "Todos" && excludeKey !== 'tipo') {
+      result = result.filter(c => c.course_type === selectedType);
+    }
+    
+    // Institution filter
+    if (activeFilters.selectedInstitution !== "Todas" && excludeKey !== 'inst') {
+      result = result.filter(c => c.institution_name?.toLowerCase().trim() === activeFilters.selectedInstitution.toLowerCase().trim());
+    }
+    
+    // Modality filter
+    if (activeFilters.modes.length > 0 && excludeKey !== 'modalidad') {
+      result = result.filter(c => activeFilters.modes.includes(c.mode));
+    }
+    
+    // Price filter
+    if ((activeFilters.priceMin || activeFilters.priceMax) && excludeKey !== 'precio') {
+      result = result.filter(c => {
+        const price = c.price_pen;
+        const isConsultar = c.price_status === 'consultar' || !price || price <= 0;
+        if (isConsultar) return false;
+        if (activeFilters.priceMin && price < parseFloat(activeFilters.priceMin)) return false;
+        if (activeFilters.priceMax && price > parseFloat(activeFilters.priceMax)) return false;
+        return true;
+      });
+    }
+    
+    return result;
+  };
+
+  const activeCategories = useMemo(() => {
+    const courses = getFilteredExcluding('area');
+    const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean))).sort() as string[];
+    return ["Todos", ...categories];
+  }, [allCourses, searchTerm, selectedType, activeFilters]);
+
+  const activeTypes = useMemo(() => {
+    const courses = getFilteredExcluding('tipo');
+    const types = Array.from(new Set(courses.map(c => c.course_type).filter(Boolean))).sort() as string[];
+    return ["Todos", ...types];
+  }, [allCourses, searchTerm, selectedCategory, activeFilters]);
+
+  const activeInstitutions = useMemo(() => {
+    const courses = getFilteredExcluding('inst');
+    const institutions = Array.from(new Set(courses.map(c => c.institution_name).filter(Boolean))).sort() as string[];
+    return ["Todas", ...institutions];
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax]);
+
+  const activeModes = useMemo(() => {
+    const courses = getFilteredExcluding('modalidad');
+    const modes = Array.from(new Set(courses.map(c => c.mode).filter(Boolean))).sort() as string[];
+    return ["Todas", ...modes];
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax]);
+
+  // Global stats for initial display
   const stats = useMemo(() => {
-    const counts = {
-      categories: {} as Record<string, number>,
-      types: {} as Record<string, number>,
-      institutions: {} as Record<string, number>
-    };
-
+    const counts = { categories: {} as any, types: {} as any, institutions: {} as any };
     allCourses.forEach(c => {
       if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1;
       if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1;
       if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1;
     });
-
     return counts;
   }, [allCourses]);
 
-  const activeCategories = useMemo(() => ["Todos", ...Object.keys(stats.categories).sort()], [stats]);
-  const activeTypes = useMemo(() => ["Todos", ...Object.keys(stats.types).sort()], [stats]);
-  const activeInstitutions = useMemo(() => ["Todas", ...Object.keys(stats.institutions).sort()], [stats]);
+  // Contextual stats for dropdown badges
+  const contextualStats = useMemo(() => {
+    const counts = { categories: {} as any, types: {} as any, institutions: {} as any };
+    const areaCourses = getFilteredExcluding('area');
+    areaCourses.forEach(c => { if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1; });
+    const typeCourses = getFilteredExcluding('tipo');
+    typeCourses.forEach(c => { if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1; });
+    const instCourses = getFilteredExcluding('inst');
+    instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
+    return counts;
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
@@ -102,25 +205,20 @@ export default function Home() {
             category: course.categories?.name || course.category
           }));
 
-          // De-duplicación por URL e Institución
-          // Si dos registros tienen la misma URL en la misma institución, son el mismo curso real.
+          // De-duplicación por Slug e Institución (Consistente con el catálogo)
           const uniqueMap = new Map<string, any>();
           
           enriched.forEach((course: any) => {
-            const key = `${course.institution_id}-${course.url || course.slug}`;
+            const institutionSlug = course.institutions?.slug || "general";
+            const key = `${institutionSlug}-${course.slug}`;
             const existing = uniqueMap.get(key);
             
-            if (!existing) {
+            // Priorizar el que tenga precio o nombre más descriptivo
+            if (!existing || (!existing.price_pen && course.price_pen) || (course.name.length > existing.name.length)) {
               uniqueMap.set(key, course);
-            } else {
-              // Si ya existe, preferir "Programa" sobre "Curso"
-              if (course.course_type === 'Programa' && existing.course_type !== 'Programa') {
-                uniqueMap.set(key, course);
-              }
-              // Si ambos son lo mismo, el que ya está se queda (ordenado por created_at desc)
             }
           });
-
+          
           setAllCourses(Array.from(uniqueMap.values()));
         }
       } catch (error) {
@@ -199,30 +297,37 @@ export default function Home() {
       );
     }
 
-    // Deduplicación visual: Un solo curso por combinación de slug e institución
-    const uniqueMap = new Map<string, Course>();
-    result.forEach(c => {
-      const key = `${(c as any).institution_slug}-${c.slug}`;
-      const existing = uniqueMap.get(key);
-      // Priorizar el que tenga precio o nombre más descriptivo
-      if (!existing || (!existing.price_pen && c.price_pen) || (c.name.length > existing.name.length)) {
-        uniqueMap.set(key, c);
-      }
-    });
-    result = Array.from(uniqueMap.values());
-
-    return result.filter(c => {
+    const filtered = result.filter(c => {
       if (activeFilters.modes.length > 0 && !activeFilters.modes.includes(c.mode)) return false;
       const price = c.price_pen;
-      if (price === null) {
-        if ((activeFilters.priceMin || activeFilters.priceMax) && !activeFilters.includeConsultar) return false;
+      const isConsultar = c.price_status === 'consultar' || !price || price <= 0;
+
+      if (isConsultar) {
+        if (activeFilters.priceMin || activeFilters.priceMax) return false;
       } else {
         if (activeFilters.priceMin && price < parseFloat(activeFilters.priceMin)) return false;
         if (activeFilters.priceMax && price > parseFloat(activeFilters.priceMax)) return false;
       }
       return true;
     });
-  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType]);
+
+    if (sortOrder) {
+      filtered.sort((a, b) => {
+        const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
+        const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
+
+        if (hasPriceA && !hasPriceB) return -1;
+        if (!hasPriceA && hasPriceB) return 1;
+        if (!hasPriceA && !hasPriceB) return 0;
+
+        const priceA = a.price_pen!;
+        const priceB = b.price_pen!;
+        return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
+      });
+    }
+
+    return filtered;
+  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -237,11 +342,14 @@ export default function Home() {
     <div className="min-h-screen bg-white text-brand-slate font-sans selection:bg-brand-blue/10">
 
       {/* ── Hero ────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-brand-slate" />
-        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-        <div className="absolute bottom-0 left-1/4 w-64 h-64 md:w-96 md:h-96 bg-brand-blue/20 rounded-full blur-[100px]" />
-        <div className="absolute top-0 right-1/4 w-48 h-48 bg-brand-mint/10 rounded-full blur-[80px]" />
+      <section className="relative">
+        {/* Background Layer with clipping for blur effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-brand-slate" />
+          <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+          <div className="absolute bottom-0 left-1/4 w-64 h-64 md:w-96 md:h-96 bg-brand-blue/20 rounded-full blur-[100px]" />
+          <div className="absolute top-0 right-1/4 w-48 h-48 bg-brand-mint/10 rounded-full blur-[80px]" />
+        </div>
 
         <div className="relative mx-auto max-w-6xl px-6 pt-8 pb-8 md:pt-14 md:pb-12">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-10">
@@ -264,12 +372,12 @@ export default function Home() {
 
               <div id="hero-search" className="pt-2 max-w-4xl scroll-mt-32 w-full">
                 {/* ── Filter Chips (Google Flights Style) ──────────────── */}
-                <div className="flex flex-wrap items-center gap-2 mb-3 px-1 overflow-x-auto no-scrollbar pb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-3 px-1 pb-1">
                   {[
                     { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
                     { id: 'tipo', label: 'Tipo', icon: GraduationCap, current: selectedType, setter: setSelectedType, options: activeTypes },
                     { id: 'inst', label: 'Institución', icon: Building2, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), options: activeInstitutions },
-                    { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: ["Todas", "Presencial", "Semipresencial", "Remoto", "Híbrido"] },
+                    { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: activeModes },
                   ].map((filter) => (
                     <div key={filter.id} className="relative">
                       <button
@@ -317,7 +425,7 @@ export default function Home() {
                                       "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
                                       filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
                                     )}>
-                                      {(stats as any)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
+                                      {(contextualStats as any)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
                                     </span>
                                   )}
                                 </button>
@@ -346,14 +454,35 @@ export default function Home() {
 
                   <div className="h-10 w-px bg-slate-100 self-center hidden md:block" />
 
-                  <div className="relative w-full md:w-36 flex items-center px-4">
+                  <div className="relative flex-shrink-0 flex items-center w-full md:w-[220px] md:min-w-[220px]">
                     <Input
-                      type="number"
-                      placeholder="Máx S/"
-                      className="h-14 bg-transparent border-0 text-brand-slate font-semibold text-base placeholder:text-slate-400 focus-visible:ring-0 px-0 w-full"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Precio Máx"
+                      className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 w-full rounded-none shadow-none"
                       value={activeFilters.priceMax}
-                      onChange={(e) => setActiveFilters({ ...activeFilters, priceMax: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault();
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "" || /^\d+$/.test(val)) {
+                          setActiveFilters({ ...activeFilters, priceMax: val });
+                        }
+                      }}
                     />
+                    <button
+                      onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : (prev === 'desc' ? null : 'asc'))}
+                      className={cn(
+                        "absolute right-4 p-1.5 rounded-md transition-all",
+                        sortOrder ? "text-brand-blue bg-brand-blue/5" : "text-slate-300 hover:text-slate-500"
+                      )}
+                      title={sortOrder === 'asc' ? "Precio: Menor a Mayor" : (sortOrder === 'desc' ? "Precio: Mayor a Menor" : "Ordenar por precio")}
+                    >
+                      {sortOrder === 'asc' ? <ArrowUpNarrowWide className="h-4 w-4" /> : 
+                       sortOrder === 'desc' ? <ArrowDownWideNarrow className="h-4 w-4" /> : 
+                       <ArrowUpDown className="h-4 w-4" />}
+                    </button>
                   </div>
 
                   <Button
@@ -388,8 +517,35 @@ export default function Home() {
         {/* Controls */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Programas</h2>
-            <p className="text-[13px] text-slate-400 mt-0.5">{filteredCourses.length} resultados</p>
+            <h2 className="text-xl font-bold tracking-tight text-brand-slate">Catálogo de Programas</h2>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className="text-[13px] text-slate-400 font-medium">{filteredCourses.length} resultados encontrados</p>
+              {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMax || sortOrder) && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <button 
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedCategory("Todos");
+                      setSelectedType("Todos");
+                      setSortOrder(null);
+                      setActiveFilters({
+                        priceMin: "",
+                        priceMax: "",
+                        modes: [],
+                        durations: [],
+                        selectedInstitution: "Todas",
+                        includeConsultar: true
+                      });
+                    }}
+                    className="text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
+                  >
+                    <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
+                    Limpiar todo
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -427,7 +583,7 @@ export default function Home() {
                           <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inversión</p>
                             <p className="text-[13px] font-semibold text-brand-slate tabular-nums truncate">
-                              {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}
+                              {course.price_status === 'consultar' || !course.price_pen || course.price_pen <= 0 ? "Consultar" : `S/ ${course.price_pen.toLocaleString()}`}
                             </p>
                           </div>
                           <div>
@@ -513,7 +669,20 @@ export default function Home() {
                 <Search className="h-10 w-10 text-slate-200 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-400">Sin resultados</h3>
                 <p className="text-[13px] text-slate-400 mt-1 mb-6">Intenta con otros filtros.</p>
-                <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedCategory("Todos"); setActiveFilters({ ...activeFilters, priceMax: "", modes: [] }); }} className="rounded-lg text-[13px]">Reiniciar filtros</Button>
+                <Button variant="outline" size="sm" onClick={() => { 
+                  setSearchTerm(""); 
+                  setSelectedCategory("Todos"); 
+                  setSelectedType("Todos");
+                  setSortOrder(null);
+                  setActiveFilters({ 
+                    priceMin: "", 
+                    priceMax: "", 
+                    modes: [], 
+                    durations: [], 
+                    selectedInstitution: "Todas", 
+                    includeConsultar: true 
+                  }); 
+                }} className="rounded-lg text-[13px]">Reiniciar filtros</Button>
               </div>
             )}
           </main>
