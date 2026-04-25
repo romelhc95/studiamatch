@@ -506,6 +506,32 @@ Objetivo: Eliminar páginas de baja calidad (agendas, tags, agradecimientos) y a
 
 **Resultado Final:** Catálogo de U. Lima reducido de ~320 a 60 registros de alta calidad (100% vigentes). Sistema blindado contra re-ingreso de data obsoleta.
 
+### Fase 47: Saneamiento Multi-Institucional y Consolidación Inteligente (DMC/UP) [] Pendiente
+Objetivo: Ejecutar las recomendaciones de auditoría de ruido (43% detectado en catálogo) eliminando páginas transaccionales (carritos) y consolidando URLs fragmentadas (mallas, docentes) en registros maestros únicos.
+
+1. **Actualización del Escudo Antiruido (`crawler_exclusions`)**:
+   - [] **DMC**: Registrar exclusiones transaccionales (`add-to-cart=`) y dinámicas (`_filtro_`).
+   - [] **Universidad del Pacífico (UP)**: Registrar exclusiones para contenido efímero (`/noticias/`, `/eventos/`, `/blog/`).
+   - [] **New Horizons**: Registrar exclusiones administrativas y archivos (`/login`, `.pdf`, `.docx`).
+
+2. **Saneamiento Retroactivo (Limpieza en Cascada)**:
+   - [] Eliminar de las 4 tablas (`courses`, `enriched_programs`, `cleansed_programs`, `staging_raw`) todos los registros que coincidan con los nuevos patrones excluidos.
+
+3. **Consolidación de Subpáginas (Sibling Pages) en UP**:
+   - [] Eliminar de la tabla final (`courses`) las URLs parciales de la UP (ej. `/malla-curricular/`, `/presentacion/`, `/admision/`, `/plana-docente/`, `/beneficios/`, `/sustentacion-tesis/`, `/ranking-eduniversal/`).
+   - [] **Rollback a Staging**: Devolver el estado a `pending` en `staging_raw` para todas estas URLs parciales y sus URLs base correspondientes.
+   - [] **Fusión de Datos (Merge)**: Ejecutar `cleansing_worker.py` para que agrupe todo el HTML de las subpáginas bajo la URL base (creando un super-registro rico en contexto).
+
+4. **Re-Enriquecimiento y Publicación**:
+   - [] Ejecutar `enrichment_worker.py` sobre los nuevos registros consolidados para extraer los 14 pilares con precisión máxima.
+   - [] Validar visualmente en `localhost:3000` que la fragmentación ha desaparecido y los cursos son entidades únicas y ricas.
+
+**Flujo General Actualizado (Post-Fase 47):**
+1. **Harvester**: Captura todo (incluyendo subpáginas como `/malla-curricular`) a `staging_raw`. Omite automáticamente carritos y noticias.
+2. **Cleansing Worker**: Agrupa dinámicamente las subpáginas que comparten una "URL Padre" (ej. `/gestion-publica-regular/`), fusiona su contenido HTML y genera **1 solo registro limpio** en `cleansed_programs`.
+3. **Enrichment Worker**: Lee el registro único (ahora con el contexto completo de profesores, malla y beneficios) y extrae metadatos precisos.
+4. **Catálogo**: La interfaz muestra una única tarjeta de maestría rica en datos en lugar de 5 tarjetas fragmentadas.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.

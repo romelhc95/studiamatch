@@ -28,6 +28,7 @@ graph TD
         T_Inst[(institutions)]
         T_Harv[(staging_raw)]
         T_Clean[(cleansed_programs)]
+        T_Enri[(enriched_programs)]
         T_Cour[(courses)]
     end
 
@@ -38,7 +39,8 @@ graph TD
     T_Harv -- "Read Raw HTML" --> J1_5
     J1_5 -- "Clean HTML & Fix Format" --> T_Clean
     T_Clean -- "Read Clean & Normal Data" --> J2
-    J2 -- "Fill course metadata" --> T_Cour
+    J2 -- "Extract AI Metadata" --> T_Enri
+    T_Enri -- "Sync enriched data" --> T_Cour
     T_Cour -- "Read Slug" --> J3 -- "Update Slugs & Vectors" --> T_Cour
     T_Cour -- "Read ROI" --> J4 -- "Update Health Status" --> T_Cour
     
@@ -51,7 +53,7 @@ graph TD
     
     class T1,T2,T3 trigger;
     class J0,J1,J1_5,J2,J3,J4,J_Integrity job;
-    class T_Inst,T_Harv,T_Cour,T_Clean db;
+    class T_Inst,T_Harv,T_Cour,T_Clean,T_Enri db;
 ```
 
 ---
