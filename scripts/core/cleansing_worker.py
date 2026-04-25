@@ -100,7 +100,7 @@ class CleansingWorker:
         except: return []
 
     def _get_base_url(self, url: str) -> str:
-        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx']
+        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal']
         clean_url = url.rstrip('/') + '/'
         for s in suffixes:
             pattern = re.escape(s.rstrip('/')) + r'/?$'
