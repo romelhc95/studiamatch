@@ -26,6 +26,7 @@ graph TD
     subgraph Database_Impact ["Supabase"]
         direction LR
         T_Inst[(institutions)]
+        T_Excl[(crawler_exclusions)]
         T_Harv[(staging_raw)]
         T_Clean[(cleansed_programs)]
         T_Enri[(enriched_programs)]
@@ -35,9 +36,11 @@ graph TD
     %% Mappings
     J0 -- "Insert Seeds" --> T_Inst
     T_Inst -- "Provides Domain" --> J1
-    J1 -- "Raw Data HTML" --> T_Harv
+    T_Excl -- "Load Rules" --> J1
+    J1 -- "Check Exclusion (Pre)" --> T_Harv
+    J1 -- "Scrape & Check Exclusion (Post)" --> T_Harv
     T_Harv -- "Read Raw HTML" --> J1_5
-    J1_5 -- "Clean HTML & Fix Format" --> T_Clean
+    J1_5 -- "Clean HTML & Consolidate Sibling URLs" --> T_Clean
     T_Clean -- "Read Clean & Normal Data" --> J2
     J2 -- "Extract AI Metadata" --> T_Enri
     T_Enri -- "Sync enriched data" --> T_Cour
