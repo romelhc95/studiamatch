@@ -4,8 +4,8 @@ import re
 from dotenv import load_dotenv
 
 load_dotenv(".env.local")
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtY3h3b3F2eGF0YnJhd3d0cWtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjE5MjcsImV4cCI6MjA5MDI5NzkyN30.yHThxpyDnVEgZ3dpI5WD4qBgIJE7PHITuJYeapLSVi8"
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 inst_id = "ccd04100-1bde-427b-b94f-ab24ae233a2a"
 CURRENT_YEAR = 2026
 

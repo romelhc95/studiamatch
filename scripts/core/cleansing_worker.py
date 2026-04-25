@@ -100,7 +100,7 @@ class CleansingWorker:
         except: return []
 
     def _get_base_url(self, url: str) -> str:
-        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal']
+        suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
         clean_url = url.rstrip('/') + '/'
         for s in suffixes:
             pattern = re.escape(s.rstrip('/')) + r'/?$'
@@ -142,29 +142,51 @@ class CleansingWorker:
         cleansed_batch, staging_updates, processed_count = [], [], 0
         for base_url, members in groups.items():
             combined_html, combined_desc = "", ""
+            best_raw_name = None
+            
+            # Find the best name among siblings
+            for m in members:
+                m_url = m['url'].lower()
+                m_name = m.get('raw_name')
+                if m_name and len(m_name) > 5:
+                    # Preference for presentation pages or shorter names that don't look like URLs
+                    if '/presentacion' in m_url:
+                        best_raw_name = m_name
+                        break
+                    if not best_raw_name or len(m_name) < len(best_raw_name):
+                        best_raw_name = m_name
+
             for m in members:
                 combined_html += f"\n--- URL: {m['url']} ---\n" + (m.get('raw_html') or "")
                 combined_desc += f" {m.get('raw_description') or ''}"
+            
             main_raw = members[0]
             for m in members:
                 if normalize_url(m['url']) == normalize_url(base_url):
                     main_raw = m
                     break
+            
+            # Use the best name found if main_raw has none
+            final_raw_name = best_raw_name or main_raw.get('raw_name', '')
+            
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
-            discard_reason = self.is_invalid_course(main_raw.get('raw_name', ''), combined_desc, base_url, inst_id, clean_text_context)
-            if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, main_raw.get('raw_name', ''))
+            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, inst_id, clean_text_context)
+            if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
+            
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
                 continue
-            clean_name = clean_course_name(main_raw.get('raw_name', ''))
+                
+            clean_name = clean_course_name(final_raw_name)
             combined_full_text = f"{clean_name}\n{combined_desc}\n{clean_text_context}"
             mode, locations, (price, p_status) = standardize_mode(combined_full_text), detect_locations(combined_full_text), extract_price(combined_full_text)
+            
             cleansed_batch.append({
                 "staging_id": main_raw['id'], "institution_id": inst_id, "url": base_url,
                 "effective_url": main_raw.get('effective_url'), "canonical_url": main_raw.get('canonical_url'),
                 "clean_name": clean_name, "clean_description": combined_full_text[:15000],
                 "modality": mode, "location": ", ".join(locations), "base_price": price, "currency": "PEN", "status": "pending",
-                "metadata": {"raw_name": main_raw.get('raw_name'), "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members]}
+                "metadata": {"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members]}
             })
             for m in members: staging_updates.append({"id": m['id'], "status": "processed"})
             processed_count += len(members)
