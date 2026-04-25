@@ -2,8 +2,9 @@ import os
 import requests
 from dotenv import load_dotenv
 
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "REMOVED_HISTORICAL_CREDENTIAL_003"
+load_dotenv(".env.gitdesa")
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 headers = {
     "apikey": key,

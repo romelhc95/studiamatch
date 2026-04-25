@@ -63,7 +63,7 @@ class UniversalHarvester:
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
 
-        def _load_exclusions(self):
+    def _load_exclusions(self):
         try: return self.db.select('crawler_exclusions', filters="is_active=eq.true")
         except: return []
 
