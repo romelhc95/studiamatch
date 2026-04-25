@@ -2,8 +2,9 @@ import os
 import requests
 from dotenv import load_dotenv
 
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtY3h3b3F2eGF0YnJhd3d0cWtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjE5MjcsImV4cCI6MjA5MDI5NzkyN30.yHThxpyDnVEgZ3dpI5WD4qBgIJE7PHITuJYeapLSVi8"
+load_dotenv(".env.gitdesa")
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 headers = {
     "apikey": key,

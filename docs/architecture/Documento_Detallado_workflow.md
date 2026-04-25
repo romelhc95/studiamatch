@@ -17,6 +17,7 @@ graph TD
         
         J0["<b>Fase 0: Manual or Discovery (FG1)</b><br/><i>discovery_institutions.py</i>"]
         J1["<b>Fase 1: Massive Harvesting (FG2)</b><br/><i>master_orchestrator.py</i><br/>(universal_harvester.py)"]
+        J_Sentinel["<b>Fase 1.1: Noise AI-Sentinel</b><br/><i>noise_discovery_engine.py</i>"]
         J1_5["<b>Fase 1.5: Cleansing</b><br/><i>cleansing_worker.py</i>"]
         J2["<b>Fase 2: Enrichment (FG2)</b><br/><i>enrichment_worker.py</i>"]
         J3["<b>Fase 3: Production Sync (FG2)</b><br/><i>sync_vector_worker.py</i>"]
@@ -39,6 +40,8 @@ graph TD
     T_Excl -- "Load Rules" --> J1
     J1 -- "Check Exclusion (Pre)" --> T_Harv
     J1 -- "Scrape & Check Exclusion (Post)" --> T_Harv
+    T_Harv -- "Analyze Noise Patterns" --> J_Sentinel
+    J_Sentinel -. "Suggest Rules (Manual Approve)" .-> T_Excl
     T_Harv -- "Read Raw HTML" --> J1_5
     J1_5 -- "Clean HTML & Consolidate Sibling URLs" --> T_Clean
     T_Clean -- "Read Clean & Normal Data" --> J2
@@ -55,8 +58,8 @@ graph TD
     classDef db fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
     
     class T1,T2,T3 trigger;
-    class J0,J1,J1_5,J2,J3,J4,J_Integrity job;
-    class T_Inst,T_Harv,T_Cour,T_Clean,T_Enri db;
+    class J0,J1,J_Sentinel,J1_5,J2,J3,J4,J_Integrity job;
+    class T_Inst,T_Excl,T_Harv,T_Cour,T_Clean,T_Enri db;
 ```
 
 ---

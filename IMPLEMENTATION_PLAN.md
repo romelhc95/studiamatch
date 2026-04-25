@@ -542,19 +542,19 @@ Objetivo: Blindar el sistema contra ruido técnico recurrente (trailing slashes,
 
 **Resultado Final:** Catálogo 100% libre de duplicados técnicos y blindado contra directorios de blog/administración institucional.
 
-### Fase 49: Rediseño del Flujo de Captura y Saneamiento (Buffer Total) [] Pendiente
+### Fase 49: Rediseño del Flujo de Captura y Saneamiento (Buffer Total) [x] Completado
 Objetivo: Migrar de un modelo selectivo por keywords a un modelo de "Buffer Total" donde la única fuente de exclusión sea la tabla `crawler_exclusions`, garantizando la captura del 100% de la oferta académica (Pregrado, Idiomas, etc.).
 
 1. **Refactor Total del Harvester (`universal_harvester.py`)**:
-   - [] **Eliminación de Filtros Hardcoded**: Retirar el arreglo `keywords` y la función `_is_potential_course`. La captura será universal dentro del dominio.
-   - [] **Exclusión de Doble Capa (Pre/Post Scrape)**:
+   - [x] **Eliminación de Filtros Hardcoded**: Retirar el arreglo `keywords` y la función `_is_potential_course`. La captura será universal dentro del dominio.
+   - [x] **Exclusión de Doble Capa (Pre/Post Scrape)**:
      - **Capa 1 (Pre)**: Validar URL encontrada contra `crawler_exclusions` antes de navegar.
      - **Capa 2 (Post)**: Tras la carga completa, validar la **URL Final (Effective URL)** contra las exclusiones para detectar redirecciones a páginas de agradecimiento o login.
-   - [] **Resolución del Deadlock de Scraping**: Modificar `_load_existing_urls` para que incluya registros en estado `discovered` y `pending`, permitiendo que el robot reintente la extracción de HTML en registros vacíos.
+   - [x] **Resolución del Deadlock de Scraping**: Modificar `_load_existing_urls` para que incluya registros en estado `discovered` y `pending`, permitiendo que el robot reintente la extracción de HTML en registros vacíos.
 
 2. **Normalización de Exclusiones y Limpieza de Datos**:
-   - [] **Jerarquía de Exclusiones (Institución-Exclusión)**: Normalizar la carga de reglas en memoria diferenciando entre exclusiones **Globales** (null ID) y **Específicas** por universidad.
-   - [] **Extracción Quirúrgica del Body**: Ajustar `CleansingWorker` para procesar el body completo, eliminando estrictamente etiquetas de navegación (`<header>`, `<footer>`, `<nav>`, `<aside>`) y entregando solo contenido central a la IA.
+   - [x] **Jerarquía de Exclusiones (Institución-Exclusión)**: Normalizar la carga de reglas en memoria diferenciando entre exclusiones **Globales** (null ID) y **Específicas** por universidad.
+   - [x] **Extracción Quirúrgica del Body**: Ajustar `CleansingWorker` para procesar el body completo, eliminando estrictamente etiquetas de navegación (`<header>`, `<footer>`, `<nav>`, `<aside>`) y entregando solo contenido central a la IA.
 
 3. **Recuperación y Validación de U. Lima (102 URLs)**:
    - [x] **Reset Masivo**: Cambiar estado a `pending` en `staging_raw` para todos los registros de U. Lima.
@@ -576,6 +576,24 @@ Objetivo: Preparar la arquitectura para un futuro escalamiento Multi-Media (extr
    - [x] Lograr que `_is_valid_crawl_url` dependa 100% de la inteligencia centralizada en la base de datos (Single Source of Truth).
 
 **Resultado Final**: El Harvester es ahora completamente agnóstico al tipo de archivo o estructura de URL, delegando la decisión de captura exclusivamente al panel de control en Supabase.
+
+### Fase 50: Noise AI-Sentinel (Detección Automática de Ruido) [] Pendiente
+Objetivo: Implementar un motor proactivo que identifique patrones de ruido en `staging_raw` basándose en frecuencia y metadatos, sugiriendo exclusiones automáticas por institución para optimizar el rendimiento del Harvester.
+
+1. **Desarrollo del Motor de Descubrimiento (`noise_discovery_engine.py`)**:
+   - [x] Crear lógica de análisis estadístico de segmentos de URL (path tokens) para identificar carpetas recurrentes.
+   - [ ] Implementar cruce de datos para marcar como "Ruido" rutas que tengan alta frecuencia pero 0% de conversiones a programas reales en la tabla `courses`.
+   - [ ] Clasificar los hallazgos por `institution_id` para permitir exclusiones quirúrgicas.
+
+2. **Flujo de Auditoría y Aprobación**:
+   - [ ] Automatizar la generación de reportes de sugerencias en `docs/data-analyst/reporte_sugerencias_exclusion_[timestamp].md`.
+   - [ ] Crear herramienta de inyección masiva para patrones aprobados por el usuario hacia `crawler_exclusions`.
+
+3. **Ejecución y Limpieza Inmediata (U. Lima)**:
+   - [ ] Aplicar el motor sobre los 1,518 registros actuales de U. Lima para identificar y bloquear de inmediato las "venas de ruido" (tags, taxonomías, nodos técnicos).
+   - [ ] Saneamiento retroactivo de la base de datos basado en los nuevos patrones descubiertos.
+
+**Resultado Esperado:** Reducción del tiempo de rastreo en un ~70% al enfocarse solo en rutas con potencial académico verificado.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
