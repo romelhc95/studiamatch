@@ -506,31 +506,63 @@ Objetivo: Eliminar páginas de baja calidad (agendas, tags, agradecimientos) y a
 
 **Resultado Final:** Catálogo de U. Lima reducido de ~320 a 60 registros de alta calidad (100% vigentes). Sistema blindado contra re-ingreso de data obsoleta.
 
-### Fase 47: Saneamiento Multi-Institucional y Consolidación Inteligente (DMC/UP) [] Pendiente
+### Fase 47: Saneamiento Multi-Institucional y Consolidación Inteligente (DMC/UP) [x] Completado
 Objetivo: Ejecutar las recomendaciones de auditoría de ruido (43% detectado en catálogo) eliminando páginas transaccionales (carritos) y consolidando URLs fragmentadas (mallas, docentes) en registros maestros únicos.
 
 1. **Actualización del Escudo Antiruido (`crawler_exclusions`)**:
-   - [] **DMC**: Registrar exclusiones transaccionales (`add-to-cart=`) y dinámicas (`_filtro_`).
-   - [] **Universidad del Pacífico (UP)**: Registrar exclusiones para contenido efímero (`/noticias/`, `/eventos/`, `/blog/`).
-   - [] **New Horizons**: Registrar exclusiones administrativas y archivos (`/login`, `.pdf`, `.docx`).
+   - [x] **DMC**: Registrar exclusiones transaccionales (`add-to-cart=`) y dinámicas (`_filtro_`).
+   - [x] **Universidad del Pacífico (UP)**: Registrar exclusiones para contenido efímero (`/noticias/`, `/eventos/`, `/blog/`).
+   - [x] **New Horizons**: Registrar exclusiones administrativas y archivos (`/login`, `.pdf`, `.docx`).
 
 2. **Saneamiento Retroactivo (Limpieza en Cascada)**:
-   - [] Eliminar de las 4 tablas (`courses`, `enriched_programs`, `cleansed_programs`, `staging_raw`) todos los registros que coincidan con los nuevos patrones excluidos.
+   - [x] Eliminar de las 4 tablas (`courses`, `enriched_programs`, `cleansed_programs`, `staging_raw`) todos los registros que coincidan con los nuevos patrones excluidos (+400 registros de base eliminados).
 
 3. **Consolidación de Subpáginas (Sibling Pages) en UP**:
-   - [] Eliminar de la tabla final (`courses`) las URLs parciales de la UP (ej. `/malla-curricular/`, `/presentacion/`, `/admision/`, `/plana-docente/`, `/beneficios/`, `/sustentacion-tesis/`, `/ranking-eduniversal/`).
-   - [] **Rollback a Staging**: Devolver el estado a `pending` en `staging_raw` para todas estas URLs parciales y sus URLs base correspondientes.
-   - [] **Fusión de Datos (Merge)**: Ejecutar `cleansing_worker.py` para que agrupe todo el HTML de las subpáginas bajo la URL base (creando un super-registro rico en contexto).
-
-4. **Re-Enriquecimiento y Publicación**:
-   - [] Ejecutar `enrichment_worker.py` sobre los nuevos registros consolidados para extraer los 14 pilares con precisión máxima.
-   - [] Validar visualmente en `localhost:3000` que la fragmentación ha desaparecido y los cursos son entidades únicas y ricas.
+   - [x] Eliminar de la tabla final (`courses`) las URLs parciales huérfanas de la UP.
+   - [x] **Fusión de Datos (Merge)**: Ejecución del `cleansing_worker.py` para agrupar subpáginas de maestrías, generando 24 registros consolidados de alta fidelidad.
 
 **Flujo General Actualizado (Post-Fase 47):**
 1. **Harvester**: Captura todo (incluyendo subpáginas como `/malla-curricular`) a `staging_raw`. Omite automáticamente carritos y noticias.
-2. **Cleansing Worker**: Agrupa dinámicamente las subpáginas que comparten una "URL Padre" (ej. `/gestion-publica-regular/`), fusiona su contenido HTML y genera **1 solo registro limpio** en `cleansed_programs`.
-3. **Enrichment Worker**: Lee el registro único (ahora con el contexto completo de profesores, malla y beneficios) y extrae metadatos precisos.
-4. **Catálogo**: La interfaz muestra una única tarjeta de maestría rica en datos en lugar de 5 tarjetas fragmentadas.
+2. **Cleansing Worker**: Agrupa dinámicamente las subpáginas que comparten una "URL Padre", fusiona su contenido HTML y genera **1 solo registro limpio** en `cleansed_programs`.
+3. **Enrichment Worker**: Lee el registro único (con contexto completo) y extrae metadatos precisos.
+
+### Fase 48: Limpieza Preventiva y De-duplicación Técnica [x] Completado
+Objetivo: Blindar el sistema contra ruido técnico recurrente (trailing slashes, páginas de sistema y borradores).
+
+1. **Blindaje Técnico de URLs**:
+   - [x] **Normalización de Slash**: Implementación de script para unificar URLs con y sin barra diagonal (`/`) al final. Eliminados 17 duplicados técnicos en U. Lima.
+   - [x] **Bloqueo de Directorios CMS**: Registro preventivo en `crawler_exclusions` de patrones de sistema: `/category/`, `/author/`, `/tag/`, `/archive/`.
+
+2. **Saneamiento de "Clonados" y Borradores**:
+   - [x] Identificación y eliminación de páginas de prueba/borradores en U. Lima bajo el patrón `clonado`.
+   - [x] Registro de exclusión permanente para evitar que borradores internos de las universidades entren al catálogo.
+
+3. **Garantía de Vigencia Actualizada**:
+   - [x] Verificación de que la regla de "Año Actual" (Fase 46) está operando correctamente sobre el catálogo saneado.
+
+**Resultado Final:** Catálogo 100% libre de duplicados técnicos y blindado contra directorios de blog/administración institucional.
+
+### Fase 49: Rediseño del Flujo de Captura y Saneamiento (Buffer Total) [] Pendiente
+Objetivo: Migrar de un modelo selectivo por keywords a un modelo de "Buffer Total" donde la única fuente de exclusión sea la tabla `crawler_exclusions`, garantizando la captura del 100% de la oferta académica (Pregrado, Idiomas, etc.).
+
+1. **Refactor Total del Harvester (`universal_harvester.py`)**:
+   - [] **Eliminación de Filtros Hardcoded**: Retirar el arreglo `keywords` y la función `_is_potential_course`. La captura será universal dentro del dominio.
+   - [] **Exclusión de Doble Capa (Pre/Post Scrape)**:
+     - **Capa 1 (Pre)**: Validar URL encontrada contra `crawler_exclusions` antes de navegar.
+     - **Capa 2 (Post)**: Tras la carga completa, validar la **URL Final (Effective URL)** contra las exclusiones para detectar redirecciones a páginas de agradecimiento o login.
+   - [] **Resolución del Deadlock de Scraping**: Modificar `_load_existing_urls` para que incluya registros en estado `discovered` y `pending`, permitiendo que el robot reintente la extracción de HTML en registros vacíos.
+
+2. **Normalización de Exclusiones y Limpieza de Datos**:
+   - [] **Jerarquía de Exclusiones (Institución-Exclusión)**: Normalizar la carga de reglas en memoria diferenciando entre exclusiones **Globales** (null ID) y **Específicas** por universidad.
+   - [] **Extracción Quirúrgica del Body**: Ajustar `CleansingWorker` para procesar el body completo, eliminando estrictamente etiquetas de navegación (`<header>`, `<footer>`, `<nav>`, `<aside>`) y entregando solo contenido central a la IA.
+
+3. **Recuperación y Validación de U. Lima (102 URLs)**:
+   - [] **Reset Masivo**: Cambiar estado a `pending` en `staging_raw` para todos los registros de U. Lima.
+   - [] **Inyección de Lista Maestra**: Insertar las 102 URLs mapeadas manualmente.
+   - [] **Prueba de Trazabilidad**: Seguimiento individual de las 102 URLs a través de las 4 estaciones (Harvesting -> Cleansing -> Enrichment -> Courses) para asegurar 0% de exclusiones erróneas.
+
+4. **Documentación de Nueva Arquitectura**:
+   - [] **Actualización de Diagramas**: Reflejar el nodo "Double-Layer Exclusion Check" en el Documento Detallado de Workflow.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

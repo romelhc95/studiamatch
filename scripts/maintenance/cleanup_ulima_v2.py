@@ -4,8 +4,8 @@ import re
 from dotenv import load_dotenv
 
 load_dotenv(".env.local")
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "REMOVED_HISTORICAL_CREDENTIAL_003"
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 inst_id = "ccd04100-1bde-427b-b94f-ab24ae233a2a"
 CURRENT_YEAR = 2026
 
