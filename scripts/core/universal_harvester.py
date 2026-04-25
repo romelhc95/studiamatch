@@ -57,15 +57,15 @@ class UniversalHarvester:
         self.MAX_DEPTH = 3
         self.semaphore = asyncio.Semaphore(3)
         self.circuit_open = False
-        
+        self.exclusions = self._load_exclusions()
+
         # ⏱️ TIME GUARD CONFIG (Global awareness)
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
 
-        self.blacklist_patterns = [
-            r'/noticias/', r'/blog/', r'/eventos/', r'/medios/', r'/prensa/',
-            r'\.pdf$', r'\.jpg$', r'\.png$', r'\.xls', r'\.doc'
-        ]
+        def _load_exclusions(self):
+        try: return self.db.select('crawler_exclusions', filters="is_active=eq.true")
+        except: return []
 
     def check_time_guard(self):
         """Checks if the global execution time limit has been reached."""
@@ -169,7 +169,7 @@ class UniversalHarvester:
                 for links, next_depth in results:
                     if self.check_time_guard(): break
                     for link in links:
-                        if self._is_potential_course_url(link):
+                        if self._is_valid_crawl_url(link):
                             if link not in self.course_urls:
                                 self.course_urls.add(link)
                                 self._save_discovered_url(link)
@@ -182,7 +182,19 @@ class UniversalHarvester:
         if urlparse(url).netloc != base_domain:
             return False
             
-        return not any(re.search(p, url.lower()) for p in self.blacklist_patterns)
+        low_url = url.lower()
+        inst_id = self.institution.get('id')
+        
+        # Check global and specific exclusions
+        for exc in self.exclusions:
+            if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
+            if exc['pattern'].lower() in low_url: return False
+            
+        # Legacy blacklist just in case
+        if any(re.search(p, low_url) for p in self.blacklist_patterns):
+            return False
+            
+        return True
 
     async def _fetch_and_parse(self, session, url, depth):
         links = []
@@ -205,10 +217,10 @@ class UniversalHarvester:
     async def _load_existing_urls(self):
         try:
             inst_id = self.institution.get('id')
-            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=neq.error", columns="url")
+            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
-                logger.info(f"Loaded {len(existing)} existing URLs from DB to skip.")
+                logger.info(f"Loaded {len(existing)} completed URLs from DB to skip.")
                 self.visited_urls.update(existing)
                 return existing
         except Exception as e:
@@ -228,7 +240,7 @@ class UniversalHarvester:
         
         for link in sitemap_links:
             if self.check_time_guard(): break
-            if self._is_potential_course_url(link):
+            if self._is_valid_crawl_url(link):
                 if link not in self.course_urls and link not in existing_urls:
                     self.course_urls.add(link)
                     self._save_discovered_url(link)
@@ -243,11 +255,6 @@ class UniversalHarvester:
         logger.info(f"Total Discovery: {len(final_urls)} NEW potential courses.")
         return final_urls
 
-    def _is_potential_course_url(self, url):
-        if not self._is_valid_crawl_url(url): return False
-        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion"]
-        return any(k in url.lower() for k in keywords)
-
     async def scrape_course_detail(self, session, page, url):
         if self.circuit_open: return None
         
@@ -260,6 +267,12 @@ class UniversalHarvester:
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             
+            # Double Layer Exclusion Check (Post-Scrape)
+            if eff_url and not self._is_valid_crawl_url(eff_url):
+                logger.info(f"Skipping {url} - Redirected to excluded URL: {eff_url}")
+                self.db.upsert('staging_raw', {"url": url, "institution_id": self.institution['id'], "status": "discarded", "metadata": {"discard_reason": "post_scrape_exclusion"}}, on_conflict="url")
+                return None
+                
             has_changed, content_hash = await self._check_if_changed(url, response.text, eff_url, can_url)
             if not has_changed:
                 logger.info(f"Skipping {url} - No changes.")

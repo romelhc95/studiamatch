@@ -557,12 +557,25 @@ Objetivo: Migrar de un modelo selectivo por keywords a un modelo de "Buffer Tota
    - [] **Extracción Quirúrgica del Body**: Ajustar `CleansingWorker` para procesar el body completo, eliminando estrictamente etiquetas de navegación (`<header>`, `<footer>`, `<nav>`, `<aside>`) y entregando solo contenido central a la IA.
 
 3. **Recuperación y Validación de U. Lima (102 URLs)**:
-   - [] **Reset Masivo**: Cambiar estado a `pending` en `staging_raw` para todos los registros de U. Lima.
-   - [] **Inyección de Lista Maestra**: Insertar las 102 URLs mapeadas manualmente.
-   - [] **Prueba de Trazabilidad**: Seguimiento individual de las 102 URLs a través de las 4 estaciones (Harvesting -> Cleansing -> Enrichment -> Courses) para asegurar 0% de exclusiones erróneas.
+   - [x] **Reset Masivo**: Cambiar estado a `pending` en `staging_raw` para todos los registros de U. Lima.
+   - [x] **Inyección de Lista Maestra**: Insertar las 102 URLs mapeadas manualmente.
+   - [x] **Prueba de Trazabilidad**: Seguimiento individual de las 102 URLs a través de las 4 estaciones (Harvesting -> Cleansing -> Enrichment -> Courses) para asegurar 0% de exclusiones erróneas.
 
 4. **Documentación de Nueva Arquitectura**:
-   - [] **Actualización de Diagramas**: Reflejar el nodo "Double-Layer Exclusion Check" en el Documento Detallado de Workflow.
+   - [x] **Actualización de Diagramas**: Reflejar el nodo "Double-Layer Exclusion Check" en el Documento Detallado de Workflow.
+
+### Fase 49.1: Centralización Absoluta de Exclusiones [x] Completado
+Objetivo: Preparar la arquitectura para un futuro escalamiento Multi-Media (extracción de datos desde imágenes o PDFs) eliminando filtros técnicos rígidos del código.
+
+1. **Migración de Reglas Legacy**:
+   - [x] Extraer las 10 reglas estáticas (`.pdf`, `.jpg`, `/noticias/`, etc.) del código de `universal_harvester.py`.
+   - [x] Ejecutar script de migración para inyectar estas 10 reglas en la tabla `crawler_exclusions` para todas las instituciones activas, logrando **150 registros insertados** en BD.
+
+2. **Limpieza de Código**:
+   - [x] Eliminar la variable `self.blacklist_patterns` y sus referencias en la función de validación de URLs.
+   - [x] Lograr que `_is_valid_crawl_url` dependa 100% de la inteligencia centralizada en la base de datos (Single Source of Truth).
+
+**Resultado Final**: El Harvester es ahora completamente agnóstico al tipo de archivo o estructura de URL, delegando la decisión de captura exclusivamente al panel de control en Supabase.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
