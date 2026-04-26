@@ -187,8 +187,41 @@ class EnrichmentWorker:
         return {"official_name": name, "duration_text": "Consultar", "degree_type": "Curso", "modality": "Presencial"}
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run AI Enrichment Worker")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum number of records to process")
+    args = parser.parse_args()
+
     worker = EnrichmentWorker()
-    records = worker.get_pending_cleansed(limit=5)
-    logger.info(f"🚀 Procesando {len(records)} registros.")
-    for r in records:
-        if r and isinstance(r, dict): worker.enrich_record(r)
+    
+    total_processed = 0
+    batch_size = 10
+    
+    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
+    
+    while True:
+        # Fetch in batches to manage memory and API limits
+        fetch_limit = batch_size
+        if args.limit:
+            remaining = args.limit - total_processed
+            if remaining <= 0: break
+            fetch_limit = min(batch_size, remaining)
+            
+        records = worker.get_pending_cleansed(limit=fetch_limit)
+        
+        if not records or len(records) == 0:
+            logger.info("✅ No hay más registros pendientes por enriquecer.")
+            break
+            
+        logger.info(f"📦 Procesando lote de {len(records)} registros...")
+        for r in records:
+            if r and isinstance(r, dict):
+                worker.enrich_record(r)
+                total_processed += 1
+                
+        # If we fetched fewer records than requested, we've likely hit the end of the queue
+        if len(records) < fetch_limit:
+            logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")
+            break
+
+    logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed}")
