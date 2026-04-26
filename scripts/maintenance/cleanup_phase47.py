@@ -3,7 +3,7 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 headers = {

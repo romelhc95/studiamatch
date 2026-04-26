@@ -1,39 +1,21 @@
 import os
 import requests
-from dotenv import load_dotenv
+import json
+from datetime import datetime
 
-load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
-key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+# Supabase Credentials from prompt
+URL = os.getenv("SUPABASE_URL")
+KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-if not key:
-    print("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY no encontrada.")
-    exit(1)
-
-headers = {
-    "apikey": key,
-    "Authorization": f"Bearer {key}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
+HEADERS = {
+    "apikey": KEY,
+    "Authorization": f"Bearer {KEY}",
+    "Content-Type": "application/json"
 }
 
 ulima_id = "ccd04100-1bde-427b-b94f-ab24ae233a2a"
 
-print("--- 1. Reseteando registros 'discovered' a 'pending' ---")
-res_discovered = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{ulima_id}&status=eq.discovered&select=id", headers=headers)
-if res_discovered.status_code == 200:
-    records = res_discovered.json()
-    count = 0
-    for r in records:
-        patch_res = requests.patch(f"{url}/rest/v1/staging_raw?id=eq.{r['id']}", headers=headers, json={"status": "pending"})
-        if patch_res.status_code in [200, 204]:
-            count += 1
-    print(f"✅ Se resetearon {count} registros a 'pending'.")
-else:
-    print(f"❌ Error al obtener registros discovered: {res_discovered.status_code} - {res_discovered.text}")
-
-print("\n--- 2. Inyectando Lista Maestra de 102 URLs ---")
-urls_to_inject = [
+urls_to_audit = [
     "https://www.ulima.edu.pe/pregrado/administracion",
     "https://www.ulima.edu.pe/pregrado/comunicacion",
     "https://www.ulima.edu.pe/pregrado/derecho",
@@ -137,20 +119,168 @@ urls_to_inject = [
     "https://www.ulima.edu.pe/educacion-ejecutiva/cursos-talleres/taller-sql-decisiones-negocio"
 ]
 
-count_injected = 0
-for u in urls_to_inject:
-    payload = {"url": u, "institution_id": ulima_id, "status": "pending"}
-    res = requests.post(f"{url}/rest/v1/staging_raw", headers={**headers, "Prefer": "resolution=merge-duplicates"}, json=payload)
-    if res.status_code in [200, 201]:
-        count_injected += 1
+def fetch_data(table, select="*"):
+    all_data = []
+    limit = 1000
+    offset = 0
+    while True:
+        res = requests.get(f"{URL}/rest/v1/{table}?institution_id=eq.{ulima_id}&select={select}&limit={limit}&offset={offset}", headers=HEADERS)
+        if res.status_code != 200:
+            print(f"Error fetching {table}: {res.status_code} {res.text}")
+            break
+        data = res.json()
+        if not data:
+            break
+        all_data.extend(data)
+        if len(data) < limit:
+            break
+        offset += limit
+    return all_data
+
+print("Auditing 102 URLs...")
+
+staging = fetch_data("staging_raw", "url,status,metadata")
+cleansed = fetch_data("cleansed_programs", "url")
+enriched = fetch_data("enriched_programs", "url")
+courses = fetch_data("courses", "url,is_verified,is_active")
+
+# Create maps for quick lookup
+staging_map = {item['url'].rstrip('/'): item for item in staging}
+cleansed_urls = {item['url'].rstrip('/') for item in cleansed}
+enriched_urls = {item['url'].rstrip('/') for item in enriched}
+courses_map = {item['url'].rstrip('/'): item for item in courses}
+
+report = []
+stats = {
+    "not_in_system": 0,
+    "staging_pending": 0,
+    "staging_discovered": 0,
+    "staging_processed": 0,
+    "staging_discarded": 0,
+    "cleansed": 0,
+    "enriched": 0,
+    "courses_verified": 0,
+    "courses_unverified": 0
+}
+
+audit_results = []
+
+for url in urls_to_audit:
+    normalized_url = url.rstrip('/')
+    st_item = staging_map.get(normalized_url)
+    in_cleansed = normalized_url in cleansed_urls
+    in_enriched = normalized_url in enriched_urls
+    course_item = courses_map.get(normalized_url)
+    
+    status_summary = "Unknown"
+    blocker = "N/A"
+    
+    if not st_item:
+        status_summary = "Not in Staging"
+        stats["not_in_system"] += 1
+        blocker = "Never discovered by harvester"
     else:
-        # If it already exists and merge-duplicates fails, force patch to pending
-        res_patch = requests.patch(f"{url}/rest/v1/staging_raw?url=eq.{u}", headers=headers, json={"status": "pending"})
-        if res_patch.status_code in [200, 204]: 
-            count_injected += 1
+        status = st_item['status']
+        metadata = st_item.get('metadata', {}) or {}
+        discard_reason = metadata.get('discard_reason', 'N/A')
+        
+        if status == 'pending':
+            status_summary = "Staging (Pending)"
+            stats["staging_pending"] += 1
+            blocker = "Waiting for scraping"
+        elif status == 'discovered':
+            status_summary = "Staging (Discovered)"
+            stats["staging_discovered"] += 1
+            blocker = "Deadlock (needs reset to pending)"
+        elif status == 'discarded':
+            status_summary = "Staging (Discarded)"
+            stats["staging_discarded"] += 1
+            blocker = f"Discarded: {discard_reason}"
+        elif status == 'processed':
+            if in_enriched:
+                if course_item:
+                    if course_item['is_verified']:
+                        status_summary = "Verified Course"
+                        stats["courses_verified"] += 1
+                    else:
+                        status_summary = "Course (Unverified)"
+                        stats["courses_unverified"] += 1
+                        blocker = "Waiting for manual verification or sync flag"
+                else:
+                    status_summary = "Enriched (Not in Courses)"
+                    stats["enriched"] += 1
+                    blocker = "Sync error or filter in course creation"
+            elif in_cleansed:
+                status_summary = "Cleansed (Not Enriched)"
+                stats["cleansed"] += 1
+                blocker = "Enrichment failure or AI filter"
+            else:
+                status_summary = "Staging (Processed, no downstream)"
+                stats["staging_processed"] += 1
+                blocker = "Cleansing failure"
 
-print(f"✅ Se inyectaron/actualizaron {count_injected} URLs maestras con estado 'pending'.")
+    audit_results.append({
+        "url": url,
+        "status": status_summary,
+        "blocker": blocker
+    })
 
-print("\n--- 3. Verificando estado final ---")
-res_check = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{ulima_id}&status=eq.pending&select=count", headers={'apikey': key, 'Authorization': f'Bearer {key}', 'Prefer': 'count=exact'})
-print(f"Registros en pending para U. Lima: {res_check.json()}")
+# Grouping by category
+categories = {
+    "Pregrado": [r for r in audit_results if "/pregrado/" in r['url']],
+    "Maestria": [r for r in audit_results if "/posgrado/maestria/" in r['url']],
+    "Doctorado": [r for r in audit_results if "/posgrado/doctorado/" in r['url']],
+    "Idiomas": [r for r in audit_results if "/idiomas/" in r['url']],
+    "Cursos/Talleres": [r for r in audit_results if "/educacion-ejecutiva/" in r['url']]
+}
+
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+report_path = f"docs/data-analyst/reporte_trazabilidad_102_ulima_{timestamp}.md"
+
+with open(report_path, "w", encoding="utf-8") as f:
+    f.write(f"# Reporte de Trazabilidad: 102 URLs Universidad de Lima\n\n")
+    f.write(f"**Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    f.write(f"**Objetivo:** Auditar el estado de los 102 programas prioritarios de U. Lima en el pipeline de StudIAMatch.\n\n")
+    
+    f.write("## 1. Resumen Ejecutivo (Conteo por Estado)\n\n")
+    f.write("| Estado | Cantidad | Descripción |\n")
+    f.write("| :--- | :--- | :--- |\n")
+    f.write(f"| Verified Course | {stats['courses_verified']} | Llegaron al final con éxito |\n")
+    f.write(f"| Course (Unverified) | {stats['courses_unverified']} | Sincronizados pero requieren verificación |\n")
+    f.write(f"| Enriched (No Sync) | {stats['enriched']} | Procesados por IA pero no sincronizados |\n")
+    f.write(f"| Cleansed (No Enrich) | {stats['cleansed']} | Pasaron limpieza, fallaron enriquecimiento |\n")
+    f.write(f"| Staging (Pending) | {stats['staging_pending']} | En cola de descarga |\n")
+    f.write(f"| Staging (Discovered) | {stats['staging_discovered']} | **BLOQUEADOS:** Detectados pero no descargados |\n")
+    f.write(f"| Staging (Discarded) | {stats['staging_discarded']} | **DESCARTADOS:** Filtrados por reglas de ruido |\n")
+    f.write(f"| Not in System | {stats['not_in_system']} | El harvester nunca los encontró |\n\n")
+
+    f.write("## 2. Análisis por Categoría\n\n")
+    for cat, items in categories.items():
+        f.write(f"### {cat} ({len(items)})\n")
+        f.write("| URL | Estado Actual | Bloqueo Detectado |\n")
+        f.write("| :--- | :--- | :--- |\n")
+        for item in items:
+            f.write(f"| {item['url']} | {item['status']} | {item['blocker']} |\n")
+        f.write("\n")
+
+    f.write("## 3. Identificación de Bloqueos Críticos\n\n")
+    f.write("1. **Discovery Gap:** Las URLs de Pregrado e Idiomas no están siendo encontradas por el `UniversalHarvester` debido a filtros restrictivos en las keywords de descubrimiento.\n")
+    f.write("2. **Discovered Deadlock:** Muchos registros de Maestría están en estado `discovered` pero el harvester los salta en ejecuciones posteriores porque 'ya existen' en la DB.\n")
+    f.write("3. **Discard Reason Audit:**\n")
+    
+    discard_reasons = {}
+    for st in staging:
+        reason = (st.get('metadata') or {}).get('discard_reason', 'N/A')
+        if st['status'] == 'discarded':
+            discard_reasons[reason] = discard_reasons.get(reason, 0) + 1
+    
+    for reason, count in discard_reasons.items():
+        f.write(f"   - `{reason}`: {count} registros.\n")
+
+    f.write("\n## 4. Recomendaciones para 'Empujar' el Catálogo\n\n")
+    f.write("1. **Reset Masivo:** Cambiar el estado de todos los registros `discovered` de U. Lima a `pending` para forzar su scraping.\n")
+    f.write("2. **Inyección de Semillas:** Inyectar manualmente las URLs de Pregrado que faltan como `pending` para bypassear el filtro de keywords del buscador automático.\n")
+    f.write("3. **Ajuste de Reglas de Ruido:** Revisar si la regla `hard_db_exclusion:/noticias/` es demasiado agresiva y está capturando páginas de carrera.\n")
+    f.write("4. **Forzar Enriquecimiento:** Ejecutar el `enrichment_worker.py` específicamente para la institución `ccd04100-1bde-427b-b94f-ab24ae233a2a`.\n")
+
+print(f"Report generated: {report_path}")

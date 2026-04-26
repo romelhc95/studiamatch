@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 # Configuración
 load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL") or "https://fmcxwoqvxatbrawwtqke.supabase.co"
+url = os.getenv("SUPABASE_URL") or os.getenv("SUPABASE_URL")
 # Necesitamos el Service Role Key para cambios de esquema si hay una RPC, 
 # pero intentaremos ver si podemos enviar un PATCH que falle con un error descriptivo 
 # o simplemente informar la sentencia SQL.

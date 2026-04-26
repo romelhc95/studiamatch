@@ -142,7 +142,7 @@ class CleansingWorker:
             if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
             if exc['pattern'].lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
-        if not name or len(name) < 5: return "name_too_short"
+        if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"
         return None
 
