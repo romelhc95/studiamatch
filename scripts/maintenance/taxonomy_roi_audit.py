@@ -56,7 +56,7 @@ def run_taxonomy_roi_audit():
         # B. Validación de Salario vs Mercado
         market_data = market_map.get(c['category_id'])
         if market_data:
-            seniority = c.get('seniority_level', 'Mid')
+            seniority = c.get('seniority_level') or 'Mid'
             expected_salary = market_data.get(f'salary_{seniority.lower()}', market_data['salary_average'])
             
             if float(c['expected_monthly_salary'] or 0) != float(expected_salary):
