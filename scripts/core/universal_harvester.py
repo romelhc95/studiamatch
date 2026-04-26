@@ -39,8 +39,10 @@ def normalize_url(url: str) -> str:
     if not url: return ""
     try:
         parsed = urlparse(url)
-        clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-        return clean.rstrip('/')
+        # Forzar minúsculas en el dominio y limpiar el path de la barra final
+        path = parsed.path.rstrip('/')
+        # Reconstruir solo con esquema, host y path limpio
+        return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
     except:
         return url.rstrip('/')
 

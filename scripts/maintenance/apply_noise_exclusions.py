@@ -1,9 +1,9 @@
 import requests
 import os
-from dotenv import load_dotenv
+load_dotenv(".env.local")
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "REMOVED_HISTORICAL_CREDENTIAL_003"
 headers = {
     "apikey": key,
     "Authorization": f"Bearer {key}",

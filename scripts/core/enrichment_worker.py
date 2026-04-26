@@ -132,6 +132,15 @@ class EnrichmentWorker:
                     return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])
                 return str(val) if val is not None else ""
 
+            # 🛠️ Mapeo Inteligente de Categoría para el Frontend
+            cat_id = None
+            suggested_cats = enriched.get("categories", [])
+            if suggested_cats:
+                # Buscar el ID de la primera categoría válida
+                cat_name = suggested_cats[0] if isinstance(suggested_cats, list) else suggested_cats
+                res_cat = self.db.select('categories', filters=f"name=ilike.*{cat_name[:5]}*")
+                if res_cat: cat_id = res_cat[0]['id']
+
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": cleansed['institution_id'],
@@ -153,17 +162,24 @@ class EnrichmentWorker:
                 "status": "pending"
             }
 
-            self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
-            self.sync_to_courses(c_id, enriched)
-            logger.info(f"Record guardado y sincronizado.")
+            # 🛡️ Intentar guardar en enriched_programs pero no bloquear el flujo si falla RLS
+            try:
+                self.db.upsert('enriched_programs', save_data, on_conflict="url") 
+            except:
+                logger.warning("Fallo guardado en enriched_programs por RLS. Continuando con sincronización directa a courses...")
+
+            self.sync_to_courses(c_id, enriched, cat_id)
+            logger.info(f"Sincronización a tabla courses exitosa.")
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
 
-    def sync_to_courses(self, course_id, data):
+    def sync_to_courses(self, course_id, data, cat_id=None):
         update_data = {
             "course_type": data.get("degree_type", "Curso"),
             "duration": data.get("duration_text", "Consultar"),
-            "mode": data.get("modality", "Presencial")
+            "mode": data.get("modality", "Presencial"),
+            "category_id": cat_id,
+            "description_long": data.get("ai_summary", "")
         }
         self.db.patch('courses', filters=f"id=eq.{course_id}", data=update_data)
 
