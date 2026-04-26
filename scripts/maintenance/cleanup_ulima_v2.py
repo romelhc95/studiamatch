@@ -4,7 +4,7 @@ import re
 from dotenv import load_dotenv
 
 load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 inst_id = "ccd04100-1bde-427b-b94f-ab24ae233a2a"
 CURRENT_YEAR = 2026

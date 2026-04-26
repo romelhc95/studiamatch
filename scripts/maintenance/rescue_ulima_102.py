@@ -1,75 +1,36 @@
-import os
 import requests
+import os
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
+url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not key:
-    print("❌ ERROR: SUPABASE_SERVICE_ROLE_KEY no encontrada.")
-    exit(1)
-
 headers = {
     "apikey": key,
     "Authorization": f"Bearer {key}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
+    "Content-Type": "application/json"
 }
 
 ulima_id = "ccd04100-1bde-427b-b94f-ab24ae233a2a"
 
-print("--- 1. Reseteando registros 'discovered' a 'pending' ---")
-res_discovered = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{ulima_id}&status=eq.discovered&select=id", headers=headers)
-if res_discovered.status_code == 200:
-    records = res_discovered.json()
-    count = 0
-    for r in records:
-        patch_res = requests.patch(f"{url}/rest/v1/staging_raw?id=eq.{r['id']}", headers=headers, json={"status": "pending"})
-        if patch_res.status_code in [200, 204]:
-            count += 1
-    print(f"✅ Se resetearon {count} registros a 'pending'.")
-else:
-    print(f"❌ Error al obtener registros discovered: {res_discovered.status_code} - {res_discovered.text}")
-
-print("\n--- 2. Inyectando Lista Maestra de 102 URLs ---")
-urls_to_inject = [
-    "https://www.ulima.edu.pe/pregrado/administracion",
-    "https://www.ulima.edu.pe/pregrado/comunicacion",
-    "https://www.ulima.edu.pe/pregrado/derecho",
-    "https://www.ulima.edu.pe/pregrado/ingenieria-ambiental",
-    "https://www.ulima.edu.pe/pregrado/ingenieria-industrial",
-    "https://www.ulima.edu.pe/pregrado/ingenieria-de-sistemas",
-    "https://www.ulima.edu.pe/pregrado/arquitectura",
-    "https://www.ulima.edu.pe/pregrado/contabilidad-y-finanzas",
-    "https://www.ulima.edu.pe/pregrado/economia",
-    "https://www.ulima.edu.pe/pregrado/ingenieria-civil",
-    "https://www.ulima.edu.pe/pregrado/ingenieria-mecatronica",
-    "https://www.ulima.edu.pe/pregrado/marketing",
-    "https://www.ulima.edu.pe/posgrado/maestria/macp",
-    "https://www.ulima.edu.pe/posgrado/maestria/mbf",
-    "https://www.ulima.edu.pe/posgrado/maestria/mcdn",
-    "https://www.ulima.edu.pe/posgrado/maestria/mcgc",
-    "https://www.ulima.edu.pe/posgrado/maestria/mde",
-    "https://www.ulima.edu.pe/posgrado/maestria/mdop",
-    "https://www.ulima.edu.pe/posgrado/maestria/mdie",
-    "https://www.ulima.edu.pe/posgrado/maestria/mgi",
-    "https://www.ulima.edu.pe/posgrado/maestria/mgc",
-    "https://www.ulima.edu.pe/posgrado/maestria/mid",
-    "https://www.ulima.edu.pe/posgrado/maestria/mlp",
-    "https://www.ulima.edu.pe/posgrado/maestria/mmgc",
-    "https://www.ulima.edu.pe/posgrado/maestria/mtpf",
-    "https://www.ulima.edu.pe/posgrado/maestria/mba",
-    "https://www.ulima.edu.pe/posgrado/doctorado/da",
-    "https://www.ulima.edu.pe/posgrado/doctorado/dc",
-    "https://www.ulima.edu.pe/posgrado/doctorado/dge",
-    "https://www.ulima.edu.pe/idiomas/programa-integral-ingles",
-    "https://www.ulima.edu.pe/idiomas/english-business",
-    "https://www.ulima.edu.pe/idiomas/english-media",
-    "https://www.ulima.edu.pe/idiomas/english-engineering",
-    "https://www.ulima.edu.pe/idiomas/extension-workshops",
-    "https://www.ulima.edu.pe/idiomas/intensive-graduation",
-    "https://www.ulima.edu.pe/idiomas/b2-first",
+urls_to_rescue = [
+    "https://www.ulima.edu.pe/pregrado/administracion", "https://www.ulima.edu.pe/pregrado/comunicacion",
+    "https://www.ulima.edu.pe/pregrado/derecho", "https://www.ulima.edu.pe/pregrado/ingenieria-ambiental",
+    "https://www.ulima.edu.pe/pregrado/ingenieria-industrial", "https://www.ulima.edu.pe/pregrado/ingenieria-de-sistemas",
+    "https://www.ulima.edu.pe/pregrado/arquitectura", "https://www.ulima.edu.pe/pregrado/contabilidad-y-finanzas",
+    "https://www.ulima.edu.pe/pregrado/economia", "https://www.ulima.edu.pe/pregrado/ingenieria-civil",
+    "https://www.ulima.edu.pe/pregrado/ingenieria-mecatronica", "https://www.ulima.edu.pe/pregrado/marketing",
+    "https://www.ulima.edu.pe/posgrado/maestria/macp", "https://www.ulima.edu.pe/posgrado/maestria/mbf",
+    "https://www.ulima.edu.pe/posgrado/maestria/mcdn", "https://www.ulima.edu.pe/posgrado/maestria/mcgc",
+    "https://www.ulima.edu.pe/posgrado/maestria/mde", "https://www.ulima.edu.pe/posgrado/maestria/mdop",
+    "https://www.ulima.edu.pe/posgrado/maestria/mdie", "https://www.ulima.edu.pe/posgrado/maestria/mgi",
+    "https://www.ulima.edu.pe/posgrado/maestria/mgc", "https://www.ulima.edu.pe/posgrado/maestria/mid",
+    "https://www.ulima.edu.pe/posgrado/maestria/mlp", "https://www.ulima.edu.pe/posgrado/maestria/mmgc",
+    "https://www.ulima.edu.pe/posgrado/maestria/mtpf", "https://www.ulima.edu.pe/posgrado/maestria/mba",
+    "https://www.ulima.edu.pe/posgrado/doctorado/da", "https://www.ulima.edu.pe/posgrado/doctorado/dc",
+    "https://www.ulima.edu.pe/posgrado/doctorado/dge", "https://www.ulima.edu.pe/idiomas/programa-integral-ingles",
+    "https://www.ulima.edu.pe/idiomas/english-business", "https://www.ulima.edu.pe/idiomas/english-media",
+    "https://www.ulima.edu.pe/idiomas/english-engineering", "https://www.ulima.edu.pe/idiomas/extension-workshops",
+    "https://www.ulima.edu.pe/idiomas/intensive-graduation", "https://www.ulima.edu.pe/idiomas/b2-first",
     "https://www.ulima.edu.pe/educacion-ejecutiva/cursos-talleres/cec-comunicacion-marketing-politico",
     "https://www.ulima.edu.pe/educacion-ejecutiva/cursos-talleres/cec-cultura-organizacional",
     "https://www.ulima.edu.pe/educacion-ejecutiva/cursos-talleres/vir-presentaciones-alto-impacto",
@@ -137,20 +98,16 @@ urls_to_inject = [
     "https://www.ulima.edu.pe/educacion-ejecutiva/cursos-talleres/taller-sql-decisiones-negocio"
 ]
 
-count_injected = 0
-for u in urls_to_inject:
-    payload = {"url": u, "institution_id": ulima_id, "status": "pending"}
-    res = requests.post(f"{url}/rest/v1/staging_raw", headers={**headers, "Prefer": "resolution=merge-duplicates"}, json=payload)
-    if res.status_code in [200, 201]:
-        count_injected += 1
-    else:
-        # If it already exists and merge-duplicates fails, force patch to pending
-        res_patch = requests.patch(f"{url}/rest/v1/staging_raw?url=eq.{u}", headers=headers, json={"status": "pending"})
-        if res_patch.status_code in [200, 204]: 
-            count_injected += 1
+print(f"--- Iniciando Rescate de {len(urls_to_rescue)} URLs de U. Lima ---")
+rescued_count = 0
+for u in urls_to_rescue:
+    # Bypassear normalización local intentando con / y sin /
+    for variant in [u, u.rstrip('/') + '/']:
+        res = requests.patch(f"{url}/rest/v1/staging_raw?institution_id=eq.{ulima_id}&url=eq.{variant}", 
+                             headers=headers, 
+                             json={"status": "pending", "metadata": {"manual_rescue": "Phase 49.2"}})
+        if res.status_code in [200, 204]:
+            rescued_count += 1
+            break # Si rescatamos una variante, pasamos a la siguiente URL
 
-print(f"✅ Se inyectaron/actualizaron {count_injected} URLs maestras con estado 'pending'.")
-
-print("\n--- 3. Verificando estado final ---")
-res_check = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{ulima_id}&status=eq.pending&select=count", headers={'apikey': key, 'Authorization': f'Bearer {key}', 'Prefer': 'count=exact'})
-print(f"Registros en pending para U. Lima: {res_check.json()}")
+print(f"✅ Se han reseteado {rescued_count} programas a estado 'pending'.")
