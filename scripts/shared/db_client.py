@@ -44,19 +44,12 @@ class DatabaseClient:
             self.supabase_url = self.supabase_url.replace("localhost", "172.18.0.1").replace("127.0.0.1", "172.18.0.1")
             print(f"DB_CLIENT: Adjusted SUPABASE_URL for Docker connectivity.")
 
-        # Decide mode: If DATABASE_URL is present, we use direct PostgreSQL
-        self.use_local = False # Default to Cloud
+        # Decide mode: Cloud-First Architecture. 
+        # Local PostgreSQL is deprecated for this workflow stage.
+        self.use_local = False 
         
-        if self.database_url:
-            try:
-                self.conn = psycopg2.connect(self.database_url)
-                self.conn.autocommit = True
-                self.use_local = True
-            except Exception as e:
-                print(f"Error connecting to local DB: {e}. Falling back to API Mode.")
-        
-        if not self.use_local and (not self.supabase_url or not self.supabase_key):
-            print("Warning: No DB configuration found (neither Local nor Cloud).")
+        if not self.supabase_url or not self.supabase_key:
+            print("Warning: No Supabase configuration found.")
 
     def select(self, table, filters=None, columns="*", limit=None, order=None):
         """
