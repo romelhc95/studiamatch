@@ -6,7 +6,7 @@ load_dotenv()
 
 # --- CONFIGURACIÓN ---
 # Desarrollo (Free)
-DEV_URL = "https://fmcxwoqvxatbrawwtqke.supabase.co" 
+DEV_URL = os.getenv("SUPABASE_URL") 
 DEV_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY") 
 
 # Producción (Pro)

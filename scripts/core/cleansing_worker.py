@@ -25,9 +25,14 @@ load_dotenv()
 logger = setup_lima_logging("CleansingWorker")
 
 def normalize_url(url: str) -> str:
+    """Removes query strings, fragments, and trailing slashes for clean mapping."""
     if not url: return ""
-    url = url.split('?')[0].split('#')[0].lower().strip()
-    return url.rstrip('/')
+    try:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip('/')
+        return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
+    except:
+        return url.rstrip('/')
 
 def aggressive_html_clean(raw_html: str) -> str:
     if not raw_html: return ""
@@ -94,6 +99,18 @@ class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
         self.exclusions = self._load_exclusions()
+        # Páginas que son solo contenedores y no cursos reales
+        self.hub_patterns = [
+            r'ulima\.edu\.pe/?$', 
+            r'up\.edu\.pe/?$',
+            r'/programas-de-especializacion/?$',
+            r'/pregrado/?$',
+            r'/posgrado/?$',
+            r'/maestrias/?$'
+        ]
+
+    def is_hub_page(self, url: str) -> bool:
+        return any(re.search(p, url.lower()) for p in self.hub_patterns)
 
     def _load_exclusions(self) -> List[Dict[str, Any]]:
         try: return self.db.select('crawler_exclusions', filters="is_active=eq.true")
@@ -125,10 +142,8 @@ class CleansingWorker:
             if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
             if exc['pattern'].lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
-        valid_patterns = [r'\bmaestr[íi]a\b', r'\bdiplomado\b', r'\bespecializaci[óo]n\b', r'\bdoctorado\b', r'\bcurso\b', r'\btaller\b']
-        has_valid_keyword = any(re.search(p, low_name) for p in valid_patterns)
         if not name or len(name) < 5: return "name_too_short"
-        if not description or len(description) < 100: return "description_too_short"
+        if not description or len(description) < 20: return "description_too_short"
         return None
 
     def process_batch(self, batch: List[Dict[str, Any]]) -> int:
@@ -170,7 +185,10 @@ class CleansingWorker:
             final_raw_name = best_raw_name or main_raw.get('raw_name', '')
             
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
+            
+            # Filtros de Calidad y Hubs
             discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, inst_id, clean_text_context)
+            if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
             
             if discard_reason:

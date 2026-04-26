@@ -1,9 +1,9 @@
 import requests
 import os
-from dotenv import load_dotenv
+load_dotenv(".env.local")
+url = os.getenv("SUPABASE_URL", "https://fmcxwoqvxatbrawwtqke.supabase.co")
+key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-url = "https://fmcxwoqvxatbrawwtqke.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtY3h3b3F2eGF0YnJhd3d0cWtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjE5MjcsImV4cCI6MjA5MDI5NzkyN30.yHThxpyDnVEgZ3dpI5WD4qBgIJE7PHITuJYeapLSVi8"
 headers = {
     "apikey": key,
     "Authorization": f"Bearer {key}",
