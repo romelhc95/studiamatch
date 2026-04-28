@@ -16,7 +16,8 @@ from shared.utils import (
     clean_course_name,
     slugify,
     standardize_mode,
-    setup_lima_logging
+    setup_lima_logging,
+    normalize_url,
 )
 from shared.db_client import get_db_client, DatabaseClient
 
@@ -24,17 +25,6 @@ from shared.db_client import get_db_client, DatabaseClient
 load_dotenv()
 logger = setup_lima_logging("CleansingWorker")
 
-from urllib.parse import urlparse
-
-def normalize_url(url: str) -> str:
-    """Removes query strings, fragments, and trailing slashes for clean mapping."""
-    if not url: return ""
-    try:
-        parsed = urlparse(url)
-        path = parsed.path.rstrip('/')
-        return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
-    except Exception:
-        return url.rstrip('/')
 
 def aggressive_html_clean(raw_html: str) -> str:
     if not raw_html: return ""

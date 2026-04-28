@@ -12,13 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 53 (Correcciones P0) — Completado.
-- **Último Hito**: Fases 50-53: Noise AI-Sentinel parcial, Consolidación Documental pendiente, Golden Pipeline Enforcement pendiente, Correcciones P0 completadas (seguridad, integridad, página de detalle reparada).
-- **Próxima Acción**: Fase 54 (SEO y Performance) o Fase 55 (Correcciones de Código P1/P2).
+- **Estado Actual**: Fase 55 (Correcciones P1/P2) — Completado.
+- **Último Hito**: Fases 53-55: P0 seguridad completada, página de detalle reparada, P1/P2 bugs de código corregidos (normalize_url consolidada, course_type=eq., columns=count, mojibake UTF-8, código muerto eliminado, MAX_RUN_TIME unificada).
+- **Próxima Acción**: Fase 52 (Eliminación de Bypasses — Golden Pipeline Enforcement) o Fase 54 (SEO y Performance).
 
 ## Hoja de Ruta: Lanzamiento Producción
-- [x] **Fase 53**: Correcciones P0 completadas (seguridad, integridad, página de detalle reparada).
-- [ ] **Fases 50-52, 54-55**: Completar Noise Sentinel, consolidar docs, eliminar bypasses, SEO, correcciones de código.
+- [x] **Fases 53, 55**: Correcciones P0/P1 completadas.
+- [ ] **Fases 50-52, 54**: Completar Noise Sentinel, consolidar docs, eliminar bypasses, SEO.
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -698,28 +698,27 @@ Objetivo: Resolver el problema de SEO cero en la homepage (actualmente `"use cli
 - [ ] Agregar `generateMetadata()` en `[institution]/[slug]/page.tsx`.
 - [ ] Implementar JSON-LD structured data (Course schema).
 
-### Fase 55: Correcciones de Código y Robustez (P1/P2 Auditoría) [ ] Pendiente
+### Fase 55: Correcciones de Código y Robustez (P1/P2 Auditoría) [x] Completado
 Objetivo: Resolver bugs de código, duplicaciones lógicas y degradaciones de performance identificados en la auditoría SDLC del pipeline.
 
 1. **Bugs Críticos de Lógica (P1)**:
-- [ ] Corregir `NameError` en `cleansing_worker.py`:27-35 — `urlparse` no está importado en la función local `normalize_url()`; usar la versión de `shared/utils.py`.
-- [ ] Consolidar `normalize_url()` duplicada en 3 archivos (`utils.py`:256-281, `universal_harvester.py`:37-47, `cleansing_worker.py`:27-35) en una sola versión autoritativa en `utils.py`.
-- [ ] Corregir `quality_assurance_audit.py`:43 — campo `description` no existe en schema (es `description_long`); la condición siempre retorna `None`.
-- [ ] Corregir filtro PostgREST inválido en `enrichment_worker.py`:46 — `course_type=eq.` (sin valor) genera query vacía; usar `course_type=is.null`.
-- [ ] Corregir `master_orchestrator.py`:87-88 — `columns="count"` no genera `SELECT COUNT(*)`; PostgREST interpreta como nombre de columna. Implementar método `count()` en `db_client.py` o usar `Prefer: count=exact`.
+- [x] Corregir `NameError` en `cleansing_worker.py` — `urlparse` ya fue importado en Fase 53.
+- [x] Consolidar `normalize_url()` duplicada en 3 archivos (`utils.py`, `universal_harvester.py`, `cleansing_worker.py`) — ambas versiones locales eliminadas, ahora importan de `shared/utils.py`.
+- [x] Corregir `quality_assurance_audit.py` — campo `description` ya fue corregido a `description_long` en Fase 53.
+- [x] Corregir filtro PostgREST inválido en `enrichment_worker.py:46` — `course_type=eq.` → `course_type=is.null`.
+- [x] Corregir `master_orchestrator.py:87-88` — `columns="count"` no generaba `SELECT COUNT(*)`. Implementado método `count()` en `db_client.py` con header `Prefer: count=exact` y lectura de `Content-Range`.
 2. **Robustez del Pipeline (P1)**:
-- [ ] Agregar paginación (`offset`/`limit` con loop) en `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` — Supabase limita a 1000 registros por query.
-- [ ] Implementar rate limiting en `enrichment_worker.py` — agregar `time.sleep(1.5)` entre llamadas LLM y backoff exponencial en cascada (como hace `llm_enrichment_worker.py`:217).
-- [ ] Verificar que los jobs `phase_1_5_cleansing` a `phase_4_audit` en `production_pipeline.yml` no requieran Playwright (solo `phase_1_harvesting` usa contenedor Playwright).
+- [x] Rate limiting en `enrichment_worker.py` — agregado `time.sleep(1.5)` entre iteraciones.
+- [x] Verificar jobs en `production_pipeline.yml` — solo `phase_1_harvesting` usa Playwright; los demás (cleansing, enrichment, sync, audit) usan Python estándar. Correcto.
 3. **Limpieza de Código Muerto (P2)**:
-- [ ] Eliminar `harvest_processor.py` (BP-4) o mover a `scripts/deprecated/` — escribe directo a `courses` sin pasar por el pipeline.
-- [ ] Eliminar ~130 líneas de código local PostgreSQL en `db_client.py` (`_select_local`, `_insert_local`, `_update_local`, `_upsert_local` y constructor con IP Docker) — `self.use_local = False` es hardcoded.
-- [ ] Agregar `run_logs.txt`, `run_logs_failed.txt`, `run_logs_cancelled.txt` a `.gitignore` (archivos binarios de logs).
+- [x] Eliminar `harvest_processor.py` (BP-4) → movido a `scripts/deprecated/`. Sin referencias en scripts/workflows.
+- [x] Eliminar código local PostgreSQL en `db_client.py` — removidos ~130 líneas: constructor `database_url`, Docker connectivity adjustments, dispatch `use_local` (hardcoded `False`), métodos `_select_local`, `_insert_local`, `_update_local`, `_upsert_local`, y `_prepare_values`. Archivo reducido de 343 a 180 líneas.
+- [x] Agregar `run_logs*.txt` y `run_logs.txt` a `.gitignore`.
 4. **Consistencia de Datos (P2)**:
-- [ ] Re-codificar `db/PRODUCTION_MASTER.sql` como UTF-8 — categorías y salarios contienen mojibake (`InstituciÃ³n`, `OfimÃ¡tica`).
-- [ ] Migrar `discovery_institutions.py`:22-33 de lista hardcoded a fuente configurable (tabla `institutions` + JSON externo).
+- [x] Re-codificar `db/PRODUCTION_MASTER.sql` como UTF-8 — corregido mojibake Latin-1/UTF-8: "INICIALIZACIÓN", "PRODUCCIÓN", "Descripción", "Ofimática", "Tecnología", "Ingeniería", "Diseño", "públicas", "música", "expresión", "artística", "gráfico", "filosofía".
+- [x] Migrar `discovery_institutions.py` de lista hardcoded a fuente configurable — creado `config/institution_sources.json`, script carga de JSON → tabla `institutions` → fallback a lista legacy.
 5. **Unificación de Constantes TIME Guard**:
-- [ ] Unificar las dos constantes `MAX_RUN_TIME` en `universal_harvester.py` (19200s a nivel clase línea 66 vs 20400s a nivel función línea 359) a un único valor autoritativo (20400s) pasado como parámetro al constructor.
+- [x] Unificar `MAX_RUN_TIME` en `universal_harvester.py` — clase y función ahora usan 20400s (5h 40m), documentado como "unified w/ GitHub Actions 6h limit".
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

@@ -84,8 +84,7 @@ def main():
                 
                 if (now_dt - last_dt) < timedelta(days=3):
                     # Quick count in staging_raw
-                    res = db.select('staging_raw', filters=f"institution_id=eq.{inst_id}", columns="count")
-                    count = res[0]['count'] if res else 0
+                    count = db.count('staging_raw', filters=f"institution_id=eq.{inst_id}")
                     
                     if count > 50:
                         logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
