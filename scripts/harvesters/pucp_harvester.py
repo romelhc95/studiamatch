@@ -114,7 +114,7 @@ class PUCPHarvester:
                         try:
                             price_pen = float(price_match.group(1).replace(",", ""))
                             price_status = "publicado"
-                        except: pass
+                        except Exception: pass
                 
                 if "¿Por qué estudiar este curso?" in text or "¿Por qué seguir este programa?" in text:
                     objectives = text

@@ -14,5 +14,6 @@ for fp in files:
             with open(fp, 'w', encoding='utf-8') as f:
                 f.write(new_content)
             print(f"✅ Saneado: {fp}")
-    except: pass
+    except Exception as e:
+        print(f"Error sanitizing {fp}: {e}")
 print("Proceso de sanitización finalizado.")

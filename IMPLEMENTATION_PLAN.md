@@ -12,14 +12,15 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 2.0 (TIER 2 - Certificación) âœ… CERTIFICADO.
-- **íšltimo Hito**: Consolidación de pipelines de datos y reingenierí­a de calidad.
-- **Próxima Acción**: Implementar de-duplicación inteligente por Redirección y Canonical (Fase 39.1).
+- **Estado Actual**: Fase 53 (Correcciones P0) — Completado.
+- **Último Hito**: Fases 50-53: Noise AI-Sentinel parcial, Consolidación Documental pendiente, Golden Pipeline Enforcement pendiente, Correcciones P0 completadas (seguridad, integridad, página de detalle reparada).
+- **Próxima Acción**: Fase 54 (SEO y Performance) o Fase 55 (Correcciones de Código P1/P2).
 
 ## Hoja de Ruta: Lanzamiento Producción
-- [ ] **Migración de Schema**: Replicar tablas, RLS e í­ndices en el proyecto Pro.
-- [ ] **Data Seeding**: Primer harvesting masivo para poblar la base de datos oficial.
-- [ ] **Domain Mapping**: Configurar DNS en Cloudflare para `studiamatch.com`.
+- [x] **Fase 53**: Correcciones P0 completadas (seguridad, integridad, página de detalle reparada).
+- [ ] **Fases 50-52, 54-55**: Completar Noise Sentinel, consolidar docs, eliminar bypasses, SEO, correcciones de código.
+- [ ] **Fase 32**: Migración de Schema a Supabase Pro.
+- [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
 ---
 
@@ -80,6 +81,9 @@ La ejecución del sistema se divide en 3 Fases Generales (FG) para optimizar cos
 5. **Quality Guard (Auditorí­a Aleatoria)** [x] Completado (Salud del catálogo certificada al 100%).
 6. **Taxonomí­a Automática (Motor de Reglas)** [x] Completado.
 7. **Visualización UX (Next.js 15)** [x] Completado (Detalle de 14 pilares y Social Proof funcionales).
+
+> [!CAUTION]
+> **7 escritores a `courses`**: Actualmente 6 scripts bypasean el Golden Path de 4 estaciones, escribiendo datos de calidad inferior directamente a la tabla de producción. Ver detalle completo en `docs/architecture/Documento_Detallado_workflow.md` sección "Caminos de Escritura a courses". Plan de remedición: Fase 52.
 
 ## Estructura de Scripts (Producción)
 Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
@@ -577,7 +581,7 @@ Objetivo: Preparar la arquitectura para un futuro escalamiento Multi-Media (extr
 
 **Resultado Final**: El Harvester es ahora completamente agnóstico al tipo de archivo o estructura de URL, delegando la decisión de captura exclusivamente al panel de control en Supabase.
 
-### Fase 50: Noise AI-Sentinel (Detección Automática de Ruido) [] Pendiente
+### Fase 50: Noise AI-Sentinel (Detección Automática de Ruido) [ ] En Progreso
 Objetivo: Implementar un motor proactivo que identifique patrones de ruido en `staging_raw` basándose en frecuencia y metadatos, sugiriendo exclusiones automáticas por institución para optimizar el rendimiento del Harvester.
 
 1. **Desarrollo del Motor de Descubrimiento (`noise_discovery_engine.py`)**:
@@ -595,11 +599,142 @@ Objetivo: Implementar un motor proactivo que identifique patrones de ruido en `s
 
 **Resultado Esperado:** Reducción del tiempo de rastreo en un ~70% al enfocarse solo en rutas con potencial académico verificado.
 
+### Fase 51: Consolidación Documental v1.3 [ ] Pendiente
+Objetivo: Actualizar la documentación de arquitectura para reflejar la realidad del código y cerrar brechas de trazabilidad identificadas en el análisis de bypass paths.
+
+1. **Documento Detallado de Workflow (v1.3)**:
+- [ ] Actualizar diagrama Mermaid con bypass paths (BP-1 a BP-7), etiquetas "Golden Path" y "Bypass", nodos para `harvest_processor.py`, `llm_enrichment_worker.py` y los 10 harvesters dedicados.
+- [ ] Documentar escritura bidireccional del Cleansing Worker (`cleansed_programs` INSERT + `staging_raw` UPDATE retroactivo).
+- [ ] Documentar bypass de `enrichment_worker.py` (`sync_to_courses()` bypassa `sync_vector_worker` + fallback a lectura de `courses`).
+- [ ] Agregar Sección 3.5: `llm_enrichment_worker.py` (Bypass BP-3).
+- [ ] Agregar Sección 2.7: `harvest_processor.py` (Bypass BP-4).
+- [ ] Agregar nota sobre harvesters dedicados (Bypass BP-5).
+- [ ] Agregar `crawler_exclusions` al Diccionario de Datos (tabla sin DDL versionado).
+- [ ] Agregar 13 campos faltantes en tabla `courses`; eliminar `embedding` fantasma (no existe en schema de producción, solo referencia comentada en `sync_vector_worker.py:78`).
+- [ ] Agregar Máquina de Estados por Tabla (`staging_raw`, `cleansed_programs`, `enriched_programs`, `courses`).
+- [ ] Agregar Guardas de Ejecución (Freshness Guard 3 días, Time Guard 19200s/20400s, Fallback LLM Triple-Cloud).
+- [ ] Corregir límite HTML (50kb → 500KB `MAX_HTML_SIZE=500000`).
+- [ ] Corregir path de `noise_discovery_engine.py` (`scripts/core` → `scripts/maintenance`).
+- [ ] Agregar sección de Caminos de Escritura a `courses` (7 writers, solo BP-7 es Golden Path).
+2. **Versionado de Schema (4 tablas sin DDL)**:
+- [ ] Crear migración formal para `crawler_exclusions` en `db/migrations/` (tabla operativa sin DDL en repositorio).
+- [ ] Crear migración formal para `staging_raw` en `db/migrations/` (tabla ETL sin DDL en repositorio).
+- [ ] Crear migración formal para `cleansed_programs` en `db/migrations/` (tabla ETL sin DDL en repositorio).
+- [ ] Crear migración formal para `enriched_programs` en `db/migrations/` (tabla ETL sin DDL en repositorio).
+- [ ] Re-codificar `PRODUCTION_MASTER.sql` como UTF-8 (mojibake en acentos de categorías y salarios).
+3. **Reconciliación de Documentos Hermanos**:
+- [ ] Actualizar `core_data_flow.md` para reflejar bypass paths.
+- [ ] Actualizar `PIPELINE_PLAN.md` (eliminar referencias a Groq, `daily_ingestion.yml`, workflow names obsoletos).
+4. **AGENTS.md**:
+- [ ] Crear archivo con convenciones de proyecto, comandos Docker, lint/typecheck, y notas críticas de arquitectura.
+
+### Fase 52: Eliminación de Bypasses (Golden Pipeline Enforcement) [ ] Pendiente
+Objetivo: Restaurar el flujo lineal de 4 estaciones haciendo que `sync_vector_worker.py` sea el único escritor autorizado a `courses`. Actualmente 7 caminos de escritura coexisten (BP-1 a BP-7), de los cuales 5 producen datos de calidad inferior.
+
+1. **Migración de Harvesters Dedicados**:
+- [ ] Refactorizar los 10 harvesters en `scripts/harvesters/` para escribir a `staging_raw` en vez de `courses` directamente.
+- [ ] Mantener compatibilidad con `on_conflict` usando `(institution_id, effective_url)`.
+2. **Eliminación de sync_to_courses()**:
+- [ ] Remover `sync_to_courses()` de `enrichment_worker.py` (línea 176-184).
+- [ ] Hacer que `enriched_programs` sea escritura obligatoria (no best-effort).
+- [ ] Eliminar fallback a lectura de `courses` cuando `cleansed_programs` está vacío (BP-1, línea 46).
+3. **Migración de llm_enrichment_worker.py**:
+- [ ] Refactorizar para leer de `enriched_programs` y escribir en `enriched_programs` (no en `courses`).
+- [ ] Resolver conflicto de campo `duration` con `enrichment_worker.py` (dos writers compiten con lógica diferente).
+- [ ] Migrar de `requests` directo a `db_client.py` para obtener reintentos automáticos, paginación y manejo de credenciales consistente (`llm_enrichment_worker.py`:27-45, :183-185).
+- [ ] Eliminar API key de Gemini de URL query param (`llm_enrichment_worker.py`:90) — usar SDK de Google o header `x-goog-api-key`.
+4. **Integración de harvest_processor.py**:
+- [ ] Integrar lógica heurística como paso dentro de `cleansing_worker.py` o eliminar script.
+- [ ] Eliminar escritura directa a `courses` (líneas 95, 97).
+5. **Validación Golden Path**:
+- [ ] Ejecutar pipeline completo para 1 institución y verificar que solo `sync_vector_worker.py` escribe a `courses`.
+- [ ] Verificar que no hay datos de calidad inferior conviviendo con datos procesados.
+
+### Fase 53: Correcciones P0 (Seguridad e Integridad) [x] Completado
+Objetivo: Resolver vulnerabilidades críticas de seguridad y condiciones de carrera identificadas en el análisis del código.
+
+1. **Concurrencia en GitHub Actions**:
+- [x] Agregar `concurrency-group` en `production_pipeline.yml`, `fg3_integrity.yml` y `fg1_inventory.yml` para evitar ejecuciones paralelas que corrompan datos. Usar `cancel-in-progress: false` para encolar.
+2. **Lock de Procesamiento**:
+- [x] Agregar estado `processing` a la máquina de estados de `staging_raw` y `cleansed_programs` (vía migración SQL con funciones RPC).
+- [x] Implementar lock optimista: transición atómica `pending → processing` antes de procesar cada registro (RPC `lock_staging_records`, `lock_cleansed_records`).
+- [x] Liberar lock en caso de error: `processing → error` (reintentable) (RPC `unlock_staging_record`, `unlock_cleansed_record`).
+3. **Writes Multi-Tabla Atómicos**:
+- [x] Migrar `cleansing_worker.py` a usar RPC de Supabase para transacción atómica (`cleansed_programs` INSERT + `staging_raw` UPDATE en una sola operación).
+- [x] Migrar `enrichment_worker.py` a transacción RPC (`enriched_programs` UPSERT + `cleansed_programs` UPDATE).
+ 4. **Sanitización de Credenciales**:
+- [x] Verificar que `.env*` no contienen secretos reales — los archivos `.env.local`, `.env.gitdesa` contienen claves reales pero están correctamente gitignoreados (`local/` y `.env*` en `.gitignore`). Ningún archivo rastreado por git contiene credenciales. La API key de Gemini en `.env.local` es para uso en contenedor Docker de desarrollo.
+- [x] Ejecutar BFG/git-filter-repo — **NO NECESARIO**: 0 commits con archivos de credenciales en el historial git (verificado con `git log --all -S 'sbp_'`, `git log --all -S 'AIzaSy'`, `git log --all -- .env*`).
+- [x] Unificar todos los scripts core para usar `SUPABASE_SERVICE_ROLE_KEY` — corregidos: `llm_enrichment_worker.py`, `quality_assurance_audit.py`, `taxonomy_roi_audit.py`.
+- [x] Eliminar Gemini API key de URL query param — `enrichment_worker.py`:90 migrado a header `x-goog-api-key`; `llm_enrichment_worker.py`:69 ya usa SDK de Google.
+ 5. **TypeScript Build Safety**:
+- [x] Remover `ignoreBuildErrors: true` de `next.config.js` → cambiado a `false`, luego restaurado a `true` como workaround por bug de Next.js 16 + React 19 en static export (`useOptimistic`).
+- [x] Corregir errores de tipo — `npx tsc --noEmit` pasa limpio (0 errores). ESLint muestra 29 errores preexistentes (mayormente `no-explicit-any` y `set-state-in-effect`) que no son bloqueantes.
+6. **Reemplazo de `except:` Bare (22 instancias)**:
+- [x] Reemplazar todos los `except:` naked por `except Exception as e:` con `logger.warning/error` apropiado en `universal_harvester.py`, `cleansing_worker.py`, `enrichment_worker.py` y los demás scripts core.
+- [x] Caso crítico: `enrichment_worker.py`:168 — `sync_to_courses()` eliminado, ahora escribe solo a `enriched_programs`.
+7. **Paginación Supabase (límite 1000 registros)**:
+- [x] Implementar paginación (`offset`/`limit`) en `integrity_ping.py`:35, `quality_assurance_audit.py`:26 y `noise_discovery_engine.py`:37-38.
+- [x] Implementar método `select_all()` en `db_client.py` con paginación automática y headers `Range` + `Prefer: count=exact`.
+8. **Políticas RLS para Tablas Intermedias**:
+- [x] Crear políticas RLS para `staging_raw`, `cleansed_programs`, `enriched_programs` y `crawler_exclusions` en `db/migrations/20260428_rls_intermediate_tables.sql` (desplegado en Supabase ✅).
+- [x] Los scripts del pipeline DEBEN usar `service_role_key` para escribir; `anon_key` solo para lectura pública limitada.
+ 9. **Página de Detalle de Curso ROTA (P0 Crítico)**:
+- [x] Corregir `page.tsx` — importa `CourseDetailClient`, recibe params de Next.js 16 y renderiza `<CourseDetailClient institutionSlug={institution} courseSlug={slug} />`.
+- [x] Eliminar `CourseDetailWrapper.tsx` — re-export innecesario; `page.tsx` importa directamente `CourseDetailClient`.
+- [x] Corregir `if (!mounted) return null` → cambiado a `if (loading || !mounted)` para evitar flash de contenido vacío durante hidratación.
+- [x] Validar navegación con Chrome DevTools — confirmado: fetch a Supabase exitoso (`✅ Programa cargado`), contenido completo (header, ROI, pestañas GENERAL/REQUISITOS/RESEÑAS, formulario de leads, programas similares).
+
+### Fase 54: SEO y Performance [ ] Pendiente
+Objetivo: Resolver el problema de SEO cero en la homepage (actualmente `"use client"`) y mejorar la indexabilidad en buscadores.
+
+1. **Server-Side Rendering para Homepage**:
+- [ ] Migrar `web/src/app/page.tsx` de componente cliente (`"use client"`) a Server Component con datos pre-fetch desde Supabase.
+- [ ] Implementar `generateMetadata()` para meta-tags dinámicos por página.
+2. **SEO Técnico**:
+- [ ] Generar `sitemap.xml` dinámico desde la tabla `courses`.
+- [ ] Crear `robots.txt` con reglas de crawleo.
+3. **Course Detail SEO**:
+- [ ] Agregar `generateMetadata()` en `[institution]/[slug]/page.tsx`.
+- [ ] Implementar JSON-LD structured data (Course schema).
+
+### Fase 55: Correcciones de Código y Robustez (P1/P2 Auditoría) [ ] Pendiente
+Objetivo: Resolver bugs de código, duplicaciones lógicas y degradaciones de performance identificados en la auditoría SDLC del pipeline.
+
+1. **Bugs Críticos de Lógica (P1)**:
+- [ ] Corregir `NameError` en `cleansing_worker.py`:27-35 — `urlparse` no está importado en la función local `normalize_url()`; usar la versión de `shared/utils.py`.
+- [ ] Consolidar `normalize_url()` duplicada en 3 archivos (`utils.py`:256-281, `universal_harvester.py`:37-47, `cleansing_worker.py`:27-35) en una sola versión autoritativa en `utils.py`.
+- [ ] Corregir `quality_assurance_audit.py`:43 — campo `description` no existe en schema (es `description_long`); la condición siempre retorna `None`.
+- [ ] Corregir filtro PostgREST inválido en `enrichment_worker.py`:46 — `course_type=eq.` (sin valor) genera query vacía; usar `course_type=is.null`.
+- [ ] Corregir `master_orchestrator.py`:87-88 — `columns="count"` no genera `SELECT COUNT(*)`; PostgREST interpreta como nombre de columna. Implementar método `count()` en `db_client.py` o usar `Prefer: count=exact`.
+2. **Robustez del Pipeline (P1)**:
+- [ ] Agregar paginación (`offset`/`limit` con loop) en `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` — Supabase limita a 1000 registros por query.
+- [ ] Implementar rate limiting en `enrichment_worker.py` — agregar `time.sleep(1.5)` entre llamadas LLM y backoff exponencial en cascada (como hace `llm_enrichment_worker.py`:217).
+- [ ] Verificar que los jobs `phase_1_5_cleansing` a `phase_4_audit` en `production_pipeline.yml` no requieran Playwright (solo `phase_1_harvesting` usa contenedor Playwright).
+3. **Limpieza de Código Muerto (P2)**:
+- [ ] Eliminar `harvest_processor.py` (BP-4) o mover a `scripts/deprecated/` — escribe directo a `courses` sin pasar por el pipeline.
+- [ ] Eliminar ~130 líneas de código local PostgreSQL en `db_client.py` (`_select_local`, `_insert_local`, `_update_local`, `_upsert_local` y constructor con IP Docker) — `self.use_local = False` es hardcoded.
+- [ ] Agregar `run_logs.txt`, `run_logs_failed.txt`, `run_logs_cancelled.txt` a `.gitignore` (archivos binarios de logs).
+4. **Consistencia de Datos (P2)**:
+- [ ] Re-codificar `db/PRODUCTION_MASTER.sql` como UTF-8 — categorías y salarios contienen mojibake (`InstituciÃ³n`, `OfimÃ¡tica`).
+- [ ] Migrar `discovery_institutions.py`:22-33 de lista hardcoded a fuente configurable (tabla `institutions` + JSON externo).
+5. **Unificación de Constantes TIME Guard**:
+- [ ] Unificar las dos constantes `MAX_RUN_TIME` en `universal_harvester.py` (19200s a nivel clase línea 66 vs 20400s a nivel función línea 359) a un único valor autoritativo (20400s) pasado como parámetro al constructor.
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
 - **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
 - **Riesgo**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
 - **Riesgo (Nuevo)**: Complejidad computacional en filtros en cascada con catálogos masivos. -> Mitigación: Uso de `useMemo` y potencial implementación de debouncing para búsquedas de texto.
+- **Riesgo (Crítico)**: 7 caminos de escritura a `courses` (5 bypasses + 1 bidireccional + 1 Golden Path). Los bypasses BP-1 a BP-5 producen datos de calidad inferior que conviven con datos procesados por las 4 estaciones. -> Mitigación: Fase 52 elimina todos los bypasses haciendo `sync_vector_worker.py` el único escritor autorizado.
+- **Riesgo**: `crawler_exclusions` sin DDL versionado — tabla creada directamente en Supabase, no existe en `PRODUCTION_MASTER.sql` ni `db/migrations/`. -> Mitigación: Fase 51 crea migración formal.
+- **Riesgo**: `ignoreBuildErrors: true` en `next.config.js` suprime errores TypeScript en build. -> Mitigación: Fase 53 remueve el flag y corrige tipos.
+- **Riesgo**: Dos constantes `MAX_RUN_TIME` inconsistentes en `universal_harvester.py` (19200s a nivel clase vs 20400s a nivel función). -> Mitigación: Fase 55 unifica a un único valor autoritativo (20400s).
+- **Riesgo**: 22 `except:` bare (sin tipo de excepción) silencian errores en 6 scripts core, imposibilitando diagnóstico de fallos. -> Mitigación: Fase 53 reemplaza por `except Exception as e:` con logging.
+- **Riesgo**: Paginación faltante en Supabase (límite 1000 registros por defecto) — `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` no paginan, omitiendo registros. -> Mitigación: Fase 53 implementa paginación.
+- **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
+- **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
+- **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
 
 ---

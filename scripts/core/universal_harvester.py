@@ -43,7 +43,7 @@ def normalize_url(url: str) -> str:
         path = parsed.path.rstrip('/')
         # Reconstruir solo con esquema, host y path limpio
         return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
-    except:
+    except Exception:
         return url.rstrip('/')
 
 class UniversalHarvester:
@@ -66,8 +66,11 @@ class UniversalHarvester:
         self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
 
     def _load_exclusions(self):
-        try: return self.db.select('crawler_exclusions', filters="is_active=eq.true")
-        except: return []
+        try:
+            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+        except Exception as e:
+            logger.warning(f"Error loading exclusions: {e}")
+            return []
 
     def check_time_guard(self):
         """Checks if the global execution time limit has been reached."""
@@ -87,7 +90,8 @@ class UniversalHarvester:
             canonical = soup.find("link", rel="canonical")
             if canonical and canonical.get("href"):
                 return normalize_url(canonical["href"].strip())
-        except: pass
+        except Exception as e:
+            logger.warning(f"Error extracting canonical URL: {e}")
         return None
 
     def _generate_hash(self, text):
@@ -191,10 +195,6 @@ class UniversalHarvester:
         for exc in self.exclusions:
             if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
             if exc['pattern'].lower() in low_url: return False
-            
-        # Legacy blacklist just in case
-        if any(re.search(p, low_url) for p in self.blacklist_patterns):
-            return False
             
         return True
 
@@ -313,7 +313,8 @@ class UniversalHarvester:
             try:
                 content = await script.inner_text()
                 return json.loads(content)
-            except: pass
+            except Exception:
+                continue
         return {}
 
     async def _extract_og_tags(self, page):

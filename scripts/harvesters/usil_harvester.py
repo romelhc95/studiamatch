@@ -52,7 +52,7 @@ class USILHarvester:
             try:
                 popup = await page.query_selector("button.close, .modal-close")
                 if popup: await popup.click()
-            except: pass
+            except Exception: pass
 
             title_el = await page.query_selector("h1")
             title = await title_el.inner_text() if title_el else "Carrera USIL"

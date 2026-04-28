@@ -62,6 +62,38 @@ class DatabaseClient:
         else:
             return self._select_api(table, filters, columns, limit, order)
 
+    def select_all(self, table, filters=None, columns="*", batch_size=1000, order=None):
+        """
+        Paginated select that returns ALL matching records by looping through batches.
+        Supabase API limits results to 1000 by default, so this handles pagination transparently.
+        """
+        all_results = []
+        offset = 0
+        while True:
+            limit = min(batch_size, 1000)
+            url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
+            if filters:
+                url += f"&{filters}"
+            if order:
+                url += f"&order={order}"
+            url += f"&limit={limit}&offset={offset}"
+            headers = self._get_headers()
+            headers["Range"] = f"{offset}-{offset + limit - 1}"
+            headers["Prefer"] = "count=exact"
+            res = requests.get(url, headers=headers)
+            if res.status_code == 200:
+                batch = res.json()
+                if not batch:
+                    break
+                all_results.extend(batch)
+                offset += len(batch)
+                if len(batch) < limit:
+                    break
+            else:
+                print(f"DB_CLIENT_API_ERROR (SelectAll {table}): {res.status_code} - {res.text}")
+                break
+        return all_results
+
     def insert(self, table, data):
         """Generic insert."""
         if self.use_local:
@@ -84,6 +116,19 @@ class DatabaseClient:
             return self._upsert_local(table, data, on_conflict)
         else:
             return self._upsert_api(table, data, on_conflict)
+
+    def rpc(self, function_name, params=None):
+        """
+        Calls a Supabase RPC function.
+        """
+        url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
+        headers = self._get_headers()
+        headers["Prefer"] = "return=representation"
+        res = requests.post(url, headers=headers, json=params or {})
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        print(f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {res.text}")
+        return None
 
     # --- Local Implementations (psycopg2) ---
     def _prepare_values(self, data):
@@ -265,10 +310,11 @@ class DatabaseClient:
         url = f"{self.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
         headers = self._get_headers()
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+        is_batch = isinstance(data, list)
         res = requests.post(url, headers=headers, json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (Upsert): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (Upsert {table}): {res.status_code} - {res.text}")
         return None
 
 def get_db_client():
