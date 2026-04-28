@@ -23,6 +23,7 @@ from shared.utils import (
     infer_course_type,
     standardize_category,
     slugify,
+    normalize_url,
     get_random_user_agent,
     setup_lima_logging,
     normalize_url
@@ -34,17 +35,6 @@ logger = setup_lima_logging("UniversalHarvester")
 
 load_dotenv()
 
-def normalize_url(url: str) -> str:
-    """Removes query strings, fragments, and trailing slashes for clean mapping."""
-    if not url: return ""
-    try:
-        parsed = urlparse(url)
-        # Forzar minúsculas en el dominio y limpiar el path de la barra final
-        path = parsed.path.rstrip('/')
-        # Reconstruir solo con esquema, host y path limpio
-        return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
-    except Exception:
-        return url.rstrip('/')
 
 class UniversalHarvester:
     def __init__(self, institution, global_start=None):
@@ -63,7 +53,7 @@ class UniversalHarvester:
 
         # ⏱️ TIME GUARD CONFIG (Global awareness)
         self.global_start = global_start or time.time()
-        self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
+        self.MAX_RUN_TIME = 20400  # 5h 40m — unified w/ GitHub Actions 6h limit
 
     def _load_exclusions(self):
         try:

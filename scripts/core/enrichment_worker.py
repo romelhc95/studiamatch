@@ -4,6 +4,7 @@ import logging
 import sys
 import requests
 import re
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -43,7 +44,7 @@ class EnrichmentWorker:
             
         logger.info("No hay registros en cleansed_programs, intentando con tabla courses...")
         # Filtrar cursos que no tengan tipo o duración (indicador de falta de enriquecimiento)
-        res = self.db.select('courses', filters="course_type=eq.", limit=limit)
+        res = self.db.select('courses', filters="course_type=is.null", limit=limit)
         normalized = []
         for r in res:
             normalized.append({
@@ -241,6 +242,7 @@ if __name__ == "__main__":
             if r and isinstance(r, dict):
                 worker.enrich_record(r)
                 total_processed += 1
+                time.sleep(1.5)  # Rate limiting entre llamadas LLM
                 
         # If we fetched fewer records than requested, we've likely hit the end of the queue
         if len(records) < fetch_limit:
