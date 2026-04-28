@@ -5,8 +5,8 @@ from collections import defaultdict
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
+load_dotenv()
+url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 headers = {
@@ -33,16 +33,33 @@ def analyze_noise():
     total_suggestions = 0
     
     for inst_id, inst_name in institutions.items():
-        # Obtener URLs crudas
-        res_staging = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{inst_id}&select=url", headers=headers)
-        if res_staging.status_code != 200: continue
-        staging_urls = [r['url'] for r in res_staging.json()]
-        
+        # Obtener URLs crudas (con paginación)
+        all_staging_urls = []
+        offset = 0
+        while True:
+            res_staging = requests.get(f"{url}/rest/v1/staging_raw?institution_id=eq.{inst_id}&select=url&limit=1000&offset={offset}", headers=headers)
+            if res_staging.status_code != 200: break
+            batch = res_staging.json()
+            if not batch: break
+            all_staging_urls.extend(batch)
+            offset += len(batch)
+            if len(batch) < 1000: break
+        staging_urls = [r['url'] for r in all_staging_urls]
+
         if not staging_urls: continue
-        
-        # Obtener URLs legitimas
-        res_courses = requests.get(f"{url}/rest/v1/courses?institution_id=eq.{inst_id}&select=url", headers=headers)
-        course_urls = [r['url'] for r in res_courses.json()] if res_courses.status_code == 200 else []
+
+        # Obtener URLs legítimas (con paginación)
+        all_course_urls = []
+        offset = 0
+        while True:
+            res_courses = requests.get(f"{url}/rest/v1/courses?institution_id=eq.{inst_id}&select=url&limit=1000&offset={offset}", headers=headers)
+            if res_courses.status_code != 200: break
+            batch = res_courses.json()
+            if not batch: break
+            all_course_urls.extend(batch)
+            offset += len(batch)
+            if len(batch) < 1000: break
+        course_urls = [r['url'] for r in all_course_urls]
         
         # Tokenizar por directorio base
         token_counts = defaultdict(int)

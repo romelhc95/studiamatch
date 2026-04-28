@@ -2,9 +2,13 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.db_client import get_db_client
 
 load_dotenv()
 
+db = get_db_client()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 

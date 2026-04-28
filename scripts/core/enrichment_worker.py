@@ -38,8 +38,8 @@ class EnrichmentWorker:
             res = self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
             if res and len(res) > 0:
                 return res
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error obteniendo cleansed_programs: {e}")
             
         logger.info("No hay registros en cleansed_programs, intentando con tabla courses...")
         # Filtrar cursos que no tengan tipo o duración (indicador de falta de enriquecimiento)
@@ -67,7 +67,9 @@ class EnrichmentWorker:
                 ]
             }, timeout=30)
             if res.status_code == 200: return res.json()["result"]["response"]
-        except: return None
+        except Exception as e:
+            logger.warning(f"Cloudflare error: {e}")
+            return None
         return None
 
     def _call_github(self, prompt):
@@ -81,17 +83,22 @@ class EnrichmentWorker:
             }
             res = requests.post(url, headers={"Authorization": f"Bearer {GH_MODELS_TOKEN}"}, json=payload, timeout=30)
             if res.status_code == 200: return res.json()["choices"][0]["message"]["content"]
-        except: return None
+        except Exception as e:
+            logger.warning(f"GitHub Models error: {e}")
+            return None
         return None
 
     def _call_gemini(self, prompt):
         if not GEMINI_API_KEY: return None
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+            headers_gemini = {"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}
             payload = {"contents": [{"parts": [{"text": prompt}]}]}
-            res = requests.post(url, json=payload, timeout=30)
+            res = requests.post(url, headers=headers_gemini, json=payload, timeout=30)
             if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
-        except: return None
+        except Exception as e:
+            logger.warning(f"Gemini error: {e}")
+            return None
         return None
 
     def _clean_json_response(self, text):
@@ -118,7 +125,9 @@ class EnrichmentWorker:
                 if clean:
                     logger.info(f"✅ Éxito con {p_name}")
                     return json.loads(clean)
-            except: continue
+            except Exception as e:
+                logger.warning(f"Fallo con {p_name}: {e}")
+                continue
         return self._generate_smart_mock(name, description)
 
     def enrich_record(self, cleansed):
@@ -162,26 +171,40 @@ class EnrichmentWorker:
                 "status": "pending"
             }
 
-            # 🛡️ Intentar guardar en enriched_programs pero no bloquear el flujo si falla RLS
+            # 🛡️ Guardar en enriched_programs con toda la metadata de 14 pilares
             try:
-                self.db.upsert('enriched_programs', save_data, on_conflict="url") 
-            except:
-                logger.warning("Fallo guardado en enriched_programs por RLS. Continuando con sincronización directa a courses...")
-
-            self.sync_to_courses(c_id, enriched, cat_id)
-            logger.info(f"Sincronización a tabla courses exitosa.")
+                # Try atomic RPC promotion first
+                rpc_data = [{
+                    "cleansed_id": str(c_id),
+                    "institution_id": str(cleansed['institution_id']),
+                    "url": cleansed['url'],
+                    "official_name": save_data.get("official_name"),
+                    "duration_text": save_data.get("duration_text"),
+                    "duration_months": save_data.get("duration_months"),
+                    "total_cost_est": save_data.get("total_cost_est"),
+                    "requirements": save_data.get("requirements"),
+                    "graduate_profile": save_data.get("graduate_profile"),
+                    "curriculum_summary": save_data.get("curriculum_summary"),
+                    "modality": save_data.get("modality"),
+                    "primary_campus": save_data.get("primary_campus"),
+                    "degree_type": save_data.get("degree_type"),
+                    "start_date": save_data.get("start_date"),
+                    "categories": save_data.get("categories"),
+                    "difficulty_level": save_data.get("difficulty_level"),
+                    "ai_summary": save_data.get("ai_summary")
+                }]
+                rpc_result = self.db.rpc('atomic_enrichment_promote', {
+                    "p_enriched_data": json.dumps(rpc_data),
+                    "p_cleansed_id": str(c_id)
+                })
+                if not rpc_result:
+                    # Fallback: traditional upsert + patch
+                    self.db.upsert('enriched_programs', save_data, on_conflict="url")
+                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": "enriched"})
+            except Exception as e:
+                logger.warning(f"No se pudo guardar en enriched_programs ({e}). El registro quedará pendiente para reintento.")
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
-
-    def sync_to_courses(self, course_id, data, cat_id=None):
-        update_data = {
-            "course_type": data.get("degree_type", "Curso"),
-            "duration": data.get("duration_text", "Consultar"),
-            "mode": data.get("modality", "Presencial"),
-            "category_id": cat_id,
-            "description_long": data.get("ai_summary", "")
-        }
-        self.db.patch('courses', filters=f"id=eq.{course_id}", data=update_data)
 
     def _generate_smart_mock(self, name, description):
         return {"official_name": name, "duration_text": "Consultar", "degree_type": "Curso", "modality": "Presencial"}

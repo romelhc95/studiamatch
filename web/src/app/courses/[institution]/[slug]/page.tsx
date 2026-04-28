@@ -1,7 +1,6 @@
-import { Suspense } from "react";
-import CourseDetailClient from "./CourseDetailClient";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug } from "@/lib/supabase";
 import type { Metadata } from "next";
+import CourseDetailClient from "./CourseDetailClient";
 
 export async function generateMetadata({ params }: { params: Promise<{ institution: string, slug: string }> }): Promise<Metadata> {
   const { institution, slug } = await params;
@@ -11,12 +10,11 @@ export async function generateMetadata({ params }: { params: Promise<{ instituti
   };
 }
 
-export const dynamic = 'force-static';
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const defaultPath = [{ institution: 'pucp', slug: 'estudios-generales' }];
-  
+
   try {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.warn("⚠️ No environment variables found for static generation. Using defaults.");
@@ -50,13 +48,11 @@ export async function generateStaticParams() {
   }
 }
 
-export default async function CourseDetailPage(props: { params: Promise<{ institution: string, slug: string }> }) {
-  const { institution, slug } = await props.params;
-  if (!slug || !institution) return null;
-
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando programa...</div>}>
-      <CourseDetailClient courseSlug={slug} institutionSlug={institution} />
-    </Suspense>
-  );
+export default async function CourseDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ institution: string; slug: string }> 
+}) {
+  const { institution, slug } = await params;
+  return <CourseDetailClient institutionSlug={institution} courseSlug={slug} />;
 }

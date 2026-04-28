@@ -24,6 +24,8 @@ from shared.db_client import get_db_client, DatabaseClient
 load_dotenv()
 logger = setup_lima_logging("CleansingWorker")
 
+from urllib.parse import urlparse
+
 def normalize_url(url: str) -> str:
     """Removes query strings, fragments, and trailing slashes for clean mapping."""
     if not url: return ""
@@ -31,7 +33,7 @@ def normalize_url(url: str) -> str:
         parsed = urlparse(url)
         path = parsed.path.rstrip('/')
         return f"{parsed.scheme}://{parsed.netloc.lower()}{path}"
-    except:
+    except Exception:
         return url.rstrip('/')
 
 def aggressive_html_clean(raw_html: str) -> str:
@@ -92,7 +94,8 @@ def extract_price(text: str) -> Tuple[Optional[float], str]:
         try:
             p = float(price_match.group(1).replace(",", ""))
             if 10 < p < 1000000: return p, "publicado"
-        except: pass
+        except Exception:
+            pass
     return None, "consultar"
 
 class CleansingWorker:
@@ -113,8 +116,11 @@ class CleansingWorker:
         return any(re.search(p, url.lower()) for p in self.hub_patterns)
 
     def _load_exclusions(self) -> List[Dict[str, Any]]:
-        try: return self.db.select('crawler_exclusions', filters="is_active=eq.true")
-        except: return []
+        try:
+            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+        except Exception as e:
+            logger.warning(f"Error loading exclusions: {e}")
+            return []
 
     def _get_base_url(self, url: str) -> str:
         suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
@@ -125,12 +131,23 @@ class CleansingWorker:
         return clean_url
 
     def stream_pending_staging(self, batch_size: int = 100) -> Generator[Dict[str, Any], None, None]:
+        """Streams pending staging records using lock RPC if available, falls back to simple select."""
         while True:
             try:
+                # Try atomic lock via RPC first
+                locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
+                if locked and len(locked) > 0:
+                    for record in locked:
+                        if isinstance(record, dict):
+                            yield record
+                    continue
+                # Fallback: simple select (no lock)
                 batch = self.db.select('staging_raw', filters="status=eq.pending", limit=batch_size)
                 if not batch: break
                 for record in batch: yield record
-            except: break
+            except Exception as e:
+                logger.error(f"Error streaming pending staging: {e}")
+                break
 
     def is_invalid_course(self, name: str, description: str, url: str, inst_id: str, clean_text: str = "") -> Optional[str]:
         if name is None: name = ""
@@ -211,12 +228,32 @@ class CleansingWorker:
 
         if cleansed_batch:
             try:
-                self.db.upsert('cleansed_programs', cleansed_batch, on_conflict="url")
-                logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
-            except Exception as e: logger.error(f"Failed bulk upsert: {e}")
-        for update in staging_updates:
-            try: self.db.patch('staging_raw', filters=f"id=eq.{update['id']}", data={"status": update['status'], "metadata": update.get('metadata', {})})
-            except: pass
+                # Try atomic RPC promotion first
+                staging_ids = [m['id'] for m in members if 'id' in m]
+                rpc_result = self.db.rpc('atomic_cleansing_promote', {
+                    "p_staging_ids": staging_ids,
+                    "p_cleansed_data": json.dumps(cleansed_batch)
+                })
+                if rpc_result:
+                    logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
+                else:
+                    # Fallback: traditional upsert + patch
+                    self.db.upsert('cleansed_programs', cleansed_batch, on_conflict="url")
+                    logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
+                    for update in staging_updates:
+                        try:
+                            self.db.patch('staging_raw', filters=f"id=eq.{update['id']}", data={"status": update['status'], "metadata": update.get('metadata', {})})
+                        except Exception as e:
+                            logger.warning(f"Failed to update staging_raw status for {update['id']}: {e}")
+            except Exception as e:
+                logger.error(f"Failed bulk upsert: {e}")
+        else:
+            # No cleansed batch, just update staging_raw statuses
+            for update in staging_updates:
+                try:
+                    self.db.patch('staging_raw', filters=f"id=eq.{update['id']}", data={"status": update['status'], "metadata": update.get('metadata', {})})
+                except Exception as e:
+                    logger.warning(f"Failed to update staging_raw status for {update['id']}: {e}")
         return processed_count
 
 if __name__ == "__main__":

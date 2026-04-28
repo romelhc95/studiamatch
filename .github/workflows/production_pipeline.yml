@@ -5,6 +5,10 @@ on:
     - cron: '0 2 * * *' # Diario: 02:00 UTC (Rolling Shard)
   workflow_dispatch:      # Manual
 
+concurrency:
+  group: studiamatch-fg2-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # 🚉 STATION 1: Massive Discovery & Harvesting
   # -------------------------------------------------------------
