@@ -12,13 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 55 (Correcciones P1/P2) — Completado.
-- **Último Hito**: Fases 53-55: P0 seguridad completada, página de detalle reparada, P1/P2 bugs de código corregidos (normalize_url consolidada, course_type=eq., columns=count, mojibake UTF-8, código muerto eliminado, MAX_RUN_TIME unificada).
-- **Próxima Acción**: Fase 52 (Eliminación de Bypasses — Golden Pipeline Enforcement) o Fase 54 (SEO y Performance).
+- **Estado Actual**: Fase 52 (Golden Pipeline Enforcement) — Completado. Solo 2 writers a `courses`: `sync_vector_worker` (Golden Path) y `integrity_ping` (mantenimiento).
+- **Último Hito**: Fase 52 completada: BP-1 eliminado (`enrichment_worker.py` ya no lee de `courses`), `llm_enrichment_worker.py` migrado a `db_client.py` + `enriched_programs`, `sync_vector_worker.py` propaga `objectives`/`syllabus`/`seniority_level` a `courses`.
+- **Próxima Acción**: Fase 54 (SEO y Performance) o Fase 50 (Noise AI-Sentinel).
 
 ## Hoja de Ruta: Lanzamiento Producción
-- [x] **Fases 53, 55**: Correcciones P0/P1 completadas.
-- [ ] **Fases 50-52, 54**: Completar Noise Sentinel, consolidar docs, eliminar bypasses, SEO.
+- [x] **Fases 52, 53, 55**: Correcciones P0/P1/P2 + Golden Pipeline Enforcement completados.
+- [ ] **Fases 50-51, 54**: Completar Noise Sentinel, consolidar docs, SEO.
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -628,27 +628,31 @@ Objetivo: Actualizar la documentación de arquitectura para reflejar la realidad
 4. **AGENTS.md**:
 - [ ] Crear archivo con convenciones de proyecto, comandos Docker, lint/typecheck, y notas críticas de arquitectura.
 
-### Fase 52: Eliminación de Bypasses (Golden Pipeline Enforcement) [ ] Pendiente
-Objetivo: Restaurar el flujo lineal de 4 estaciones haciendo que `sync_vector_worker.py` sea el único escritor autorizado a `courses`. Actualmente 7 caminos de escritura coexisten (BP-1 a BP-7), de los cuales 5 producen datos de calidad inferior.
+### Fase 52: Eliminación de Bypasses (Golden Pipeline Enforcement) [x] Completado
+Objetivo: Restaurar el flujo lineal de 4 estaciones haciendo que `sync_vector_worker.py` sea el único escritor autorizado a `courses`. Anteriormente 7 caminos de escritura coexistían (BP-1 a BP-7).
+
+Resultado: Solo 2 scripts escriben a `courses`:
+- `sync_vector_worker.py:85` — Golden Path (UPSERT) ✅
+- `integrity_ping.py:54-65` — PATCH de mantenimiento (`is_active`, `last_404_at`) ✅
 
 1. **Migración de Harvesters Dedicados**:
-- [ ] Refactorizar los 10 harvesters en `scripts/harvesters/` para escribir a `staging_raw` en vez de `courses` directamente.
-- [ ] Mantener compatibilidad con `on_conflict` usando `(institution_id, effective_url)`.
+- [x] Verificado: Los 10 harvesters en `scripts/harvesters/` ya escribían a `staging_raw` (no a `courses`) desde Fase 53. Sin cambios necesarios.
 2. **Eliminación de sync_to_courses()**:
-- [ ] Remover `sync_to_courses()` de `enrichment_worker.py` (línea 176-184).
-- [ ] Hacer que `enriched_programs` sea escritura obligatoria (no best-effort).
-- [ ] Eliminar fallback a lectura de `courses` cuando `cleansed_programs` está vacío (BP-1, línea 46).
+- [x] `sync_to_courses()` ya fue eliminado en Fase 53. Sin cambios necesarios.
+- [x] BP-1 fallback eliminado de `enrichment_worker.py:37-57` — ya no lee de `courses` como fallback cuando `cleansed_programs` está vacío. Ahora retorna `[]` si no hay pendientes.
+- [x] `enriched_programs` es escritura obligatoria (la lógica ya estaba correcta, solo el fallback de lectura estaba mal).
 3. **Migración de llm_enrichment_worker.py**:
-- [ ] Refactorizar para leer de `enriched_programs` y escribir en `enriched_programs` (no en `courses`).
-- [ ] Resolver conflicto de campo `duration` con `enrichment_worker.py` (dos writers compiten con lógica diferente).
-- [ ] Migrar de `requests` directo a `db_client.py` para obtener reintentos automáticos, paginación y manejo de credenciales consistente (`llm_enrichment_worker.py`:27-45, :183-185).
-- [ ] Eliminar API key de Gemini de URL query param (`llm_enrichment_worker.py`:90) — usar SDK de Google o header `x-goog-api-key`.
+- [x] Refactorizado para leer de `enriched_programs` (en vez de `courses`).
+- [x] Refactorizado para escribir en `enriched_programs` (en vez de `courses`) mediante `db.patch()`.
+- [x] Migrado de `requests` directo a `db_client.py` (import `get_db_client`, método `db.select`, `db.patch` con reintentos automáticos y manejo de credenciales consistente).
+- [x] Gemini API key ya usaba SDK de Google (`google.generativeai`) desde Fase 53. Sin cambios necesarios.
+- [x] Resuelto conflicto de `duration`: `enrichment_worker.py` escribe `duration_text`/`duration_months` (14 pilares, autoritativo); `llm_enrichment_worker.py` escribe `duration` (estimado simple). `sync_vector_worker.py:67` usa `duration_text` con fallback a `duration`.
+- [x] `sync_vector_worker.py:73-76` ahora propaga `objectives`, `target_audience`, `syllabus`, `seniority_level` de `enriched_programs` a `courses`.
 4. **Integración de harvest_processor.py**:
-- [ ] Integrar lógica heurística como paso dentro de `cleansing_worker.py` o eliminar script.
-- [ ] Eliminar escritura directa a `courses` (líneas 95, 97).
+- [x] Movido a `scripts/deprecated/` en Fase 55. 0 referencias activas.
 5. **Validación Golden Path**:
-- [ ] Ejecutar pipeline completo para 1 institución y verificar que solo `sync_vector_worker.py` escribe a `courses`.
-- [ ] Verificar que no hay datos de calidad inferior conviviendo con datos procesados.
+- [x] Verificado con script de auditoría: solo `sync_vector_worker.py` (UPSERT) y `integrity_ping.py` (PATCH mantenimiento) escriben a `courses`.
+- [x] `enrichment_worker.py` y `llm_enrichment_worker.py` sin referencias a la tabla `courses`.
 
 ### Fase 53: Correcciones P0 (Seguridad e Integridad) [x] Completado
 Objetivo: Resolver vulnerabilidades críticas de seguridad y condiciones de carrera identificadas en el análisis del código.
