@@ -34,27 +34,16 @@ class EnrichmentWorker:
         self.db = get_db_client()
 
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs o directamente de courses para IA."""
+        """Obtiene registros de cleansed_programs para IA."""
         try:
             res = self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
             if res and len(res) > 0:
                 return res
         except Exception as e:
             logger.warning(f"Error obteniendo cleansed_programs: {e}")
-            
-        logger.info("No hay registros en cleansed_programs, intentando con tabla courses...")
-        # Filtrar cursos que no tengan tipo o duración (indicador de falta de enriquecimiento)
-        res = self.db.select('courses', filters="course_type=is.null", limit=limit)
-        normalized = []
-        for r in res:
-            normalized.append({
-                "id": r['id'],
-                "clean_name": r['name'],
-                "clean_description": r.get('description_long') or r['name'],
-                "institution_id": r['institution_id'],
-                "url": r['url']
-            })
-        return normalized
+
+        logger.info("No hay registros pendientes en cleansed_programs.")
+        return []
 
     def _call_cloudflare(self, prompt):
         if not CF_API_TOKEN or not CF_ACCOUNT_ID: return None
