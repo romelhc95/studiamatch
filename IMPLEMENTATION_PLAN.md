@@ -12,13 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 50 (Noise AI-Sentinel) — Completado. Motor de detección de ruido funcional con scoring de confianza y herramienta de aplicación de exclusiones.
-- **Último Hito**: Fase 50 completada: `noise_discovery_engine.py` refactorizado (db_client, multi-level path analysis, dual output MD+JSON), `apply_noise_exclusions.py` refactorizado (dry-run, cleanup retroactivo), `db_client.py` con nuevo método `delete()`.
-- **Próxima Acción**: Fase 54 (SEO y Performance) o Fase 51 (Consolidación Documental v1.3).
+- **Estado Actual**: Fase 54 (SEO y Performance) — Completado. Homepage SSR con pre-fetch, meta tags dinámicos, sitemap, robots.txt, JSON-LD Course schema.
+- **Último Hito**: Fase 54 completada: `page.tsx` → Server Component con `initialCourses`, `HomeContent.tsx` extraído, `generateMetadata()` en homepage y course detail con datos reales de Supabase, `robots.txt` + `sitemap.xml` + `generate_sitemap.py`.
+- **Próxima Acción**: Fase 51 (Consolidación Documental v1.3) o Fase 32 (Migración de Schema a Supabase Pro).
 
 ## Hoja de Ruta: Lanzamiento Producción
-- [x] **Fases 50, 52, 53, 55**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 completados.
-- [ ] **Fase 51, 54**: Consolidar docs, SEO.
+- [x] **Fases 50, 52, 53, 54, 55**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO completados.
+- [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -700,18 +700,27 @@ Objetivo: Resolver vulnerabilidades críticas de seguridad y condiciones de carr
 - [x] Corregir `if (!mounted) return null` → cambiado a `if (loading || !mounted)` para evitar flash de contenido vacío durante hidratación.
 - [x] Validar navegación con Chrome DevTools — confirmado: fetch a Supabase exitoso (`✅ Programa cargado`), contenido completo (header, ROI, pestañas GENERAL/REQUISITOS/RESEÑAS, formulario de leads, programas similares).
 
-### Fase 54: SEO y Performance [ ] Pendiente
-Objetivo: Resolver el problema de SEO cero en la homepage (actualmente `"use client"`) y mejorar la indexabilidad en buscadores.
+### Fase 54: SEO y Performance [x] Completado
+Objetivo: Resolver el problema de SEO cero en la homepage (anteriormente `"use client"` sin datos SSR) y mejorar la indexabilidad en buscadores.
+
+Resultado: Homepage ahora es Server Component con pre-fetch de datos. Meta tags dinámicos con datos reales de Supabase. Sitemap + robots.txt. JSON-LD Course schema.
 
 1. **Server-Side Rendering para Homepage**:
-- [ ] Migrar `web/src/app/page.tsx` de componente cliente (`"use client"`) a Server Component con datos pre-fetch desde Supabase.
-- [ ] Implementar `generateMetadata()` para meta-tags dinámicos por página.
+- [x] `page.tsx` refactorizado de `"use client"` a **Server Component** que pre-fetch cursos desde Supabase.
+- [x] Lógica cliente extraída a `HomeContent.tsx` (`"use client"`) que recibe `initialCourses` como prop.
+- [x] `generateMetadata()` con title, description, OpenGraph y canonical URL.
+- [x] El HTML inicial ya contiene cards de cursos (SEO-friendly), no skeleton/loading.
+
 2. **SEO Técnico**:
-- [ ] Generar `sitemap.xml` dinámico desde la tabla `courses`.
-- [ ] Crear `robots.txt` con reglas de crawleo.
+- [x] `web/public/robots.txt` con reglas Allow/Disallow y sitemap reference.
+- [x] `web/public/sitemap.xml` base con homepage y compare.
+- [x] `scripts/maintenance/generate_sitemap.py` — genera sitemap completo desde tabla `courses`. Ejecutar antes del build.
+
 3. **Course Detail SEO**:
-- [ ] Agregar `generateMetadata()` en `[institution]/[slug]/page.tsx`.
-- [ ] Implementar JSON-LD structured data (Course schema).
+- [x] `generateMetadata()` en `[institution]/[slug]/page.tsx` ahora fetch datos reales desde Supabase (nombre, descripción, institución).
+- [x] Título meta: `"Power Bi - IDAT | StudIAMatch"` (antes: `"power-bi - IDAT | StudIAMatch"`).
+- [x] OpenGraph metadata y canonical URL por curso.
+- [x] Componente `CourseJsonLd` para structured data (JSON-LD Course schema) inyectado como `<script>` en Server Component.
 
 ### Fase 55: Correcciones de Código y Robustez (P1/P2 Auditoría) [x] Completado
 Objetivo: Resolver bugs de código, duplicaciones lógicas y degradaciones de performance identificados en la auditoría SDLC del pipeline.
