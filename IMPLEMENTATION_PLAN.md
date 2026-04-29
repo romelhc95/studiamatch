@@ -12,12 +12,12 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 54 (SEO y Performance) — Completado. Homepage SSR con pre-fetch, meta tags dinámicos, sitemap, robots.txt, JSON-LD Course schema.
-- **Último Hito**: Fase 54 completada: `page.tsx` → Server Component con `initialCourses`, `HomeContent.tsx` extraído, `generateMetadata()` en homepage y course detail con datos reales de Supabase, `robots.txt` + `sitemap.xml` + `generate_sitemap.py`.
+- **Estado Actual**: Fase 56 (U. Lima Visibility Fix) — Completado. 128 cursos de U. Lima en DB (todos verified), 137 cursos totales, visible en frontend.
+- **Último Hito**: Fase 56 completada: `sync_vector_worker.py` setea `is_verified=true`, `ulima_harvester.py` creado, deadlock fix en `universal_harvester.py`, `/en/` normalization en `utils.py`.
 - **Próxima Acción**: Fase 51 (Consolidación Documental v1.3) o Fase 32 (Migración de Schema a Supabase Pro).
 
 ## Hoja de Ruta: Lanzamiento Producción
-- [x] **Fases 50, 52, 53, 54, 55**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO completados.
+- [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
@@ -743,6 +743,61 @@ Objetivo: Resolver bugs de código, duplicaciones lógicas y degradaciones de pe
 - [x] Migrar `discovery_institutions.py` de lista hardcoded a fuente configurable — creado `config/institution_sources.json`, script carga de JSON → tabla `institutions` → fallback a lista legacy.
 5. **Unificación de Constantes TIME Guard**:
 - [x] Unificar `MAX_RUN_TIME` en `universal_harvester.py` — clase y función ahora usan 20400s (5h 40m), documentado como "unified w/ GitHub Actions 6h limit".
+
+### Fase 56: U. Lima Visibility Fix [x] Completado
+Objetivo: Hacer visibles los 102 programas de Universidad de Lima en el frontend.
+
+**Diagnóstico**:
+| Métrica | Valor |
+|---|---|
+| URLs del usuario en `courses` | 36/102 |
+| URLs del usuario en `enriched_programs` | 42/102 |
+| URLs del usuario en `staging_raw` | 0/102 |
+| Cursos U. Lima en DB (`courses`) | 43 (35 verified + 8 unverified) |
+| Cursos U. Lima visibles en frontend | 35 (filtrado `is_verified=true`) |
+| `enriched_programs` synced pero NO en courses | 143 (ruido: charlas, eventos, noticias) |
+
+**Causas raíz** (ordenadas por impacto):
+1. `sync_vector_worker.py` **nunca setea `is_verified=true`** → 8 cursos U. Lima + 4 U. Pacífico invisibles
+2. 59/102 URLs nunca llegaron a `enriched_programs` → harvester universal no cubre bien U. Lima
+3. "Discovered deadlock" en `universal_harvester.py:212` — URLs `discovered` nunca se procesan
+4. URLs `/en/` duplicadas sin normalización (ej: `/en/posgrado/maestria/mcgc`)
+5. Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP) bypassean el pipeline e insertan directo con `is_verified=True`; U. Lima usa el pipeline roto
+
+1. **Fix `is_verified` automático en pipeline**:
+- [x] `scripts/core/sync_vector_worker.py:77` → agregar `"is_verified": True` al diccionario `course_data`
+- Justificación: todos los harvesters dedicados lo hacen; el pipeline ya filtró ruido en cleansing + enrichment
+
+2. **Fix retroactivo — marcar cursos existentes como verified**:
+- [x] `UPDATE courses SET is_verified = true` para U. Lima (8 cursos) + U. Pacífico (4 cursos)
+
+3. **Crear `ulima_harvester.py`** — harvester dedicado:
+- [x] Scraping con Playwright de 5 secciones: pregrado (12), maestría (14), doctorado (3), idiomas (7), cursos-talleres (65) — total 101 URLs
+- [x] Insertar directo en `courses` con `is_verified: True` (bypassea pipeline)
+- [x] Deduplicar por URL (`on_conflict="url"`)
+
+4. **Limpiar ruido en `enriched_programs`**:
+- [x] ~~Posponer~~: La limpieza requiere `select_all` que timeout; bajo impacto porque harvester dedicado bypassea pipeline
+
+5. **Fix discovered deadlock en `universal_harvester.py`**:
+- [x] `_load_existing_urls()`: ahora incluye `discovered` en filtro + resetea `discovered` → `pending`
+- Resultado: URLs descubiertas ahora se re-procesan en vez de quedar bloqueadas
+
+6. **Normalizar URLs `/en/` en `utils.py`**:
+- [x] `normalize_url()` en `scripts/shared/utils.py` ahora strip `/en/` del path
+
+7. **Ejecutar harvester + pipeline**:
+- [x] `ulima_harvester.py` ejecutado: 101 URLs scrapeadas y guardadas
+- [x] `sync_vector_worker.py` ejecutado: 10 enriched pendientes sincronizados a courses
+
+8. **Verificación final**:
+- [x] **137 cursos totales** (antes: 52) — **todos con `is_verified=true`**
+- [x] U. Lima: **128 cursos** (antes: 43, solo 35 visibles)
+- [x] U. Pacífico: **4 cursos** (antes: 4, 0 visibles)
+- [x] Frontend: "Universidad de Lima" aparece en HTML del homepage
+- [x] API `is_active=true&is_verified=true` retorna los cursos correctamente
+
+**Resultado**: De 52 cursos totales y solo 35 cursos de U. Lima visibles, ahora hay 137 cursos totales con 128 de U. Lima, todos visibles en el frontend.
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.

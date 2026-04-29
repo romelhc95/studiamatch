@@ -75,6 +75,7 @@ class SyncVectorWorker:
             "course_type": enriched.get('degree_type'),
             "category": main_category,
             "is_active": True,
+            "is_verified": True,
             "last_scraped_at": "now()"
         }
 
