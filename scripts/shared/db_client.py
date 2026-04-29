@@ -78,6 +78,14 @@ class DatabaseClient:
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {res.text}")
         return {"status": "error"}
 
+    def _delete_api(self, table, filters):
+        url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
+        res = requests.delete(url, headers=self._get_headers())
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        print(f"DB_CLIENT_API_ERROR (Delete {table}): {res.status_code} - {res.text}")
+        return None
+
     def _upsert_api(self, table, data, on_conflict):
         url = f"{self.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
         headers = self._get_headers()
@@ -162,6 +170,10 @@ class DatabaseClient:
                     except ValueError:
                         pass
         return 0
+
+    def delete(self, table, filters):
+        """Delete records via Supabase REST API."""
+        return self._delete_api(table, filters)
 
     def rpc(self, function_name, params=None):
         """
