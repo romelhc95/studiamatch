@@ -12,12 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 56 (U. Lima Visibility Fix) — Completado. 128 cursos de U. Lima en DB (todos verified), 137 cursos totales, visible en frontend.
-- **Último Hito**: Fase 56 completada: `sync_vector_worker.py` setea `is_verified=true`, `ulima_harvester.py` creado, deadlock fix en `universal_harvester.py`, `/en/` normalization en `utils.py`.
-- **Próxima Acción**: Fase 51 (Consolidación Documental v1.3) o Fase 32 (Migración de Schema a Supabase Pro).
+- **Estado Actual**: Fase 57 (Pipeline RPC Fixes) — Pendiente. 4 errores en pipeline GitHub Actions diagnosticados.
+- **Último Hito**: Fase 56 completada (U. Lima Visibility). Pipeline ejecutado: 137 cursos, errores RPC identificados.
+- **Próxima Acción**: Fase 57 Paso 1 (Fix SQL ambiguous column en RPC functions).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
+- [ ] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions.
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
@@ -799,6 +800,51 @@ Objetivo: Hacer visibles los 102 programas de Universidad de Lima en el frontend
 
 **Resultado**: De 52 cursos totales y solo 35 cursos de U. Lima visibles, ahora hay 137 cursos totales con 128 de U. Lima, todos visibles en el frontend.
 
+### Fase 57: Pipeline RPC Fixes [ ] Pendiente
+Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repetitivos y datos de baja calidad.
+
+**Fuente**: Log de ejecución `25087764126` (6h7m, status: success con errores internos).
+
+**Errores diagnosticados**:
+
+| # | Error | Archivo | Severidad | Frecuencia |
+|---|---|---|---|---|
+| 1 | `column reference "id" is ambiguous` en `lock_staging_records` | `migrations/20260428_rls...sql:74-101` | Alta | 1x/ejecución |
+| 2 | `cannot extract elements from a scalar` en `atomic_enrichment_promote` | `enrichment_worker.py:186-189`, `cleansing_worker.py:222-225` | Alta | 65x/ejecución |
+| 3 | `invalid input syntax for type integer: "3.5"` en `duration_months` | `migrations/20260428_rls...sql:232`, `enrichment_worker.py:149,173` | Media | 2x (puntual) |
+| 4 | Cursos con nombre `"None"` en `courses` | `sync_vector_worker.py:28,62`, `enrichment_worker.py:147,199-200` | Media | Observado en log |
+
+**Root Causes detallados**:
+
+1. **SQL Ambiguous Column**: Las funciones RPC `lock_staging_records` y `lock_cleansed_records` usan `RETURNS TABLE(id UUID, url TEXT, ...)` cuyos nombres de OUT parameters colisionan con los nombres de columnas de las tablas. PostgreSQL no puede resolver si `id` refiere al OUT parameter o a `staging_raw.id`.
+
+2. **Double Serialization**: `json.dumps()` se aplica sobre datos que `db_client.rpc()` ya serializa con `json=params`. Resultado: `p_enriched_data` llega como un JSON string escalar, no como un JSONB array. `jsonb_array_elements()` falla porque recibe un scalar en vez de un array.
+
+3. **Float to INT cast**: El LLM retorna `duration_months: 3.5` (decimal) pero el SQL hace cast directo `::INT` que rechaza el string "3.5". La columna PostgreSQL es `INT`.
+
+4. **"None" as name**: El LLM retorna `"official_name": "None"` como string literal. `sync_vector_worker.py` no valida el nombre y lo inserta en `courses` tal cual. El frontend muestra cursos con título "None".
+
+1. **Fix SQL: Ambigüedad de columnas en RPC functions**:
+- [ ] Crear migration `20260429_rpc_ambiguous_fix.sql` con `CREATE OR REPLACE FUNCTION lock_staging_records(...)` calificando TODAS las referencias a columnas con `staging_raw.` prefix
+- [ ] Aplicar mismo fix a `lock_cleansed_records` con `cleansed_programs.` prefix
+- [ ] Ejecutar migration contra Supabase
+
+2. **Fix Python: Double-serialization en RPC calls**:
+- [ ] `scripts/core/enrichment_worker.py:186-189` → reemplazar `json.dumps(rpc_data)` con `rpc_data` directo
+- [ ] `scripts/core/cleansing_worker.py:222-225` → reemplazar `json.dumps(cleansed_batch)` con `cleansed_batch` directo
+
+3. **Fix SQL+Python: `duration_months` float → INT**:
+- [ ] En migration SQL: cambiar `(item->>'duration_months')::INT` → `COALESCE(NULLIF(item->>'duration_months', '')::NUMERIC, 0)::INT`
+- [ ] `scripts/core/enrichment_worker.py:149,173` → sanitizar `duration_months` con `int(float(val))` antes de enviar
+
+4. **Fix Python: Validación de `official_name` en sync**:
+- [ ] `scripts/core/sync_vector_worker.py:28-30` → agregar validación: si `name` es `None`, `"None"`, `""`, o `< 3 chars` → skippear y marcar error
+- [ ] `scripts/core/enrichment_worker.py:147` → fallback: si LLM retorna `"None"/null` → usar `clean_name` del registro cleansed
+
+5. **Cleanup: Eliminar cursos basura de la BD**:
+- [ ] `DELETE FROM courses WHERE name IN ('None', '') OR name IS NULL`
+- [ ] Verificar que no queden registros con nombre inválido
+
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
 - **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
@@ -808,6 +854,7 @@ Objetivo: Hacer visibles los 102 programas de Universidad de Lima en el frontend
 - **Riesgo (Crítico)**: 7 caminos de escritura a `courses` (5 bypasses + 1 bidireccional + 1 Golden Path). Los bypasses BP-1 a BP-5 producen datos de calidad inferior que conviven con datos procesados por las 4 estaciones. -> Mitigación: Fase 52 elimina todos los bypasses haciendo `sync_vector_worker.py` el único escritor autorizado.
 - **Riesgo**: `crawler_exclusions` sin DDL versionado — tabla creada directamente en Supabase, no existe en `PRODUCTION_MASTER.sql` ni `db/migrations/`. -> Mitigación: Fase 51 crea migración formal.
 - **Riesgo**: `ignoreBuildErrors: true` en `next.config.js` suprime errores TypeScript en build. -> Mitigación: Fase 53 remueve el flag y corrige tipos.
+- **Riesgo**: Pipeline RPC errors — 4 bugs en SQL functions y Python workers causan fallos silenciosos cada ejecución. `lock_staging_records` y `atomic_enrichment_promote` fallan, `duration_months` rechaza floats, cursos con nombre "None" aparecen en frontend. -> Mitigación: Fase 57 corrige los 4 bugs.
 - **Riesgo**: Dos constantes `MAX_RUN_TIME` inconsistentes en `universal_harvester.py` (19200s a nivel clase vs 20400s a nivel función). -> Mitigación: Fase 55 unifica a un único valor autoritativo (20400s).
 - **Riesgo**: 22 `except:` bare (sin tipo de excepción) silencian errores en 6 scripts core, imposibilitando diagnóstico de fallos. -> Mitigación: Fase 53 reemplaza por `except Exception as e:` con logging.
 - **Riesgo**: Paginación faltante en Supabase (límite 1000 registros por defecto) — `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` no paginan, omitiendo registros. -> Mitigación: Fase 53 implementa paginación.

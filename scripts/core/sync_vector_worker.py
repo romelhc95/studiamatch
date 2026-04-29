@@ -25,9 +25,16 @@ class SyncVectorWorker:
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
-        name = enriched['official_name']
+        raw_name = enriched.get('official_name')
         url = enriched['url']
 
+        # Validate name: reject None, "None", empty, or too-short names
+        if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
+            logger.warning(f"Skipping record {e_id}: invalid official_name '{raw_name}'")
+            self.update_enriched_status(e_id, "error", error_msg="invalid_name")
+            return
+
+        name = str(raw_name).strip()
         logger.info(f"Syncing to Production: {name}")
 
         # Map Enriched Pillars to Courses Schema with robust list handling

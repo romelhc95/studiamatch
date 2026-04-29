@@ -125,6 +125,12 @@ class EnrichmentWorker:
         logger.info(f"--- Procesando: {name} ---")
         try:
             enriched = self._call_llm_for_pillars(name, desc)
+
+            # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
+            official_name = enriched.get("official_name")
+            if not official_name or str(official_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(official_name).strip()) < 3:
+                logger.warning(f"LLM returned invalid official_name '{official_name}', falling back to clean_name '{name}'")
+                enriched["official_name"] = name
             
             def normalize(val):
                 if isinstance(val, (list, dict)):
@@ -140,13 +146,22 @@ class EnrichmentWorker:
                 res_cat = self.db.select('categories', filters=f"name=ilike.*{cat_name[:5]}*")
                 if res_cat: cat_id = res_cat[0]['id']
 
+            # Sanitize duration_months: LLM may return 3.5 (float) but DB column is INT
+            duration_months_raw = enriched.get("duration_months")
+            duration_months_val = 0
+            if duration_months_raw is not None:
+                try:
+                    duration_months_val = int(float(duration_months_raw))
+                except (ValueError, TypeError):
+                    duration_months_val = 0
+
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": cleansed['institution_id'],
                 "url": cleansed['url'],
                 "official_name": enriched.get("official_name"),
                 "duration_text": enriched.get("duration_text"),
-                "duration_months": enriched.get("duration_months"),
+                "duration_months": duration_months_val,
                 "total_cost_est": enriched.get("total_cost_est"),
                 "requirements": normalize(enriched.get("requirements")),
                 "graduate_profile": enriched.get("graduate_profile"),
@@ -184,7 +199,7 @@ class EnrichmentWorker:
                     "ai_summary": save_data.get("ai_summary")
                 }]
                 rpc_result = self.db.rpc('atomic_enrichment_promote', {
-                    "p_enriched_data": json.dumps(rpc_data),
+                    "p_enriched_data": rpc_data,
                     "p_cleansed_id": str(c_id)
                 })
                 if not rpc_result:
