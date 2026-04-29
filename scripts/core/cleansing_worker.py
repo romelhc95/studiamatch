@@ -222,7 +222,7 @@ class CleansingWorker:
                 staging_ids = [m['id'] for m in members if 'id' in m]
                 rpc_result = self.db.rpc('atomic_cleansing_promote', {
                     "p_staging_ids": staging_ids,
-                    "p_cleansed_data": json.dumps(cleansed_batch)
+                    "p_cleansed_data": cleansed_batch
                 })
                 if rpc_result:
                     logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
