@@ -12,13 +12,14 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 57 (Pipeline RPC Fixes) — Pendiente. 4 errores en pipeline GitHub Actions diagnosticados.
-- **Último Hito**: Fase 56 completada (U. Lima Visibility). Pipeline ejecutado: 137 cursos, errores RPC identificados.
-- **Próxima Acción**: Fase 57 Paso 1 (Fix SQL ambiguous column en RPC functions).
+- **Estado Actual**: Fase 58 (Pipeline Data Integrity — Fix Mapping) — Pendiente. 42% de registros con campos clave NULL.
+- **Último Hito**: Fase 57 completada (Pipeline RPC Fixes). 4 bugs corregidos, commit `64c9c5b` pushado a `desarrollo`.
+- **Próxima Acción**: Fase 58 Paso 1 (Fix enrichment_worker.py — prompt mejorado, validaciones, mock completo).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
 - [ ] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions.
+- [ ] **Fase 58**: Pipeline Data Integrity — Fix mapping de pilares y extracción LLM.
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
@@ -861,5 +862,61 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 - **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
 - **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
 - **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
+- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y agrega validaciones.
+
+---
+
+### Fase 58: Pipeline Data Integrity — Fix Mapping y Extracción de Pilares [ ] Pendiente
+Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_programs` → `sync_vector_worker` → `courses` → frontend. Actualmente 91/218 registros (42%) tienen `total_cost_est=NULL`, 23 tienen `modality=NULL`, 86 `start_date=NULL`, y campos como `objectives`, `syllabus`, `start_date_text` nunca se sincronizan.
+
+**Diagnóstico detallado** (ejemplo: curso CEC Corporate Compliance de U. Lima):
+
+| Campo | Valor en BD | Debería tener | Causa de pérdida |
+|---|---|---|---|
+| `official_name` | `None` | "ESPECIALIZADO CORPORATE COMPLIANCE" | LLM retorna `"None"`, sin fallback |
+| `modality` | `None` | "Presencial" | LLM no extrae; mock solo cubre 4/14 campos |
+| `start_date` | `None` | "Abril 2026" | LLM no extrae; **no se mapea** a `courses.start_date_text` |
+| `total_cost_est` | `None` | ~S/ 1,500 | LLM no extrae precio; mock no incluye campo |
+| `objectives` (courses) | `None` | Perfil del egresado | `sync` busca `enriched.objectives` (no existe) — debería buscar `graduate_profile` |
+| `syllabus` (courses) | `None` | Contenido de malla | `sync` busca `enriched.syllabus` (no existe) — debería buscar `curriculum_summary` |
+
+**Puntos de falla identificados**:
+
+| # | Punto de falla | Impacto | Severidad |
+|---|---|---|---|
+| A | `_generate_smart_mock()` solo retorna 4/14 campos — los otros 10 quedan `None` | Datos vacíos cuando los 3 LLMs fallan | Alta |
+| B | LLM prompt no instruye manejo de campos inciertos (`null` vs `""` vs `"None"`) | Valores `"None"` string en BD | Media |
+| C | `enrichment_worker.py` no parsea `total_cost_est` como número — si el LLM retorna `"S/ 1,500"` se guarda como string | Precio no se grafica ni filtra | Media |
+| D | `sync_vector_worker.py` mapea keys inexistentes: `objectives`→`graduate_profile`, `syllabus`→`curriculum_summary`, `start_date`→no mapeado | 3 pilares completamente perdidos | Alta |
+| E | `sync_vector_worker.py` busca keys que no existen en el schema LLM: `certifications`, `seniority_level`, `target_audience` | 3 campos siempre `None` en courses | Media |
+
+1. **Fix `enrichment_worker.py` — Prompt y validación de campos**:
+   - [ ] Mejorar prompt LLM: instruir "Si no puedes inferir un campo con confianza, responde `null`. NUNCA uses el string `'None'`."
+   - [ ] Agregar validación para `modality`: si `None`/vacío → default `"Presencial"`. Si no es `Presencial`/`Remoto`/`Híbrido` → normalizar.
+   - [ ] Agregar validación para `total_cost_est`: parsear strings como `"S/ 1,500"` o `"1500 soles"` a número float. Si no es numérico → `None` (no 0).
+   - [ ] Agregar validación para `start_date`: si LLM retorna `"None"/""` → `None` (no string vacío).
+   - [ ] Completar `_generate_smart_mock()` con los 14 campos del schema (actualmente solo 4).
+
+2. **Fix `sync_vector_worker.py` — Corregir mapeos de campos**:
+   - [ ] Agregar `"start_date_text": enriched.get('start_date')` al dict `course_data`
+   - [ ] Corregir `"objectives": enriched.get('graduate_profile')` (era `enriched.get('objectives')` que no existe)
+   - [ ] Corregir `"syllabus": enriched.get('curriculum_summary')` (era `enriched.get('syllabus')` que no existe)
+   - [ ] Agregar `"target_audience": enriched.get('graduate_profile')` como fallback (misma data que objectives con contexto diferente)
+   - [ ] Remover keys muertas: `certifications`, `seniority_level` → reemplazar con defaults razonables
+   - [ ] Agregar validación de `price_pen`: si es `None` o `0` → no enviar (dejar DB NULL, nodefaults a 0)
+
+3. **Fix `sync_vector_worker.py` — Validación de `official_name`** (parte de Fase 57, ya aplicado):
+   - [x] Validar nombre: rechazar `None`, `"None"`, `""`, `< 3 chars`
+   - [x] Fallback en `enrichment_worker.py` si LLM retorna nombre inválido
+
+4. **Re-enriquecimiento de datos existentes**:
+   - [ ] Reset `enriched_programs.status` a `'pending'` para registros con campos NULL (`official_name`, `modality`, `total_cost_est`, `start_date`)
+   - [ ] Ejecutar `enrichment_worker.py` para re-procesar los 23 registros con `official_name=NULL`
+   - [ ] Ejecutar `sync_vector_worker.py` para sincronizar datos corregidos a `courses`
+
+5. **Verificación en frontend**:
+   - [ ] Confirmar que el curso CEC Corporate Compliance muestra: Inicio, Inversión, Modalidad, Temario, Objetivos
+   - [ ] Confirmar que los 23 cursos con `official_name=NULL` ahora muestran nombres correctos
+   - [ ] Confirmar que `start_date_text`, `price_pen`, `objectives`, `syllabus` se mapean correctamente
 
 ---

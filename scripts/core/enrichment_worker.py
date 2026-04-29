@@ -106,7 +106,15 @@ class EnrichmentWorker:
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
         Nombre: {name}
         Descripción: {description[:1200]}
-        Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": 0.0, "requirements": [], "graduate_profile": "", "curriculum_summary": {{}}, "modality": "Presencial|Remoto", "primary_campus": "", "degree_type": "Maestría|Diplomado|Curso", "start_date": "", "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
+
+        REGLAS CRÍTICAS:
+        - Si NO puedes inferir un campo con confianza, responde null (NO uses el string "None" ni cadenas vacías).
+        - Para total_cost_est: extrae el valor numérico en soles (S/). Ej: "S/ 1,500" → 1500.0. Si no hay precio, responde null.
+        - Para modality: debe ser exactamente "Presencial", "Remoto" o "Híbrido".
+        - Para start_date: si hay fecha de inicio, extraerla. Ej: "Abril 2026" o "15 de mayo". Si no hay info, responder null.
+        - Para official_name: usar el nombre completo y formal del programa, nunca abreviaciones.
+
+        Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
         for p_name, p_func in [("Cloudflare", self._call_cloudflare), ("GitHub", self._call_github), ("Gemini", self._call_gemini)]:
             try:
@@ -131,6 +139,38 @@ class EnrichmentWorker:
             if not official_name or str(official_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(official_name).strip()) < 3:
                 logger.warning(f"LLM returned invalid official_name '{official_name}', falling back to clean_name '{name}'")
                 enriched["official_name"] = name
+
+            # Validate modality: normalize to allowed values
+            modality_raw = enriched.get("modality")
+            modality_norm = str(modality_raw).strip() if modality_raw else ""
+            modality_map = {"presencial": "Presencial", "remoto": "Remoto", "virtual": "Remoto",
+                            "online": "Remoto", "hibrido": "Híbrido", "híbrido": "Híbrido",
+                            "semipresencial": "Híbrido", "blend": "Híbrido"}
+            if modality_norm.lower() in modality_map:
+                enriched["modality"] = modality_map[modality_norm.lower()]
+            elif modality_norm and modality_norm not in ("Presencial", "Remoto", "Híbrido"):
+                logger.warning(f"Unknown modality '{modality_norm}', defaulting to Presencial")
+                enriched["modality"] = "Presencial"
+            elif not modality_norm or modality_norm.lower() in ('none', 'null', 'nan', ''):
+                enriched["modality"] = "Presencial"
+
+            # Parse total_cost_est: extract number from strings like "S/ 1,500" or "1500 soles"
+            cost_raw = enriched.get("total_cost_est")
+            if cost_raw is not None and str(cost_raw).strip().lower() not in ('none', 'null', 'nan', ''):
+                try:
+                    cost_str = str(cost_raw).replace("S/", "").replace("s/", "").replace("PEN", "").replace("pen", "")
+                    cost_str = cost_str.replace("soles", "").replace("Soles", "").replace(",", "").strip()
+                    enriched["total_cost_est"] = float(cost_str)
+                except (ValueError, TypeError):
+                    logger.warning(f"Could not parse total_cost_est '{cost_raw}', setting to None")
+                    enriched["total_cost_est"] = None
+            else:
+                enriched["total_cost_est"] = None
+
+            # Validate start_date: reject string "None"/"null"
+            start_date_raw = enriched.get("start_date")
+            if start_date_raw and str(start_date_raw).strip().lower() in ('none', 'null', 'nan', ''):
+                enriched["start_date"] = None
             
             def normalize(val):
                 if isinstance(val, (list, dict)):
@@ -212,7 +252,22 @@ class EnrichmentWorker:
             logger.error(f"Error en enriquecimiento: {e}")
 
     def _generate_smart_mock(self, name, description):
-        return {"official_name": name, "duration_text": "Consultar", "degree_type": "Curso", "modality": "Presencial"}
+        return {
+            "official_name": name,
+            "duration_text": "Consultar",
+            "duration_months": 0,
+            "total_cost_est": None,
+            "requirements": [],
+            "graduate_profile": "",
+            "curriculum_summary": {},
+            "modality": "Presencial",
+            "primary_campus": "",
+            "degree_type": "Curso",
+            "start_date": None,
+            "categories": [],
+            "difficulty_level": "",
+            "ai_summary": ""
+        }
 
 if __name__ == "__main__":
     import argparse
