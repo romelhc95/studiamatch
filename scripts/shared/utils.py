@@ -274,7 +274,12 @@ def normalize_url(url):
         if path.endswith('/') and len(path) > 1:
             path = path[:-1]
         
-        # 3. Reconstruct without query strings and fragments
+        # 3. Deduplicate /en/ language prefix (e.g. /en/posgrado/ → /posgrado/)
+        import re as _re
+        if '/en/' in path:
+            path = _re.sub(r'/en/', '/', path)
+        
+        # 4. Reconstruct without query strings and fragments
         normalized = urlunparse((scheme, netloc, path, '', '', ''))
         return normalized
     except Exception:

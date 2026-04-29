@@ -209,11 +209,18 @@ class UniversalHarvester:
     async def _load_existing_urls(self):
         try:
             inst_id = self.institution.get('id')
-            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded)", columns="url")
+            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
-                logger.info(f"Loaded {len(existing)} completed URLs from DB to skip.")
+                logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
                 self.visited_urls.update(existing)
+                
+                # Reset discovered → pending for URLs stuck in deadlock (older than 24h)
+                discovered_count = self.db.patch("staging_raw",
+                    filters=f"institution_id=eq.{inst_id},status=eq.discovered",
+                    data={"status": "pending"})
+                if discovered_count and discovered_count.get("status") == "success":
+                    logger.info(f"Reset discovered → pending for reprocessing.")
                 return existing
         except Exception as e:
             logger.warning(f"Could not load existing URLs from DB: {e}")
