@@ -77,7 +77,7 @@ class SyncVectorWorker:
             "requirements": list_to_str(enriched.get('requirements')),
             "objectives": enriched.get('graduate_profile'),
             "target_audience": enriched.get('graduate_profile'),
-            "syllabus": enriched.get('curriculum_summary'),
+            "syllabus": json.dumps(enriched.get('curriculum_summary')) if isinstance(enriched.get('curriculum_summary'), dict) else enriched.get('curriculum_summary'),
             "certification": "",
             "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),

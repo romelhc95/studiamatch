@@ -12,13 +12,14 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 58 (Pipeline Data Integrity — Fix Mapping) — Pendiente. 42% de registros con campos clave NULL.
-- **Último Hito**: Fase 57 completada (Pipeline RPC Fixes). 4 bugs corregidos, commit `64c9c5b` pushado a `desarrollo`.
-- **Próxima Acción**: Fase 58 Paso 1 (Fix enrichment_worker.py — prompt mejorado, validaciones, mock completo).
+- **Estado Actual**: Fase 59 (Pipeline Resiliencia) — Pendiente. Run #25126753299 FAILED: Phase 2 timeout sin ejecutar, 99 PDFs descargados, 8 errores P0003.
+- **Último Hito**: Fase 58 completada (Pipeline Data Integrity). Mapping corregido, prompt mejorado, 17 nombres NULL restaurados.
+- **Próxima Acción**: Fase 59 Paso 1 (Cache de dependencias en GitHub Actions).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
 - [ ] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions.
+- [ ] **Fase 59**: Pipeline Resiliencia — Cache de deps, filtro de PDFs, fix RPC duplicados.
 - [ ] **Fase 58**: Pipeline Data Integrity — Fix mapping de pilares y extracción LLM.
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
@@ -863,6 +864,35 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 - **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
 - **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
 - **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y agrega validaciones.
+
+### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [ ] Pendiente
+Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #25126753299 (8h39m, FAILED).
+
+**Diagnóstico del run**:
+- Phase 2 (Enrichment) timeout tras 6h sin ejecutar código Python — todo el tiempo se fue en `pip install` + `playwright install chromium`
+- 99 URLs de PDFs/archivos (.pdf, .xlsx, .docx) descargadas por Playwright, cada una cuelga el navegador 10-30s
+- 8 errores P0003 `"query returned more than one row"` en `atomic_cleansing_promote` por duplicados de URL
+- Phases 3 y 4 nunca se ejecutaron (skipped)
+
+1. **Fix crítico: Cache de dependencias en GitHub Actions**:
+   - [ ] Agregar `actions/cache` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
+   - [ ] Separar step de `pip install` del step de ejecución Python con `timeout-minutes` independiente
+   - [ ] Evaluar si Phase 2 (Enrichment) realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
+
+2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
+   - [ ] Agregar extensiones `.pdf`, `.xlsx`, `.docx`, `.doc`, `.pptx`, `.zip`, `.rar` a `crawler_exclusions` (globales, institution_id=NULL)
+   - [ ] Agregar check pre-navegación en `universal_harvester.py`: si URL termina en extensión no-HTML, saltar sin abrir Playwright
+   - [ ] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
+
+3. **Fix RPC P0003 "query returned more than one row"**:
+   - [ ] Modificar `atomic_cleansing_promote` para usar `LIMIT 1` o `ON CONFLICT DO UPDATE` en vez de `SELECT ... INTO` que asume fila única
+   - [ ] Verificar y corregir `atomic_enrichment_promote` con el mismo patrón si aplica
+   - [ ] Aplicar migration SQL correspondiente
+
+4. **Validación post-fix**:
+   - [ ] Ejecutar pipeline manual y confirmar que Phase 2 arranca en menos de 5 minutos
+   - [ ] Confirmar 0 errores P0003 en cleansing
+   - [ ] Confirmar 0 descargas de PDFs en harvesting
 
 ---
 

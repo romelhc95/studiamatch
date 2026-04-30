@@ -4,6 +4,10 @@
 --   1. Columnas ambiguas en lock_staging_records y lock_cleansed_records
 --   2. Cast float → INT en duration_months de atomic_enrichment_promote
 --   3. (mismos nombres de columna cualificados en atomic_cleansing_promote)
+-- 
+-- ⚠️ REQUIERE EJECUCIÓN MANUAL en Supabase Dashboard > SQL Editor
+--    (no se puede aplicar desde el contenedor Docker porque el anon key
+--     no tiene permisos para CREATE/REPLACE FUNCTION via REST API)
 -- ============================================================
 
 -- ============================================================

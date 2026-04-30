@@ -15,12 +15,22 @@ jobs:
   phase_1_harvesting:
     name: "1. Massive Harvesting"
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     container:
       image: mcr.microsoft.com/playwright:v1.48.0-noble
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Cache pip & Playwright
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-pw-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pw-
       - name: Install dependencies (system python)
         run: |
           apt-get update && apt-get install -y python3-pip
@@ -40,6 +50,7 @@ jobs:
   phase_1_5_cleansing:
     name: "1.5. High Fidelity Cleansing"
     needs: phase_1_harvesting
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -63,6 +74,7 @@ jobs:
   phase_2_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
     needs: phase_1_5_cleansing
+    timeout-minutes: 360
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
