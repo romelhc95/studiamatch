@@ -12,10 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 60 completada. Fase 60.5 en progreso. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados, 0 basura). 11 harvesters con fix de slug preventivo.
-- **Último Hito**: Fase 60 — 18 slugs reparados, 47 cursos eliminados (duplicados + basura), 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima 5/5.
-- **Fases 57-60+51 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación, slug fix & data quality.
-- **Próxima Acción**: Fase 60.5 — Limpieza de deuda técnica: 26 scripts obsoletos, 4 dependencias muertas, 2 imports muertos, cache .wrangler/.
+- **Estado Actual**: Fase 60.5 completada. Fase 32 en ejecución. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados). 29 archivos de deuda técnica eliminados.
+- **Último Hito**: Fase 60.5 — Limpieza de deuda técnica: 29 archivos obsoletos, 5 dependencias muertas, 2 imports, cache `.wrangler/`. Commit `65c86ca`.
+- **Próxima Acción**: Fase 32 — Migración Full Replace Dev→Pro.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -24,7 +23,7 @@
 - [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3` + `e15aedf`.
 - [x] **Fase 51**: Consolidación Documental — AGENTS.md, DDL 4 tablas, workflow doc v1.3. Commit `e15aedf`.
 - [x] **Fase 60**: Slug Fix & Data Quality — 18 slugs reparados, 47 cursos eliminados, 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima. Commits `6f67d4d` + `e0fe97c`.
-- [ ] **Fase 60.5**: Limpieza de Deuda Técnica — Eliminar 26 scripts/fixture obsoletos, 4 dependencias muertas, 2 imports muertos, cache .wrangler/.
+- [x] **Fase 60.5**: Limpieza de Deuda Técnica — 29 archivos eliminados, 5 dependencias muertas, 2 imports, cache `.wrangler/`. Commit `65c86ca`.
 - [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
@@ -1086,7 +1085,7 @@ Objetivo: Reparar 18 páginas 404 causadas por slugs rotos, eliminar cursos dupl
    - [x] Confirmar 0 trailing-slash duplicates
    - [x] Confirmar 648 cursos activos
 
-### Fase 60.5: Limpieza de Deuda Técnica [ ] Pendiente
+### Fase 60.5: Limpieza de Deuda Técnica [x] Completado
 Objetivo: Eliminar scripts obsoletos, dependencias muertas, imports innecesarios y archivos de prueba que acumularon durante 60 fases de desarrollo. Reducir superficie de ataque y complejidad del codebase.
 
 **Auditoría completa realizada**: 333 archivos rastreados analizados. 36 ítems marcados SAFE TO DELETE, 13 NEEDS REVIEW (pospuesta), 27 KEEP.
