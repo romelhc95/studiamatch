@@ -12,10 +12,10 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 60 completada. Fase 61 en diseño. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados, 0 basura). 11 harvesters con fix de slug preventivo.
+- **Estado Actual**: Fase 60 completada. Fase 60.5 en progreso. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados, 0 basura). 11 harvesters con fix de slug preventivo.
 - **Último Hito**: Fase 60 — 18 slugs reparados, 47 cursos eliminados (duplicados + basura), 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima 5/5.
 - **Fases 57-60+51 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación, slug fix & data quality.
-- **Próxima Acción**: Fase 61 — Crear tabla `institution_site_profiles`, migrar `crawler_exclusions`, unificar harvester adaptativo.
+- **Próxima Acción**: Fase 60.5 — Limpieza de deuda técnica: 26 scripts obsoletos, 4 dependencias muertas, 2 imports muertos, cache .wrangler/.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -24,6 +24,7 @@
 - [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3` + `e15aedf`.
 - [x] **Fase 51**: Consolidación Documental — AGENTS.md, DDL 4 tablas, workflow doc v1.3. Commit `e15aedf`.
 - [x] **Fase 60**: Slug Fix & Data Quality — 18 slugs reparados, 47 cursos eliminados, 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima. Commits `6f67d4d` + `e0fe97c`.
+- [ ] **Fase 60.5**: Limpieza de Deuda Técnica — Eliminar 26 scripts/fixture obsoletos, 4 dependencias muertas, 2 imports muertos, cache .wrangler/.
 - [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
@@ -1010,6 +1011,70 @@ Objetivo: Reparar 18 páginas 404 causadas por slugs rotos, eliminar cursos dupl
    - [x] Confirmar 0 cursos con `name = 'Programa Pendiente'`
    - [x] Confirmar 0 trailing-slash duplicates
    - [x] Confirmar 648 cursos activos
+
+### Fase 60.5: Limpieza de Deuda Técnica [ ] Pendiente
+Objetivo: Eliminar scripts obsoletos, dependencias muertas, imports innecesarios y archivos de prueba que acumularon durante 60 fases de desarrollo. Reducir superficie de ataque y complejidad del codebase.
+
+**Auditoría completa realizada**: 333 archivos rastreados analizados. 36 ítems marcados SAFE TO DELETE, 13 NEEDS REVIEW (pospuesta), 27 KEEP.
+
+1. **Eliminar 19 scripts de mantenimiento one-off**:
+   - [ ] `scripts/maintenance/cleanup_ulima.py` — Hardcoded U. Lima IDs, fase 46-49
+   - [ ] `scripts/maintenance/cleanup_ulima_noise_specific.py` — Hardcoded patterns, fase 47
+   - [ ] `scripts/maintenance/cleanup_ulima_v2.py` — Versión superseded
+   - [ ] `scripts/maintenance/cleanup_phase47.py` — Específico de fase, ya ejecutado
+   - [ ] `scripts/maintenance/phase49_reset_ulima.py` — Hardcoded institution, one-off
+   - [ ] `scripts/maintenance/rescue_ulima_102.py` — Hardcoded URL list, one-off
+   - [ ] `scripts/maintenance/trace_ulima.py` — Diagnóstico one-off
+   - [ ] `scripts/maintenance/audit_ulima_traceability.py` — Hardcoded URLs, one-off
+   - [ ] `scripts/maintenance/debug_autocad.py` — Debug específico, IDs hardcoded
+   - [ ] `scripts/maintenance/debug_duplicates.py` — Debug one-off
+   - [ ] `scripts/maintenance/clean_duplicates.py` — IDs hardcoded, one-off
+   - [ ] `scripts/maintenance/mass_sanitize.py` — Ya ejecutado, one-off
+   - [ ] `scripts/maintenance/security_wipe.py` — Ya ejecutado, one-off
+   - [ ] `scripts/maintenance/init_pro_db.py` — Migración one-time, reemplazado por SQL
+   - [ ] `scripts/maintenance/migrate_dev_to_prod.py` — Migración one-time, URL prod hardcoded
+   - [ ] `scripts/maintenance/migrate_blacklist.py` — Migración one-time, ya ejecutado
+   - [ ] `scripts/maintenance/export_master_data.py` — Export one-time
+   - [ ] `scripts/maintenance/fix_leads_schema.py` — Schema check one-time
+   - [ ] `scripts/maintenance/run_ulima.py` — Usar master_orchestrator en vez
+
+2. **Eliminar 3 scripts core muertos** (no referenciados por workflows ni otros scripts):
+   - [ ] `scripts/core/llm_enrichment_worker.py` — Superseded por `enrichment_worker.py`
+   - [ ] `scripts/core/worker_runner.py` — Reemplazado por `master_orchestrator.py`
+   - [ ] `scripts/core/run_harvester_with_file.py` — Reemplazado por `master_orchestrator.py`
+
+3. **Eliminar 2 fixtures de prueba + 1 directorio deprecated**:
+   - [ ] `scripts/core/dmc_test.json` — No referenciado
+   - [ ] `scripts/core/utp_test.json` — No referenciado
+   - [ ] `scripts/deprecated/harvest_processor.py` — Obsolete, no referenciado
+
+4. **Eliminar 2 archivos raíz obsoletos**:
+   - [ ] `patch.py` — One-off patch ya aplicado
+   - [ ] `orchestration_plan.json` — Artefacto de `worker_runner.py` muerto
+
+5. **Limpiar `requirements.txt`** (4 dependencias muertas):
+   - [ ] Remover `pg8000` — No importado en ningún script
+   - [ ] Remover `aiohttp` — No importado en tracked code
+   - [ ] Remover `lxml` — No importado en ningún script
+   - [ ] Remover `google-generativeai` — Solo usado por `llm_enrichment_worker.py` (eliminado)
+
+6. **Limpiar imports muertos en `db_client.py`**:
+   - [ ] Remover `import psycopg2` (línea ~4) — Clase solo usa API REST
+   - [ ] Remover `from psycopg2.extras import ...` (línea ~5) — Dead import
+
+7. **Limpiar `.gitignore` y cache rastreado**:
+   - [ ] Agregar `.wrangler/` a `.gitignore`
+   - [ ] `git rm -r .wrangler/cache/` — Cloudflare Wrangler cache rastreado por error
+
+8. **Validación post-limpieza**:
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/core/universal_harvester.py` — Pipeline OK
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/core/enrichment_worker.py` — Pipeline OK
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/core/sync_vector_worker.py` — Pipeline OK
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/core/cleansing_worker.py` — Pipeline OK
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/core/master_orchestrator.py` — Pipeline OK
+   - [ ] `docker exec studiamatch-dev python3 -m py_compile scripts/shared/db_client.py` — Utility OK
+   - [ ] Confirmar que `pip install -r requirements.txt` no falla dentro del contenedor
+   - [ ] `git status` — Confirmar solo archivos esperados modificados/eliminados
 
 ### Fase 61: Site Profiles — Tabla `institution_site_profiles` y Migración de Exclusiones [ ] Pendiente
 Objetivo: Reemplazar la tabla `crawler_exclusions` por `institution_site_profiles` que consolida exclusión de URLs + configuración de tipo de sitio + datos de descubrimiento + hints de extracción LLM. Migrar los 145+ exclusion patterns y hacer seed inicial para las 15 instituciones.
