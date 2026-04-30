@@ -37,3 +37,5 @@ run_log.txt
 run_logs.txt
 run_logs_*.txt
 .github/log/local/
+.wrangler/
+
