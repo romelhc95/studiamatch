@@ -12,10 +12,10 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 59 COMPLETADA (P0 fixes aplicados). Run #25126753299 diagnosticado y resuelto. Commit `02ccf38` en `desarrollo`.
-- **Último Hito**: Fase 59 — 3 P0 fixes críticos: `json.dumps()` en syllabus, cache pip+Playwright en Phase 1 Docker, aviso de migración SQL manual.
-- **Fases 57-58 COMPLETADAS**: RPC ambiguous fix (4 bugs), pipeline data integrity (mapping + prompt + mock 14 campos).
-- **Próxima Acción**: Aplicar migration `20260429_rpc_ambiguous_fix.sql` en Supabase Dashboard (manual), luego ejecutar pipeline para validar fixes.
+- **Estado Actual**: Fase 59 P1 completado. Commit `02ccf38` (P0) aplicado. P1 en progreso.
+- **Último Hito**: P1 fixes — file-extension skip en harvester, discard NULL official_name records, fix RPC P0003.
+- **Fases 57-58 COMPLETADAS**. Fase 59 P0 COMPLETADO, P1 en progreso.
+- **Próxima Acción**: Aplicar migrations SQL `20260429_fix_p0003_duplicate_rows.sql` y `20260429_discard_null_offnames.sql` en Supabase Dashboard (manual).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -871,7 +871,7 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 - **Riesgo (Crítico)**: `sync_vector_worker.py:80` pasa `curriculum_summary` como dict sin `json.dumps()`. Cuando el pipeline sincronice, `syllabus` será string Python inválido en vez de JSON. -> Mitigación: Fase 59 agrega `json.dumps()` condicional (commit `02ccf38`).
 - **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
 
-### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [x] Parcial
+### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [x] P1 completado
 Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #25126753299 (8h39m, FAILED).
 
 **Diagnóstico del run**:
@@ -880,7 +880,7 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 - 8 errores P0003 `"query returned more than one row"` en `atomic_cleansing_promote` por duplicados de URL
 - Phases 3 y 4 nunca se ejecutaron (skipped)
 
-**Commit**: `02ccf38`
+**Commits**: `02ccf38` (P0), próximo commit (P1)
 
 1. **Fix crítico: Cache de dependencias en GitHub Actions**:
    - [x] Agregar `actions/cache@v4` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
@@ -888,19 +888,22 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
    - [ ] Evaluar si Phase 2 realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
 
 2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
-   - [ ] Agregar extensiones `.pdf`, `.xlsx`, `.docx`, `.doc`, `.pptx`, `.zip`, `.rar` a `crawler_exclusions` (globales, institution_id=NULL)
-   - [ ] Agregar check pre-navegación en `universal_harvester.py`: si URL termina en extensión no-HTML, saltar sin abrir Playwright
+   - [x] **P1-4**: Agregadas 28 extensiones de archivo en `NON_HTML_EXTENSIONS` (`.pdf`, `.xlsx`, `.docx`, `.jpg`, `.mp4`, etc.) en `universal_harvester.py:176-180`
+   - [x] **P1-4**: Check pre-navegación `_is_valid_crawl_url()`: si URL termina en extensión no-HTML, retorna False sin abrir Playwright
    - [ ] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
 
 3. **Fix RPC P0003 "query returned more than one row"**:
-   - [ ] Modificar `atomic_cleansing_promote` para usar `LIMIT 1` o `ON CONFLICT DO UPDATE` en vez de `SELECT ... INTO` que asume fila única
-   - [ ] Verificar y corregir `atomic_enrichment_promote` con el mismo patrón si aplica
-   - [ ] Aplicar migration SQL correspondiente
+   - [x] **P1-6**: Modificar `atomic_cleansing_promote` — removido `RETURNING * INTO inserted` (scalar), reemplazado por `RETURN QUERY SELECT ... WHERE url IN (...)` (soporta múltiples filas). Migration `20260429_fix_p0003_duplicate_rows.sql`.
+   - [x] **P1-6**: Modificar `atomic_enrichment_promote` con el mismo patrón (preventivo). Ambos RPCs ahora usan `RETURN QUERY` en vez de `INTO`.
+   - [ ] Aplicar migration SQL en Supabase Dashboard (manual)
 
-4. **Validación post-fix**:
-   - [ ] Ejecutar pipeline manual y confirmar que Phase 2 arranca en menos de 5 minutos
-   - [ ] Confirmar 0 errores P0003 en cleansing
-   - [ ] Confirmar 0 descargas de PDFs en harvesting
+4. **Reset de NULL official_name**:
+   - [x] **P1-5**: Diagnosticados 24 `enriched_programs` con `official_name=NULL` — todos son ruido (URLs de charlas, eventos, agendas U.Lima). `sync_vector_worker` ya los skippea (Fase 57).
+   - [x] Migration `20260429_discard_null_offnames.sql` para marcarlos como `discarded` en Dashboard.
+   - [ ] Aplicar migration SQL en Supabase Dashboard (manual)
+
+5. **Validación post-fix**:
+   - [ ] Ejecutar pipeline manual y confirmar: Phase 2 arranca <5min, 0 errores P0003, 0 descargas de PDFs
 
 ---
 
@@ -940,23 +943,22 @@ Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_
 2. **Fix `sync_vector_worker.py` — Corregir mapeos de campos**:
    - [x] Agregar `"start_date_text": enriched.get('start_date')` al dict `course_data`
    - [x] Corregir `"objectives": enriched.get('graduate_profile')` (era `enriched.get('objectives')` que no existe)
-   - [x] Corregir `"syllabus": enriched.get('curriculum_summary')` (era `enriched.get('syllabus')` que no existe) — posteriormente mejorado en Fase 59 con `json.dumps()` condicional
-   - [x] Agregar `"target_audience": enriched.get('graduate_profile')` como fallback (misma data que objectives con contexto diferente)
-   - [x] Remover keys muertas: `certifications`, `seniority_level` → reemplazar con defaults razonables
-   - [x] Agregar validación de `price_pen`: si es `None` o `0` → no enviar (dejar DB NULL, no defaults a 0)
+   - [x] Corregir `"syllabus": enriched.get('curriculum_summary')` (era `enriched.get('syllabus')` que no existe) — mejorado en Fase 59 con `json.dumps()` condicional
+   - [x] Agregar `"target_audience": enriched.get('graduate_profile')` como fallback (misma data que objectives)
+   - [x] Remover keys muertas: `certifications`, `seniority_level` → defaults
 
-3. **Fix `sync_vector_worker.py` — Validación de `official_name`** (parte de Fase 57, ya aplicado):
+3. **Fix `sync_vector_worker.py` — Validación de `official_name`**:
    - [x] Validar nombre: rechazar `None`, `"None"`, `""`, `< 3 chars`
    - [x] Fallback en `enrichment_worker.py` si LLM retorna nombre inválido
 
 4. **Re-enriquecimiento de datos existentes**:
-   - [x] Reset `enriched_programs.status` a `'pending'` para registros con campos NULL (`official_name`, `modality`, `total_cost_est`, `start_date`) — bloqueado por RLS (requiere service_role)
-   - [x] Ejecutar `enrichment_worker.py` para re-procesar los 23 registros con `official_name=NULL` — hecho via `batch_enrich_courses.py` (bypass directo a `courses`)
-   - [x] Ejecutar `sync_vector_worker.py` para sincronizar datos corregidos a `courses`
+   - [x] Reset `enriched_programs.status` a `'pending'` — bloqueado por RLS (anon key no puede escribir en intermediate tables)
+   - [x] Ejecutar `batch_enrich_courses.py` — 17 nombres NULL restaurados vía bypass directo a `courses`
+   - [x] **P1-5 (Fase 59)**: 24 `enriched_programs` con `official_name=NULL` diagnosticados como ruido (URLs de charlas, eventos, agendas). `sync_vector_worker` ya los skippea. Migration SQL `20260429_discard_null_offnames.sql` creada para marcarlos como `discarded` vía Dashboard.
 
 5. **Verificación en frontend**:
-   - [ ] Confirmar que el curso CEC Corporate Compliance muestra: Inicio, Inversión, Modalidad, Temario, Objetivos
-   - [ ] Confirmar que los 23 cursos con `official_name=NULL` ahora muestran nombres correctos
+   - [ ] Confirmar que CEC Corporate Compliance muestra: Inicio, Inversión, Modalidad, Temario, Objetivos
+   - [ ] Confirmar que los 24 NULL names ahora muestran nombres correctos
    - [ ] Confirmar que `start_date_text`, `price_pen`, `objectives`, `syllabus` se mapean correctamente
 
 ---

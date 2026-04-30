@@ -173,19 +173,33 @@ class UniversalHarvester:
                             if self._is_valid_crawl_url(link) and link not in self.visited_urls:
                                 queue.append((link, next_depth))
 
+    # File extensions that Playwright should never fetch (non-HTML content)
+    NON_HTML_EXTENSIONS = (
+        '.pdf', '.xlsx', '.xls', '.docx', '.doc', '.pptx', '.ppt',
+        '.zip', '.rar', '.7z', '.tar', '.gz',
+        '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp', '.ico',
+        '.mp4', '.mp3', '.avi', '.mov', '.wmv',
+        '.css', '.js', '.json', '.xml',
+    )
+
     def _is_valid_crawl_url(self, url):
         base_domain = urlparse(self.institution.get('website_url')).netloc
         if urlparse(url).netloc != base_domain:
             return False
-            
+
         low_url = url.lower()
         inst_id = self.institution.get('id')
-        
+
+        # Skip non-HTML file extensions before any other checks
+        parsed_path = urlparse(url).path.lower()
+        if parsed_path.endswith(self.NON_HTML_EXTENSIONS):
+            return False
+
         # Check global and specific exclusions
         for exc in self.exclusions:
             if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
             if exc['pattern'].lower() in low_url: return False
-            
+
         return True
 
     async def _fetch_and_parse(self, session, url, depth):
