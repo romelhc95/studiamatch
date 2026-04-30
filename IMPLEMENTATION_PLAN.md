@@ -12,17 +12,17 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 59 P1 completado. Commit `02ccf38` (P0) aplicado. P1 en progreso.
-- **Último Hito**: P1 fixes — file-extension skip en harvester, discard NULL official_name records, fix RPC P0003.
-- **Fases 57-58 COMPLETADAS**. Fase 59 P0 COMPLETADO, P1 en progreso.
-- **Próxima Acción**: Aplicar migrations SQL `20260429_fix_p0003_duplicate_rows.sql` y `20260429_discard_null_offnames.sql` en Supabase Dashboard (manual).
+- **Estado Actual**: Fase 59 COMPLETADA (P0 + P1). 3 migrations SQL aplicadas en Supabase Dashboard. Commits `02ccf38` + `8bbd5a3` en `desarrollo`.
+- **Último Hito**: P1 completado — file-extension skip, NULL names discard, RPC P0003 fix. 3/3 migrations aplicadas contra Supabase.
+- **Fases 57-59 COMPLETADAS**: 4 bugs RPC, mapping 14 pilares, cache GitHub Actions, PDF filter, P0003 fix.
+- **Próxima Acción**: Ejecutar pipeline para validar todos los fixes (o continuar con Fase 51 docs / Fase 32 Pro migration).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
-- [x] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions. Commit `64c9c5b`.
-- [x] **Fase 58**: Pipeline Data Integrity — Fix mapping de pilares y extracción LLM. Commit `4956983`.
-- [x] **Fase 59**: Pipeline Resiliencia — P0 fixes (cache, json.dumps, migration note). Commit `02ccf38`.
-- [ ] **Fase 59 (remaining)**: Filtrar PDFs en harvester, fix RPC P0003 duplicados, validación post-fix en pipeline.
+- [x] **Fase 57**: Pipeline RPC Fixes — SQL + Python, 4 bugs corregidos. Commit `64c9c5b`. Migration aplicada.
+- [x] **Fase 58**: Pipeline Data Integrity — Mapping 14 pilares, prompt mejorado, mock completo. Commit `4956983`.
+- [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. Commits `02ccf38` + `8bbd5a3`. 3/3 migrations aplicadas.
+- [ ] **Fase 59 (remaining)**: Validación post-fix en pipeline (run manual para confirmar 0 PDFs, 0 P0003, <5min setup).
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
@@ -833,7 +833,7 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 1. **Fix SQL: Ambigüedad de columnas en RPC functions**:
 - [x] Crear migration `20260429_rpc_ambiguous_fix.sql` con `CREATE OR REPLACE FUNCTION lock_staging_records(...)` calificando TODAS las referencias a columnas con `staging_raw.` prefix
 - [x] Aplicar mismo fix a `lock_cleansed_records` con `cleansed_programs.` prefix
-- [ ] Aplicar migration contra Supabase (requiere Dashboard SQL Editor — no se puede desde contenedor con anon key)
+- [x] Aplicar migration contra Supabase Dashboard ✅
 
 2. **Fix Python: Double-serialization en RPC calls**:
 - [x] `scripts/core/enrichment_worker.py:186-189` → reemplazar `json.dumps(rpc_data)` con `rpc_data` directo
@@ -851,61 +851,6 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 - [x] `DELETE FROM courses WHERE name IN ('None', '') OR name IS NULL` — 1 registro eliminado
 - [x] Verificar que no queden registros con nombre inválido
 
-## Riesgos y Mitigaciones
-- **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
-- **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
-- **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
-- **Riesgo**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
-- **Riesgo (Nuevo)**: Complejidad computacional en filtros en cascada con catálogos masivos. -> Mitigación: Uso de `useMemo` y potencial implementación de debouncing para búsquedas de texto.
-- **Riesgo (Crítico)**: 7 caminos de escritura a `courses` (5 bypasses + 1 bidireccional + 1 Golden Path). Los bypasses BP-1 a BP-5 producen datos de calidad inferior que conviven con datos procesados por las 4 estaciones. -> Mitigación: Fase 52 elimina todos los bypasses haciendo `sync_vector_worker.py` el único escritor autorizado.
-- **Riesgo**: `crawler_exclusions` sin DDL versionado — tabla creada directamente en Supabase, no existe en `PRODUCTION_MASTER.sql` ni `db/migrations/`. -> Mitigación: Fase 51 crea migración formal.
-- **Riesgo**: `ignoreBuildErrors: true` en `next.config.js` suprime errores TypeScript en build. -> Mitigación: Fase 53 remueve el flag y corrige tipos.
-- **Riesgo**: Pipeline RPC errors — 4 bugs en SQL functions y Python workers causan fallos silenciosos cada ejecución. `lock_staging_records` y `atomic_enrichment_promote` fallan, `duration_months` rechaza floats, cursos con nombre "None" aparecen en frontend. -> Mitigación: Fase 57 corrige los 4 bugs (commit `64c9c5b`). **Migration SQL pendiente de aplicar en Supabase Dashboard**.
-- **Riesgo**: Dos constantes `MAX_RUN_TIME` inconsistentes en `universal_harvester.py` (19200s a nivel clase vs 20400s a nivel función). -> Mitigación: Fase 55 unifica a un único valor autoritativo (20400s).
-- **Riesgo**: 22 `except:` bare (sin tipo de excepción) silencian errores en 6 scripts core, imposibilitando diagnóstico de fallos. -> Mitigación: Fase 53 reemplaza por `except Exception as e:` con logging.
-- **Riesgo**: Paginación faltante en Supabase (límite 1000 registros por defecto) — `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` no paginan, omitiendo registros. -> Mitigación: Fase 53 implementa paginación.
-- **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
-- **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
-- **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
-- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y validaciones (commit `4956983`). Verificación en frontend pendiente.
-- **Riesgo (Crítico)**: `sync_vector_worker.py:80` pasa `curriculum_summary` como dict sin `json.dumps()`. Cuando el pipeline sincronice, `syllabus` será string Python inválido en vez de JSON. -> Mitigación: Fase 59 agrega `json.dumps()` condicional (commit `02ccf38`).
-- **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
-
-### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [x] P1 completado
-Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #25126753299 (8h39m, FAILED).
-
-**Diagnóstico del run**:
-- Phase 2 (Enrichment) timeout tras 6h sin ejecutar código Python — todo el tiempo se fue en `pip install` + `playwright install chromium`
-- 99 URLs de PDFs/archivos (.pdf, .xlsx, .docx) descargadas por Playwright, cada una cuelga el navegador 10-30s
-- 8 errores P0003 `"query returned more than one row"` en `atomic_cleansing_promote` por duplicados de URL
-- Phases 3 y 4 nunca se ejecutaron (skipped)
-
-**Commits**: `02ccf38` (P0), próximo commit (P1)
-
-1. **Fix crítico: Cache de dependencias en GitHub Actions**:
-   - [x] Agregar `actions/cache@v4` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
-   - [x] Agregar `timeout-minutes: 360` en Phase 2 (enrichment) y `timeout-minutes: 30` en Phase 1.5 (cleansing)
-   - [ ] Evaluar si Phase 2 realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
-
-2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
-   - [x] **P1-4**: Agregadas 28 extensiones de archivo en `NON_HTML_EXTENSIONS` (`.pdf`, `.xlsx`, `.docx`, `.jpg`, `.mp4`, etc.) en `universal_harvester.py:176-180`
-   - [x] **P1-4**: Check pre-navegación `_is_valid_crawl_url()`: si URL termina en extensión no-HTML, retorna False sin abrir Playwright
-   - [ ] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
-
-3. **Fix RPC P0003 "query returned more than one row"**:
-   - [x] **P1-6**: Modificar `atomic_cleansing_promote` — removido `RETURNING * INTO inserted` (scalar), reemplazado por `RETURN QUERY SELECT ... WHERE url IN (...)` (soporta múltiples filas). Migration `20260429_fix_p0003_duplicate_rows.sql`.
-   - [x] **P1-6**: Modificar `atomic_enrichment_promote` con el mismo patrón (preventivo). Ambos RPCs ahora usan `RETURN QUERY` en vez de `INTO`.
-   - [ ] Aplicar migration SQL en Supabase Dashboard (manual)
-
-4. **Reset de NULL official_name**:
-   - [x] **P1-5**: Diagnosticados 24 `enriched_programs` con `official_name=NULL` — todos son ruido (URLs de charlas, eventos, agendas U.Lima). `sync_vector_worker` ya los skippea (Fase 57).
-   - [x] Migration `20260429_discard_null_offnames.sql` para marcarlos como `discarded` en Dashboard.
-   - [ ] Aplicar migration SQL en Supabase Dashboard (manual)
-
-5. **Validación post-fix**:
-   - [ ] Ejecutar pipeline manual y confirmar: Phase 2 arranca <5min, 0 errores P0003, 0 descargas de PDFs
-
----
 
 ### Fase 58: Pipeline Data Integrity — Fix Mapping y Extracción de Pilares [x] Completado
 Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_programs` → `sync_vector_worker` → `courses` → frontend. Actualmente 91/218 registros (42%) tienen `total_cost_est=NULL`, 23 tienen `modality=NULL`, 86 `start_date=NULL`, y campos como `objectives`, `syllabus`, `start_date_text` nunca se sincronizan.
@@ -961,4 +906,57 @@ Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_
    - [ ] Confirmar que los 24 NULL names ahora muestran nombres correctos
    - [ ] Confirmar que `start_date_text`, `price_pen`, `objectives`, `syllabus` se mapean correctamente
 
----
+### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [x] P1 completado
+Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #25126753299 (8h39m, FAILED).
+
+**Diagnóstico del run**:
+- Phase 2 (Enrichment) timeout tras 6h sin ejecutar código Python — todo el tiempo se fue en `pip install` + `playwright install chromium`
+- 99 URLs de PDFs/archivos (.pdf, .xlsx, .docx) descargadas por Playwright, cada una cuelga el navegador 10-30s
+- 8 errores P0003 `"query returned more than one row"` en `atomic_cleansing_promote` por duplicados de URL
+- Phases 3 y 4 nunca se ejecutaron (skipped)
+
+**Commits**: `02ccf38` (P0), próximo commit (P1)
+
+1. **Fix crítico: Cache de dependencias en GitHub Actions**:
+   - [x] Agregar `actions/cache@v4` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
+   - [x] Agregar `timeout-minutes: 360` en Phase 2 (enrichment) y `timeout-minutes: 30` en Phase 1.5 (cleansing)
+   - [ ] Evaluar si Phase 2 realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
+
+2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
+   - [x] **P1-4**: Agregadas 28 extensiones de archivo en `NON_HTML_EXTENSIONS` (`.pdf`, `.xlsx`, `.docx`, `.jpg`, `.mp4`, etc.) en `universal_harvester.py:176-180`
+   - [x] **P1-4**: Check pre-navegación `_is_valid_crawl_url()`: si URL termina en extensión no-HTML, retorna False sin abrir Playwright
+   - [ ] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
+
+3. **Fix RPC P0003 "query returned more than one row"**:
+   - [x] **P1-6**: Modificar `atomic_cleansing_promote` — removido `RETURNING * INTO inserted` (scalar), reemplazado por `RETURN QUERY SELECT ... WHERE url IN (...)` (soporta múltiples filas). Migration `20260429_fix_p0003_duplicate_rows.sql`.
+   - [x] **P1-6**: Modificar `atomic_enrichment_promote` con el mismo patrón (preventivo). Ambos RPCs ahora usan `RETURN QUERY` en vez de `INTO`.
+   - [x] Aplicar migration SQL en Supabase Dashboard ✅
+
+4. **Reset de NULL official_name**:
+   - [x] **P1-5**: Diagnosticados 24 `enriched_programs` con `official_name=NULL` — todos son ruido (URLs de charlas, eventos, agendas U.Lima). `sync_vector_worker` ya los skippea (Fase 57).
+   - [x] Migration `20260429_discard_null_offnames.sql` para marcarlos como `discarded` en Dashboard.
+   - [x] Aplicar migration SQL en Supabase Dashboard ✅
+
+5. **Validación post-fix**:
+   - [ ] Ejecutar pipeline manual y confirmar: Phase 2 arranca <5min, 0 errores P0003, 0 descargas de PDFs
+
+## Riesgos y Mitigaciones
+- **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
+- **Riesgo**: Inestabilidad de `curl_cffi` en CI. -> Mitigación: Mantener `aiohttp` como fallback con headers básicos.
+- **Riesgo**: Saturación de DB por inserts masivos de descubrimiento. -> Mitigación: Batch inserts para el estado 'discovered'.
+- **Riesgo**: Desfase temporal entre datos de diferentes instituciones. -> Mitigación: La sincronización final a la tabla `courses` será incremental; los datos antiguos se mantienen hasta que su shard sea actualizado.
+- **Riesgo (Nuevo)**: Complejidad computacional en filtros en cascada con catálogos masivos. -> Mitigación: Uso de `useMemo` y potencial implementación de debouncing para búsquedas de texto.
+- **Riesgo (Crítico)**: 7 caminos de escritura a `courses` (5 bypasses + 1 bidireccional + 1 Golden Path). Los bypasses BP-1 a BP-5 producen datos de calidad inferior que conviven con datos procesados por las 4 estaciones. -> Mitigación: Fase 52 elimina todos los bypasses haciendo `sync_vector_worker.py` el único escritor autorizado.
+- **Riesgo**: `crawler_exclusions` sin DDL versionado — tabla creada directamente en Supabase, no existe en `PRODUCTION_MASTER.sql` ni `db/migrations/`. -> Mitigación: Fase 51 crea migración formal.
+- **Riesgo**: `ignoreBuildErrors: true` en `next.config.js` suprime errores TypeScript en build. -> Mitigación: Fase 53 remueve el flag y corrige tipos.
+- **Riesgo**: Pipeline RPC errors — 4 bugs en SQL functions y Python workers causan fallos silenciosos cada ejecución. `lock_staging_records` y `atomic_enrichment_promote` fallan, `duration_months` rechaza floats, cursos con nombre "None" aparecen en frontend. -> Mitigación: Fase 57 corrige los 4 bugs (commit `64c9c5b`). Migration SQL aplicada en Supabase Dashboard ✅.
+- **Riesgo**: Dos constantes `MAX_RUN_TIME` inconsistentes en `universal_harvester.py` (19200s a nivel clase vs 20400s a nivel función). -> Mitigación: Fase 55 unifica a un único valor autoritativo (20400s).
+- **Riesgo**: 22 `except:` bare (sin tipo de excepción) silencian errores en 6 scripts core, imposibilitando diagnóstico de fallos. -> Mitigación: Fase 53 reemplaza por `except Exception as e:` con logging.
+- **Riesgo**: Paginación faltante en Supabase (límite 1000 registros por defecto) — `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` no paginan, omitiendo registros. -> Mitigación: Fase 53 implementa paginación.
+- **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
+- **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
+- **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
+- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y validaciones (commit `4956983`). Verificación en frontend pendiente.
+- **Riesgo (Crítico)**: `sync_vector_worker.py:80` pasa `curriculum_summary` como dict sin `json.dumps()`. Cuando el pipeline sincronice, `syllabus` será string Python inválido en vez de JSON. -> Mitigación: Fase 59 agrega `json.dumps()` condicional (commit `02ccf38`).
+- **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
+
