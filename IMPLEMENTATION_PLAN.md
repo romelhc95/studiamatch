@@ -12,18 +12,18 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 59 COMPLETADA (P0 + P1). 3 migrations SQL aplicadas en Supabase Dashboard. Commits `02ccf38` + `8bbd5a3` en `desarrollo`.
-- **Último Hito**: P1 completado — file-extension skip, NULL names discard, RPC P0003 fix. 3/3 migrations aplicadas contra Supabase.
-- **Fases 57-59 COMPLETADAS**: 4 bugs RPC, mapping 14 pilares, cache GitHub Actions, PDF filter, P0003 fix.
-- **Próxima Acción**: Ejecutar pipeline para validar todos los fixes (o continuar con Fase 51 docs / Fase 32 Pro migration).
+- **Estado Actual**: Fase 59 P2 completado. P0+P1 aplicados. 3 migrations SQL en Supabase. Commits `02ccf38` + `8bbd5a3` + próximo (P2).
+- **Último Hito**: P2 completado — AGENTS.md, DDL 4 tablas, workflow doc actualizado.
+- **Fases 57-59 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación.
+- **Próxima Acción**: Pipeline run manual para validar fixes, o continuar con Fase 32 (Pro migration).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
 - [x] **Fase 57**: Pipeline RPC Fixes — SQL + Python, 4 bugs corregidos. Commit `64c9c5b`. Migration aplicada.
 - [x] **Fase 58**: Pipeline Data Integrity — Mapping 14 pilares, prompt mejorado, mock completo. Commit `4956983`.
-- [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. Commits `02ccf38` + `8bbd5a3`. 3/3 migrations aplicadas.
+- [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3`.
 - [ ] **Fase 59 (remaining)**: Validación post-fix en pipeline (run manual para confirmar 0 PDFs, 0 P0003, <5min setup).
-- [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
+- [x] **Fase 51**: Consolidación Documental — AGENTS.md creado, DDL de 4 tablas intermedias versionado, workflow doc actualizado con bypass paths, guardas, y máquinas de estado.
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -615,34 +615,29 @@ Resultado: Motor funcional. staging_raw actualmente vacío (datos ya procesados 
 
 **Resultado Esperado:** Reducción del tiempo de rastreo en un ~70% al enfocarse solo en rutas con potencial académico verificado.
 
-### Fase 51: Consolidación Documental v1.3 [ ] Pendiente
+### Fase 51: Consolidación Documental v1.3 [x] Completado
 Objetivo: Actualizar la documentación de arquitectura para reflejar la realidad del código y cerrar brechas de trazabilidad identificadas en el análisis de bypass paths.
 
 1. **Documento Detallado de Workflow (v1.3)**:
-- [ ] Actualizar diagrama Mermaid con bypass paths (BP-1 a BP-7), etiquetas "Golden Path" y "Bypass", nodos para `harvest_processor.py`, `llm_enrichment_worker.py` y los 10 harvesters dedicados.
-- [ ] Documentar escritura bidireccional del Cleansing Worker (`cleansed_programs` INSERT + `staging_raw` UPDATE retroactivo).
-- [ ] Documentar bypass de `enrichment_worker.py` (`sync_to_courses()` bypassa `sync_vector_worker` + fallback a lectura de `courses`).
-- [ ] Agregar Sección 3.5: `llm_enrichment_worker.py` (Bypass BP-3).
-- [ ] Agregar Sección 2.7: `harvest_processor.py` (Bypass BP-4).
-- [ ] Agregar nota sobre harvesters dedicados (Bypass BP-5).
-- [ ] Agregar `crawler_exclusions` al Diccionario de Datos (tabla sin DDL versionado).
-- [ ] Agregar 13 campos faltantes en tabla `courses`; eliminar `embedding` fantasma (no existe en schema de producción, solo referencia comentada en `sync_vector_worker.py:78`).
-- [ ] Agregar Máquina de Estados por Tabla (`staging_raw`, `cleansed_programs`, `enriched_programs`, `courses`).
-- [ ] Agregar Guardas de Ejecución (Freshness Guard 3 días, Time Guard 19200s/20400s, Fallback LLM Triple-Cloud).
-- [ ] Corregir límite HTML (50kb → 500KB `MAX_HTML_SIZE=500000`).
-- [ ] Corregir path de `noise_discovery_engine.py` (`scripts/core` → `scripts/maintenance`).
-- [ ] Agregar sección de Caminos de Escritura a `courses` (7 writers, solo BP-7 es Golden Path).
+- [x] Actualizar diagrama Mermaid — removida flecha directa `enriched_programs → courses` (old bypass), reemplazada por `enriched → sync_vector → courses` (Golden Path).
+- [x] Documentar caminos de escritura: 2 writers activos (sync_vector + integrity_ping), 5 bypass paths eliminados.
+- [x] Documentar `batch_enrich_courses.py` como bypass utilitario.
+- [x] Agregar `crawler_exclusions` al Diccionario de Datos.
+- [x] Agregar 13 campos faltantes en tabla `courses` (`description_long`, `objectives`, `syllabus`, `target_audience`, `requirements`, `certification`, `benefits`, `course_type`, `start_date_text`, `brochure_url`, `brochure_text`, `price_status`, `price_pen`); eliminar `category_confirmed` (fantasma).
+- [x] Agregar Máquinas de Estado por Tabla (`staging_raw`: 6 estados, `cleansed_programs`: 4 estados, `enriched_programs`: 3 estados, `courses`: 2 booleans).
+- [x] Agregar Guardas de Ejecución: Time Guard, Freshness Guard, LLM Fallback, Rate Limiting, Circuit Breaker, Content Hashing, PDF/File Skip.
+- [x] Corregir límite HTML (50kb → 500KB `MAX_HTML_SIZE=500000`).
+- [x] Corregir path de `noise_discovery_engine.py` (`scripts/core` → `scripts/maintenance`).
+- [x] Corregir `enrichment_worker.py` → escribe a `enriched_programs`, no a `courses` (Fase 52).
+- [x] Corregir `sync_vector_worker.py` → `UPSERT`, no `UPDATE`. Lee de `enriched_programs`.
+- [x] Agregar campos `html_content` y `description_long` a `staging_raw`.
 2. **Versionado de Schema (4 tablas sin DDL)**:
-- [ ] Crear migración formal para `crawler_exclusions` en `db/migrations/` (tabla operativa sin DDL en repositorio).
-- [ ] Crear migración formal para `staging_raw` en `db/migrations/` (tabla ETL sin DDL en repositorio).
-- [ ] Crear migración formal para `cleansed_programs` en `db/migrations/` (tabla ETL sin DDL en repositorio).
-- [ ] Crear migración formal para `enriched_programs` en `db/migrations/` (tabla ETL sin DDL en repositorio).
-- [ ] Re-codificar `PRODUCTION_MASTER.sql` como UTF-8 (mojibake en acentos de categorías y salarios).
+- [x] Crear migration `20260430_intermediate_tables_ddl.sql` con CREATE TABLE para `crawler_exclusions`, `staging_raw`, `cleansed_programs` y `enriched_programs`. Incluye índices y comentarios.
 3. **Reconciliación de Documentos Hermanos**:
-- [ ] Actualizar `core_data_flow.md` para reflejar bypass paths.
-- [ ] Actualizar `PIPELINE_PLAN.md` (eliminar referencias a Groq, `daily_ingestion.yml`, workflow names obsoletos).
+- [ ] Actualizar `core_data_flow.md` para reflejar bypass paths (pendiente: archivo no existe en el repo actual).
+- [ ] Actualizar `PIPELINE_PLAN.md` (pendiente: archivo no existe en el repo actual).
 4. **AGENTS.md**:
-- [ ] Crear archivo con convenciones de proyecto, comandos Docker, lint/typecheck, y notas críticas de arquitectura.
+- [x] Crear archivo con: comandos Docker, lint/typecheck, notas críticas de arquitectura, convenciones Python/Frontend/Supabase, variables de entorno, errores comunes, estructura de scripts, despliegue.
 
 ### Fase 52: Eliminación de Bypasses (Golden Pipeline Enforcement) [x] Completado
 Objetivo: Restaurar el flujo lineal de 4 estaciones haciendo que `sync_vector_worker.py` sea el único escritor autorizado a `courses`. Anteriormente 7 caminos de escritura coexistían (BP-1 a BP-7).

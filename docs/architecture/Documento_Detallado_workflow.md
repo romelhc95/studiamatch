@@ -17,10 +17,10 @@ graph TD
         
         J0["<b>Fase 0: Manual or Discovery (FG1)</b><br/><i>discovery_institutions.py</i>"]
         J1["<b>Fase 1: Massive Harvesting (FG2)</b><br/><i>master_orchestrator.py</i><br/>(universal_harvester.py)"]
-        J_Sentinel["<b>Fase 1.1: Noise AI-Sentinel</b><br/><i>noise_discovery_engine.py</i>"]
+        J_Sentinel["<b>Fase 1.1: Noise AI-Sentinel</b><br/><i>scripts/maintenance/noise_discovery_engine.py</i>"]
         J1_5["<b>Fase 1.5: Cleansing</b><br/><i>cleansing_worker.py</i>"]
         J2["<b>Fase 2: Enrichment (FG2)</b><br/><i>enrichment_worker.py</i>"]
-        J3["<b>Fase 3: Production Sync (FG2)</b><br/><i>sync_vector_worker.py</i>"]
+        J3["<b>Fase 3: Production Sync (FG2)</b><br/><i>sync_vector_worker.py</i><br/>(Golden Path writer: enriched->courses)"]
         J4["<b>Fase 4: ROI-QA Audit (FG2)</b><br/><i>quality_assurance_audit.py</i>"]
     end
 
@@ -46,9 +46,10 @@ graph TD
     J1_5 -- "Clean HTML & Consolidate Sibling URLs" --> T_Clean
     T_Clean -- "Read Clean & Normal Data" --> J2
     J2 -- "Extract AI Metadata" --> T_Enri
-    T_Enri -- "Sync enriched data" --> T_Cour
-    T_Cour -- "Read Slug" --> J3 -- "Update Slugs & Vectors" --> T_Cour
-    T_Cour -- "Read ROI" --> J4 -- "Update Health Status" --> T_Cour
+    T_Enri -- "Read synced" --> J3
+    J3 -- "UPSERT (Golden Path)" --> T_Cour
+    T_Cour -- "Read Slug" --> J4
+    J4 -- "Update ROI/Salud" --> T_Cour
     
     J_Integrity["<b>FG3: Integrity Ping</b><br/><i>integrity_ping.py</i>"] -- "Set 404/Inactive" --> T_Cour
 
@@ -97,15 +98,17 @@ graph TD
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
-    | `courses` | `UPSERT` | Inserta o actualiza la información enriquecida (Nombre, categorías, ROI, etc.). |
+    | `cleansed_programs` | `SELECT` + `UPDATE` | Lee registros `pending`, aplica lock optimista, marca como `synced` al terminar. |
+    | `enriched_programs` | `UPSERT` (vía RPC `atomic_enrichment_promote`) | Inserta o actualiza metadata de IA. ON CONFLICT por `cleansed_id`. |
 
 ### 4. Production Sync & Vectorization (FG2 - Fase 3)
 *   **Script**: `scripts/core/sync_vector_worker.py`.
-*   **Propósito**: Generar identificadores únicos (slugs) y sincronizar vectores para búsqueda semántica.
+*   **Propósito**: Golden Path writer. Lee `enriched_programs` con `status='synced'`, valida `official_name` (rechaza `None`/`""`/`<3 chars`), serializa `curriculum_summary` con `json.dumps()`, y realiza UPSERT en `courses` con `is_verified=True`.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
-    | `courses` | `UPDATE` | Actualiza `slug` y calculo de embeddings. |
+    | `enriched_programs` | `SELECT` + `UPDATE` | Lee registros `synced`, marca como `synced` tras upsert exitoso. |
+    | `courses` | `UPSERT` (por `url`) | Único escritor autorizado del Golden Path. Setea `is_verified=True`. |
 
 ### 5. ROI-QA Audit (FG2 - Fase 4)
 *   **Script**: `scripts/maintenance/taxonomy_roi_audit.py`.
@@ -121,7 +124,82 @@ graph TD
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
-    | `courses` | `UPDATE` | Cambia `is_active` a `false` si el 404 persiste por más de 3 días. |
+    | `courses` | `PATCH` | Cambia `is_active` a `false` si el 404 persiste por más de 3 días. |
+
+---
+
+## Caminos de Escritura a `courses` (Bypass Paths)
+
+Históricamente existían 7 caminos de escritura a la tabla de producción. Post-Fase 52, solo quedan 2:
+
+| # | Escritor | Tipo | Estado | Notas |
+|---|----------|------|--------|-------|
+| BP-7 | `sync_vector_worker.py` (Golden Path) | `UPSERT` | Activo | Único camino completo — pasa por las 4 estaciones. `is_verified=True`. |
+| BP-M | `integrity_ping.py` | `PATCH` | Activo | Solo modifica `is_active` y `last_404_at`. |
+
+**Paths eliminados** (Fases 52-53):
+- BP-1: `enrichment_worker.py` escribía directo a `courses` — ahora escribe a `enriched_programs`
+- BP-2: `sync_vector_worker.py` leía de `enriched_programs` como bypass — ahora es el único escritor
+- BP-3: `llm_enrichment_worker.py` — movido a `scripts/deprecated/`
+- BP-4: `harvest_processor.py` — movido a `scripts/deprecated/`
+- BP-5: Harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) — escriben directo a `courses` con `is_verified=True`. By design para datos de alta calidad de fuentes confiables.
+
+### Bypass utilitario: `batch_enrich_courses.py`
+- **Script**: `scripts/maintenance/batch_enrich_courses.py`
+- **Propósito**: Corregir datos puntuales sin pasar por las 4 estaciones.
+- **Flujo**: Lee HTML de `staging_raw` → LLM → `courses` (PATCH directo).
+- **Uso**: Solo para correcciones manuales, no en pipeline automático.
+
+---
+
+## Máquinas de Estado por Tabla
+
+### `staging_raw`
+```
+discovered → pending → processing → processed
+                            ↓         ↓
+                          error    discarded
+```
+- `discovered`: URL encontrada por sitemap/BFS, HTML no extraído aún.
+- `pending`: Listo para scraping (o re-procesamiento).
+- `processing`: Lock optimista (RPC `lock_staging_records`).
+- `processed`: Extracción exitosa.
+- `error`: Fallo técnico (reintentable).
+- `discarded`: Descartado permanentemente (ruido, obsolescencia).
+
+### `cleansed_programs`
+```
+pending → processing → synced
+             ↓
+          discarded
+```
+- `sync` vector lee `synced`, marca como `synced` post-upsert.
+
+### `enriched_programs`
+```
+pending → synced
+  ↓
+discarded
+```
+- `sync` vector lee `synced`, valida `official_name`, upsert en `courses`.
+
+### `courses`
+- `is_active` (boolean): toggle de visibilidad. FG3 desactiva tras 3 días de 404.
+- `is_verified` (boolean): sello de calidad. `sync_vector_worker` y harvesters dedicados setean `True`.
+
+---
+
+## Guardas de Ejecución
+
+| Guarda | Valor | Ubicación |
+|--------|-------|-----------|
+| **Time Guard** | 20400s (5h 40m) | `universal_harvester.py` — shutdown elegante 20 min antes del timeout de GitHub Actions (6h) |
+| **Freshness Guard** | 3 días | `integrity_ping.py` — inactiva cursos tras 3 días consecutivos de 404 |
+| **LLM Fallback** | Triple-cloud cascade | `enrichment_worker.py` — Cloudflare → GitHub Models → Gemini |
+| **Rate Limiting** | 1.5s entre iteraciones | `enrichment_worker.py` |
+| **Circuit Breaker** | 3 errores 403/429 consecutivos | `universal_harvester.py` — aborta scraping de la institución |
+| **Content Hashing** | SHA256 del texto limpio | `universal_harvester.py` — solo re-procesa si el contenido cambió |
+| **PDF/File Skip** | 28 extensiones no-HTML | `universal_harvester.py:_is_valid_crawl_url()` — evita descargar PDFs/XLSX con Playwright |
 
 ---
 
@@ -192,10 +270,12 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `url` | TEXT | `harvester` (RW) | URL única. Posee un índice UNIQUE para evitar duplicar capturas. |
 | `raw_name` | TEXT | `harvester` (W) | Título de la página extraído sin procesamiento (SEO Title). |
 | `raw_description` | TEXT | `harvester` (W) | Meta-description de la web para análisis rápido. |
-| `raw_html` | TEXT | `harvester` (W) | Código fuente HTML completo (limitado a 50kb) para extracción. |
+    | `raw_html` | TEXT | `harvester` (W) | Código fuente HTML completo (limitado a 500KB) para extracción. |
 | `raw_json_ld` | JSONB | `harvester` (W) | Datos estructurados Schema.org encontrados en el código. |
-| `raw_og_tags` | JSONB | `harvester` (W) | Etiquetas OpenGraph (Social Media) de la URL. |
-| `status` | TEXT | Todos (RW) | Estado del flujo: `discovered`, `pending`, `processed`. |
+    | `raw_og_tags` | JSONB | `harvester` (W) | Etiquetas OpenGraph (Social Media) de la URL. |
+    | `html_content`| TEXT | `harvester` (W) | Contenido HTML adicional o alternativo extraído. |
+    | `description_long`| TEXT | `harvester` (W) | Descripción larga extraída del body de la página. |
+    | `status` | TEXT | Todos (RW) | Estado del flujo: `discovered`, `pending`, `processing`, `processed`, `error`, `discarded`. |
 | `discard_reason` | TEXT | `cleanser` (W) | Motivo por el cual la página fue ignorada (ej: es una noticia). |
 | `processing_error` | TEXT | `cleanser` (W) | Log de errores técnicos durante el intento de limpieza. |
 | `effective_url` | TEXT | `harvester` (W) | URL final tras todas las redirecciones automáticas. |
@@ -219,10 +299,20 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `currency` | TEXT | `cleanser` (W) | Símbolo de moneda detectado (PEN, USD). |
 | `effective_url` | TEXT | `cleanser` (W) | URL final capturada; parte de la clave única compuesta. |
 | `canonical_url` | TEXT | `cleanser` (W) | Identidad SEO del curso; prioridad para la de-duplicación. |
-| `status` | TEXT | `enricher` (R) | Estado para la siguiente fase: `pending`, `enriched`. |
-| `metadata` | JSONB | `cleanser` (W) | Parámetros técnicos del proceso de limpieza. |
+    | `status` | TEXT | `enricher` (R) | Estado para la siguiente fase: `pending`, `processing`, `synced`, `discarded`. |
+    | `metadata` | JSONB | `cleanser` (W) | Parámetros técnicos del proceso de limpieza. |
 
-### 4. `enriched_programs` (Estación 2: Oro / Inteligencia IA)
+### 6. `crawler_exclusions` (Escudo Anti-Ruido)
+| Campo | Tipo | Proceso(s) | Utilidad / Funcionalidad |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | Sistema | ID único de la regla de exclusión. |
+| `institution_id` | UUID | `harvester` (R) | Institución a la que aplica (NULL = regla global para todas). |
+| `pattern` | TEXT | `harvester` (R) | Substring o patrón de URL a bloquear (ej: `/noticias/`, `.pdf`). |
+| `reason` | TEXT | Admin | Justificación de la exclusión (ej: "Página de blog, no curso"). |
+| `is_active` | BOOL | `harvester` (R) | Toggle para habilitar/deshabilitar sin borrar la regla. |
+| `created_at` | TZ | Auditoría | Fecha de creación de la regla. |
+
+### 7. `enriched_programs` (Estación 2: Oro / Inteligencia IA) (antes sección 4)
 | Campo | Tipo | Proceso(s) | Utilidad / Funcionalidad |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | `enricher` (W) | ID del registro enriquecido por LLM. |
@@ -243,7 +333,7 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `status` | TEXT | `sync` (RW) | Estado de sincronización: `pending`, `synced`. |
 | `difficulty_level` | TEXT | `enricher` (W) | Nivel objetivo: Básico, Intermedio o Avanzado. |
 
-### 5. `courses` (Producción Final / Experiencia de Usuario)
+### 8. `courses` (Producción Final / Experiencia de Usuario)
 | Campo | Tipo | Proceso(s) | Utilidad / Funcionalidad |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | `sync` (W) | ID final del producto en el catálogo público. |
@@ -253,22 +343,35 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
 | `price_pen` | NUMERIC| `sync` (W) | Precio normalizado a Soles para el buscador. |
 | `price_status` | TEXT | `sync` (W) | `publicado` o `consultar` (si no hay precio claro). |
 | `mode` | TEXT | `sync` (W) | Modalidad final mostrada al usuario. |
-| `duration` | TEXT | `sync` (W) | Tiempo de estudio final. |
-| `category` | TEXT | `sync` (W) | Nombre de la categoría principal (redundancia para auditoría rápida). |
-| `category_id` | UUID | Trigger BD (W) | FK a la categoría oficial (asignada por reglas). |
-| `category_confirmed`| BOOL | Auditoría | Indica si un humano validó la categoría asignada. |
-| `url` | TEXT | `sync` (W) | Enlace directo a la fuente oficial. |
-| `syllabus` | TEXT | `sync` (W) | Detalle completo de la malla curricular. |
-| `expected_monthly_salary`| NUMERIC| `enricher` (W) | Sueldo estimado en el mercado peruano (ROI). |
+    | `duration` | TEXT | `sync` (W) | Tiempo de estudio final. |
+    | `seniority_level` | TEXT | `sync` (W) | Experiencia previa requerida (Jr, Mid, Sr). |
+    | `roi_months` | NUMERIC | `enricher` (W) | Meses para recuperar la inversión del curso. |
+    | `last_scraped_at` | TZ | `sync` (W) | Fecha de la última actualización desde la web. |
+    | `last_404_at` | TZ | `integrity` (U) | Marca de tiempo del último error de enlace roto. |
+    | `embedding` | TEXT | `sync` (W) | Representación vectorial del curso para búsqueda semántica. |
+    | `category_id` | UUID | Trigger BD (W) | FK a la categoría oficial (asignada por reglas). |
+    | `url` | TEXT | `sync` (W) | Enlace directo a la fuente oficial. |
+    | `is_active` | BOOL | `integrity` (U) | Toggle de visibilidad (se apaga en 404 persistente). |
+    | `is_verified` | BOOL | Auditoría | Sello de "Dato Verificado" por el equipo SM. |
+    | `description_long` | TEXT | `sync` (W) | Descripción larga/ai_summary del enriquecimiento. |
+    | `objectives` | TEXT | `sync` (W) | Perfil del egresado y objetivos de aprendizaje (`graduate_profile`). |
+    | `syllabus` | TEXT | `sync` (W) | Malla curricular serializada como JSON string (`curriculum_summary`). |
+    | `target_audience` | TEXT | `sync` (W) | Público objetivo del programa. |
+    | `requirements` | TEXT | `sync` (W) | Requisitos de admisión o ingreso. |
+    | `certification` | TEXT | `sync` (W) | Qué certificación se obtiene al completar. |
+    | `benefits` | TEXT | `sync` (W) | Beneficios adicionales del programa. |
+    | `course_type` | TEXT | `sync` (W) | Grado académico: Maestría, Curso, Diplomado, etc. |
+    | `start_date_text` | TEXT | `sync` (W) | Fecha de inicio del programa. |
+    | `brochure_url` | TEXT | `harvester` (W) | URL del brochure PDF si está disponible. |
+    | `brochure_text` | TEXT | `harvester` (W) | Texto extraído del brochure PDF. |
+    | `price_status` | TEXT | `sync` (W) | `publicado` o `consultar` (si no hay precio claro). |
+    | `price_pen` | NUMERIC| `sync` (W) | Precio normalizado a Soles para el buscador. |
+    | `expected_monthly_salary`| NUMERIC| `enricher` (W) | Sueldo estimado en el mercado peruano (ROI). |
 | `roi_months` | NUMERIC| `enricher` (W) | Meses para recuperar la inversión del curso. |
-| `seniority_level` | TEXT | `enricher` (W) | Experiencia previa requerida (Jr, Mid, Sr). |
-| `is_active` | BOOL | `integrity` (U) | Toggle de visibilidad (se apaga en 404 persistente). |
-| `is_verified` | BOOL | Auditoría | Sello de "Dato Verificado" por el equipo SM. |
-| `last_scraped_at` | TZ | `sync` (W) | Fecha de la última actualización desde la web. |
-| `last_404_at` | TZ | `integrity` (U) | Marca de tiempo del último error de enlace roto. |
-| `embedding` | TEXT | `sync` (W) | Vector pgvector para búsqueda semántica inteligente. |
+    | `seniority_level` | TEXT | `sync` (W) | Experiencia previa requerida (Jr, Mid, Sr). |
+    | `embedding` | TEXT | `sync` (W) | Representación vectorial del curso para búsqueda semántica. |
 
-### 6. Tablas de Soporte y Engagement
+### 9. Tablas de Soporte y Engagement
 | Tabla | Propósito | Campos Clave y Funcionalidad |
 | :--- | :--- | :--- |
 | `categories` | Taxonomía | `name` (Nombre de la industria), `description` (Contexto). |
