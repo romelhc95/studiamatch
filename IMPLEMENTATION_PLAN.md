@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 60.5 completada. Fase 32 en ejecución. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados). 29 archivos de deuda técnica eliminados.
-- **Último Hito**: Fase 60.5 — Limpieza de deuda técnica: 29 archivos obsoletos, 5 dependencias muertas, 2 imports, cache `.wrangler/`. Commit `65c86ca`.
-- **Próxima Acción**: Fase 32 — Migración Full Replace Dev→Pro.
+- **Estado Actual**: Fase 32A en progreso (RLS hardening). RLS habilitado en 12/12 tablas, 33 policies creadas, REVOKE de RPCs aplicado. Pipeline scripts locales necesitan `db_client.py` update + service_role key antes de poder escribir. Fase 32B (pg_dump migración) pendiente de credenciales BD.
+- **Último Hito**: Fase 32A parcial — RLS hardening ejecutado en Dev Free. 12/12 tablas con RLS, RPCs protegidas, warnings aceptados (leads/ratings/reviews INSERT intencional).
+- **Próxima Acción**: Completar Fase 32A (6: modificar db_client.py + agregar SUPABASE_SERVICE_ROLE_KEY a .env.local). Luego Fase 32B (pg_dump migración a Pro).
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -29,7 +29,8 @@
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [ ] **Fase 32**: Migración Full Replace Dev→Pro — Backup, DDL, 7 RPCs, data (648 cursos, 15 instituciones), RLS, verificación, cutover.
+- [ ] **Fase 32A**: Hardening RLS en Dev — 8 tablas sin RLS, 7 RPCs accesibles por anon, extensions en schema incorrecto. DEBE ejecutarse ANTES de migración.
+- [ ] **Fase 32B**: Migración pg_dump Full Replace Dev→Pro — pg_dump con RLS aplicado, restore atómico, verificación conteos, cutover env vars.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
 ---
@@ -258,6 +259,8 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 ### Fase 32: Migración Full Replace — Dev (Free) → Pro [ ] Pendiente
 Objetivo: Reemplazar completamente la data del proyecto Supabase Pro (`zogdcvlqxanzqbvkkdar`, `us-west-1`) con la data superior del proyecto Dev (`fmcxwoqvxatbrawwtqke`, `sa-east-1`), incluyendo schema, datos, RPCs, RLS y extensiones.
 
+**Estrategia**: Full Replace (no merge). Se preservan los UUIDs del Dev para evitar remapeo de FKs. La data existente del Pro (198 cursos con slugs rotos y encoding dañado) se elimina y reemplaza por los 648 cursos del Dev. La migración usa `pg_dump`/`psql` (robusto, atómico) en vez de REST API script.
+
 **Diagnóstico comparativo**:
 
 | Aspecto | Dev (Free) | Pro | Acción |
@@ -270,75 +273,153 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro (`zogdcvlqx
 | Crawler exclusions | 255 | Tabla no existe | Crear tabla + data |
 | Pipeline tables | staging_raw:3450, cleansed:586, enriched:728 | No existen | Crear tablas + data |
 | Leads | 0 | 0 | N/A |
-| Ratings/Reviews | No existen tablas | No existen tablas | Crear tablas vacías |
-| RPC Functions | 7 custom | Desconocido (probablemente 0) | Crear |
+| Ratings/Reviews | Tablas existen (vacías) | Tablas existen (vacías) | N/A |
+| RPC Functions | 7 custom + 2 triggers | Desconocido (probablemente 0) | Crear |
 | Extensions | pg_trgm, vector, pgcrypto, uuid-ossp | Desconocido | Crear |
-| RLS Policies | 9 policies en 4 tablas | Desconocido | Crear |
+| **RLS Policies** | **9 policies en 4 tablas (solo pipeline), 8 tablas SIN RLS** | Desconocido | **Corregir ANTES de migrar** |
 
-**Estrategia**: Full Replace (no merge). Se preservan los UUIDs del Dev para evitar remapeo de FKs. La data existente del Pro (198 cursos con slugs rotos y encoding dañado) se elimina y reemplaza por los 648 cursos del Dev.
+**Diagnóstico de seguridad RLS en Dev (Free)** — Auditado 2026-04-30:
 
-1. **Pre-migración — Backup del Pro**:
-   - [ ] Ejecutar `pg_dump` del Pro actual (198 cursos, 14 instituciones) como respaldo
-   - [ ] Verificar que el backup se puede restaurar
+| Tabla | RLS Pre | RLS Post | Policies post |
+|---|---|---|---|
+| `courses` | ❌ | ✅ | anon: SELECT, authenticated: SELECT, service_role: ALL |
+| `institutions` | ❌ | ✅ | anon: SELECT, authenticated: SELECT, service_role: ALL |
+| `categories` | ❌ | ✅ | anon: SELECT, authenticated: SELECT, service_role: ALL |
+| `category_rules` | ❌ | ✅ | anon: SELECT, authenticated: SELECT, service_role: ALL |
+| `market_salaries` | ❌ | ✅ | anon: SELECT, authenticated: SELECT, service_role: ALL |
+| `leads` | ❌ | ✅ | anon: INSERT only, authenticated: INSERT, service_role: ALL |
+| `ratings` | ❌ | ✅ | authenticated: SELECT+INSERT, service_role: ALL |
+| `reviews` | ❌ | ✅ | authenticated: SELECT+INSERT, service_role: ALL |
+| `staging_raw` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
+| `cleansed_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
+| `enriched_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all, public read) |
+| `crawler_exclusions` | ✅ | ✅ | Sin cambios (public select active, service all) |
 
-2. **Schema Migration — Crear tablas y extensiones faltantes**:
-   - [ ] Crear extensiones: `CREATE EXTENSION IF NOT EXISTS pg_trgm;`, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`, `CREATE EXTENSION IF NOT EXISTS pgcrypto;`, `CREATE EXTENSION IF NOT EXISTS vector;`
-   - [ ] Crear tabla `staging_raw` (19 columnas) con UNIQUE constraint en `url`
-   - [ ] Crear tabla `cleansed_programs` (15 columnas) con UNIQUE constraint en `url`
-   - [ ] Crear tabla `enriched_programs` (26 columnas) con UNIQUE constraint en `url`
-   - [ ] Crear tabla `crawler_exclusions` (6 columnas)
-   - [ ] Crear tabla `ratings` (5 columnas)
-   - [ ] Crear tabla `reviews` (5 columnas)
-   - [ ] Agregar columnas faltantes a tablas existentes (verificar `courses`, `institutions`, `categories`, `leads`)
-   - [ ] Agregar `slug` a `categories` si no existe
-   - [ ] Crear índices: `courses_url_key`, `courses_institution_slug_idx`, `institution_slug_key`, `staging_raw_url_key`, `cleansed_programs_url_key`, `enriched_programs_url_key`
+**WARN del Advisor (post-hardening)** — Pendientes de resolver:
 
-3. **RPC Functions — Crear 7 funciones custom**:
-   - [ ] `lock_staging_records(limit INT)` — transición atómica `pending → processing`
-   - [ ] `lock_cleansed_records(limit INT)` — transición atómica `pending → processing`
-   - [ ] `unlock_staging_record(record_id UUID)` — liberar lock en error
-   - [ ] `unlock_cleansed_record(record_id UUID)` — liberar lock en error
-   - [ ] `atomic_cleansing_promote(...)` — INSERT cleansed + UPDATE staging en una operación
-   - [ ] `atomic_enrichment_promote(...)` — UPSERT enriched + UPDATE cleansed en una operación
-   - [ ] `fn_auto_assign_category(...)` — asignación automática de categoría por keywords
-   - [ ] `update_updated_at_column()` — trigger function para `updated_at`
+| Warning | Severidad | Descripción | Fix |
+|---|---|---|---|
+| `rls_policy_always_true` (4 instancias) | MEDIA | Policies INSERT `WITH CHECK (true)` en leads, ratings, reviews permiten cualquier fila. Es **intencional** (lead form público, ratings abiertos). | No aplicar fix, documentar como aceptado. |
+| `function_search_path_mutable` (8 instancias) | BAJA | 7 RPCs + 1 trigger function sin `SET search_path = public`. Puede permitir injection de search path. | Agregar `SET search_path = public` a cada función en migration futura. |
+| `extension_in_public` (2 instancias) | BAJA | pg_trgm y vector en schema `public`. Supabase recomienda schema `extensions`. | Mover en Fase 32B o post-migración con testing. |
+| `anon_security_definer_function_executable` | RESUELTO | REVOKE ejecutado. anon ya NO puede ejecutar RPCs. | ✅ Aplicado: `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;` |
 
-4. **Data Migration — Full Replace**:
-   - [ ] `DELETE FROM courses;` — limpiar 198 cursos con slugs rotos
-   - [ ] `DELETE FROM categories;` — limpiar 24 categorías sin slug
-   - [ ] `DELETE FROM market_salaries;` — limpiar para UPSERT limpio
-   - [ ] `DELETE FROM institutions;` — limpiar IDs inconsistentes
-   - [ ] `INSERT INTO institutions` — 15 instituciones desde Dev (con UUIDs originales)
-   - [ ] `INSERT INTO categories` — 18 categorías desde Dev (con slug)
-   - [ ] `INSERT INTO category_rules` — 105 reglas desde Dev
-   - [ ] `INSERT INTO market_salaries` — 17 registros desde Dev
-   - [ ] `INSERT INTO courses` — 648 cursos activos desde Dev
-   - [ ] `INSERT INTO crawler_exclusions` — 255 exclusion patterns desde Dev
-   - [ ] `INSERT INTO staging_raw` — 3,450 registros desde Dev
-   - [ ] `INSERT INTO cleansed_programs` — 586 registros desde Dev
-   - [ ] `INSERT INTO enriched_programs` — 728 registros desde Dev
+**Impacto en scripts de recolección (post-RLS)**:
 
-5. **RLS Policies — Crear 9 policies en 4 tablas**:
-   - [ ] `staging_raw`: `staging_raw_no_public_access` (anon: ALL false), `staging_raw_service_role` (service_role: ALL true)
-   - [ ] `cleansed_programs`: `cleansed_programs_no_public_access` (anon: ALL false), `cleansed_programs_service_role` (service_role: ALL true)
-   - [ ] `enriched_programs`: `enriched_programs_no_public_access` (anon: ALL false), `enriched_programs_service_role` (service_role: ALL true), `Public read for enriched_programs` (public: SELECT true)
-   - [ ] `crawler_exclusions`: `crawler_exclusions_select_public` (anon/authenticated: SELECT where is_active=true), `crawler_exclusions_service_role` (service_role: ALL true)
-   - [ ] Verificar RLS en tablas públicas: `institutions`, `courses`, `categories`, `leads` → SELECT para anon
+| Script | Operación | Funciona con anon key? | Funciona con service_role? | Solución requerida |
+|---|---|---|---|---|
+| `sync_vector_worker.py` | UPSERT courses | ❌ Bloqueado | ✅ | db_client.py debe usar service_role para writes |
+| `integrity_ping.py` | PATCH courses | ❌ Bloqueado | ✅ | db_client.py debe usar service_role para writes |
+| `universal_harvester.py` | INSERT staging_raw | ❌ Bloqueado (ya estaba) | ✅ | db_client.py debe usar service_role para writes |
+| `cleansing_worker.py` | INSERT cleansed_programs | ❌ Bloqueado (ya estaba) | ✅ | db_client.py debe usar service_role para writes |
+| `enrichment_worker.py` | INSERT enriched_programs | ❌ Bloqueado (ya estaba) | ✅ | db_client.py debe usar service_role para writes |
+| 11 harvesters dedicados | INSERT courses | ❌ Bloqueado (NUEVO) | ✅ | db_client.py debe usar service_role para writes |
+| `batch_enrich_courses.py` | UPSERT courses | ❌ Bloqueado (NUEVO) | ✅ | db_client.py debe usar service_role para writes |
+| Frontend Next.js | SELECT courses, institutions | ✅ Funciona | N/A | Sin cambios |
+| Frontend lead form | INSERT leads | ✅ Funciona (anon INSERT) | N/A | Sin cambios |
 
-6. **Verificación Post-Migración**:
-   - [ ] Conteo de registros por tabla (Dev vs Pro, deben coincidir)
+**NOTA CRÍTICA**: Los scripts que corren en CI/CD (GitHub Actions) NO se ven afectados porque ya inyectan `SUPABASE_SERVICE_ROLE_KEY`. Solo se ven afectados los scripts locales sin esa variable en `.env.local`.
+
+#### Fase 32A: Hardening RLS en Dev (Free) — ANTES del dump [ ] Pendiente
+Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro y cualquier usuario anon puede INSERT/UPDATE/DELETE en tablas públicas.
+
+1. **Habilitar RLS en 8 tablas sin protección**:
+   - [x] `ALTER TABLE courses ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE institutions ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE categories ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE category_rules ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE market_salaries ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE leads ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;`
+   - [x] `ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;`
+
+2. **Crear policies de solo lectura pública (tablas contenido)**:
+   - [x] courses: `courses_select_public` (anon: SELECT), `courses_select_authenticated` (authenticated: SELECT), `courses_service_role` (service_role: ALL)
+   - [x] institutions: `institutions_select_public` (anon: SELECT), `institutions_select_authenticated` (authenticated: SELECT), `institutions_service_role` (service_role: ALL)
+   - [x] categories: `categories_select_public` (anon: SELECT), `categories_select_authenticated` (authenticated: SELECT), `categories_service_role` (service_role: ALL)
+   - [x] category_rules: `category_rules_select_public` (anon: SELECT), `category_rules_select_authenticated` (authenticated: SELECT), `category_rules_service_role` (service_role: ALL)
+   - [x] market_salaries: `market_salaries_select_public` (anon: SELECT), `market_salaries_select_authenticated` (authenticated: SELECT), `market_salaries_service_role` (service_role: ALL)
+
+3. **Crear policies especiales (leads, ratings, reviews)**:
+   - [x] leads: `leads_insert_public` (anon: INSERT), `leads_insert_authenticated` (authenticated: INSERT), `leads_service_role` (service_role: ALL). NOTA: anon NO puede SELECT leads (PII protegido).
+   - [x] ratings: `ratings_select_authenticated` (authenticated: SELECT), `ratings_insert_authenticated` (authenticated: INSERT), `ratings_service_role` (service_role: ALL)
+   - [x] reviews: `reviews_select_authenticated` (authenticated: SELECT), `reviews_insert_authenticated` (authenticated: INSERT), `reviews_service_role` (service_role: ALL)
+
+4. **Revocar EXECUTE de RPCs a anon y authenticated**:
+   - [x] `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;` (NOTA: requiere `PUBLIC` además de `anon` y `authenticated`)
+   - [x] `GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;`
+   - [x] Verificar: `has_function_privilege('anon', ..., 'EXECUTE')` → false ✅
+
+5. **Mover extensiones a schema `extensions`** (opcional, bajo riesgo):
+   - [ ] `ALTER EXTENSION pg_trgm SET SCHEMA extensions;`
+   - [ ] `ALTER EXTENSION vector SET SCHEMA extensions;`
+   - [ ] Verificar que `courses` trigram search y `embedding` siguen funcionando con schema `extensions`
+
+6. **Modificar `db_client.py` para usar service_role en writes** (IMPACTO CRÍTICO):
+   - [ ] Agregar `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` (obtener del Dashboard > Settings > API)
+   - [ ] Modificar `db_client.py`: `_get_headers(use_service_role=None)` — leer `_service_key` para writes, `_anon_key` para reads
+   - [ ] `_insert_api()`, `_patch_api()`, `_delete_api()`, `_upsert_api()`, `rpc()` → usar `use_service_role=True`
+   - [ ] `_select_api()`, `select_all()`, `count()` → usar `use_service_role=False`
+   - [ ] Verificar que los scripts locales pueden INSERT/UPSERT en `courses` con service_role
+   - [ ] Verificar que el frontend sigue leyendo con anon key (SELECT)
+   - [ ] Commit cambios en `db_client.py` y `.env.local`
+
+7. **Crear migration SQL y verificar en Dev**:
+   - [x] Migration `db/migrations/20260430_rls_hardening.sql` creada y ejecutada
+   - [x] Verificado: 12/12 tablas con RLS habilitado
+   - [x] Verificado: 33 policies creadas correctamente
+   - [x] Verificado: RPCs revocadas de anon/authenticated (solo service_role puede ejecutar)
+   - [ ] Verificar Supabase Advisor: aceptar warnings `rls_policy_always_true` (leads, ratings, reviews son intencionales)
+   - [ ] Verificar funcionamiento de scripts locales con service_role key
+
+#### Fase 32B: Migración pg_dump Full Replace — Free → Pro [ ] Pendiente
+
+1. **Pre-migración — Configurar credenciales**:
+   - [ ] Obtener DB password del Free (`fmcxwoqvxatbrawwtqke`) desde Dashboard > Settings > Database
+   - [ ] Obtener DB password del Pro (`zogdcvlqxanzqbvkkdar`) desde Dashboard > Settings > Database
+   - [ ] Configurar `~/.pgpass` en contenedor Docker con ambas credenciales
+
+2. **Backup del Pro actual** (safety net):
+   - [ ] `pg_dump` del Pro actual (198 cursos, 14 instituciones) → `pro_backup.sql`
+   - [ ] Verificar que el backup se puede restaurar (dry-run)
+
+3. **Dump del Dev (Free) con RLS hardening aplicado**:
+   - [ ] `pg_dump --schema=public --no-owner --no-privileges --no-subscriptions --data-only` del Free → `free_data.sql`
+   - [ ] `pg_dump --schema=public --no-owner --no-privileges --schema-only` del Free → `free_schema.sql`
+   - [ ] Verificar que `free_schema.sql` incluye `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` y todas las policies
+
+4. **Limpiar schema del Free dump** (manual):
+   - [ ] Remover líneas con `ALTER ... OWNER TO "supabase_admin"`
+   - [ ] Remover `GRANT "postgres" TO "cli_login_postgres"` de roles.sql
+   - [ ] Verificar que extensiones se crean con `CREATE EXTENSION IF NOT EXISTS`
+
+5. **DROP y recreate schema public en Pro**:
+   - [ ] `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` vía Management API SQL
+   - [ ] Verificar que el schema está limpio
+
+6. **Restore al Pro**:
+   - [ ] `psql --single-transaction --command 'SET session_replication_role = replica;' --file free_schema.sql --dbname $PRO_DB_URL`
+   - [ ] `psql --single-transaction --command 'SET session_replication_role = replica;' --file free_data.sql --dbname $PRO_DB_URL`
+   - [ ] `psql --command 'RESET session_replication_role;' --dbname $PRO_DB_URL`
+   - [ ] Verificar conteos: institutions=15, courses=648, categories=18, category_rules=105, market_salaries=17, crawler_exclusions=255, staging_raw=3450, cleansed_programs=586, enriched_programs=728
+
+7. **Verificación Post-Migración**:
+   - [ ] Conteo de registros por tabla (Dev vs Pro, deben coincidir exactamente)
    - [ ] UUIDs de instituciones coinciden entre tablas (FK integrity)
+   - [ ] RLS policies verificadas en Pro: 8 tablas con RLS habilitado + 4 tablas pipeline
+   - [ ] RPCs funcionan en Pro (lock_staging_records, atomic_cleansing_promote, etc.)
    - [ ] Frontend apuntando al Pro funciona (courses, categories, filters)
-   - [ ] Pipeline puede escribir en Pro (staging_raw, cleansed, enriched)
-   - [ ] Reprogramar GitHub Actions para usar nuevas credenciales Pro
+   - [ ] Pipeline puede escribir en Pro (staging_raw, cleansed, enriched) vía service_role
+   - [ ] Supabase Advisor en Pro: 0 errores RLS
 
-7. **Cutover — Variables de Entorno**:
+8. **Cutover — Variables de Entorno**:
    - [ ] Actualizar `NEXT_PUBLIC_SUPABASE_URL` en Cloudflare/Vercel → URL del Pro
    - [ ] Actualizar `NEXT_PUBLIC_SUPABASE_ANON_KEY` → anon key del Pro
    - [ ] Actualizar `SUPABASE_SERVICE_ROLE_KEY` en GitHub Environments (Development, Certification, Production)
    - [ ] Actualizar `SUPABASE_URL` en GitHub Environments
    - [ ] Actualizar `.env.local` en contenedor Docker para apuntar al Pro
    - [ ] Verificar que `db_client.py` funciona con nuevas credenciales
+   - [ ] Resetear/revocar DB passwords temporales usadas en `.pgpass`
 
 ### Fase 33: Dominios y Cloudflare (studiamatch.com) [ ] Pendiente
 1. **Configuración de Cloudflare Pages**:

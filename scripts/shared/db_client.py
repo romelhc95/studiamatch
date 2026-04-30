@@ -23,17 +23,29 @@ else:
 class DatabaseClient:
     """
     Universal Database Client for StudIAMatch.
-    Switches automatically between local PostgreSQL (direct SQL) 
-    and Supabase Cloud (Rest API) based on environment.
+    Uses anon key for reads (public API) and service_role key for
+    writes (bypass RLS). Required after Fase 32A RLS hardening.
     """
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
         self.supabase_key = supabase_key if supabase_key is not None else (os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
+        self._anon_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        self._service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+        if self._service_key:
+            self.supabase_key = self._service_key
 
-    def _get_headers(self):
+    def _get_headers(self, use_service_role=None):
+        if use_service_role is None:
+            key = self.supabase_key
+        elif use_service_role and self._service_key:
+            key = self._service_key
+        elif not use_service_role and self._anon_key:
+            key = self._anon_key
+        else:
+            key = self.supabase_key
         return {
-            "apikey": self.supabase_key,
-            "Authorization": f"Bearer {self.supabase_key}",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
             "Content-Type": "application/json"
         }
 
@@ -50,19 +62,17 @@ class DatabaseClient:
         if limit:
             url += f"&limit={limit}"
             
-        res = requests.get(url, headers=self._get_headers())
+        res = requests.get(url, headers=self._get_headers(use_service_role=False))
         if res.status_code == 200:
             data = res.json()
             if columns == "count":
-                # Supabase returns count as a number if using head or specific headers,
-                # but with select=count it usually returns a list with a count object or exact number
                 return data
             return data
         return []
 
     def _insert_api(self, table, data):
         url = f"{self.supabase_url}/rest/v1/{table}"
-        res = requests.post(url, headers=self._get_headers(), json=data)
+        res = requests.post(url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {res.text}")
@@ -70,7 +80,7 @@ class DatabaseClient:
 
     def _patch_api(self, table, filters, data):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = requests.patch(url, headers=self._get_headers(), json=data)
+        res = requests.patch(url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 204]:
             return {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {res.text}")
@@ -78,7 +88,7 @@ class DatabaseClient:
 
     def _delete_api(self, table, filters):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = requests.delete(url, headers=self._get_headers())
+        res = requests.delete(url, headers=self._get_headers(use_service_role=True))
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Delete {table}): {res.status_code} - {res.text}")
@@ -86,7 +96,7 @@ class DatabaseClient:
 
     def _upsert_api(self, table, data, on_conflict):
         url = f"{self.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
-        headers = self._get_headers()
+        headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
         is_batch = isinstance(data, list)
         res = requests.post(url, headers=headers, json=data)
@@ -130,7 +140,7 @@ class DatabaseClient:
             if order:
                 url += f"&order={order}"
             url += f"&limit={limit}&offset={offset}"
-            headers = self._get_headers()
+            headers = self._get_headers(use_service_role=False)
             headers["Range"] = f"{offset}-{offset + limit - 1}"
             headers["Prefer"] = "count=exact"
             res = requests.get(url, headers=headers)
@@ -155,7 +165,7 @@ class DatabaseClient:
         url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
         if filters:
             url += f"&{filters}"
-        headers = self._get_headers()
+        headers = self._get_headers(use_service_role=False)
         headers["Prefer"] = "count=exact"
         res = requests.get(url, headers=headers)
         if res.status_code in (200, 206):
@@ -176,9 +186,10 @@ class DatabaseClient:
     def rpc(self, function_name, params=None):
         """
         Calls a Supabase RPC function.
+        Uses service_role key (pipeline RPCs require bypass of RLS).
         """
         url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
-        headers = self._get_headers()
+        headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "return=representation"
         res = requests.post(url, headers=headers, json=params or {})
         if res.status_code in [200, 201, 204]:
