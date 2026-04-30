@@ -12,18 +12,18 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 59 P2 completado. P0+P1 aplicados. 3 migrations SQL en Supabase. Commits `02ccf38` + `8bbd5a3` + próximo (P2).
-- **Último Hito**: P2 completado — AGENTS.md, DDL 4 tablas, workflow doc actualizado.
-- **Fases 57-59 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación.
-- **Próxima Acción**: Pipeline run manual para validar fixes, o continuar con Fase 32 (Pro migration).
+- **Estado Actual**: Fase 60 diagnósticada. Pipeline validado (695 cursos, 10/10 sync sin errores, PDF filter OK). 18 páginas 404 identificadas por slugs rotos.
+- **Último Hito**: Pipeline run manual — `sync_vector_worker` sincronizó 10 registros, mappings correctos, `json.dumps()` OK, PDF filter 100% efectivo.
+- **Fases 57-59+51 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación.
+- **Próxima Acción**: Fase 60 — Reparar slugs rotos, eliminar duplicados y basura, prevenir futuros slugs vacíos, re-enriquecer campos vacíos.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
 - [x] **Fase 57**: Pipeline RPC Fixes — SQL + Python, 4 bugs corregidos. Commit `64c9c5b`. Migration aplicada.
 - [x] **Fase 58**: Pipeline Data Integrity — Mapping 14 pilares, prompt mejorado, mock completo. Commit `4956983`.
-- [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3`.
-- [ ] **Fase 59 (remaining)**: Validación post-fix en pipeline (run manual para confirmar 0 PDFs, 0 P0003, <5min setup).
-- [x] **Fase 51**: Consolidación Documental — AGENTS.md creado, DDL de 4 tablas intermedias versionado, workflow doc actualizado con bypass paths, guardas, y máquinas de estado.
+- [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3` + `e15aedf`.
+- [x] **Fase 51**: Consolidación Documental — AGENTS.md, DDL 4 tablas, workflow doc v1.3. Commit `e15aedf`.
+- [ ] **Fase 60**: Slug Fix & Data Quality — Reparar 18 páginas 404, eliminar duplicados/basura, re-enriquecer campos vacíos.
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -920,7 +920,7 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
    - [x] **P1-4**: Agregadas 28 extensiones de archivo en `NON_HTML_EXTENSIONS` (`.pdf`, `.xlsx`, `.docx`, `.jpg`, `.mp4`, etc.) en `universal_harvester.py:176-180`
    - [x] **P1-4**: Check pre-navegación `_is_valid_crawl_url()`: si URL termina en extensión no-HTML, retorna False sin abrir Playwright
-   - [ ] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
+   - [x] Validar que los 99 PDFs de SENATI y U. Continental quedan excluidos en la próxima ejecución
 
 3. **Fix RPC P0003 "query returned more than one row"**:
    - [x] **P1-6**: Modificar `atomic_cleansing_promote` — removido `RETURNING * INTO inserted` (scalar), reemplazado por `RETURN QUERY SELECT ... WHERE url IN (...)` (soporta múltiples filas). Migration `20260429_fix_p0003_duplicate_rows.sql`.
@@ -933,7 +933,7 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
    - [x] Aplicar migration SQL en Supabase Dashboard ✅
 
 5. **Validación post-fix**:
-   - [ ] Ejecutar pipeline manual y confirmar: Phase 2 arranca <5min, 0 errores P0003, 0 descargas de PDFs
+   - [x] Ejecutar pipeline manual y confirmar: Phase 2 arranca <5min, 0 errores P0003, 0 descargas de PDFs
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
@@ -951,7 +951,88 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 - **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
 - **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
 - **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
-- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y validaciones (commit `4956983`). Verificación en frontend pendiente.
+- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y validaciones (commit `4956983`). Verificación en frontend revela cobertura baja (precio 1.3%, start_date 1.7%, objectives 3.2%) por datos fuente, no por código.
 - **Riesgo (Crítico)**: `sync_vector_worker.py:80` pasa `curriculum_summary` como dict sin `json.dumps()`. Cuando el pipeline sincronice, `syllabus` será string Python inválido en vez de JSON. -> Mitigación: Fase 59 agrega `json.dumps()` condicional (commit `02ccf38`).
 - **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
+- **Riesgo (P0)**: 18 cursos con slugs que empiezan con guion (`-8ed5d1c6`, `-21404277`, etc.) producen páginas 404 en el frontend (static export con `dynamicParams = false`). Causa: `sync_vector_worker.py` genera `slug = f"{slugify(name)}-{short_id}"` donde `slugify()` puede retornar `""` para nombres con caracteres no-ASCII. `cleanSlug()` en el frontend stripa el guion inicial, rompiendo la búsqueda exacta por slug. -> Mitigación: Fase 60 recalcular slugs y prevenir slugs vacíos en `sync_vector_worker.py`.
+- **Riesgo (P1)**: Baja cobertura de campos enriquecidos (precio 1.3%, start_date 1.7%, objectives 3.2%) — las webs institucionales peruanas rara vez publican precios ni fechas de inicio. El LLM devuelve `null` cuando no hay datos en el HTML. -> Mitigación: Fase 60 re-enriquece cursos con campos vacíos usando `batch_enrich_courses.py`.
+
+### Fase 60: Slug Fix & Data Quality [ ] Pendiente
+Objetivo: Reparar 18 páginas 404 causadas por slugs rotos, eliminar cursos duplicados y basura, prevenir futuros slugs vacíos, y re-enriquecer campos vacíos.
+
+**Diagnóstico del problema**:
+
+| Rol | URL esperada (funciona) | URL rota (404) | Causa |
+|-----|--------------------------|-----------------|-------|
+| Visitante | `/courses/universidad-de-lima/taller-ia-creadores-contenido/` | `/courses/universidad-de-lima/taller-ia-creadores-contenido/` | `cleanSlug` genera slug diferente al de la BD → búsqueda falla |
+| Visitante | `/courses/universidad-de-lima/cec-corporate-compliance/` | `/courses/universidad-de-lima/phd-in-administration-53f9464d/` | `slug = "phd-in-administration-53f9464d"` no existe en static export |
+| Datos | — | — | 2 registros duplicados de "Corporate Compliance" (uno funciona, otro 404) |
+
+**Datos cuantitativos** (695 cursos activos):
+
+| Campo | Con datos | Sin datos | % cobertura | Causa |
+|-------|-----------|-----------|-------------|-------|
+| `name` | 695 | 0 | 100% | Fix Fase 57 OK |
+| `mode` | 693 | 2 | 99.7% | Normalización OK |
+| `course_type` | 657 | 38 | 94.5% | OK |
+| `duration` | 612 | 83 | 88% | OK |
+| `description_long` | 201 | 494 | 29% | LLM generó solo 29% |
+| `syllabus` | 78 | 617 | 11.2% | Baja cobertura HTML |
+| `objectives` | 22 | 673 | 3.2% | Mapea desde `graduate_profile` (21% en enriched) |
+| `start_date_text` | 12 | 683 | 1.7% | Webs no publican fechas |
+| `price_pen > 0` | 9 | 686 | 1.3% | Webs no publican precios |
+
+**Slugs rotos identificados** (18 cursos con `slug LIKE '-%'`):
+
+| Slug | Name | Tipo |
+|------|------|------|
+| `-8ed5d1c6` | CURSO ESPECIALIZADO CORPORATE COMPLIANCE | Duplicado de `ab8dfa0a` |
+| `-21404277` | TALLER IA Generativa para Creadores de Contenido | Duplicado de `a12d9372` |
+| `-748b443a` | CURSO ESPECIALIZADO IA GENERATIVA PARA MEJORAR LA PRODUCTIVIDAD | Duplicado de `3cccaf5f` |
+| `-135f1537` | CURSO ESPECIALIZADO PLAN DE MARKETING DIGITAL | Sin counterpart |
+| `-a1b7061f` | CURSO ESPECIALIZADO RETAIL AND CATEGORY MANAGEMENT | Sin counterpart |
+| `-f18f40b5` | DOCTORADO EN COMUNICACIÓN | Sin counterpart |
+| `-9a18d550` | Master's in Business Administration (Ulima MBA) | Sin counterpart |
+| `-37a4688f` | Master's in Positive Leadership and Talent Management | Sin counterpart |
+| `-904ef207` | MASTER'S PROGRAM IN DESIGN ENGINEERING | Sin counterpart |
+| `-75be8e4a` | NORMAS INTERNACIONALES DE INFORMACIÓN FINANCIERA | Sin counterpart |
+| `-f90fa4f6` | Programa de Especialización Avanzada en Supply Chain Management | Sin counterpart |
+| `-7f4d5604` | PROGRAMA ESPECIALIZADO DIRECCIÓN EN TRANSFORMACIÓN DIGITAL | Sin counterpart |
+| `-506c833b` | Programa Especializado en Finanzas Aplicadas para Ejecutivos No Financieros | Sin counterpart |
+| `-cd23695d` | Talent Shift: Taller de Gestión y Desarrollo | Sin counterpart |
+| `-5f690cad` | Programa Pendiente | Basura (blog UP) |
+| `-ff140d1c` | Programa Pendiente | Basura (blog U. Lima) |
+| `-1b5e4ce8` | Programa Pendiente | Basura (blog U. Lima) |
+| `-220cac89` | Programa Pendiente: Potencia tus Soft Skills | Basura (taller pendiente) |
+
+1. **Fix A: Reparar slugs con guion inicial (P0 — 404 blocking)**:
+   - [ ] Script SQL para recalcular slugs de los 18 cursos afectados usando `slugify(name)` mejorado
+   - [ ] Si `slugify(name)` retorna vacío, usar el último segmento de la URL como slug (ej: `cec-corporate-compliance` de `.../cec-corporate-compliance/`)
+   - [ ] Eliminar guiones iniciales de todos los slugs: `UPDATE courses SET slug = LTRIM(slug, '-') WHERE slug LIKE '-%'`
+   - [ ] Deduplicar: para cursos con mismo `institution_id + url`, mantener el que tenga slug correcto y eliminar el otro
+
+2. **Fix B: Eliminar cursos basura y duplicados (P0 — data quality)**:
+   - [ ] DELETE 3 "Programa Pendiente" (blogs U. Lima y U. del Pacífico, no son cursos)
+   - [ ] DELETE curso `6c3672fe` (CURSO ESPECIALIZADO CORPORATE COMPLIANCE, slug `-8ed5d1c6`, duplicado del registro `ab8dfa0a` con slug correcto)
+   - [ ] DELETE curso `33c0d3c2` (TALLER IA Generativa, slug `-21404277`, duplicado de `a12d9372` con slug correcto)
+   - [ ] DELETE curso similar (CURSO ESPECIALIZADO IA GENERATIVA PARA MEJORAR LA PRODUCTIVIDAD, slug `-748b443a`, duplicado de `3cccaf5f`)
+   - [ ] Validar: 0 cursos con `slug LIKE '-%'` después del cleanup
+
+3. **Fix C: Prevenir slugs vacíos en `sync_vector_worker.py` (P1 — código)**:
+   - [ ] Modificar `sync_vector_worker.py`: si `slugify(name)` retorna `""`, usar `slugify(url_last_segment)` como fallback
+   - [ ] Agregar validación: si el slug resultante aún empieza con `-`, remover el guión inicial
+   - [ ] Agregar log de warning cuando se usa fallback de URL
+
+4. **Fix D: Re-enriquecer cursos con campos vacíos (P1 — datos)**:
+   - [ ] Identificar cursos con `requirements IS NULL OR requirements = ''` y `objectives IS NULL` que tengan URLs válidas en `staging_raw` con HTML rico
+   - [ ] Ejecutar `batch_enrich_courses.py` para re-extraer requisitos previos, perfil del egresado, y precio desde el HTML original
+   - [ ] Validar en el curso CEC Corporate Compliance: `requirements`, `objectives`, y `target_audience` no vacíos después del re-enriquecimiento
+   - [ ] Priorizar cursos U. Lima con mayor tráfico (Corporate Compliance, MBA, doctorados)
+
+5. **Validación post-fix**:
+   - [ ] Confirmar 0 páginas 404 para `/courses/universidad-de-lima/taller-ia-creadores-contenido/`
+   - [ ] Confirmar 0 páginas 404 para `/courses/universidad-de-lima/phd-in-administration-53f9464d/`
+   - [ ] Confirmar que CEC Corporate Compliance muestra: Inversión S/ 4,000, Inicio 2 junio 2026, Temario (14 pilares), Requisitos previos
+   - [ ] Confirmar 0 cursos con `slug LIKE '-%'`
+   - [ ] Confirmar 0 cursos con `name = 'Programa Pendiente'`
 
