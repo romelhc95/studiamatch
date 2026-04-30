@@ -30,7 +30,7 @@
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [ ] **Fase 32**: Migración de Schema a Supabase Pro.
+- [ ] **Fase 32**: Migración Full Replace Dev→Pro — Backup, DDL, 7 RPCs, data (648 cursos, 15 instituciones), RLS, verificación, cutover.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
 ---
@@ -256,16 +256,90 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 - [x] Eliminación de colisiones de rutas antiguas (`[slug]`).
 - [x] Despliegue automático 100% verificado en Cloudflare.
 
-### Fase 32: Migración de Datos y Esquema [ ] Pendiente
-1. **Sincronización de Esquema** (DB Migration)
-   - Acción: Usar `supabase db pull` del proyecto actual y `supabase db push` al nuevo.
-   - Dependencias: Fase 31.
-   - Riesgo: Medio (Validar RLS y extensiones como `pg_trgm`).
-2. **Migración de Datos Maestros** (SQL / CSV)
-   - Acción: Migrar tablas de referencia: `categories`, `market_salaries`.
-   - Acción: Migrar datos operativos sanitizados: `institutions`, `courses`.
-3. **Auditorí­a de Integridad en Producción** (Script)
-   - Acción: Ejecutar `quality_assurance_audit.py` apuntando al nuevo proyecto.
+### Fase 32: Migración Full Replace — Dev (Free) → Pro [ ] Pendiente
+Objetivo: Reemplazar completamente la data del proyecto Supabase Pro (`zogdcvlqxanzqbvkkdar`, `us-west-1`) con la data superior del proyecto Dev (`fmcxwoqvxatbrawwtqke`, `sa-east-1`), incluyendo schema, datos, RPCs, RLS y extensiones.
+
+**Diagnóstico comparativo**:
+
+| Aspecto | Dev (Free) | Pro | Acción |
+|---|---|---|---|
+| Instituciones | 15 (con DMC) | 14 (sin DMC) | Reemplazar |
+| Cursos activos | 648 (data quality Fase 60+) | 198 (slugs rotos, encoding dañado) | Reemplazar |
+| Categorías | 18 (con slug, sin duplicados) | 24 (sin slug, duplicados en español) | Reemplazar |
+| Category rules | 105 | 0 | Insertar |
+| Market salaries | 17 | 17 | UPSERT |
+| Crawler exclusions | 255 | Tabla no existe | Crear tabla + data |
+| Pipeline tables | staging_raw:3450, cleansed:586, enriched:728 | No existen | Crear tablas + data |
+| Leads | 0 | 0 | N/A |
+| Ratings/Reviews | No existen tablas | No existen tablas | Crear tablas vacías |
+| RPC Functions | 7 custom | Desconocido (probablemente 0) | Crear |
+| Extensions | pg_trgm, vector, pgcrypto, uuid-ossp | Desconocido | Crear |
+| RLS Policies | 9 policies en 4 tablas | Desconocido | Crear |
+
+**Estrategia**: Full Replace (no merge). Se preservan los UUIDs del Dev para evitar remapeo de FKs. La data existente del Pro (198 cursos con slugs rotos y encoding dañado) se elimina y reemplaza por los 648 cursos del Dev.
+
+1. **Pre-migración — Backup del Pro**:
+   - [ ] Ejecutar `pg_dump` del Pro actual (198 cursos, 14 instituciones) como respaldo
+   - [ ] Verificar que el backup se puede restaurar
+
+2. **Schema Migration — Crear tablas y extensiones faltantes**:
+   - [ ] Crear extensiones: `CREATE EXTENSION IF NOT EXISTS pg_trgm;`, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`, `CREATE EXTENSION IF NOT EXISTS pgcrypto;`, `CREATE EXTENSION IF NOT EXISTS vector;`
+   - [ ] Crear tabla `staging_raw` (19 columnas) con UNIQUE constraint en `url`
+   - [ ] Crear tabla `cleansed_programs` (15 columnas) con UNIQUE constraint en `url`
+   - [ ] Crear tabla `enriched_programs` (26 columnas) con UNIQUE constraint en `url`
+   - [ ] Crear tabla `crawler_exclusions` (6 columnas)
+   - [ ] Crear tabla `ratings` (5 columnas)
+   - [ ] Crear tabla `reviews` (5 columnas)
+   - [ ] Agregar columnas faltantes a tablas existentes (verificar `courses`, `institutions`, `categories`, `leads`)
+   - [ ] Agregar `slug` a `categories` si no existe
+   - [ ] Crear índices: `courses_url_key`, `courses_institution_slug_idx`, `institution_slug_key`, `staging_raw_url_key`, `cleansed_programs_url_key`, `enriched_programs_url_key`
+
+3. **RPC Functions — Crear 7 funciones custom**:
+   - [ ] `lock_staging_records(limit INT)` — transición atómica `pending → processing`
+   - [ ] `lock_cleansed_records(limit INT)` — transición atómica `pending → processing`
+   - [ ] `unlock_staging_record(record_id UUID)` — liberar lock en error
+   - [ ] `unlock_cleansed_record(record_id UUID)` — liberar lock en error
+   - [ ] `atomic_cleansing_promote(...)` — INSERT cleansed + UPDATE staging en una operación
+   - [ ] `atomic_enrichment_promote(...)` — UPSERT enriched + UPDATE cleansed en una operación
+   - [ ] `fn_auto_assign_category(...)` — asignación automática de categoría por keywords
+   - [ ] `update_updated_at_column()` — trigger function para `updated_at`
+
+4. **Data Migration — Full Replace**:
+   - [ ] `DELETE FROM courses;` — limpiar 198 cursos con slugs rotos
+   - [ ] `DELETE FROM categories;` — limpiar 24 categorías sin slug
+   - [ ] `DELETE FROM market_salaries;` — limpiar para UPSERT limpio
+   - [ ] `DELETE FROM institutions;` — limpiar IDs inconsistentes
+   - [ ] `INSERT INTO institutions` — 15 instituciones desde Dev (con UUIDs originales)
+   - [ ] `INSERT INTO categories` — 18 categorías desde Dev (con slug)
+   - [ ] `INSERT INTO category_rules` — 105 reglas desde Dev
+   - [ ] `INSERT INTO market_salaries` — 17 registros desde Dev
+   - [ ] `INSERT INTO courses` — 648 cursos activos desde Dev
+   - [ ] `INSERT INTO crawler_exclusions` — 255 exclusion patterns desde Dev
+   - [ ] `INSERT INTO staging_raw` — 3,450 registros desde Dev
+   - [ ] `INSERT INTO cleansed_programs` — 586 registros desde Dev
+   - [ ] `INSERT INTO enriched_programs` — 728 registros desde Dev
+
+5. **RLS Policies — Crear 9 policies en 4 tablas**:
+   - [ ] `staging_raw`: `staging_raw_no_public_access` (anon: ALL false), `staging_raw_service_role` (service_role: ALL true)
+   - [ ] `cleansed_programs`: `cleansed_programs_no_public_access` (anon: ALL false), `cleansed_programs_service_role` (service_role: ALL true)
+   - [ ] `enriched_programs`: `enriched_programs_no_public_access` (anon: ALL false), `enriched_programs_service_role` (service_role: ALL true), `Public read for enriched_programs` (public: SELECT true)
+   - [ ] `crawler_exclusions`: `crawler_exclusions_select_public` (anon/authenticated: SELECT where is_active=true), `crawler_exclusions_service_role` (service_role: ALL true)
+   - [ ] Verificar RLS en tablas públicas: `institutions`, `courses`, `categories`, `leads` → SELECT para anon
+
+6. **Verificación Post-Migración**:
+   - [ ] Conteo de registros por tabla (Dev vs Pro, deben coincidir)
+   - [ ] UUIDs de instituciones coinciden entre tablas (FK integrity)
+   - [ ] Frontend apuntando al Pro funciona (courses, categories, filters)
+   - [ ] Pipeline puede escribir en Pro (staging_raw, cleansed, enriched)
+   - [ ] Reprogramar GitHub Actions para usar nuevas credenciales Pro
+
+7. **Cutover — Variables de Entorno**:
+   - [ ] Actualizar `NEXT_PUBLIC_SUPABASE_URL` en Cloudflare/Vercel → URL del Pro
+   - [ ] Actualizar `NEXT_PUBLIC_SUPABASE_ANON_KEY` → anon key del Pro
+   - [ ] Actualizar `SUPABASE_SERVICE_ROLE_KEY` en GitHub Environments (Development, Certification, Production)
+   - [ ] Actualizar `SUPABASE_URL` en GitHub Environments
+   - [ ] Actualizar `.env.local` en contenedor Docker para apuntar al Pro
+   - [ ] Verificar que `db_client.py` funciona con nuevas credenciales
 
 ### Fase 33: Dominios y Cloudflare (studiamatch.com) [ ] Pendiente
 1. **Configuración de Cloudflare Pages**:
