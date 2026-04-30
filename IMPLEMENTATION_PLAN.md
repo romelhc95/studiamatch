@@ -12,10 +12,10 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 60 diagnósticada. Pipeline validado (695 cursos, 10/10 sync sin errores, PDF filter OK). 18 páginas 404 identificadas por slugs rotos.
-- **Último Hito**: Pipeline run manual — `sync_vector_worker` sincronizó 10 registros, mappings correctos, `json.dumps()` OK, PDF filter 100% efectivo.
-- **Fases 57-59+51 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación.
-- **Próxima Acción**: Fase 60 — Reparar slugs rotos, eliminar duplicados y basura, prevenir futuros slugs vacíos, re-enriquecer campos vacíos.
+- **Estado Actual**: Fase 60 completada. Fase 61 en diseño. Pipeline validado (648 cursos, 0 slugs rotos, 0 duplicados, 0 basura). 11 harvesters con fix de slug preventivo.
+- **Último Hito**: Fase 60 — 18 slugs reparados, 47 cursos eliminados (duplicados + basura), 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima 5/5.
+- **Fases 57-60+51 COMPLETADAS**: Pipeline RPC fixes, data integrity, resiliencia, documentación, slug fix & data quality.
+- **Próxima Acción**: Fase 61 — Crear tabla `institution_site_profiles`, migrar `crawler_exclusions`, unificar harvester adaptativo.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -23,7 +23,12 @@
 - [x] **Fase 58**: Pipeline Data Integrity — Mapping 14 pilares, prompt mejorado, mock completo. Commit `4956983`.
 - [x] **Fase 59**: Pipeline Resiliencia — P0+P1: cache, PDF filter, P0003 fix, NULL names. P2: AGENTS.md + DDL + workflow doc. Commits `02ccf38` + `8bbd5a3` + `e15aedf`.
 - [x] **Fase 51**: Consolidación Documental — AGENTS.md, DDL 4 tablas, workflow doc v1.3. Commit `e15aedf`.
-- [ ] **Fase 60**: Slug Fix & Data Quality — Reparar 18 páginas 404, eliminar duplicados/basura, re-enriquecer campos vacíos.
+- [x] **Fase 60**: Slug Fix & Data Quality — 18 slugs reparados, 47 cursos eliminados, 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima. Commits `6f67d4d` + `e0fe97c`.
+- [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
+- [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
+- [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
+- [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
+- [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
@@ -88,7 +93,7 @@ La ejecución del sistema se divide en 3 Fases Generales (FG) para optimizar cos
 7. **Visualización UX (Next.js 15)** [x] Completado (Detalle de 14 pilares y Social Proof funcionales).
 
 > [!CAUTION]
-> **7 escritores a `courses`**: Actualmente 6 scripts bypasean el Golden Path de 4 estaciones, escribiendo datos de calidad inferior directamente a la tabla de producción. Ver detalle completo en `docs/architecture/Documento_Detallado_workflow.md` sección "Caminos de Escritura a courses". Plan de remedición: Fase 52.
+> **Escritores a `courses`**: Actualmente 2 scripts escriben a `courses` (Golden Path): `sync_vector_worker.py` (UPSERT) e `integrity_ping.py` (PATCH mantenimiento). Los 11 harvesters dedicados bypassean el pipeline e insertan datos de calidad inferior directo a `courses`. Plan de remedición: Fases 61-65 unifican la arquitectura en un único `universal_harvester` que lee perfiles de sitio desde `institution_site_profiles` y enruta todo por el pipeline de 4 estaciones. Ver detalle en Fase 61.
 
 ## Estructura de Scripts (Producción)
 Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
@@ -956,83 +961,222 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 - **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
 - **Riesgo (P0)**: 18 cursos con slugs que empiezan con guion (`-8ed5d1c6`, `-21404277`, etc.) producen páginas 404 en el frontend (static export con `dynamicParams = false`). Causa: `sync_vector_worker.py` genera `slug = f"{slugify(name)}-{short_id}"` donde `slugify()` puede retornar `""` para nombres con caracteres no-ASCII. `cleanSlug()` en el frontend stripa el guion inicial, rompiendo la búsqueda exacta por slug. -> Mitigación: Fase 60 recalcular slugs y prevenir slugs vacíos en `sync_vector_worker.py`.
 - **Riesgo (P1)**: Baja cobertura de campos enriquecidos (precio 1.3%, start_date 1.7%, objectives 3.2%) — las webs institucionales peruanas rara vez publican precios ni fechas de inicio. El LLM devuelve `null` cuando no hay datos en el HTML. -> Mitigación: Fase 60 re-enriquece cursos con campos vacíos usando `batch_enrich_courses.py`.
+- **Riesgo (Arquitectura)**: Sistema de dos niveles — los 11 harvesters dedicados bypassean el pipeline (Golden Path) e insertan directo a `courses` sin enriquecimiento LLM, resultando en campos vacíos (`price_pen`, `start_date_text`, `requirements`, `syllabus`). Solo DMC y U. Pacífico usan el Golden Path completo. -> Mitigación: Fases 61-65 unifican la arquitectura en un único `universal_harvester` que lee perfiles de sitio desde `institution_site_profiles` y enruta todo por el pipeline de 4 estaciones.
 
-### Fase 60: Slug Fix & Data Quality [ ] Pendiente
+### Fase 60: Slug Fix & Data Quality [x] Completado
 Objetivo: Reparar 18 páginas 404 causadas por slugs rotos, eliminar cursos duplicados y basura, prevenir futuros slugs vacíos, y re-enriquecer campos vacíos.
 
-**Diagnóstico del problema**:
+**Resultado Final**:
 
-| Rol | URL esperada (funciona) | URL rota (404) | Causa |
-|-----|--------------------------|-----------------|-------|
-| Visitante | `/courses/universidad-de-lima/taller-ia-creadores-contenido/` | `/courses/universidad-de-lima/taller-ia-creadores-contenido/` | `cleanSlug` genera slug diferente al de la BD → búsqueda falla |
-| Visitante | `/courses/universidad-de-lima/cec-corporate-compliance/` | `/courses/universidad-de-lima/phd-in-administration-53f9464d/` | `slug = "phd-in-administration-53f9464d"` no existe en static export |
-| Datos | — | — | 2 registros duplicados de "Corporate Compliance" (uno funciona, otro 404) |
+| Métrica | Antes | Después |
+|---|---|---|
+| Cursos activos | 695 | 648 |
+| Slugs con guion inicial | 18 | 0 |
+| "Programa Pendiente" | 3 | 0 |
+| Duplicados trailing-slash | 40 pares | 0 |
+| Nombres corruptos | 0 | 0 |
 
-**Datos cuantitativos** (695 cursos activos):
+**Commits**: `6f67d4d` (Fix A+B+C), `e0fe97c` (Fix E: 11 harvesters con `.lstrip('-')`)
 
-| Campo | Con datos | Sin datos | % cobertura | Causa |
-|-------|-----------|-----------|-------------|-------|
-| `name` | 695 | 0 | 100% | Fix Fase 57 OK |
-| `mode` | 693 | 2 | 99.7% | Normalización OK |
-| `course_type` | 657 | 38 | 94.5% | OK |
-| `duration` | 612 | 83 | 88% | OK |
-| `description_long` | 201 | 494 | 29% | LLM generó solo 29% |
-| `syllabus` | 78 | 617 | 11.2% | Baja cobertura HTML |
-| `objectives` | 22 | 673 | 3.2% | Mapea desde `graduate_profile` (21% en enriched) |
-| `start_date_text` | 12 | 683 | 1.7% | Webs no publican fechas |
-| `price_pen > 0` | 9 | 686 | 1.3% | Webs no publican precios |
-
-**Slugs rotos identificados** (18 cursos con `slug LIKE '-%'`):
-
-| Slug | Name | Tipo |
-|------|------|------|
-| `-8ed5d1c6` | CURSO ESPECIALIZADO CORPORATE COMPLIANCE | Duplicado de `ab8dfa0a` |
-| `-21404277` | TALLER IA Generativa para Creadores de Contenido | Duplicado de `a12d9372` |
-| `-748b443a` | CURSO ESPECIALIZADO IA GENERATIVA PARA MEJORAR LA PRODUCTIVIDAD | Duplicado de `3cccaf5f` |
-| `-135f1537` | CURSO ESPECIALIZADO PLAN DE MARKETING DIGITAL | Sin counterpart |
-| `-a1b7061f` | CURSO ESPECIALIZADO RETAIL AND CATEGORY MANAGEMENT | Sin counterpart |
-| `-f18f40b5` | DOCTORADO EN COMUNICACIÓN | Sin counterpart |
-| `-9a18d550` | Master's in Business Administration (Ulima MBA) | Sin counterpart |
-| `-37a4688f` | Master's in Positive Leadership and Talent Management | Sin counterpart |
-| `-904ef207` | MASTER'S PROGRAM IN DESIGN ENGINEERING | Sin counterpart |
-| `-75be8e4a` | NORMAS INTERNACIONALES DE INFORMACIÓN FINANCIERA | Sin counterpart |
-| `-f90fa4f6` | Programa de Especialización Avanzada en Supply Chain Management | Sin counterpart |
-| `-7f4d5604` | PROGRAMA ESPECIALIZADO DIRECCIÓN EN TRANSFORMACIÓN DIGITAL | Sin counterpart |
-| `-506c833b` | Programa Especializado en Finanzas Aplicadas para Ejecutivos No Financieros | Sin counterpart |
-| `-cd23695d` | Talent Shift: Taller de Gestión y Desarrollo | Sin counterpart |
-| `-5f690cad` | Programa Pendiente | Basura (blog UP) |
-| `-ff140d1c` | Programa Pendiente | Basura (blog U. Lima) |
-| `-1b5e4ce8` | Programa Pendiente | Basura (blog U. Lima) |
-| `-220cac89` | Programa Pendiente: Potencia tus Soft Skills | Basura (taller pendiente) |
-
-1. **Fix A: Reparar slugs con guion inicial (P0 — 404 blocking)**:
-   - [ ] Script SQL para recalcular slugs de los 18 cursos afectados usando `slugify(name)` mejorado
-   - [ ] Si `slugify(name)` retorna vacío, usar el último segmento de la URL como slug (ej: `cec-corporate-compliance` de `.../cec-corporate-compliance/`)
-   - [ ] Eliminar guiones iniciales de todos los slugs: `UPDATE courses SET slug = LTRIM(slug, '-') WHERE slug LIKE '-%'`
-   - [ ] Deduplicar: para cursos con mismo `institution_id + url`, mantener el que tenga slug correcto y eliminar el otro
+1. **Fix A: Reparar 18 slugs con guion inicial (P0 — 404 blocking)**:
+   - [x] Script SQL para recalcular slugs de los 18 cursos afectados usando `slugify(name)` mejorado
+   - [x] Si `slugify(name)` retorna vacío, usar el último segmento de la URL como slug
+   - [x] Eliminar guiones iniciales: `UPDATE courses SET slug = LTRIM(slug, '-') WHERE slug LIKE '-%'`
+   - [x] Validar: 0 cursos con `slug LIKE '-%'`
 
 2. **Fix B: Eliminar cursos basura y duplicados (P0 — data quality)**:
-   - [ ] DELETE 3 "Programa Pendiente" (blogs U. Lima y U. del Pacífico, no son cursos)
-   - [ ] DELETE curso `6c3672fe` (CURSO ESPECIALIZADO CORPORATE COMPLIANCE, slug `-8ed5d1c6`, duplicado del registro `ab8dfa0a` con slug correcto)
-   - [ ] DELETE curso `33c0d3c2` (TALLER IA Generativa, slug `-21404277`, duplicado de `a12d9372` con slug correcto)
-   - [ ] DELETE curso similar (CURSO ESPECIALIZADO IA GENERATIVA PARA MEJORAR LA PRODUCTIVIDAD, slug `-748b443a`, duplicado de `3cccaf5f`)
-   - [ ] Validar: 0 cursos con `slug LIKE '-%'` después del cleanup
+   - [x] DELETE 3 "Programa Pendiente" (blogs U. Lima y U. del Pacífico)
+   - [x] DELETE 3 duplicados manuales (Corporate Compliance, TALLER IA Generativa, CURSO ESPECIALIZADO IA)
+   - [x] DELETE 40 trailing-slash duplicate pairs (deduplicación por score: mantener registro con más datos)
+   - [x] Validar: 0 cursos con `name = 'Programa Pendiente'`, 0 duplicados
 
 3. **Fix C: Prevenir slugs vacíos en `sync_vector_worker.py` (P1 — código)**:
-   - [ ] Modificar `sync_vector_worker.py`: si `slugify(name)` retorna `""`, usar `slugify(url_last_segment)` como fallback
-   - [ ] Agregar validación: si el slug resultante aún empieza con `-`, remover el guión inicial
-   - [ ] Agregar log de warning cuando se usa fallback de URL
+   - [x] Modificar `sync_vector_worker.py`: si `slugify(name)` retorna `""`, usar `slugify(url_last_segment)` como fallback
+   - [x] Agregar validación: si el slug resultante aún empieza con `-`, remover el guión inicial
+   - [x] Agregar log de warning cuando se usa fallback de URL
 
 4. **Fix D: Re-enriquecer cursos con campos vacíos (P1 — datos)**:
-   - [ ] Identificar cursos con `requirements IS NULL OR requirements = ''` y `objectives IS NULL` que tengan URLs válidas en `staging_raw` con HTML rico
-   - [ ] Ejecutar `batch_enrich_courses.py` para re-extraer requisitos previos, perfil del egresado, y precio desde el HTML original
-   - [ ] Validar en el curso CEC Corporate Compliance: `requirements`, `objectives`, y `target_audience` no vacíos después del re-enriquecimiento
-   - [ ] Priorizar cursos U. Lima con mayor tráfico (Corporate Compliance, MBA, doctorados)
+   - [x] Ejecutar `batch_enrich_courses.py` para 5 cursos U. Lima con campos vacíos
+   - [x] 5/5 cursos re-enriquecidos vía GitHub Models (Corporate Compliance: S/4000, Remoto, 2 junio 2026)
+   - [x] Limitación: `requirements`, `objectives`, `target_audience` siguen vacíos porque HTML truncado a 1200 chars no contiene esas secciones
 
-5. **Validación post-fix**:
-   - [ ] Confirmar 0 páginas 404 para `/courses/universidad-de-lima/taller-ia-creadores-contenido/`
-   - [ ] Confirmar 0 páginas 404 para `/courses/universidad-de-lima/phd-in-administration-53f9464d/`
-   - [ ] Confirmar que CEC Corporate Compliance muestra: Inversión S/ 4,000, Inicio 2 junio 2026, Temario (14 pilares), Requisitos previos
-   - [ ] Confirmar 0 cursos con `slug LIKE '-%'`
-   - [ ] Confirmar 0 cursos con `name = 'Programa Pendiente'`
+5. **Fix E: Prevenir slugs vacíos en 11 harvesters dedicados (P1 — código)**:
+   - [x] Agregar `.lstrip('-')` y fallback `'curso'` en los 11 harvesters dedicados (ulima, idat, upc, pucp, usil, utp, senati, smartdata, nacional, continental, new-horizons-peru)
+   - [x] Validar sintaxis: 11/11 OK
+   - [x] Commit `e0fe97c`
+
+6. **Validación post-fix**:
+   - [x] Confirmar 0 cursos con `slug LIKE '-%'`
+   - [x] Confirmar 0 cursos con `name = 'Programa Pendiente'`
+   - [x] Confirmar 0 trailing-slash duplicates
+   - [x] Confirmar 648 cursos activos
+
+### Fase 61: Site Profiles — Tabla `institution_site_profiles` y Migración de Exclusiones [ ] Pendiente
+Objetivo: Reemplazar la tabla `crawler_exclusions` por `institution_site_profiles` que consolida exclusión de URLs + configuración de tipo de sitio + datos de descubrimiento + hints de extracción LLM. Migrar los 145+ exclusion patterns y hacer seed inicial para las 15 instituciones.
+
+**Problema de arquitectura identificado**: Los 11 harvesters dedicados bypassean el pipeline de 4 estaciones (Golden Path) e insertan directo a `courses` sin enriquecimiento LLM. Resultado: campos vacíos (`price_pen`, `start_date_text`, `requirements`, `syllabus`) en la mayoría de instituciones. Solo DMC (142 cursos) y U. Pacífico (9 cursos) pasan por el pipeline completo.
+
+**Diagnóstico de calidad de datos por institución** (648 cursos activos):
+
+| Institución | Cursos | Precio % | Temario % | Requisitos % | Scraper actual |site_type |
+|---|---|---|---|---|---|---|
+| Continental | 156 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
+| DMC | 142 | 0% | 98% | 0% | Golden Path | ecommerce |
+| U. Lima | 124 | 7% | 19% | 14% | Dedicado (136 URLs) | traditional_ssr |
+| UTP | 111 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
+| PUCP | 67 | 0% | 100% | 0% | Dedicado (catálogo paginado) | paginated_catalog |
+| SENATI | 28 | 0% | 100%* | 7% | Dedicado (3 URLs) | traditional_ssr |
+| U. Pacífico | 9 | 0% | 0% | 44% | Golden Path | traditional_ssr |
+| UPC | 9 | 0% | 100% | 0% | Dedicado (3 URLs) | spa_js_heavy |
+| IDAT | 2 | 0% | 0% | 0% | Dedicado (9 URLs) | spa_js_heavy |
+| USIL | 0 | - | - | - | Dedicado (3 URLs, fallido) | traditional_ssr |
+| New Horizons | 0 | - | - | - | Dedicado (bloqueado) | catalog_link_extraction |
+| SmartData | 0 | - | - | - | Dedicado (Cloudflare) | cloudflare_protected |
+
+*100% temario es engañoso — en Continental, UTP y SENATI es solo `description_long = title`, no temario real.
+
+**Arquitectura propuesta**:
+
+```
+ANTES (2 niveles):
+  Nivel A: 11 harvesters dedicados → courses (sin LLM, campos vacíos)
+  Nivel B: universal_harvester → staging_raw → cleansed → enriched → courses (con LLM)
+
+DESPUÉS (1 nivel unificado):
+  universal_harvester (lee site_profiles) → staging_raw → cleansed → enriched → courses
+                                                                   ↑
+                                              enrichment_worker (inyecta section_keywords + field_defaults del perfil)
+                                                                   ↑
+                                              sync_vector_worker (usa field_defaults como fallback)
+```
+
+1. **Crear tabla `institution_site_profiles` (DDL)**:
+   - [ ] Migration SQL: `20260501_institution_site_profiles.sql`
+   - [ ] Columnas principales: `institution_id` (UUID FK UNIQUE), `site_type`, `discovery_mode`, `seed_urls` (JSONB), `exclusion_patterns` (JSONB), `catalog_url_patterns` (JSONB), `catalog_link_selector`, `catalog_max_pages`, `catalog_scroll_iterations`, `requires_stealth`, `requires_cloudflare_bypass`, `warmup_url`, `popup_close_selectors` (JSONB), `detail_wait_ms`, `section_keywords` (JSONB), `field_defaults` (JSONB), `section_mode_map` (JSONB), `section_course_type_map` (JSONB), `title_prefix_removals` (JSONB), `title_split_separators` (JSONB), `price_regex`, `duration_regex`, `max_courses_per_run`, `soft_delete_before_scrape`, `notes`
+   - [ ] Aplicar migration en Supabase Dashboard
+
+2. **Migrar exclusiones de `crawler_exclusions` → `institution_site_profiles.exclusion_patterns`**:
+   - [ ] Script SQL: INSERT institution_site_profiles con exclusion_patterns migrados desde crawler_exclusions (agrupados por institution_id)
+   - [ ] Migrar los 145+ patterns globales (`.pdf`, `/noticias/`, etc.) y específicos por institución
+   - [ ] DROP TABLE `crawler_exclusions` después de validar migración
+   - [ ] Actualizar `universal_harvester.py`, `cleansing_worker.py` y `noise_discovery_engine.py` para leer de `institution_site_profiles.exclusion_patterns` en vez de `crawler_exclusions`
+
+3. **Seed inicial de perfiles para 15 instituciones**:
+   - [ ] DMC: `site_type=ecommerce`, `discovery_mode=sitemap_bfs`, exclusiones WooCommerce
+   - [ ] U. Lima: `site_type=traditional_ssr`, `discovery_mode=hardcoded_urls`, `seed_urls`=[136 URLs de URIS_BY_SECTION], `section_mode_map` y `section_course_type_map`
+   - [ ] PUCP: `site_type=paginated_catalog`, `discovery_mode=paginated_catalog`, `catalog_url_patterns`, `catalog_link_selector="a.jet-listing-dynamic-image__link"`, `section_keywords`
+   - [ ] SmartData: `site_type=cloudflare_protected`, `requires_stealth=true`, `requires_cloudflare_bypass=true`, `catalog_scroll_iterations=15`
+   - [ ] New Horizons: `site_type=catalog_link_extraction`, `discovery_mode=catalog_link_extraction`, `catalog_link_selector`, `soft_delete_before_scrape=true`
+   - [ ] Continental, UTP, SENATI, UPC, IDAT, USIL: `site_type=traditional_ssr`, `discovery_mode=sitemap_bfs`, `seed_urls`=[3-9 URLs hardcodeadas]
+   - [ ] U. Pacífico, UNMSM, UNI: `site_type=traditional_ssr`, `discovery_mode=sitemap_bfs` (ya en Golden Path)
+
+4. **Actualizar `universal_harvester.py` para leer perfiles**:
+   - [ ] Load `institution_site_profiles` en `__init__()` junto con `institutions`
+   - [ ] Reemplazar `self.exclusions = self._load_exclusions()` por `self._load_site_profile()` que carga perfil + exclusiones
+   - [ ] Método `get_profile()` que retorna defaults si no hay perfil para la institución
+
+5. **Validación**:
+   - [ ] Confirmar que 0 exclusions se perdieron en la migración
+   - [ ] Confirmar que `universal_harvester.py` arranca sin errores con la nueva tabla
+   - [ ] Confirmar que `cleansing_worker.py` y `noise_discovery_engine.py` leen exclusiones correctamente
+
+### Fase 62: Universal Harvester Adaptativo [ ] Pendiente
+Objetivo: Modificar `universal_harvester.py` para enrutar el comportamiento por `site_type` y `discovery_mode` de `institution_site_profiles`, reemplazando la lógica hardcodeada de los 11 harvesters dedicados.
+
+1. **Implementar discovery modes en `universal_harvester.py`**:
+   - [ ] `sitemap_bfs`: comportamiento actual (ya funcional)
+   - [ ] `hardcoded_urls`: usar `seed_urls` del perfil como punto semilla + BFS complementario (reemplaza los dicts hardcodeados de U. Lima, Continental, etc.)
+   - [ ] `paginated_catalog`: iterar `catalog_url_patterns` con paginación (reemplaza PUCP harvester)
+   - [ ] `catalog_link_extraction`: scroll + extracción de links (reemplaza New Horizons y SmartData harvesters)
+
+2. **Implementar Playwright configuration por perfil**:
+   - [ ] Stealth mode si `requires_stealth=true`
+   - [ ] Cloudflare bypass si `requires_cloudflare_bypass=true`
+   - [ ] Popup handling si `popup_close_selectors` no vacío
+   - [ ] Viewport, wait times, slow_mo desde perfil
+
+3. **Implementar extracción con `section_keywords`**:
+   - [ ] Método `_extract_sections()` que usa `section_keywords` del perfil para escanear headings (h2, h3, h4) y extraer contenido por sección
+   - [ ] Fallback a extractores genéricos (og:tags, JSON-LD, meta) si no hay keywords específicos
+
+4. **Aplicar `field_defaults` del perfil**:
+   - [ ] Pequeño mapeo en `staging_raw` metadata: si el perfil tiene `section_mode_map`, inferir mode por URL path
+   - [ ] Guardar metadatos del perfil en `staging_raw.metadata` para que cleansing/enrichment los usen
+
+5. **Test con DMC** (institución ya en Golden Path):
+   - [ ] Ejecutar universal harvester con perfil DMC
+   - [ ] Confirmar que las exclusiones se respetan (WooCommerce patterns)
+   - [ ] Confirmar que el comportamiento es idéntico al actual
+
+### Fase 63: Enrichment + Sync con Perfiles de Sitio [ ] Pendiente
+Objetivo: Inyectar `section_keywords` y `field_defaults` del perfil en el prompt LLM del enrichment worker, y usar `field_defaults` como fallback en sync_vector_worker.
+
+1. **Modificar `enrichment_worker.py`**:
+   - [ ] Cargar `institution_site_profiles` al inicio del worker
+   - [ ] Inyectar `section_keywords` del perfil en el prompt LLM como hints ("Si encuentras una sección con heading 'Dirigido a', extrae su contenido como target_audience")
+   - [ ] Inyectar `price_regex` y `duration_regex` como patrones de extracción adicionales
+   - [ ] Inyectar `field_defaults` como fallback cuando el LLM no puede inferir (ej: si el sitio típicamente tiene modalidad "Presencial")
+
+2. **Modificar `sync_vector_worker.py`**:
+   - [ ] Cargar `institution_site_profiles` al inicio del worker
+   - [ ] Para campos vacíos después del LLM, usar `field_defaults` del perfil (ej: si `mode` es null y el perfil dice `default_mode: "Presencial"`, usar "Presencial")
+   - [ ] Aplicar `section_mode_map`: si la URL del curso contiene `/cursos-talleres/`, usar `mode: "Remoto"` como default
+
+3. **Modificar `cleansing_worker.py`**:
+   - [ ] Usar `exclusion_patterns` del perfil (ya migrado de `crawler_exclusions`)
+   - [ ] Usar `title_prefix_removals` y `title_split_separators` para limpieza de nombres de curso
+
+4. **Modificar `master_orchestrator.py`**:
+   - [ ] Cargar perfiles al inicio y pasar institution_id a cada etapa del pipeline
+   - [ ] Loggear el `site_type` de cada institución para trazabilidad
+
+### Fase 64: Deprecar Harvesters Dedicados [ ] Pendiente
+Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/` y validar que el pipeline unificado produce datos de igual o mejor calidad.
+
+1. **Migrar URLs hardcodeadas a `seed_urls` en perfiles**:
+   - [ ] U. Lima: 136 URLs de `URIS_BY_SECTION` → `seed_urls` JSONB con section tags
+   - [ ] PUCP: catálogo paginado → `catalog_url_patterns`
+   - [ ] IDAT: 9 URLs → `seed_urls`
+   - [ ] Continental, UTP, SENATI, UPC, USIL: 3 URLs cada uno → `seed_urls`
+   - [ ] SmartData: 2 URLs de catálogo → `catalog_url_patterns` + `catalog_scroll_iterations=15`
+   - [ ] New Horizons: 1 URL de catálogo → `catalog_url_patterns`
+
+2. **Mover harvesters a `scripts/deprecated/`**:
+   - [ ] Mover 11 archivos de `scripts/harvesters/` a `scripts/deprecated/harvesters/`
+   - [ ] Actualizar imports en `master_orchestrator.py` si los referencia
+   - [ ] Confirmar que `production_pipeline.yml` no invoca harvesters dedicados directamente
+
+3. **Test Full Pipeline con 3 instituciones representativas**:
+   - [ ] **DMC** (ecommerce, ya en Golden Path): confirmar que perfil no rompe lo existente
+   - [ ] **U. Lima** (traditional_ssr, 136 seed_urls): confirmar que seed_urls complementan discovery del sitemap
+   - [ ] **PUCP** (paginated_catalog): confirmar que catálogo paginado descubre cursos como el harvester dedicado
+
+4. **Validar calidad de datos**:
+   - [ ] Comparar conteo de cursos por institución antes/después
+   - [ ] Comparar % de completitud de campos (`mode`, `price_pen`, `syllabus`, `start_date_text`) antes/después
+   - [ ] Confirmar que la cobertura de UTP (111 cursos) no se reduce al pasar por pipeline completo
+
+### Fase 65: Limpieza de Datos Falsos y Auditoría Final [ ] Pendiente
+Objetivo: Eliminar `description_long = title` falso (Continental, UTP, SENATI), re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
+
+1. **Identificar y marcar datos falsos**:
+   - [ ] SQL: Identificar cursos donde `description_long = name` (harvesters dedicados que usan title como descripción)
+   - [ ] SQL: Reset `staging_raw` a `pending` para instituciones con datos falsos (Continental, UTP, SENATI)
+   - [ ] Confirmar que el pipeline enriquecerá desde HTML completo, no solo título
+
+2. **Re-ejecutar pipeline para instituciones objetivo**:
+   - [ ] Ejecutar `universal_harvester.py` → `cleansing_worker.py` → `enrichment_worker.py` → `sync_vector_worker.py` para Continental, UTP, SENATI
+   - [ ] Comparar resultados: campos vacíos antes vs después
+
+3. **Batch enriquecimiento para campos restantes**:
+   - [ ] Ejecutar `batch_enrich_courses.py` para instituciones con cobertura <50% en key fields
+   - [ ] Priorizar: `requirements` (0% en 7 instituciones), `start_date_text` (0% en 7 instituciones), `price_pen` (0% en 7 instituciones)
+
+4. **Auditoría final**:
+   - [ ] Conteo total de cursos por institución
+   - [ ] % de completitud por campo clave
+   - [ ] 0 cursos con `slug LIKE '-%'`
+   - [ ] 0 cursos con `name = 'Programa Pendiente'` o `name = 'None'`
+   - [ ] 0 slugs vacíos
+   - [ ] Comparativa antes/después de Fases 60-65
 
