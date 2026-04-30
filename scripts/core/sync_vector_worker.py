@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 import requests
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
@@ -45,6 +46,18 @@ class SyncVectorWorker:
 
         # Generate unique slug (include location and short ID if needed)
         base_slug = slugify(name)
+
+        # Fallback: if slugify returns empty (non-ASCII names), use last URL segment
+        if not base_slug:
+            url = enriched.get('url', '')
+            if url:
+                last_segment = urlparse(url).path.strip('/').split('/')[-1]
+                base_slug = slugify(last_segment)
+                logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
+            if not base_slug:
+                base_slug = 'curso'
+                logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
+
         location = enriched.get('location', 'Nacional')
         
         # Add location if specific
@@ -55,6 +68,8 @@ class SyncVectorWorker:
         # while keeping the URL readable
         short_id = str(e_id).split('-')[0]
         full_slug = f"{base_slug}-{short_id}"
+        # Ensure slug never starts with dash
+        full_slug = full_slug.lstrip('-')
 
         # Robust category extraction
         raw_categories = enriched.get('categories')
