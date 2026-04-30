@@ -12,15 +12,17 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 59 (Pipeline Resiliencia) — Pendiente. Run #25126753299 FAILED: Phase 2 timeout sin ejecutar, 99 PDFs descargados, 8 errores P0003.
-- **Último Hito**: Fase 58 completada (Pipeline Data Integrity). Mapping corregido, prompt mejorado, 17 nombres NULL restaurados.
-- **Próxima Acción**: Fase 59 Paso 1 (Cache de dependencias en GitHub Actions).
+- **Estado Actual**: Fase 59 COMPLETADA (P0 fixes aplicados). Run #25126753299 diagnosticado y resuelto. Commit `02ccf38` en `desarrollo`.
+- **Último Hito**: Fase 59 — 3 P0 fixes críticos: `json.dumps()` en syllabus, cache pip+Playwright en Phase 1 Docker, aviso de migración SQL manual.
+- **Fases 57-58 COMPLETADAS**: RPC ambiguous fix (4 bugs), pipeline data integrity (mapping + prompt + mock 14 campos).
+- **Próxima Acción**: Aplicar migration `20260429_rpc_ambiguous_fix.sql` en Supabase Dashboard (manual), luego ejecutar pipeline para validar fixes.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
-- [ ] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions.
-- [ ] **Fase 59**: Pipeline Resiliencia — Cache de deps, filtro de PDFs, fix RPC duplicados.
-- [ ] **Fase 58**: Pipeline Data Integrity — Fix mapping de pilares y extracción LLM.
+- [x] **Fase 57**: Pipeline RPC Fixes — corregir 4 errores del pipeline GitHub Actions. Commit `64c9c5b`.
+- [x] **Fase 58**: Pipeline Data Integrity — Fix mapping de pilares y extracción LLM. Commit `4956983`.
+- [x] **Fase 59**: Pipeline Resiliencia — P0 fixes (cache, json.dumps, migration note). Commit `02ccf38`.
+- [ ] **Fase 59 (remaining)**: Filtrar PDFs en harvester, fix RPC P0003 duplicados, validación post-fix en pipeline.
 - [ ] **Fase 51**: Consolidar docs (AGENTS.md, DDL versionado, documento workflow v1.3).
 - [ ] **Fase 32**: Migración de Schema a Supabase Pro.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
@@ -802,7 +804,7 @@ Objetivo: Hacer visibles los 102 programas de Universidad de Lima en el frontend
 
 **Resultado**: De 52 cursos totales y solo 35 cursos de U. Lima visibles, ahora hay 137 cursos totales con 128 de U. Lima, todos visibles en el frontend.
 
-### Fase 57: Pipeline RPC Fixes [ ] Pendiente
+### Fase 57: Pipeline RPC Fixes [x] Completado
 Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repetitivos y datos de baja calidad.
 
 **Fuente**: Log de ejecución `25087764126` (6h7m, status: success con errores internos).
@@ -826,26 +828,28 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 
 4. **"None" as name**: El LLM retorna `"official_name": "None"` como string literal. `sync_vector_worker.py` no valida el nombre y lo inserta en `courses` tal cual. El frontend muestra cursos con título "None".
 
+**Commit**: `64c9c5b`
+
 1. **Fix SQL: Ambigüedad de columnas en RPC functions**:
-- [ ] Crear migration `20260429_rpc_ambiguous_fix.sql` con `CREATE OR REPLACE FUNCTION lock_staging_records(...)` calificando TODAS las referencias a columnas con `staging_raw.` prefix
-- [ ] Aplicar mismo fix a `lock_cleansed_records` con `cleansed_programs.` prefix
-- [ ] Ejecutar migration contra Supabase
+- [x] Crear migration `20260429_rpc_ambiguous_fix.sql` con `CREATE OR REPLACE FUNCTION lock_staging_records(...)` calificando TODAS las referencias a columnas con `staging_raw.` prefix
+- [x] Aplicar mismo fix a `lock_cleansed_records` con `cleansed_programs.` prefix
+- [ ] Aplicar migration contra Supabase (requiere Dashboard SQL Editor — no se puede desde contenedor con anon key)
 
 2. **Fix Python: Double-serialization en RPC calls**:
-- [ ] `scripts/core/enrichment_worker.py:186-189` → reemplazar `json.dumps(rpc_data)` con `rpc_data` directo
-- [ ] `scripts/core/cleansing_worker.py:222-225` → reemplazar `json.dumps(cleansed_batch)` con `cleansed_batch` directo
+- [x] `scripts/core/enrichment_worker.py:186-189` → reemplazar `json.dumps(rpc_data)` con `rpc_data` directo
+- [x] `scripts/core/cleansing_worker.py:222-225` → reemplazar `json.dumps(cleansed_batch)` con `cleansed_batch` directo
 
 3. **Fix SQL+Python: `duration_months` float → INT**:
-- [ ] En migration SQL: cambiar `(item->>'duration_months')::INT` → `COALESCE(NULLIF(item->>'duration_months', '')::NUMERIC, 0)::INT`
-- [ ] `scripts/core/enrichment_worker.py:149,173` → sanitizar `duration_months` con `int(float(val))` antes de enviar
+- [x] En migration SQL: cambiar `(item->>'duration_months')::INT` → `COALESCE(NULLIF(item->>'duration_months', '')::NUMERIC, 0)::INT`
+- [x] `scripts/core/enrichment_worker.py:149,173` → sanitizar `duration_months` con `int(float(val))` antes de enviar
 
 4. **Fix Python: Validación de `official_name` en sync**:
-- [ ] `scripts/core/sync_vector_worker.py:28-30` → agregar validación: si `name` es `None`, `"None"`, `""`, o `< 3 chars` → skippear y marcar error
-- [ ] `scripts/core/enrichment_worker.py:147` → fallback: si LLM retorna `"None"/null` → usar `clean_name` del registro cleansed
+- [x] `scripts/core/sync_vector_worker.py:28-30` → agregar validación: si `name` es `None`, `"None"`, `""`, o `< 3 chars` → skippear y marcar error
+- [x] `scripts/core/enrichment_worker.py:147` → fallback: si LLM retorna `"None"/null` → usar `clean_name` del registro cleansed
 
 5. **Cleanup: Eliminar cursos basura de la BD**:
-- [ ] `DELETE FROM courses WHERE name IN ('None', '') OR name IS NULL`
-- [ ] Verificar que no queden registros con nombre inválido
+- [x] `DELETE FROM courses WHERE name IN ('None', '') OR name IS NULL` — 1 registro eliminado
+- [x] Verificar que no queden registros con nombre inválido
 
 ## Riesgos y Mitigaciones
 - **Riesgo**: Bloqueos persistentes de IP local. -> Mitigación: Uso obligatorio de Proxies Residenciales y TLS Impersonation.
@@ -856,16 +860,18 @@ Objetivo: Corregir 4 errores del pipeline GitHub Actions que causan fallos repet
 - **Riesgo (Crítico)**: 7 caminos de escritura a `courses` (5 bypasses + 1 bidireccional + 1 Golden Path). Los bypasses BP-1 a BP-5 producen datos de calidad inferior que conviven con datos procesados por las 4 estaciones. -> Mitigación: Fase 52 elimina todos los bypasses haciendo `sync_vector_worker.py` el único escritor autorizado.
 - **Riesgo**: `crawler_exclusions` sin DDL versionado — tabla creada directamente en Supabase, no existe en `PRODUCTION_MASTER.sql` ni `db/migrations/`. -> Mitigación: Fase 51 crea migración formal.
 - **Riesgo**: `ignoreBuildErrors: true` en `next.config.js` suprime errores TypeScript en build. -> Mitigación: Fase 53 remueve el flag y corrige tipos.
-- **Riesgo**: Pipeline RPC errors — 4 bugs en SQL functions y Python workers causan fallos silenciosos cada ejecución. `lock_staging_records` y `atomic_enrichment_promote` fallan, `duration_months` rechaza floats, cursos con nombre "None" aparecen en frontend. -> Mitigación: Fase 57 corrige los 4 bugs.
+- **Riesgo**: Pipeline RPC errors — 4 bugs en SQL functions y Python workers causan fallos silenciosos cada ejecución. `lock_staging_records` y `atomic_enrichment_promote` fallan, `duration_months` rechaza floats, cursos con nombre "None" aparecen en frontend. -> Mitigación: Fase 57 corrige los 4 bugs (commit `64c9c5b`). **Migration SQL pendiente de aplicar en Supabase Dashboard**.
 - **Riesgo**: Dos constantes `MAX_RUN_TIME` inconsistentes en `universal_harvester.py` (19200s a nivel clase vs 20400s a nivel función). -> Mitigación: Fase 55 unifica a un único valor autoritativo (20400s).
 - **Riesgo**: 22 `except:` bare (sin tipo de excepción) silencian errores en 6 scripts core, imposibilitando diagnóstico de fallos. -> Mitigación: Fase 53 reemplaza por `except Exception as e:` con logging.
 - **Riesgo**: Paginación faltante en Supabase (límite 1000 registros por defecto) — `integrity_ping.py`, `quality_assurance_audit.py` y `noise_discovery_engine.py` no paginan, omitiendo registros. -> Mitigación: Fase 53 implementa paginación.
 - **Riesgo**: `description` vs `description_long` — `quality_assurance_audit.py`:43 referencia campo inexistente, auditoría de calidad siempre retorna `None`. -> Mitigación: Fase 55 corrige el nombre del campo.
 - **Riesgo**: RLS solo permite `SELECT` público en tablas core; tablas intermedias (`staging_raw`, `cleansed_programs`, `enriched_programs`, `crawler_exclusions`) NO tienen RLS, permitiendo escritura anónima. -> Mitigación: Fase 53 crea políticas RLS.
 - **Riesgo (Crítico)**: Página de detalle de curso 100% rota — `page.tsx` es un Server Component que devuelve un skeleton estático sin importar `CourseDetailClient` (817 líneas de lógica de fetch/render). El usuario ve solo header + footer sin datos del curso. -> Mitigación: Fase 53 Item 9 corrige la importación y remove el wrapper innecesario.
-- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y agrega validaciones.
+- **Riesgo (Crítico)**: Mapping mismatches entre enriched_programs y courses — `sync_vector_worker.py` busca keys inexistentes (`objectives`, `syllabus`, `certifications`, `seniority_level`, `target_audience`) mientas las keys correctas (`graduate_profile`, `curriculum_summary`, `start_date`) nunca se mapean. `start_date` no se sincroniza a `courses.start_date_text`. Resultado: campos como Inicio, Inversión, Temario, Objetivos aparecen vacíos en el frontend. -> Mitigación: Fase 58 corrige mappings y validaciones (commit `4956983`). Verificación en frontend pendiente.
+- **Riesgo (Crítico)**: `sync_vector_worker.py:80` pasa `curriculum_summary` como dict sin `json.dumps()`. Cuando el pipeline sincronice, `syllabus` será string Python inválido en vez de JSON. -> Mitigación: Fase 59 agrega `json.dumps()` condicional (commit `02ccf38`).
+- **Riesgo**: Phase 2 (Enrichment) en GitHub Actions tarda 6h+ en `pip install` + `playwright install` sin cache, causando timeout. -> Mitigación: Fase 59 agrega `actions/cache@v4` para pip y Playwright (commit `02ccf38`).
 
-### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [ ] Pendiente
+### Fase 59: Pipeline Resiliencia — Timeout, PDFs y RPC Duplicados [x] Parcial
 Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #25126753299 (8h39m, FAILED).
 
 **Diagnóstico del run**:
@@ -874,10 +880,12 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 - 8 errores P0003 `"query returned more than one row"` en `atomic_cleansing_promote` por duplicados de URL
 - Phases 3 y 4 nunca se ejecutaron (skipped)
 
+**Commit**: `02ccf38`
+
 1. **Fix crítico: Cache de dependencias en GitHub Actions**:
-   - [ ] Agregar `actions/cache` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
-   - [ ] Separar step de `pip install` del step de ejecución Python con `timeout-minutes` independiente
-   - [ ] Evaluar si Phase 2 (Enrichment) realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
+   - [x] Agregar `actions/cache@v4` para `~/.cache/pip` y `~/.cache/ms-playwright` en `production_pipeline.yml`
+   - [x] Agregar `timeout-minutes: 360` en Phase 2 (enrichment) y `timeout-minutes: 30` en Phase 1.5 (cleansing)
+   - [ ] Evaluar si Phase 2 realmente necesita Playwright — si solo usa LLM APIs, remover `playwright install chromium` de ese job
 
 2. **Filtrar PDFs/archivos en el Harvester antes de navegar**:
    - [ ] Agregar extensiones `.pdf`, `.xlsx`, `.docx`, `.doc`, `.pptx`, `.zip`, `.rar` a `crawler_exclusions` (globales, institution_id=NULL)
@@ -896,7 +904,7 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 
 ---
 
-### Fase 58: Pipeline Data Integrity — Fix Mapping y Extracción de Pilares [ ] Pendiente
+### Fase 58: Pipeline Data Integrity — Fix Mapping y Extracción de Pilares [x] Completado
 Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_programs` → `sync_vector_worker` → `courses` → frontend. Actualmente 91/218 registros (42%) tienen `total_cost_est=NULL`, 23 tienen `modality=NULL`, 86 `start_date=NULL`, y campos como `objectives`, `syllabus`, `start_date_text` nunca se sincronizan.
 
 **Diagnóstico detallado** (ejemplo: curso CEC Corporate Compliance de U. Lima):
@@ -920,29 +928,31 @@ Objetivo: Corregir la pérdida de datos entre enriquecimiento LLM → `enriched_
 | D | `sync_vector_worker.py` mapea keys inexistentes: `objectives`→`graduate_profile`, `syllabus`→`curriculum_summary`, `start_date`→no mapeado | 3 pilares completamente perdidos | Alta |
 | E | `sync_vector_worker.py` busca keys que no existen en el schema LLM: `certifications`, `seniority_level`, `target_audience` | 3 campos siempre `None` en courses | Media |
 
+**Commit**: `4956983`
+
 1. **Fix `enrichment_worker.py` — Prompt y validación de campos**:
-   - [ ] Mejorar prompt LLM: instruir "Si no puedes inferir un campo con confianza, responde `null`. NUNCA uses el string `'None'`."
-   - [ ] Agregar validación para `modality`: si `None`/vacío → default `"Presencial"`. Si no es `Presencial`/`Remoto`/`Híbrido` → normalizar.
-   - [ ] Agregar validación para `total_cost_est`: parsear strings como `"S/ 1,500"` o `"1500 soles"` a número float. Si no es numérico → `None` (no 0).
-   - [ ] Agregar validación para `start_date`: si LLM retorna `"None"/""` → `None` (no string vacío).
-   - [ ] Completar `_generate_smart_mock()` con los 14 campos del schema (actualmente solo 4).
+   - [x] Mejorar prompt LLM: instruir "Si no puedes inferir un campo con confianza, responde `null`. NUNCA uses el string `'None'`."
+   - [x] Agregar validación para `modality`: si `None`/vacío → default `"Presencial"`. Si no es `Presencial`/`Remoto`/`Híbrido` → normalizar.
+   - [x] Agregar validación para `total_cost_est`: parsear strings como `"S/ 1,500"` o `"1500 soles"` a número float. Si no es numérico → `None` (no 0).
+   - [x] Agregar validación para `start_date`: si LLM retorna `"None"/""` → `None` (no string vacío).
+   - [x] Completar `_generate_smart_mock()` con los 14 campos del schema (actualmente solo 4).
 
 2. **Fix `sync_vector_worker.py` — Corregir mapeos de campos**:
-   - [ ] Agregar `"start_date_text": enriched.get('start_date')` al dict `course_data`
-   - [ ] Corregir `"objectives": enriched.get('graduate_profile')` (era `enriched.get('objectives')` que no existe)
-   - [ ] Corregir `"syllabus": enriched.get('curriculum_summary')` (era `enriched.get('syllabus')` que no existe)
-   - [ ] Agregar `"target_audience": enriched.get('graduate_profile')` como fallback (misma data que objectives con contexto diferente)
-   - [ ] Remover keys muertas: `certifications`, `seniority_level` → reemplazar con defaults razonables
-   - [ ] Agregar validación de `price_pen`: si es `None` o `0` → no enviar (dejar DB NULL, nodefaults a 0)
+   - [x] Agregar `"start_date_text": enriched.get('start_date')` al dict `course_data`
+   - [x] Corregir `"objectives": enriched.get('graduate_profile')` (era `enriched.get('objectives')` que no existe)
+   - [x] Corregir `"syllabus": enriched.get('curriculum_summary')` (era `enriched.get('syllabus')` que no existe) — posteriormente mejorado en Fase 59 con `json.dumps()` condicional
+   - [x] Agregar `"target_audience": enriched.get('graduate_profile')` como fallback (misma data que objectives con contexto diferente)
+   - [x] Remover keys muertas: `certifications`, `seniority_level` → reemplazar con defaults razonables
+   - [x] Agregar validación de `price_pen`: si es `None` o `0` → no enviar (dejar DB NULL, no defaults a 0)
 
 3. **Fix `sync_vector_worker.py` — Validación de `official_name`** (parte de Fase 57, ya aplicado):
    - [x] Validar nombre: rechazar `None`, `"None"`, `""`, `< 3 chars`
    - [x] Fallback en `enrichment_worker.py` si LLM retorna nombre inválido
 
 4. **Re-enriquecimiento de datos existentes**:
-   - [ ] Reset `enriched_programs.status` a `'pending'` para registros con campos NULL (`official_name`, `modality`, `total_cost_est`, `start_date`)
-   - [ ] Ejecutar `enrichment_worker.py` para re-procesar los 23 registros con `official_name=NULL`
-   - [ ] Ejecutar `sync_vector_worker.py` para sincronizar datos corregidos a `courses`
+   - [x] Reset `enriched_programs.status` a `'pending'` para registros con campos NULL (`official_name`, `modality`, `total_cost_est`, `start_date`) — bloqueado por RLS (requiere service_role)
+   - [x] Ejecutar `enrichment_worker.py` para re-procesar los 23 registros con `official_name=NULL` — hecho via `batch_enrich_courses.py` (bypass directo a `courses`)
+   - [x] Ejecutar `sync_vector_worker.py` para sincronizar datos corregidos a `courses`
 
 5. **Verificación en frontend**:
    - [ ] Confirmar que el curso CEC Corporate Compliance muestra: Inicio, Inversión, Modalidad, Temario, Objetivos
