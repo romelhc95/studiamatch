@@ -4,10 +4,12 @@
 
 | Ambiente | Rama Git | URL | Supabase Proyecto | DB |
 |---|---|---|---|---|
-| Desarrollo | `desarrollo` | `https://desarrollo.studiamatch.pages.dev` | `fmcxwoqvxatbrawwtqke` | Free |
-| Certificacion | `certificacion` | `https://studiamatch.pages.dev` | `fmcxwoqvxatbrawwtqke` | Free |
-| Produccion | `main` | `https://www.studiamatch.com` | `zogdcvlqxanzqbvkkdar` | Pro |
-| Local | N/A | `http://localhost:3000` | `fmcxwoqvxatbrawwtqke` | Free |
+| Ambiente | Rama Git | URL | Supabase Proyecto | DB |
+|---|---|---|---|---|
+| Desarrollo | `desarrollo` | `https://desarrollo.studiamatch.pages.dev` | `aqrldlmlszjtgpqiegaa` | Free |
+| Certificacion | `certificacion` | `https://studiamatch.pages.dev` | `aqrldlmlszjtgpqiegaa` | Free |
+| Produccion | `main` | `https://www.studiamatch.com` | `[PENDIENTE - CREAR EN R6]` | Pro |
+| Local | N/A | `http://localhost:3000` | `aqrldlmlszjtgpqiegaa` | Free |
 
 ## Variables de entorno requeridas por ambiente
 
@@ -17,8 +19,8 @@ Configurar en Cloudflare Dashboard > Workers & Pages > studiamatch > Settings > 
 
 | Variable | Desarrollo | Certificacion | Produccion |
 |---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://fmcxwoqvxatbrawwtqke.supabase.co` | `https://fmcxwoqvxatbrawwtqke.supabase.co` | `https://zogdcvlqxanzqbvkkdar.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anon de Free | Clave anon de Free | Clave anon de Pro |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `[URL_PRO_PENDIENTE]` |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free | `sb_publishable_...` de Free | `sb_publishable_...` de Pro |
 | `NODE_VERSION` | `20` | `20` | `20` |
 
 Las variables se inyectan en build time (`npm run build` → `output: export`).
@@ -29,40 +31,42 @@ Configurar en GitHub > Settings > Environments:
 
 | Environment | Secret | Valor |
 |---|---|---|
-| Development | `SUPABASE_URL` | `https://fmcxwoqvxatbrawwtqke.supabase.co` |
-| Development | `SUPABASE_SERVICE_ROLE_KEY` | Clave service_role de Free |
-| Certification | `SUPABASE_URL` | `https://fmcxwoqvxatbrawwtqke.supabase.co` |
-| Certification | `SUPABASE_SERVICE_ROLE_KEY` | Clave service_role de Free |
-| Production | `SUPABASE_URL` | `https://zogdcvlqxanzqbvkkdar.supabase.co` |
-| Production | `SUPABASE_SERVICE_ROLE_KEY` | Clave service_role de Pro |
+| Development | `SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| Development | `NEXT_SUPABASE_SECRET_KEY` | `sb_secret_...` de Free (para escritura pipeline) |
+| Development | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free (para lectura frontend) |
+| Certification | `SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| Certification | `NEXT_SUPABASE_SECRET_KEY` | `sb_secret_...` de Free |
+| Certification | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free |
+| Production | `SUPABASE_URL` | `[URL_PRO_PENDIENTE]` |
+| Production | `NEXT_SUPABASE_SECRET_KEY` | `sb_secret_...` de Pro |
+| Production | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Pro |
 
 ### Local (Docker + Next.js dev)
 
-**Python scripts** (usan `.env` en raiz del proyecto):
-- Source: `.env` (prioridad) o `.env.local` (fallback)
+**Python scripts** (usan `.env.local` en raiz del proyecto):
 - `NEXT_PUBLIC_SUPABASE_URL` → Free tier
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` → Free tier
-- `SUPABASE_SERVICE_ROLE_KEY` → Free tier
+- `NEXT_SUPABASE_PUBLISHABLE_KEY` → `sb_publishable_...` (lectura)
+- `NEXT_SUPABASE_SECRET_KEY` → `sb_secret_...` (escritura pipeline)
 
 **Frontend Next.js** (usa `web/.env.local`):
 - `NEXT_PUBLIC_SUPABASE_URL` → Free tier
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` → Free tier
+- `NEXT_SUPABASE_PUBLISHABLE_KEY` → `sb_publishable_...` (lectura)
 
 ## Claves Supabase
 
-### Free tier (Desarrollo — `fmcxwoqvxatbrawwtqke`)
+### Free tier (Desarrollo — `aqrldlmlszjtgpqiegaa`)
 | Key | Valor |
 |---|---|
-| URL | `https://fmcxwoqvxatbrawwtqke.supabase.co` |
-| Anon Key | Ver `.env.local` |
-| Service Role | Ver `.env.local` |
+| URL | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| Publishable Key | Ver `.env.local` |
+| Secret Key | Ver `.env.local` |
 
-### Pro tier (Produccion — `zogdcvlqxanzqbvkkdar`)
+### Pro tier (Produccion — `[PENDIENTE R6]`)
 | Key | Valor |
 |---|---|
-| URL | `https://zogdcvlqxanzqbvkkdar.supabase.co` |
-| Anon Key | Ver `.env.gitprod` |
-| Service Role | Ver `.env.gitprod` |
+| URL | `[URL_PRO_PENDIENTE]` |
+| Publishable Key | Ver `.env.gitprod` |
+| Secret Key | Ver `.env.gitprod` |
 
 ## Verificacion
 
@@ -83,8 +87,8 @@ Si retorna un numero diferente, el ambiente esta apuntando a un proyecto incorre
 
 ### "0 Programas" en produccion
 Si `www.studiamatch.com` muestra 0 resultados, verificar:
-1. `NEXT_PUBLIC_SUPABASE_URL` en Cloudflare Pages apunta a Pro (`zogdcvlqxanzqbvkkdar`)
-2. `NEXT_PUBLIC_SUPABASE_ANON_KEY` es la clave anon de Pro (NO la service_role)
+1. `NEXT_PUBLIC_SUPABASE_URL` en Cloudflare Pages apunta al proyecto Pro correcto
+2. `NEXT_SUPABASE_PUBLISHABLE_KEY` es la `sb_publishable_...` de Pro (NO la secret key)
 3. RLS en Pro permite SELECT anon en la tabla `courses`
 4. Re-ejecutar el build (las env vars se incrustan en build time)
 

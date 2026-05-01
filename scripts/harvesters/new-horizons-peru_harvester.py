@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from playwright.async_api import async_playwright
 import os
 import logging
@@ -23,7 +23,7 @@ load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 class NewHorizonsHarvester:
     def __init__(self):
@@ -75,7 +75,7 @@ class NewHorizonsHarvester:
             for el in all_text_elements:
                 txt = (await el.inner_text()).strip()
                 # Filter out navigation, footer, or very short noise
-                if len(txt) > 20 and txt not in deep_scrape_text and "©" not in txt and "Todos los derechos" not in txt:
+                if len(txt) > 20 and txt not in deep_scrape_text and "Â©" not in txt and "Todos los derechos" not in txt:
                     deep_scrape_text.append(txt)
             
             description_long = "\n\n".join(deep_scrape_text)
@@ -107,7 +107,7 @@ class NewHorizonsHarvester:
                     return content.trim();
                 }}''', header_text)
 
-            objectives = await get_next_elements_text("aprenderás") or await get_next_elements_text("aprender") or await get_next_elements_text("Objetivos")
+            objectives = await get_next_elements_text("aprenderÃ¡s") or await get_next_elements_text("aprender") or await get_next_elements_text("Objetivos")
             
             dirigido_a = await get_next_elements_text("Dirigido a")
             requisitos_str = await get_next_elements_text("Requisitos")
@@ -116,7 +116,7 @@ class NewHorizonsHarvester:
             requirements = requisitos_str
             if requisitos_str and requisitos_str not in target_audience:
                 target_audience += f"\n\nRequisitos:\n{requisitos_str}"
-            syllabus = await get_next_elements_text("Módulos") or await get_next_elements_text("Temario")
+            syllabus = await get_next_elements_text("MÃ³dulos") or await get_next_elements_text("Temario")
             
             # Duration - Raw text as requested
             duration = await page.evaluate('''() => {
@@ -142,7 +142,7 @@ class NewHorizonsHarvester:
                     # Use the utility to extract
                     brochure_text = extract_pdf_text_from_url(brochure_url)
 
-            # Categorización dinámica granular
+            # CategorizaciÃ³n dinÃ¡mica granular
             parts = [p for p in url.split("/") if p]
             potential_cat = ""
             if len(parts) >= 2:
@@ -195,7 +195,7 @@ class NewHorizonsHarvester:
                 inst_res = requests.post(
                     f"{self.api_url}/institutions?select=id",
                     headers=self.headers,
-                    json={"name": "New Horizons Perú", "slug": "new-horizons"}
+                    json={"name": "New Horizons PerÃº", "slug": "new-horizons"}
                 ).json()
                 
                 if isinstance(inst_res, dict) and "code" in inst_res:
@@ -266,7 +266,7 @@ async def main():
         
         urls = await harvester.get_course_urls(page)
         
-        # 1. Soft-delete pre-scrape: Desactivamos todos los cursos vivos de esta institución
+        # 1. Soft-delete pre-scrape: Desactivamos todos los cursos vivos de esta instituciÃ³n
         try:
             logger.info("Initializing soft-delete protocol (deactivating old courses)...")
             # Obtenemos id
