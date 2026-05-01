@@ -351,9 +351,10 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
    - [x] Verificar: `has_function_privilege('anon', ..., 'EXECUTE')` → false ✅
 
 5. **Mover extensiones a schema `extensions`** (opcional, bajo riesgo):
-   - [ ] `ALTER EXTENSION pg_trgm SET SCHEMA extensions;`
-   - [ ] `ALTER EXTENSION vector SET SCHEMA extensions;`
-   - [ ] Verificar que `courses` trigram search y `embedding` siguen funcionando con schema `extensions`
+   - [x] `ALTER EXTENSION pg_trgm SET SCHEMA extensions;` — aplicado en Free y Pro
+   - [x] `ALTER EXTENSION vector SET SCHEMA extensions;` — aplicado en Free y Pro
+   - [x] search_path default de Supabase ya incluye `extensions` (`"$user", public, extensions`)
+   - [x] Trigram search (ilike) y vector embeddings verificados funcionales post-movimiento
 
 6. **Modificar `db_client.py` para usar service_role en writes** (IMPACTO CRÍTICO):
    - [ ] Agregar `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` (obtener del Dashboard > Settings > API)
