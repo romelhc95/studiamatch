@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 60.6 completada — 8 exclusiones DMC + cascade retroactivo en Free y Pro (431 registros limpiados entre staging_raw, cleansed, enriched, courses). Próximo: resolver issues Cloudflare (Fase 33-34) + continuar con Fase 61 Site Profiles.
-- **Último Hito**: Fase 60.6 — 8 patrones DMC en exclusiones, cascade full en 4 tablas, ambas DBs limpias.
-- **Próxima Acción**: Fase 33-34: configurar `NEXT_PUBLIC_*` en Cloudflare Pages + re-build + smoke tests.
+- **Estado Actual**: Promoción completada: desarrollo→certificación→main (PR #1 y #2 merged). Pipelines alineados — los cambios son frontend+DB, no afectan los workflows ETL. Los pipelines de GitHub Actions ya detectan la rama y usan el Environment correcto (Free para desarrollo/certificacion, Pro para main). Próximo: configurar `NEXT_PUBLIC_*` en Cloudflare Pages + re-build.
+- **Último Hito**: Promoción desarrollo→certificacion→main exitosa. Commits: `9f3979f`, `1505781`, `c5713bd` promovidos a certificacion (`e250530`) y main (`1896414`).
+- **Próxima Acción**: Fase 33-34: configurar `NEXT_PUBLIC_*` en Cloudflare Pages (los 3 ambientes) + re-build + smoke tests.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
