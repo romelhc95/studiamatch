@@ -23,6 +23,7 @@ from shared.utils import (
     infer_course_type,
     standardize_category,
     slugify,
+    normalize_url,
     get_random_user_agent,
     setup_lima_logging,
     normalize_url
@@ -34,15 +35,6 @@ logger = setup_lima_logging("UniversalHarvester")
 
 load_dotenv()
 
-def normalize_url(url: str) -> str:
-    """Removes query strings, fragments, and trailing slashes for clean mapping."""
-    if not url: return ""
-    try:
-        parsed = urlparse(url)
-        clean = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-        return clean.rstrip('/')
-    except:
-        return url.rstrip('/')
 
 class UniversalHarvester:
     def __init__(self, institution, global_start=None):
@@ -57,15 +49,18 @@ class UniversalHarvester:
         self.MAX_DEPTH = 3
         self.semaphore = asyncio.Semaphore(3)
         self.circuit_open = False
-        
+        self.exclusions = self._load_exclusions()
+
         # ⏱️ TIME GUARD CONFIG (Global awareness)
         self.global_start = global_start or time.time()
-        self.MAX_RUN_TIME = 19200 # 5h 20m (19,200s)
+        self.MAX_RUN_TIME = 20400  # 5h 40m — unified w/ GitHub Actions 6h limit
 
-        self.blacklist_patterns = [
-            r'/noticias/', r'/blog/', r'/eventos/', r'/medios/', r'/prensa/',
-            r'\.pdf$', r'\.jpg$', r'\.png$', r'\.xls', r'\.doc'
-        ]
+    def _load_exclusions(self):
+        try:
+            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+        except Exception as e:
+            logger.warning(f"Error loading exclusions: {e}")
+            return []
 
     def check_time_guard(self):
         """Checks if the global execution time limit has been reached."""
@@ -85,7 +80,8 @@ class UniversalHarvester:
             canonical = soup.find("link", rel="canonical")
             if canonical and canonical.get("href"):
                 return normalize_url(canonical["href"].strip())
-        except: pass
+        except Exception as e:
+            logger.warning(f"Error extracting canonical URL: {e}")
         return None
 
     def _generate_hash(self, text):
@@ -169,7 +165,7 @@ class UniversalHarvester:
                 for links, next_depth in results:
                     if self.check_time_guard(): break
                     for link in links:
-                        if self._is_potential_course_url(link):
+                        if self._is_valid_crawl_url(link):
                             if link not in self.course_urls:
                                 self.course_urls.add(link)
                                 self._save_discovered_url(link)
@@ -177,12 +173,34 @@ class UniversalHarvester:
                             if self._is_valid_crawl_url(link) and link not in self.visited_urls:
                                 queue.append((link, next_depth))
 
+    # File extensions that Playwright should never fetch (non-HTML content)
+    NON_HTML_EXTENSIONS = (
+        '.pdf', '.xlsx', '.xls', '.docx', '.doc', '.pptx', '.ppt',
+        '.zip', '.rar', '.7z', '.tar', '.gz',
+        '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp', '.ico',
+        '.mp4', '.mp3', '.avi', '.mov', '.wmv',
+        '.css', '.js', '.json', '.xml',
+    )
+
     def _is_valid_crawl_url(self, url):
         base_domain = urlparse(self.institution.get('website_url')).netloc
         if urlparse(url).netloc != base_domain:
             return False
-            
-        return not any(re.search(p, url.lower()) for p in self.blacklist_patterns)
+
+        low_url = url.lower()
+        inst_id = self.institution.get('id')
+
+        # Skip non-HTML file extensions before any other checks
+        parsed_path = urlparse(url).path.lower()
+        if parsed_path.endswith(self.NON_HTML_EXTENSIONS):
+            return False
+
+        # Check global and specific exclusions
+        for exc in self.exclusions:
+            if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
+            if exc['pattern'].lower() in low_url: return False
+
+        return True
 
     async def _fetch_and_parse(self, session, url, depth):
         links = []
@@ -205,11 +223,18 @@ class UniversalHarvester:
     async def _load_existing_urls(self):
         try:
             inst_id = self.institution.get('id')
-            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=neq.error", columns="url")
+            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
-                logger.info(f"Loaded {len(existing)} existing URLs from DB to skip.")
+                logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
                 self.visited_urls.update(existing)
+                
+                # Reset discovered → pending for URLs stuck in deadlock (older than 24h)
+                discovered_count = self.db.patch("staging_raw",
+                    filters=f"institution_id=eq.{inst_id},status=eq.discovered",
+                    data={"status": "pending"})
+                if discovered_count and discovered_count.get("status") == "success":
+                    logger.info(f"Reset discovered → pending for reprocessing.")
                 return existing
         except Exception as e:
             logger.warning(f"Could not load existing URLs from DB: {e}")
@@ -228,7 +253,7 @@ class UniversalHarvester:
         
         for link in sitemap_links:
             if self.check_time_guard(): break
-            if self._is_potential_course_url(link):
+            if self._is_valid_crawl_url(link):
                 if link not in self.course_urls and link not in existing_urls:
                     self.course_urls.add(link)
                     self._save_discovered_url(link)
@@ -243,11 +268,6 @@ class UniversalHarvester:
         logger.info(f"Total Discovery: {len(final_urls)} NEW potential courses.")
         return final_urls
 
-    def _is_potential_course_url(self, url):
-        if not self._is_valid_crawl_url(url): return False
-        keywords = ["curso", "diplomado", "maestria", "doctorado", "programa", "especializacion"]
-        return any(k in url.lower() for k in keywords)
-
     async def scrape_course_detail(self, session, page, url):
         if self.circuit_open: return None
         
@@ -260,6 +280,12 @@ class UniversalHarvester:
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             
+            # Double Layer Exclusion Check (Post-Scrape)
+            if eff_url and not self._is_valid_crawl_url(eff_url):
+                logger.info(f"Skipping {url} - Redirected to excluded URL: {eff_url}")
+                self.db.upsert('staging_raw', {"url": url, "institution_id": self.institution['id'], "status": "discarded", "metadata": {"discard_reason": "post_scrape_exclusion"}}, on_conflict="url")
+                return None
+                
             has_changed, content_hash = await self._check_if_changed(url, response.text, eff_url, can_url)
             if not has_changed:
                 logger.info(f"Skipping {url} - No changes.")
@@ -298,7 +324,8 @@ class UniversalHarvester:
             try:
                 content = await script.inner_text()
                 return json.loads(content)
-            except: pass
+            except Exception:
+                continue
         return {}
 
     async def _extract_og_tags(self, page):

@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 import requests
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
@@ -25,9 +26,16 @@ class SyncVectorWorker:
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
-        name = enriched['official_name']
+        raw_name = enriched.get('official_name')
         url = enriched['url']
 
+        # Validate name: reject None, "None", empty, or too-short names
+        if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
+            logger.warning(f"Skipping record {e_id}: invalid official_name '{raw_name}'")
+            self.update_enriched_status(e_id, "error", error_msg="invalid_name")
+            return
+
+        name = str(raw_name).strip()
         logger.info(f"Syncing to Production: {name}")
 
         # Map Enriched Pillars to Courses Schema with robust list handling
@@ -38,6 +46,18 @@ class SyncVectorWorker:
 
         # Generate unique slug (include location and short ID if needed)
         base_slug = slugify(name)
+
+        # Fallback: if slugify returns empty (non-ASCII names), use last URL segment
+        if not base_slug:
+            url = enriched.get('url', '')
+            if url:
+                last_segment = urlparse(url).path.strip('/').split('/')[-1]
+                base_slug = slugify(last_segment)
+                logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
+            if not base_slug:
+                base_slug = 'curso'
+                logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
+
         location = enriched.get('location', 'Nacional')
         
         # Add location if specific
@@ -48,6 +68,8 @@ class SyncVectorWorker:
         # while keeping the URL readable
         short_id = str(e_id).split('-')[0]
         full_slug = f"{base_slug}-{short_id}"
+        # Ensure slug never starts with dash
+        full_slug = full_slug.lstrip('-')
 
         # Robust category extraction
         raw_categories = enriched.get('categories')
@@ -64,13 +86,19 @@ class SyncVectorWorker:
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
             "mode": enriched.get('modality'),
-            "duration": enriched.get('duration_text'),
+            "duration": enriched.get('duration_text') or enriched.get('duration'),
+            "start_date_text": enriched.get('start_date'),
             "description_long": enriched.get('ai_summary'),
             "requirements": list_to_str(enriched.get('requirements')),
-            "certification": list_to_str(enriched.get('certifications')),
+            "objectives": enriched.get('graduate_profile'),
+            "target_audience": enriched.get('graduate_profile'),
+            "syllabus": json.dumps(enriched.get('curriculum_summary')) if isinstance(enriched.get('curriculum_summary'), dict) else enriched.get('curriculum_summary'),
+            "certification": "",
+            "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),
             "category": main_category,
             "is_active": True,
+            "is_verified": True,
             "last_scraped_at": "now()"
         }
 

@@ -23,7 +23,7 @@ def clean_slug_python(slug_or_url, url=None):
                 res = re.sub(r'[^a-z0-9-]', '-', res)
                 res = re.sub(r'-+', '-', res)
                 return res.strip('-')
-        except:
+        except Exception:
             pass
 
     if not slug_or_url: return ""

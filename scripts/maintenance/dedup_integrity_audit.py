@@ -30,7 +30,7 @@ def clean_slug(slug_or_url, url=None):
                     res = re.sub(r'[^a-z0-9-]', '-', res)
                     res = re.sub(r'-+', '-', res)
                     return res.strip('-')
-        except:
+        except Exception:
             pass
     
     import re
