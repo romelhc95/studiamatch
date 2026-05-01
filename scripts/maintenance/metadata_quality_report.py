@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 from dotenv import load_dotenv
 import json
@@ -6,7 +6,7 @@ import json
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("Error: Missing Supabase credentials in .env")
@@ -61,11 +61,11 @@ def analyze_metadata():
         "# Reporte de Calidad de Metadata de Cursos\n",
         f"**Total de cursos analizados:** {len(courses)}\n",
         "## Resumen de Problemas",
-        f"- Cursos con múltiples campos críticos vacíos: {len(missing_multiple)}",
-        f"- Cursos sin descripción: {len(missing_description)}",
+        f"- Cursos con mÃºltiples campos crÃ­ticos vacÃ­os: {len(missing_multiple)}",
+        f"- Cursos sin descripciÃ³n: {len(missing_description)}",
         f"- Cursos sin audiencia objetivo: {len(missing_audience)}",
         f"- Cursos sin temario/objetivos: {len(missing_syllabus)}\n",
-        "## Detalle de Cursos con Múltiples Campos Vacíos"
+        "## Detalle de Cursos con MÃºltiples Campos VacÃ­os"
     ]
 
     for c in missing_multiple:
@@ -75,10 +75,10 @@ def analyze_metadata():
     if missing_multiple or missing_description or missing_audience or missing_syllabus:
         report_lines.append("\n## Propuesta de Re-Scraping Dirigido")
         report_lines.append("Se detectaron cursos con metadata incompleta. Se propone el siguiente proceso de re-scraping:")
-        report_lines.append("1. **Identificación**: Filtrar los cursos afectados por `institution_id` para determinar qué scraper (PUCP, NewHorizons, etc.) necesita ajustes.")
-        report_lines.append("2. **Actualización de Selectores**: Revisar la estructura HTML actual de las páginas de los cursos fallidos, ya que es probable que hayan cambiado los selectores de los campos `description_long`, `target_audience` o `syllabus`.")
-        report_lines.append("3. **Ejecución Dirigida**: Crear un script temporal de re-scraping que tome específicamente las URLs listadas en este reporte.")
-        report_lines.append("4. **Validación**: Utilizar la instrucción `on_conflict_do_update` basada en `(institution_id, slug)` para actualizar únicamente los campos faltantes, conservando el resto de la información intacta.")
+        report_lines.append("1. **IdentificaciÃ³n**: Filtrar los cursos afectados por `institution_id` para determinar quÃ© scraper (PUCP, NewHorizons, etc.) necesita ajustes.")
+        report_lines.append("2. **ActualizaciÃ³n de Selectores**: Revisar la estructura HTML actual de las pÃ¡ginas de los cursos fallidos, ya que es probable que hayan cambiado los selectores de los campos `description_long`, `target_audience` o `syllabus`.")
+        report_lines.append("3. **EjecuciÃ³n Dirigida**: Crear un script temporal de re-scraping que tome especÃ­ficamente las URLs listadas en este reporte.")
+        report_lines.append("4. **ValidaciÃ³n**: Utilizar la instrucciÃ³n `on_conflict_do_update` basada en `(institution_id, slug)` para actualizar Ãºnicamente los campos faltantes, conservando el resto de la informaciÃ³n intacta.")
 
     os.makedirs('docs', exist_ok=True)
     with open('docs/metadata_quality_report.md', 'w', encoding='utf-8') as f:
