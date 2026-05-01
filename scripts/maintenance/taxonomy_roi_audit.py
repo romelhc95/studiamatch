@@ -2,9 +2,13 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.db_client import get_db_client
 
 load_dotenv()
 
+db = get_db_client()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -56,7 +60,7 @@ def run_taxonomy_roi_audit():
         # B. Validación de Salario vs Mercado
         market_data = market_map.get(c['category_id'])
         if market_data:
-            seniority = c.get('seniority_level', 'Mid')
+            seniority = c.get('seniority_level') or 'Mid'
             expected_salary = market_data.get(f'salary_{seniority.lower()}', market_data['salary_average'])
             
             if float(c['expected_monthly_salary'] or 0) != float(expected_salary):

@@ -1,5 +1,50 @@
 import re
 import unicodedata
+import random
+import logging
+import sys
+from datetime import datetime, timezone, timedelta
+
+class LimaFormatter(logging.Formatter):
+    def formatTime(self, record, datefmt=None):
+        # Convert to Lima Time (UTC-5)
+        lima_tz = timezone(timedelta(hours=-5))
+        dt = datetime.fromtimestamp(record.created, tz=lima_tz)
+        if datefmt:
+            return dt.strftime(datefmt)
+        return dt.isoformat()
+
+def setup_lima_logging(name: str):
+    """Configures a logger with Lima Time formatting."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = LimaFormatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        
+    return logger
+
+def get_random_user_agent():
+    """
+    Returns a random real User-Agent for stealth scraping.
+    """
+    user_agents = [
+        # Chrome Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        # Firefox Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+        # Chrome Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        # Safari Mac
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+        # Edge Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
+    ]
+    return random.choice(user_agents)
 
 def slugify(text):
     """
@@ -25,10 +70,10 @@ def standardize_mode(mode_str):
     
     m = mode_str.lower()
     # List of keywords for Remoto/Virtual
-    if any(k in m for k in ["remoto", "online", "virtual", "a distancia", "distancia"]):
+    if any(k in m for k in ["remoto", "online", "virtual", "a distancia", "distancia", "asincronico", "asincrónico"]):
         return "Remoto"
     # List of keywords for Híbrido/Blended
-    elif any(k in m for k in ["híbrido", "hybrid", "hibrido", "semipresencial", "blended"]):
+    elif any(k in m for k in ["híbrido", "hybrid", "hibrido", "semipresencial", "blended", "sincronico", "sincrónico", "aula virtual"]):
         return "Híbrido"
     else:
         return "Presencial"
@@ -205,3 +250,37 @@ def standardize_category(potential_cat, course_name=""):
             return cat
     
     return "Tecnología"
+
+from urllib.parse import urlparse, urlunparse
+
+def normalize_url(url):
+    """
+    Normalizes a URL for de-duplication:
+    - Lowercases scheme and netloc.
+    - Removes query strings and fragments.
+    - Removes trailing slashes.
+    """
+    if not url:
+        return ""
+    
+    try:
+        parsed = urlparse(url)
+        # 1. Lowercase scheme and netloc
+        scheme = parsed.scheme.lower()
+        netloc = parsed.netloc.lower()
+        
+        # 2. Path normalization: remove trailing slash
+        path = parsed.path
+        if path.endswith('/') and len(path) > 1:
+            path = path[:-1]
+        
+        # 3. Deduplicate /en/ language prefix (e.g. /en/posgrado/ → /posgrado/)
+        import re as _re
+        if '/en/' in path:
+            path = _re.sub(r'/en/', '/', path)
+        
+        # 4. Reconstruct without query strings and fragments
+        normalized = urlunparse((scheme, netloc, path, '', '', ''))
+        return normalized
+    except Exception:
+        return url

@@ -1,0 +1,365 @@
+﻿2026-04-16T20:51:37.2973146Z Current runner version: '2.333.1'
+2026-04-16T20:51:37.3006143Z ##[group]Runner Image Provisioner
+2026-04-16T20:51:37.3007348Z Hosted Compute Agent
+2026-04-16T20:51:37.3008211Z Version: 20260213.493
+2026-04-16T20:51:37.3009368Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-16T20:51:37.3010567Z Build Date: 2026-02-13T00:28:41Z
+2026-04-16T20:51:37.3011726Z Worker ID: {4877a386-62b5-4d2e-b193-68e3b93fb271}
+2026-04-16T20:51:37.3012918Z Azure Region: eastus
+2026-04-16T20:51:37.3014207Z ##[endgroup]
+2026-04-16T20:51:37.3016784Z ##[group]Operating System
+2026-04-16T20:51:37.3017897Z Ubuntu
+2026-04-16T20:51:37.3018897Z 24.04.4
+2026-04-16T20:51:37.3019709Z LTS
+2026-04-16T20:51:37.3020541Z ##[endgroup]
+2026-04-16T20:51:37.3021555Z ##[group]Runner Image
+2026-04-16T20:51:37.3022597Z Image: ubuntu-24.04
+2026-04-16T20:51:37.3023889Z Version: 20260413.86.1
+2026-04-16T20:51:37.3026197Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-16T20:51:37.3029096Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-04-16T20:51:37.3030892Z ##[endgroup]
+2026-04-16T20:51:37.3032971Z ##[group]GITHUB_TOKEN Permissions
+2026-04-16T20:51:37.3036011Z Contents: read
+2026-04-16T20:51:37.3036933Z Metadata: read
+2026-04-16T20:51:37.3037859Z Packages: read
+2026-04-16T20:51:37.3038720Z ##[endgroup]
+2026-04-16T20:51:37.3041534Z Secret source: Actions
+2026-04-16T20:51:37.3043704Z Prepare workflow directory
+2026-04-16T20:51:37.3665994Z Prepare all required actions
+2026-04-16T20:51:37.3723913Z Getting action download info
+2026-04-16T20:51:37.8212306Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-04-16T20:51:38.0117683Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-04-16T20:51:38.1950604Z Complete job name: 2. AI Enrichment (14 Pillars)
+2026-04-16T20:51:38.2683993Z ##[group]Run actions/checkout@v4
+2026-04-16T20:51:38.2685074Z with:
+2026-04-16T20:51:38.2685529Z   repository: romelhc95/studiamatch
+2026-04-16T20:51:38.2686214Z   token: ***
+2026-04-16T20:51:38.2686628Z   ssh-strict: true
+2026-04-16T20:51:38.2687049Z   ssh-user: git
+2026-04-16T20:51:38.2687479Z   persist-credentials: true
+2026-04-16T20:51:38.2688014Z   clean: true
+2026-04-16T20:51:38.2688448Z   sparse-checkout-cone-mode: true
+2026-04-16T20:51:38.2688953Z   fetch-depth: 1
+2026-04-16T20:51:38.2689373Z   fetch-tags: false
+2026-04-16T20:51:38.2689801Z   show-progress: true
+2026-04-16T20:51:38.2690232Z   lfs: false
+2026-04-16T20:51:38.2690629Z   submodules: false
+2026-04-16T20:51:38.2691055Z   set-safe-directory: true
+2026-04-16T20:51:38.2691852Z ##[endgroup]
+2026-04-16T20:51:38.4328828Z Syncing repository: romelhc95/studiamatch
+2026-04-16T20:51:38.4349503Z ##[group]Getting Git version info
+2026-04-16T20:51:38.4351078Z Working directory is '/home/runner/work/studiamatch/studiamatch'
+2026-04-16T20:51:38.4366940Z [command]/usr/bin/git version
+2026-04-16T20:51:38.4390438Z git version 2.53.0
+2026-04-16T20:51:38.4418678Z ##[endgroup]
+2026-04-16T20:51:38.4435383Z Temporarily overriding HOME='/home/runner/work/_temp/6dac2ed6-1ad5-48ba-a6ce-2644e264f53b' before making global git config changes
+2026-04-16T20:51:38.4438191Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-16T20:51:38.4452405Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/studiamatch/studiamatch
+2026-04-16T20:51:38.4486981Z Deleting the contents of '/home/runner/work/studiamatch/studiamatch'
+2026-04-16T20:51:38.4491432Z ##[group]Initializing the repository
+2026-04-16T20:51:38.4496545Z [command]/usr/bin/git init /home/runner/work/studiamatch/studiamatch
+2026-04-16T20:51:38.4608665Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-04-16T20:51:38.4610052Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-04-16T20:51:38.4611326Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-04-16T20:51:38.4612666Z hint: call:
+2026-04-16T20:51:38.4613590Z hint:
+2026-04-16T20:51:38.4614508Z hint: 	git config --global init.defaultBranch <name>
+2026-04-16T20:51:38.4615409Z hint:
+2026-04-16T20:51:38.4616330Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-04-16T20:51:38.4617588Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-04-16T20:51:38.4618666Z hint:
+2026-04-16T20:51:38.4619389Z hint: 	git branch -m <name>
+2026-04-16T20:51:38.4620146Z hint:
+2026-04-16T20:51:38.4621137Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-04-16T20:51:38.4622496Z Initialized empty Git repository in /home/runner/work/studiamatch/studiamatch/.git/
+2026-04-16T20:51:38.4631973Z [command]/usr/bin/git remote add origin https://github.com/romelhc95/studiamatch
+2026-04-16T20:51:38.4657999Z ##[endgroup]
+2026-04-16T20:51:38.4659498Z ##[group]Disabling automatic garbage collection
+2026-04-16T20:51:38.4663120Z [command]/usr/bin/git config --local gc.auto 0
+2026-04-16T20:51:38.4694982Z ##[endgroup]
+2026-04-16T20:51:38.4696606Z ##[group]Setting up auth
+2026-04-16T20:51:38.4702364Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-16T20:51:38.4735223Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-16T20:51:38.5039812Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-16T20:51:38.5072323Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-16T20:51:38.5303939Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-16T20:51:38.5337129Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-16T20:51:38.5582739Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-04-16T20:51:38.5618106Z ##[endgroup]
+2026-04-16T20:51:38.5620105Z ##[group]Fetching the repository
+2026-04-16T20:51:38.5628604Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +26736c425ab83209987b857c8da1ae8e1e5e5254:refs/remotes/origin/desarrollo
+2026-04-16T20:51:38.7874178Z From https://github.com/romelhc95/studiamatch
+2026-04-16T20:51:38.7876289Z  * [new ref]         26736c425ab83209987b857c8da1ae8e1e5e5254 -> origin/desarrollo
+2026-04-16T20:51:38.7894598Z ##[endgroup]
+2026-04-16T20:51:38.7896848Z ##[group]Determining the checkout info
+2026-04-16T20:51:38.7899428Z ##[endgroup]
+2026-04-16T20:51:38.7904511Z [command]/usr/bin/git sparse-checkout disable
+2026-04-16T20:51:38.7941235Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-04-16T20:51:38.7970573Z ##[group]Checking out the ref
+2026-04-16T20:51:38.7973103Z [command]/usr/bin/git checkout --progress --force -B desarrollo refs/remotes/origin/desarrollo
+2026-04-16T20:51:38.8149748Z Switched to a new branch 'desarrollo'
+2026-04-16T20:51:38.8154076Z branch 'desarrollo' set up to track 'origin/desarrollo'.
+2026-04-16T20:51:38.8165644Z ##[endgroup]
+2026-04-16T20:51:38.8199473Z [command]/usr/bin/git log -1 --format=%H
+2026-04-16T20:51:38.8222321Z 26736c425ab83209987b857c8da1ae8e1e5e5254
+2026-04-16T20:51:38.8489373Z ##[group]Run actions/setup-python@v5
+2026-04-16T20:51:38.8490031Z with:
+2026-04-16T20:51:38.8490458Z   python-version: 3.11
+2026-04-16T20:51:38.8490948Z   check-latest: false
+2026-04-16T20:51:38.8491584Z   token: ***
+2026-04-16T20:51:38.8492037Z   update-environment: true
+2026-04-16T20:51:38.8492551Z   allow-prereleases: false
+2026-04-16T20:51:38.8493070Z   freethreaded: false
+2026-04-16T20:51:38.8493750Z ##[endgroup]
+2026-04-16T20:51:39.0178122Z ##[group]Installed versions
+2026-04-16T20:51:39.0264571Z Successfully set up CPython (3.11.15)
+2026-04-16T20:51:39.0266772Z ##[endgroup]
+2026-04-16T20:51:39.0402658Z ##[group]Run pip install -r requirements.txt
+2026-04-16T20:51:39.0403841Z [36;1mpip install -r requirements.txt[0m
+2026-04-16T20:51:39.0440865Z shell: /usr/bin/bash -e {0}
+2026-04-16T20:51:39.0441500Z env:
+2026-04-16T20:51:39.0442125Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:39.0443024Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T20:51:39.0444320Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:39.0445115Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:39.0445921Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:39.0446726Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T20:51:39.0447416Z ##[endgroup]
+2026-04-16T20:51:40.1123746Z Collecting requests (from -r requirements.txt (line 1))
+2026-04-16T20:51:40.1676285Z   Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)
+2026-04-16T20:51:40.1854899Z Collecting python-dotenv (from -r requirements.txt (line 2))
+2026-04-16T20:51:40.1900574Z   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+2026-04-16T20:51:40.2149719Z Collecting beautifulsoup4 (from -r requirements.txt (line 3))
+2026-04-16T20:51:40.2191796Z   Downloading beautifulsoup4-4.14.3-py3-none-any.whl.metadata (3.8 kB)
+2026-04-16T20:51:40.2685757Z Collecting playwright (from -r requirements.txt (line 4))
+2026-04-16T20:51:40.2730953Z   Downloading playwright-1.58.0-py3-none-manylinux1_x86_64.whl.metadata (3.5 kB)
+2026-04-16T20:51:40.2847376Z Collecting playwright-stealth (from -r requirements.txt (line 5))
+2026-04-16T20:51:40.2887082Z   Downloading playwright_stealth-2.0.3-py3-none-any.whl.metadata (4.5 kB)
+2026-04-16T20:51:40.3569573Z Collecting psycopg2-binary (from -r requirements.txt (line 6))
+2026-04-16T20:51:40.3612263Z   Downloading psycopg2_binary-2.9.11-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+2026-04-16T20:51:40.3812743Z Collecting pg8000 (from -r requirements.txt (line 7))
+2026-04-16T20:51:40.3854853Z   Downloading pg8000-1.31.5-py3-none-any.whl.metadata (88 kB)
+2026-04-16T20:51:40.4108358Z Collecting PyPDF2 (from -r requirements.txt (line 8))
+2026-04-16T20:51:40.4152946Z   Downloading pypdf2-3.0.1-py3-none-any.whl.metadata (6.8 kB)
+2026-04-16T20:51:40.4285589Z Collecting google-generativeai (from -r requirements.txt (line 9))
+2026-04-16T20:51:40.4325383Z   Downloading google_generativeai-0.8.6-py3-none-any.whl.metadata (3.9 kB)
+2026-04-16T20:51:40.5482285Z Collecting charset_normalizer<4,>=2 (from requests->-r requirements.txt (line 1))
+2026-04-16T20:51:40.5531027Z   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+2026-04-16T20:51:40.5684337Z Collecting idna<4,>=2.5 (from requests->-r requirements.txt (line 1))
+2026-04-16T20:51:40.5726390Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+2026-04-16T20:51:40.5941341Z Collecting urllib3<3,>=1.26 (from requests->-r requirements.txt (line 1))
+2026-04-16T20:51:40.5989870Z   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+2026-04-16T20:51:40.6165098Z Collecting certifi>=2023.5.7 (from requests->-r requirements.txt (line 1))
+2026-04-16T20:51:40.6208927Z   Downloading certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+2026-04-16T20:51:40.6411275Z Collecting soupsieve>=1.6.1 (from beautifulsoup4->-r requirements.txt (line 3))
+2026-04-16T20:51:40.6486827Z   Downloading soupsieve-2.8.3-py3-none-any.whl.metadata (4.6 kB)
+2026-04-16T20:51:40.6636802Z Collecting typing-extensions>=4.0.0 (from beautifulsoup4->-r requirements.txt (line 3))
+2026-04-16T20:51:40.6676719Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+2026-04-16T20:51:40.6810644Z Collecting pyee<14,>=13 (from playwright->-r requirements.txt (line 4))
+2026-04-16T20:51:40.6870242Z   Downloading pyee-13.0.1-py3-none-any.whl.metadata (3.0 kB)
+2026-04-16T20:51:40.8043808Z Collecting greenlet<4.0.0,>=3.1.1 (from playwright->-r requirements.txt (line 4))
+2026-04-16T20:51:40.8086560Z   Downloading greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.7 kB)
+2026-04-16T20:51:40.8255133Z Collecting python-dateutil>=2.8.2 (from pg8000->-r requirements.txt (line 7))
+2026-04-16T20:51:40.8299073Z   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+2026-04-16T20:51:40.8418648Z Collecting scramp>=1.4.5 (from pg8000->-r requirements.txt (line 7))
+2026-04-16T20:51:40.8457834Z   Downloading scramp-1.4.8-py3-none-any.whl.metadata (18 kB)
+2026-04-16T20:51:40.8690031Z Collecting google-ai-generativelanguage==0.6.15 (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:40.8734454Z   Downloading google_ai_generativelanguage-0.6.15-py3-none-any.whl.metadata (5.7 kB)
+2026-04-16T20:51:40.9194743Z Collecting google-api-core (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:40.9238524Z   Downloading google_api_core-2.30.3-py3-none-any.whl.metadata (3.1 kB)
+2026-04-16T20:51:40.9701737Z Collecting google-api-python-client (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:40.9743642Z   Downloading google_api_python_client-2.194.0-py3-none-any.whl.metadata (7.0 kB)
+2026-04-16T20:51:41.0040410Z Collecting google-auth>=2.15.0 (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.0081647Z   Downloading google_auth-2.49.2-py3-none-any.whl.metadata (6.2 kB)
+2026-04-16T20:51:41.1753024Z Collecting protobuf (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.1802339Z   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+2026-04-16T20:51:41.2860236Z Collecting pydantic (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.2908363Z   Downloading pydantic-2.13.1-py3-none-any.whl.metadata (108 kB)
+2026-04-16T20:51:41.3281073Z Collecting tqdm (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.3321326Z   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)
+2026-04-16T20:51:41.3906573Z Collecting proto-plus<2.0.0dev,>=1.22.3 (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.3947224Z   Downloading proto_plus-1.27.2-py3-none-any.whl.metadata (2.2 kB)
+2026-04-16T20:51:41.4105959Z Collecting protobuf (from google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.4147049Z   Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl.metadata (592 bytes)
+2026-04-16T20:51:41.4306064Z Collecting googleapis-common-protos<2.0.0,>=1.63.2 (from google-api-core->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.4347028Z   Downloading googleapis_common_protos-1.74.0-py3-none-any.whl.metadata (9.2 kB)
+2026-04-16T20:51:41.9102810Z Collecting grpcio<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.9144053Z   Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.8 kB)
+2026-04-16T20:51:41.9484566Z Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.9525469Z   Downloading grpcio_status-1.80.0-py3-none-any.whl.metadata (1.3 kB)
+2026-04-16T20:51:41.9754933Z Collecting pyasn1-modules>=0.2.1 (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:41.9796775Z   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+2026-04-16T20:51:42.1751704Z Collecting cryptography>=38.0.3 (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.1795929Z   Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+2026-04-16T20:51:42.1944387Z INFO: pip is looking at multiple versions of grpcio-status to determine which version is compatible with other requirements. This could take a while.
+2026-04-16T20:51:42.1968875Z Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.2002989Z   Downloading grpcio_status-1.78.0-py3-none-any.whl.metadata (1.3 kB)
+2026-04-16T20:51:42.2078484Z   Downloading grpcio_status-1.76.0-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2161298Z   Downloading grpcio_status-1.75.1-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2249013Z   Downloading grpcio_status-1.75.0-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2325215Z   Downloading grpcio_status-1.74.0-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2410501Z   Downloading grpcio_status-1.73.1-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2514629Z   Downloading grpcio_status-1.73.0-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2549619Z INFO: pip is still looking at multiple versions of grpcio-status to determine which version is compatible with other requirements. This could take a while.
+2026-04-16T20:51:42.2591828Z   Downloading grpcio_status-1.72.2-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2671638Z   Downloading grpcio_status-1.72.1-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.2746679Z   Downloading grpcio_status-1.71.2-py3-none-any.whl.metadata (1.1 kB)
+2026-04-16T20:51:42.3775791Z Collecting cffi>=2.0.0 (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.3822184Z   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+2026-04-16T20:51:42.3944087Z Collecting pycparser (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.3985712Z   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+2026-04-16T20:51:42.4185809Z Collecting pyasn1<0.7.0,>=0.6.1 (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.4229277Z   Downloading pyasn1-0.6.3-py3-none-any.whl.metadata (8.4 kB)
+2026-04-16T20:51:42.4374127Z Collecting six>=1.5 (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7))
+2026-04-16T20:51:42.4414060Z   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+2026-04-16T20:51:42.4535203Z Collecting asn1crypto>=1.5.1 (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7))
+2026-04-16T20:51:42.4578457Z   Downloading asn1crypto-1.5.1-py2.py3-none-any.whl.metadata (13 kB)
+2026-04-16T20:51:42.5152519Z Collecting httplib2<1.0.0,>=0.19.0 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.5196477Z   Downloading httplib2-0.31.2-py3-none-any.whl.metadata (2.2 kB)
+2026-04-16T20:51:42.5378002Z Collecting google-auth-httplib2<1.0.0,>=0.2.0 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.5419012Z   Downloading google_auth_httplib2-0.3.1-py3-none-any.whl.metadata (3.0 kB)
+2026-04-16T20:51:42.5527291Z Collecting uritemplate<5,>=3.0.1 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.5568849Z   Downloading uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+2026-04-16T20:51:42.5804855Z Collecting pyparsing<4,>=3.1 (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.5846070Z   Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+2026-04-16T20:51:42.5974289Z Collecting annotated-types>=0.6.0 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:42.6018719Z   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+2026-04-16T20:51:43.3756586Z Collecting pydantic-core==2.46.1 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:43.3832736Z   Downloading pydantic_core-2.46.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+2026-04-16T20:51:44.5964825Z Collecting typing-inspection>=0.4.2 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+2026-04-16T20:51:44.5997314Z   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+2026-04-16T20:51:44.6127276Z Downloading requests-2.33.1-py3-none-any.whl (64 kB)
+2026-04-16T20:51:44.6198783Z Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+2026-04-16T20:51:44.6299966Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+2026-04-16T20:51:44.6363881Z Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+2026-04-16T20:51:44.6430937Z Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+2026-04-16T20:51:44.6489939Z Downloading beautifulsoup4-4.14.3-py3-none-any.whl (107 kB)
+2026-04-16T20:51:44.6560024Z Downloading playwright-1.58.0-py3-none-manylinux1_x86_64.whl (46.2 MB)
+2026-04-16T20:51:44.8407364Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.2/46.2 MB 253.3 MB/s  0:00:00
+2026-04-16T20:51:44.8456263Z Downloading greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (613 kB)
+2026-04-16T20:51:44.8510407Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 613.5/613.5 kB 118.1 MB/s  0:00:00
+2026-04-16T20:51:44.8548993Z Downloading pyee-13.0.1-py3-none-any.whl (15 kB)
+2026-04-16T20:51:44.8609948Z Downloading playwright_stealth-2.0.3-py3-none-any.whl (34 kB)
+2026-04-16T20:51:44.8679384Z Downloading psycopg2_binary-2.9.11-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)
+2026-04-16T20:51:44.8848096Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 280.6 MB/s  0:00:00
+2026-04-16T20:51:44.8925285Z Downloading pg8000-1.31.5-py3-none-any.whl (57 kB)
+2026-04-16T20:51:44.8988001Z Downloading pypdf2-3.0.1-py3-none-any.whl (232 kB)
+2026-04-16T20:51:44.9051681Z Downloading google_generativeai-0.8.6-py3-none-any.whl (155 kB)
+2026-04-16T20:51:44.9138859Z Downloading google_ai_generativelanguage-0.6.15-py3-none-any.whl (1.3 MB)
+2026-04-16T20:51:44.9209540Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 221.9 MB/s  0:00:00
+2026-04-16T20:51:44.9251648Z Downloading google_api_core-2.30.3-py3-none-any.whl (173 kB)
+2026-04-16T20:51:44.9316495Z Downloading google_auth-2.49.2-py3-none-any.whl (240 kB)
+2026-04-16T20:51:44.9382316Z Downloading googleapis_common_protos-1.74.0-py3-none-any.whl (300 kB)
+2026-04-16T20:51:44.9448185Z Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (6.8 MB)
+2026-04-16T20:51:44.9698191Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.8/6.8 MB 289.6 MB/s  0:00:00
+2026-04-16T20:51:44.9739123Z Downloading grpcio_status-1.71.2-py3-none-any.whl (14 kB)
+2026-04-16T20:51:44.9799427Z Downloading proto_plus-1.27.2-py3-none-any.whl (50 kB)
+2026-04-16T20:51:44.9869101Z Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl (320 kB)
+2026-04-16T20:51:44.9938996Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+2026-04-16T20:51:45.0001046Z Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+2026-04-16T20:51:45.0067591Z Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+2026-04-16T20:51:45.0245828Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 285.3 MB/s  0:00:00
+2026-04-16T20:51:45.0291333Z Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)
+2026-04-16T20:51:45.0360602Z Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+2026-04-16T20:51:45.0424273Z Downloading pyasn1-0.6.3-py3-none-any.whl (83 kB)
+2026-04-16T20:51:45.0486381Z Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+2026-04-16T20:51:45.0565342Z Downloading scramp-1.4.8-py3-none-any.whl (13 kB)
+2026-04-16T20:51:45.0626262Z Downloading asn1crypto-1.5.1-py2.py3-none-any.whl (105 kB)
+2026-04-16T20:51:45.0688823Z Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+2026-04-16T20:51:45.0768258Z Downloading soupsieve-2.8.3-py3-none-any.whl (37 kB)
+2026-04-16T20:51:45.0836876Z Downloading google_api_python_client-2.194.0-py3-none-any.whl (15.0 MB)
+2026-04-16T20:51:45.1394665Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 288.8 MB/s  0:00:00
+2026-04-16T20:51:45.1437392Z Downloading google_auth_httplib2-0.3.1-py3-none-any.whl (9.5 kB)
+2026-04-16T20:51:45.1499223Z Downloading httplib2-0.31.2-py3-none-any.whl (91 kB)
+2026-04-16T20:51:45.1575276Z Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)
+2026-04-16T20:51:45.1648549Z Downloading uritemplate-4.2.0-py3-none-any.whl (11 kB)
+2026-04-16T20:51:45.1710014Z Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+2026-04-16T20:51:45.1771285Z Downloading pydantic-2.13.1-py3-none-any.whl (471 kB)
+2026-04-16T20:51:45.1879080Z Downloading pydantic_core-2.46.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+2026-04-16T20:51:45.1976680Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 259.4 MB/s  0:00:00
+2026-04-16T20:51:45.2017530Z Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+2026-04-16T20:51:45.2076352Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+2026-04-16T20:51:45.2134399Z Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
+2026-04-16T20:51:45.3795178Z Installing collected packages: asn1crypto, urllib3, uritemplate, typing-extensions, tqdm, soupsieve, six, scramp, python-dotenv, PyPDF2, pyparsing, pycparser, pyasn1, psycopg2-binary, protobuf, idna, greenlet, charset_normalizer, certifi, annotated-types, typing-inspection, requests, python-dateutil, pyee, pydantic-core, pyasn1-modules, proto-plus, httplib2, grpcio, googleapis-common-protos, cffi, beautifulsoup4, pydantic, playwright, pg8000, grpcio-status, cryptography, playwright-stealth, google-auth, google-auth-httplib2, google-api-core, google-api-python-client, google-ai-generativelanguage, google-generativeai
+2026-04-16T20:51:49.2781734Z 
+2026-04-16T20:51:49.2809199Z Successfully installed PyPDF2-3.0.1 annotated-types-0.7.0 asn1crypto-1.5.1 beautifulsoup4-4.14.3 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.7 cryptography-46.0.7 google-ai-generativelanguage-0.6.15 google-api-core-2.30.3 google-api-python-client-2.194.0 google-auth-2.49.2 google-auth-httplib2-0.3.1 google-generativeai-0.8.6 googleapis-common-protos-1.74.0 greenlet-3.4.0 grpcio-1.80.0 grpcio-status-1.71.2 httplib2-0.31.2 idna-3.11 pg8000-1.31.5 playwright-1.58.0 playwright-stealth-2.0.3 proto-plus-1.27.2 protobuf-5.29.6 psycopg2-binary-2.9.11 pyasn1-0.6.3 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.13.1 pydantic-core-2.46.1 pyee-13.0.1 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 requests-2.33.1 scramp-1.4.8 six-1.17.0 soupsieve-2.8.3 tqdm-4.67.3 typing-extensions-4.15.0 typing-inspection-0.4.2 uritemplate-4.2.0 urllib3-2.6.3
+2026-04-16T20:51:49.7493969Z ##[group]Run python scripts/core/llm_enrichment_worker.py --provider auto
+2026-04-16T20:51:49.7494564Z [36;1mpython scripts/core/llm_enrichment_worker.py --provider auto[0m
+2026-04-16T20:51:49.7517288Z shell: /usr/bin/bash -e {0}
+2026-04-16T20:51:49.7517535Z env:
+2026-04-16T20:51:49.7517789Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:49.7518220Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T20:51:49.7518643Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:49.7519019Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:49.7519380Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T20:51:49.7519749Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T20:51:49.7520463Z   SUPABASE_URL: ***
+2026-04-16T20:51:49.7522047Z   SUPABASE_KEY: ***
+2026-04-16T20:51:49.7522369Z   CF_API_TOKEN: ***
+2026-04-16T20:51:49.7522636Z   CF_ACCOUNT_ID: ***
+2026-04-16T20:51:49.7523151Z   GH_MODELS_TOKEN: ***
+2026-04-16T20:51:49.7523839Z   GEMINI_API_KEY: ***
+2026-04-16T20:51:49.7524059Z ##[endgroup]
+2026-04-16T20:51:51.3137320Z [2026-04-16T20:51:50.001229] 🚀 Iniciando LLM Worker (Provider: auto)...
+2026-04-16T20:51:51.3138284Z   → 42 cursos encontrados.
+2026-04-16T20:51:51.3138947Z   ⏭️ Saltando: Descripción muy corta (83 chars)
+2026-04-16T20:51:51.3139685Z   ⏭️ Saltando: Descripción muy corta (82 chars)
+2026-04-16T20:51:51.3155137Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3156061Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3157080Z   ⏭️ Saltando: Descripción muy corta (77 chars)
+2026-04-16T20:51:51.3165829Z   ⏭️ Saltando: Descripción muy corta (78 chars)
+2026-04-16T20:51:51.3166598Z   ⏭️ Saltando: Descripción muy corta (72 chars)
+2026-04-16T20:51:51.3167330Z   ⏭️ Saltando: Descripción muy corta (115 chars)
+2026-04-16T20:51:51.3168048Z   ⏭️ Saltando: Descripción muy corta (62 chars)
+2026-04-16T20:51:51.3168720Z   ⏭️ Saltando: Descripción muy corta (103 chars)
+2026-04-16T20:51:51.3169403Z   ⏭️ Saltando: Descripción muy corta (80 chars)
+2026-04-16T20:51:51.3170087Z   ⏭️ Saltando: Descripción muy corta (82 chars)
+2026-04-16T20:51:51.3170761Z   ⏭️ Saltando: Descripción muy corta (83 chars)
+2026-04-16T20:51:51.3171446Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3172131Z   ⏭️ Saltando: Descripción muy corta (83 chars)
+2026-04-16T20:51:51.3172971Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3180493Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3181366Z   ⏭️ Saltando: Descripción muy corta (83 chars)
+2026-04-16T20:51:51.3182167Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3182960Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3184018Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3184824Z   ⏭️ Saltando: Descripción muy corta (78 chars)
+2026-04-16T20:51:51.3185612Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3186383Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3187150Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3187903Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3188654Z   ⏭️ Saltando: Descripción muy corta (100 chars)
+2026-04-16T20:51:51.3189386Z   ⏭️ Saltando: Descripción muy corta (111 chars)
+2026-04-16T20:51:51.3190139Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3190885Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3191637Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3192354Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3193065Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3193931Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3194597Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3195671Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3196440Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3197187Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3197945Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3198658Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3199357Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3200089Z   ⏭️ Saltando: Descripción muy corta (0 chars)
+2026-04-16T20:51:51.3200582Z 
+2026-04-16T20:51:51.3201214Z [2026-04-16T20:51:51.313317] ✅ Finalizado. Éxitos: 0 | Errores: 0 | Saltados: 42
+2026-04-16T20:51:51.3406975Z Post job cleanup.
+2026-04-16T20:51:51.5048388Z Post job cleanup.
+2026-04-16T20:51:51.5995745Z [command]/usr/bin/git version
+2026-04-16T20:51:51.6044087Z git version 2.53.0
+2026-04-16T20:51:51.6084760Z Temporarily overriding HOME='/home/runner/work/_temp/e878c37f-82e6-48b0-8467-5ac6cb754f62' before making global git config changes
+2026-04-16T20:51:51.6087046Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-16T20:51:51.6088790Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/studiamatch/studiamatch
+2026-04-16T20:51:51.6132258Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-16T20:51:51.6169327Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-16T20:51:51.6410675Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-16T20:51:51.6435361Z http.https://github.com/.extraheader
+2026-04-16T20:51:51.6449669Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-04-16T20:51:51.6484583Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-16T20:51:51.6725050Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-16T20:51:51.6759560Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-16T20:51:51.7099303Z Cleaning up orphan processes
+2026-04-16T20:51:51.7351901Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v5. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
