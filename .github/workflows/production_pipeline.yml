@@ -41,7 +41,8 @@ jobs:
       - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
         run: python3 scripts/core/master_orchestrator.py --limit 5 --skip-cleansing
 
@@ -66,7 +67,8 @@ jobs:
       - name: Run Cleansing Worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python scripts/core/cleansing_worker.py
 
   # 🚉 STATION 2: AI Enrichment (14 Metadata Pillars)
@@ -90,7 +92,8 @@ jobs:
       - name: Multicloud AI Enrichment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
@@ -117,7 +120,8 @@ jobs:
       - name: Sync to Production Courses
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python scripts/core/sync_vector_worker.py
 
   # 🚉 STATION 4: ROI & QA Audit
@@ -140,12 +144,14 @@ jobs:
       - name: Quality Assurance Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python scripts/maintenance/quality_assurance_audit.py
       - name: Taxonomy & ROI Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           PYTHONIOENCODING: utf-8
         run: python scripts/maintenance/taxonomy_roi_audit.py
       - name: Upload Final Audit Reports

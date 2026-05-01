@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 import os
@@ -24,7 +24,7 @@ load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 class SmartDataHarvester:
     def __init__(self):
@@ -216,19 +216,19 @@ class SmartDataHarvester:
                 return ""
 
             # 3. Temario (Syllabus)
-            syllabus = await get_section_text(["Temario", "Módulos", "Contenido", "Plan de estudios"])
+            syllabus = await get_section_text(["Temario", "MÃ³dulos", "Contenido", "Plan de estudios"])
             
             # 4. Audiencia (Target Audience)
             target_audience = await get_section_text(["Dirigido a", "Perfil del participante", "Audiencia"])
             
-            # 5. Duración (Duration)
+            # 5. DuraciÃ³n (Duration)
             duration = ""
             # Often looks like "40 horas" or similar
             duration_match = re.search(r'(\d+)\s*(horas|meses|semanas)', body_text, re.IGNORECASE)
             if duration_match:
                 duration = duration_match.group(0)
             
-            # 6. Inversión (Price)
+            # 6. InversiÃ³n (Price)
             price_pen = 0.0
             price_status = "consultar"
             # Look for S/ or PEN or Sifersas
@@ -242,7 +242,7 @@ class SmartDataHarvester:
                     pass
             
             # 7. Objetivos
-            objectives = await get_section_text(["Objetivos", "Lo que aprenderás", "Aprenderás"])
+            objectives = await get_section_text(["Objetivos", "Lo que aprenderÃ¡s", "AprenderÃ¡s"])
             
             # 8. Requisitos
             requirements = await get_section_text(["Requisitos", "Pre-requisitos", "Conocimientos previos"])
@@ -251,7 +251,7 @@ class SmartDataHarvester:
             # Default to Remoto as SmartData is known for live virtual classes
             mode = "Remoto"
             if "presencial" in body_text.lower():
-                mode = "Híbrido" if "virtual" in body_text.lower() or "online" in body_text.lower() else "Presencial"
+                mode = "HÃ­brido" if "virtual" in body_text.lower() or "online" in body_text.lower() else "Presencial"
             mode = standardize_mode(mode)
             
             # 10. Description Long

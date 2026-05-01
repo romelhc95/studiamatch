@@ -27,5 +27,6 @@ jobs:
       - name: Run Discovery Institutions
         env:
           SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: \${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_SUPABASE_SECRET_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python scripts/core/discovery_institutions.py

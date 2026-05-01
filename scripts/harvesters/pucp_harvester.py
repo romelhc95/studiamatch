@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from playwright.async_api import async_playwright
 import os
 import logging
@@ -23,7 +23,7 @@ load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 class PUCPHarvester:
     def __init__(self):
@@ -102,13 +102,13 @@ class PUCPHarvester:
             syllabus = ""
 
             for text in field_texts:
-                if not name_text and len(text) > 10 and ("Curso" in text or "Diplomado" in text or "Especialización" in text):
+                if not name_text and len(text) > 10 and ("Curso" in text or "Diplomado" in text or "EspecializaciÃ³n" in text):
                     name_text = text
                 
-                if "Duración:" in text:
-                    duration = text.replace("Duración:", "").strip()
+                if "DuraciÃ³n:" in text:
+                    duration = text.replace("DuraciÃ³n:", "").strip()
                 
-                if "Inversión:" in text:
+                if "InversiÃ³n:" in text:
                     price_match = re.search(r'S/\s*([\d,.]+)', text)
                     if price_match:
                         try:
@@ -116,7 +116,7 @@ class PUCPHarvester:
                             price_status = "publicado"
                         except Exception: pass
                 
-                if "¿Por qué estudiar este curso?" in text or "¿Por qué seguir este programa?" in text:
+                if "Â¿Por quÃ© estudiar este curso?" in text or "Â¿Por quÃ© seguir este programa?" in text:
                     objectives = text
             
             # If name still empty, take the first long field or page title
