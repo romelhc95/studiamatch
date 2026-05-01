@@ -1,162 +1,111 @@
+import subprocess
+import logging
+import sys
 import os
 import requests
 import json
-import math
-import sys
-from dotenv import load_dotenv
 
-load_dotenv()
+# Add root directory to sys.path for shared imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.db_client import get_db_client
+from shared.utils import setup_lima_logging
 
-# Configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-HARVESTERS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harvesters")
+db = get_db_client()
+logger = setup_lima_logging("MasterOrchestrator")
 
-def get_active_institutions():
-    """
-    Fetches active institutions from Supabase.
-    If no 'is_active' column exists, fetches all as active.
-    """
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json"
-    }
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+def run_script(script_path, args=None):
+    cmd = [sys.executable, script_path]
+    if args:
+        cmd.extend(args)
     
-    # Try filtering by status if it's there (based on schema guide but not seen in live keys)
-    # We use a broad select to see what we get. 
-    # Actually, let's just fetch everything and handle it.
-    url = f"{SUPABASE_URL}/rest/v1/institutions?select=*"
+    logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
+    # Explicitly pass environment to subprocess
+    result = subprocess.run(cmd, capture_output=False, env=os.environ.copy())
     
+    if result.returncode == 0:
+        logger.info(f"✅ [STAGE SUCCESS] {script_path}")
+        return True
+    else:
+        logger.error(f"❌ [STAGE FAILED] {script_path} (Exit Code: {result.returncode})")
+        return False
+
+def get_institutions(limit=10):
+    """Fetch institutions to harvest, prioritizing those not processed recently."""
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        institutions = response.json()
-        
-        # Simple heuristic: if we have a way to filter active ones, we do it.
-        # For now, we take all that have a website_url.
-        active_inst = [inst for inst in institutions if inst.get('website_url')]
-        
-        # Add harvester info
-        for inst in active_inst:
-            slug = inst.get('slug')
-            harvester_file = f"{slug}_harvester.py"
-            harvester_path = os.path.join(HARVESTERS_DIR, harvester_file)
-            
-            if os.path.exists(harvester_path):
-                inst['harvester_type'] = 'dedicated'
-                inst['harvester_script'] = f"scripts/harvesters/{harvester_file}"
-            else:
-                inst['harvester_type'] = 'universal'
-                inst['harvester_script'] = "scripts/core/universal_harvester.py"
-                
-        return active_inst
+        # Use ordering to implement Round-Robin/Rolling Shard logic
+        return db.select('institutions', 
+                         columns="id,name,slug,website_url,last_harvest_at", 
+                         order="last_harvest_at.asc.nullsfirst", 
+                         limit=limit)
     except Exception as e:
-        print(f"Error fetching institutions: {e}", file=sys.stderr)
-        return []
-
-def split_into_groups(institutions, n):
-    """
-    Divides the list of institutions into N groups for parallel processing.
-    """
-    if not institutions:
-        return [[] for _ in range(n)]
-    
-    # If N is larger than the number of institutions, some groups will be empty
-    if n > len(institutions):
-        n = len(institutions)
-        
-    avg = len(institutions) / n
-    groups = []
-    last = 0.0
-
-    while last < len(institutions):
-        groups.append(institutions[int(last):int(last + avg)])
-        last += avg
-
-    # Ensure we return exactly N groups (if possible)
-    while len(groups) < n:
-        groups.append([])
-        
-    return groups
+        logger.error(f"Failed to fetch institutions: {e}")
+    return []
 
 def main():
-    # Number of workers and limit (parsed from arguments)
-    n_workers = 1
-    limit = 999
+    import argparse
+    import time
     
-    for i, arg in enumerate(sys.argv):
-        if arg == "--limit" and i + 1 < len(sys.argv):
-            try:
-                limit = int(sys.argv[i+1])
-            except ValueError: pass
-        elif i == 1 and not arg.startswith("-"):
-            try:
-                n_workers = int(arg)
-            except ValueError: pass
+    # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
+    env_start = os.getenv("JOB_START_TIME")
+    global_start = float(env_start) if env_start else time.time()
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
+    parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
+    parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
+    args = parser.parse_args()
 
-    print(f"Orchestrating for {n_workers} workers (Limit: {limit})...")
+    excluded_slugs = args.exclude.split(',') if args.exclude else []
+
+    # 🚉 PHASE 1: Discovery & Harvesting
+    logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
+    institutions = get_institutions(limit=args.limit)
     
-    institutions = get_active_institutions()
-    if limit < len(institutions):
-        institutions = institutions[:limit]
+    # Filter out excluded
+    institutions = [i for i in institutions if i['slug'] not in excluded_slugs]
+    
+    logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
+
+    for inst in institutions:
+        inst_id = inst['id']
+        inst_name = inst['name']
+        last_harvest = inst['last_harvest_at']
         
-    print(f"Processing {len(institutions)} active institutions.")
-    
-    groups = split_into_groups(institutions, n_workers)
-    
-    output = {
-        "total_institutions": len(institutions),
-        "num_workers": n_workers,
-        "worker_assignments": []
-    }
-    
-    for i, group in enumerate(groups):
-        assignment = {
-            "worker_id": i + 1,
-            "tasks": group
-        }
-        output["worker_assignments"].append(assignment)
-    
-    # Generate JSON output
-    output_file = "orchestration_plan.json"
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-        
-    print(f"Orchestration plan saved to {output_file}")
-    
-    # --- ejecución ---
-    print("\nStarting task execution...")
-    import subprocess
-    
-    for task in institutions:
-        script = task.get('harvester_script')
-        name = task.get('name')
-        print(f"[PROCESS] Running harvester for: {name} ({script})")
-        
-        # Preparamos los argumentos
-        cmd = ["python", script]
-        
-        # El Universal Harvester NECESITA el JSON de la institución como argumento
-        if "universal_harvester.py" in script:
-            cmd.append(json.dumps(task))
-            
-        # Pasamos variables de entorno necesarias al subproceso
-        env = os.environ.copy()
-        
-        try:
-            # Ejecutamos con un límite de tiempo para evitar bloqueos infinitos
-            process = subprocess.run(
-                cmd, 
-                env=env,
-                timeout=300 # 5 minutos por institución
-            )
-            if process.returncode == 0:
-                print(f"[OK] {name} completed successfully.")
-            else:
-                print(f"[WARN] {name} failed: {process.stderr[:200]}")
-        except Exception as e:
-            print(f"[ERROR] Critical error in {name}: {e}")
+        # 🛡️ FRESHNESS GUARD: Skip if already dense (>50 urls) and updated in the last 3 days (72h)
+        if last_harvest:
+            try:
+                # Handle ISO format from DB
+                from datetime import datetime, timezone, timedelta
+                last_dt = datetime.fromisoformat(last_harvest.replace('Z', '+00:00'))
+                now_dt = datetime.now(timezone.utc)
+                
+                if (now_dt - last_dt) < timedelta(days=3):
+                    # Quick count in staging_raw
+                    count = db.count('staging_raw', filters=f"institution_id=eq.{inst_id}")
+                    
+                    if count > 50:
+                        logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
+                        continue
+            except Exception as e:
+                logger.warning(f"Failed to check freshness for {inst_name}: {e}")
+
+        logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
+        inst_json = json.dumps(dict(inst))
+        # Pass global start to sub-process
+        run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)])
+
+    # 🚉 PHASE 1.5: Cleansing
+    if not args.skip_cleansing:
+        logger.info("--- PHASE 1.5: CLEANSING ---")
+        if not run_script("scripts/core/cleansing_worker.py"):
+            logger.warning("Cleansing step failed, but continuing pipeline...")
+    else:
+        logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
+
+    logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
 
 if __name__ == "__main__":
     main()

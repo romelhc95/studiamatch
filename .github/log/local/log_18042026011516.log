@@ -1,0 +1,361 @@
+PS C:\Users\Romel\Proyectos\studiamatch> act workflow_dispatch -W .github/workflows/local_pipeline.yml --env-file .env.local
+time="2026-04-18T02:07:55-05:00" level=info msg="Using docker host 'npipe:////./pipe/docker_engine', and daemon socket 'npipe:////./pipe/docker_engine'"
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] 🚀  Start image=catthehacker/ubuntu:full-latest
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker pull image=catthehacker/ubuntu:full-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/0. Institution Inventory] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker create image=catthehacker/ubuntu:full-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker run image=catthehacker/ubuntu:full-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[chown -R 1001:1001 /mnt/c/Users/Romel/Proyectos/studiamatch] user=0 workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[chown -R 1001:1001 /mnt/c/Users/Romel/Proyectos/studiamatch] user=0 workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main actions/checkout@v4 [3.6078478s]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[chown -R 1001:1001 /var/run/act/actions/actions-setup-python@v5/] user=0 workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[/usr/local/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓  ::group::Installed versions
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓  ::endgroup::
+| [command]/opt/hostedtoolcache/Python/3.11.14/x64/bin/pip cache dir
+| /home/runner/.cache/pip
+| pip cache is not found
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Setup Python [3.2707863s]
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: cache-hit=false
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Collecting requests (from -r requirements.txt (line 1))
+|   Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)
+| Collecting python-dotenv (from -r requirements.txt (line 2))
+|   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+| Collecting beautifulsoup4 (from -r requirements.txt (line 3))
+|   Downloading beautifulsoup4-4.14.3-py3-none-any.whl.metadata (3.8 kB)
+| Collecting playwright (from -r requirements.txt (line 4))
+|   Downloading playwright-1.58.0-py3-none-manylinux1_x86_64.whl.metadata (3.5 kB)
+| Collecting playwright-stealth (from -r requirements.txt (line 5))
+|   Downloading playwright_stealth-2.0.3-py3-none-any.whl.metadata (4.5 kB)
+| Collecting psycopg2-binary (from -r requirements.txt (line 6))
+|   Downloading psycopg2_binary-2.9.11-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (4.9 kB)
+| Collecting pg8000 (from -r requirements.txt (line 7))
+|   Downloading pg8000-1.31.5-py3-none-any.whl.metadata (88 kB)
+| Collecting PyPDF2 (from -r requirements.txt (line 8))
+|   Downloading pypdf2-3.0.1-py3-none-any.whl.metadata (6.8 kB)
+| Collecting google-generativeai (from -r requirements.txt (line 9))
+|   Downloading google_generativeai-0.8.6-py3-none-any.whl.metadata (3.9 kB)
+| Collecting charset_normalizer<4,>=2 (from requests->-r requirements.txt (line 1))
+|   Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+| Collecting idna<4,>=2.5 (from requests->-r requirements.txt (line 1))
+|   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+| Collecting urllib3<3,>=1.26 (from requests->-r requirements.txt (line 1))
+|   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+| Collecting certifi>=2023.5.7 (from requests->-r requirements.txt (line 1))
+|   Downloading certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+| Collecting soupsieve>=1.6.1 (from beautifulsoup4->-r requirements.txt (line 3))
+|   Downloading soupsieve-2.8.3-py3-none-any.whl.metadata (4.6 kB)
+| Collecting typing-extensions>=4.0.0 (from beautifulsoup4->-r requirements.txt (line 3))
+|   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+| Collecting pyee<14,>=13 (from playwright->-r requirements.txt (line 4))
+|   Downloading pyee-13.0.1-py3-none-any.whl.metadata (3.0 kB)
+| Collecting greenlet<4.0.0,>=3.1.1 (from playwright->-r requirements.txt (line 4))
+|   Downloading greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.7 kB)
+| Collecting python-dateutil>=2.8.2 (from pg8000->-r requirements.txt (line 7))
+|   Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+| Collecting scramp>=1.4.5 (from pg8000->-r requirements.txt (line 7))
+|   Downloading scramp-1.4.8-py3-none-any.whl.metadata (18 kB)
+| Collecting google-ai-generativelanguage==0.6.15 (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading google_ai_generativelanguage-0.6.15-py3-none-any.whl.metadata (5.7 kB)
+| Collecting google-api-core (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading google_api_core-2.30.3-py3-none-any.whl.metadata (3.1 kB)
+| Collecting google-api-python-client (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading google_api_python_client-2.194.0-py3-none-any.whl.metadata (7.0 kB)
+| Collecting google-auth>=2.15.0 (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading google_auth-2.49.2-py3-none-any.whl.metadata (6.2 kB)
+| Collecting protobuf (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+| Collecting pydantic (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading pydantic-2.13.2-py3-none-any.whl.metadata (108 kB)
+| Collecting tqdm (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading tqdm-4.67.3-py3-none-any.whl.metadata (57 kB)
+| Collecting proto-plus<2.0.0dev,>=1.22.3 (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+|   Downloading proto_plus-1.27.2-py3-none-any.whl.metadata (2.2 kB)
+| Collecting protobuf (from google-generativeai->-r requirements.txt (line 9))
+|   Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl.metadata (592 bytes)
+| Collecting googleapis-common-protos<2.0.0,>=1.63.2 (from google-api-core->google-generativeai->-r requirements.txt (line 9))
+|   Downloading googleapis_common_protos-1.74.0-py3-none-any.whl.metadata (9.2 kB)
+| Collecting grpcio<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+|   Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.8 kB)
+| Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+|   Downloading grpcio_status-1.80.0-py3-none-any.whl.metadata (1.3 kB)
+| Collecting pyasn1-modules>=0.2.1 (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+|   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+| Collecting cryptography>=38.0.3 (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+|   Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+| INFO: pip is looking at multiple versions of grpcio-status to determine which version is compatible with other requirements. This could take a while.
+| Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9))
+|   Downloading grpcio_status-1.78.0-py3-none-any.whl.metadata (1.3 kB)
+|   Downloading grpcio_status-1.76.0-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.75.1-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.75.0-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.74.0-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.73.1-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.73.0-py3-none-any.whl.metadata (1.1 kB)
+| INFO: pip is still looking at multiple versions of grpcio-status to determine which version is compatible with other requirements. This could take a while.
+|   Downloading grpcio_status-1.72.2-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.72.1-py3-none-any.whl.metadata (1.1 kB)
+|   Downloading grpcio_status-1.71.2-py3-none-any.whl.metadata (1.1 kB)
+| Collecting cffi>=2.0.0 (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+|   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+| Collecting pycparser (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+|   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+| Collecting pyasn1<0.7.0,>=0.6.1 (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9))
+|   Downloading pyasn1-0.6.3-py3-none-any.whl.metadata (8.4 kB)
+| Collecting six>=1.5 (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7))
+|   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+| Collecting asn1crypto>=1.5.1 (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7))
+|   Downloading asn1crypto-1.5.1-py2.py3-none-any.whl.metadata (13 kB)
+| Collecting httplib2<1.0.0,>=0.19.0 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+|   Downloading httplib2-0.31.2-py3-none-any.whl.metadata (2.2 kB)
+| Collecting google-auth-httplib2<1.0.0,>=0.2.0 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+|   Downloading google_auth_httplib2-0.3.1-py3-none-any.whl.metadata (3.0 kB)
+| Collecting uritemplate<5,>=3.0.1 (from google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+|   Downloading uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+| Collecting pyparsing<4,>=3.1 (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9))
+|   Downloading pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+| Collecting annotated-types>=0.6.0 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+|   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+| Collecting pydantic-core==2.46.2 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+|   Downloading pydantic_core-2.46.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+| Collecting typing-inspection>=0.4.2 (from pydantic->google-generativeai->-r requirements.txt (line 9))
+|   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+| Downloading requests-2.33.1-py3-none-any.whl (64 kB)
+| Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+| Downloading idna-3.11-py3-none-any.whl (71 kB)
+| Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+| Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+| Downloading beautifulsoup4-4.14.3-py3-none-any.whl (107 kB)
+| Downloading playwright-1.58.0-py3-none-manylinux1_x86_64.whl (46.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 46.2/46.2 MB 18.2 MB/s  0:00:02
+| Downloading greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (613 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 613.5/613.5 kB 14.9 MB/s  0:00:00
+| Downloading pyee-13.0.1-py3-none-any.whl (15 kB)
+| Downloading playwright_stealth-2.0.3-py3-none-any.whl (34 kB)
+| Downloading psycopg2_binary-2.9.11-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 21.5 MB/s  0:00:00
+| Downloading pg8000-1.31.5-py3-none-any.whl (57 kB)
+| Downloading pypdf2-3.0.1-py3-none-any.whl (232 kB)
+| Downloading google_generativeai-0.8.6-py3-none-any.whl (155 kB)
+| Downloading google_ai_generativelanguage-0.6.15-py3-none-any.whl (1.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 23.6 MB/s  0:00:00
+| Downloading google_api_core-2.30.3-py3-none-any.whl (173 kB)
+| Downloading google_auth-2.49.2-py3-none-any.whl (240 kB)
+| Downloading googleapis_common_protos-1.74.0-py3-none-any.whl (300 kB)
+| Downloading grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (6.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.8/6.8 MB 17.6 MB/s  0:00:00
+| Downloading grpcio_status-1.71.2-py3-none-any.whl (14 kB)
+| Downloading proto_plus-1.27.2-py3-none-any.whl (50 kB)
+| Downloading protobuf-5.29.6-cp38-abi3-manylinux2014_x86_64.whl (320 kB)
+| Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+| Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+| Downloading cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 18.8 MB/s  0:00:00
+| Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)
+| Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+| Downloading pyasn1-0.6.3-py3-none-any.whl (83 kB)
+| Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+| Downloading scramp-1.4.8-py3-none-any.whl (13 kB)
+| Downloading asn1crypto-1.5.1-py2.py3-none-any.whl (105 kB)
+| Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+| Downloading soupsieve-2.8.3-py3-none-any.whl (37 kB)
+| Downloading google_api_python_client-2.194.0-py3-none-any.whl (15.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.0/15.0 MB 25.6 MB/s  0:00:00
+| Downloading google_auth_httplib2-0.3.1-py3-none-any.whl (9.5 kB)
+| Downloading httplib2-0.31.2-py3-none-any.whl (91 kB)
+| Downloading pyparsing-3.3.2-py3-none-any.whl (122 kB)
+| Downloading uritemplate-4.2.0-py3-none-any.whl (11 kB)
+| Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+| Downloading pydantic-2.13.2-py3-none-any.whl (471 kB)
+| Downloading pydantic_core-2.46.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 13.1 MB/s  0:00:00
+| Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+| Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+| Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
+| Installing collected packages: asn1crypto, urllib3, uritemplate, typing-extensions, tqdm, soupsieve, six, scramp, python-dotenv, PyPDF2, pyparsing, pycparser, pyasn1, psycopg2-binary, protobuf, idna, greenlet, charset_normalizer, certifi, annotated-types, typing-inspection, requests, python-dateutil, pyee, pydantic-core, pyasn1-modules, proto-plus, httplib2, grpcio, googleapis-common-protos, cffi, beautifulsoup4, pydantic, playwright, pg8000, grpcio-status, cryptography, playwright-stealth, google-auth, google-auth-httplib2, google-api-core, google-api-python-client, google-ai-generativelanguage, google-generativeai
+Successfully installed PyPDF2-3.0.1 annotated-types-0.7.0 asn1crypto-1.5.1 beautifulsoup4-4.14.3 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.7 cryptography-46.0.7 google-ai-generativelanguage-0.6.15 google-api-core-2.30.3 google-api-python-client-2.194.0 google-auth-2.49.2 google-auth-httplib2-0.3.1 google-generativeai-0.8.6 googleapis-common-protos-1.74.0 greenlet-3.4.0 grpcio-1.80.0 grpcio-status-1.71.2 httplib2-0.31.2 idna-3.11 pg8000-1.31.5 playwright-1.58.0 playwright-stealth-2.0.3 proto-plus-1.27.2 protobuf-5.29.6 psycopg2-binary-2.9.11 pyasn1-0.6.3 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.13.2 pydantic-core-2.46.2 pyee-13.0.1 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 requests-2.33.1 scramp-1.4.8 six-1.17.0 soupsieve-2.8.3 tqdm-4.67.3 typing-extensions-4.15.0 typing-inspection-0.4.2 uritemplate-4.2.0 urllib3-2.6.3
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Install Dependencies [19.9070831s]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Main Run Discovery Institutions
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| INFO: Iniciando Descubrimiento de Instituciones Nivel 1...
+| SKIP: Universidad de Lima ya existe en el catálogo.
+| SKIP: Universidad del Pacífico ya existe en el catálogo.
+| SKIP: IDAT ya existe en el catálogo.
+| SKIP: SENATI ya existe en el catálogo.
+| SKIP: UPC ya existe en el catálogo.
+| SKIP: USIL ya existe en el catálogo.
+| SKIP: Universidad Continental ya existe en el catálogo.
+| SKIP: UTP ya existe en el catálogo.
+| SKIP: UNMSM ya existe en el catálogo.
+| SKIP: UNI ya existe en el catálogo.
+|
+| SUCCESS: Descubrimiento finalizado. 0 nuevas instituciones encontradas.
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Main Run Discovery Institutions [542.9404ms]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Post Setup Python
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   🐳  docker exec cmd=[/usr/local/bin/node /var/run/act/actions/actions-setup-python@v5/dist/cache-save/index.js] user= workdir=
+| [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /mnt/c/Users/Romel/Proyectos/studiamatch --files-from manifest.txt --use-compress-program zstdmt
+| Cache Size: ~85 MB (89166475 B)
+| Cache saved successfully
+| Cache saved with the key: setup-python-Linux-x64-24.04-Ubuntu-python-3.11.14-pip-619ae78a5a8a8532435d4637040767751cdea2a7e03f9a46c1f9c5c2e8f904ce
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Post Setup Python [1.7318714s]
+[StudIAMatch Golden Pipeline/0. Institution Inventory] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] Cleaning up container for job 0. Institution Inventory
+[StudIAMatch Golden Pipeline/0. Institution Inventory]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/0. Institution Inventory] 🏁  Job succeeded
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Set up job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] 🚀  Start image=catthehacker/ubuntu:full-latest
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker pull image=catthehacker/ubuntu:full-latest platform= username= forcePull=true
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] using DockerAuthConfig authentication for docker pull
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker create image=catthehacker/ubuntu:full-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker run image=catthehacker/ubuntu:full-latest platform= entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="host"
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[chown -R 1001:1001 /mnt/c/Users/Romel/Proyectos/studiamatch] user=0 workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[node --no-warnings -e console.log(process.execPath)] user= workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Set up job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ☁  git clone 'https://github.com/actions/setup-python' # ref=v5
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main actions/checkout@v4
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker cp src=C:\Users\Romel\Proyectos\studiamatch\. dst=/mnt/c/Users/Romel/Proyectos/studiamatch
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[chown -R 1001:1001 /mnt/c/Users/Romel/Proyectos/studiamatch] user=0 workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main actions/checkout@v4 [629.2031ms]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Setup Python
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker cp src=C:\Users\Romel\.cache\act/actions-setup-python@v5/ dst=/var/run/act/actions/actions-setup-python@v5/
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[chown -R 1001:1001 /var/run/act/actions/actions-setup-python@v5/] user=0 workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[/usr/local/bin/node /var/run/act/actions/actions-setup-python@v5/dist/setup/index.js] user= workdir=
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓  ::group::Installed versions
+| Successfully set up CPython (3.11.14)
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓  ::endgroup::
+| [command]/opt/hostedtoolcache/Python/3.11.14/x64/bin/pip cache dir
+| /home/runner/.cache/pip
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ***
+| Cache Size: ~85 MB (89166475 B)
+| [command]/usr/bin/tar -xf /tmp/81286aac-d10a-4a2b-b092-14e10e2e0778/cache.tzst -P -C /mnt/c/Users/Romel/Proyectos/studiamatch --use-compress-program unzstd
+| Cache restored successfully
+| Cache restored from key: setup-python-linux-x64-24.04-ubuntu-python-3.11.14-pip-619ae78a5a8a8532435d4637040767751cdea2a7e03f9a46c1f9c5c2e8f904ce
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❓ add-matcher /run/act/actions/actions-setup-python@v5/.github/python.json
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main Setup Python [6.867228s]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python2_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: Python3_ROOT_DIR=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: pythonLocation=/opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-env:: PKG_CONFIG_PATH=/opt/hostedtoolcache/Python/3.11.14/x64/lib/pkgconfig
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: python-version=3.11.14
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: python-path=/opt/hostedtoolcache/Python/3.11.14/x64/bin/python
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::set-output:: cache-hit=false
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ⚙  ::add-path:: /opt/hostedtoolcache/Python/3.11.14/x64/bin
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Install Dependencies
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/2] user= workdir=
+| Requirement already satisfied: requests in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 1)) (2.33.1)
+| Requirement already satisfied: python-dotenv in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 2)) (1.2.2)
+| Requirement already satisfied: beautifulsoup4 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 3)) (4.14.3)
+| Requirement already satisfied: playwright in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 4)) (1.58.0)
+| Requirement already satisfied: playwright-stealth in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 5)) (2.0.3)
+| Requirement already satisfied: psycopg2-binary in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 6)) (2.9.11)
+| Requirement already satisfied: pg8000 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 7)) (1.31.5)
+| Requirement already satisfied: PyPDF2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 8)) (3.0.1)
+| Requirement already satisfied: google-generativeai in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from -r requirements.txt (line 9)) (0.8.6)
+| Requirement already satisfied: charset_normalizer<4,>=2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.4.7)
+| Requirement already satisfied: idna<4,>=2.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (3.11)
+| Requirement already satisfied: urllib3<3,>=1.26 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2.6.3)
+| Requirement already satisfied: certifi>=2023.5.7 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from requests->-r requirements.txt (line 1)) (2026.2.25)
+| Requirement already satisfied: soupsieve>=1.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (2.8.3)
+| Requirement already satisfied: typing-extensions>=4.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from beautifulsoup4->-r requirements.txt (line 3)) (4.15.0)
+| Requirement already satisfied: pyee<14,>=13 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (13.0.1)
+| Requirement already satisfied: greenlet<4.0.0,>=3.1.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from playwright->-r requirements.txt (line 4)) (3.4.0)
+| Requirement already satisfied: python-dateutil>=2.8.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (2.9.0.post0)
+| Requirement already satisfied: scramp>=1.4.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pg8000->-r requirements.txt (line 7)) (1.4.8)
+| Requirement already satisfied: google-ai-generativelanguage==0.6.15 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (0.6.15)
+| Requirement already satisfied: google-api-core in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.30.3)
+| Requirement already satisfied: google-api-python-client in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.194.0)
+| Requirement already satisfied: google-auth>=2.15.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.49.2)
+| Requirement already satisfied: protobuf in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (5.29.6)
+| Requirement already satisfied: pydantic in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (2.13.2)
+| Requirement already satisfied: tqdm in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-generativeai->-r requirements.txt (line 9)) (4.67.3)
+| Requirement already satisfied: proto-plus<2.0.0dev,>=1.22.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.27.2)
+| Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.63.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core->google-generativeai->-r requirements.txt (line 9)) (1.74.0)
+| Requirement already satisfied: grpcio<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.80.0)
+| Requirement already satisfied: grpcio-status<2.0.0,>=1.33.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-core[grpc]!=2.0.*,!=2.1.*,!=2.10.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,!=2.8.*,!=2.9.*,<3.0.0dev,>=1.34.1->google-ai-generativelanguage==0.6.15->google-generativeai->-r requirements.txt (line 9)) (1.71.2)
+| Requirement already satisfied: pyasn1-modules>=0.2.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+| Requirement already satisfied: cryptography>=38.0.3 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (46.0.7)
+| Requirement already satisfied: cffi>=2.0.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (2.0.0)
+| Requirement already satisfied: pycparser in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (3.0)
+| Requirement already satisfied: pyasn1<0.7.0,>=0.6.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pyasn1-modules>=0.2.1->google-auth>=2.15.0->google-generativeai->-r requirements.txt (line 9)) (0.6.3)
+| Requirement already satisfied: six>=1.5 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from python-dateutil>=2.8.2->pg8000->-r requirements.txt (line 7)) (1.17.0)
+| Requirement already satisfied: asn1crypto>=1.5.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from scramp>=1.4.5->pg8000->-r requirements.txt (line 7)) (1.5.1)
+| Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.31.2)
+| Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (0.3.1)
+| Requirement already satisfied: uritemplate<5,>=3.0.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (4.2.0)
+| Requirement already satisfied: pyparsing<4,>=3.1 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client->google-generativeai->-r requirements.txt (line 9)) (3.3.2)
+| Requirement already satisfied: annotated-types>=0.6.0 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.7.0)
+| Requirement already satisfied: pydantic-core==2.46.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (2.46.2)
+| Requirement already satisfied: typing-inspection>=0.4.2 in /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages (from pydantic->google-generativeai->-r requirements.txt (line 9)) (0.4.2)
+|
+| [notice] A new release of pip is available: 25.3 -> 26.0.1
+| [notice] To update, run: pip install --upgrade pip
+| Downloading Chrome for Testing 145.0.7632.6 (playwright chromium v1208) from https://cdn.playwright.dev/chrome-for-testing-public/145.0.7632.6/linux64/chrome-linux64.zip
+| (node:135) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+167.3 MiB [] 100% 0.0s
+| Chrome for Testing 145.0.7632.6 (playwright chromium v1208) downloaded to /home/runner/.cache/ms-playwright/chromium-1208
+| Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+| (node:146) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+2.3 MiB [] 100% 0.0s
+| FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+| Downloading Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) from https://cdn.playwright.dev/chrome-for-testing-public/145.0.7632.6/linux64/chrome-headless-shell-linux64.zip
+| (node:157) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+| (Use `node --trace-deprecation ...` to show where the warning was created)
+110.9 MiB [] 100% 0.0s
+| Chrome Headless Shell 145.0.7632.6 (playwright chromium-headless-shell v1208) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1208
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Main Install Dependencies [24.5798824s]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Main Run Master Orchestrator (Includes Harvester & Cleansing)
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   🐳  docker exec cmd=[bash -e /var/run/act/workflow/3] user= workdir=
+| 2026-04-18 07:22:40,405 - [ORCHESTRATOR] - INFO - --- PHASE 1: DISCOVERY & HARVESTING ---
+| 2026-04-18 07:22:40,406 - [ORCHESTRATOR] - INFO - Found 15 institutions to harvest.
+| 2026-04-18 07:22:40,406 - [ORCHESTRATOR] - INFO - ### Processing Institution: Universidad de Lima (universidad-de-lima)
+| Traceback (most recent call last):
+|   File "<string>", line 1, in <module>
+| NameError: name 'RealDictRow' is not defined
+| Traceback (most recent call last):
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/local/core/master_orchestrator.py", line 79, in <module>
+|     main()
+|   File "/mnt/c/Users/Romel/Proyectos/studiamatch/scripts/local/core/master_orchestrator.py", line 63, in main
+|     inst_json = subprocess.check_output([sys.executable, "-c", f"import json; print(json.dumps({inst}))"])
+|                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/subprocess.py", line 466, in check_output
+|     return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+|            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/subprocess.py", line 571, in run
+|     raise CalledProcessError(retcode, process.args,
+| subprocess.CalledProcessError: Command '['/opt/hostedtoolcache/Python/3.11.14/x64/bin/python', '-c', "import json; print(json.dumps(RealDictRow([('id', 'ccd04100-1bde-427b-b94f-ab24ae233a2a'), ('name', 'Universidad de Lima'), ('slug', 'universidad-de-lima'), ('website_url', 'https://www.ulima.edu.pe/')])))"]' returned non-zero exit status 1.
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ❌  Failure - Main Run Master Orchestrator (Includes Harvester & Cleansing) [441.2909ms]
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] exitcode '1': failure
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] ⭐ Run Complete job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting]   ✅  Success - Complete job
+[StudIAMatch Golden Pipeline/1. Discovery & Harvesting] 🏁  Job failed
+Error: Job '1. Discovery & Harvesting' failed

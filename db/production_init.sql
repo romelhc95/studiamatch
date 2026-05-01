@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS public.institutions (
     location_lat NUMERIC,
     location_long NUMERIC,
     address TEXT,
+    last_harvest_at TIMESTAMPTZ,
+    last_harvest_duration_sec INTEGER,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

@@ -6,9 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
-  MapPin, Clock, TrendingUp, ChevronLeft, 
+  MapPin, TrendingUp, ChevronLeft, 
   CheckCircle, ShieldCheck, GraduationCap, Download, Info,
-  Star, MessageSquare, Quote, User, ArrowRight
+  Star, MessageSquare, User
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug } from "@/lib/supabase";
@@ -360,9 +360,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     }
   }, [course]);
 
-  if (!mounted) return null;
-
-  if (loading) return (
+  if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
       <div className="w-12 h-12 border-4 border-brand-mint border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="animate-pulse font-bold uppercase tracking-widest text-xs text-brand-mint">Validando credenciales académicas...</p>
@@ -399,7 +397,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         } else {
           displayLines = text.split('\n');
         }
-      } catch (e) {
+      } catch {
         displayLines = text.split('\n');
       }
     } else {
@@ -494,7 +492,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-brand-gray/50">
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inicio</p><p className="font-black text-xs text-brand-blue uppercase">{course.start_date_text || "Consultar"}</p></div>
-                <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Ubicación</p><p className="font-black text-xs text-brand-slate uppercase truncate">{course.address || "Sede Central"}</p></div>
+                <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inversión</p><p className="font-black text-xs text-brand-slate uppercase truncate">{course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Duración</p><p className="font-black text-xs text-brand-slate uppercase">{course.duration || "N/A"}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Modalidad</p><p className="font-black text-xs text-brand-slate uppercase">{course.mode}</p></div>
               </div>
@@ -709,7 +707,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           <div className="lg:col-span-1">
             <Card className="sticky top-24 overflow-hidden border-brand-gray/50 shadow-2xl rounded-[2rem] p-10 bg-white border-0">
               <div className="mb-10 text-center lg:text-left">
-                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Solicitar Auditoría</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Solicitar Asesoría</h3>
                 <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
                   Recibe el plan detallado y asesoría imparcial sobre este programa.
                 </p>
@@ -761,7 +759,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     <CheckCircle className="h-10 w-10 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">Solicitud enviada</h3>
-                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un auditor se pondrá en contacto pronto.</p>
+                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
                 </div>
               )}
             </Card>
@@ -791,7 +789,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </span>
                       <GraduationCap className="h-4 w-4 text-slate-200" />
                     </div>
-                    <Link href={`/courses/${cleanSlug(rc.institution_slug)}/${cleanSlug(rc.slug, rc.url)}`}>
+                    <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`}>
                       <h3 className="text-base font-black text-brand-slate leading-tight line-clamp-2 h-10 group-hover:text-brand-blue transition-colors uppercase">
                         {rc.name}
                       </h3>
@@ -803,7 +801,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                        </span>
                     </div>
                   </div>
-                  <Link href={`/courses/${cleanSlug(rc.institution_slug)}/${cleanSlug(rc.slug, rc.url)}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
+                  <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
                     Ver Programa
                   </Link>
                 </article>

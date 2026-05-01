@@ -1,8 +1,8 @@
 -- ==========================================
--- SCRIPT MAESTRO DE INICIALIZACIÃ“N: PRODUCCIÃ“N
+-- SCRIPT MAESTRO DE INICIALIZACIÓN: PRODUCCIÓN
 -- Proyecto: StudIAMatch
 -- Fecha: 2026-04-16
--- DescripciÃ³n: Esquema saneado (sin columnas redundantes) con RLS y Triggers activos.
+-- Descripción: Esquema saneado (sin columnas redundantes) con RLS y Triggers activos.
 -- ==========================================
 
 -- 1. TIPOS PERSONALIZADOS (Enums)
@@ -28,11 +28,13 @@ CREATE TABLE IF NOT EXISTS public.institutions (
     location_lat NUMERIC,
     location_long NUMERIC,
     address TEXT,
+    last_harvest_at TIMESTAMPTZ,
+    last_harvest_duration_sec INTEGER,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- CategorÃ­as
+-- Categorías
 CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
@@ -40,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Reglas de CategorÃ­a
+-- Reglas de Categoría
 CREATE TABLE IF NOT EXISTS public.category_rules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
@@ -49,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.category_rules (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Cursos (ESQUEMA SANEADO - SIN SUB-CATEGORÃAS NI EXCESOS)
+-- Cursos (ESQUEMA SANEADO - SIN SUB-CATEGORÍAS NI EXCESOS)
 CREATE TABLE IF NOT EXISTS public.courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     institution_id UUID REFERENCES institutions(id) ON DELETE CASCADE,
@@ -57,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.courses (
     slug VARCHAR NOT NULL,
     price_pen NUMERIC CHECK (price_pen >= 0),
     price_status TEXT DEFAULT 'publicado',
-    mode VARCHAR CHECK (mode IN ('Presencial', 'HÃ­brido', 'Remoto')),
+    mode VARCHAR CHECK (mode IN ('Presencial', 'Híbrido', 'Remoto')),
     address TEXT,
     duration VARCHAR,
     category VARCHAR,
@@ -164,28 +166,28 @@ CREATE POLICY "Anyone can insert leads" ON public.leads FOR INSERT WITH CHECK (t
 -- DEBUG: Exportando datos...
 -- CATEGORIAS
 INSERT INTO public.categories (name, description) VALUES ('General / Por Clasificar', ''),
-('Ofim├ítica y Productividad', ''),
+('Ofimática y Productividad', ''),
 ('Data Analytics', ''),
 ('Ciberseguridad', ''),
 ('Cloud Computing', ''),
 ('Data Science & IA', ''),
 ('DevOps & Infraestructura', ''),
-('Gesti├│n y Agilidad', ''),
+('Gestión y Agilidad', ''),
 ('Redes y Conectividad', ''),
 ('Desarrollo y Web', ''),
-('Tecnolog├¡a', ''),
-('Log├¡stica y Operaciones', ''),
+('Tecnología', ''),
+('Logística y Operaciones', ''),
 ('Finanzas y Legal', 'Cursos relacionados a finanzas, contabilidad, leyes y normativas
 legales.'),
-('Ingenier├¡a y Construcci├│n', 'Cursos de ingenier├¡a civil, industrial, minas, construcci├│n y
+('Ingeniería y Construcción', 'Cursos de ingeniería civil, industrial, minas, construcción y
 afines.'),
-('Arte y Dise├▒o Digital', 'Cursos de dise├▒o gr├ífico, UI/UX, animaci├│n, arte y medios
+('Arte y Diseño Digital', 'Cursos de diseño gráfico, UI/UX, animación, arte y medios
 digitales.'),
-('Derecho y Humanidades', 'Cursos de derecho, filosof├¡a, ciencias sociales y humanidades.'),
+('Derecho y Humanidades', 'Cursos de derecho, filosofía, ciencias sociales y humanidades.'),
 ('Marketing y Ventas', 'Cursos de marketing digital, publicidad, estrategias de ventas y
-relaciones p├║blicas.'),
-('Artes y Cultura', 'Cursos de expresi├│n art├¡stica, m├║sica, teatro, danza y
-gesti├│n cultural.') ON CONFLICT (name) DO NOTHING;
+relaciones públicas.'),
+('Artes y Cultura', 'Cursos de expresión artística, música, teatro, danza y
+gestión cultural.') ON CONFLICT (name) DO NOTHING;
 
 -- SALARIOS
 INSERT INTO public.market_salaries (category_id, category_name, salary_junior, salary_average, salary_senior)
@@ -196,15 +198,15 @@ SELECT c.id, s.cat_name, s.sj, s.sa, s.ss FROM ( VALUES
 ('DevOps & Infraestructura', 4500, 9800, 16500),
 ('Desarrollo y Web', 3500, 7500, 14000),
 ('Data Analytics', 3800, 8200, 13000),
-('Log├¡stica y Operaciones', 2800, 5800, 11000),
+('Logística y Operaciones', 2800, 5800, 11000),
 ('Finanzas y Legal', 3200, 7200, 15000),
-('Ingenier├¡a y Construcci├│n', 3000, 6500, 14000),
+('Ingeniería y Construcción', 3000, 6500, 14000),
 ('Marketing y Ventas', 2500, 5500, 10000),
-('Gesti├│n y Agilidad', 3500, 8500, 15000),
+('Gestión y Agilidad', 3500, 8500, 15000),
 ('Redes y Conectividad', 2800, 6000, 11000),
-('Ofim├ítica y Productividad', 1200, 2800, 4500),
-('Arte y Dise├▒o Digital', 2200, 4800, 9000),
+('Ofimática y Productividad', 1200, 2800, 4500),
+('Arte y Diseño Digital', 2200, 4800, 9000),
 ('Derecho y Humanidades', 2500, 5500, 12000),
-('Tecnolog├¡a', 3000, 7000, 13000),
+('Tecnología', 3000, 7000, 13000),
 ('General / Por Clasificar', 1025, 2500, 5000)
 ) as s(cat_name, sj, sa, ss) JOIN public.categories c ON c.name = s.cat_name ON CONFLICT (category_name) DO NOTHING;

@@ -211,7 +211,7 @@ class SmartDataHarvester:
                                 }}
                                 return content.trim();
                             }}''', kw)
-                    except:
+                    except Exception:
                         continue
                 return ""
 
@@ -238,7 +238,7 @@ class SmartDataHarvester:
                 try:
                     price_pen = float(price_str)
                     price_status = "confirmado"
-                except:
+                except Exception:
                     pass
             
             # 7. Objetivos
@@ -316,7 +316,7 @@ class SmartDataHarvester:
             
             # 2. Slug
             course_slug = item['name'].lower().replace(" ", "-").replace("/", "-")[:255]
-            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug)
+            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug).lstrip('-') or 'curso'
 
             # 3. UPSERT Course
             course_data = {

@@ -52,7 +52,7 @@ class USILHarvester:
             try:
                 popup = await page.query_selector("button.close, .modal-close")
                 if popup: await popup.click()
-            except: pass
+            except Exception: pass
 
             title_el = await page.query_selector("h1")
             title = await title_el.inner_text() if title_el else "Carrera USIL"
@@ -83,7 +83,7 @@ class USILHarvester:
             inst_id = inst_res[0]['id']
             
             course_slug = item['name'].lower().replace(" ", "-").replace("/", "-")[:250]
-            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug)
+            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug).lstrip('-') or 'curso'
 
             course_data = {
                 "institution_id": inst_id,

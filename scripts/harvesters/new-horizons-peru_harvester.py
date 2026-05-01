@@ -207,7 +207,7 @@ class NewHorizonsHarvester:
             
             # 2. Slug
             course_slug = item['name'].lower().replace(" ", "-").replace("/", "-")[:255]
-            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug)
+            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug).lstrip('-') or 'curso'
 
             # 3. UPSERT Course (POST with resolution=merge-duplicates)
             course_data = {

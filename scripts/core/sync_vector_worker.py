@@ -3,64 +3,102 @@ import json
 import logging
 import sys
 import requests
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify
+from shared.utils import slugify, setup_lima_logging
+from shared.db_client import get_db_client
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger("SyncVectorWorker")
-
 load_dotenv()
+logger = setup_lima_logging("SyncVectorWorker")
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+# Supabase credentials are now handled by db_client
 
 class SyncVectorWorker:
     def __init__(self):
-        self.api_url = f"{SUPABASE_URL}/rest/v1"
-        self.headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation"
-        }
+        self.db = get_db_client()
 
-    def get_pending_enriched(self, limit=50):
-        url = f"{self.api_url}/enriched_programs?status=eq.pending&limit={limit}"
-        res = requests.get(url, headers=self.headers)
-        if res.status_code == 200:
-            return res.json()
-        return []
+    def get_pending_enriched(self, limit=500):
+        return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
-        name = enriched['official_name']
+        raw_name = enriched.get('official_name')
         url = enriched['url']
 
+        # Validate name: reject None, "None", empty, or too-short names
+        if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
+            logger.warning(f"Skipping record {e_id}: invalid official_name '{raw_name}'")
+            self.update_enriched_status(e_id, "error", error_msg="invalid_name")
+            return
+
+        name = str(raw_name).strip()
         logger.info(f"Syncing to Production: {name}")
 
-        # Map Enriched Pillars to Courses Schema
+        # Map Enriched Pillars to Courses Schema with robust list handling
+        def list_to_str(val):
+            if isinstance(val, list):
+                return ", ".join([str(v) for v in val if v])
+            return str(val) if val else ""
+
+        # Generate unique slug (include location and short ID if needed)
+        base_slug = slugify(name)
+
+        # Fallback: if slugify returns empty (non-ASCII names), use last URL segment
+        if not base_slug:
+            url = enriched.get('url', '')
+            if url:
+                last_segment = urlparse(url).path.strip('/').split('/')[-1]
+                base_slug = slugify(last_segment)
+                logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
+            if not base_slug:
+                base_slug = 'curso'
+                logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
+
+        location = enriched.get('location', 'Nacional')
+        
+        # Add location if specific
+        if location and location not in ["Nacional", "Nacional/No especificado"]:
+            base_slug = f"{base_slug}-{slugify(location)}"
+        
+        # Add a short unique identifier from the original ID to guarantee uniqueness
+        # while keeping the URL readable
+        short_id = str(e_id).split('-')[0]
+        full_slug = f"{base_slug}-{short_id}"
+        # Ensure slug never starts with dash
+        full_slug = full_slug.lstrip('-')
+
+        # Robust category extraction
+        raw_categories = enriched.get('categories')
+        main_category = None
+        if isinstance(raw_categories, list) and raw_categories:
+            main_category = raw_categories[0]
+        elif isinstance(raw_categories, str) and raw_categories:
+            main_category = raw_categories.split(',')[0].strip()
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
-            "slug": slugify(name),
+            "slug": full_slug,
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
             "mode": enriched.get('modality'),
-            "duration": enriched.get('duration_text'),
+            "duration": enriched.get('duration_text') or enriched.get('duration'),
+            "start_date_text": enriched.get('start_date'),
             "description_long": enriched.get('ai_summary'),
-            "requirements": ", ".join(enriched.get('requirements', [])),
-            "certification": ", ".join(enriched.get('certifications', [])),
+            "requirements": list_to_str(enriched.get('requirements')),
+            "objectives": enriched.get('graduate_profile'),
+            "target_audience": enriched.get('graduate_profile'),
+            "syllabus": json.dumps(enriched.get('curriculum_summary')) if isinstance(enriched.get('curriculum_summary'), dict) else enriched.get('curriculum_summary'),
+            "certification": "",
+            "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),
-            "category": enriched.get('categories')[0] if enriched.get('categories') else None,
+            "category": main_category,
             "is_active": True,
+            "is_verified": True,
             "last_scraped_at": "now()"
         }
 
@@ -68,27 +106,19 @@ class SyncVectorWorker:
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
         # Upsert to production courses
-        res = requests.post(
-            f"{self.api_url}/courses?on_conflict=url",
-            headers=self.headers,
-            json=course_data
-        )
+        res = self.db.upsert('courses', course_data, on_conflict="url")
 
-        if res.status_code in [201, 204, 200]:
+        if res:
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
         else:
-            logger.error(f"Error syncing to production: {res.text}")
-            self.update_enriched_status(e_id, "error", error_msg=res.text)
+            logger.error(f"Error syncing to production")
+            self.update_enriched_status(e_id, "error", error_msg="DB Error")
 
     def update_enriched_status(self, e_id, status, error_msg=None):
         payload = {"status": status}
         if error_msg: payload["metadata"] = {"error": error_msg}
-        requests.patch(
-            f"{self.api_url}/enriched_programs?id=eq.{e_id}",
-            headers=self.headers,
-            json=payload
-        )
+        self.db.patch('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
 
 if __name__ == "__main__":
     worker = SyncVectorWorker()
