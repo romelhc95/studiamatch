@@ -49,14 +49,30 @@ class UniversalHarvester:
         self.MAX_DEPTH = 3
         self.semaphore = asyncio.Semaphore(3)
         self.circuit_open = False
+        self.profile = self._load_site_profile()
         self.exclusions = self._load_exclusions()
 
         # ⏱️ TIME GUARD CONFIG (Global awareness)
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 20400  # 5h 40m — unified w/ GitHub Actions 6h limit
 
+    def _load_site_profile(self):
+        try:
+            inst_id = self.institution.get('id')
+            profiles = self.db.select('institution_site_profiles',
+                                       filters=f'institution_id=eq.{inst_id}',
+                                       limit=1)
+            if profiles and len(profiles) > 0:
+                logger.info(f"Loaded site profile: site_type={profiles[0].get('site_type')}, discovery_mode={profiles[0].get('discovery_mode')}")
+                return profiles[0]
+        except Exception as e:
+            logger.warning(f"Error loading site profile: {e}")
+        return {}
+
     def _load_exclusions(self):
         try:
+            if self.profile and self.profile.get('exclusion_patterns'):
+                return self.profile['exclusion_patterns']
             return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
@@ -195,10 +211,18 @@ class UniversalHarvester:
         if parsed_path.endswith(self.NON_HTML_EXTENSIONS):
             return False
 
-        # Check global and specific exclusions
+        # Check exclusions — supports both formats:
+        # 1. JSONB array from institution_site_profiles (list of pattern strings)
+        # 2. Legacy list of dicts from crawler_exclusions
         for exc in self.exclusions:
-            if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
-            if exc['pattern'].lower() in low_url: return False
+            if isinstance(exc, str):
+                if exc.lower() in low_url:
+                    return False
+            elif isinstance(exc, dict):
+                if exc.get('institution_id') and exc['institution_id'] != inst_id:
+                    continue
+                if exc.get('pattern', '').lower() in low_url:
+                    return False
 
         return True
 
