@@ -7,6 +7,8 @@
 .env.test.local
 .env.production.local
 __pycache__/
+.network-request
+.network-response
 *.py[cod]
 *$py.class
 .pytest_cache/
