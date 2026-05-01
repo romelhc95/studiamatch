@@ -1479,10 +1479,62 @@ Objetivo: Eliminar `description_long = title` falso (Continental, UTP, SENATI), 
    - [ ] Priorizar: `requirements` (0% en 7 instituciones), `start_date_text` (0% en 7 instituciones), `price_pen` (0% en 7 instituciones)
 
 4. **Auditoría final**:
-   - [ ] Conteo total de cursos por institución
-   - [ ] % de completitud por campo clave
-   - [ ] 0 cursos con `slug LIKE '-%'`
-   - [ ] 0 cursos con `name = 'Programa Pendiente'` o `name = 'None'`
-   - [ ] 0 slugs vacíos
-   - [ ] Comparativa antes/después de Fases 60-65
+    - [ ] Conteo total de cursos por institución
+    - [ ] % de completitud por campo clave
+    - [ ] 0 cursos con `slug LIKE '-%'`
+    - [ ] 0 cursos con `name = 'Programa Pendiente'` o `name = 'None'`
+    - [ ] 0 slugs vacíos
+    - [ ] Comparativa antes/después de Fases 60-65
+
+### Fase 66: Fix Pipeline Cleansing Loop — Bug Crítico P0 [ ] Pendiente
+Objetivo: Corregir el loop infinito en `cleansing_worker.py` que repite los mismos 14 registros cada 2 segundos hasta timeout (30 min). Identificado en pipeline run `25206136924`.
+
+**Diagnóstico detallado**:
+
+| # | Bug | Ubicación | Root Cause | Impacto |
+|---|-----|-----------|------------|---------|
+| A | `lock_staging_records` SELECT-only no cambia status | `restore_full_schema.sql` + DB (Free & Pro) | Función deployada es versión SELECT-only (`FOR UPDATE SKIP LOCKED` sin UPDATE). Comment dice "Callers must call `mark_records_processing()` separately" pero `cleansing_worker.py` **nunca la llama**. | `staging_raw` permanece en `status='pending'` perpetuamente → loop infinito |
+| B | `atomic_cleansing_promote` requiere `status='processing'` | SQL function en DB (Free & Pro) | `UPDATE staging_raw SET status = 'processed' WHERE id = ANY(p_staging_ids) AND status = 'processing'` — filtra por `status='processing'`, pero los registros están en `'pending'` (por Bug A). El UPDATE afecta **0 filas**. | `staging_raw` nunca se marca como `processed` → registros se re-procesan infinitamente |
+| C | `staging_ids` usa `members` (última iteración) en vez de todos los IDs | `cleansing_worker.py:222` | `staging_ids = [m['id'] for m in members if 'id' in m]` — `members` es variable de bucle (`for base_url, members in groups.items()`), así que solo contiene los miembros del **último grupo**. Para 2 grupos (6+8 URLs), solo se pasan 8 IDs de 14. | Incluso si Bug A se corrigiera, 6 de 14 registros nunca se marcarían como `processed` |
+| D | `while True` sin guard de salida | `cleansing_worker.py:125` | `stream_pending_staging()` usa `while True` sin límite de iteraciones ni detección de IDs repetidos. Si `lock_staging_records` devuelve los mismos IDs una y otra vez, el loop nunca termina. | Timeout a 30 min (GitHub Actions job limit) |
+
+**Flujo del loop infinito** (traza paso a paso):
+
+1. `stream_pending_staging()` → `lock_staging_records(None, 200)` → devuelve 14 registros (status sigue `'pending'`)
+2. `__main__` acumula 100+ registros (incluyendo duplicados del mismo 14) → `process_batch()`
+3. `process_batch()` agrupa por URL base → 2 grupos (6+8 URLs)
+4. `atomic_cleansing_promote(p_staging_ids=[8 IDs del último grupo], p_cleansed_data=[2 cleansed])` → INSERT en `cleansed_programs` (éxito), UPDATE en `staging_raw` con `WHERE status='processing'` (0 filas afectadas)
+5. RPC retorna resultado truthy → se loguea "Promoted 2 courses via RPC" → **se salta el fallback manual**
+6. Vuelve al `while True` → `lock_staging_records` devuelve los **mismos 14 registros** (status sigue `'pending'`)
+7. Repite pasos 2-6 cada ~2 segundos hasta timeout (30 min)
+
+1. **Fix A: Desplegar `lock_staging_records` versión UPDATE (atomic)**:
+   - [ ] Crear migration `20260501_fix_lock_staging_records.sql` con versión UPDATE que cambia `status='pending'` → `'processing'` dentro de CTE `WITH updated AS (UPDATE ... RETURNING ...)` atomically
+   - [ ] Verificar que `SET search_path = public` está en la función (fix PG17)
+   - [ ] Aplicar migration en Supabase Dashboard (Free + Pro)
+   - [ ] Eliminar `mark_records_processing()` (ya no se necesita si lock es atómico)
+
+2. **Fix B: Hacer `atomic_cleansing_promote` tolerante a status**:
+   - [ ] Cambiar `AND status = 'processing'` → `AND status IN ('pending', 'processing')` en el UPDATE de `atomic_cleansing_promote`
+   - [ ] Crear migration `20260501_fix_cleansing_promote_status.sql`
+   - [ ] Aplicar en Supabase Dashboard (Free + Pro)
+
+3. **Fix C: Corregir `staging_ids` en `cleansing_worker.py`**:
+   - [ ] Cambiar `staging_ids = [m['id'] for m in members if 'id' in m]` (línea 222) → `staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']` para recolectar TODOS los IDs del batch, no solo el último grupo
+   - [ ] Verificar con `python3 -m py_compile scripts/core/cleansing_worker.py`
+
+4. **Fix D: Agregar guard de salida en `stream_pending_staging()`**:
+   - [ ] Agregar detección de IDs repetidos: si `lock_staging_records` devuelve IDs que ya se procesaron en la iteración anterior, romper el loop
+   - [ ] Agregar límite máximo de iteraciones (ej: `max_iterations=1000`) como safety net
+   - [ ] Verificar con `python3 -m py_compile scripts/core/cleansing_worker.py`
+
+5. **Fix adicional: Pasar `json.dumps()` a `p_cleansed_data`**:
+   - [ ] Verificar línea 225: `cleansed_batch` ya es una lista de dicts — confirmar que `db.rpc()` lo serializa correctamente (no hacer doble `json.dumps()`). Regla AGENTS.md: "NUNCA uses `json.dumps()` en los parámetros de `db.rpc()`"
+
+6. **Validación post-fix**:
+   - [ ] Ejecutar `cleansing_worker.py` localmente con datos de prueba (3-5 registros en `staging_raw` con `status='pending'`)
+   - [ ] Confirmar que los registros pasan `pending` → `processing` (lock) → `processed` (promote)
+   - [ ] Confirmar que `stream_pending_staging()` termina cuando no hay más registros `pending`
+   - [ ] Confirmar que `atomic_cleansing_promote` recibe TODOS los staging_ids del batch (no solo el último grupo)
+   - [ ] Re-trigger del pipeline FG2 en `main` para validación end-to-end
 
