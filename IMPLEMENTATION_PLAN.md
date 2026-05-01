@@ -29,7 +29,7 @@
 - [x] **R4**: Schema completo reconstruido (`db/restore_full_schema.sql` — 12 tablas, RLS, RPCs, extensiones). Seed 10 instituciones + 346 crawler_exclusions. Funciones RPC adaptadas a PG17 (sin `jsonb_set` en `SECURITY DEFINER`).
 - [x] **R5**: Pipeline test end-to-end con 100 URLs ficticias (10/institución). 2 cursos completaron flujo completo → visibles en frontend local (`localhost:3000`).
 - [x] **R8**: Auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens. 3 docs actualizados con nuevo project ref `aqrldlmlszjtgpqiegaa` y nuevos nombres de keys.
-- [ ] **R6**: Crear proyecto Supabase Pro. Ejecutar schema + seeds + actualizar `.env.gitprod`.
+- [x] **R6**: Proyecto Pro (`xwhtiqmboljkshrtviyw`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [ ] **R7**: Configurar GitHub Secrets (3 environments) + re-deploy Cloudflare Pages + smoke tests.
 - [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
