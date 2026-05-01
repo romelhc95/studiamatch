@@ -120,13 +120,24 @@ class CleansingWorker:
             if re.search(pattern, clean_url, re.IGNORECASE): return re.sub(pattern, '', clean_url, flags=re.IGNORECASE).rstrip('/') + '/'
         return clean_url
 
-    def stream_pending_staging(self, batch_size: int = 100) -> Generator[Dict[str, Any], None, None]:
+    def stream_pending_staging(self, batch_size: int = 100, max_iterations: int = 10000) -> Generator[Dict[str, Any], None, None]:
         """Streams pending staging records using lock RPC if available, falls back to simple select."""
+        seen_ids: set = set()
+        iterations = 0
         while True:
+            iterations += 1
+            if iterations > max_iterations:
+                logger.warning(f"Max iterations ({max_iterations}) reached. Breaking loop.")
+                break
             try:
-                # Try atomic lock via RPC first
+                # Try atomic lock via RPC first (PG17-safe, UPDATE+RETURNING atomico)
                 locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
                 if locked and len(locked) > 0:
+                    current_ids = {r['id'] for r in locked if isinstance(r, dict)}
+                    if current_ids.issubset(seen_ids):
+                        logger.warning("Detected repeated IDs from lock_staging_records. Breaking to prevent infinite loop.")
+                        break
+                    seen_ids.update(current_ids)
                     for record in locked:
                         if isinstance(record, dict):
                             yield record
@@ -219,7 +230,7 @@ class CleansingWorker:
         if cleansed_batch:
             try:
                 # Try atomic RPC promotion first
-                staging_ids = [m['id'] for m in members if 'id' in m]
+                staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']
                 rpc_result = self.db.rpc('atomic_cleansing_promote', {
                     "p_staging_ids": staging_ids,
                     "p_cleansed_data": cleansed_batch
