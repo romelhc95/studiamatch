@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 32A en progreso (RLS hardening). RLS habilitado en 12/12 tablas, 33 policies creadas, REVOKE de RPCs aplicado. Pipeline scripts locales necesitan `db_client.py` update + service_role key antes de poder escribir. Fase 32B (pg_dump migración) pendiente de credenciales BD.
-- **Último Hito**: Fase 32A parcial — RLS hardening ejecutado en Dev Free. 12/12 tablas con RLS, RPCs protegidas, warnings aceptados (leads/ratings/reviews INSERT intencional).
-- **Próxima Acción**: Completar Fase 32A (6: modificar db_client.py + agregar SUPABASE_SERVICE_ROLE_KEY a .env.local). Luego Fase 32B (pg_dump migración a Pro).
+- **Estado Actual**: Fase 32B COMPLETADA. Migración Free→Pro exitosa vía REST API (pg_dump descartado por DNS). 648 cursos, 15 instituciones, 728 enriched migrados. RLS + RPCs replicados en Pro. Próximo: Fase 33 Domain Mapping.
+- **Último Hito**: Fase 32B — Migración Full Replace completada. 648 cursos, 15 inst, 18 cat, 105 rules, 17 salaries, 252 exclusions, 728 enriched en Pro.
+- **Próxima Acción**: Fase 33 — Domain Mapping (studiamatch.com) + Fase 34 Smoke Tests.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -29,8 +29,8 @@
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [ ] **Fase 32A**: Hardening RLS en Dev — 8 tablas sin RLS, 7 RPCs accesibles por anon, extensions en schema incorrecto. DEBE ejecutarse ANTES de migración.
-- [ ] **Fase 32B**: Migración pg_dump Full Replace Dev→Pro — pg_dump con RLS aplicado, restore atómico, verificación conteos, cutover env vars.
+- [x] **Fase 32A**: Hardening RLS en Dev — 8 tablas sin RLS, 7 RPCs accesibles por anon, extensions en schema incorrecto. DEBE ejecutarse ANTES de migración.
+- [x] **Fase 32B**: Migración Full Replace Dev→Pro — REST API con service_role keys, 648 cursos, 15 instituciones, 728 enriched, RLS replicado, RPCs con search_path fijo.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
 ---
