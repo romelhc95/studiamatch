@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug } from "@/lib/supabase";
 import type { Metadata } from "next";
-import CourseDetailClient from "./CourseDetailClient";
+import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
 async function fetchCourseMeta(slug: string) {
   try {
@@ -126,7 +126,7 @@ export default async function CourseDetailPage({
   return (
     <>
       {courseMeta && <CourseJsonLd course={courseMeta} />}
-      <CourseDetailClient institutionSlug={institution} courseSlug={slug} />
+      <CourseDetailClientWrapper institutionSlug={institution} courseSlug={slug} />
     </>
   );
 }
