@@ -12,8 +12,8 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 32B COMPLETADA. Migración Free→Pro exitosa vía REST API (pg_dump descartado por DNS). 648 cursos, 15 instituciones, 728 enriched migrados. RLS + RPCs replicados en Pro. Próximo: Fase 33 Domain Mapping.
-- **Último Hito**: Fase 32B — Migración Full Replace completada. 648 cursos, 15 inst, 18 cat, 105 rules, 17 salaries, 252 exclusions, 728 enriched en Pro.
+- **Estado Actual**: Fase 32 COMPLETADA. Dev y Pro con RLS completo, datos migrados (648 cursos), dual-key db_client, extensiones ordenadas. Advisor: 4 warnings aceptados (rls_policy_always_true en leads/ratings/reviews). Próximo: Fase 33 Domain Mapping.
+- **Último Hito**: Fase 32 completa — 5 prioridades ejecutadas: RLS (12/12), migration (648+728), db_client dual-key, search_path fix, extensions move. Commits: e58d996, bf5d266, b34d60f, bcf8e44.
 - **Próxima Acción**: Fase 33 — Domain Mapping (studiamatch.com) + Fase 34 Smoke Tests.
 
 ## Hoja de Ruta: Lanzamiento Producción
@@ -29,8 +29,7 @@
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [x] **Fase 32A**: Hardening RLS en Dev — 8 tablas sin RLS, 7 RPCs accesibles por anon, extensions en schema incorrecto. DEBE ejecutarse ANTES de migración.
-- [x] **Fase 32B**: Migración Full Replace Dev→Pro — REST API con service_role keys, 648 cursos, 15 instituciones, 728 enriched, RLS replicado, RPCs con search_path fijo.
+- [x] **Fase 32 (completa)**: Hardening RLS + Migración Free→Pro + Extensiones. 12/12 tablas RLS, 648 cursos, 728 enriched, `db_client` dual-key, RPCs search_path, Advisor: 0 errores, 4 warnings aceptados.
 - [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
 
 ---
@@ -295,14 +294,16 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro (`zogdcvlqx
 | `enriched_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all, public read) |
 | `crawler_exclusions` | ✅ | ✅ | Sin cambios (public select active, service all) |
 
-**WARN del Advisor (post-hardening)** — Pendientes de resolver:
+**WARN del Advisor (post-prioridades 1-5)** — Estado final:
 
-| Warning | Severidad | Descripción | Fix |
+| Warning | Severidad | Descripción | Estado |
 |---|---|---|---|
-| `rls_policy_always_true` (4 instancias) | MEDIA | Policies INSERT `WITH CHECK (true)` en leads, ratings, reviews permiten cualquier fila. Es **intencional** (lead form público, ratings abiertos). | No aplicar fix, documentar como aceptado. |
-| `function_search_path_mutable` (8 instancias) | BAJA | 7 RPCs + 1 trigger function sin `SET search_path = public`. Puede permitir injection de search path. | Agregar `SET search_path = public` a cada función en migration futura. |
-| `extension_in_public` (2 instancias) | BAJA | pg_trgm y vector en schema `public`. Supabase recomienda schema `extensions`. | Mover en Fase 32B o post-migración con testing. |
-| `anon_security_definer_function_executable` | RESUELTO | REVOKE ejecutado. anon ya NO puede ejecutar RPCs. | ✅ Aplicado: `REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;` |
+| `rls_policy_always_true` (4 instancias) | MEDIA | Policies INSERT `WITH CHECK (true)` en leads, ratings, reviews. | ✅ **ACEPTADO**: lead form público + ratings/reviews abiertos por diseño. No requiere fix. |
+| `function_search_path_mutable` (8 instancias) | BAJA | RPCs sin `SET search_path = public`. | ✅ **RESUELTO**: `ALTER FUNCTION ... SET search_path = public` en 8 funciones. |
+| `extension_in_public` (2 instancias) | BAJA | pg_trgm y vector en schema `public`. | ✅ **RESUELTO**: Movidos a schema `extensions`. |
+| `anon_security_definer_function_executable` | WARN | RPCs accesibles por anon. | ✅ **RESUELTO**: `REVOKE FROM PUBLIC, anon, authenticated`. |
+
+**Warnings restantes**: 4 de `rls_policy_always_true` (leads/ratings/reviews INSERT), todos aceptados por diseño. **0 errores, 0 warnings no deseados.**
 
 **Impacto en scripts de recolección (post-RLS)**:
 
