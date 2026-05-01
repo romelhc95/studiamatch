@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Promoción completada: desarrollo→certificación→main (PR #1 y #2 merged). Pipelines alineados — los cambios son frontend+DB, no afectan los workflows ETL. Los pipelines de GitHub Actions ya detectan la rama y usan el Environment correcto (Free para desarrollo/certificacion, Pro para main). Próximo: configurar `NEXT_PUBLIC_*` en Cloudflare Pages + re-build.
-- **Último Hito**: Promoción desarrollo→certificacion→main exitosa. Commits: `9f3979f`, `1505781`, `c5713bd` promovidos a certificacion (`e250530`) y main (`1896414`).
-- **Próxima Acción**: Fase 33-34: configurar `NEXT_PUBLIC_*` en Cloudflare Pages (los 3 ambientes) + re-build + smoke tests.
+- **Estado Actual**: R1-R5 completados. R6 pendiente (crear proyecto Pro). Nuevo proyecto Free (`aqrldlmlszjtgpqiegaa`) operativo con 12 tablas, 10 instituciones, 346 crawler_exclusions, 2 cursos test visibles en frontend local. Código migrado de legacy `anon`/`service_role` JWTs a nuevas keys rotativas `sb_publishable_*`/`sb_secret_*`. 35 scripts Python compilan, TypeScript 0 errores. Cloudflare Pages builds automáticos desde rama `desarrollo` — sin embargo el build requiere env vars configuradas en Cloudflare para mostrar datos.
+- **Último Hito**: R8 completada — auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens, docs actualizados. Commit `f630420` en desarrollo.
+- **Próxima Acción**: R6: crear proyecto Supabase Pro, ejecutar `db/restore_full_schema.sql`, seed institutions + exclusions. Luego R7: configurar GitHub Secrets + re-build Cloudflare Pages.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -25,6 +25,12 @@
 - [x] **Fase 60**: Slug Fix & Data Quality — 18 slugs reparados, 47 cursos eliminados, 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima. Commits `6f67d4d` + `e0fe97c`.
 - [x] **Fase 60.5**: Limpieza de Deuda Técnica — 29 archivos eliminados, 5 dependencias muertas, 2 imports, cache `.wrangler/`. Commit `65c86ca`.
 - [x] **Fase 60.6**: DMC Exclusion Cascade — 8 patrones de ruido identificados e insertados en `crawler_exclusions` (Free+Pro): `/profesores/`, `/egresado/`, `/legales/`, `/termino-y-condicion-/`, `/categoria-termino-y-condicion/`, `/etiqueta-producto/`, `/programa-libre/`, `/termino-y-condicion/`. Limpieza retroactiva en cascada: staging_raw→discarded (203), cleansed→discarded (138), enriched→discarded (138), courses→is_active=false (138). Ambas DBs en 0 activos. Patrones referenciados desde la issue original.
+- [x] **R1-R3**: Migrar a nuevas API keys Supabase rotativas (`sb_publishable_*`/`sb_secret_*`). Actualizar `db_client.py`, `supabase.ts`, 11 harvesters, 6 maintenance scripts, 3 GHA workflows, AGENTS.md. Recrear contenedor Docker con nuevas credenciales.
+- [x] **R4**: Schema completo reconstruido (`db/restore_full_schema.sql` — 12 tablas, RLS, RPCs, extensiones). Seed 10 instituciones + 346 crawler_exclusions. Funciones RPC adaptadas a PG17 (sin `jsonb_set` en `SECURITY DEFINER`).
+- [x] **R5**: Pipeline test end-to-end con 100 URLs ficticias (10/institución). 2 cursos completaron flujo completo → visibles en frontend local (`localhost:3000`).
+- [x] **R8**: Auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens. 3 docs actualizados con nuevo project ref `aqrldlmlszjtgpqiegaa` y nuevos nombres de keys.
+- [ ] **R6**: Crear proyecto Supabase Pro. Ejecutar schema + seeds + actualizar `.env.gitprod`.
+- [ ] **R7**: Configurar GitHub Secrets (3 environments) + re-deploy Cloudflare Pages + smoke tests.
 - [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
@@ -256,10 +262,13 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 - [x] Eliminación de colisiones de rutas antiguas (`[slug]`).
 - [x] Despliegue automático 100% verificado en Cloudflare.
 
-### Fase 32: Migración Full Replace — Dev (Free) → Pro [ ] Pendiente
-Objetivo: Reemplazar completamente la data del proyecto Supabase Pro (`zogdcvlqxanzqbvkkdar`, `us-west-1`) con la data superior del proyecto Dev (`fmcxwoqvxatbrawwtqke`, `sa-east-1`), incluyendo schema, datos, RPCs, RLS y extensiones.
+### Fase 32: Migración Full Replace — Dev (Free) → Pro [x] Completado (REST API approach)
+Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data superior del proyecto Dev, incluyendo schema, datos, RPCs, RLS y extensiones.
 
-**Estrategia**: Full Replace (no merge). Se preservan los UUIDs del Dev para evitar remapeo de FKs. La data existente del Pro (198 cursos con slugs rotos y encoding dañado) se elimina y reemplaza por los 648 cursos del Dev. La migración usa `pg_dump`/`psql` (robusto, atómico) en vez de REST API script.
+**Estrategia**: Full Replace vía REST API + SQL consolidado. Se abandonó `pg_dump`/`psql` (imposible por Supabase Free sin conexión directa). En su lugar:
+1. Ambos proyectos (Free `fmcxwoqvxatbrawwtqke` y Pro `zogdcvlqxanzqbvkkdar`) fueron eliminados por exposición de credenciales.
+2. Nuevo proyecto Free creado (`aqrldlmlszjtgpqiegaa`): schema vía `restore_full_schema.sql`, seeds vía `seed_institutions.py` + `seed_crawler_exclusions.py`.
+3. Pro proyecto pendiente (R6) — usará mismo schema + seeds.
 
 **Diagnóstico comparativo**:
 
@@ -424,7 +433,7 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
    - [ ] Verificar que `db_client.py` funciona con nuevas credenciales
    - [ ] Resetear/revocar DB passwords temporales usadas en `.pgpass`
 
-### Fase 33: Dominios y Cloudflare (studiamatch.com) [x] Configuracion documentada
+### Fase 33: Dominios y Cloudflare (studiamatch.com) [x] Completado + Documentación actualizada (R8)
 
 **Dominios confirmados por el usuario**:
 - Desarrollo: `https://desarrollo.studiamatch.pages.dev` (rama `desarrollo`)
@@ -437,53 +446,46 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
     - [x] `certificacion branch` → Dominio: `studiamatch.pages.dev`.
     - [x] `desarrollo branch` → Dominio: `desarrollo.studiamatch.pages.dev`.
 2. **Propagación DNS y SSL**: Verificado — los 3 sitios resuelven correctamente y tienen SSL.
-3. **Documentacion de variables de entorno**:
-    - [x] Creado `docs/deployment/environment_config.md` con tabla por ambiente.
-    - [x] Fix `.env.gitprod`: anon key descomentada + service_role key sin `""` extra.
-    - [x] Verificada conectividad Free (648 cursos) y Pro (648 cursos) vía API REST.
+3. **Documentación de variables de entorno**:
+    - [x] `docs/deployment/environment_config.md` actualizado con nuevo project ref `aqrldlmlszjtgpqiegaa` y nuevas keys: `NEXT_SUPABASE_PUBLISHABLE_KEY`/`NEXT_SUPABASE_SECRET_KEY`.
+    - [x] `docs/deployment/deploy_desarrollo.md` actualizado.
+    - [x] `docs/deployment/guia_despliegue_produccion.md` actualizado con pendientes R6.
 4. **Optimización de Seguridad y Performance** (Cloudflare)
     - [ ] Habilitar Proxy (naranja), SSL Full (Strict), y reglas de WAF básicas. (Requiere acceso al dashboard Cloudflare)
     - [ ] Configurar redireccion de `www` a non-www. (Requiere acceso al dashboard Cloudflare)
     - [ ] Custom Domain en Supabase para `db.studiamatch.com` (Opcional, Pro feature).
 5. **Actions pendientes (usuario)**:
-    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Cloudflare Pages para cada ambiente (ver `docs/deployment/environment_config.md`)
-    - [ ] Re-build de los 3 ambientes en Cloudflare Pages para aplicar las nuevas env vars
+    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` en Cloudflare Pages Preview (desarrollo) y Production.
+    - [ ] Re-build de los 3 ambientes en Cloudflare Pages para aplicar las nuevas env vars.
 
-### Fase 34: Lanzamiento y Certificacion Final [x] Smoke Tests ejecutados — 2 issues encontrados
+### Fase 34: Lanzamiento y Certificacion Final [x] Smoke Tests ejecutados — Issues migrados a R1-R8
 
 1. **Smoke Tests en Produccion (Web)**:
-    - [x] Homepage desarrollo: carga correctamente (HTML shell OK).
+    - [x] Homepage desarrollo: carga correctamente (HTML shell OK) — requiere env vars en Cloudflare Preview.
     - [x] Homepage certificacion: carga correctamente (HTML shell OK).
-    - [x] Homepage produccion: carga shell HTML pero **muestra "0 resultados"** — el fetch JS a Supabase falla (env vars no configuradas para Pro en el build de produccion).
-    - [ ] Pagina de detalle: **404 en los 3 ambientes** — `generateStaticParams()` no genero paths porque `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` no estaban configurados durante el build en Cloudflare Pages. El fallback es solo 1 path default (`pucp/estudios-generales`) que tampoco se genero.
+    - [x] Homepage produccion: carga shell HTML pero **muestra "0 resultados"** — el fetch JS a Supabase falla (env vars no configuradas en Cloudflare).
+    - [ ] Pagina de detalle: **404 en los 3 ambientes** — requiere env vars correctas en Cloudflare + re-build.
     - [ ] Formulario de leads: no testeado (depende de pagina de detalle funcional).
 
-2. **Diagnostico de issues encontrados**:
-
-| Issue | Severidad | Causa | Solucion |
-|---|---|---|---|
-| Homepage produccion: 0 resultados | **P0** | `NEXT_PUBLIC_SUPABASE_URL` en CF Pages produccion apunta a proyecto incorrecto o no esta configurado | Configurar env var + re-build |
-| Paginas de detalle: 404 en 3 ambientes | **P0** | `generateStaticParams()` falla porque `NEXT_PUBLIC_*` no existen en build time en CF Pages | Configurar env vars en los 3 ambientes CF + re-build |
-| Discrepancia 185 local vs 600+ web | Baja | Probablemente build viejo de CF con env vars diferentes. Free y Pro tienen 648 cursos cada uno | Re-build con env vars correctas |
+2. **Issues migrados** — Se resolvieron los problemas de raíz (nuevo proyecto Free, nuevas keys, schema restaurado). El bloqueante ahora es configurar las env vars en Cloudflare Pages para los 3 ambientes.
 
 3. **Actions pendientes (usuario)**:
-    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Cloudflare Pages para cada uno de los 3 ambientes (Desarrollo, Certificacion, Produccion) segun `docs/deployment/environment_config.md`
-    - [ ] Re-build en Cloudflare Pages (trigger via git push o manual en dashboard)
-    - [ ] Re-test homepage: debe mostrar 648 cursos
-    - [ ] Re-test pagina de detalle: debe cargar sin 404
-    - [ ] Test formulario de leads
-    - [ ] Test ratings/reviews
+    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` en Cloudflare Pages Preview (desarrollo).
+    - [ ] Re-build en Cloudflare Pages (trigger via git push o manual en dashboard).
+    - [ ] Re-test homepage: debe mostrar cursos.
+    - [ ] Re-test pagina de detalle: debe cargar sin 404.
+    - [ ] R6: Crear proyecto Pro + schema + seeds.
+    - [ ] R7: GitHub Secrets para Production + re-deploy.
 
 4. **Activacion de Pipelines Automaticos** (GitHub Actions):
-    - [x] Workflows `production_pipeline.yml`, `fg1_inventory.yml`, `fg3_integrity.yml` ya existen
+    - [x] Workflows `production_pipeline.yml`, `fg1_inventory.yml`, `fg3_integrity.yml` migrados a `NEXT_SUPABASE_SECRET_KEY`
     - [x] GitHub Environments configurados (Development, Certification, Production)
-    - [ ] Verificar que `SUPABASE_SERVICE_ROLE_KEY` en GitHub Environment `Production` apunta a Pro (`zogdcvlqxanzqbvkkdar`)
+    - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en GitHub Environment `Production` apunta a Pro
     - [ ] Verificar que `SUPABASE_URL` en GitHub Environment `Production` apunta a Pro
     - [ ] Ejecutar un pipeline manual en `main` para validar
 
 5. **Cierre de Ciclo y Documentacion** (Docs)
-    - [x] Generadas guias de despliegue por ambiente en `docs/deployment/`. [x] Completado
-    - [x] Creada `docs/deployment/environment_config.md` con tabla de env vars por ambiente
+    - [x] `docs/deployment/environment_config.md`, `deploy_desarrollo.md`, `guia_despliegue_produccion.md` actualizados con nuevo project ref y nuevas keys (R8).
 
 ### Fase 35: Reingenierí­a de Calidad de Datos (Raw Harvesting) [x] Completado
 1. **Infraestructura de Staging**:
