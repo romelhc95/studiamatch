@@ -235,7 +235,7 @@ export default function CompareContent() {
                 </div>
 
                 <div className="p-8 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-brand-gray/30 dark:border-white/10 flex flex-col gap-3 mt-auto">
-                  <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="w-full">
+                  <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="w-full">
                     <Button className="w-full bg-brand-mint hover:bg-brand-mint/90 text-brand-slate font-black h-14 rounded-2xl shadow-lg shadow-brand-mint/10 border-0 uppercase tracking-widest text-xs">
                       Solicitar Info
                     </Button>

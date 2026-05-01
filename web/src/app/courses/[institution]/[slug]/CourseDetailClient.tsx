@@ -789,7 +789,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </span>
                       <GraduationCap className="h-4 w-4 text-slate-200" />
                     </div>
-                    <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${cleanSlug(rc.slug, rc.url)}`}>
+                    <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`}>
                       <h3 className="text-base font-black text-brand-slate leading-tight line-clamp-2 h-10 group-hover:text-brand-blue transition-colors uppercase">
                         {rc.name}
                       </h3>
@@ -801,7 +801,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                        </span>
                     </div>
                   </div>
-                  <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${cleanSlug(rc.slug, rc.url)}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
+                  <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
                     Ver Programa
                   </Link>
                 </article>

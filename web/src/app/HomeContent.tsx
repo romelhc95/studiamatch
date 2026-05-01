@@ -540,7 +540,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         <span className="text-[11px] font-medium text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">{course.course_type || "Programa"}</span>
                       </div>
 
-                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="group/title flex-1">
+                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="group/title flex-1">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
                           {course.name}
                         </h3>
@@ -575,7 +575,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     </div>
 
                     <div className="px-5 pb-4 pt-0 flex items-center gap-2">
-                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${cleanSlug(course.slug, course.url)}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
+                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
                         Ver detalle <ArrowRight className="h-3 w-3" />
                       </Link>
                       <button

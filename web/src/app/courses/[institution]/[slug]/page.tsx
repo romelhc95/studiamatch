@@ -75,7 +75,7 @@ export async function generateStaticParams() {
       .filter((c: any) => c.slug && c.institutions?.slug)
       .map((c: any) => ({
         institution: cleanSlug(c.institutions.slug),
-        slug: cleanSlug(c.slug, c.url)
+        slug: c.slug
       }));
 
     return paths.length > 0 ? paths : defaultPath;
