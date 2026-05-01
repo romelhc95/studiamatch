@@ -1,16 +1,19 @@
 """Fase 32B: Fix courses and crawler_exclusions, complete migration"""
-import sys, json, time, requests
+import os, sys, json, time, requests
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 
-MGMT_TOKEN = 'sbp_dd5873314717846f1a47c44dce2b1b36bb3487bb'
-PRO_URL = 'https://zogdcvlqxanzqbvkkdar.supabase.co'
-PRO_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZ2RjdmxxeGFuenFidmtrZGFyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjE4OTM4NSwiZXhwIjoyMDkxNzY1Mzg1fQ.A2PcyM_AgHPE9GvTgZo1tacENC5FW8uEFUIBbx4gjlI'
+MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
+PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
+PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
+if not all([MGMT_TOKEN, PRO_URL, PRO_KEY]):
+    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN, SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY env vars')
 h_mgmt = {"Authorization": "Bearer " + MGMT_TOKEN, "Content-Type": "application/json"}
 h_pro = {"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY, "Content-Type": "application/json"}
 
 def mgmt(sql):
-    r = requests.post('https://api.supabase.com/v1/projects/zogdcvlqxanzqbvkkdar/database/query',
+    r = requests.post(f'https://api.supabase.com/v1/projects/{PRO_PROJECT_REF}/database/query',
                       json={'query': sql}, headers=h_mgmt, timeout=60)
     ok = r.status_code == 201
     if not ok:
@@ -18,7 +21,7 @@ def mgmt(sql):
     return ok
 
 def mgmt_query(sql):
-    r = requests.post('https://api.supabase.com/v1/projects/zogdcvlqxanzqbvkkdar/database/query',
+    r = requests.post(f'https://api.supabase.com/v1/projects/{PRO_PROJECT_REF}/database/query',
                       json={'query': sql}, headers=h_mgmt, timeout=60)
     if r.status_code == 201:
         return r.json()

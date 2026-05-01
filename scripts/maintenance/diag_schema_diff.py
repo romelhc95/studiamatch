@@ -1,11 +1,14 @@
 """Diagnose schema differences between Free and Pro for all tables"""
-import sys, requests, json
+import os, sys, requests, json
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 
-PRO_URL = 'https://zogdcvlqxanzqbvkkdar.supabase.co'
-PRO_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvZ2RjdmxxeGFuenFidmtrZGFyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjE4OTM4NSwiZXhwIjoyMDkxNzY1Mzg1fQ.A2PcyM_AgHPE9GvTgZo1tacENC5FW8uEFUIBbx4gjlI'
-MGMT_TOKEN = 'sbp_dd5873314717846f1a47c44dce2b1b36bb3487bb'
+PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
+PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
+PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
+if not all([PRO_URL, PRO_KEY, MGMT_TOKEN]):
+    sys.exit('ERROR: Set SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_MGMT_TOKEN env vars')
 
 db = get_db_client()
 
@@ -26,7 +29,7 @@ for table in tables:
     if not pro_cols:
         # Try schema via mgmt API
         r2 = requests.post(
-            'https://api.supabase.com/v1/projects/zogdcvlqxanzqbvkkdar/database/query',
+            f'https://api.supabase.com/v1/projects/{PRO_PROJECT_REF}/database/query',
             json={'query': 'SELECT column_name FROM information_schema.columns WHERE table_schema = \'public\' AND table_name = \'' + table + '\' ORDER BY ordinal_position;'},
             headers={'Authorization': 'Bearer ' + MGMT_TOKEN, 'Content-Type': 'application/json'}, timeout=10)
         if r2.status_code == 201:
