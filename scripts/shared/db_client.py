@@ -28,9 +28,9 @@ class DatabaseClient:
     """
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self.supabase_key = supabase_key if supabase_key is not None else (os.getenv("SUPABASE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
-        self._anon_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-        self._service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+        self.supabase_key = supabase_key if supabase_key is not None else (os.getenv("SUPABASE_KEY") or os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
+        self._anon_key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
         if self._service_key:
             self.supabase_key = self._service_key
 

@@ -1,11 +1,11 @@
-import os
+﻿import os
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 headers = {
     "apikey": SUPABASE_KEY,
@@ -15,7 +15,7 @@ headers = {
 }
 
 def fix_taxonomy_roi():
-    print("🧹 Iniciando proceso de curación de datos para Certificación...")
+    print("ðŸ§¹ Iniciando proceso de curaciÃ³n de datos para CertificaciÃ³n...")
     
     # 1. Obtener datos de referencia (Salarios de Mercado)
     res_salaries = requests.get(f"{SUPABASE_URL}/rest/v1/market_salaries?select=*", headers=headers)
@@ -39,7 +39,7 @@ def fix_taxonomy_roi():
         needs_fix = False
         update_payload = {}
 
-        # Validar Nombre de Categoría
+        # Validar Nombre de CategorÃ­a
         if c['category'] != expected_cat_name:
             update_payload['category'] = expected_cat_name
             needs_fix = True
@@ -57,7 +57,7 @@ def fix_taxonomy_roi():
             if new_salary and new_salary > 0:
                 update_payload['roi_months'] = round(investment / new_salary, 2)
             
-            # Aplicar actualización
+            # Aplicar actualizaciÃ³n
             patch_res = requests.patch(
                 f"{SUPABASE_URL}/rest/v1/courses?id=eq.{c['id']}",
                 json=update_payload,
@@ -66,11 +66,11 @@ def fix_taxonomy_roi():
             
             if patch_res.status_code in [200, 201, 204]:
                 fixed_count += 1
-                print(f"✅ Corregido: {c['name']} -> {expected_cat_name} (Salario: S/ {expected_salary})")
+                print(f"âœ… Corregido: {c['name']} -> {expected_cat_name} (Salario: S/ {expected_salary})")
             else:
-                print(f"❌ Error corrigiendo {c['name']}: {patch_res.text}")
+                print(f"âŒ Error corrigiendo {c['name']}: {patch_res.text}")
 
-    print(f"\n✨ Proceso de curación finalizado. Registros actualizados: {fixed_count}")
+    print(f"\nâœ¨ Proceso de curaciÃ³n finalizado. Registros actualizados: {fixed_count}")
 
 if __name__ == "__main__":
     fix_taxonomy_roi()

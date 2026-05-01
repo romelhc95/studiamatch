@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 import json
 from dotenv import load_dotenv
@@ -7,7 +7,7 @@ from urllib.parse import quote
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 BASE_URL = "http://localhost:3000"
 
 headers = {
@@ -115,11 +115,11 @@ def run_audit():
     
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("# Informe de Unicidad e Integridad - Phase 29\n\n")
-        f.write("## 1. Análisis de Unicidad (Caminos de Ruta)\n")
+        f.write("## 1. AnÃ¡lisis de Unicidad (Caminos de Ruta)\n")
         f.write(f"- **Total de registros en DB:** {total}\n")
-        f.write(f"- **Cursos únicos renderizados:** {len(unique_courses)}\n")
-        f.write(f"- **Registros filtrados (Duplicados técnicos):** {len(duplicates)}\n")
-        f.write("- **Criterio de De-duplicación:** `(institution_id, source_url)`. Se prioriza 'Programa' sobre 'Curso'.\n\n")
+        f.write(f"- **Cursos Ãºnicos renderizados:** {len(unique_courses)}\n")
+        f.write(f"- **Registros filtrados (Duplicados tÃ©cnicos):** {len(duplicates)}\n")
+        f.write("- **Criterio de De-duplicaciÃ³n:** `(institution_id, source_url)`. Se prioriza 'Programa' sobre 'Curso'.\n\n")
         
         if duplicates:
             f.write("### Ejemplos de Duplicados Identificados y Filtrados\n")
@@ -127,18 +127,18 @@ def run_audit():
                 f.write(f"- `{d['name']}` ({d['course_type']}) - URL: {d.get('url', 'N/A')}\n")
             f.write("\n")
 
-        f.write("## 2. Auditoría de Integridad (URLs Vivas)\n")
-        f.write("Se ha verificado la navegación dinámica hacia el detalle de los cursos para asegurar que el ruteo `/[institution]/[slug]` resuelve correctamente.\n\n")
+        f.write("## 2. AuditorÃ­a de Integridad (URLs Vivas)\n")
+        f.write("Se ha verificado la navegaciÃ³n dinÃ¡mica hacia el detalle de los cursos para asegurar que el ruteo `/[institution]/[slug]` resuelve correctamente.\n\n")
         
         f.write("| Curso | URL Local | Estado |\n")
         f.write("| :--- | :--- | :--- |\n")
         for r in test_results:
-            status_icon = "✅" if r['status'] == "ALIVE" else "❌"
+            status_icon = "âœ…" if r['status'] == "ALIVE" else "âŒ"
             f.write(f"| {r['name']} | [{r['url']}]({r['url']}) | {status_icon} {r['status']} |\n")
             
-        f.write("\n\n---\n*Reporte generado automáticamente por Antigravity QA Engine.*")
+        f.write("\n\n---\n*Reporte generado automÃ¡ticamente por Antigravity QA Engine.*")
 
-    print(f"📊 Reporte generado en: {report_path}")
+    print(f"ðŸ“Š Reporte generado en: {report_path}")
 
 if __name__ == "__main__":
     run_audit()
