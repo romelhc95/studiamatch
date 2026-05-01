@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 32 COMPLETADA. Dev y Pro con RLS completo, datos migrados (648 cursos), dual-key db_client, extensiones ordenadas. Advisor: 4 warnings aceptados (rls_policy_always_true en leads/ratings/reviews). Próximo: Fase 33 Domain Mapping.
-- **Último Hito**: Fase 32 completa — 5 prioridades ejecutadas: RLS (12/12), migration (648+728), db_client dual-key, search_path fix, extensions move. Commits: e58d996, bf5d266, b34d60f, bcf8e44.
-- **Próxima Acción**: Fase 33 — Domain Mapping (studiamatch.com) + Fase 34 Smoke Tests.
+- **Estado Actual**: Fase 33 completada (config docs + fix env vars). Fase 34 smoke tests ejecutados — encontrados 2 issues críticos: (1) página de detalle de curso 404 en los 3 ambientes, (2) homepage de producción muestra 0 resultados. Ambos requieren reconfigurar env vars en Cloudflare Pages y re-build. Próximo: resolver issues Cloudflare + re-test.
+- **Último Hito**: Fase 33 + 34 parcial — fix `.env.gitprod` (service_role key), documentación `docs/deployment/environment_config.md`, smoke tests con diagnóstico de 2 issues. Commits: f8cad97 (prioridad 5), [pendiente commit actual].
+- **Próxima Acción**: Resolver 404 de páginas de detalle (re-configurar `NEXT_PUBLIC_*` en Cloudflare Pages y re-build) + fix homepage producción 0 resultados.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -30,7 +30,7 @@
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 - [x] **Fase 32 (completa)**: Hardening RLS + Migración Free→Pro + Extensiones. 12/12 tablas RLS, 648 cursos, 728 enriched, `db_client` dual-key, RPCs search_path, Advisor: 0 errores, 4 warnings aceptados.
-- [ ] **Fases 33-34**: Domain Mapping (`studiamatch.com`) + Smoke Tests en producción.
+- [ ] **Fases 33-34 (en progreso)**: Domain Mapping (`studiamatch.com`) + Smoke Tests. Fix `.env.gitprod`, documentación `environment_config.md`. Encontrados 2 issues críticos: (A) 404 en páginas de detalle en los 3 ambientes, (B) homepage producción muestra 0 resultados. Ambos requieren reconfigurar `NEXT_PUBLIC_*` en Cloudflare Pages y re-build.
 
 ---
 
@@ -423,27 +423,66 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
    - [ ] Verificar que `db_client.py` funciona con nuevas credenciales
    - [ ] Resetear/revocar DB passwords temporales usadas en `.pgpass`
 
-### Fase 33: Dominios y Cloudflare (studiamatch.com) [ ] Pendiente
-1. **Configuración de Cloudflare Pages**:
-   - `main branch` -> Dominio: `studiamatch.com` (Ví­a Hostinger CNAME/A).
-   - `certificacion branch` -> Dominio: `cert.studiamatch.com` o similar.
-   - `desarrollo branch` -> Dominio: `studiamatch.pages.dev`.
-2. **Propagación DNS y SSL**:
-   - Acción: Validar certificados SSL gestionados por Cloudflare para los 3 niveles.
-   - Acción: Configurar redireccionamientos de seguridad HSTS.
-3. **Custom Domain en Supabase**:
-   - Acción: Configurar Custom Domain en Supabase para `db.studiamatch.com` (Opcional, Pro feature).
-4. **Optimización de Seguridad y Performance** (Cloudflare)
-   - Acción: Habilitar Proxy (naranja), SSL Full (Strict), y reglas de WAF básicas.
-   - Acción: Configurar redirección de `www` a non-www.
+### Fase 33: Dominios y Cloudflare (studiamatch.com) [x] Configuracion documentada
 
-### Fase 34: Lanzamiento y Certificación Final [ ] Pendiente
-1. **Smoke Tests en Producción** (Web)
-   - Acción: Validar flujo completo desde Home hasta Detalle y Social Proof en el dominio final.
-2. **Activación de Pipelines Automáticos** (GitHub Actions)
-   - Acción: Habilitar los flujos de `daily_ingestion.yml` apuntando al entorno de producción.
-3. **Cierre de Ciclo y Documentación** (Docs)
-   - [x] Generadas guí­as de despliegue por ambiente en `docs/deployment/`. [x] Completado
+**Dominios confirmados por el usuario**:
+- Desarrollo: `https://desarrollo.studiamatch.pages.dev` (rama `desarrollo`)
+- Certificacion: `https://studiamatch.pages.dev/` (rama `certificacion`)
+- Produccion: `https://www.studiamatch.com/` (rama `main`)
+- Local: `http://localhost:3000/`
+
+1. **Configuración de Cloudflare Pages**:
+    - [x] `main branch` → Dominio: `www.studiamatch.com`.
+    - [x] `certificacion branch` → Dominio: `studiamatch.pages.dev`.
+    - [x] `desarrollo branch` → Dominio: `desarrollo.studiamatch.pages.dev`.
+2. **Propagación DNS y SSL**: Verificado — los 3 sitios resuelven correctamente y tienen SSL.
+3. **Documentacion de variables de entorno**:
+    - [x] Creado `docs/deployment/environment_config.md` con tabla por ambiente.
+    - [x] Fix `.env.gitprod`: anon key descomentada + service_role key sin `""` extra.
+    - [x] Verificada conectividad Free (648 cursos) y Pro (648 cursos) vía API REST.
+4. **Optimización de Seguridad y Performance** (Cloudflare)
+    - [ ] Habilitar Proxy (naranja), SSL Full (Strict), y reglas de WAF básicas. (Requiere acceso al dashboard Cloudflare)
+    - [ ] Configurar redireccion de `www` a non-www. (Requiere acceso al dashboard Cloudflare)
+    - [ ] Custom Domain en Supabase para `db.studiamatch.com` (Opcional, Pro feature).
+5. **Actions pendientes (usuario)**:
+    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Cloudflare Pages para cada ambiente (ver `docs/deployment/environment_config.md`)
+    - [ ] Re-build de los 3 ambientes en Cloudflare Pages para aplicar las nuevas env vars
+
+### Fase 34: Lanzamiento y Certificacion Final [x] Smoke Tests ejecutados — 2 issues encontrados
+
+1. **Smoke Tests en Produccion (Web)**:
+    - [x] Homepage desarrollo: carga correctamente (HTML shell OK).
+    - [x] Homepage certificacion: carga correctamente (HTML shell OK).
+    - [x] Homepage produccion: carga shell HTML pero **muestra "0 resultados"** — el fetch JS a Supabase falla (env vars no configuradas para Pro en el build de produccion).
+    - [ ] Pagina de detalle: **404 en los 3 ambientes** — `generateStaticParams()` no genero paths porque `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` no estaban configurados durante el build en Cloudflare Pages. El fallback es solo 1 path default (`pucp/estudios-generales`) que tampoco se genero.
+    - [ ] Formulario de leads: no testeado (depende de pagina de detalle funcional).
+
+2. **Diagnostico de issues encontrados**:
+
+| Issue | Severidad | Causa | Solucion |
+|---|---|---|---|
+| Homepage produccion: 0 resultados | **P0** | `NEXT_PUBLIC_SUPABASE_URL` en CF Pages produccion apunta a proyecto incorrecto o no esta configurado | Configurar env var + re-build |
+| Paginas de detalle: 404 en 3 ambientes | **P0** | `generateStaticParams()` falla porque `NEXT_PUBLIC_*` no existen en build time en CF Pages | Configurar env vars en los 3 ambientes CF + re-build |
+| Discrepancia 185 local vs 600+ web | Baja | Probablemente build viejo de CF con env vars diferentes. Free y Pro tienen 648 cursos cada uno | Re-build con env vars correctas |
+
+3. **Actions pendientes (usuario)**:
+    - [ ] Configurar `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en Cloudflare Pages para cada uno de los 3 ambientes (Desarrollo, Certificacion, Produccion) segun `docs/deployment/environment_config.md`
+    - [ ] Re-build en Cloudflare Pages (trigger via git push o manual en dashboard)
+    - [ ] Re-test homepage: debe mostrar 648 cursos
+    - [ ] Re-test pagina de detalle: debe cargar sin 404
+    - [ ] Test formulario de leads
+    - [ ] Test ratings/reviews
+
+4. **Activacion de Pipelines Automaticos** (GitHub Actions):
+    - [x] Workflows `production_pipeline.yml`, `fg1_inventory.yml`, `fg3_integrity.yml` ya existen
+    - [x] GitHub Environments configurados (Development, Certification, Production)
+    - [ ] Verificar que `SUPABASE_SERVICE_ROLE_KEY` en GitHub Environment `Production` apunta a Pro (`zogdcvlqxanzqbvkkdar`)
+    - [ ] Verificar que `SUPABASE_URL` en GitHub Environment `Production` apunta a Pro
+    - [ ] Ejecutar un pipeline manual en `main` para validar
+
+5. **Cierre de Ciclo y Documentacion** (Docs)
+    - [x] Generadas guias de despliegue por ambiente en `docs/deployment/`. [x] Completado
+    - [x] Creada `docs/deployment/environment_config.md` con tabla de env vars por ambiente
 
 ### Fase 35: Reingenierí­a de Calidad de Datos (Raw Harvesting) [x] Completado
 1. **Infraestructura de Staging**:
