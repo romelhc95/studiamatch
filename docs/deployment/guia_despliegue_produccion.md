@@ -3,13 +3,12 @@
 Este documento detalla los pasos para el lanzamiento oficial en `studiamatch.com`.
 
 ## Fase 1: Base de Datos (Supabase Pro)
-**Proyecto:** `zogdcvlqxanzqbvkkdar`
+**Proyecto:** `[CREAR EN R6]`
 
-1.  Ingresa al [Dashboard de Supabase](https://supabase.com/dashboard/project/zogdcvlqxanzqbvkkdar).
-2.  Ve a la sección **SQL Editor**.
-3.  Crea un "New Query".
-4.  Copia y pega TODO el contenido de [PRODUCTION_MASTER.sql](../../db/PRODUCTION_MASTER.sql).
-5.  Haz clic en **Run**.
+1.  Crear nuevo proyecto Supabase Pro en el Dashboard.
+2.  Ejecutar `db/restore_full_schema.sql` en el SQL Editor.
+3.  Ejecutar `scripts/maintenance/seed_institutions.py` (vía service role).
+4.  Ejecutar `scripts/maintenance/seed_crawler_exclusions.py` (vía service role).
 
 ## Fase 2: Secretos de GitHub (Producción)
 Para que el pipeline de Producción funcione, asegúrate de que los siguientes secretos estén configurados en tu repositorio de GitHub (Settings -> Secrets -> Actions):
@@ -17,9 +16,11 @@ Para que el pipeline de Producción funcione, asegúrate de que los siguientes s
 | Secreto | Alcance | Nota |
 | :--- | :--- | :--- |
 | `SUPABASE_URL` | Entorno Production | URL de Supabase Pro |
-| `SUPABASE_SERVICE_ROLE_KEY` | Entorno Production | Key maestra para automatización |
+| `NEXT_SUPABASE_SECRET_KEY` | Entorno Production | `sb_secret_...` — escritura pipeline (bypass RLS) |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Entorno Production | `sb_publishable_...` — lectura frontend |
 | `CF_API_TOKEN` | Repositorio (Global) | Compartido para todos los ambientes |
 | `CF_ACCOUNT_ID` | Repositorio (Global) | Compartido para todos los ambientes |
+| `GH_MODELS_TOKEN` | Repositorio (Global) | GitHub Models para enrichment |
 | `GEMINI_API_KEY` | Repositorio (Global) | IA para enriquecimiento diario |
 
 ## Fase 3: Dominio (Cloudflare Pages)

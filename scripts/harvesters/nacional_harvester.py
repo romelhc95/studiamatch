@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from playwright.async_api import async_playwright
 import os
 import logging
@@ -22,7 +22,7 @@ logger = logging.getLogger("NacionalHarvester")
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 
 class NacionalHarvester:
     def __init__(self):
@@ -38,7 +38,7 @@ class NacionalHarvester:
                 "https://www.uni.edu.pe/index.php/formacion-academica/facultades/facultad-de-ingenieria-industrial-y-de-sistemas-fiis",
                 "https://www.uni.edu.pe/index.php/formacion-academica/facultades/facultad-de-ingenieria-mecanica-fim"
             ],
-            "universidad-del-pacífico": [
+            "universidad-del-pacÃ­fico": [
                 "https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/economia/",
                 "https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/administracion/"
             ]
@@ -55,8 +55,8 @@ class NacionalHarvester:
             if " - " in title: title = title.split(" - ")[0]
             if " | " in title: title = title.split(" | ")[0]
             
-            # Special check for Pacífico selector
-            if slug == "universidad-del-pacífico":
+            # Special check for PacÃ­fico selector
+            if slug == "universidad-del-pacÃ­fico":
                 h1_el = await page.query_selector("h1")
                 if h1_el: title = await h1_el.inner_text()
 

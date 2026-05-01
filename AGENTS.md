@@ -71,8 +71,8 @@ El archivo `.env.local` (gitignored) contiene:
 | Variable | Uso | Quién la necesita |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | Frontend + db_client.py |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key (lectura pública) | Frontend + db_client.py |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role (escritura bypass RLS) | Pipeline CI/CD **solamente** |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
+| `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
 | `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
