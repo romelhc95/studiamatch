@@ -83,7 +83,7 @@ class UTPHarvester:
             inst_id = inst_res[0]['id']
             
             course_slug = item['name'].lower().replace(" ", "-").replace("/", "-")[:250]
-            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug)
+            course_slug = re.sub(r'[^a-z0-9-]', '', course_slug).lstrip('-') or 'curso'
 
             course_data = {
                 "institution_id": inst_id,

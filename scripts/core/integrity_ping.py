@@ -31,8 +31,8 @@ def run_integrity_ping():
     else:
         print("[OK] Integridad de datos dentro de umbrales.")
         
-    # 1. Obtener todos los cursos activos
-    courses = db.select('courses', filters="is_active=eq.true", columns="id,name,url,last_404_at")
+    # 1. Obtener todos los cursos activos (con paginación para evitar límite 1000 de Supabase)
+    courses = db.select_all('courses', filters="is_active=eq.true", columns="id,name,url,last_404_at", batch_size=1000)
     total = len(courses)
     deactivated = 0
     flagged = 0

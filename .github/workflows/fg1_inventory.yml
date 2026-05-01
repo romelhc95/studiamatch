@@ -2,8 +2,12 @@ name: FG1 - Institution Inventory Management
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # Mensual: Día 1 a las 00:00 UTC
+    - cron: '0 0 1 * *' # Mensual: DÃ­a 1 a las 00:00 UTC
   workflow_dispatch:      # Manual
+
+concurrency:
+  group: studiamatch-fg1-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   inventory:
