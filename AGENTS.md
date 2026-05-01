@@ -4,6 +4,21 @@
 
 **SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
 
+## Auditoría de Credenciales (Obligatorio antes de push)
+
+**NUNCA** expongas credenciales (API keys, service_role keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. Antes de cada `git push`:
+
+1. Buscar strings con patrón `eyJhbG` (JWT), `sbp_` (Supabase management token), o cualquier URL que contenga un project ref real
+2. Verificar que ningún script Python tenga credenciales hardcodeadas — usar `os.environ.get('VAR', '')` y salir con error si falta
+3. Verificar que `.env*` esté en `.gitignore` (ya cubierto por `.env*` y `*.env`)
+4. Los scripts que necesiten credenciales Pro deben leerlas de variables de entorno:
+   - `SUPABASE_PRO_URL` — URL del proyecto Pro
+   - `SUPABASE_SERVICE_ROLE_KEY` — Service role key (Pro o Free según el ambiente)
+   - `SUPABASE_MGMT_TOKEN` — Supabase Management API token
+   - `SUPABASE_PRO_PROJECT_REF` — Project ref para Management API
+5. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
+6. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente
+
 ## Arquitectura Cloud-Only (Supabase)
 
 Este proyecto NO tiene base de datos local. Todo el desarrollo usa la instancia Supabase Free tier apuntada por `.env.local`. Los scripts Python y el frontend Next.js comparten la misma base de datos cloud.
@@ -62,6 +77,9 @@ El archivo `.env.local` (gitignored) contiene:
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
 | `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
 | `GEMINI_API_KEY` | Google Gemini 1.5 Flash | enrichment_worker.py |
+| `SUPABASE_PRO_URL` | URL del proyecto Pro (producción) | Scripts de migración diagnósticos |
+| `SUPABASE_PRO_PROJECT_REF` | Project ref Pro (para Management API) | Scripts de migración diagnósticos |
+| `SUPABASE_MGMT_TOKEN` | Supabase Management API token | Scripts de migración diagnósticos |
 
 **IMPORTANTE**: El contenedor Docker tiene acceso a `.env.local` que contiene `NEXT_PUBLIC_SUPABASE_ANON_KEY` (suficiente para lectura y escritura limitada). La `SUPABASE_SERVICE_ROLE_KEY` NO está disponible en el contenedor — solo en GitHub Actions secrets por ambiente.
 

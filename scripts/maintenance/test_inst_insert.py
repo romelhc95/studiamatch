@@ -1,9 +1,11 @@
-import sys, json, requests
+import os, sys, json, requests
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 
-PRO_URL = 'https://zogdcvlqxanzqbvkkdar.supabase.co'
-PRO_KEY = 'REMOVED_HISTORICAL_CREDENTIAL_002'
+PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
+PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+if not all([PRO_URL, PRO_KEY]):
+    sys.exit('ERROR: Set SUPABASE_PRO_URL and SUPABASE_SERVICE_ROLE_KEY env vars')
 h = {"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY, "Content-Type": "application/json"}
 
 db = get_db_client()
