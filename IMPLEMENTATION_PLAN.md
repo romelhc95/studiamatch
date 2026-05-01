@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 33 completada (config docs + fix env vars). Fase 34 smoke tests ejecutados — encontrados 2 issues críticos: (1) página de detalle de curso 404 en los 3 ambientes, (2) homepage de producción muestra 0 resultados. Ambos requieren reconfigurar env vars en Cloudflare Pages y re-build. Próximo: resolver issues Cloudflare + re-test.
-- **Último Hito**: Fase 33 + 34 parcial — fix `.env.gitprod` (service_role key), documentación `docs/deployment/environment_config.md`, smoke tests con diagnóstico de 2 issues. Commits: f8cad97 (prioridad 5), [pendiente commit actual].
-- **Próxima Acción**: Resolver 404 de páginas de detalle (re-configurar `NEXT_PUBLIC_*` en Cloudflare Pages y re-build) + fix homepage producción 0 resultados.
+- **Estado Actual**: Fase 60.6 completada — 8 exclusiones DMC + cascade retroactivo en Free y Pro (431 registros limpiados entre staging_raw, cleansed, enriched, courses). Próximo: resolver issues Cloudflare (Fase 33-34) + continuar con Fase 61 Site Profiles.
+- **Último Hito**: Fase 60.6 — 8 patrones DMC en exclusiones, cascade full en 4 tablas, ambas DBs limpias.
+- **Próxima Acción**: Fase 33-34: configurar `NEXT_PUBLIC_*` en Cloudflare Pages + re-build + smoke tests.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -24,6 +24,7 @@
 - [x] **Fase 51**: Consolidación Documental — AGENTS.md, DDL 4 tablas, workflow doc v1.3. Commit `e15aedf`.
 - [x] **Fase 60**: Slug Fix & Data Quality — 18 slugs reparados, 47 cursos eliminados, 11 harvesters con `.lstrip('-')`, re-enriquecimiento U. Lima. Commits `6f67d4d` + `e0fe97c`.
 - [x] **Fase 60.5**: Limpieza de Deuda Técnica — 29 archivos eliminados, 5 dependencias muertas, 2 imports, cache `.wrangler/`. Commit `65c86ca`.
+- [x] **Fase 60.6**: DMC Exclusion Cascade — 8 patrones de ruido identificados e insertados en `crawler_exclusions` (Free+Pro): `/profesores/`, `/egresado/`, `/legales/`, `/termino-y-condicion-/`, `/categoria-termino-y-condicion/`, `/etiqueta-producto/`, `/programa-libre/`, `/termino-y-condicion/`. Limpieza retroactiva en cascada: staging_raw→discarded (203), cleansed→discarded (138), enriched→discarded (138), courses→is_active=false (138). Ambas DBs en 0 activos. Patrones referenciados desde la issue original.
 - [ ] **Fase 61**: Site Profiles — Tabla `institution_site_profiles`, migración exclusiones, seed 15 instituciones, harvester adaptativo.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
@@ -1271,17 +1272,60 @@ Objetivo: Eliminar scripts obsoletos, dependencias muertas, imports innecesarios
    - [ ] Confirmar que `pip install -r requirements.txt` no falla dentro del contenedor
    - [ ] `git status` — Confirmar solo archivos esperados modificados/eliminados
 
+### Fase 60.6: DMC Exclusion Cascade [x] Completado
+Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclusions` (Free y Pro), y limpiar retroactivamente los registros existentes en las 4 tablas del pipeline.
+
+**Patrones solicitados** (mapeados de URLs ruidosas reales):
+
+| URL de ejemplo | Patrón insertado |
+|---|---|
+| `https://dmc.pe/profesores/christian-taipe/` | `/profesores/` |
+| `https://dmc.pe/egresado/jose-ramos-copy/` | `/egresado/` |
+| `https://dmc.pe/legales/gestion-de-cookies/` | `/legales/` |
+| `https://dmc.pe/termino-y-condicion-/el-acceso-a-la-membresia...` | `/termino-y-condicion-/` |
+| `https://dmc.pe/categoria-termino-y-condicion/sobre-temas-academicos/` | `/categoria-termino-y-condicion/` |
+| `https://dmc.pe/etiqueta-producto/cloud-computing/` | `/etiqueta-producto/` |
+| `https://dmc.pe/programa-libre/data-e-ia-especializada/` | `/programa-libre/` |
+| `https://dmc.pe/termino-y-condicion/la-vigencia-de-las-membresias...` | `/termino-y-condicion/` |
+
+1. **Insertar 8 patrones en `crawler_exclusions`**:
+   - [x] Free: INSERT via Supabase SQL Editor ✅ (2026-05-01)
+   - [x] Pro: INSERT via REST API + service_role key ✅ (2026-05-01)
+   - [x] Total DMC pasa de 21 → 29 exclusiones activas
+
+2. **Cascade de limpieza retroactiva (ambas DBs)**:
+   - [x] `staging_raw` → SET status = 'discarded', discard_reason = 'Excluido por patrón DMC'
+   - [x] `cleansed_programs` → SET status = 'discarded'
+   - [x] `enriched_programs` → SET status = 'discarded'
+   - [x] `courses` → SET is_active = false
+
+3. **Impacto cuantitativo**:
+
+| Tabla | Free | Pro |
+|---|---|---|
+| `staging_raw` → discarded | 203 | 203 |
+| `cleansed_programs` → discarded | 138 | 138 |
+| `enriched_programs` → discarded | 138 | 138 |
+| `courses` → is_active = false | 138 | 138 |
+
+4. **Verificación final**:
+   - [x] 0 registros activos con estos patrones en ninguna tabla (Free + Pro)
+   - [x] Datos raw preservados en `staging_raw` (status `discarded`) para trazabilidad
+   - [x] Futuros harvests de DMC saltarán automáticamente estas URLs vía `crawler_exclusions`
+
+**Nota**: Los registros en `staging_raw` permanecen (no se eliminan) pero con status `discarded`, lo que impide que avancen a cleansing/enrichment/sync. Las exclusiones insertadas aplican tanto a `_is_valid_crawl_url()` en el harvester como al `cleansing_worker.py`.
+
 ### Fase 61: Site Profiles — Tabla `institution_site_profiles` y Migración de Exclusiones [ ] Pendiente
 Objetivo: Reemplazar la tabla `crawler_exclusions` por `institution_site_profiles` que consolida exclusión de URLs + configuración de tipo de sitio + datos de descubrimiento + hints de extracción LLM. Migrar los 145+ exclusion patterns y hacer seed inicial para las 15 instituciones.
 
 **Problema de arquitectura identificado**: Los 11 harvesters dedicados bypassean el pipeline de 4 estaciones (Golden Path) e insertan directo a `courses` sin enriquecimiento LLM. Resultado: campos vacíos (`price_pen`, `start_date_text`, `requirements`, `syllabus`) en la mayoría de instituciones. Solo DMC (142 cursos) y U. Pacífico (9 cursos) pasan por el pipeline completo.
 
-**Diagnóstico de calidad de datos por institución** (648 cursos activos):
+**Diagnóstico de calidad de datos por institución** (510 cursos activos, tras Fase 60.6):
 
 | Institución | Cursos | Precio % | Temario % | Requisitos % | Scraper actual |site_type |
 |---|---|---|---|---|---|---|
 | Continental | 156 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
-| DMC | 142 | 0% | 98% | 0% | Golden Path | ecommerce |
+| DMC | 4 | 0% | 98% | 0% | Golden Path | ecommerce |
 | U. Lima | 124 | 7% | 19% | 14% | Dedicado (136 URLs) | traditional_ssr |
 | UTP | 111 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
 | PUCP | 67 | 0% | 100% | 0% | Dedicado (catálogo paginado) | paginated_catalog |
