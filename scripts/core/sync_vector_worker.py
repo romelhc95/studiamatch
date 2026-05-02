@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify, setup_lima_logging
+from shared.utils import slugify, setup_lima_logging, TimeGuard
 from shared.db_client import get_db_client
 
 # Setup logging
@@ -122,8 +122,15 @@ class SyncVectorWorker:
 
 if __name__ == "__main__":
     worker = SyncVectorWorker()
+    guard = TimeGuard(max_seconds=1800, logger=logger)
     pending = worker.get_pending_enriched()
     logger.info(f"Found {len(pending)} pending enriched records.")
+    synced = 0
     for record in pending:
+        if guard.should_exit:
+            logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante sync. Synced: {synced}/{len(pending)}")
+            break
         worker.sync_to_production(record)
-    logger.info("Sync batch complete.")
+        synced += 1
+        guard.tick(every=50)
+    logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Time: {guard.elapsed_hours:.2f}h")

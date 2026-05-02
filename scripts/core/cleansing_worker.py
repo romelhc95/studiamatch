@@ -18,6 +18,7 @@ from shared.utils import (
     standardize_mode,
     setup_lima_logging,
     normalize_url,
+    TimeGuard,
 )
 from shared.db_client import get_db_client, DatabaseClient
 
@@ -278,12 +279,18 @@ class CleansingWorker:
 
 if __name__ == "__main__":
     worker = CleansingWorker()
+    guard = TimeGuard(max_seconds=1800, logger=logger)
     logger.info("--- Starting Station 1.5: High Fidelity Smart Sync ---")
     total_processed, batch_accumulator = 0, []
     for record in worker.stream_pending_staging(batch_size=200):
+        if guard.should_exit:
+            logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
+            break
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:
             total_processed += worker.process_batch(batch_accumulator)
             batch_accumulator = []
-    if batch_accumulator: total_processed += worker.process_batch(batch_accumulator)
-    logger.info(f"Session finished. Total staging URLs processed: {total_processed}")
+            guard.tick(every=10)
+    if batch_accumulator and not guard.should_exit:
+        total_processed += worker.process_batch(batch_accumulator)
+    logger.info(f"Session finished. Total staging URLs processed: {total_processed} | Time: {guard.elapsed_hours:.2f}h")

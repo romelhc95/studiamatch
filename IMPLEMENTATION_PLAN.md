@@ -12,22 +12,27 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8 completados. Fases 32-61, 66 completadas. Pipeline ejecutando con cleansing loop corregido. Tabla `institution_site_profiles` creada y seeded (10 perfiles en Free+Pro). Ambas DBs tienen 0 cursos (pipeline corriendo para generar datos). Pendiente: Fase 62 (Harvester Adaptativo) y verificar frontend post-pipeline.
-- **Último Hito**: Fase 61 completada — Tabla `institution_site_profiles` creada, 498 exclusiones migradas, 10 perfiles seeded, harvester + cleansing actualizados.
-- **Próxima Acción**: Fase 62 (Harvester Adaptativo — enrutar por site_type/discovery_mode). Verificar datos en frontend cuando pipeline complete ciclo.
+- **Estado Actual**: R1-R8, Fases 32-34, 61, 66, 68 completadas. Pipeline con cancelación controlada. Env vars configuradas en Cloudflare Pages (3 ambientes). Frontend estático re-deployed con Supabase embebido. Pendiente: Fase 62 (Harvester Adaptativo), Fases 67A-67D (Email).
+- **Último Hito**: Fases 33-34 completadas — Env vars `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` configuradas en los 3 deploys de Cloudflare Pages. Re-build estático exitoso, páginas de detalle funcionando.
+- **Próxima Acción**: Fase 62 (P2 — Harvester Adaptativo) → Fase 63 (Enrichment + Sync con Perfiles). Todas las fases aplican a las 3 ramas.
 
 ## Tareas Pendientes Priorizadas
 
-> Orden de ejecución recomendado. Las fases 61-64 son secuenciales (cada una depende de la anterior).
+> Orden de ejecución recomendado. Aplica a **todas las ramas** (`desarrollo`, `certificacion`, `main`). Las fases 62-64 son secuenciales (cada una depende de la anterior).
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
 |---|---|---|---|---|
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
-| **P1** | **Fases 33-34 — Fix 404 detalle + smoke tests** | Frontend | Páginas de detalle dan 404 en los 3 ambientes (env vars no configuradas). Homepage producción muestra 0 resultados. Se resuelve con R7 + re-build. | Depende de R7 (completado) |
-| **P1** | **Fase 61 — Site Profiles** | Arquitectura | Crear tabla `institution_site_profiles`, migrar 145+ exclusiones de `crawler_exclusions`, seed 15 instituciones con perfiles. Fundamento para Fases 62-64. | Ninguno |
-| **P2** | **Fase 62 — Harvester Adaptativo** | Pipeline | Enrutar `universal_harvester.py` por `site_type`/`discovery_mode`. Reemplaza lógica hardcodeada de 11 harvesters. | Depende de Fase 61 |
+| ~~P1~~ | ~~Fase 61 — Site Profiles~~ | ~~Arquitectura~~ | ~~Crear tabla `institution_site_profiles`, migrar exclusiones, seed perfiles~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 68 — Pipeline Resiliencia: Cancelación Controlada~~ | ~~Pipeline~~ | ~~TIME_GUARD + signal handler + retry con backoff + timeouts alineados~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
+| **P2** | **Fase 62 — Harvester Adaptativo** | Pipeline | Enrutar `universal_harvester.py` por `site_type`/`discovery_mode`. Reemplaza lógica hardcodeada de 11 harvesters. | Depende de Fase 61 (completada) |
 | **P2** | **Fase 63 — Enrichment + Sync con Perfiles** | Pipeline | Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker. Mejora completitud de campos (precio, modalidad, temario). | Depende de Fase 62 |
+| **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
+| **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
+| **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
+| **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
 | **P3** | **Fase 64 — Deprecar Harvesters** | Cleanup | Mover 11 harvesters dedicados a `deprecated/`, migrar URLs hardcodeadas a `seed_urls` en perfiles. Validar pipeline unificado con DMC/U.Lima/PUCP. | Depende de Fase 63 |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 64 |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
@@ -50,13 +55,16 @@
 - [x] **R6**: Proyecto Pro (`xwhtiqmboljkshrtviyw`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [x] **R7**: GitHub Secrets configurados (3 environments) + Cloudflare Pages env vars configuradas + pipeline ejecutando en producción.
 - [x] **Fase 61**: Site Profiles — Tabla `institution_site_profiles` creada (Free+Pro), 498 exclusiones migradas a 10 perfiles, harvester + cleansing worker actualizados.
+- [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. TIME_GUARD + signal handler en 4 estaciones + integrity_ping. Clase `TimeGuard` reutilizable en `utils.py`. Retry con backoff (5s→10s→20s) en `db_client.py`. Timeouts alineados en workflows (350m/25m/350m/25m/15m + 60m FG3). Aplica a las 3 ramas.
+- [x] **Fases 33-34**: Domain Mapping + Smoke Tests. Env vars `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` configuradas en Cloudflare Pages (3 ambientes). Re-build estático exitoso. Aplica a las 3 ramas.
 - [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
 - [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
+- [ ] **Fase 67A**: Setup Resend + Edge Function — cuenta Resend, dominio verificado, Edge Function `send-lead-emails`, `contact_email` en instituciones.
+- [ ] **Fase 67B**: Database Trigger + pg_net — trigger `AFTER INSERT ON leads`, `pg_net.http_post()`, tabla `email_log`.
+- [ ] **Fase 67C**: Frontend UX Confirmación — toast/banner post-submit, email requerido, rate limiting anti-spam.
+- [ ] **Fase 67D**: Email Templates — 3 templates HTML responsivos (usuario, admin, institución) con branding StudIAMatch.
 - [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [x] **Fase 32 (completa)**: Hardening RLS + Migración Free→Pro + Extensiones. 12/12 tablas RLS, 648 cursos, 728 enriched, `db_client` dual-key, RPCs search_path, Advisor: 0 errores, 4 warnings aceptados.
-- [ ] **Fases 33-34 (en progreso)**: Domain Mapping (`studiamatch.com`) + Smoke Tests. Dominios configurados, docs actualizados. Pendiente: env vars en Cloudflare Pages, fix 404 en detalle, smoke tests post-deploy.
-- [x] **Fase 66**: Fix Cleansing Loop P0 — `lock_staging_records` UPDATE atómico, `atomic_cleansing_promote` tolerante a status, `staging_ids` corregido, guard anti-loop. Commit `876b14b`.
 
 ---
 
@@ -1158,6 +1166,8 @@ Objetivo: Corregir los 3 problemas críticos identificados en el pipeline run #2
 - **Riesgo (P0)**: 18 cursos con slugs que empiezan con guion (`-8ed5d1c6`, `-21404277`, etc.) producen páginas 404 en el frontend (static export con `dynamicParams = false`). Causa: `sync_vector_worker.py` genera `slug = f"{slugify(name)}-{short_id}"` donde `slugify()` puede retornar `""` para nombres con caracteres no-ASCII. `cleanSlug()` en el frontend stripa el guion inicial, rompiendo la búsqueda exacta por slug. -> Mitigación: Fase 60 recalcular slugs y prevenir slugs vacíos en `sync_vector_worker.py`.
 - **Riesgo (P1)**: Baja cobertura de campos enriquecidos (precio 1.3%, start_date 1.7%, objectives 3.2%) — las webs institucionales peruanas rara vez publican precios ni fechas de inicio. El LLM devuelve `null` cuando no hay datos en el HTML. -> Mitigación: Fase 60 re-enriquece cursos con campos vacíos usando `batch_enrich_courses.py`.
 - **Riesgo (Arquitectura)**: Sistema de dos niveles — los 11 harvesters dedicados bypassean el pipeline (Golden Path) e insertan directo a `courses` sin enriquecimiento LLM, resultando en campos vacíos (`price_pen`, `start_date_text`, `requirements`, `syllabus`). Solo DMC y U. Pacífico usan el Golden Path completo. -> Mitigación: Fases 61-65 unifican la arquitectura en un único `universal_harvester` que lee perfiles de sitio desde `institution_site_profiles` y enruta todo por el pipeline de 4 estaciones.
+- **Riesgo (Crítico)**: 3 estaciones del pipeline (Cleansing, Enrichment, Sync) + integrity_ping NO tienen TIME_GUARD ni signal handler. Cuando GitHub Actions alcanza `timeout-minutes`, envía SIGTERM y mata el proceso abruptamente, perdiendo todo lo procesado. Las fases downstream se cancelan en cascada (skipped). El Enrichment con while-loop infinito es el más afectado (3 cancelaciones consecutivas en Mayo 2026). -> Mitigación: Fase 68 implementa clase `TimeGuard` reutilizable + signal handlers (SIGTERM/SIGINT) en las 4 estaciones + integrity_ping + alineación de timeouts en workflows.
+- **Riesgo**: DNS glitches de Supabase (NameResolutionError) sin reintentos matan toda la estación del pipeline. Un glitch temporal de 30s puede cancelar 6h de procesamiento. -> Mitigación: Fase 68 agrega retry con backoff exponencial en `db_client.py` para ConnectionError/NameResolutionError.
 
 ### Fase 60: Slug Fix & Data Quality [x] Completado
 Objetivo: Reparar 18 páginas 404 causadas por slugs rotos, eliminar cursos duplicados y basura, prevenir futuros slugs vacíos, y re-enriquecer campos vacíos.
@@ -1271,7 +1281,7 @@ Objetivo: Eliminar scripts obsoletos, dependencias muertas, imports innecesarios
    - [x] Confirmar que `pip install -r requirements.txt` no falla dentro del contenedor
    - [x] `git status` — Confirmar solo archivos esperados modificados/eliminados
 
-### Fase 60.6: DMC Exclusion Cascade [x] Completado
+### Fase 60.6: DMC Exclusion Cascade [] Pendiente
 Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclusions` (Free y Pro), y limpiar retroactivamente los registros existentes en las 4 tablas del pipeline.
 
 **Patrones solicitados** (mapeados de URLs ruidosas reales):
@@ -1541,4 +1551,218 @@ Objetivo: Corregir el loop infinito en `cleansing_worker.py` que repite los mism
    - [x] Confirmar que `stream_pending_staging()` termina cuando no hay más registros `pending`
    - [x] Confirmar que `atomic_cleansing_promote` recibe TODOS los staging_ids del batch (no solo el último grupo)
    - [x] Re-trigger del pipeline FG2 en `main` para validación end-to-end
+
+### Fase 67A: Setup Resend + Edge Function de Email [ ] Pendiente
+Objetivo: Configurar Resend como proveedor de email transaccional y crear Edge Function que envía 3 correos cuando un usuario marca "Me interesa" un curso (confirmación al usuario, notificación al admin, notificación a la institución).
+
+**Arquitectura del flujo**:
+```
+Frontend POST /rest/v1/leads (ya funciona)
+  → Supabase trigger AFTER INSERT on leads
+  → pg_net.http_post()
+  → Edge Function "send-lead-emails"
+  → Resend API envía 3 correos:
+    1. Confirmación al usuario
+    2. Notificación al admin
+    3. Notificación a la institución
+```
+
+1. **Crear cuenta Resend y verificar dominio**:
+   - [ ] Signup en https://resend.com
+   - [ ] Verificar dominio `studiamatch.com` en Resend (DKIM, SPF, DMARC en Cloudflare DNS)
+   - [ ] Obtener API key (`re_xxxx...`)
+   - [ ] Si no se puede verificar dominio aún, usar `onboarding@resend.dev` para pruebas (solo a emails autorizados)
+
+2. **Agregar campo `contact_email` a tabla `institutions`**:
+   - [ ] Migration SQL: `ALTER TABLE institutions ADD COLUMN contact_email TEXT;`
+   - [ ] Aplicar migration en Free + Pro
+   - [ ] Seed de `contact_email` para las 10 instituciones (investigar emails de contacto/admisión de cada website)
+
+3. **Crear Edge Function `send-lead-emails`**:
+   - [ ] `supabase/functions/send-lead-emails/index.ts`
+   - [ ] Recibe POST con `{ lead_id: UUID }`
+   - [ ] Busca lead + course + institution details via PostgREST (service_role)
+   - [ ] Llama Resend API (`POST https://api.resend.com/emails`) para cada destinatario
+   - [ ] Templates HTML inline (sin React Email para simplicidad inicial)
+   - [ ] Manejo de errores: log en tabla `email_log`, no fallar el INSERT del lead si email falla
+
+4. **Configurar secrets en Supabase**:
+   - [ ] `RESEND_API_KEY` en Dashboard > Edge Functions > Secrets
+   - [ ] `ADMIN_EMAIL` (email del admin que recibe notificaciones, ej: `admin@example.com`)
+   - [ ] `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (para que la Edge Function busque datos del lead)
+
+5. **Validación**:
+   - [ ] Invocar Edge Function manualmente con un `lead_id` de prueba
+   - [ ] Confirmar que los 3 correos se envían correctamente
+   - [ ] Confirmar que el FROM address es el dominio verificado
+
+### Fase 67B: Database Trigger + pg_net [ ] Pendiente
+Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada vez que se inserta un lead, usando pg_net para HTTP asíncrono.
+
+1. **Habilitar extensión `pg_net`** (si no está):
+   - [ ] Verificar con `SELECT * FROM pg_extension WHERE extname = 'pg_net';`
+   - [ ] Habilitar con `CREATE EXTENSION IF NOT EXISTS pg_net;` si falta
+   - [ ] Aplicar en Free + Pro
+
+2. **Crear tabla `email_log` para auditoría**:
+   - [ ] Migration SQL:
+     ```sql
+     CREATE TABLE email_log (
+       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+       lead_id UUID REFERENCES leads(id),
+       recipient_type TEXT NOT NULL CHECK (recipient_type IN ('user', 'admin', 'institution')),
+       recipient_email TEXT NOT NULL,
+       subject TEXT,
+       status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+       resend_id TEXT,
+       error_message TEXT,
+       created_at TIMESTAMPTZ DEFAULT now()
+     );
+     ALTER TABLE email_log ENABLE ROW LEVEL SECURITY;
+     CREATE POLICY email_log_service_role ON email_log FOR ALL TO service_role USING (true) WITH CHECK (true);
+     CREATE POLICY email_log_select_authenticated ON email_log FOR SELECT TO authenticated USING (true);
+     CREATE INDEX idx_email_log_lead_id ON email_log(lead_id);
+     CREATE INDEX idx_email_log_status ON email_log(status);
+     ```
+   - [ ] Aplicar en Free + Pro
+
+3. **Crear trigger function `notify_new_lead()`**:
+   - [ ] SQL function que hace `net.http_post()` a la Edge Function URL
+   - [ ] Payload: `{ "lead_id": NEW.id }`
+   - [ ] Headers: `Authorization: Bearer <anon_key>`, `Content-Type: application/json`
+   - [ ] Timeout: 5000ms (no bloquear el INSERT)
+   - [ ] La Edge Function hace el trabajo pesado (buscar datos, enviar emails, log)
+
+4. **Crear trigger**:
+   - [ ] `CREATE TRIGGER trg_notify_new_lead AFTER INSERT ON leads FOR EACH ROW EXECUTE FUNCTION notify_new_lead();`
+   - [ ] Aplicar en Free + Pro
+
+5. **Validación end-to-end**:
+   - [ ] Insertar un lead de prueba desde el frontend
+   - [ ] Confirmar que el trigger dispara la Edge Function
+   - [ ] Confirmar que los 3 correos se envían
+   - [ ] Confirmar que `email_log` tiene 3 registros (uno por destinatario)
+   - [ ] Confirmar que `pg_net._http_response` no tiene errores
+
+### Fase 67C: Frontend Updates para UX de Confirmación [ ] Pendiente
+Objetivo: Mejorar la experiencia del usuario después de enviar un lead, con mensaje de confirmación por email y validaciones.
+
+1. **UX de confirmación post-submit**:
+   - [ ] Reemplazar `alert()` actual por componente visual (toast/banner) con mensaje: "¡Gracias! Te enviamos un correo con más detalles sobre este programa."
+   - [ ] Agregar indicador de que el usuario recibirá email (gestiona expectativas)
+
+2. **Validación de email del usuario**:
+   - [ ] Hacer campo `email` requerido en ambos formularios (`CourseDetailClient.tsx` + `HomeContent.tsx`)
+   - [ ] Validación básica de formato email en frontend
+   - [ ] El email del usuario se usa como destinatario del correo de confirmación
+
+3. **Rate limiting en Edge Function**:
+   - [ ] Anti-spam: máximo 3 leads por email por hora (verificar contra tabla `leads`)
+   - [ ] Si excede, responder con 429 Too Many Requests
+   - [ ] Loggear intentos de spam en `email_log` con status `failed`
+
+4. **Actualizar tabla `leads`**:
+   - [ ] Agregar `status` update: cuando los 3 emails se envían exitosamente, cambiar `status` de `pending` → `contacted`
+   - [ ] Si algún email falla, mantener `pending` para reintento manual
+
+### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [ ] Pendiente
+Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones del pipeline y en integrity_ping, evitando que GitHub Actions cancele abruptamente los procesos y se pierda la información de lo procesado hasta el momento. Incluye TIME_GUARD, signal handlers (SIGTERM/SIGINT), alineación de timeouts en workflows y reintentos con backoff para DNS errors.
+
+**Diagnóstico del problema** (3 runs cancelados en `main`, 01-02 May 2026):
+
+| Run | Duración total | Fase cancelada | Tiempo en fase | Causa |
+|---|---|---|---|---|
+| `25206136924` | ~6h 12m | 1.5 Cleansing | ~30min | Timeout sin TIME_GUARD |
+| `25219715538` | ~8h 51m | 2. Enrichment | ~6h 5m | `timeout-minutes: 360` sin TIME_GUARD en script |
+| `25244106190` | ~7h 52m | 2. Enrichment | ~6h 5m | Mismo patrón — while-loop infinito sin límite |
+
+**Causa raíz triple**:
+1. **Sin TIME_GUARD**: Solo `universal_harvester.py` tiene cierre elegante (20400s). `cleansing_worker.py`, `enrichment_worker.py`, `sync_vector_worker.py` e `integrity_ping.py` no tienen límite de ejecución ni signal handler.
+2. **Sin signal handler**: Cuando GitHub Actions envía SIGTERM al alcanzar `timeout-minutes`, el proceso muere sin cerrar DB connections, sin loguear progreso, y sin garantizar que el registro en curso se complete. Las fases downstream se cancelan en cascada (skipped).
+3. **DNS glitches sin retry**: El run `25203743378` (01-May 05:32) falló por `NameResolutionError` del host Supabase. Sin reintentos, un glitch de DNS temporal mata toda la estación.
+
+**Detonante**: El run `25203743378` falló por DNS (todas las fases), dejando registros en estado `pending`/`processing` sin avanzar. Esto creó un backlog que los runs siguientes no pudieron procesar antes del timeout de 6h.
+
+1. **Crear clase `TimeGuard` reutilizable en `scripts/shared/utils.py`** (prerrequisito de items 2-5):
+   - [ ] `__init__(max_seconds, logger)` — guarda `start_time` y límite de ejecución
+   - [ ] `should_stop() → bool` — retorna `True` si se excedió el tiempo
+   - [ ] `remaining() → float` — segundos restantes antes del límite
+   - [ ] `elapsed_str() → str` — string legible del tiempo transcurrido
+   - [ ] `install_signal_handler() → None` — registra handler para `signal.SIGTERM` y `signal.SIGINT` que invoca `shutdown_gracefully()`
+   - [ ] `shutdown_gracefully(signum, frame) → None` — loguea señal recibida, flag `self._stop_requested = True` (el loop principal verifica y rompe limpiamente)
+   - [ ] Patrón: flag-based (no `sys.exit()`) para permitir que el loop actual termine su iteración antes de salir
+
+2. **`scripts/core/enrichment_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
+   - [ ] Importar `TimeGuard` de `shared.utils`
+   - [ ] En `__main__`: crear `TimeGuard(max_seconds=20400, logger=logger)` (5h 40m, alineado con harvester)
+   - [ ] Instalar signal handler al inicio: `time_guard.install_signal_handler()`
+   - [ ] En while-loop (L285): `if time_guard.should_stop(): break` — antes de cada registro
+   - [ ] En `enrich_record` (L131): si `time_guard.remaining() < 30`, no iniciar nueva llamada LLM (marcar como pendiente para próximo run)
+   - [ ] Log final: "TIME_GUARD: Shutdown elegante tras X. Registros procesados: Y. Pendientes restantes: Z"
+   - [ ] Cambiar `--limit` default de `None` a `None` (sin cambio — el TIME_GUARD controla el límite)
+
+3. **`scripts/core/cleansing_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
+   - [ ] Importar `TimeGuard` de `shared.utils`
+   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min, alineado con `timeout-minutes: 30`)
+   - [ ] Instalar signal handler al inicio
+   - [ ] En for-loop (L283): `if time_guard.should_stop(): break` antes de cada `process_batch`
+   - [ ] Flush del `batch_accumulator` pendiente antes de salir (no perder registros acumulados)
+   - [ ] Log final con progreso
+
+4. **`scripts/core/sync_vector_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
+   - [ ] Importar `TimeGuard` de `shared.utils`
+   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min)
+   - [ ] Instalar signal handler al inicio
+   - [ ] En for-loop (L127): `if time_guard.should_stop(): break` antes de cada `sync_to_production`
+   - [ ] Log final con conteo de syncs exitosos vs pendientes
+
+5. **`scripts/core/integrity_ping.py` — TIME_GUARD + sys.path fix + graceful shutdown** (P1 Alta):
+   - [ ] Agregar `import sys, os` al inicio
+   - [ ] Agregar `sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` antes de `from shared.db_client` (fix del bug actual `ModuleNotFoundError: No module named 'shared'`)
+   - [ ] Importar `TimeGuard` de `shared.utils`
+   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min)
+   - [ ] Instalar signal handler al inicio
+   - [ ] En for-loop (L42): `if time_guard.should_stop(): break` antes de cada HEAD request
+   - [ ] Log final con flagged/deactivated hasta el momento
+
+6. **`.github/workflows/production_pipeline.yml` — Alinear `timeout-minutes`** (P1 Alta):
+   - [ ] `phase_1_harvesting` L18: `timeout-minutes: 360` → `350` (10min margen para shutdown limpio)
+   - [ ] `phase_2_enrichment` L80: `timeout-minutes: 360` → `350` (mismo margen)
+   - [ ] `phase_3_sync` L108: agregar `timeout-minutes: 35` (no tiene, default 360 — excesivo para sync)
+   - [ ] `phase_4_audit` L133: agregar `timeout-minutes: 15` (no tiene, default 360 — excesivo para audit)
+
+7. **`.github/workflows/fg3_integrity.yml` — Timeout + sys.path** (P2 Media):
+   - [ ] Agregar `timeout-minutes: 35` al job `integrity` (no tiene, default 360)
+
+8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media):
+   - [ ] Crear función `_retry_with_backoff(fn, max_retries=3, base_delay=5)` que envuelve llamadas a Supabase REST API
+   - [ ] Aplicar en métodos `_select_api()`, `_insert_api()`, `_patch_api()`, `_upsert_api()`, `_delete_api()`, `rpc()` cuando reciben `ConnectionError` o `NameResolutionError`
+   - [ ] Backoff exponencial: 5s → 10s → 20s entre reintentos
+   - [ ] Loguear cada reintento con warning level
+Objetivo: Diseñar e implementar las 3 plantillas de email HTML responsivas con branding StudIAMatch.
+
+1. **Template usuario — Confirmación de interés**:
+   - [ ] Asunto: "Gracias por tu interés en [nombre del curso] — [institución]"
+   - [ ] Contenido: nombre del curso, institución, precio, modalidad, duración, link al curso en studiamatch.com
+   - [ ] CTA: "Ver más programas similares" → link a `/courses/[institution]`
+   - [ ] Footer: branding StudIAMatch, link a preferencias de email (futuro)
+   - [ ] Diseño responsive, colores brand (#1B3A5C, #FF6B35)
+
+2. **Template admin — Notificación de nuevo lead**:
+   - [ ] Asunto: "Nuevo lead: [nombre del usuario] se interesó en [curso]"
+   - [ ] Contenido: datos del usuario (nombre, email, whatsapp), curso, institución
+   - [ ] CTA: "Ver lead en dashboard" → link futuro al admin panel
+   - [ ] Incluir link directo al curso en studiamatch.com
+
+3. **Template institución — Interesado en su programa**:
+   - [ ] Asunto: "Nuevo interesado en [nombre del curso] — via StudIAMatch"
+   - [ ] Contenido: datos del interesado (nombre, email, whatsapp), nombre del curso
+   - [ ] CTA: "Contactar al interesado" → mailto link o WhatsApp link
+   - [ ] Nota: solo se envía si `institutions.contact_email` no es NULL
+   - [ ] Footer: "Este interesado fue referido via StudIAMatch.com"
+
+4. **Evolución futura (no incluir en esta fase)**:
+   - [ ] Migrar templates a React Email (.tsx) para mantenimiento más fácil
+   - [ ] Agregar templates de marketing (newsletter, abandoned search)
+   - [ ] Unsubscribe link para comply con CAN-SPAM
 
