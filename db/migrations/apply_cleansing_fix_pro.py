@@ -17,7 +17,7 @@ if not MGMT_TOKEN or not PRO_REF:
     print("  ERROR: Credenciales Pro no disponibles en variables de entorno.")
     print()
     print("  Aplica la migracion manualmente en Supabase Dashboard:")
-    print(f"  1. Ir a https://supabase.com/dashboard/project/{PRO_REF or 'xwhtiqmboljkshrtviyw'}/sql/new")
+    print(f" 1. Ir a https://supabase.com/dashboard/project/{PRO_REF or 'YOUR_PRO_PROJECT_REF'}/sql/new")
     print("  2. Copiar el contenido de:")
     print(f"     {MIGRATION_FILE}")
     print("  3. Ejecutar el SQL")
