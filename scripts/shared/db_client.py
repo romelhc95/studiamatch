@@ -1,9 +1,34 @@
 import os
 import requests
 import json
+import time
 from dotenv import load_dotenv
 import re
 import urllib.parse
+
+DNS_RETRY_DELAYS = [5, 10, 20]
+DNS_RETRY_MAX = 3
+
+def _request_with_retry(method, url, **kwargs):
+    """
+    Executes an HTTP request with exponential backoff retry for DNS/connection errors.
+    Non-transient errors (4xx, 5xx) are NOT retried — only network-level failures.
+    """
+    last_err = None
+    for attempt in range(1, DNS_RETRY_MAX + 1):
+        try:
+            return method(url, **kwargs)
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.DNSResolutionError,
+                requests.exceptions.Timeout) as e:
+            last_err = e
+            if attempt < DNS_RETRY_MAX:
+                delay = DNS_RETRY_DELAYS[attempt - 1]
+                print(f"DB_CLIENT_RETRY: Attempt {attempt}/{DNS_RETRY_MAX} failed ({type(e).__name__}). Retrying in {delay}s...")
+                time.sleep(delay)
+            else:
+                print(f"DB_CLIENT_RETRY: All {DNS_RETRY_MAX} attempts failed for {url}. Last error: {e}")
+    raise last_err
 
 # Try to load env files from the root of the project (3 levels up from this script: scripts/shared/db_client.py)
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -62,7 +87,7 @@ class DatabaseClient:
         if limit:
             url += f"&limit={limit}"
             
-        res = requests.get(url, headers=self._get_headers(use_service_role=False))
+        res = _request_with_retry(requests.get, url, headers=self._get_headers(use_service_role=False))
         if res.status_code == 200:
             data = res.json()
             if columns == "count":
@@ -72,7 +97,7 @@ class DatabaseClient:
 
     def _insert_api(self, table, data):
         url = f"{self.supabase_url}/rest/v1/{table}"
-        res = requests.post(url, headers=self._get_headers(use_service_role=True), json=data)
+        res = _request_with_retry(requests.post, url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {res.text}")
@@ -80,7 +105,7 @@ class DatabaseClient:
 
     def _patch_api(self, table, filters, data):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = requests.patch(url, headers=self._get_headers(use_service_role=True), json=data)
+        res = _request_with_retry(requests.patch, url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 204]:
             return {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {res.text}")
@@ -88,7 +113,7 @@ class DatabaseClient:
 
     def _delete_api(self, table, filters):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = requests.delete(url, headers=self._get_headers(use_service_role=True))
+        res = _request_with_retry(requests.delete, url, headers=self._get_headers(use_service_role=True))
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Delete {table}): {res.status_code} - {res.text}")
@@ -99,7 +124,7 @@ class DatabaseClient:
         headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
         is_batch = isinstance(data, list)
-        res = requests.post(url, headers=headers, json=data)
+        res = _request_with_retry(requests.post, url, headers=headers, json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Upsert {table}): {res.status_code} - {res.text}")
@@ -143,7 +168,7 @@ class DatabaseClient:
             headers = self._get_headers(use_service_role=False)
             headers["Range"] = f"{offset}-{offset + limit - 1}"
             headers["Prefer"] = "count=exact"
-            res = requests.get(url, headers=headers)
+            res = _request_with_retry(requests.get, url, headers=headers)
             if res.status_code == 200:
                 batch = res.json()
                 if not batch:
@@ -167,7 +192,7 @@ class DatabaseClient:
             url += f"&{filters}"
         headers = self._get_headers(use_service_role=False)
         headers["Prefer"] = "count=exact"
-        res = requests.get(url, headers=headers)
+        res = _request_with_retry(requests.get, url, headers=headers)
         if res.status_code in (200, 206):
             content_range = res.headers.get("Content-Range", "")
             if content_range:
@@ -191,7 +216,7 @@ class DatabaseClient:
         url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
         headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "return=representation"
-        res = requests.post(url, headers=headers, json=params or {})
+        res = _request_with_retry(requests.post, url, headers=headers, json=params or {})
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {res.text}")

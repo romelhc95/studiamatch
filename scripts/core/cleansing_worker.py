@@ -18,6 +18,7 @@ from shared.utils import (
     standardize_mode,
     setup_lima_logging,
     normalize_url,
+    TimeGuard,
 )
 from shared.db_client import get_db_client, DatabaseClient
 
@@ -91,6 +92,7 @@ def extract_price(text: str) -> Tuple[Optional[float], str]:
 class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
+        self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
         # Páginas que son solo contenedores y no cursos reales
         self.hub_patterns = [
@@ -107,9 +109,24 @@ class CleansingWorker:
 
     def _load_exclusions(self) -> List[Dict[str, Any]]:
         try:
+            if self.profiles:
+                all_patterns = []
+                for p in self.profiles:
+                    ep = p.get('exclusion_patterns', [])
+                    if ep:
+                        all_patterns.extend(ep)
+                if all_patterns:
+                    return list(set(all_patterns))
             return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
+            return []
+
+    def _load_profiles(self) -> List[Dict[str, Any]]:
+        try:
+            return self.db.select('institution_site_profiles') or []
+        except Exception as e:
+            logger.warning(f"Error loading site profiles: {e}")
             return []
 
     def _get_base_url(self, url: str) -> str:
@@ -157,8 +174,11 @@ class CleansingWorker:
         
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
-            if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
-            if exc['pattern'].lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
+            if isinstance(exc, str):
+                if exc.lower() in low_url: return f"hard_db_exclusion:{exc}"
+            elif isinstance(exc, dict):
+                if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
+                if exc.get('pattern', '').lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"
@@ -259,12 +279,18 @@ class CleansingWorker:
 
 if __name__ == "__main__":
     worker = CleansingWorker()
+    guard = TimeGuard(max_seconds=1800, logger=logger)
     logger.info("--- Starting Station 1.5: High Fidelity Smart Sync ---")
     total_processed, batch_accumulator = 0, []
     for record in worker.stream_pending_staging(batch_size=200):
+        if guard.should_exit:
+            logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
+            break
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:
             total_processed += worker.process_batch(batch_accumulator)
             batch_accumulator = []
-    if batch_accumulator: total_processed += worker.process_batch(batch_accumulator)
-    logger.info(f"Session finished. Total staging URLs processed: {total_processed}")
+            guard.tick(every=10)
+    if batch_accumulator and not guard.should_exit:
+        total_processed += worker.process_batch(batch_accumulator)
+    logger.info(f"Session finished. Total staging URLs processed: {total_processed} | Time: {guard.elapsed_hours:.2f}h")
