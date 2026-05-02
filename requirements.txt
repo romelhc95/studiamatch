@@ -5,4 +5,5 @@ playwright
 playwright-stealth
 PyPDF2
 curl_cffi
+json-repair
 

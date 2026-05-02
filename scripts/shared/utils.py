@@ -340,3 +340,171 @@ def normalize_url(url):
         return normalized
     except Exception:
         return url
+
+
+try:
+    from json_repair import repair_json as _jsonrepair_repair
+    _JSONREPAIR_AVAILABLE = True
+except ImportError:
+    _JSONREPAIR_AVAILABLE = False
+
+
+class LLMProvider:
+    """Wraps a single LLM provider with health-check and success/fail tracking."""
+
+    def __init__(self, name, call_fn, health_fn=None):
+        self.name = name
+        self.call_fn = call_fn
+        self.health_fn = health_fn
+        self.success_count = 0
+        self.fail_count = 0
+        self.repair_count = 0
+        self._healthy = None
+
+    def health_check(self):
+        """Ping the provider with a trivial prompt. Returns True if it responds with valid JSON."""
+        if self.health_fn:
+            try:
+                result = self.health_fn()
+                self._healthy = bool(result)
+            except Exception:
+                self._healthy = False
+            return self._healthy
+        try:
+            raw = self.call_fn('Responde SOLO este JSON: {"status": "ok"}')
+            if raw:
+                import json as _json
+                clean = re.sub(r'```json\s*', '', raw)
+                clean = re.sub(r'```\s*', '', clean)
+                match = re.search(r'\{.*\}', clean, re.DOTALL)
+                if match:
+                    _json.loads(match.group())
+                    self._healthy = True
+                    return True
+        except Exception:
+            pass
+        self._healthy = False
+        return False
+
+    @property
+    def is_healthy(self):
+        if self._healthy is None:
+            self.health_check()
+        return self._healthy
+
+    @property
+    def is_degraded(self):
+        total = self.success_count + self.fail_count
+        if total < 5:
+            return False
+        return self.fail_rate > 0.8
+
+    @property
+    def fail_rate(self):
+        total = self.success_count + self.fail_count
+        if total == 0:
+            return 0.0
+        return self.fail_count / total
+
+    def record_success(self):
+        self.success_count += 1
+
+    def record_fail(self):
+        self.fail_count += 1
+
+    def record_repair(self):
+        self.repair_count += 1
+
+    def __repr__(self):
+        total = self.success_count + self.fail_count
+        return f"LLMProvider({self.name}, healthy={self._healthy}, {self.success_count}/{total})"
+
+
+class ProviderOrchestrator:
+    """Orchestrates multiple LLM providers with health checks, jsonrepair fallback, and dynamic degradation."""
+
+    def __init__(self, providers, logger=None):
+        self.providers = list(providers)
+        self.logger = logger or logging.getLogger("ProviderOrchestrator")
+        self._active_order = list(providers)
+
+    def run_health_checks(self):
+        """Run health_check() on every provider and build the active order."""
+        results = {}
+        healthy = []
+        unhealthy = []
+        for p in self.providers:
+            ok = p.health_check()
+            results[p.name] = ok
+            if ok:
+                healthy.append(p)
+            else:
+                unhealthy.append(p)
+        status_parts = [f"{name}={'✅' if ok else '❌'}" for name, ok in results.items()]
+        self.logger.info(f"Health check: {', '.join(status_parts)}")
+        self._active_order = healthy + unhealthy
+        return [p.name for p in healthy]
+
+    def get_active_providers(self):
+        """Return providers in priority order, pushing degraded ones to the end."""
+        normal = [p for p in self._active_order if not p.is_degraded]
+        degraded = [p for p in self._active_order if p.is_degraded]
+        if degraded:
+            degraded_names = [p.name for p in degraded]
+            self.logger.info(f"Degraded providers moved to end: {', '.join(degraded_names)}")
+        return normal + degraded
+
+    def call_with_fallback(self, prompt, clean_fn):
+        """Iterate active providers, apply clean_fn, try jsonrepair on failure, return parsed dict or None."""
+        import json as _json
+        active = self.get_active_providers()
+        for provider in active:
+            try:
+                raw = provider.call_fn(prompt)
+                cleaned = clean_fn(raw) if raw else None
+                if cleaned:
+                    try:
+                        result = _json.loads(cleaned)
+                        provider.record_success()
+                        return result
+                    except (_json.JSONDecodeError, ValueError):
+                        repaired = self._try_jsonrepair(cleaned)
+                        if repaired is not None:
+                            provider.record_success()
+                            provider.record_repair()
+                            self.logger.info(f"JSON reparado vía jsonrepair para {provider.name}")
+                            return repaired
+                        provider.record_fail()
+                        self.logger.warning(f"JSON inválido de {provider.name} (jsonrepair tampoco pudo reparar)")
+                else:
+                    provider.record_fail()
+            except Exception as e:
+                provider.record_fail()
+                self.logger.warning(f"Fallo con {provider.name}: {e}")
+        self.logger.warning("Todos los providers fallaron — usando smart mock")
+        return None
+
+    def _try_jsonrepair(self, text):
+        """Attempt jsonrepair if available, return parsed dict or None."""
+        if not _JSONREPAIR_AVAILABLE:
+            self.logger.warning("jsonrepair no instalado — instalá con pip install jsonrepair para reparación automática de JSON")
+            return None
+        try:
+            import json as _json
+            repaired_text = _jsonrepair_repair(text)
+            return _json.loads(repaired_text)
+        except Exception:
+            return None
+
+    def summary(self):
+        """Return a human-readable summary of provider metrics."""
+        lines = []
+        for p in self.providers:
+            total = p.success_count + p.fail_count
+            if total > 0:
+                pct = p.success_count / total * 100
+                repair_info = f", jsonrepair: {p.repair_count}" if p.repair_count > 0 else ""
+                lines.append(f"{p.name}: {p.success_count}/{total} ({pct:.0f}%){repair_info}")
+            else:
+                lines.append(f"{p.name}: sin llamadas")
+        return " | ".join(lines)
