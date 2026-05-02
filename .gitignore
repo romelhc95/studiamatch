@@ -42,3 +42,10 @@ run_logs_*.txt
 .github/log/local/
 .wrangler/
 
+# Temp/debug scripts (never commit)
+check_counts.py
+test_join.py
+scripts/maintenance/export_50k_final.py
+scripts/maintenance/export_50k_prod.py
+scripts/maintenance/test_select.py
+
