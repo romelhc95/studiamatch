@@ -2,8 +2,64 @@ import re
 import unicodedata
 import random
 import logging
+import signal
+import time
 import sys
+import os
 from datetime import datetime, timezone, timedelta
+
+
+class TimeGuard:
+    """
+    Reusable graceful shutdown guard for long-running pipeline scripts.
+    Sets a flag on SIGTERM/SIGINT so the main loop can finish its current
+    iteration before exiting.  Also enforces a wall-clock maximum runtime.
+
+    Usage:
+        guard = TimeGuard(max_seconds=20400)   # 5h 40m
+        while records and not guard.should_exit:
+            ...
+            guard.tick()   # optional: log progress every N calls
+    """
+
+    def __init__(self, max_seconds=None, logger=None):
+        self.max_seconds = max_seconds or int(os.getenv("TIME_GUARD_SECONDS", "20400"))
+        self._start = time.time()
+        self._shutdown_requested = False
+        self._logger = logger or logging.getLogger("TimeGuard")
+        self._tick_count = 0
+        signal.signal(signal.SIGTERM, self._handle_signal)
+        signal.signal(signal.SIGINT, self._handle_signal)
+
+    def _handle_signal(self, signum, frame):
+        sig_name = signal.Signals(signum).name
+        self._logger.warning(f"[TIME_GUARD] Received {sig_name}. Setting shutdown flag...")
+        self._shutdown_requested = True
+
+    @property
+    def should_exit(self):
+        if self._shutdown_requested:
+            return True
+        elapsed = time.time() - self._start
+        if elapsed > self.max_seconds:
+            self._logger.warning(
+                f"[TIME_GUARD] Max runtime reached ({elapsed/3600:.2f}h / {self.max_seconds/3600:.2f}h). Graceful exit."
+            )
+            return True
+        return False
+
+    @property
+    def elapsed_hours(self):
+        return (time.time() - self._start) / 3600
+
+    def tick(self, every=100):
+        self._tick_count += 1
+        if self._tick_count % every == 0:
+            elapsed = time.time() - self._start
+            remaining = max(0, self.max_seconds - elapsed)
+            self._logger.info(
+                f"[TIME_GUARD] Tick {self._tick_count} | Elapsed: {elapsed/3600:.2f}h | Remaining: {remaining/3600:.2f}h"
+            )
 
 class LimaFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):

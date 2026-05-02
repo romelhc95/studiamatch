@@ -15,7 +15,7 @@ jobs:
   phase_1_harvesting:
     name: "1. Massive Harvesting"
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 350
     container:
       image: mcr.microsoft.com/playwright:v1.48.0-noble
     environment:
@@ -51,7 +51,7 @@ jobs:
   phase_1_5_cleansing:
     name: "1.5. High Fidelity Cleansing"
     needs: phase_1_harvesting
-    timeout-minutes: 30
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -76,7 +76,7 @@ jobs:
   phase_2_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
     needs: phase_1_5_cleansing
-    timeout-minutes: 360
+    timeout-minutes: 350
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -105,6 +105,7 @@ jobs:
   phase_3_sync:
     name: "3. Integrity & Sync"
     needs: phase_2_enrichment
+    timeout-minutes: 25
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -129,6 +130,7 @@ jobs:
   phase_4_audit:
     name: "4. ROI & QA Audit"
     needs: phase_3_sync
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}

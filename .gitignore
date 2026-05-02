@@ -47,4 +47,5 @@ check_counts.py
 test_join.py
 scripts/maintenance/export_50k_final.py
 scripts/maintenance/export_50k_prod.py
+scripts/maintenance/test_select.py
 

@@ -13,6 +13,7 @@ jobs:
   integrity:
     name: \"3. Daily Integrity Ping\"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment:
       name: \${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
