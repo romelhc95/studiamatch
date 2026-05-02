@@ -16,7 +16,9 @@ from shared.utils import (
     standardize_mode,
     standardize_category,
     setup_lima_logging,
-    TimeGuard
+    TimeGuard,
+    LLMProvider,
+    ProviderOrchestrator,
 )
 from shared.db_client import get_db_client
 
@@ -33,6 +35,13 @@ GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
 class EnrichmentWorker:
     def __init__(self):
         self.db = get_db_client()
+        cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
+        gh_provider = LLMProvider("GitHub", self._call_github)
+        gemini_provider = LLMProvider("Gemini", self._call_gemini)
+        self.orchestrator = ProviderOrchestrator(
+            providers=[cf_provider, gh_provider, gemini_provider],
+            logger=logger,
+        )
 
     def get_pending_cleansed(self, limit=None):
         """Obtiene registros de cleansed_programs para IA."""
@@ -49,7 +58,7 @@ class EnrichmentWorker:
     def _call_cloudflare(self, prompt):
         if not CF_API_TOKEN or not CF_ACCOUNT_ID: return None
         try:
-            model = "@cf/meta/llama-3-8b-instruct"
+            model = "@cf/meta/llama-3.1-8b-instruct"
             url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/{model}"
             res = requests.post(url, headers={"Authorization": f"Bearer {CF_API_TOKEN}"}, json={
                 "messages": [
@@ -105,28 +114,21 @@ class EnrichmentWorker:
 
     def _call_llm_for_pillars(self, name, description):
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
-        Nombre: {name}
-        Descripción: {description[:1200]}
+Nombre: {name}
+Descripción: {description[:1200]}
 
-        REGLAS CRÍTICAS:
-        - Si NO puedes inferir un campo con confianza, responde null (NO uses el string "None" ni cadenas vacías).
-        - Para total_cost_est: extrae el valor numérico en soles (S/). Ej: "S/ 1,500" → 1500.0. Si no hay precio, responde null.
-        - Para modality: debe ser exactamente "Presencial", "Remoto" o "Híbrido".
-        - Para start_date: si hay fecha de inicio, extraerla. Ej: "Abril 2026" o "15 de mayo". Si no hay info, responder null.
-        - Para official_name: usar el nombre completo y formal del programa, nunca abreviaciones.
+REGLAS CRÍTICAS:
+- Si NO puedes inferir un campo con confianza, responde null (NO uses el string "None" ni cadenas vacías).
+- Para total_cost_est: extrae el valor numérico en soles (S/). Ej: "S/ 1,500" → 1500.0. Si no hay precio, responde null.
+- Para modality: debe ser exactamente "Presencial", "Remoto" o "Híbrido".
+- Para start_date: si hay fecha de inicio, extraerla. Ej: "Abril 2026" o "15 de mayo". Si no hay info, responder null.
+- Para official_name: usar el nombre completo y formal del programa, nunca abreviaciones.
 
-        Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
+Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
-        for p_name, p_func in [("Cloudflare", self._call_cloudflare), ("GitHub", self._call_github), ("Gemini", self._call_gemini)]:
-            try:
-                raw = p_func(prompt)
-                clean = self._clean_json_response(raw)
-                if clean:
-                    logger.info(f"✅ Éxito con {p_name}")
-                    return json.loads(clean)
-            except Exception as e:
-                logger.warning(f"Fallo con {p_name}: {e}")
-                continue
+        result = self.orchestrator.call_with_fallback(prompt, self._clean_json_response)
+        if result is not None:
+            return result
         return self._generate_smart_mock(name, description)
 
     def enrich_record(self, cleansed):
@@ -279,6 +281,8 @@ if __name__ == "__main__":
     worker = EnrichmentWorker()
     guard = TimeGuard(max_seconds=20400, logger=logger)
 
+    worker.orchestrator.run_health_checks()
+
     total_processed = 0
     batch_size = 10
 
@@ -312,4 +316,4 @@ if __name__ == "__main__":
             logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")
             break
 
-    logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed} | Tiempo: {guard.elapsed_hours:.2f}h")
+    logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed} | Tiempo: {guard.elapsed_hours:.2f}h | Providers: {worker.orchestrator.summary()}")
