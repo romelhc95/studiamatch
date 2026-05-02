@@ -15,7 +15,8 @@ from shared.utils import (
     infer_course_type,
     standardize_mode,
     standardize_category,
-    setup_lima_logging
+    setup_lima_logging,
+    TimeGuard
 )
 from shared.db_client import get_db_client
 
@@ -276,36 +277,39 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     worker = EnrichmentWorker()
-    
+    guard = TimeGuard(max_seconds=20400, logger=logger)
+
     total_processed = 0
     batch_size = 10
-    
+
     logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
-    
-    while True:
-        # Fetch in batches to manage memory and API limits
+
+    while not guard.should_exit:
         fetch_limit = batch_size
         if args.limit:
             remaining = args.limit - total_processed
             if remaining <= 0: break
             fetch_limit = min(batch_size, remaining)
-            
+
         records = worker.get_pending_cleansed(limit=fetch_limit)
-        
+
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")
             break
-            
+
         logger.info(f"📦 Procesando lote de {len(records)} registros...")
         for r in records:
+            if guard.should_exit:
+                logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
+                break
             if r and isinstance(r, dict):
                 worker.enrich_record(r)
                 total_processed += 1
-                time.sleep(1.5)  # Rate limiting entre llamadas LLM
-                
-        # If we fetched fewer records than requested, we've likely hit the end of the queue
+                guard.tick(every=50)
+                time.sleep(1.5)
+
         if len(records) < fetch_limit:
             logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")
             break
 
-    logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed}")
+    logger.info(f"🏁 Sesión finalizada. Total registros enriquecidos: {total_processed} | Tiempo: {guard.elapsed_hours:.2f}h")
