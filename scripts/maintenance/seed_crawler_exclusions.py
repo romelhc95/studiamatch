@@ -45,11 +45,10 @@ SPECIFIC = {
     'unmsm': ['/pregrado/', '/facultad/', '/laboratorio/'],
     'idat': ['/pregrado/'],
     'senati': ['/pregrado/'],
+    'dmc': ['/profesores/', '/egresado/', '/legales/', '/termino-y-condicion-/',
+            '/categoria-termino-y-condicion/', '/etiqueta-producto/',
+            '/programa-libre/', '/termino-y-condicion/'],
 }
-
-DMC = ['/profesores/', '/egresado/', '/legales/', '/termino-y-condicion-/',
-       '/categoria-termino-y-condicion/', '/etiqueta-producto/',
-       '/programa-libre/', '/termino-y-condicion/']
 
 all_rows = []
 
@@ -75,16 +74,6 @@ for slug, patterns in SPECIFIC.items():
             if key not in seen:
                 seen.add(key)
                 all_rows.append({'institution_id': iid, 'pattern': p, 'reason': 'Noise AI-Sentinel'})
-
-dmc = inst_id('dmc')
-if dmc:
-    for p in DMC:
-        key = (dmc, p)
-        if key not in seen:
-            seen.add(key)
-            all_rows.append({'institution_id': dmc, 'pattern': p, 'reason': 'DMC Exclusion Cascade'})
-else:
-    print('DMC institution not found, skipping DMC patterns')
 
 print(f'Total rows to insert: {len(all_rows)}')
 
