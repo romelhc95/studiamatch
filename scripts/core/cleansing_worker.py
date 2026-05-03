@@ -139,7 +139,7 @@ class CleansingWorker:
                         all_patterns.extend(ep)
                 if all_patterns:
                     return list(set(all_patterns))
-            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+            return []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
             return []
@@ -189,7 +189,7 @@ class CleansingWorker:
                 logger.error(f"Error streaming pending staging: {e}")
                 break
 
-    def is_invalid_course(self, name: str, description: str, url: str, inst_id: str, clean_text: str = "") -> Optional[str]:
+    def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "") -> Optional[str]:
         if name is None: name = ""
         if description is None: description = ""
         if url is None: url = ""
@@ -197,10 +197,8 @@ class CleansingWorker:
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
             if isinstance(exc, str):
-                if exc.lower() in low_url: return f"hard_db_exclusion:{exc}"
-            elif isinstance(exc, dict):
-                if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
-                if exc.get('pattern', '').lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
+                if exc.lower() in low_url:
+                    return f"hard_db_exclusion:{exc}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"
@@ -247,7 +245,7 @@ class CleansingWorker:
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
             
             # Filtros de Calidad y Hubs
-            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, inst_id, clean_text_context)
+            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
             if not discard_reason: discard_reason = detect_expired_start_date(clean_text_context)

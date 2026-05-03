@@ -219,16 +219,6 @@ GLOBAL_EXCLUSIONS = [
 ]
 
 
-def migrate_exclusions_to_profile(db, institution_id):
-    rows = db.select('crawler_exclusions',
-                     filters=f"institution_id=eq.{institution_id},is_active=eq.true",
-                     columns='pattern')
-    if not rows:
-        return GLOBAL_EXCLUSIONS
-    inst_patterns = [r['pattern'] for r in rows]
-    return GLOBAL_EXCLUSIONS + inst_patterns
-
-
 def seed():
     db = get_db_client()
     institutions = db.select('institutions', columns='id,name,slug')
@@ -246,14 +236,13 @@ def seed():
             continue
 
         inst = inst_map[slug]
-        exclusions = migrate_exclusions_to_profile(db, inst['id'])
 
         profile_data = {
             'institution_id': inst['id'],
             'site_type': profile_cfg.get('site_type', 'traditional_ssr'),
             'discovery_mode': profile_cfg.get('discovery_mode', 'sitemap_bfs'),
             'seed_urls': profile_cfg.get('seed_urls', []),
-            'exclusion_patterns': exclusions,
+            'exclusion_patterns': profile_cfg.get('exclusion_patterns', GLOBAL_EXCLUSIONS),
             'catalog_url_patterns': profile_cfg.get('catalog_url_patterns', []),
             'catalog_link_selector': profile_cfg.get('catalog_link_selector'),
             'catalog_max_pages': profile_cfg.get('catalog_max_pages', 5),
@@ -277,7 +266,8 @@ def seed():
         }
 
         result = db.upsert('institution_site_profiles', profile_data, on_conflict='institution_id')
-        logger.info(f"Seeded profile for {inst['name']} ({slug}): {len(exclusions)} exclusions, site_type={profile_cfg['site_type']}")
+        n_exc = len(profile_cfg.get('exclusion_patterns', GLOBAL_EXCLUSIONS))
+        logger.info(f"Seeded profile for {inst['name']} ({slug}): {n_exc} exclusions, site_type={profile_cfg['site_type']}")
         seeded += 1
 
     logger.info(f"Done: {seeded}/{len(PROFILES)} profiles seeded")

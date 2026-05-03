@@ -38,6 +38,10 @@ export interface Course {
   course_type?: string;
   brochure_url?: string;
   brochure_text?: string;
+  start_date_text?: string;
+  start_date?: string;
+  syllabus?: string;
+  is_active?: boolean;
 }
 
 export interface Institution {

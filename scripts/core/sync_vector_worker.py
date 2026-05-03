@@ -20,6 +20,20 @@ logger = setup_lima_logging("SyncVectorWorker")
 class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
+        self.profiles = self._load_profiles()
+
+    def _load_profiles(self):
+        try:
+            return self.db.select('institution_site_profiles') or []
+        except Exception as e:
+            logger.warning(f"Error loading site profiles: {e}")
+            return []
+
+    def _get_profile(self, institution_id):
+        for p in self.profiles:
+            if p.get('institution_id') == institution_id:
+                return p
+        return {}
 
     def get_pending_enriched(self, limit=500):
         return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
@@ -88,13 +102,27 @@ class SyncVectorWorker:
         if is_expired:
             logger.info(f"⏰ [EXPIRED] {name} — start_date='{start_date_text}' parsed as {parsed_date}, marking inactive")
 
+        # Fase 63: Load profile defaults for this institution
+        profile = self._get_profile(enriched.get('institution_id'))
+        defaults = profile.get('field_defaults', {}) if profile else {}
+        section_mode_map = profile.get('section_mode_map', {}) if profile else {}
+
+        # Apply section_mode_map: derive mode from URL path
+        resolved_mode = enriched.get('modality') or defaults.get('mode')
+        if not enriched.get('modality') and section_mode_map:
+            course_url = enriched.get('url', '')
+            for path_key, mode_val in section_mode_map.items():
+                if path_key in course_url:
+                    resolved_mode = mode_val
+                    break
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
             "slug": full_slug,
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
-            "mode": enriched.get('modality'),
+            "mode": resolved_mode,
             "duration": enriched.get('duration_text') or enriched.get('duration'),
             "start_date_text": start_date_text,
             "start_date": parsed_date.isoformat() if parsed_date else None,

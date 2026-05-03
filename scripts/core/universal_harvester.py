@@ -73,7 +73,7 @@ class UniversalHarvester:
         try:
             if self.profile and self.profile.get('exclusion_patterns'):
                 return self.profile['exclusion_patterns']
-            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+            return []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
             return []
@@ -204,24 +204,14 @@ class UniversalHarvester:
             return False
 
         low_url = url.lower()
-        inst_id = self.institution.get('id')
 
-        # Skip non-HTML file extensions before any other checks
         parsed_path = urlparse(url).path.lower()
         if parsed_path.endswith(self.NON_HTML_EXTENSIONS):
             return False
 
-        # Check exclusions — supports both formats:
-        # 1. JSONB array from institution_site_profiles (list of pattern strings)
-        # 2. Legacy list of dicts from crawler_exclusions
         for exc in self.exclusions:
             if isinstance(exc, str):
                 if exc.lower() in low_url:
-                    return False
-            elif isinstance(exc, dict):
-                if exc.get('institution_id') and exc['institution_id'] != inst_id:
-                    continue
-                if exc.get('pattern', '').lower() in low_url:
                     return False
 
         return True

@@ -8,7 +8,8 @@ Este documento detalla los pasos para el lanzamiento oficial en `studiamatch.com
 1.  Crear nuevo proyecto Supabase Pro en el Dashboard.
 2.  Ejecutar `db/restore_full_schema.sql` en el SQL Editor.
 3.  Ejecutar `scripts/maintenance/seed_institutions.py` (vía service role).
-4.  Ejecutar `scripts/maintenance/seed_crawler_exclusions.py` (vía service role).
+4.  Ejecutar `scripts/maintenance/seed_site_profiles.py` (vía service role).
+5.  Ejecutar `scripts/maintenance/merge_exclusions_to_profiles.py` (vía service role) para consolidar exclusiones de `crawler_exclusions` en perfiles.
 
 ## Fase 2: Secretos de GitHub (Producción)
 Para que el pipeline de Producción funcione, asegúrate de que los siguientes secretos estén configurados en tu repositorio de GitHub (Settings -> Secrets -> Actions):

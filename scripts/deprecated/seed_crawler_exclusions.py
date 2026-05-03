@@ -1,5 +1,12 @@
-import os, sys, json, requests
+import os, sys, json, requests, warnings
 sys.path.insert(0, '/app')
+
+warnings.warn(
+    "DEPRECATED (Fase 61): seed_crawler_exclusions.py is deprecated. "
+    "Use seed_site_profiles.py or merge_exclusions_to_profiles.py instead. "
+    "crawler_exclusions table is no longer the source of truth for URL filtering.",
+    DeprecationWarning
+)
 
 url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
 secret = os.environ.get('NEXT_SUPABASE_SECRET_KEY', '') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
