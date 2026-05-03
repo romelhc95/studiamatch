@@ -134,8 +134,7 @@ if has_pro:
             print(f"  SKIP {slug}: not in Pro")
             continue
 
-        # Build profile payload — only sync fields known to exist in Pro schema
-        # (pipeline_ready and allowed_url_patterns added later via migration)
+        # Build profile payload — all fields now that Pro has pipeline_ready + allowed_url_patterns
         payload = {}
         for field in ['site_type', 'discovery_mode', 'seed_urls', 'exclusion_patterns',
                        'catalog_url_patterns', 'catalog_link_selector', 'catalog_max_pages',
@@ -143,7 +142,8 @@ if has_pro:
                        'warmup_url', 'popup_close_selectors', 'detail_wait_ms',
                        'section_keywords', 'field_defaults', 'section_mode_map', 'section_course_type_map',
                        'title_prefix_removals', 'title_split_separators', 'price_regex', 'duration_regex',
-                       'max_courses_per_run', 'soft_delete_before_scrape', 'notes']:
+                       'max_courses_per_run', 'soft_delete_before_scrape', 'notes',
+                       'pipeline_ready', 'allowed_url_patterns']:
             val = p.get(field)
             if val is not None:
                 payload[field] = val
