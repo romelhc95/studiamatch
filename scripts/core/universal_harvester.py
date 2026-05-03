@@ -264,12 +264,53 @@ class UniversalHarvester:
             logger.warning(f"Could not load existing URLs from DB: {e}")
         return set()
 
+    async def discover_hardcoded_urls(self):
+        """Discovery mode: use seed_urls from site profile directly."""
+        discovery_mode = self.profile.get('discovery_mode', '')
+        seed_urls = self.profile.get('seed_urls', [])
+        
+        if discovery_mode != 'hardcoded_urls' or not seed_urls:
+            return None
+        
+        inst_id = self.institution.get('id')
+        # Strip UTM parameters from seed URLs for deduplication
+        seen = set()
+        clean_seeds = []
+        for u in seed_urls:
+            clean_u = normalize_url(u)
+            if clean_u not in seen:
+                seen.add(clean_u)
+                clean_seeds.append(u)
+        
+        logger.info(f"🔗 [HARDCODED] Loaded {len(clean_seeds)} seed URLs for {self.institution.get('name')}")
+        
+        existing_urls = await self._load_existing_urls()
+        new_urls = []
+        for url in clean_seeds:
+            if self.check_time_guard():
+                break
+            if url not in existing_urls and self._is_valid_crawl_url(url):
+                new_urls.append(url)
+                self.course_urls.add(url)
+                self._save_discovered_url(url)
+        
+        logger.info(f"Total Discovery (hardcoded): {len(new_urls)} NEW from {len(clean_seeds)} seeds.")
+        return new_urls
+
     async def discover_courses(self):
         start_url = self.institution.get('website_url')
         if not start_url: return []
-
-        logger.info(f"Starting discovery for {self.institution.get('name')}")
         existing_urls = await self._load_existing_urls()
+
+        discovery_mode = self.profile.get('discovery_mode', '')
+        
+        # 🔗 HARDCODED_URLS mode: use seed_urls from site profile
+        if discovery_mode == 'hardcoded_urls':
+            hardcoded_result = await self.discover_hardcoded_urls()
+            if hardcoded_result is not None:
+                return hardcoded_result
+        
+        logger.info(f"Starting discovery for {self.institution.get('name')}")
         
         sitemap_url = urljoin(start_url, '/sitemap.xml')
         async with AsyncSession() as session:
