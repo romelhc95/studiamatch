@@ -137,13 +137,31 @@ class CleansingWorker:
     def _load_exclusions(self) -> List[Dict[str, Any]]:
         try:
             if self.profiles:
-                all_patterns = []
+                raw_patterns = []
                 for p in self.profiles:
                     ep = p.get('exclusion_patterns', [])
                     if ep:
-                        all_patterns.extend(ep)
-                if all_patterns:
-                    return list(set(all_patterns))
+                        raw_patterns.extend(ep)
+                if raw_patterns:
+                    compiled = []
+                    for exc in set(raw_patterns):
+                        if isinstance(exc, str):
+                            if exc.startswith('re:'):
+                                pat = exc[3:]
+                                if len(pat) > 200:
+                                    logger.warning(f"Regex pattern too long, skipping: {pat[:50]}...")
+                                    continue
+                                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                                    logger.warning(f"ReDoS-risk pattern rejected: {pat}")
+                                    continue
+                                try:
+                                    compiled.append(re.compile(pat, re.IGNORECASE))
+                                except re.error as e:
+                                    logger.warning(f"Invalid regex pattern '{pat}': {e}")
+                                    continue
+                            else:
+                                compiled.append(exc.lower())
+                    return compiled
             return []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
@@ -201,11 +219,11 @@ class CleansingWorker:
         
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
-            if isinstance(exc, str):
-                if exc.startswith('re:'):
-                    if re.search(exc[3:], low_url, re.IGNORECASE):
-                        return f"hard_db_exclusion:regex:{exc}"
-                elif exc.lower() in low_url:
+            if isinstance(exc, re.Pattern):
+                if exc.search(low_url):
+                    return f"hard_db_exclusion:regex:{exc.pattern}"
+            elif isinstance(exc, str):
+                if exc in low_url:
                     return f"hard_db_exclusion:{exc}"
 
         # Fase 75: Noise name patterns — detecta nombres de programas que son claramente ruido
@@ -332,8 +350,7 @@ if __name__ == "__main__":
         # Fase 75: Exclusion Gate — saltar registros de instituciones no listas
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:
-            # Marcar como discarded para no reprocesar infinitamente
-            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'discarded', 'error_message': 'pipeline_ready=false'})
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
             continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:

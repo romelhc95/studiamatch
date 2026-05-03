@@ -10,6 +10,8 @@
 >
 > **Comando Base Mandatorio**:
 > `docker exec -it studiamatch-dev [comando]`
+>
+> **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
 - **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 71, 72-75 completadas. Pipeline con cancelación controlada + Exclusion Gate activo. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug. **Fase 71 completada**: Pro→Free sync ejecutado (6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses). FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` con mapeo slug operacional. **Fase 75 completada**: 5 capas de defensa implementadas. Ruido retroactivo limpiado (4/12 courses desactivados). `pipeline_ready=false` en todas las instituciones — pipeline bloqueado hasta afinar exclusiones.
@@ -105,18 +107,20 @@ La ejecución del sistema se centraliza en la API de Supabase:
 El código viajará de forma ascendente cumpliendo "Puertas de Calidad" en cada etapa:
 
 1.  **Work In Progress (WIP)**: Se trabaja en ramas de feature (ej: `feat/new-harvester`) que emergen de `desarrollo`. [x] Ramas `desarrollo` y `certificacion` creadas.
-2.  **Pull Request a `desarrollo`**: Revisión tí©cnica y validación de scripts en el sandbox actual.
-3.  **Promoción a `certificacion`**: Ejecución obligatoria de la Suite E2E (`Playwright`) y Auditorí­a de Integridad de Datos.
-4.  **Merge a `main`**: Despliegue automático a producción (Supabase Pro) tras aprobación del @SDLC-Chief.
+2.  **Auditoría de Seguridad** (@security-auditor): **OBLIGATORIA** antes de commit push a `desarrollo`. Todo cambio de código DEBE ser revisado por el security-auditor. Las observaciones encontradas DEBEN remediarse antes de proceder con el commit y push.
+3.  **Pull Request a `desarrollo`**: Revisión técnica, validación de scripts en sandbox, y auditoría de seguridad aprobada.
+4.  **Promoción a `certificacion`**: Ejecución obligatoria de la Suite E2E (`Playwright`) y Auditoría de Integridad de Datos.
+5.  **Merge a `main`**: Despliegue automático a producción (Supabase Pro) tras aprobación del @SDLC-Chief.
 
 ### Regla SDLC para Cambios en Base de Datos y Datos
 
 > **IMPORTANTE**: Todo cambio SQL, migración, o modificación de datos DEBE seguir el flujo:
 > 1. **Desarrollo (Free)**: Probar migration/script en Free primero. Validar que no rompe nada.
-> 2. **Certificación**: Ejecutar E2E Playwright + auditoría de datos en Free (certificacion branch).
-> 3. **Producción (Pro)**: Aplicar solo tras confirmación explícita del @SDLC-Chief. NUNCA aplicar directamente en Pro sin pasar por Desarrollo y Certificación.
+> 2. **Auditoría de Seguridad** (@security-auditor): Revisión obligatoria de código antes de commit push a `desarrollo`. Remediar observaciones antes de proceder.
+> 3. **Certificación**: Ejecutar E2E Playwright + auditoría de datos en Free (certificacion branch).
+> 4. **Producción (Pro)**: Aplicar solo tras confirmación explícita del @SDLC-Chief. NUNCA aplicar directamente en Pro sin pasar por Desarrollo y Certificación.
 >
-> Formato correcto en tareas: "Aplicar migration en Free → Certificar → Aplicar en Pro (tras aprobación)"
+> Formato correcto en tareas: "Aplicar migration en Free → Auditoría → Certificar → Aplicar en Pro (tras aprobación)"
 > Formato incorrecto: "Aplicar en Free + Pro" (salta certificación)
 
 ---

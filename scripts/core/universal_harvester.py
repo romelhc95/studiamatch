@@ -72,7 +72,26 @@ class UniversalHarvester:
     def _load_exclusions(self):
         try:
             if self.profile and self.profile.get('exclusion_patterns'):
-                return self.profile['exclusion_patterns']
+                raw = self.profile['exclusion_patterns']
+                compiled = []
+                for exc in raw:
+                    if isinstance(exc, str):
+                        if exc.startswith('re:'):
+                            pat = exc[3:]
+                            if len(pat) > 200:
+                                logger.warning(f"Regex pattern too long, skipping: {pat[:50]}...")
+                                continue
+                            if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                                logger.warning(f"ReDoS-risk pattern rejected: {pat}")
+                                continue
+                            try:
+                                compiled.append(re.compile(pat, re.IGNORECASE))
+                            except re.error as e:
+                                logger.warning(f"Invalid regex pattern '{pat}': {e}")
+                                continue
+                        else:
+                            compiled.append(exc.lower())
+                return compiled
             return []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
@@ -210,12 +229,27 @@ class UniversalHarvester:
             return False
 
         for exc in self.exclusions:
-            if isinstance(exc, str):
-                if exc.startswith('re:'):
-                    if re.search(exc[3:], low_url, re.IGNORECASE):
-                        return False
-                elif exc.lower() in low_url:
+            if isinstance(exc, re.Pattern):
+                if exc.search(low_url):
                     return False
+            elif isinstance(exc, str):
+                if exc in low_url:
+                    return False
+
+        # Fase 75: ALLOWLIST (allowed_url_patterns) — si existe, URL debe matchear al menos uno
+        allowed = self.profile.get('allowed_url_patterns', []) if self.profile else []
+        if allowed:
+            for pattern in allowed:
+                if isinstance(pattern, str):
+                    if pattern.startswith('re:'):
+                        try:
+                            if re.search(pattern[3:], low_url, re.IGNORECASE):
+                                return True
+                        except re.error:
+                            continue
+                    elif pattern.lower() in low_url:
+                        return True
+            return False  # No allowlist pattern matched — reject
 
         return True
 
@@ -435,9 +469,14 @@ async def main():
     inst = json.loads(args.institution)
     harvester = UniversalHarvester(inst, global_start=global_start)
 
-    # Fase 75: Exclusion Gate — skip if institution not ready
+    # Fase 75: Silence skip if no profile or pipeline_ready=false
+    if not harvester.profile:
+        logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
+                     f"Crea un perfil antes de ejecutar el pipeline.")
+        return
     if not harvester.profile.get('pipeline_ready'):
-        logger.warning(f"⏭️ SKIP {inst['name']}: pipeline_ready=false (Fase 75 gate). Afinar exclusiones primero.")
+        logger.warning(f"⏭️ SKIP {inst['name']}: pipeline_ready=false (Fase 75 gate). "
+                       f"Afinar exclusiones primero y setear pipeline_ready=true.")
         return
 
     urls = await harvester.discover_courses()

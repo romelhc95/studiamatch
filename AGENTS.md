@@ -128,9 +128,14 @@ El archivo `.env.gitprod` (gitignored) contiene:
 
 ### Git Flow
 - `desarrollo` — rama activa de desarrollo (PR requerido, review técnico)
+- **@security-auditor**: Revisión obligatoria antes de commit push a `desarrollo`. Observaciones DEBEN remediarse antes de proceder.
 - `certificacion` — QA, E2E Playwright, auditoría de datos
 - `main` — producción (Supabase Pro, despliegue automático a Cloudflare)
 - Features: ramas `feat/*` que emergen de `desarrollo`
+
+### Regla SDLC
+> Todo cambio de código DEBE pasar por: **Desarrollo → @security-auditor → Certificación → Producción**.
+> Todo cambio SQL/Datos DEBE pasar por: **Free → @security-auditor → Certificación → Pro (tras aprobación @SDLC-Chief)**.
 
 ### Python: db_client.py
 ```python

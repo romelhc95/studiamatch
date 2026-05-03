@@ -2,9 +2,10 @@ import os
 import json
 import logging
 import sys
-import requests
 import re
+import html
 import time
+import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -131,6 +132,14 @@ class EnrichmentWorker:
         json_str = re.sub(r',\s*\]', ']', json_str)
         return json_str
 
+    def _sanitize_for_prompt(self, text: str, max_len: int = 1200) -> str:
+        if not text:
+            return ""
+        text = html.unescape(text)
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+        return text[:max_len]
+
     def _call_llm_for_pillars(self, name, description, inst_id=None):
         profile = self._get_profile(inst_id) if inst_id else {}
         section_keywords = profile.get('section_keywords', {})
@@ -147,8 +156,8 @@ class EnrichmentWorker:
                 hints += f"- {key}: {val}\n"
 
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
-Nombre: {name}
-Descripción: {description[:1200]}
+[SYS] Nombre: {self._sanitize_for_prompt(name, 200)}
+[SYS] Descripción: {self._sanitize_for_prompt(description, 1200)}
 {hints}
 
 REGLAS CRÍTICAS:
@@ -348,7 +357,7 @@ if __name__ == "__main__":
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
                         logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
-                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'discarded', 'error_message': 'pipeline_ready=false'})
+                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
                         continue
                     worker.enrich_record(r)
                     total_processed += 1

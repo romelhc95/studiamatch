@@ -62,7 +62,7 @@ class SyncVectorWorker:
         inst_id = enriched.get('institution_id')
         if inst_id and str(inst_id) not in self.ready_inst_ids:
             logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_ready=false")
-            self.update_enriched_status(e_id, "error", error_msg="pipeline_ready=false")
+            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_ready=false")
             return
 
         # Fase 75: Post-sync noise validation

@@ -13,4 +13,4 @@ ON institution_site_profiles (institution_id)
 WHERE pipeline_ready = true;
 
 COMMENT ON COLUMN institution_site_profiles.pipeline_ready IS 'Fase 75: Si false, el pipeline omite esta institucion. Solo activar tras afinar exclusiones.';
-COMMENT ON COLUMN institution_site_profiles.allowed_url_patterns IS 'Fase 75: Lista de regex de URLs que SI son programas (whitelist positiva).';
+COMMENT ON COLUMN institution_site_profiles.allowed_url_patterns IS 'Fase 75: Lista de regex de URLs que SI son programas (whitelist positiva). SECURITY: allowed_url_patterns contiene regex de whitelist — NO exponer via anon RLS. La policy profiles_select_public en restore_full_schema.sql DEBE ser eliminada y reemplazada por profiles_select_authenticated.';
