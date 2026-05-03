@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import sys
+import re
 import requests
 from urllib.parse import urlparse
 from dotenv import load_dotenv
@@ -21,6 +22,20 @@ class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
         self.profiles = self._load_profiles()
+        # Fase 75: Exclusion Gate
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
+        # Fase 75: Patrones de ruido — rechazar antes de insertar en courses
+        self.noise_patterns = [
+            re.compile(r'agradecimiento', re.IGNORECASE),
+            re.compile(r'thank.?\s*you', re.IGNORECASE),
+            re.compile(r'^https?://[^/]+/?$'),
+            re.compile(r'/facultad-de-[^/]+/?$'),
+            re.compile(r'matr[ií]cul', re.IGNORECASE),
+            re.compile(r'inscr[ií]b', re.IGNORECASE),
+        ]
 
     def _load_profiles(self):
         try:
@@ -42,6 +57,20 @@ class SyncVectorWorker:
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
+
+        # Fase 75: Exclusion Gate — skip si la institucion no esta lista
+        inst_id = enriched.get('institution_id')
+        if inst_id and str(inst_id) not in self.ready_inst_ids:
+            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_ready=false")
+            self.update_enriched_status(e_id, "error", error_msg="pipeline_ready=false")
+            return
+
+        # Fase 75: Post-sync noise validation
+        for pat in self.noise_patterns:
+            if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
+                logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
+                self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
+                return
 
         # Validate name: reject None, "None", empty, or too-short names
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:

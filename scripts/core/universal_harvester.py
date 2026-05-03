@@ -211,7 +211,10 @@ class UniversalHarvester:
 
         for exc in self.exclusions:
             if isinstance(exc, str):
-                if exc.lower() in low_url:
+                if exc.startswith('re:'):
+                    if re.search(exc[3:], low_url, re.IGNORECASE):
+                        return False
+                elif exc.lower() in low_url:
                     return False
 
         return True
@@ -431,7 +434,12 @@ async def main():
     
     inst = json.loads(args.institution)
     harvester = UniversalHarvester(inst, global_start=global_start)
-    
+
+    # Fase 75: Exclusion Gate — skip if institution not ready
+    if not harvester.profile.get('pipeline_ready'):
+        logger.warning(f"⏭️ SKIP {inst['name']}: pipeline_ready=false (Fase 75 gate). Afinar exclusiones primero.")
+        return
+
     urls = await harvester.discover_courses()
     
     async with async_playwright() as p:

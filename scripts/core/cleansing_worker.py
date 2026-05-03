@@ -110,6 +110,11 @@ class CleansingWorker:
         self.db = db_client or get_db_client()
         self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
+        # Fase 75: Exclusion Gate — solo procesar instituciones con pipeline_ready=true
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
         # Páginas que son solo contenedores y no cursos reales
         # Fase 72: hub_patterns diferencian landing page vs subpáginas vía /?$ (regex)
         # /idiomas/?$ bloquea /idiomas pero NO /idiomas/english-media
@@ -197,8 +202,25 @@ class CleansingWorker:
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
             if isinstance(exc, str):
-                if exc.lower() in low_url:
+                if exc.startswith('re:'):
+                    if re.search(exc[3:], low_url, re.IGNORECASE):
+                        return f"hard_db_exclusion:regex:{exc}"
+                elif exc.lower() in low_url:
                     return f"hard_db_exclusion:{exc}"
+
+        # Fase 75: Noise name patterns — detecta nombres de programas que son claramente ruido
+        noise_patterns = [
+            r'agradecimiento',
+            r'thank.?\s*you',
+            r'gracias',
+            r'matr[ií]culas?\s+abiert',
+            r'inscr[ií]bete',
+            r'^facultad\s+de\b',
+            r'^universidad\s+\w+\s*\|',
+        ]
+        for pat in noise_patterns:
+            if re.search(pat, low_name, re.IGNORECASE):
+                return f"noise_name_pattern:{pat}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"
@@ -307,6 +329,12 @@ if __name__ == "__main__":
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
+        # Fase 75: Exclusion Gate — saltar registros de instituciones no listas
+        inst_id = record.get('institution_id')
+        if inst_id and str(inst_id) not in worker.ready_inst_ids:
+            # Marcar como discarded para no reprocesar infinitamente
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'discarded', 'error_message': 'pipeline_ready=false'})
+            continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:
             total_processed += worker.process_batch(batch_accumulator)
