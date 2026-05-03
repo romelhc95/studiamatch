@@ -469,15 +469,18 @@ async def main():
     inst = json.loads(args.institution)
     harvester = UniversalHarvester(inst, global_start=global_start)
 
-    # Fase 75: Silence skip if no profile or pipeline_ready=false
+    # Fase 75: Require profile to run harvester
+    # pipeline_ready gate is NOT enforced for discovery — harvester always populates
+    # staging_raw so users can review URLs and tune exclusion_patterns.
+    # Cleansing/enrichment/sync workers enforce pipeline_ready separately.
     if not harvester.profile:
         logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
                      f"Crea un perfil antes de ejecutar el pipeline.")
         return
     if not harvester.profile.get('pipeline_ready'):
-        logger.warning(f"⏭️ SKIP {inst['name']}: pipeline_ready=false (Fase 75 gate). "
-                       f"Afinar exclusiones primero y setear pipeline_ready=true.")
-        return
+        logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_ready=false. "
+                    f"Harvester will discover URLs into staging_raw for review. "
+                    f"Cleansing/enrichment/sync will skip until pipeline_ready=true.")
 
     urls = await harvester.discover_courses()
     
