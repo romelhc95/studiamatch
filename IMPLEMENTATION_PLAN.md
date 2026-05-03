@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61 (código), 63, 66, 68 completadas. Fases 72, 73 (código). Pipeline con cancelación controlada. **Fuente única de exclusiones consolidada en código**: `institution_site_profiles` es la única fuente que lee el pipeline. `crawler_exclusions` deprecada pero aún existe en DB (DROP TABLE pendiente → Fase 74). 11 harvesters movidos a `deprecated/`. Pro pendiente de migrations Dashboard + merge exclusiones. 5 scripts legacy aún referencian CE (3 deprecados, 2 necesitan reescritura).
-- **Último Hito**: Fases 61-64 (código), 72-73 (código) ejecutadas. Auditoría de seguridad completada — `.gitignore` actualizado, project refs eliminados, código limpio.
-- **Próxima Acción**: Fase 74 — aplicar migrations Pro (Dashboard), merge exclusiones en Pro, reescribir scripts legacy, DROP TABLE `crawler_exclusions`, actualizar DDL/docs → Fase 71 (restaurar datos Pro) → Fase 67A (Email).
+- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 72-74 completadas. Pipeline con cancelación controlada. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug.
+- **Último Hito**: Fase 74 completada — Pro DB seeded con 11 perfiles, DROP TABLE `crawler_exclusions`, updated_at trigger, 14 scripts deprecated, seguridad remediada.
+- **Próxima Acción**: Fase 71 — Sincronizar Pro → Free (12 cursos + 6,498 staging_raw), fix FG3 integrity_ping, ejecutar pipeline FG2 en Pro para poblar más cursos → Fase 67A (Email).
 
 ## Tareas Pendientes Priorizadas
 
@@ -34,8 +34,8 @@
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
-| **P1** | **Fase 71 — Restaurar Datos en Producción** | Pipeline | Diagnosticar secrets Production, poblar BD Pro, fix FG3 `ModuleNotFoundError`. Sitio muestra 0 cursos. | **Bloqueante** — sin datos no hay producto |
-| **P1** | **Fase 74 — Migración Pro + Eliminación Definitiva CE** | Infraestructura | Aplicar migrations Pro, merge exclusiones en Pro, reescribir 5 scripts legacy, DROP TABLE `crawler_exclusions`, actualizar docs y DDL. | Depende de acceso Dashboard Pro |
+| **P1** | **Fase 71 — Sincronización Pro→Free + Pipeline Producción** | Infraestructura | Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, ejecutar pipeline FG2 en Pro para poblar más cursos. | **Bloqueante** — sin datos Free no hay desarrollo |
+| ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (Pro), docs/DDL actualizados, security audit remediado. Free pendiente DROP TABLE opcional.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
 | ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
@@ -59,15 +59,15 @@
 - [x] **R8**: Auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens. 3 docs actualizados con nuevo project ref `YOUR_FREE_PROJECT_REF` y nuevos nombres de keys.
 - [x] **R6**: Proyecto Pro (`YOUR_PRO_PROJECT_REF`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [x] **R7**: GitHub Secrets configurados (3 environments) + Cloudflare Pages env vars configuradas + pipeline ejecutando en producción.
-- [x] **Fase 61**: Site Profiles — CONSOLIDADA (código). 11 perfiles con patterns completos en Free (40-146), DMC creado. `crawler_exclusions` deprecada, fallback eliminado de harvester/cleansing. Pro pendiente → **Fase 74**.
+- [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
 - [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada.
 - [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
-- [~] **Fase 62**: Universal Harvester Adaptativo — `hardcoded_urls` ✅, `paginated_catalog`/`section_keywords`/`field_defaults` pendientes.
+- [~] **Fase 62**: Universal Harvester Adaptativo — `hardcoded_urls` ✅, `paginated_catalog`/`section_keywords`/`field_defaults` pendientes. Nota: `section_keywords`/`field_defaults` ya se inyectan desde el perfil en enrichment_worker (Fase 63), falta integración en harvester.
 - [x] **Fase 63**: Enrichment + Sync con Perfiles — `section_keywords` inyectado en prompt LLM, `field_defaults` como fallback en sync_vector, `section_mode_map` para derivar modality.
 - [x] **Fase 72**: U. Lima Reducción de Ruido — exclusiones consolidadas en perfiles, hub_patterns, retro cleanup, de-dup UTM.
-- [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro pendiente Dashboard.
-- [x] **Fase 64**: Deprecar Harvesters — 11 harvesters movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE y limpieza residual → **Fase 74**.
-- [ ] **Fase 74**: Migración Pro + Eliminación Definitiva CE — aplicar migrations Pro, merge exclusiones, reescribir 5 scripts legacy, DROP TABLE `crawler_exclusions`, actualizar DDL + docs + AGENTS.md.
+- [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro aplicada Dashboard.
+- [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en Pro, Free pendiente.
+- [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (Pro, Free pendiente), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 
 ---
@@ -83,7 +83,7 @@ Para garantizar la paridad total y seguridad, **StudIAMatch** utiliza una arquit
 | **TIER 3: Producción** | `main` | `Production` | **Supabase Pro** | Servicio estable y escalable. |
 
 > [!WARNING]
-> **Gestión de Secretos**: Los secretos `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` deben configurarse en sus respectivos entornos de GitHub. Nunca deben incluirse en archivos subidos al repositorio.
+> **Gestión de Secretos**: Los secretos `SUPABASE_URL`, `NEXT_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_SECRET_KEY` deben configurarse en sus respectivos entornos de GitHub. Nunca deben incluirse en archivos subidos al repositorio.
 
 ---
 
@@ -310,7 +310,7 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data
 | Categorías | 18 (con slug, sin duplicados) | 24 (sin slug, duplicados en español) | Reemplazar |
 | Category rules | 105 | 0 | Insertar |
 | Market salaries | 17 | 17 | UPSERT |
-| Crawler exclusions | 255 | Tabla no existe | Crear tabla + data |
+| Crawler exclusions | 558 (Free) | 496 → Eliminada (Pro) | Tabla deprecada, perfiles son fuente única |
 | Pipeline tables | staging_raw:3450, cleansed:586, enriched:728 | No existen | Crear tablas + data |
 | Leads | 0 | 0 | N/A |
 | Ratings/Reviews | Tablas existen (vacías) | Tablas existen (vacías) | N/A |
@@ -333,7 +333,7 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data
 | `staging_raw` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `cleansed_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `enriched_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all, public read) |
-| `crawler_exclusions` | ✅ | ✅ | Sin cambios (public select active, service all) |
+| ~~`crawler_exclusions`~~ | ~~✅~~ | ~~✅~~ | ~~Eliminada (DROP TABLE Pro, Free pendiente)~~ → ~~`institution_site_profiles.exclusion_patterns`~~ |
 
 **WARN del Advisor (post-prioridades 1-5)** — Estado final:
 
@@ -445,8 +445,8 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
 ### Fase 33: Dominios y Cloudflare (studiamatch.com) [x] Completado + Documentación actualizada (R8)
 
 **Dominios confirmados por el usuario**:
-- Desarrollo: `https://desarrollo.studiamatch.pages.dev` (rama `desarrollo`)
-- Certificacion: `https://studiamatch.pages.dev/` (rama `certificacion`)
+- Desarrollo: `https://desarrollo.studiamatch-aty.pages.dev/` (rama `desarrollo`)
+- Certificacion: `https://certificacion.studiamatch-aty.pages.dev/` (rama `certificacion`)
 - Produccion: `https://www.studiamatch.com/` (rama `main`)
 - Local: `http://localhost:3000/`
 
@@ -1547,7 +1547,7 @@ Frontend POST /rest/v1/leads (ya funciona)
 3. **Crear Edge Function `send-lead-emails`**:
    - [ ] `supabase/functions/send-lead-emails/index.ts`
    - [ ] Recibe POST con `{ lead_id: UUID }`
-   - [ ] Busca lead + course + institution details via PostgREST (service_role)
+   - [ ] Busca lead + course + institution details via PostgREST
    - [ ] Llama Resend API (`POST https://api.resend.com/emails`) para cada destinatario
    - [ ] Templates HTML inline (sin React Email para simplicidad inicial)
    - [ ] Manejo de errores: log en tabla `email_log`, no fallar el INSERT del lead si email falla
@@ -1555,7 +1555,7 @@ Frontend POST /rest/v1/leads (ya funciona)
 4. **Configurar secrets en Supabase**:
    - [ ] `RESEND_API_KEY` en Dashboard > Edge Functions > Secrets
    - [ ] `ADMIN_EMAIL` (email del admin que recibe notificaciones, ej: `admin@example.com`)
-   - [ ] `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (para que la Edge Function busque datos del lead)
+   - [ ] `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` (para que la Edge Function busque datos del lead)
 
 5. **Validación**:
    - [ ] Invocar Edge Function manualmente con un `lead_id` de prueba
@@ -1824,69 +1824,132 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 - `_generate_smart_mock()` — fallback final sin cambios
 - `db_client.py` — no relevante para esta fase
 
-### Fase 71: Restaurar Datos en Producción — Diagnóstico y Población de BD Pro [ ] Pendiente
-Objetivo: Diagnosticar por qué la BD Pro está vacía (0 cursos) a pesar de pipelines exitosos, corregir la causa raíz, y restaurar los datos para que studiamatch.com muestre cursos.
+### Fase 71: Sincronización Pro→Free + Pipeline Producción [ ] Pendiente
 
-**Diagnóstico actual** (03 May 2026):
+Objetivo: Emparejar Free (desarrollo/certificación) con Pro (producción) trayendo data real, y poblar Pro con más cursos vía pipeline FG2.
 
-| Métrica | Free (`YOUR_FREE_PROJECT_REF`) | Pro (`YOUR_PRO_PROJECT_REF`) |
-|---|---|---|
-| Instituciones | 11 | 11 |
-| Cursos | 0 | 0 |
-| staging_raw | 0 | 0 |
-| enriched_programs | 0 | 0 |
-| crawler_exclusions | 358 | 358 |
+**Premisa de seguridad**: Los scripts que sincronizan datos entre Free y Pro DEBEN usar exclusivamente las Publishable y Secret API keys (`sb_publishable_*` / `sb_secret_*`), NUNCA compartir credenciales entre ambientes ni hardcodear keys. Las credenciales se leen de variables de entorno productivo: `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` para Pro, `.env.local` para Free. Ambas keys son rotables ante exposición.
 
-**Síntomas**:
-- Último pipeline FG2 (run `25258867446`, 02-May): éxito reportado, Fase 3 logueó "Successfully synced" 12 cursos UTP → pero **0 cursos en BD Pro**
-- Fase 1 (Harvest): Freshness Guard skipeó todas las instituciones (dense, recent)
-- Fase 1.5 (Cleansing): **0 URLs procesadas** — no había nada nuevo en `staging_raw`
-- Fase 3 FG3 (Integrity Ping, run `25246243816`): FALLÓ con `ModuleNotFoundError: No module named 'shared'`
-- Frontend studiamatch.com muestra "0 resultados" — query `is_active=eq.true&is_verified=eq.true` retorna `[]`
-- Ambas BD (Free y Pro) están completamente vacías de datos de cursos
+**Diagnóstico actual** (04 May 2026):
 
-**Causas raíz probables** (ordenadas por likelihood):
-
-| # | Causa | Evidencia | Impacto |
+| Métrica | Free (Desarrollo) | Pro (Producción) | Acción |
 |---|---|---|---|
-| 1 | GitHub Secret `SUPABASE_URL` en Environment `Production` apunta a BD Free, no Pro | Pipeline logueó "synced" 12 cursos pero no aparecen en Pro → upsert fue a BD equivocada | Crítico |
-| 2 | Upsert retorna éxito sin persistir (RLS silencioso con key incorrecta) | `db_client.py` usa `service_role` para writes → debería bypass RLS; pero si URL es Free, escribió en Free | Crítico |
-| 3 | BD fue truncada o reseteada en algún momento posterior al pipeline | Ambas BD tienen 0 cursos, 0 staging_raw, 0 enriched | Alto |
-| 4 | Freshness Guard impide re-harvest → pipeline se vacía progresivamente | Con 0 cursos y 0 staging_raw, Freshness Guard ya no debería activarse (count=0) | Medio |
+| institutions | 11 | 11 | ✅ Igual contenido, UUIDs diferentes |
+| categories | 17 | 17 | ❓ Probablemente iguales, verificar |
+| category_rules | 108 | 108 | ✅ Depende de institution_id |
+| market_salaries | 17 | 17 | ✅ Depende de category_id |
+| institution_site_profiles | 11 | 11 | ✅ Depende de institution_id |
+| **courses** | **0** | **12** (UTP) | **Pro → Free** (con slug mapping) |
+| **staging_raw** | **317** | **6,498** | **Pro → Free** (UPSERT por URL) |
+| cleansed_programs | 242 | 242 | Verificar paridad |
+| enriched_programs | 12 | 12 (synced) | Verificar paridad |
+| leads | 0 | 0 | N/A |
+| crawler_exclusions | ❌ DROPPED | ❌ DROPPED | Confirmado eliminada en ambos |
 
-1. **Diagnosticar secrets de GitHub Environment `Production`**:
-   - [ ] Verificar que `SUPABASE_URL` en GitHub Environment `Production` apunta a `https://YOUR_PRO_PROJECT_REF.supabase.co` (Pro), no a Free
-   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` corresponde al service_role key del proyecto Pro
-   - [ ] Si apunta a Free: corregir y re-ejecutar pipeline
+**Mapeo de UUIDs** (institutions — los IDs difieren entre ambientes):
 
-2. **Diagnosticar secrets de GitHub Environment `Development`**:
-   - [ ] Verificar que `SUPABASE_URL` apunta a Free (`https://YOUR_FREE_PROJECT_REF.supabase.co`)
-   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` corresponde al service_role key de Free
+| slug | Free UUID | Pro UUID |
+|---|---|---|
+| dmc | `74022aa7-...` | `9aebb0fb-...` |
+| idat | `2033fba3-...` | `a7a77d2a-...` |
+| senati | `e8aa52da-...` | `1adeb662-...` |
+| uni | `0921f586-...` | `2647058e-...` |
+| universidad-continental | `302a19be-...` | `7dc17e61-...` |
+| universidad-de-lima | `9e41419f-...` | `9ec85305-...` |
+| universidad-del-pacifico | `99700d5d-...` | `a4fd99a6-...` |
+| unmsm | `db127b65-...` | `312d1aa3-...` |
+| upc | `6479d48d-...` | `19c4ec63-...` |
+| usil | `24418880-...` | `1f376ef7-...` |
+| utp | `c63e0290-...` | `6c86caf1-...` |
 
-3. **Poblar BD Pro con pipeline manual**:
-   - [ ] Ejecutar pipeline FG2 manual (`workflow_dispatch`) en rama `main` con secrets correctos
-   - [ ] Verificar que el harvester descubre URLs (Freshness Guard no debe activarse con count=0)
-   - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
-   - [ ] Verificar que `SELECT count(*) FROM courses` retorna >0 en Pro tras el pipeline
+**Arquitectura del script `sync_pro_to_free.py`**:
+
+```
+PRO (lectura) ──────────────────────────────────────────> FREE (escritura)
+SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
+        │                                                │
+        ├─ GET /institutions ──┐                         │
+        │                       ├─ slug_map ─────────────┤─ UPSERT staging_raw (6,498)
+        ├─ GET /categories ─────┤  pro_uuid → free_uuid  ├─ UPSERT cleansed_programs (242)
+        │   (Pro slug→UUID)   │                         ├─ UPSERT enriched_programs (12)
+        │                       │                         └─ UPSERT courses (12)
+        ├─ GET /courses ────────┤   batch_size=200
+        ├─ GET /staging_raw ───┤
+        ├─ GET /cleansed ──────┤   on_conflict=url
+        └─ GET /enriched ──────┘
+```
+
+**Tablas a sincronizar** (en orden por FK):
+
+| # | Tabla | FK a traducir | On Conflict | Batch Size | Notas |
+|---|---|---|---|---|---|
+| 1 | `staging_raw` | `institution_id` | `url` | 200 | 6,498 rows, la tabla más pesada |
+| 2 | `cleansed_programs` | `institution_id` | `url` | 200 | 242 rows |
+| 3 | `enriched_programs` | `institution_id`, `cleansed_id`* | `url` | 50 | 12 rows, `cleansed_id` puede omitirse si no existe en Free |
+| 4 | `courses` | `institution_id`, `category_id` | `url` | 50 | 12 rows, mapear ambos FKs |
+
+**NO se sincronizan** (ya iguales o dependientes):
+- `institutions` (11 = 11, UUIDs diferentes pero misma data)
+- `categories` (17 = 17, verificar UUIDs)
+- `category_rules` (108 = 108, dependen de institution_id + category_id)
+- `market_salaries` (17 = 17, dependen de category_id)
+- `institution_site_profiles` (11 = 11, ya sincronizados en Fase 74)
+
+1. **Crear script de sincronización Pro→Free**:
+   - [ ] Crear `scripts/maintenance/sync_pro_to_free.py` con slug mapping automático
+   - [ ] Lectura: Pro via REST API (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` env vars productivas)
+   - [ ] Escritura: Free via `db_client.py` (lee de `.env.local`, usa `sb_secret_*`)
+   - [ ] Mapeo automático: construir diccionario `pro_uuid → slug → free_uuid` para `institution_id` y `category_id`
+   - [ ] Modo `--dry-run`: contar filas y mostrar mapping sin escribir
+   - [ ] Modo `--full`: sincronizar las 4 tablas (default)
+   - [ ] Modo `--table <tabla>`: sincronizar solo una tabla específica
+   - [ ] Modo `--truncate-staging`: borrar staging_raw en Free antes de insertar
+   - [ ] JSONB fields (`exclusion_patterns`, `section_keywords`, etc.): serializar con `json.dumps()` para INSERT/UPSERT
+   - [ ] Batch inserts de 200 rows para no timeout
+   - [ ] Logging detallado por tabla: `OK: 6498/6498 staging_raw`, `SKIP: 15 already exist`, etc.
+
+2. **Probar sincronización con dry-run**:
+   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --dry-run` en Docker
+   - [ ] Verificar que el slug mapping produce 11 mapeos correctos
+   - [ ] Verificar que no hay UUIDs huérfanos (institution_id/category_id que no existen en Free)
+
+3. **Ejecutar sincronización real**:
+   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` en Docker
+   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM courses` retorna 12
+   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM staging_raw` retorna ≥6,498
+   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM enriched_programs` retorna 12
 
 4. **Fix FG3 Integrity Ping** (`ModuleNotFoundError: No module named 'shared'`):
-   - [ ] Agregar `sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` al inicio de `integrity_ping.py` (igual que otros scripts core)
-   - [ ] Agregar `working-directory: scripts/core` en `fg3_integrity.yml` O agregar `cd scripts/core && python integrity_ping.py`
+   - [ ] Agregar `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` al inicio de `integrity_ping.py`
+   - [ ] Agregar `working-directory: scripts/core` en `.github/workflows/fg3_integrity.yml`
    - [ ] Validar que FG3 ejecuta sin `ModuleNotFoundError`
 
-5. **Verificar frontend studiamatch.com post-restauración**:
-   - [ ] Confirmar que `studiamatch.com` muestra cursos (query `is_active=eq.true&is_verified=eq.true` retorna resultados)
+5. **Ejecutar pipeline FG2 en Producción** (poblar más cursos):
+   - [ ] Verificar que GitHub Secrets `Production` apunta a Pro (`SUPABASE_URL` = URL de Pro)
+   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
+   - [ ] Ejecutar pipeline FG2 manual (`workflow_dispatch`) en rama `main`
+   - [ ] Verificar que el harvester descubre URLs (Freshness Guard no debe activarse con count bajo)
+   - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
+   - [ ] Target: ≥100 cursos activos/verificados en Pro
+
+6. **Re-sincronizar Pro→Free post-pipeline**:
+   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` nuevamente
+   - [ ] Free queda como espejo de Pro para desarrollo/certificación
+
+7. **Verificar frontend studiamatch.com**:
+   - [ ] Confirmar que `studiamatch.com` muestra cursos (`is_active=eq.true&is_verified=eq.true` retorna resultados)
    - [ ] Confirmar que la página de detalle carga correctamente
    - [ ] Confirmar que filtros por institución funcionan (U. Lima, UTP, etc.)
 
-**Archivos que se modifican**:
+**Archivos que se crean/modifican**:
 
-| Archivo | Cambio |
-|---|---|
-| `scripts/core/integrity_ping.py` | Agregar sys.path fix |
-| `.github/workflows/fg3_integrity.yml` | Agregar working-directory o cd |
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `scripts/maintenance/sync_pro_to_free.py` | NUEVO | Sincronización Pro→Free con slug mapping, env vars para credenciales |
+| `scripts/core/integrity_ping.py` | FIX | Agregar sys.path fix |
+| `.github/workflows/fg3_integrity.yml` | FIX | Agregar working-directory |
 
-**No requiere migration SQL** — las tablas ya existen con schema correcto en ambas BD.
+**No requiere migration SQL** — las tablas ya existen con schema correcto en ambas BD (incluyendo `start_date`, `institution_site_profiles`, y `crawler_exclusions` eliminada).
 
 ### Fase 72: U. Lima — Reducción de Ruido y Normalización de URLs [~] En progreso
 
@@ -2036,7 +2099,7 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
    - [ ] Aplicar migration `20260503_fase73_start_date.sql` en Pro via Dashboard SQL Editor
    - [ ] Refrescar schema cache de PostgREST (Dashboard > Settings > API > Reload Schema Cache)
    - [ ] Verificar que `GET /rest/v1/institution_site_profiles` retorna 200 (no PGRST205)
-   - [ ] Ejecutar `merge_exclusions_to_profiles.py` contra Pro (con `SUPABASE_PRO_URL` + `SUPABASE_SERVICE_ROLE_KEY`)
+   - [ ] Ejecutar `merge_exclusions_to_profiles.py` contra Pro (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`)
    - [ ] Ejecutar `seed_site_profiles.py` contra Pro (datos completos con seed_urls, section_keywords, etc.)
    - [ ] Verificar: cada perfil en Pro tiene >= número de exclusiones que tenía en `crawler_exclusions`
 
