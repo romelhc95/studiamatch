@@ -36,6 +36,11 @@ class EnrichmentWorker:
     def __init__(self):
         self.db = get_db_client()
         self.profiles = self._load_profiles()
+        # Fase 75: Exclusion Gate
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
         cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
         gh_provider = LLMProvider("GitHub", self._call_github)
         gemini_provider = LLMProvider("Gemini", self._call_gemini)
@@ -152,6 +157,7 @@ REGLAS CRÍTICAS:
 - Para modality: debe ser exactamente "Presencial", "Remoto" o "Híbrido".
 - Para start_date: si hay fecha de inicio, extraerla. Ej: "Abril 2026" o "15 de mayo". Si no hay info, responder null.
 - Para official_name: usar el nombre completo y formal del programa, nunca abreviaciones.
+- REGLA ABSOLUTA: Si la página es un agradecimiento/thank-you, página de inicio (homepage), confirmation page, listado de facultades sin programa individual, o sede/campus sin programa → responde null en TODOS los campos. NO inventes datos de un programa que no existe.
 
 Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
@@ -334,14 +340,20 @@ if __name__ == "__main__":
 
         logger.info(f"📦 Procesando lote de {len(records)} registros...")
         for r in records:
-            if guard.should_exit:
-                logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
-                break
-            if r and isinstance(r, dict):
-                worker.enrich_record(r)
-                total_processed += 1
-                guard.tick(every=50)
-                time.sleep(1.5)
+                if guard.should_exit:
+                    logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
+                    break
+                if r and isinstance(r, dict):
+                    # Fase 75: Exclusion Gate — saltar institucion no lista
+                    inst_id = r.get('institution_id')
+                    if inst_id and str(inst_id) not in worker.ready_inst_ids:
+                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
+                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'discarded', 'error_message': 'pipeline_ready=false'})
+                        continue
+                    worker.enrich_record(r)
+                    total_processed += 1
+                    guard.tick(every=50)
+                    time.sleep(1.5)
 
         if len(records) < fetch_limit:
             logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")

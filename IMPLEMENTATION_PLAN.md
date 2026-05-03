@@ -12,9 +12,10 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 71, 72-74 completadas. Pipeline con cancelación controlada. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug. **Fase 71 completada**: Pro→Free sync ejecutado (6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses). FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` con mapeo slug operacional.
-- **Último Hito**: Fase 71 completada — Pro→Free sync (6,498+242+12+12 registros), FG3 fix, `sync_pro_to_free.py` con slug mapping. Commit `775507f`.
-- **Próxima Acción**: Ejecutar pipeline FG2 en Pro (workflow_dispatch) para poblar más cursos → Re-sync Pro→Free → Fase 67A (Email).
+- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 71, 72-75 completadas. Pipeline con cancelación controlada + Exclusion Gate activo. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug. **Fase 71 completada**: Pro→Free sync ejecutado (6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses). FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` con mapeo slug operacional. **Fase 75 completada**: 5 capas de defensa implementadas. Ruido retroactivo limpiado (4/12 courses desactivados). `pipeline_ready=false` en todas las instituciones — pipeline bloqueado hasta afinar exclusiones.
+- **Último Hito**: Fase 75 completada — Exclusion Gate + Noise Sentinel v2 implementado en 4 workers. Migration `20260504_fase75_pipeline_ready` aplicada en Free+Pro. Regex exclusion support. Noise keywords + prompt reinforced + post-sync validation. Todas las instituciones con `pipeline_ready=false`.
+- **Próxima Acción**: Afinar exclusiones institución por institución con el usuario. Decidir cursos UTP (8 activos, ¿cuáles son ruido?). Set `pipeline_ready=true` progresivamente.
+- **Próxima Acción**: Fase 75 — Exclusion Gate + Noise Sentinel v2 (limpieza retroactiva, 5 capas de defensa, institución por institución). No ejecutar pipeline hasta que instituciones tengan exclusiones afinadas y `pipeline_ready = true`.
 
 ## Tareas Pendientes Priorizadas
 
@@ -35,6 +36,7 @@
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
+| ~~P1~~ | ~~Fase 75 — Exclusion Gate + Noise Sentinel v2~~ | ~~Pipeline~~ | ~~Limpieza retroactiva (4/12 courses ruido), 5 capas de defensa, migration pipeline_ready, regex exclusions, noise keywords, LLM rule, post-sync validation.~~ | ~~Completado — commit en desarrollo~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (Pro), docs/DDL actualizados, security audit remediado. Free pendiente DROP TABLE opcional.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
@@ -69,6 +71,7 @@
 - [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en Pro, Free pendiente.
 - [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (Pro, Free pendiente), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
 - [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
+- [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 
 ---
@@ -1445,6 +1448,9 @@ Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la
 5. **Validar calidad de datos**: [ ] Pendiente de ejecución completa
 
 ### Fase 65: Limpieza de Datos Falsos y Auditoría Final [ ] Pendiente
+
+> **NOTA**: La limpieza retroactiva de courses de ruido (agradecimientos, homepages, sedes) se realiza en la Fase 75 paso 1. Esta fase se enfoca en la corrección de datos incompletos o falsos en cursos legítimos (description_long = title, campos vacíos).
+
 Objetivo: Eliminar `description_long = title` falso (Continental, UTP, SENATI), re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
 
 1. **Identificar y marcar datos falsos**:
@@ -1954,7 +1960,7 @@ SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
 
 ### Fase 72: U. Lima — Reducción de Ruido y Normalización de URLs [~] En progreso
 
-> **NOTA**: Tras la consolidación de la Fase 61, las exclusiones se gestionan en `institution_site_profiles.exclusion_patterns` (fuente única). Los cambios hechos en `seed_crawler_exclusions.py` durante esta fase se migrarán al perfil vía `merge_exclusions_to_profiles.py`.
+> **NOTA**: Los pendientes de esta fase se absorben en la Fase 75 (Exclusion Gate + Noise Sentinel v2), que implementa un sistema más robusto de 5 capas de defensa. La consolidación de exclusiones, limpieza retroactiva y validación de URLs se realizarán como parte de la Fase 75.
 
 **Completado**:
 - [x] Remover pattern `/pregrado/` de exclusiones de U. Lima (bloqueaba 12 carreras válidas)
@@ -1967,11 +1973,11 @@ SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
 - [x] Sync Pro → Free de datos ETL (317 staging, 242 cleansed, 12 enriched)
 - [x] `py_compile` sin errores en todos los scripts modificados
 
-**Pendiente**:
-- [ ] **Consolidar exclusiones**: migrar los 87 patterns de U. Lima (y 82 de Continental) que están solo en `crawler_exclusions` hacia `institution_site_profiles.exclusion_patterns` (depende de Fase 61 punto 1)
-- [ ] Limpieza retroactiva: marcar `discarded` en staging_raw/cleansed/enriched para URLs de ruido
-- [ ] De-duplicar cursos con URLs UTM vs sin UTM en courses
-- [ ] Validar con harvester que 102 URLs pasan y ~80 URLs de ruido son filtradas
+**Migrado a Fase 75**:
+- [ ] **Consolidar exclusiones**: ver Fase 75 paso 3 (regex exclusion patterns)
+- [ ] Limpieza retroactiva: ver Fase 75 paso 1 (SQL cleanup de 5 courses de ruido)
+- [ ] De-duplicar cursos con URLs UTM vs sin UTM: ver Fase 75 paso 1
+- [ ] Validar con harvester que URLs pasan/filtran: ver Fase 75 paso 9 (validación E2E)
 
 Objetivo: Actualizar las exclusiones de U. Lima en `institution_site_profiles.exclusion_patterns` (fuente única), agregar normalización de parámetros UTM, y garantizar que las 102 URLs válidas pasen el filtro.
 
@@ -2163,4 +2169,221 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 - Paso 1-2 requiere acceso a Supabase Dashboard Pro (SQL Editor) o Management API token
 - Paso 3-6 es trabajo de código que se puede hacer sin acceso a Pro
 - Paso 5 (DROP TABLE) requiere que paso 1-2 estén completados y validados en Pro
+
+### Fase 75: Exclusion Gate + Noise Sentinel v2 [✓] Completada
+
+**Objetivo**: Eliminar el 42% de ruido en courses (5/12), implementar 5 capas de defensa que previenen ruido futuro, y afinar exclusiones institución por institución antes de ejecutar el pipeline. **No ejecutar el pipeline FG2 hasta que cada institución tenga exclusiones afinadas y `pipeline_ready = true`**.
+
+**Diagnóstico actual (Free DB)**:
+
+| Institución | Exclusiones | Courses activos | Ruido en courses | `discovered` pendientes | Nivel riesgo |
+|---|---|---|---|---|---|
+| U. Lima | 146 | 3 | **3 agradecimientos** | 96 | **CRÍTICO** |
+| U. Continental | 141 | 1 | **1 homepage** | 2 | **ALTO** |
+| UTP | 66 | 8 | **1 sede + 2-3 facultades** | 0 | **MEDIO** |
+| UPC | 67 | 0 | N/A | 53 | **MEDIO** |
+| UNMSM | 67 | 0 | N/A | 78 | **ALTO** |
+| SENATI | 65 | 0 | N/A | 73 | **MEDIO** |
+| U. Pacífico | 67 | 0 | N/A | 15 | **BAJO** |
+| IDAT | 65 | 0 | N/A | 0 | **BAJO** |
+| DMC | 40 | 0 | N/A | 0 | **BAJO** |
+| UNI | 65 | 0 | N/A | 0 | **BAJO** |
+| USIL | 66 | 0 | N/A | 0 | **BAJO** |
+
+**Ruido actual en courses (5/12 = 42%)**:
+
+| Curso | URL | Tipo de ruido | Por qué pasó |
+|---|---|---|---|
+| MGI Agradecimiento | `ulima.edu.pe/posgrado/maestria/mgi-agradecimiento/` | Agradecimiento | Pattern no atrapa `-agradecimiento/` |
+| DC Agradecimiento | `ulima.edu.pe/posgrado/doctorado/dc-agradecimiento/` | Agradecimiento | Igual |
+| EPG Agradecimiento | `ulima.edu.pe/posgrado/epg-agradecimiento/` | Agradecimiento | Igual |
+| U. Continental homepage | `ucontinental.edu.pe/` | Homepage | Sin exclusión para bare domain |
+| UTP Ate | `utp.edu.pe/ate/` | Sede/Campus | Sin exclusión para sedes |
+
+**5 Capas de Defensa**:
+
+#### Capa 0: Exclusion Gate (`pipeline_ready`) — NUEVO
+
+Campo booleano en `institution_site_profiles` que bloquea el pipeline por institución si no está afinada:
+
+```sql
+ALTER TABLE institution_site_profiles
+ADD COLUMN pipeline_ready boolean DEFAULT false,
+ADD COLUMN allowed_url_patterns jsonb DEFAULT '[]'::jsonb;
+```
+
+- `pipeline_ready = true` → el pipeline procesa esta institución (harvester, cleansing, enrichment, sync)
+- `pipeline_ready = false` (default) → el pipeline **RECHAZA** todas las etapas para esta institución
+- `allowed_url_patterns` → lista de regex que SON programas (whitelist positivo)
+
+**Flujo de habilitación**:
+1. Revisar URLs descubiertas de la institución
+2. Agregar exclusiones faltantes a `exclusion_patterns`
+3. Ejecutar `--dry-run` para verificar qué pasaría
+4. Si todo limpio → `pipeline_ready = true`
+5. Si hay dudas → revisar manualmente URLs, ajustar, repetir
+
+**Archivos modificados**:
+- `universal_harvester.py`: verificar `pipeline_ready` antes de procesar institución
+- `cleansing_worker.py`: verificar `pipeline_ready` antes de procesar registros de esa institución
+- `enrichment_worker.py`: verificar `pipeline_ready` antes de enriquecer
+- `sync_vector_worker.py`: verificar `pipeline_ready` antes de sincronizar a `courses`
+- `db/migrations/20260504_fase75_pipeline_ready.sql`: DDL
+
+#### Capa 1: Regex Exclusion Patterns (harvester + cleansing)
+
+Agregar soporte para patterns tipo regex (prefijo `re:`) en `exclusion_patterns`:
+
+```python
+# universal_harvester.py y cleansing_worker.py
+for exc in self.exclusions:
+    if isinstance(exc, str):
+        if exc.startswith('re:'):
+            if re.search(exc[3:], low_url, re.IGNORECASE):
+                return False
+        elif exc.lower() in low_url:
+            return False
+```
+
+Patterns globales de noise (agregar a TODAS las instituciones):
+- `re:agradecimiento` — atrapa `/agradecimiento/` y `-agradecimiento/`
+- `re:thank.?you` — atrapa `/thank-you/` y `/thankyou/`
+
+**Archivos modificados**:
+- `universal_harvester.py`: `_is_valid_crawl_url()` soporte regex
+- `cleansing_worker.py`: `is_invalid_course()` soporte regex
+
+#### Capa 2: Post-Cleansing Noise Keywords — NUEVO
+
+Validación de nombres que son claramente no-programas en `cleansing_worker.py`:
+
+```python
+NOISE_NAME_PATTERNS = [
+    r'agradecimiento', r'thank.?you', r'gracias',
+    r'matr[ií]culas?\s+abiert', r'inscr[ií]bete',
+    r'^facultad\s+de\b',
+    r'^universidad\s+\w+\s*\|',  # "Universidad Continental |" = homepage
+]
+```
+
+Si match → `discarded` con razón `noise_name_pattern`.
+
+#### Capa 3: Reforzar Prompt LLM (enrichment_worker)
+
+Agregar regla explícita al prompt:
+
+> **REGLA ABSOLUTA**: Si la página es un agradecimiento, página de inicio (homepage), página de confirmación, listado de facultades sin programa individual, o sede/campus sin programa → responde `null` en TODOS los campos. NO inventes datos de un programa que no existe.
+
+#### Capa 4: Post-Sync Validation (sync_vector_worker)
+
+Validación final antes de insertar en `courses`:
+
+```python
+NOISE_PATTERNS = [
+    r'agradecimiento', r'thank.?you',
+    r'^https?://[^/]+/?$',  # bare homepage
+    r'/facultad-de-[^/]+/?$',  # faculty listing
+    r'matr[ií]cul', r'inscr[ií]b',
+]
+```
+
+Si match → `enriched_programs.status = 'discarded'`, NO insertar en courses, log warning.
+
+**Archivos modificados**:
+- `sync_vector_worker.py`
+- `enrichment_worker.py` (prompt)
+
+#### Capa 5: Retroactive Cleanup
+
+SQL para limpiar el ruido existente:
+
+```sql
+-- U. Lima agradecimientos
+UPDATE courses SET is_active = false, is_verified = false
+WHERE name ILIKE '%agradecimiento%';
+
+-- U. Continental homepage
+UPDATE courses SET is_active = false, is_verified = false
+WHERE url = 'https://ucontinental.edu.pe/';
+
+-- UTP sede (campus listing, no programa individual)
+UPDATE courses SET is_active = false, is_verified = false
+WHERE name ILIKE '%matrícula%abierta%' OR name ILIKE '%inscríbete%';
+
+-- Cascade: enriched_programs + staging_raw
+UPDATE enriched_programs SET status = 'discarded'
+WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = false);
+```
+
+**Checklist de pasos**:
+
+1. **Limpieza retroactiva** (SQL en Free) — **COMPLETADO**:
+   - [x] Desactivar 4 courses de ruido (3 agradecimientos U. Lima, 1 homepage Continental)
+   - [x] UTP: 8 courses activos pendientes de decisión del usuario (sedes/facultades vs programas)
+   - [x] Re-sync Free desde Pro con `sync_pro_to_free.py` para reflejar cambios
+
+2. **Capa 0: `pipeline_ready` field** (Ambos DBs) — **COMPLETADO**:
+   - [x] Migration SQL `20260504_fase75_pipeline_ready.sql`
+   - [x] Aplicar en Free + Pro
+   - [x] Todas las instituciones con `pipeline_ready=false` (pipeline bloqueado)
+
+3. **Capa 1: Regex exclusion patterns** — **COMPLETADO**:
+   - [x] Soporte `re:` prefix en `universal_harvester._is_valid_crawl_url()`
+   - [x] Soporte `re:` prefix en `cleansing_worker.is_invalid_course()`
+   - [x] `py_compile` sin errores
+
+4. **Capa 2: Post-cleansing noise keywords** — **COMPLETADO**:
+   - [x] `NOISE_NAME_PATTERNS` en `cleansing_worker.py` (agradecimiento, thank you, matrículate, inscríbete, facultad de, universidad |)
+   - [x] `py_compile` sin errores
+
+5. **Capa 3: LLM prompt reinforcement** — **COMPLETADO**:
+   - [x] Regla absoluta en `enrichment_worker._call_llm_for_pillars()`
+   - [x] `py_compile` sin errores
+
+6. **Capa 4: Post-sync validation** — **COMPLETADO**:
+   - [x] `NOISE_PATTERNS` en `sync_vector_worker.sync_to_production()` (rechazar antes de insertar en courses)
+   - [x] `py_compile` sin errores
+
+7. **Afinar exclusiones institución por institución** — **PENDIENTE (revisión con usuario)**:
+
+| Institución | Nuevos patterns sugeridos | Estado |
+|---|---|---|
+| UTP | `/ate/`, `/ica/`, `/lima-sur/`, `/tacna/` (sedes) + `/facultad-de-` (listing) | ⏳ Pendiente decisión usuario |
+| U. Lima | `re:agradecimiento` (regex global) | ⏳ Pendiente decisión usuario |
+| U. Continental | pattern para homepage bare domain | ⏳ Pendiente decisión usuario |
+| UPC | `/servicios/`, `/ingles-en-la-upc/`, `/upc-internacional/ncuk/`, `/transparencia-` | ⏳ Pendiente decisión usuario |
+| UNMSM | `/cursos-y-talleres/`, `/direcciones-artisticas/`, `/agenda-cultural/`, etc. | ⏳ Pendiente decisión usuario |
+| SENATI | `/bolsa-de-trabajo`, `/egresados/`, `/busqueda-`, etc. | ⏳ Pendiente decisión usuario |
+| U. Pacífico | `/maestrias/`, `/idiomas/` | ⏳ Pendiente decisión usuario |
+
+8. **Set `pipeline_ready = true` por institución** — **PENDIENTE**: después de afinar exclusiones.
+
+9. **Validación E2E** — **PENDIENTE**: después de afinar.
+
+**Exclusiones sugeridas por institución** (para revisión del usuario):
+
+| Institución | Nuevos patterns sugeridos | Justificación |
+|---|---|---|
+| U. Lima | `agradecimiento` (regex), `/posgrado/` (si excluir todo posgrado) | 3 courses de ruido son agradecimientos |
+| U. Continental | `/` (bare domain homepage) | 1 course de ruido es homepage |
+| UTP | `/ate/`, `/ica/`, `/lima-sur/`, `/tacna/`, `/vida-universitaria/` + `/facultad-de-` (regex para listing pages) | Sedes y facultades son listing pages |
+| UPC | `/servicios/`, `/ingles-en-la-upc/`, `/upc-internacional/ncuk/`, `/transparencia-`, `/becas-` | 53 URLs discovered son mostly no-programs |
+| UNMSM | `/cursos-y-talleres/`, `/direcciones-artisticas/`, `/agenda-cultural/`, `/comunidad/`, `/cultura/`, `/museo-`, `/biblioteca`, `/formacion-academica/educacion-continua`, `/investigacion/`, `/movilidad-y-cooperacion` | 78 URLs discovered are talleres culturales, no carreras |
+| SENATI | `/bolsa-de-trabajo`, `/egresados/`, `/busqueda-`, `/content/centro-`, `/content/modalidades`, `/publicaciones`, `/patrocinio`, `/sedes` | 73 URLs discovered, many non-program pages |
+| U. Pacífico | `/maestrias/`, `/idiomas/` | Already has `/egp/`, few non-program URLs |
+
+**Archivos que se crean/modifican**:
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `db/migrations/20260504_fase75_pipeline_ready.sql` | NUEVO | `pipeline_ready` + `allowed_url_patterns` columns |
+| `scripts/core/universal_harvester.py` | FIX | `pipeline_ready` check + regex exclusion support |
+| `scripts/core/cleansing_worker.py` | FIX | `pipeline_ready` check + regex exclusion + `NOISE_NAME_PATTERNS` |
+| `scripts/core/enrichment_worker.py` | FIX | `pipeline_ready` check + reinforced prompt |
+| `scripts/core/sync_vector_worker.py` | FIX | `pipeline_ready` check + `NOUSE_PATTERNS` post-sync |
+| `scripts/maintenance/apply_noise_exclusions.py` | EXISTENTE | Actualizar para usar `allowed_url_patterns` |
+| `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 75 |
+| `AGENTS.md` | UPDATE | Documentar `pipeline_ready` gate |
+
+**Requiere migrations SQL** — `pipeline_ready` column en ambos DBs (Free + Pro).
 
