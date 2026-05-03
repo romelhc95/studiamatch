@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify, setup_lima_logging, TimeGuard
+from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
 
 # Setup logging
@@ -79,6 +79,15 @@ class SyncVectorWorker:
         elif isinstance(raw_categories, str) and raw_categories:
             main_category = raw_categories.split(',')[0].strip()
 
+        # Fase 73: Parse start_date and determine expiration
+        start_date_text = enriched.get('start_date')
+        parsed_date, is_expired = parse_start_date(start_date_text)
+        
+        # Determine is_active: False if expired (90d grace already in parse_start_date)
+        course_is_active = not is_expired
+        if is_expired:
+            logger.info(f"⏰ [EXPIRED] {name} — start_date='{start_date_text}' parsed as {parsed_date}, marking inactive")
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
@@ -87,7 +96,8 @@ class SyncVectorWorker:
             "price_pen": enriched.get('total_cost_est'),
             "mode": enriched.get('modality'),
             "duration": enriched.get('duration_text') or enriched.get('duration'),
-            "start_date_text": enriched.get('start_date'),
+            "start_date_text": start_date_text,
+            "start_date": parsed_date.isoformat() if parsed_date else None,
             "description_long": enriched.get('ai_summary'),
             "requirements": list_to_str(enriched.get('requirements')),
             "objectives": enriched.get('graduate_profile'),
@@ -97,7 +107,7 @@ class SyncVectorWorker:
             "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),
             "category": main_category,
-            "is_active": True,
+            "is_active": course_is_active,
             "is_verified": True,
             "last_scraped_at": "now()"
         }

@@ -33,9 +33,20 @@ GLOBAL = [
 CMS = ['/category/', '/author/']  # /tag/ and /archive/ already in GLOBAL
 
 SPECIFIC = {
-    'universidad-de-lima': ['/pregrado/', '/blog-tags/', '/ventana-indiscreta/',
+    'universidad-de-lima': ['/blog-tags/', '/ventana-indiscreta/',
         '/node/', '/promociones/', '/taxonomy/', '/la-universidad/',
-        '/centros-e-institutos/', '/internacional/'],
+        '/centros-e-institutos/', '/internacional/',
+        # Fase 72: Nuevas exclusiones exactas (basadas en lista curada)
+        '/admitidos-', '/athina-seminario', '/contabilidad-curso-actualizacion',
+        '/diomas/portugues', '/educacion-ejecutiva/derecho-y-gestion-publica',
+        '/educacion-ejecutiva/finanzas-contabilidad-y-economia',
+        '/educacion-ejecutiva/executive-summit/', '/educacion-ejecutiva/mooc/',
+        '/examen-de-admision', '/graduados/torneo-', '/guia-',
+        '/idiomas/demo-', '/idiomas/emi-skills', '/idiomas/ingles',
+        '/posgrado/connect-ulima', '/posgrado/epg-agradecimiento',
+        '/posgrado/sustentaciones-de-grado', '/publico-objetivo/',
+        '/registro-completo', '/requisitos-admision-',
+        '/solicitud-de-cambio-de-carrera', '/vida-ulima'],
     'upc': ['/pregrado/', '/vida-universitaria/', '/info-importante/'],
     'usil': ['/pregrado/', '/vida-universitaria/'],
     'universidad-del-pacifico': ['/egp/', '/idiomas/', '/maestrias/'],

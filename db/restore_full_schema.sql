@@ -1,6 +1,6 @@
 -- =============================================================================
 -- RESTORE FULL SCHEMA — StudIAMatch
--- Proyecto: StudIAMatch (Free: aqrldlmlszjtgpqiegaa)
+-- Proyecto: StudIAMatch (Free: YOUR_FREE_PROJECT_REF)
 -- Descripcion: Schema completo desde cero (PRODUCTION_MASTER + migraciones)
 -- Ejecutar en: Supabase Dashboard > SQL Editor (Ctrl+Enter todo)
 -- =============================================================================

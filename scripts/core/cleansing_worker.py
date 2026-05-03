@@ -19,6 +19,7 @@ from shared.utils import (
     setup_lima_logging,
     normalize_url,
     TimeGuard,
+    parse_start_date,
 )
 from shared.db_client import get_db_client, DatabaseClient
 
@@ -89,19 +90,40 @@ def extract_price(text: str) -> Tuple[Optional[float], str]:
             pass
     return None, "consultar"
 
+
+def detect_expired_start_date(text: str) -> Optional[str]:
+    """Fase 73: Busca menciones de fecha de inicio en el texto y verifica si expiraron (>90d)."""
+    patterns = [
+        r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+([A-Za-záéíóúñ]+\s+\d{4})',
+        r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+(\d{1,2}\s+(?:de\s+)?[A-Za-záéíóúñ]+(?:\s+(?:de\s+)?\d{4})?)',
+    ]
+    for pat in patterns:
+        match = re.search(pat, text, re.IGNORECASE)
+        if match:
+            parsed_date, is_expired = parse_start_date(match.group(1))
+            if is_expired:
+                return f"expired_start_date:{match.group(1)}"
+    return None
+
 class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
         self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
         # Páginas que son solo contenedores y no cursos reales
+        # Fase 72: hub_patterns diferencian landing page vs subpáginas vía /?$ (regex)
+        # /idiomas/?$ bloquea /idiomas pero NO /idiomas/english-media
         self.hub_patterns = [
-            r'ulima\.edu\.pe/?$', 
+            r'ulima\.edu\.pe/?$',
             r'up\.edu\.pe/?$',
             r'/programas-de-especializacion/?$',
             r'/pregrado/?$',
             r'/posgrado/?$',
-            r'/maestrias/?$'
+            r'/maestrias/?$',
+            r'/idiomas/?$',
+            r'/educacion-ejecutiva/?$',
+            r'/educacion-ejecutiva/cursos-talleres/?$',
+            r'/educacion-ejecutiva/certificacion/?$',
         ]
 
     def is_hub_page(self, url: str) -> bool:
@@ -228,6 +250,7 @@ class CleansingWorker:
             discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, inst_id, clean_text_context)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
+            if not discard_reason: discard_reason = detect_expired_start_date(clean_text_context)
             
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})

@@ -4,15 +4,19 @@ import json, urllib.request, sys, time, os
 
 sys.path.insert(0, '/app')
 from dotenv import load_dotenv
-load_dotenv()
 
-PRO_URL = os.environ.get("SUPABASE_PRO_URL", "").rstrip("/")
-PRO_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+# Cargar Free primero y capturar sus valores
+load_dotenv('/app/.env.local')
 FREE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
 FREE_KEY = os.environ.get("NEXT_SUPABASE_SECRET_KEY", "")
 
+# Cargar Pro (sobrescribe) y capturar sus valores
+load_dotenv('/app/.env.gitprod', override=True)
+PRO_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
+PRO_KEY = os.environ.get("NEXT_SUPABASE_SECRET_KEY", "")
+
 if not all([PRO_URL, PRO_KEY, FREE_URL, FREE_KEY]):
-    print("ERROR: Set SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_SUPABASE_SECRET_KEY env vars")
+    print("ERROR: Verifica que .env.local (Free) y .env.gitprod (Pro) tengan NEXT_PUBLIC_SUPABASE_URL y NEXT_SUPABASE_SECRET_KEY")
     sys.exit(1)
 
 t_out = 30
