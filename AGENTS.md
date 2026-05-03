@@ -6,16 +6,15 @@
 
 ## Auditoría de Credenciales (Obligatorio antes de push)
 
-**NUNCA** expongas credenciales (API keys, service_role keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. Antes de cada `git push`:
+**NUNCA** expongas credenciales (API keys, Publishable and secret API keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. Antes de cada `git push`:
 
 1. Buscar strings con patrón `eyJhbG` (JWT), `sbp_` (Supabase management token), o cualquier URL que contenga un project ref real
 2. Verificar que ningún script Python tenga credenciales hardcodeadas — usar `os.environ.get('VAR', '')` y salir con error si falta
 3. Verificar que `.env*` esté en `.gitignore` (ya cubierto por `.env*` y `*.env`)
 4. Los scripts que necesiten credenciales Pro deben leerlas de variables de entorno:
-   - `SUPABASE_PRO_URL` — URL del proyecto Pro
-   - `SUPABASE_SERVICE_ROLE_KEY` — Service role key (Pro o Free según el ambiente)
-   - `SUPABASE_MGMT_TOKEN` — Supabase Management API token
-   - `SUPABASE_PRO_PROJECT_REF` — Project ref para Management API
+   - `NEXT_PUBLIC_SUPABASE_URL` — URL del proyecto Supabase Free/Pro
+   - `NEXT_SUPABASE_PUBLISHABLE_KEY` — Publishable key: This key is safe to use in a browser if you have enabled Row Level Security (RLS) for your tables and configured policies. (Pro o Free según el ambiente)
+   - `NEXT_SUPABASE_SECRET_KEY` — Secret keys: These API keys allow privileged access to your project's APIs. Use in servers, functions, workers or other backend components of your application.  (Pro o Free según el ambiente)
 5. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
 6. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente
 
@@ -64,26 +63,48 @@ python3 -m py_compile scripts/core/<archivo>.py
 python3 scripts/maintenance/<script>.py
 ```
 
-## Variables de Entorno
+## Variables de Entorno Desarrollo/Certifición
 
-El archivo `.env.local` (gitignored) contiene:
+El archivo `.env.local` o `.env.gitdesa` (gitignored) contiene:
 
 | Variable | Uso | Quién la necesita |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Free | Frontend + db_client.py |
 | `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
 | `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
 | `GEMINI_API_KEY` | Google Gemini 1.5 Flash | enrichment_worker.py |
-| `SUPABASE_PRO_URL` | URL del proyecto Pro (producción) | Scripts de migración diagnósticos |
-| `SUPABASE_PRO_PROJECT_REF` | Project ref Pro (para Management API) | Scripts de migración diagnósticos |
-| `SUPABASE_MGMT_TOKEN` | Supabase Management API token | Scripts de migración diagnósticos |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto desarrollo | Scripts de migración diagnósticos |
 
-**IMPORTANTE**: El contenedor Docker tiene acceso a `.env.local` que contiene `NEXT_PUBLIC_SUPABASE_ANON_KEY` (suficiente para lectura y escritura limitada). La `SUPABASE_SERVICE_ROLE_KEY` NO está disponible en el contenedor — solo en GitHub Actions secrets por ambiente.
+**IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local`.
+
+## Variables de Entorno Producción
+
+El archivo `.env.gitprod` (gitignored) contiene:
+
+| Variable | Uso | Quién la necesita |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Pro| Frontend + db_client.py |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
+| `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
+| `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
+| `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
+| `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
+| `GEMINI_API_KEY` | Google Gemini 1.5 Flash | enrichment_worker.py |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto producción | Scripts de migración diagnósticos |
+
+**IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.gitprod`.
 
 ## Convenciones del Proyecto
+
+### Sincronización Cross-Ambiente
+- Los scripts que sincronizan datos entre Free y Pro (ej: `sync_pro_to_free.py`) DEBEN usar exclusivamente Publishable y Secret API keys (`sb_publishable_*` / `sb_secret_*`), NUNCA compartir credenciales entre ambientes ni hardcodear keys
+- Credenciales Pro se leen de variables de entorno: `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` alojadas en `.env.gitprod`
+- Credenciales Free se leen de variables de entorno: `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local` vía `db_client.py`
+- Los UUIDs de institutions/categories **difieren entre Free y Pro** — sincronización requiere mapeo por slug/nombre
+- Ambas keys son rotables ante exposición
 
 ### Git Flow
 - `desarrollo` — rama activa de desarrollo (PR requerido, review técnico)
@@ -114,8 +135,8 @@ db.count('courses', filters='is_active=eq.true')
 - **Sí** usa `json.dumps()` para campos de tipo TEXT/JSONB que guardas vía `db.insert()` o `db.upsert()` (ej: `curriculum_summary`, `requirements`).
 - Los filtros usan sintaxis PostgREST: `is_active=eq.true`, `name=is.null`, `status=in.(synced,pending)`.
 - **Límite**: 1000 registros por query sin paginación (usa `db.select_all()` si necesitas más).
-- **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita `service_role`.
-- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` NO se usa para lectura (Fase 74).
+- **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita `publishable_key` o `secret_key`.
+- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` fue eliminada (DROP TABLE en Pro, Free pendiente).
 
 ### Frontend: Next.js
 - **Static export**: `next.config.js` → `output: 'export'` en producción para Cloudflare Pages
@@ -163,7 +184,7 @@ Harvester       Cleansing              Enrichment           Sync Vector
 
 1. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
 
-2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar `service_role`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
+2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar `publishable_key` o `secret_key`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
 
 3. **`batch_enrich_courses.py`** (scripts/maintenance/): Bypass del pipeline. Lee HTML de `staging_raw` y escribe directo a `courses`. Útil para corregir datos puntuales sin pasar por las 4 estaciones.
 
@@ -185,7 +206,7 @@ Harvester       Cleansing              Enrichment           Sync Vector
 | `query returned more than one row` (P0003) | `INTO` scalar recibe múltiples filas de `ON CONFLICT DO UPDATE` | Usar `RETURN QUERY` en vez de `RETURNING * INTO` (fix: migration `20260429_fix_p0003_duplicate_rows.sql`) |
 | `invalid input syntax for type integer: "3.5"` | LLM devuelve decimal para campo INT | Sanitizar con `int(float(val))`; SQL: `::NUMERIC` → `::INT` |
 | Playwright descarga PDFs | El harvester no filtra extensiones de archivo | `NON_HTML_EXTENSIONS` en `_is_valid_crawl_url()` bloquea `.pdf`, `.xlsx`, etc. |
-| PATCH en `enriched_programs` retorna success sin modificar datos | RLS bloquea escritura con anon key | Usar `service_role` o ejecutar SQL en Supabase Dashboard |
+| PATCH en `enriched_programs` retorna success sin modificar datos | RLS bloquea escritura con anon key | Usar `publishable_key` o `secret_key` o ejecutar SQL en Supabase Dashboard |
 | `db_client print` en cada import | `db_client.py` imprime "DB_CLIENT: Loading env..." al importarse | Comportamiento esperado, no es error |
 
 ## Estructura de Scripts
@@ -205,4 +226,4 @@ scripts/
 - **Frontend**: Cloudflare Pages con GitHub Actions. Static export (`next build` → `out/`). Rama `main` → `studiamatch.com`, `desarrollo` → `studiamatch.pages.dev`.
 - **Backend**: Supabase (PostgreSQL 15 + pgvector + PostgREST).
 - **CI/CD**: 3 pipelines en `.github/workflows/`: `production_pipeline.yml` (FG2 semanal), `fg1_inventory.yml` (mensual), `fg3_integrity.yml` (diario).
-- **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+- **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`.

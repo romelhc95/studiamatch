@@ -30,4 +30,5 @@ jobs:
           SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           SUPABASE_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-        run: python scripts/core/integrity_ping.py
+        working-directory: scripts/core
+        run: python integrity_ping.py
