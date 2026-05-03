@@ -109,6 +109,16 @@ El código viajará de forma ascendente cumpliendo "Puertas de Calidad" en cada 
 3.  **Promoción a `certificacion`**: Ejecución obligatoria de la Suite E2E (`Playwright`) y Auditorí­a de Integridad de Datos.
 4.  **Merge a `main`**: Despliegue automático a producción (Supabase Pro) tras aprobación del @SDLC-Chief.
 
+### Regla SDLC para Cambios en Base de Datos y Datos
+
+> **IMPORTANTE**: Todo cambio SQL, migración, o modificación de datos DEBE seguir el flujo:
+> 1. **Desarrollo (Free)**: Probar migration/script en Free primero. Validar que no rompe nada.
+> 2. **Certificación**: Ejecutar E2E Playwright + auditoría de datos en Free (certificacion branch).
+> 3. **Producción (Pro)**: Aplicar solo tras confirmación explícita del @SDLC-Chief. NUNCA aplicar directamente en Pro sin pasar por Desarrollo y Certificación.
+>
+> Formato correcto en tareas: "Aplicar migration en Free → Certificar → Aplicar en Pro (tras aprobación)"
+> Formato incorrecto: "Aplicar en Free + Pro" (salta certificación)
+
 ---
 
 ## Arquitectura de Ejecución (Macro-Estrategia)
@@ -1548,7 +1558,7 @@ Frontend POST /rest/v1/leads (ya funciona)
 
 2. **Agregar campo `contact_email` a tabla `institutions`**:
    - [ ] Migration SQL: `ALTER TABLE institutions ADD COLUMN contact_email TEXT;`
-   - [ ] Aplicar migration en Free + Pro
+   - [ ] Aplicar migration en Free → Certificar → Pro (tras aprobación)
    - [ ] Seed de `contact_email` para las 10 instituciones (investigar emails de contacto/admisión de cada website)
 
 3. **Crear Edge Function `send-lead-emails`**:
@@ -1575,7 +1585,7 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
 1. **Habilitar extensión `pg_net`** (si no está):
    - [ ] Verificar con `SELECT * FROM pg_extension WHERE extname = 'pg_net';`
    - [ ] Habilitar con `CREATE EXTENSION IF NOT EXISTS pg_net;` si falta
-   - [ ] Aplicar en Free + Pro
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
 2. **Crear tabla `email_log` para auditoría**:
    - [ ] Migration SQL:
@@ -1597,9 +1607,9 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
      CREATE INDEX idx_email_log_lead_id ON email_log(lead_id);
      CREATE INDEX idx_email_log_status ON email_log(status);
      ```
-   - [ ] Aplicar en Free + Pro
+- [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
-3. **Crear trigger function `notify_new_lead()`**:
+ 3. **Crear trigger function `notify_new_lead()`**:
    - [ ] SQL function que hace `net.http_post()` a la Edge Function URL
    - [ ] Payload: `{ "lead_id": NEW.id }`
    - [ ] Headers: `Authorization: Bearer <anon_key>`, `Content-Type: application/json`
@@ -1608,9 +1618,9 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
 
 4. **Crear trigger**:
    - [ ] `CREATE TRIGGER trg_notify_new_lead AFTER INSERT ON leads FOR EACH ROW EXECUTE FUNCTION notify_new_lead();`
-   - [ ] Aplicar en Free + Pro
+- [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
-5. **Validación end-to-end**:
+ 5. **Validación end-to-end**:
    - [ ] Insertar un lead de prueba desde el frontend
    - [ ] Confirmar que el trigger dispara la Edge Function
    - [ ] Confirmar que los 3 correos se envían
@@ -1931,13 +1941,14 @@ SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
     - [x] Agregar `working-directory: scripts/core` en `.github/workflows/fg3_integrity.yml`
     - [x] Validar que FG3 ejecuta sin `ModuleNotFoundError`
 
-5. **Ejecutar pipeline FG2 en Producción** (poblar más cursos):
-    - [ ] Verificar que GitHub Secrets `Production` apunta a Pro (`SUPABASE_URL` = URL de Pro)
-    - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
-    - [ ] Ejecutar pipeline FG2 manual (`workflow_dispatch`) en rama `main`
-    - [ ] Verificar que el harvester descubre URLs (Freshness Guard no debe activarse con count bajo)
-    - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
-    - [ ] Target: ≥100 cursos activos/verificados en Pro
+5. **Ejecutar pipeline FG2** (SDLC: Desarrollo → Certificación → Producción):
+   - [ ] **Desarrollo**: Ejecutar pipeline en Free (desarrollo) con `pipeline_ready=true` en al menos 1 institución
+   - [ ] **Desarrollo**: Verificar que harvester → cleansing → enrichment → sync producen cursos sin ruido
+   - [ ] **Certificación**: Ejecutar E2E Playwright en rama `certificacion`
+   - [ ] **Producción**: Ejecutar pipeline FG2 en Pro (`workflow_dispatch` en rama `main`) — **tras aprobación @SDLC-Chief**
+   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
+   - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
+   - [ ] Target: ≥100 cursos activos/verificados en Pro
 
 6. **Re-sincronizar Pro→Free post-pipeline**:
     - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` nuevamente
@@ -2029,11 +2040,11 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 1. **Agregar columna `start_date` tipo DATE a `courses`** (nullable):
    - [ ] Migration SQL: `ALTER TABLE courses ADD COLUMN start_date DATE;`
    - [ ] Crear índice: `CREATE INDEX idx_courses_start_date ON courses(start_date) WHERE start_date IS NOT NULL;`
-   - [ ] Aplicar en Free + Pro
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
 2. **Agregar columna `start_date` tipo DATE a `enriched_programs`** (nullable):
    - [ ] Migration SQL: `ALTER TABLE enriched_programs ADD COLUMN start_date DATE;`
-   - [ ] Aplicar en Free + Pro
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
 3. **Normalizar `start_date` en `enrichment_worker.py`** — parsear texto libre a ISO DATE:
    - [ ] Agregar función `_parse_start_date(text: str) -> date|None` que convierte texto libre a fecha:
@@ -2066,7 +2077,7 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
    - [ ] `_parse_start_date("Abril 2026")` → `2026-04-01` ✅
    - [ ] `_parse_start_date("2024")` → `2024-01-01` → marcar como `is_active: False` ✅
    - [ ] `_parse_start_date(None)` → `None` → no afecta `is_active` ✅
-   - [ ] Migration SQL aplicada en Free + Pro sin errores
+   - [ ] Migration SQL aplicada en Free (Desarrollo) → Certificar → Pro (tras aprobación) sin errores
    - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
    - [ ] `python3 -m py_compile scripts/core/sync_vector_worker.py` sin errores
    - [ ] `python3 -m py_compile scripts/core/integrity_ping.py` sin errores
@@ -2101,13 +2112,13 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 
 **¿Reabre fases cerradas?**: No. Las Fases 61 y 64 se declaran completadas a nivel de **código** (el pipeline ya no lee `crawler_exclusions`). La Fase 74 recoge el trabajo residual a nivel de **infraestructura** (Pro migration, DROP TABLE, limpieza de scripts/docs) que no existía como fase propia.
 
-1. **Migración en Pro — `institution_site_profiles` y `start_date`**:
-   - [ ] Aplicar migration `20260501_institution_site_profiles.sql` en Pro via Dashboard SQL Editor
-   - [ ] Aplicar migration `20260503_fase73_start_date.sql` en Pro via Dashboard SQL Editor
-   - [ ] Refrescar schema cache de PostgREST (Dashboard > Settings > API > Reload Schema Cache)
-   - [ ] Verificar que `GET /rest/v1/institution_site_profiles` retorna 200 (no PGRST205)
-   - [ ] Ejecutar `merge_exclusions_to_profiles.py` contra Pro (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`)
-   - [ ] Ejecutar `seed_site_profiles.py` contra Pro (datos completos con seed_urls, section_keywords, etc.)
+1. **Migración en Pro — `institution_site_profiles` y `start_date`** (SDLC: Free ✅ → Certificar → Pro tras aprobación):
+   - [ ] Aplicar migration `20260501_institution_site_profiles.sql` en Free (ya aplicado) → Verificar en Certificación → Aplicar en Pro (tras aprobación)
+   - [ ] Aplicar migration `20260503_fase73_start_date.sql` en Free (ya aplicado) → Verificar en Certificación → Aplicar en Pro (tras aprobación)
+   - [ ] Refrescar schema cache de PostgREST en Pro (tras aprobación)
+   - [ ] Verificar que `GET /rest/v1/institution_site_profiles` retorna 200 en Pro (no PGRST205)
+   - [ ] Ejecutar `merge_exclusions_to_profiles.py` contra Pro (tras aprobación)
+   - [ ] Ejecutar `seed_site_profiles.py` contra Pro (tras aprobación)
    - [ ] Verificar: cada perfil en Pro tiene >= número de exclusiones que tenía en `crawler_exclusions`
 
 2. **Validación Pro post-migración**:
@@ -2131,10 +2142,11 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
    - [ ] Actualizar `AGENTS.md`: remover `crawler_exclusions` de lista de tablas ETL donde anon no puede escribir
    - [ ] Agregar nota en `AGENTS.md`: "Exclusiones se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns`"
 
-5. **DROP TABLE `crawler_exclusions`** (tras validar Pro):
+5. **DROP TABLE `crawler_exclusions`** (SDLC: Free → Certificar → Pro):
    - [ ] Crear migration `202605_FASE74_drop_crawler_exclusions.sql`
-   - [ ] Aplicar en Free (Supabase Dashboard)
-   - [ ] Aplicar en Pro (Supabase Dashboard)
+   - [ ] Aplicar en Free (Desarrollo) → Verificar que no rompe pipeline
+   - [ ] Certificar en rama `certificacion` → E2E Playwright
+   - [ ] Aplicar en Pro (Producción, tras aprobación @SDLC-Chief)
    - [ ] Verificar que `DROP TABLE` no rompe ningún script del pipeline (todos leen perfiles)
    - [ ] Actualizar `restore_full_schema.sql` para no incluir la tabla
 
@@ -2318,30 +2330,23 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 **Checklist de pasos**:
 
 1. **Limpieza retroactiva** (SQL en Free) — **COMPLETADO**:
-   - [x] Desactivar 4 courses de ruido (3 agradecimientos U. Lima, 1 homepage Continental)
+   - [x] Desactivar 4 courses de ruido (3 agradecimientos U. Lima, 1 homepage Continental) — **en Free**
+   - [ ] Aplicar mismo cleanup en Pro (tras aprobación)
    - [x] UTP: 8 courses activos pendientes de decisión del usuario (sedes/facultades vs programas)
    - [x] Re-sync Free desde Pro con `sync_pro_to_free.py` para reflejar cambios
 
-2. **Capa 0: `pipeline_ready` field** (Ambos DBs) — **COMPLETADO**:
+2. **Capa 0: `pipeline_ready` field** — **COMPLETADO en Free**:
    - [x] Migration SQL `20260504_fase75_pipeline_ready.sql`
-   - [x] Aplicar en Free + Pro
-   - [x] Todas las instituciones con `pipeline_ready=false` (pipeline bloqueado)
+   - [x] Aplicar en Free ✅
+   - [x] Aplicar en Pro ✅ (migration DDL no-destructiva, ADD COLUMN DEFAULT false)
+   - [x] Todas las instituciones con `pipeline_ready=false` — pipeline bloqueado
 
-3. **Capa 1: Regex exclusion patterns** — **COMPLETADO**:
-   - [x] Soporte `re:` prefix en `universal_harvester._is_valid_crawl_url()`
-   - [x] Soporte `re:` prefix en `cleansing_worker.is_invalid_course()`
-   - [x] `py_compile` sin errores
-
-4. **Capa 2: Post-cleansing noise keywords** — **COMPLETADO**:
-   - [x] `NOISE_NAME_PATTERNS` en `cleansing_worker.py` (agradecimiento, thank you, matrículate, inscríbete, facultad de, universidad |)
-   - [x] `py_compile` sin errores
-
-5. **Capa 3: LLM prompt reinforcement** — **COMPLETADO**:
-   - [x] Regla absoluta en `enrichment_worker._call_llm_for_pillars()`
-   - [x] `py_compile` sin errores
-
-6. **Capa 4: Post-sync validation** — **COMPLETADO**:
-   - [x] `NOISE_PATTERNS` en `sync_vector_worker.sync_to_production()` (rechazar antes de insertar en courses)
+3-6. **Capas 1-4** — **COMPLETADO** en código (commit `dfeb596`):
+   - [x] Regex exclusion support en harvester + cleansing
+   - [x] `NOISE_NAME_PATTERNS` en cleansing_worker
+   - [x] Regla absoluta en prompt LLM
+   - [x] Post-sync `NOISE_PATTERNS` validation
+   - [x] `pipeline_ready` gate en los 4 workers
    - [x] `py_compile` sin errores
 
 7. **Afinar exclusiones institución por institución** — **PENDIENTE (revisión con usuario)**:
@@ -2385,5 +2390,5 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 | `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 75 |
 | `AGENTS.md` | UPDATE | Documentar `pipeline_ready` gate |
 
-**Requiere migrations SQL** — `pipeline_ready` column en ambos DBs (Free + Pro).
+**Requiere migrations SQL** — `pipeline_ready` column. Aplicar en Free primero, luego Pro tras certificación.
 
