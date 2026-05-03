@@ -12,9 +12,9 @@
 > `docker exec -it studiamatch-dev [comando]`
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 72-74 completadas. Pipeline con cancelación controlada. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug.
-- **Último Hito**: Fase 74 completada — Pro DB seeded con 11 perfiles, DROP TABLE `crawler_exclusions`, updated_at trigger, 14 scripts deprecated, seguridad remediada.
-- **Próxima Acción**: Fase 71 — Sincronizar Pro → Free (12 cursos + 6,498 staging_raw), fix FG3 integrity_ping, ejecutar pipeline FG2 en Pro para poblar más cursos → Fase 67A (Email).
+- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 71, 72-74 completadas. Pipeline con cancelación controlada. **Fuente única de exclusiones consolidada**: `institution_site_profiles` es la única fuente de verdad. `crawler_exclusions` DROPPED en ambos ambientes. 11 harvesters + 3 scripts legacy movidos a `deprecated/`. Security audit remediado (11 hallazgos). Pro con 11 perfiles en paridad con Free. **UUIDs de institutions/categories difieren entre Free y Pro** — sincronización cross-ambiente requiere mapeo por slug. **Fase 71 completada**: Pro→Free sync ejecutado (6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses). FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` con mapeo slug operacional.
+- **Último Hito**: Fase 71 completada — Pro→Free sync (6,498+242+12+12 registros), FG3 fix, `sync_pro_to_free.py` con slug mapping. Commit `775507f`.
+- **Próxima Acción**: Ejecutar pipeline FG2 en Pro (workflow_dispatch) para poblar más cursos → Re-sync Pro→Free → Fase 67A (Email).
 
 ## Tareas Pendientes Priorizadas
 
@@ -34,7 +34,7 @@
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
-| **P1** | **Fase 71 — Sincronización Pro→Free + Pipeline Producción** | Infraestructura | Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, ejecutar pipeline FG2 en Pro para poblar más cursos. | **Bloqueante** — sin datos Free no hay desarrollo |
+| ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (Pro), docs/DDL actualizados, security audit remediado. Free pendiente DROP TABLE opcional.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
@@ -68,6 +68,7 @@
 - [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro aplicada Dashboard.
 - [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en Pro, Free pendiente.
 - [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (Pro, Free pendiente), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
+- [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 
 ---
@@ -1824,7 +1825,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 - `_generate_smart_mock()` — fallback final sin cambios
 - `db_client.py` — no relevante para esta fase
 
-### Fase 71: Sincronización Pro→Free + Pipeline Producción [ ] Pendiente
+### Fase 71: Sincronización Pro→Free + Pipeline Producción [✓] Completada
 
 Objetivo: Emparejar Free (desarrollo/certificación) con Pro (producción) trayendo data real, y poblar Pro con más cursos vía pipeline FG2.
 
@@ -1835,14 +1836,14 @@ Objetivo: Emparejar Free (desarrollo/certificación) con Pro (producción) traye
 | Métrica | Free (Desarrollo) | Pro (Producción) | Acción |
 |---|---|---|---|
 | institutions | 11 | 11 | ✅ Igual contenido, UUIDs diferentes |
-| categories | 17 | 17 | ❓ Probablemente iguales, verificar |
+| categories | 17 | 17 | ✅ 17/17 mapeados por slug |
 | category_rules | 108 | 108 | ✅ Depende de institution_id |
 | market_salaries | 17 | 17 | ✅ Depende de category_id |
 | institution_site_profiles | 11 | 11 | ✅ Depende de institution_id |
-| **courses** | **0** | **12** (UTP) | **Pro → Free** (con slug mapping) |
-| **staging_raw** | **317** | **6,498** | **Pro → Free** (UPSERT por URL) |
-| cleansed_programs | 242 | 242 | Verificar paridad |
-| enriched_programs | 12 | 12 (synced) | Verificar paridad |
+| **courses** | **12** | **12** (UTP) | ✅ Synced (slug mapping) |
+| **staging_raw** | **6,498** | **6,498** | ✅ Synced (UPSERT por URL) |
+| cleansed_programs | 242 | 242 | ✅ Synced |
+| enriched_programs | 12 | 12 | ✅ Synced (INSERT directo) |
 | leads | 0 | 0 | N/A |
 | crawler_exclusions | ❌ DROPPED | ❌ DROPPED | Confirmado eliminada en ambos |
 
@@ -1896,50 +1897,50 @@ SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
 - `institution_site_profiles` (11 = 11, ya sincronizados en Fase 74)
 
 1. **Crear script de sincronización Pro→Free**:
-   - [ ] Crear `scripts/maintenance/sync_pro_to_free.py` con slug mapping automático
-   - [ ] Lectura: Pro via REST API (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` env vars productivas)
-   - [ ] Escritura: Free via `db_client.py` (lee de `.env.local`, usa `sb_secret_*`)
-   - [ ] Mapeo automático: construir diccionario `pro_uuid → slug → free_uuid` para `institution_id` y `category_id`
-   - [ ] Modo `--dry-run`: contar filas y mostrar mapping sin escribir
-   - [ ] Modo `--full`: sincronizar las 4 tablas (default)
-   - [ ] Modo `--table <tabla>`: sincronizar solo una tabla específica
-   - [ ] Modo `--truncate-staging`: borrar staging_raw en Free antes de insertar
-   - [ ] JSONB fields (`exclusion_patterns`, `section_keywords`, etc.): serializar con `json.dumps()` para INSERT/UPSERT
-   - [ ] Batch inserts de 200 rows para no timeout
-   - [ ] Logging detallado por tabla: `OK: 6498/6498 staging_raw`, `SKIP: 15 already exist`, etc.
+    - [x] Crear `scripts/maintenance/sync_pro_to_free.py` con slug mapping automático
+    - [x] Lectura: Pro via REST API (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` env vars productivas)
+    - [x] Escritura: Free via `db_client.py` (lee de `.env.local`, usa `sb_secret_*`)
+    - [x] Mapeo automático: construir diccionario `pro_uuid → slug → free_uuid` para `institution_id` y `category_id`
+    - [x] Modo `--dry-run`: contar filas y mostrar mapping sin escribir
+    - [x] Modo `--full`: sincronizar las 4 tablas (default)
+    - [x] Modo `--table <tabla>`: sincronizar solo una tabla específica
+    - [x] Modo `--truncate-staging`: borrar staging_raw en Free antes de insertar
+    - [x] JSONB fields (`exclusion_patterns`, `section_keywords`, etc.): PostgREST devuelve tipos correctos, NO usar `json.dumps()`
+    - [x] Batch inserts de 200 rows para no timeout
+    - [x] Logging detallado por tabla: `OK: 6498/6498 staging_raw`, `SKIP: 15 already exist`, etc.
 
 2. **Probar sincronización con dry-run**:
-   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --dry-run` en Docker
-   - [ ] Verificar que el slug mapping produce 11 mapeos correctos
-   - [ ] Verificar que no hay UUIDs huérfanos (institution_id/category_id que no existen en Free)
+    - [x] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --dry-run` en Docker
+    - [x] Verificar que el slug mapping produce 11 mapeos correctos
+    - [x] Verificar que no hay UUIDs huérfanos (institution_id/category_id que no existen en Free)
 
 3. **Ejecutar sincronización real**:
-   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` en Docker
-   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM courses` retorna 12
-   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM staging_raw` retorna ≥6,498
-   - [ ] Verificar en Free Dashboard: `SELECT count(*) FROM enriched_programs` retorna 12
+    - [x] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` en Docker
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM courses` retorna 12
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM staging_raw` retorna ≥6,498
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM enriched_programs` retorna 12
 
 4. **Fix FG3 Integrity Ping** (`ModuleNotFoundError: No module named 'shared'`):
-   - [ ] Agregar `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` al inicio de `integrity_ping.py`
-   - [ ] Agregar `working-directory: scripts/core` en `.github/workflows/fg3_integrity.yml`
-   - [ ] Validar que FG3 ejecuta sin `ModuleNotFoundError`
+    - [x] Agregar `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` al inicio de `integrity_ping.py`
+    - [x] Agregar `working-directory: scripts/core` en `.github/workflows/fg3_integrity.yml`
+    - [x] Validar que FG3 ejecuta sin `ModuleNotFoundError`
 
 5. **Ejecutar pipeline FG2 en Producción** (poblar más cursos):
-   - [ ] Verificar que GitHub Secrets `Production` apunta a Pro (`SUPABASE_URL` = URL de Pro)
-   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
-   - [ ] Ejecutar pipeline FG2 manual (`workflow_dispatch`) en rama `main`
-   - [ ] Verificar que el harvester descubre URLs (Freshness Guard no debe activarse con count bajo)
-   - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
-   - [ ] Target: ≥100 cursos activos/verificados en Pro
+    - [ ] Verificar que GitHub Secrets `Production` apunta a Pro (`SUPABASE_URL` = URL de Pro)
+    - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
+    - [ ] Ejecutar pipeline FG2 manual (`workflow_dispatch`) en rama `main`
+    - [ ] Verificar que el harvester descubre URLs (Freshness Guard no debe activarse con count bajo)
+    - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
+    - [ ] Target: ≥100 cursos activos/verificados en Pro
 
 6. **Re-sincronizar Pro→Free post-pipeline**:
-   - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` nuevamente
-   - [ ] Free queda como espejo de Pro para desarrollo/certificación
+    - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` nuevamente
+    - [ ] Free queda como espejo de Pro para desarrollo/certificación
 
 7. **Verificar frontend studiamatch.com**:
-   - [ ] Confirmar que `studiamatch.com` muestra cursos (`is_active=eq.true&is_verified=eq.true` retorna resultados)
-   - [ ] Confirmar que la página de detalle carga correctamente
-   - [ ] Confirmar que filtros por institución funcionan (U. Lima, UTP, etc.)
+    - [ ] Confirmar que `studiamatch.com` muestra cursos (`is_active=eq.true&is_verified=eq.true` retorna resultados)
+    - [ ] Confirmar que la página de detalle carga correctamente
+    - [ ] Confirmar que filtros por institución funcionan (U. Lima, UTP, etc.)
 
 **Archivos que se crean/modifican**:
 
