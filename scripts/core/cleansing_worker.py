@@ -174,6 +174,46 @@ class CleansingWorker:
             logger.warning(f"Error loading site profiles: {e}")
             return []
 
+    # Fase 62C: Perfil-driven cleansing helpers
+    def _get_profile_for_inst(self, inst_id) -> Dict[str, Any]:
+        if not inst_id:
+            return {}
+        for p in self.profiles or []:
+            if isinstance(p, dict) and str(p.get('institution_id', '')) == str(inst_id):
+                return p
+        return {}
+
+    def _apply_title_cleansing(self, raw_name: str, profile: Dict[str, Any]) -> str:
+        if not raw_name:
+            return raw_name
+        name = raw_name.strip()
+        # Remove prefixes
+        for prefix in profile.get('title_prefix_removals') or []:
+            if name.lower().startswith(prefix.lower()):
+                name = name[len(prefix):].strip()
+        # Split on separators and take first meaningful part
+        for sep in profile.get('title_split_separators') or []:
+            if sep in name:
+                parts = [p.strip() for p in name.split(sep) if p.strip()]
+                if parts:
+                    name = parts[0]
+        return name
+
+    def _extract_price_with_regex(self, text: str, profile: Dict[str, Any]):
+        profile_regex = profile.get('price_regex')
+        if profile_regex:
+            match = re.search(profile_regex, text, re.IGNORECASE)
+            if match:
+                try:
+                    price_str = match.group(1) if match.lastindex else match.group(0)
+                    price_str = price_str.replace(',', '').replace('S/', '').replace('s/', '').strip()
+                    price = float(price_str)
+                    if 10 < price < 1000000:
+                        return price, "publicado"
+                except (ValueError, IndexError):
+                    pass
+        return extract_price(text)
+
     def _get_base_url(self, url: str) -> str:
         suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
         clean_url = url.rstrip('/') + '/'
@@ -295,8 +335,13 @@ class CleansingWorker:
                 continue
                 
             clean_name = clean_course_name(final_raw_name)
+            # Fase 62C: Perfil-driven title cleansing (prefix removal, separator splitting)
+            profile = self._get_profile_for_inst(inst_id)
+            clean_name = self._apply_title_cleansing(clean_name, profile)
             combined_full_text = f"{clean_name}\n{combined_desc}\n{clean_text_context}"
-            mode, locations, (price, p_status) = standardize_mode(combined_full_text), detect_locations(combined_full_text), extract_price(combined_full_text)
+            mode, locations = standardize_mode(combined_full_text), detect_locations(combined_full_text)
+            # Fase 62C: Perfil-driven price extraction with profile regex
+            price, p_status = self._extract_price_with_regex(combined_full_text, profile)
             
             cleansed_batch.append({
                 "staging_id": main_raw['id'], "institution_id": inst_id, "url": base_url,

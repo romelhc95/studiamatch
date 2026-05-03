@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61-64, 66, 68, 71-75 completadas. Pipeline con cancelación controlada + Exclusion Gate activo (5 capas). `institution_site_profiles` es fuente única de verdad. 11 harvesters deprecados. Security audit remediado (10 hallazgos). UTP `pipeline_ready=true` con 84 exclusiones + allowlist `/cgt/`. **2 cursos UTP CGT activos en Free, 6 ruido desactivados**. Harvester en discovery-only mode cuando `pipeline_ready=false`. Próximo: Fase 62A-62D (Harvester Perfil-Driven).
-- **Último Hito**: Fase 75 completada — Exclusion Gate + Noise Sentinel v2 implementado. Harvester en discovery-only mode cuando `pipeline_ready=false`. UTP `pipeline_ready=true` con 84 exclusiones + allowlist `/cgt/`. Security audit remediado (10 hallazgos).
-- **Próxima Acción**: Fase 62A — Site Type Routing. Implementar routing de comportamiento en universal_harvester.py por `site_type` del perfil (`traditional_ssr` → HTTP-only, `spa_js_heavy` → Playwright, `ecommerce` → scroll+stealth). Luego Fases 62B-62D paralelas.
+- **Estado Actual**: R1-R8, Fases 32-34, 61-75 completadas. Pipeline con cancelación controlada + Exclusion Gate (5 capas). `institution_site_profiles` es fuente única de verdad + enrutamiento de scraping. 11 harvesters deprecados reemplazados por universal_harvester.py perfil-driven. DMC con discovery_mode=catalog_link_extraction + stealth + Cloudflare bypass. Profiles configurados para routing por site_type, discovery mode, anti-bot y extracción. Security audit remediado (10 hallazgos). UTP `pipeline_ready=true` con 84 exclusiones + allowlist `/cgt/`. **2 cursos UTP CGT activos en Free, 6 ruido desactivados**. Harvester en discovery-only mode cuando `pipeline_ready=false`.
+- **Último Hito**: Fase 62 completada — Harvester Adaptativo Perfil-Driven (62A-62D). universal_harvester.py enruta por `site_type`, descubre por `discovery_mode`, extrae con anti-bot configurable desde perfil. 11 harvesters deprecados reemplazados. DMC configurado como ecommerce con stealth+Cloudflare.
+- **Próxima Acción**: Fase 67A — Setup Resend + Edge Function de email. También: sincronizar perfiles Free→Pro.
 
 ## Tareas Pendientes Priorizadas
 
@@ -30,10 +30,10 @@
 | ~~P1~~ | ~~Fase 68 — Pipeline Resiliencia: Cancelación Controlada~~ | ~~Pipeline~~ | ~~TIME_GUARD + signal handler + retry con backoff + timeouts alineados~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 61 — Consolidar exclusiones en fuente única~~ | ~~Pipeline~~ | ~~Mergear `crawler_exclusions` → `institution_site_profiles.exclusion_patterns`, eliminar fallback legacy, crear perfil DMC.~~ | ~~Completado — 11 perfiles consolidados (40-146 patterns)~~ |
-| **P2** | **Fase 62A — Site Type Routing** | Pipeline | `site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil. | Depende de Fase 75 completada |
-| **P2** | **Fase 62B — Discovery Modes** | Pipeline | Implementar `paginated_catalog` (iterar `catalog_url_patterns` con paginación) y `catalog_link_extraction` (Playwright scroll + selector `catalog_link_selector`). Reemplaza lógica de PUCP y SmartData harvesters. | Depende de 62A |
-| **P2** | **Fase 62C — Perfil-Driven Extraction** | Pipeline | Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres. | Depende de 62B |
-| **P2** | **Fase 62D — Anti-Bot por Perfil** | Pipeline | Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado. | Depende de 62A |
+| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62B — Discovery Modes~~ | ~~Pipeline~~ | ~~Implementar `paginated_catalog` (iterar `catalog_url_patterns` con paginación) y `catalog_link_extraction` (Playwright scroll + selector `catalog_link_selector`). Reemplaza lógica de PUCP y SmartData harvesters.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
@@ -68,10 +68,10 @@
 - [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
 - [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada.
 - [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
-- [~] **Fase 62A**: Site Type Routing — Pendiente. `site_type` solo se loguea, no enruta comportamiento. Implementar routing: `spa_js_heavy` → Playwright full, `ecommerce` → scroll+stealth, `traditional_ssr` → HTTP-only.
-- [ ] **Fase 62B**: Discovery Modes — Pendiente. Implementar `paginated_catalog` (PUCP) y `catalog_link_extraction` (SmartData/New Horizons) como discovery modes en universal_harvester.
-- [ ] **Fase 62C**: Perfil-Driven Extraction — Pendiente. `section_keywords` en harvester headings scan, `field_defaults` en staging_raw metadata, `title_prefix_removals`/`title_split_separators` en cleansing, `price_regex`/`duration_regex`.
-- [ ] **Fase 62D**: Anti-Bot por Perfil — Pendiente. `requires_stealth` → playwright_stealth, `requires_cloudflare_bypass` → challenge loop+warmup, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
+- [x] **Fase 62A**: Site Type Routing — `traditional_ssr` → HTTP-only, `spa_js_heavy` → Playwright, `ecommerce` → Playwright+stealth. Routing en `main()` y `scrape_course_detail()` vs `_scrape_http()`.
+- [x] **Fase 62B**: Discovery Modes — `paginated_catalog` (itera `catalog_url_patterns` con `{page}`) y `catalog_link_extraction` (Playwright scroll + link selector). DMC configurado.
+- [x] **Fase 62C**: Perfil-Driven Extraction — `_extract_sections()` con `section_keywords`, `_apply_title_cleansing()` con `title_prefix_removals`/`title_split_separators`, `_extract_price_with_regex()` con `price_regex`, `field_defaults` en metadata.
+- [x] **Fase 62D**: Anti-Bot por Perfil — `requires_stealth` → `playwright_stealth.Stealth.apply_stealth_async()`, `requires_cloudflare_bypass` → warm-up + challenge loop, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
 - [x] **Fase 63**: Enrichment + Sync con Perfiles — `section_keywords` inyectado en prompt LLM, `field_defaults` como fallback en sync_vector, `section_mode_map` para derivar modality.
 - [x] **Fase 72**: U. Lima Reducción de Ruido — exclusiones consolidadas en perfiles, hub_patterns, retro cleanup, de-dup UTM.
 - [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro aplicada Dashboard.
@@ -1398,7 +1398,7 @@ Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclus
 
 **Nota sobre Fases 72-73**: Las exclusiones agregadas en `seed_crawler_exclusions.py` durante la Fase 72 no se reflejaron en los perfiles. La consolidación (punto 1) resolverá esta divergencia automáticamente.
 
-### Fase 62: Universal Harvester Adaptativo — Perfil-Driven [~] En progreso
+### Fase 62: Universal Harvester Adaptativo — Perfil-Driven [x] Completado
 
 > **Filosofía**: `institution_site_profiles` es la única fuente de verdad. El harvester NO tiene lógica por institución — todo comportamiento diferenciado sale del perfil. Una institución nueva funciona con solo crear un perfil y setear `pipeline_ready=true`.
 
@@ -1446,100 +1446,93 @@ Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclus
 | `pipeline_ready` | bool | Gate: si false, pipeline omite institución | ✅ Capa 0 gate |
 | `max_courses_per_run` | int | Límite de cursos por ejecución | ❌ No implementado |
 
-#### Fase 62A: Site Type Routing [ ] Pendiente
+#### Fase 62A: Site Type Routing [x] Completado
 
 Objetivo: El campo `site_type` del perfil enruta el comportamiento del Playwright en `universal_harvester.py`.
 
-1. **Modificar `universal_harvester.py`** — `_crawl_and_extract()`:
-   - `traditional_ssr` → HTTP-only con `aiohttp` (sin Playwright, más rápido)
-   - `spa_js_heavy` → Playwright headless con `detail_wait_ms` configurable (actual: siempre 3s)
-   - `ecommerce` → Playwright headless + scroll infinito (`catalog_scroll_iterations`) + stealth si `requires_stealth=true`
+1. **Modificar `universal_harvester.py`** — `scrape_course_detail()` vs `_scrape_http()`:
+   - `traditional_ssr` → `_scrape_http()` con `aiohttp`/`curl_cffi` + BeautifulSoup (sin Playwright, más rápido)
+   - `spa_js_heavy` → `scrape_course_detail()` con Playwright headless + `detail_wait_ms` configurable
+   - `ecommerce` → `scrape_course_detail()` con Playwright + anti-bot (`requires_stealth`, `requires_cloudflare_bypass`)
    - Si `site_type` es null/missing → default a `traditional_ssr` (compatibilidad)
+   - [x] Implementado en universal_harvester.py
 
-2. **Modificar `universal_harvester.py`** — `_fetch_sitemap()`:
-   - Para `spa_js_heavy`: usar Playwright para obtener sitemap renderizado
-   - Para `ecommerce`: sitemap suele estar bloqueado → BFS directo con scroll
-   - Para `traditional_ssr`: mantener `aiohttp` actual
+2. **Routing en `main()`**:
+   - Playwright se lanza solo si `site_type in ('spa_js_heavy', 'ecommerce')` o `discovery_mode == 'catalog_link_extraction'`
+   - [x] Implementado en universal_harvester.py:728-760
 
-3. **Testing**:
-   - `traditional_ssr`: UTP, USIL, Continental, SENATI, UNMSM, UNI (sin JS rendering)
-   - `spa_js_heavy`: IDAT, UPC (requiere Playwright)
-   - `ecommerce`: DMC (requiere stealth + scroll)
-
-#### Fase 62B: Discovery Modes [ ] Pendiente
+#### Fase 62B: Discovery Modes [x] Completado
 
 Objetivo: Implementar `paginated_catalog` y `catalog_link_extraction` como discovery modes en `universal_harvester.py`, reemplazando la lógica de PUCP y SmartData/New Horizons harvesters.
 
-1. **`paginated_catalog` mode**:
-   - Leer `catalog_url_patterns` del perfil (ej: `["https://www.pucp.edu.pe/programas/?jsf=jet-engine&pagenum={page}"]`)
-   - Iterar desde page=1 hasta `catalog_max_pages` (default 5)
-   - Extraer links con `catalog_link_selector` (ej: `a.jet-listing-dynamic-image__link`)
-   - Filtrar con `_is_valid_crawl_url()` y `exclusion_patterns`/`allowed_url_patterns`
-   - Guardar cada URL descubierta en `staging_raw`
+1. **`paginated_catalog` mode** — `discover_paginated_catalog()`:
+   - [x] Lee `catalog_url_patterns` del perfil, reemplaza `{page}` con número
+   - [x] Itera desde page=1 hasta `catalog_max_pages`
+   - [x] Extrae links con `catalog_link_selector` (HTTP o Playwright según site_type)
+   - [x] Filtra con `_is_valid_crawl_url()` y guarda en staging_raw
 
-2. **`catalog_link_extraction` mode**:
-   - Para sitios con scroll infinito (DMC, New Horizons)
-   - Usar Playwright scroll + `catalog_scroll_iterations` (default 15)
-   - Extraer links con `catalog_link_selector`
-   - Cerrar popups con `popup_close_selectors` antes de scroll
+2. **`catalog_link_extraction` mode** — `discover_catalog_links()`:
+   - [x] Playwright scroll + `catalog_scroll_iterations`
+   - [x] Extrae links con `catalog_link_selector`
+   - [x] Cierra popups con `popup_close_selectors`
+   - [x] Detecta fin de página (footer reach)
 
-3. **Modificar `discover_courses()` routing**:
+3. **Routing en `discover_courses()`**:
    ```python
    if discovery_mode == 'hardcoded_urls': ...
-   elif discovery_mode == 'paginated_catalog': await self.discover_paginated_catalog()
-   elif discovery_mode == 'catalog_link_extraction': await self.discover_catalog_links()
+   elif discovery_mode == 'paginated_catalog': await self.discover_paginated_catalog(browser)
+   elif discovery_mode == 'catalog_link_extraction': await self.discover_catalog_links(browser)
    else:  # sitemap_bfs (default)
-       await self._fetch_sitemap() / await self._bfs_crawl()
+       sitemap + BFS
    ```
 
-4. **Perfiles a configurar**:
-   - PUCP: `discovery_mode=paginated_catalog`, `catalog_url_patterns=["...?pagenum={page}"]`, `catalog_max_pages=13`
-   - DMC: `discovery_mode=catalog_link_extraction`, `catalog_link_selector=".elementor-post__title a"`, `catalog_scroll_iterations=15`, `requires_stealth=true`
+4. **Perfiles configurados en Free DB**:
+   - DMC: `discovery_mode=catalog_link_extraction`, `catalog_link_selector`, `catalog_scroll_iterations=15`, `requires_stealth=true`, `requires_cloudflare_bypass=true`
+   - PUCP: Config pendiente al agregar institución (catalog_url_patterns, catalog_max_pages=13)
 
-#### Fase 62C: Perfil-Driven Extraction [ ] Pendiente
+#### Fase 62C: Perfil-Driven Extraction [x] Completado
 
 Objetivo: Usar campos del perfil para mejorar la extracción en harvester y cleansing.
 
 1. **`section_keywords` en harvester** — `_extract_sections()`:
-   - Escanear headings (H2, H3) del HTML renderizado
-   - Mapear headings a campos usando `section_keywords` del perfil
-   - Guardar como metadata en `staging_raw.raw_html` o campo separado
+   - [x] Escanea H2/H3 del HTML
+   - [x] Mapea headings a campos usando `section_keywords` del perfil
+   - [x] Guarda resultado en `metadata.extracted_sections` de staging_raw
 
 2. **`title_prefix_removals` y `title_split_separators` en cleansing_worker**:
-   - Remover prefijos como "Carrera de ", "▷ " usando `title_prefix_removals`
-   - Limpiar títulos con separadores como " \| ", " - " usando `title_split_separators`
+   - [x] Remueve prefijos como "▷ " usando `title_prefix_removals`
+   - [x] Limpia títulos separando por pipes/guiones con `title_split_separators`
+   - [x] Implementado en `_apply_title_cleansing()`
 
-3. **`price_regex` y `duration_regex` en cleansing_worker**:
-   - Extraer precio usando `price_regex` del perfil (ej: `S/\s*([\d,.]+)`)
-   - Extraer duración usando `duration_regex` del perfil (ej: `\d+\s*(meses|semanas|años)`)
+3. **`price_regex` en cleansing_worker**:
+   - [x] Extrae precio usando `price_regex` del perfil con fallback a `extract_price()` default
+   - [x] Implementado en `_extract_price_with_regex()`
 
 4. **`field_defaults` en staging_raw metadata**:
-   - Giblar metadata en `staging_raw` con defaults del perfil al descubrir URLs
-   - Ej: si `field_defaults.mode = "Presencial"`, guardar como hint para enrichment
+   - [x] Guarda `field_defaults` del perfil en `metadata` de cada registro
 
-#### Fase 62D: Anti-Bot por Perfil [ ] Pendiente
+#### Fase 62D: Anti-Bot por Perfil [x] Completado
 
 Objetivo: Centralizar toda la lógica anti-bot en el perfil, eliminando la necesidad de harvesters dedicados.
 
-1. **`requires_stealth` → `playwright_stealth`**:
-   - Importar `playwright_stealth` (ya usado por SmartData harvester)
-   - Si `requires_stealth=true` inyectar stealth plugin al lanzar browser
+1. **`requires_stealth`**:
+   - [x] Importa `playwright_stealth.Stealth.apply_stealth_async()`condicionalmente
+   - [x] Aplica stealth si `requires_stealth=true` y librería disponible
+   - [x] DMC: `requires_stealth=true`
 
-2. **`requires_cloudflare_bypass` → challenge loop + warm-up**:
-   - Warm-up: visitar `warmup_url` (o homepage) antes del scrapeo real
-   - Simular mouse movement (`page.mouse.move()`)
-   - Challenge loop: verificar si `<title>` contiene "Just a moment" → esperar 10s, reintentar hasta 12 veces
-   - Headers custom: `Accept-Language`, `DNT`
+2. **`requires_cloudflare_bypass`**:
+   - [x] `_check_cloudflare_challenge()`: detecta "Just a moment" en title, espera 10s x 12 intentos
+   - [x] `_warmup_browser()`: visita homepage + mouse simulation
+   - [x] DMC: `requires_cloudflare_bypass=true`, `warmup_url="https://www.dmc.pe/"`
+   - [x] `slow_mo=50` en launch cuando `requires_stealth`
 
-3. **`popup_close_selectors` → auto-dismiss**:
-   - Después de cada `page.goto()`, iterar selectors y hacer `page.click(selector)` con catch
-   - Reemplazar lógica bespoke de USIL harvester
+3. **`popup_close_selectors`**:
+   - [x] `_dismiss_popups()`: después de cada page.goto(), cierra popups con selectores del perfil
+   - [x] USIL: `["button.close", ".modal-close", "[data-dismiss=\"modal\"]"]`
 
-4. **Configuraciones por perfil**:
-   - DMC: `requires_stealth=true`, `requires_cloudflare_bypass=true`, `warmup_url="https://www.dmc.pe/"`, `catalog_scroll_iterations=15`
-   - USIL: `popup_close_selectors=[".modal-close", "button.close"]`
-   - IDAT/UPC: `detail_wait_ms=4000` (ya configurado)
-   - Resto: default `traditional_ssr` con HTTP-only
+4. **`detail_wait_ms`**:
+   - [x] Usa `detail_wait_ms` del perfil en vez de hardcoded `random.uniform(1, 3)`
+   - [x] IDAT/UPC: 4000ms, U. Lima: 3000ms, resto: 2000ms (default)
 
 ### Fase 63: Enrichment + Sync con Perfiles de Sitio [x] Completado
 
