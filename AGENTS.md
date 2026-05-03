@@ -114,7 +114,8 @@ db.count('courses', filters='is_active=eq.true')
 - **Sí** usa `json.dumps()` para campos de tipo TEXT/JSONB que guardas vía `db.insert()` o `db.upsert()` (ej: `curriculum_summary`, `requirements`).
 - Los filtros usan sintaxis PostgREST: `is_active=eq.true`, `name=is.null`, `status=in.(synced,pending)`.
 - **Límite**: 1000 registros por query sin paginación (usa `db.select_all()` si necesitas más).
-- **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`, `crawler_exclusions`). Solo SELECT está permitido. Para escritura se necesita `service_role`.
+- **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita `service_role`.
+- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` NO se usa para lectura (Fase 74).
 
 ### Frontend: Next.js
 - **Static export**: `next.config.js` → `output: 'export'` en producción para Cloudflare Pages
@@ -162,7 +163,7 @@ Harvester       Cleansing              Enrichment           Sync Vector
 
 1. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
 
-2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` o `crawler_exclusions` **debe** usar `service_role`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
+2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar `service_role`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
 
 3. **`batch_enrich_courses.py`** (scripts/maintenance/): Bypass del pipeline. Lee HTML de `staging_raw` y escribe directo a `courses`. Útil para corregir datos puntuales sin pasar por las 4 estaciones.
 

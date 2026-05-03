@@ -1,71 +1,79 @@
-﻿import os
-import requests
-import json
-from dotenv import load_dotenv
+﻿"""Fase 74: Preventive cleanup — now writes to institution_site_profiles.exclusion_patterns (JSONB)"""
+import os, sys, json, requests
 
-load_dotenv(".env.local")
-url = os.getenv("SUPABASE_URL", os.getenv("SUPABASE_URL"))
-key = os.getenv("NEXT_SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-headers = {
-    "apikey": key,
-    "Authorization": f"Bearer {key}",
-    "Content-Type": "application/json",
-    "Prefer": "return=representation"
-}
+sys.path.insert(0, '/app')
+from scripts.shared.db_client import get_db_client
 
-inst_ids = [
-    "ccd04100-1bde-427b-b94f-ab24ae233a2a", # U. Lima
-    "cf64d254-733d-4a92-8a2d-5df5b9dc80ac", # U. PacÃ­fico
-    "c64123d6-f00e-4c89-86a8-7706845c0483", # DMC
-    "2aa0d175-bfbd-46d0-b84c-14083d2336b0", # IDAT
-    "24cc140d-de25-4ef1-9316-b897b451be50"  # New Horizons
+db = get_db_client()
+
+INST_SLUGS = [
+    "universidad-de-lima",
+    "universidad-del-pacifico",
+    "dmc",
+    "idat",
 ]
 
-global_patterns = [
-    "/category/", "/author/", "/tag/", "/archive/", 
+GLOBAL_PATTERNS = [
+    "/category/", "/author/", "/tag/", "/archive/",
     "politicas-de-privacidad", "terminos-y-condiciones", "libro-de-reclamaciones",
     "/transparencia/", "/empleabilidad/"
 ]
 
-print("--- 1. Registrando Exclusiones Preventivas ---")
-for i_id in inst_ids:
-    for pat in global_patterns:
-        res = requests.post(f"{url}/rest/v1/crawler_exclusions", headers=headers, json={
-            "institution_id": i_id,
-            "pattern": pat,
-            "reason": "PatrÃ³n de ruido preventivo / PÃ¡gina de servicio"
-        })
-        if res.status_code in [200, 201]:
-            print(f"âœ… ExclusiÃ³n registrada: {pat} para {i_id[:8]}")
+print("--- Registrando Exclusiones Preventivas (en perfiles) ---")
 
-print("\n--- 2. Saneando Duplicados por Trailing Slash (/) ---")
-# Obtenemos todos los cursos
-res_courses = requests.get(f"{url}/rest/v1/courses?select=id,url,institution_id", headers=headers)
-if res_courses.status_code == 200:
-    courses = res_courses.json()
-    url_map = {} # (inst_id, clean_url) -> [ids]
-    
+institutions = db.select('institutions', columns='id,slug')
+inst_map = {i['slug']: i for i in institutions} if institutions else {}
+
+profiles = db.select('institution_site_profiles', columns='institution_id,exclusion_patterns')
+profile_map = {p['institution_id']: p for p in profiles} if profiles else {}
+
+for slug in INST_SLUGS:
+    if slug not in inst_map:
+        print(f"SKIP: {slug} not found")
+        continue
+    inst = inst_map[slug]
+    iid = inst['id']
+
+    if iid not in profile_map:
+        print(f"SKIP: {slug} has no profile")
+        continue
+
+    current = profile_map[iid]
+    current_patterns = set(current.get('exclusion_patterns', []) or [])
+    new_patterns = set(GLOBAL_PATTERNS)
+
+    if new_patterns - current_patterns:
+        merged = sorted(current_patterns | new_patterns)
+        merged = [str(p).strip() for p in merged if p and isinstance(p, (str, int))]
+        merged = list(set(merged))[:500]
+        result = db.patch('institution_site_profiles', f'institution_id=eq.{iid}', {
+            'exclusion_patterns': merged
+        })
+        added = len(new_patterns - current_patterns)
+        print(f"OK: {slug} — added {added} patterns, total={len(merged)}")
+    else:
+        print(f"OK: {slug} — already has all patterns ({len(current_patterns)})")
+
+print("\n--- De-dup (unchanged legacy logic, uses db_client) ---")
+courses = db.select('courses', columns='id,url,institution_id')
+if courses:
+    url_map = {}
     for c in courses:
         clean_url = c['url'].rstrip('/')
-        key_tuple = (c['institution_id'], clean_url)
-        if key_tuple not in url_map:
-            url_map[key_tuple] = []
-        url_map[key_tuple].append(c)
-    
-    deleted_count = 0
-    for key_tuple, records in url_map.items():
-        if len(records) > 1:
-            # Tenemos duplicados (con y sin /)
-            # Priorizamos el que NO termina en / o simplemente el primero
-            print(f"ðŸ” Duplicado detectado: {key_tuple[1]}")
-            # Mantener el primero, borrar el resto
-            to_keep = records[0]
-            for to_delete in records[1:]:
-                del_res = requests.delete(f"{url}/rest/v1/courses?id=eq.{to_delete['id']}", headers=headers)
-                if del_res.status_code in [200, 204]:
-                    deleted_count += 1
-                    print(f"  ðŸ—‘ï¸ Borrado ID: {to_delete['id']}")
+        key = (c['institution_id'], clean_url)
+        if key not in url_map:
+            url_map[key] = []
+        url_map[key].append(c)
 
-    print(f"\nâœ… Saneamiento completado. Se eliminaron {deleted_count} duplicados tÃ©cnicos.")
+    deleted = 0
+    for (iid, clean_url), records in url_map.items():
+        if len(records) > 1:
+            print(f"  Dup detected: {clean_url}")
+            for to_delete in records[1:]:
+                db.delete('courses', f"id=eq.{to_delete['id']}")
+                deleted += 1
+    print(f"\nDe-dup complete: {deleted} duplicates removed")
 else:
-    print("âŒ Error al obtener cursos para de-duplicaciÃ³n.")
+    print("No courses to de-dup")
+
+print("\nDone")
