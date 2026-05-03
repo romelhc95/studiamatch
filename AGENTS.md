@@ -106,6 +106,26 @@ El archivo `.env.gitprod` (gitignored) contiene:
 - Los UUIDs de institutions/categories **difieren entre Free y Pro** — sincronización requiere mapeo por slug/nombre
 - Ambas keys son rotables ante exposición
 
+## Fase 75: Exclusion Gate (`pipeline_ready`)
+
+**Cada institución debe tener exclusiones afinadas antes de que el pipeline la procese.**
+
+- `institution_site_profiles.pipeline_ready` (booleano, default `false`) — gate de 5 capas
+- `pipeline_ready = false` → los 4 workers saltan la institución (harvester, cleansing, enrichment, sync)
+- Para activar: afinar `exclusion_patterns`, revisar URLs descubiertas, luego set `pipeline_ready = true`
+- `allowed_url_patterns` (JSONB) — whitelist positiva de regex para URLs que SÍ son programas
+
+**Patrones regex** (prefijo `re:`): Los patterns en `exclusion_patterns` pueden comenzar con `re:` para usar búsqueda regex en vez de substring match. Ej: `re:agradecimiento` atrapa `/agradecimiento/` y `-agradecimiento/`.
+
+**Capas de defensa**:
+| Capa | Worker | Mecanismo |
+|---|---|---|
+| 0 | Todos | `pipeline_ready` gate |
+| 1 | harvester + cleansing | Regex exclusion patterns (`re:` prefix) |
+| 2 | cleansing | `NOISE_NAME_PATTERNS` (agradecimiento, matrícula, facultad de...) |
+| 3 | enrichment | Regla absoluta en prompt LLM |
+| 4 | sync | `NOISE_PATTERNS` post-sync validation |
+
 ### Git Flow
 - `desarrollo` — rama activa de desarrollo (PR requerido, review técnico)
 - `certificacion` — QA, E2E Playwright, auditoría de datos
