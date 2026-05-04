@@ -34,6 +34,7 @@ interface Course {
   id: string;
   name: string;
   slug: string;
+  institution_slug?: string;
   institution_id?: string;
   institution_name: string;
   price_pen: number | null;
@@ -79,6 +80,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [socialSuccess, setSocialSuccess] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -165,9 +167,10 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       }
 
       setTimeout(() => setSocialSuccess(false), 3000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("🔴 Error crítico al enviar social proof:", error);
-      alert(error.message || "Ocurrió un error al enviar tu reseña.");
+      alert(error?.message || "Ocurrió un error al enviar tu reseña.");
     } finally {
       setIsSocialSubmitting(false);
     }
@@ -345,12 +348,13 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           if (Array.isArray(ratingsData)) setRatings(ratingsData);
           if (Array.isArray(reviewsData)) setReviews(reviewsData);
           if (Array.isArray(relatedData)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const enriched = relatedData.map((c: any) => ({
               ...c,
               institution_name: c.institutions?.name || "StudIAMatch",
               institution_slug: c.institutions?.slug || "general"
             }));
-            setRelatedCourses(enriched);
+            setRelatedCourses(enriched as Course[]);
           }
         } catch (error) {
           console.error("Error fetching social proof:", error);
@@ -687,7 +691,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                                   <div className="text-[10px] text-slate-400 font-bold uppercase">{new Date(review.created_at).toLocaleDateString()}</div>
                                 </div>
                               </div>
-                              <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic text-sm">"{review.content}"</p>
+                              <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic text-sm">&ldquo;{review.content}&rdquo;</p>
                             </div>
                           )) : (
                             <div className="py-20 text-center opacity-40">
@@ -789,7 +793,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </span>
                       <GraduationCap className="h-4 w-4 text-slate-200" />
                     </div>
-                    <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`}>
+                    <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`}>
                       <h3 className="text-base font-black text-brand-slate leading-tight line-clamp-2 h-10 group-hover:text-brand-blue transition-colors uppercase">
                         {rc.name}
                       </h3>
@@ -801,7 +805,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                        </span>
                     </div>
                   </div>
-                  <Link href={`/courses/${cleanSlug((rc as any).institution_slug)}/${rc.slug}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
+                   <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
                     Ver Programa
                   </Link>
                 </article>
