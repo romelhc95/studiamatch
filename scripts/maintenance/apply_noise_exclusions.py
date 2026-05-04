@@ -66,10 +66,11 @@ def apply_exclusions(patterns, dry_run=False):
         inst_id = p['institution_id']
         pattern = p['pattern']
 
-        existing = db.select('crawler_exclusions',
-                             filters=f"institution_id=eq.{inst_id}&pattern=eq.{pattern}")
+        profile = db.select('institution_site_profiles',
+                            filters=f"institution_id=eq.{inst_id}")
+        current_patterns = profile[0].get('exclusion_patterns', []) if profile and len(profile) > 0 else []
 
-        if existing and len(existing) > 0:
+        if pattern in current_patterns:
             if not dry_run:
                 print(f"  SKIP (ya existe): {inst_name} -> {pattern}")
             skipped += 1
@@ -80,11 +81,13 @@ def apply_exclusions(patterns, dry_run=False):
             applied += 1
             continue
 
-        result = db.insert('crawler_exclusions', {
+        updated_patterns = list(set(current_patterns + [pattern]))
+        result = db.upsert('institution_site_profiles', {
             "institution_id": inst_id,
-            "pattern": pattern,
-            "reason": p['reason']
-        })
+            "exclusion_patterns": updated_patterns,
+            "site_type": profile[0].get('site_type', 'traditional_ssr') if profile else 'traditional_ssr',
+            "discovery_mode": profile[0].get('discovery_mode', 'sitemap_bfs') if profile else 'sitemap_bfs',
+        }, on_conflict='institution_id')
 
         if result:
             print(f"  INSERT {inst_name} -> {pattern} ({p['confidence']})")

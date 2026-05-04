@@ -19,7 +19,7 @@ def _request_with_retry(method, url, **kwargs):
         try:
             return method(url, **kwargs)
         except (requests.exceptions.ConnectionError,
-                requests.exceptions.DNSResolutionError,
+                getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError),
                 requests.exceptions.Timeout) as e:
             last_err = e
             if attempt < DNS_RETRY_MAX:

@@ -1,0 +1,25 @@
+#!/bin/sh
+# pre-commit hook — Blocks commit if stage contains hardcoded credentials.
+# Installation: git config core.hooksPath .githooks
+
+echo "🔍 [pre-commit] Scanning staged files for hardcoded credentials..."
+
+staged=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+[ -z "$staged" ] && echo "✅ [pre-commit] No files to check." && exit 0
+
+found=0
+for f in $staged; do
+    if git show ":${f}" 2>/dev/null | grep -qE \
+        "eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}"; then
+        echo "⚠️  CREDENTIAL FOUND in staged file: $f"
+        found=1
+    fi
+done
+
+if [ "$found" -eq 1 ]; then
+    echo "❌ [pre-commit] SECURITY BLOCKED: Hardcoded credentials detected. Remove them and use env vars."
+    exit 1
+fi
+
+echo "✅ [pre-commit] No credentials detected."
+exit 0

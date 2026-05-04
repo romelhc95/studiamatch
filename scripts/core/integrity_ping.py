@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared.db_client import get_db_client
-from shared.utils import setup_lima_logging, TimeGuard
+from shared.utils import setup_lima_logging, TimeGuard, parse_start_date
 
 load_dotenv()
 logger = setup_lima_logging("IntegrityPing")
@@ -33,6 +33,20 @@ def run_integrity_ping():
         logger.warning("[CRITICAL] Demasiados cursos sin metadatos. ¡Alerta Nivel 3!")
     else:
         logger.info("[OK] Integridad de datos dentro de umbrales.")
+
+    # Fase 73: Expiration check — desactivar cursos con start_date expirado (>90d)
+    grace_cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+    expired = db.select('courses', filters=f"start_date=lt.{grace_cutoff},is_active=eq.true", columns="id,name,start_date,start_date_text")
+    expired_count = len(expired)
+    if expired_count > 0:
+        logger.info(f"⏰ [EXPIRED] {expired_count} cursos con start_date < {grace_cutoff} (90d gracia)")
+        for course in expired:
+            if guard.should_exit:
+                break
+            logger.info(f"  Desactivando: {course.get('name')} (start_date={course.get('start_date')}, text={course.get('start_date_text')})")
+            db.patch('courses', filters=f"id=eq.{course['id']}", data={"is_active": False})
+    else:
+        logger.info("[OK] 0 cursos con fecha expirada")
 
     courses = db.select_all('courses', filters="is_active=eq.true", columns="id,name,url,last_404_at", batch_size=1000)
     total = len(courses)

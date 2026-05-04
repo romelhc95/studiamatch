@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration: RLS Hardening — Fase 32A
--- Project: StudIAMatch (Dev Free: fmcxwoqvxatbrawwtqke)
+-- Project: StudIAMatch (Dev Free: YOUR_FREE_PROJECT_REF)
 -- Date: 2026-04-30
 -- Description: Habilitar RLS en 8 tablas sin protección, 
 --   crear policies de acceso público read-only y service_role ALL,
