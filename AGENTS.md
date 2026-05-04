@@ -4,19 +4,23 @@
 
 **SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
 
-## Auditoría de Credenciales (Obligatorio antes de push)
+## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
-**NUNCA** expongas credenciales (API keys, Publishable and secret API keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. Antes de cada `git push`:
+**NUNCA** expongas credenciales (API keys, Publishable and secret API keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. La detección ahora es **automática** vía:
 
-1. Buscar strings con patrón `eyJhbG` (JWT), `sbp_` (Supabase management token), o cualquier URL que contenga un project ref real
-2. Verificar que ningún script Python tenga credenciales hardcodeadas — usar `os.environ.get('VAR', '')` y salir con error si falta
-3. Verificar que `.env*` esté en `.gitignore` (ya cubierto por `.env*` y `*.env`)
-4. Los scripts que necesiten credenciales Pro deben leerlas de variables de entorno:
+- **pre-commit hook** (`.githooks/pre-commit`): Escanea staged files por patrones `eyJhbG` (JWT), `sbp_` (Supabase management token), `sb_secret_` (Supabase secret key), etc. Bloquea el commit si encuentra.
+- **pre-push hook** (`.githooks/pre-push`): Escanea el diff de commits nuevos antes de enviarlos al remoto.
+- **CI workflow** (`.github/workflows/security-audit.yml`): Corre en cada PR como status check obligatorio.
+
+Reglas adicionales (además de la detección automática):
+1. Eliminar credenciales hardcodeadas con `os.environ.get('VAR', '')` y salir con error si falta
+2. Verificar que `.env*` esté en `.gitignore` (ya cubierto por `.env*` y `*.env`)
+3. Los scripts que necesiten credenciales Pro deben leerlas de variables de entorno:
    - `NEXT_PUBLIC_SUPABASE_URL` — URL del proyecto Supabase Free/Pro
-   - `NEXT_SUPABASE_PUBLISHABLE_KEY` — Publishable key: This key is safe to use in a browser if you have enabled Row Level Security (RLS) for your tables and configured policies. (Pro o Free según el ambiente)
-   - `NEXT_SUPABASE_SECRET_KEY` — Secret keys: These API keys allow privileged access to your project's APIs. Use in servers, functions, workers or other backend components of your application.  (Pro o Free según el ambiente)
-5. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
-6. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente
+   - `NEXT_SUPABASE_PUBLISHABLE_KEY` — Publishable key (segura en frontend con RLS)
+   - `NEXT_SUPABASE_SECRET_KEY` — Secret key (solo backend/CI)
+4. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
+5. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente Y rota la credencial expuesta
 
 ## Arquitectura Cloud-Only (Supabase)
 
@@ -126,9 +130,79 @@ El archivo `.env.gitprod` (gitignored) contiene:
 | 3 | enrichment | Regla absoluta en prompt LLM |
 | 4 | sync | `NOISE_PATTERNS` post-sync validation |
 
-### Git Flow
-- `desarrollo` — rama activa de desarrollo (PR requerido, review técnico)
-- **@security-auditor**: Revisión obligatoria antes de commit push a `desarrollo`. Observaciones DEBEN remediarse antes de proceder.
+### Enforcement Automático del Gate @security-auditor
+
+**PROBLEMA**: La regla "@security-auditor review antes de push" se documentó pero se saltó repetidamente.
+
+**SOLUCIÓN MECÁNICA**: 5 capas de defensa que PREVIENE que credenciales entren al historial, no solo las detecta después.
+
+### Capa 0: Pre-commit hook (`.githooks/pre-commit`)
+```
+git commit → escanea staged files por credenciales hardcodeadas
+  → Si encuentra → ABORTA el commit (el secreto NUNCA entra al historial local)
+  → Si limpio → commit exitoso ✅
+```
+
+### Capa 1: Pre-push hook (`.githooks/pre-push`)
+```
+git push → escanea diff de commits nuevos por credenciales
+  → Si encuentra → ABORTA el push (el secreto NUNCA sale al remoto)
+  → Si limpio → push exitoso ✅
+```
+
+### Capa 2: Branch Protection (GitHub Settings — configuración manual)
+```
+Rama desarrollo: Require PR + 1 approval + required check "security-audit" + no force push
+```
+
+### Capa 3: CI Security Audit (`.github/workflows/security-audit.yml`)
+```
+PR abierto → corre automáticamente: credential-scan + lint + typecheck + python-check
+  → Si falla cualquier check → "security-audit" FAILED → PR bloqueado (no mergeable)
+  → Si pasa → "security-audit" PASSED → PR puede mergearse (tras aprobación humana)
+```
+
+### Capa 4: Plan de Remediación (si un secreto ya entró al historial)
+1. **Rotar la credencial INMEDIATAMENTE** (Supabase Dashboard → API → Rotate)
+2. **Limpiar historial** con `git filter-repo`
+3. **Force push** con historial limpio (coordinar con el equipo)
+
+### Flujo completo obligatorio (NO es opcional)
+
+```
+Usuario: "Ejecuta las tareas pendientes de la Fase XX"
+  → AI ejecuta cambios de código
+  → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
+  → Si hay hallazgos → AI remedia automáticamente
+  → Si limpio → commit + push a rama feat/*
+      → pre-commit hook escanea (bloquea si detecta credencial)
+      → pre-push hook escanea (bloquea si detecta credencial)
+  → AI crea PR a desarrollo
+  → CI "security-audit" corre (bloquea merge si falla)
+  → Humano revisa y aprueba el PR
+  → Merge a desarrollo
+
+[SOLO si se solicita explícitamente]
+  → PR a certificacion (mismo enforcement)
+  → PR a main (@SDLC-Chief approval requerido)
+```
+
+**NOTA**: La transición `desarrollo → certificacion → main` NO es automática. Solo avanza cuando el usuario lo diga explícitamente.
+
+### Instalación de hooks (una vez por clon)
+```bash
+git config core.hooksPath .githooks
+```
+
+Esto hace que Git use `.githooks/` del repo en vez de `.git/hooks/`. Como está versionado, todos los desarrolladores lo tienen.
+
+### CI Status Check: `security-audit`
+- Nombre exacto del check: **security-audit**
+- Debe configurarse como required check en GitHub Branch Protection
+- Si este check falla → el PR NO se puede mergear
+
+## Git Flow
+- `desarrollo` — rama activa de desarrollo (PR requerido, review técnico, security-audit CI check obligatorio)
 - `certificacion` — QA, E2E Playwright, auditoría de datos
 - `main` — producción (Supabase Pro, despliegue automático a Cloudflare)
 - Features: ramas `feat/*` que emergen de `desarrollo`
@@ -136,6 +210,14 @@ El archivo `.env.gitprod` (gitignored) contiene:
 ### Regla SDLC
 > Todo cambio de código DEBE pasar por: **Desarrollo → @security-auditor → Certificación → Producción**.
 > Todo cambio SQL/Datos DEBE pasar por: **Free → @security-auditor → Certificación → Pro (tras aprobación @SDLC-Chief)**.
+
+### @security-auditor: Ahora es obligatorio y automatizado
+- **Qué cambió**: Antes era una regla documentada que se saltaba. Ahora:
+  1. El AI invoca @security-auditor automáticamente después de cada cambio de código
+  2. El pre-commit hook bloquea commits con credenciales hardcodeadas
+  3. El CI check `security-audit` bloquea PRs que no pasen los escaneos
+  4. Branch protection impide mergear sin el check aprobado
+- **No hay excusa**: Las capas 0-3 son mecánicas. No se pueden "olvidar" o "saltar" accidentalmente.
 
 ### Python: db_client.py
 ```python
@@ -161,7 +243,7 @@ db.count('courses', filters='is_active=eq.true')
 - Los filtros usan sintaxis PostgREST: `is_active=eq.true`, `name=is.null`, `status=in.(synced,pending)`.
 - **Límite**: 1000 registros por query sin paginación (usa `db.select_all()` si necesitas más).
 - **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita `publishable_key` o `secret_key`.
-- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` fue eliminada (DROP TABLE en Pro, Free pendiente).
+- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` fue eliminada (DROP TABLE en ambos ambientes, Free y Pro).
 
 ### Frontend: Next.js
 - **Static export**: `next.config.js` → `output: 'export'` en producción para Cloudflare Pages
