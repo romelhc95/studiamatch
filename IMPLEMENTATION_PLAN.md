@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 76 (Hotfix Pipeline FG2) en progreso. Fases 62-75 **reabiertas parcialmente** por bugs detectados en pipeline FG2 CI/CD. 7 bugs críticos: (1) `self.discovery_mode` faltante → `AttributeError`, (2) `requests.exceptions.DNSResolutionError` inexistente → crash silencioso, (3) `quality_assurance_audit.py` no usa `db_client` → conecta directo sin retry, (4) `fg3_integrity.yml` backslash escapando `${{ }}`, (5) **JSONB string-vs-array** → PUCP itera 68 chars como URLs, (6) **`error_message` en `staging_raw`** → PGRST204, (7) **`error_message` en `cleansed_programs`** → PGRST204.
-- **Último Hito**: Bug 5 corregido y mergeado a `desarrollo` (commit `93272c5`, PR #6). Bugs 1-5 corregidos. Bugs 6-7 pendientes.
-- **Próxima Acción**: Fase 76 — Aplicar Bug 6 (`cleansing_worker.py`) y Bug 7 (`enrichment_worker.py`), commit, push a `desarrollo`, verificar FG2 sin PGRST204.
+- **Estado Actual**: Fase 76 (Hotfix Pipeline FG2) completada. Bugs 1-7 corregidos, mergeados y promovidos a producción (desarrollo → certificacion → main).
+- **Último Hito**: Fase 76 completada — 7 bugs del pipeline FG2 corregidos y promovidos a producción.
+- **Próxima Acción**: Ejecutar FG2 workflow_dispatch en `main` para validación E2E post-fixes.
 
 ## Tareas Pendientes Priorizadas
 
@@ -69,7 +69,7 @@
 - [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
 - [~] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. **REABIERTA**: Bug `DNSResolutionError` inexistente en `requests` → `AttributeError` (Fase 76).
 - [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
-- [ ] **Fase 76**: Hotfix Pipeline FG2 — 7 bugs críticos (`discovery_mode` AttributeError, `DNSResolutionError` inexistente, QA Audit sin `db_client`, YAML backslash, **JSONB string-vs-array**, **`error_message` en staging_raw**, **`error_message` en cleansed_programs**). Fases 62, 68, 26, 61, 75 reabiertas parcialmente.
+- [x] **Fase 76**: Hotfix Pipeline FG2 — 7 bugs críticos (`discovery_mode` AttributeError, `DNSResolutionError` inexistente, QA Audit sin `db_client`, YAML backslash, **JSONB string-vs-array**, **`error_message` en staging_raw**, **`error_message` en cleansed_programs**). Fases 62, 68, 26, 61, 75 reabiertas parcialmente.
 - [x] **Fase 62B**: Discovery Modes — `paginated_catalog` (itera `catalog_url_patterns` con `{page}`) y `catalog_link_extraction` (Playwright scroll + link selector). DMC configurado.
 - [x] **Fase 62C**: Perfil-Driven Extraction — `_extract_sections()` con `section_keywords`, `_apply_title_cleansing()` con `title_prefix_removals`/`title_split_separators`, `_extract_price_with_regex()` con `price_regex`, `field_defaults` en metadata.
 - [x] **Fase 62D**: Anti-Bot por Perfil — `requires_stealth` → `playwright_stealth.Stealth.apply_stealth_async()`, `requires_cloudflare_bypass` → warm-up + challenge loop, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
@@ -2513,7 +2513,7 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 
 **Requiere migrations SQL** — `pipeline_ready` column. Aplicar en Free primero, luego Pro tras certificación.
 
-### Fase 76: Hotfix Pipeline FG2 — 7 Bugs Críticos 🔴 [ ] En progreso
+### Fase 76: Hotfix Pipeline FG2 — 7 Bugs Críticos 🔴 [x] Completada
 
 **Diagnóstico**: El pipeline FG2 en CI/CD (rama `desarrollo`) falla con `exit code 1`. Audit de logs históricos + corrida en vivo (run 25298924837) revela 7 bugs que bloquean el pipeline completo. Run 25300423582 en `main` confirma Bug 5 (JSONB string-vs-array) causando 884 navegaciones inválidas a URLs de 1 carácter. Validación E2E del run 25298924837 revela Bug 6 y Bug 7 (columnas inexistentes en PATCH).
 
@@ -2588,14 +2588,18 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
      - [x] Mergeado a `desarrollo` (commit `93272c5`, PR #6)
 
 7. **Bug 6 — `error_message` columna inexistente en `staging_raw`**:
-     - [ ] Fix `cleansing_worker.py:398`: cambiar `error_message` → `processing_error`
-     - [ ] `py_compile` verificado
-     - [ ] Commit + push a `desarrollo`
+     - [x] Fix `cleansing_worker.py:398`: cambiar `error_message` → `processing_error`
+     - [x] `py_compile` verificado
+     - [x] Security audit APROBADO
+     - [x] Commit + push a `desarrollo` (commit `1984396`)
+     - [x] Mergeado a `desarrollo`, `certificacion`, `main`
 
 8. **Bug 7 — `error_message` columna inexistente en `cleansed_programs`**:
-     - [ ] Fix `enrichment_worker.py:360`: cambiar PATCH a solo `{'status': 'skipped'}` (sin `error_message`) o agregar columna `processing_error` vía migration
-     - [ ] `py_compile` verificado
-     - [ ] Commit + push a `desarrollo`
+     - [x] Fix `enrichment_worker.py:360`: eliminar `error_message` del PATCH
+     - [x] `py_compile` verificado
+     - [x] Security audit APROBADO
+     - [x] Commit + push a `desarrollo` (commit `1984396`)
+     - [x] Mergeado a `desarrollo`, `certificacion`, `main`
 
 9. **Validación E2E**:
      - [ ] Ejecutar FG2 en `desarrollo` (workflow_dispatch) → debe pasar Fase 1 sin `AttributeError`
@@ -2639,15 +2643,15 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 - **Impacto**: FG2 Fase 1.5 (Cleansing) genera cientos de errores PGRST204 por registro con `pipeline_ready=false`. El `status` se actualiza a `skipped` (columna válida), pero el motivo del skip no se registra.
 - **Fix**: Cambiar `error_message` → `processing_error` en `cleansing_worker.py:398`.
 - **Reasgna**: Fase 75 (Exclusion Gate) — el código de skip se escribió asumiendo un nombre de columna incorrecto.
-- **Estado**: ⏳ Pendiente.
+- **Estado**: ✅ Completado (commit `1984396`, PR #7 → mergeado a `desarrollo`, `certificacion`, `main`).
 
 **Bug 7 — `error_message` columna inexistente en `cleansed_programs`** (MEDIO):
 - **Archivo**: `scripts/core/enrichment_worker.py` línea 360
 - **Causa**: El PATCH usa `{'status': 'skipped', 'error_message': 'pipeline_ready=false'}` pero la tabla `cleansed_programs` **no tiene ninguna columna de error**. PostgREST retorna `PGRST204: Could not find the 'error_message' column of 'cleansed_programs' in the schema cache`.
 - **Impacto**: FG2 Fase 2 (Enrichment) genera errores PGRST204 por cada registro con `pipeline_ready=false`. El registro queda sin motivo de skip documentado.
-- **Fix**: Cambiar el PATCH a solo `{'status': 'skipped'}` (sin `error_message`) ya que `cleansed_programs` no tiene columna de error. Alternativa: agregar columna `processing_error` a `cleansed_programs` vía migration.
-- **Reasgna**: Fase 75 (Exclusion Gate) — mismmo problema que Bug 6.
-- **Estado**: ⏳ Pendiente.
+- **Fix**: Cambiar el PATCH a solo `{'status': 'skipped'}` (sin `error_message`) ya que `cleansed_programs` no tiene columna de error.
+- **Reasgna**: Fase 75 (Exclusion Gate) — mismo problema que Bug 6.
+- **Estado**: ✅ Completado (commit `1984396`, PR #7 → mergeado a `desarrollo`, `certificacion`, `main`).
 
 **Fases reabiertas parcialmente**:
 - **Fase 62** (Site Type Routing / Discovery Modes): Bug `discovery_mode` ausente + Bug 5 JSONB string-vs-array.
