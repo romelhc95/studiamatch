@@ -19,6 +19,7 @@ from shared.utils import (
     setup_lima_logging,
     normalize_url,
     TimeGuard,
+    parse_start_date,
 )
 from shared.db_client import get_db_client, DatabaseClient
 
@@ -89,19 +90,45 @@ def extract_price(text: str) -> Tuple[Optional[float], str]:
             pass
     return None, "consultar"
 
+
+def detect_expired_start_date(text: str) -> Optional[str]:
+    """Fase 73: Busca menciones de fecha de inicio en el texto y verifica si expiraron (>90d)."""
+    patterns = [
+        r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+([A-Za-záéíóúñ]+\s+\d{4})',
+        r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+(\d{1,2}\s+(?:de\s+)?[A-Za-záéíóúñ]+(?:\s+(?:de\s+)?\d{4})?)',
+    ]
+    for pat in patterns:
+        match = re.search(pat, text, re.IGNORECASE)
+        if match:
+            parsed_date, is_expired = parse_start_date(match.group(1))
+            if is_expired:
+                return f"expired_start_date:{match.group(1)}"
+    return None
+
 class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
         self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
+        # Fase 75: Exclusion Gate — solo procesar instituciones con pipeline_ready=true
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
         # Páginas que son solo contenedores y no cursos reales
+        # Fase 72: hub_patterns diferencian landing page vs subpáginas vía /?$ (regex)
+        # /idiomas/?$ bloquea /idiomas pero NO /idiomas/english-media
         self.hub_patterns = [
-            r'ulima\.edu\.pe/?$', 
+            r'ulima\.edu\.pe/?$',
             r'up\.edu\.pe/?$',
             r'/programas-de-especializacion/?$',
             r'/pregrado/?$',
             r'/posgrado/?$',
-            r'/maestrias/?$'
+            r'/maestrias/?$',
+            r'/idiomas/?$',
+            r'/educacion-ejecutiva/?$',
+            r'/educacion-ejecutiva/cursos-talleres/?$',
+            r'/educacion-ejecutiva/certificacion/?$',
         ]
 
     def is_hub_page(self, url: str) -> bool:
@@ -110,14 +137,32 @@ class CleansingWorker:
     def _load_exclusions(self) -> List[Dict[str, Any]]:
         try:
             if self.profiles:
-                all_patterns = []
+                raw_patterns = []
                 for p in self.profiles:
                     ep = p.get('exclusion_patterns', [])
                     if ep:
-                        all_patterns.extend(ep)
-                if all_patterns:
-                    return list(set(all_patterns))
-            return self.db.select('crawler_exclusions', filters="is_active=eq.true") or []
+                        raw_patterns.extend(ep)
+                if raw_patterns:
+                    compiled = []
+                    for exc in set(raw_patterns):
+                        if isinstance(exc, str):
+                            if exc.startswith('re:'):
+                                pat = exc[3:]
+                                if len(pat) > 200:
+                                    logger.warning(f"Regex pattern too long, skipping: {pat[:50]}...")
+                                    continue
+                                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                                    logger.warning(f"ReDoS-risk pattern rejected: {pat}")
+                                    continue
+                                try:
+                                    compiled.append(re.compile(pat, re.IGNORECASE))
+                                except re.error as e:
+                                    logger.warning(f"Invalid regex pattern '{pat}': {e}")
+                                    continue
+                            else:
+                                compiled.append(exc.lower())
+                    return compiled
+            return []
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
             return []
@@ -128,6 +173,46 @@ class CleansingWorker:
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
+
+    # Fase 62C: Perfil-driven cleansing helpers
+    def _get_profile_for_inst(self, inst_id) -> Dict[str, Any]:
+        if not inst_id:
+            return {}
+        for p in self.profiles or []:
+            if isinstance(p, dict) and str(p.get('institution_id', '')) == str(inst_id):
+                return p
+        return {}
+
+    def _apply_title_cleansing(self, raw_name: str, profile: Dict[str, Any]) -> str:
+        if not raw_name:
+            return raw_name
+        name = raw_name.strip()
+        # Remove prefixes
+        for prefix in profile.get('title_prefix_removals') or []:
+            if name.lower().startswith(prefix.lower()):
+                name = name[len(prefix):].strip()
+        # Split on separators and take first meaningful part
+        for sep in profile.get('title_split_separators') or []:
+            if sep in name:
+                parts = [p.strip() for p in name.split(sep) if p.strip()]
+                if parts:
+                    name = parts[0]
+        return name
+
+    def _extract_price_with_regex(self, text: str, profile: Dict[str, Any]):
+        profile_regex = profile.get('price_regex')
+        if profile_regex:
+            match = re.search(profile_regex, text, re.IGNORECASE)
+            if match:
+                try:
+                    price_str = match.group(1) if match.lastindex else match.group(0)
+                    price_str = price_str.replace(',', '').replace('S/', '').replace('s/', '').strip()
+                    price = float(price_str)
+                    if 10 < price < 1000000:
+                        return price, "publicado"
+                except (ValueError, IndexError):
+                    pass
+        return extract_price(text)
 
     def _get_base_url(self, url: str) -> str:
         suffixes = ['presentacion/', 'presentacion', 'beneficios/', 'beneficios', 'plana-docente/', 'plana-docente', 'malla-curricular/', 'malla-curricular', 'admision/', 'admision', 'objetivos/', 'objetivos', 'certificacion/', 'certificacion', 'requisitos/', 'requirements/', 'Paginas/curso-actualizacion.aspx', 'sustentacion-tesis/', 'sustentacion-tesis', 'ranking-eduniversal/', 'ranking-eduniversal', 'contactenos/', 'contactenos']
@@ -167,18 +252,33 @@ class CleansingWorker:
                 logger.error(f"Error streaming pending staging: {e}")
                 break
 
-    def is_invalid_course(self, name: str, description: str, url: str, inst_id: str, clean_text: str = "") -> Optional[str]:
+    def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "") -> Optional[str]:
         if name is None: name = ""
         if description is None: description = ""
         if url is None: url = ""
         
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
-            if isinstance(exc, str):
-                if exc.lower() in low_url: return f"hard_db_exclusion:{exc}"
-            elif isinstance(exc, dict):
-                if exc.get('institution_id') and exc['institution_id'] != inst_id: continue
-                if exc.get('pattern', '').lower() in low_url: return f"hard_db_exclusion:{exc['pattern']}"
+            if isinstance(exc, re.Pattern):
+                if exc.search(low_url):
+                    return f"hard_db_exclusion:regex:{exc.pattern}"
+            elif isinstance(exc, str):
+                if exc in low_url:
+                    return f"hard_db_exclusion:{exc}"
+
+        # Fase 75: Noise name patterns — detecta nombres de programas que son claramente ruido
+        noise_patterns = [
+            r'agradecimiento',
+            r'thank.?\s*you',
+            r'gracias',
+            r'matr[ií]culas?\s+abiert',
+            r'inscr[ií]bete',
+            r'^facultad\s+de\b',
+            r'^universidad\s+\w+\s*\|',
+        ]
+        for pat in noise_patterns:
+            if re.search(pat, low_name, re.IGNORECASE):
+                return f"noise_name_pattern:{pat}"
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"
@@ -225,17 +325,23 @@ class CleansingWorker:
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
             
             # Filtros de Calidad y Hubs
-            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, inst_id, clean_text_context)
+            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
+            if not discard_reason: discard_reason = detect_expired_start_date(clean_text_context)
             
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
                 continue
                 
             clean_name = clean_course_name(final_raw_name)
+            # Fase 62C: Perfil-driven title cleansing (prefix removal, separator splitting)
+            profile = self._get_profile_for_inst(inst_id)
+            clean_name = self._apply_title_cleansing(clean_name, profile)
             combined_full_text = f"{clean_name}\n{combined_desc}\n{clean_text_context}"
-            mode, locations, (price, p_status) = standardize_mode(combined_full_text), detect_locations(combined_full_text), extract_price(combined_full_text)
+            mode, locations = standardize_mode(combined_full_text), detect_locations(combined_full_text)
+            # Fase 62C: Perfil-driven price extraction with profile regex
+            price, p_status = self._extract_price_with_regex(combined_full_text, profile)
             
             cleansed_batch.append({
                 "staging_id": main_raw['id'], "institution_id": inst_id, "url": base_url,
@@ -286,6 +392,11 @@ if __name__ == "__main__":
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
+        # Fase 75: Exclusion Gate — saltar registros de instituciones no listas
+        inst_id = record.get('institution_id')
+        if inst_id and str(inst_id) not in worker.ready_inst_ids:
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
+            continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:
             total_processed += worker.process_batch(batch_accumulator)

@@ -1,0 +1,145 @@
+name: Security Audit Gate
+
+on:
+  pull_request:
+    branches: [desarrollo, certificacion, main]
+  push:
+    branches: [desarrollo, certificacion, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+
+jobs:
+  credential-scan:
+    name: Credential Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for hardcoded credentials
+        run: |
+          FOUND=0
+          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}"
+          find . -type f \
+            ! -path './.git/*' \
+            ! -path '*/node_modules/*' \
+            ! -path '*/.next/*' \
+            ! -path '*/out/*' \
+            ! -name '.env*' \
+            ! -name '*.lock' \
+            ! -name '*.png' ! -name '*.jpg' ! -name '*.jpeg' \
+            ! -name '*.gif' ! -name '*.ico' ! -name '*.svg' \
+            ! -name '*.woff*' ! -name '*.ttf' ! -name '*.eot' \
+            ! -name '*.mp4' ! -name '*.mov' ! -name '*.avi' \
+            ! -name '*.pdf' ! -name '*.zip' ! -name '*.tar.gz' \
+            -exec grep -nE "$PATTERNS" {} + 2>/dev/null | head -50 | tee -a credential_findings.txt
+          if [ -s credential_findings.txt ]; then
+            echo "❌ CREDENTIAL SCAN FAILED: Hardcoded credentials detected!"
+            exit 1
+          fi
+          echo "✅ Credential scan passed"
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint
+
+  typecheck:
+    name: TypeScript Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+  python-check:
+    name: Python Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check all core scripts compile
+        run: |
+          echo "Checking scripts/core/*.py..."
+          find scripts/core -name '*.py' -exec python3 -m py_compile {} \;
+          echo "Checking scripts/maintenance/*.py..."
+          find scripts/maintenance -name '*.py' -exec python3 -m py_compile {} \;
+          echo "Checking scripts/shared/*.py..."
+          find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
+          echo "✅ All Python scripts compile successfully"
+
+  security-audit:
+    name: security-audit
+    if: always()
+    needs: [credential-scan, lint, typecheck, python-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate results
+        env:
+          CS: ${{ needs.credential-scan.result }}
+          LINT: ${{ needs.lint.result }}
+          TC: ${{ needs.typecheck.result }}
+          PC: ${{ needs.python-check.result }}
+        run: |
+          echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          # Credential scan and Python check are HARD requirements
+          if [ "$CS" != "success" ]; then
+            echo "❌ **credential-scan**: $CS (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ **credential-scan**: passed" >> $GITHUB_STEP_SUMMARY
+          if [ "$PC" != "success" ]; then
+            echo "❌ **python-check**: $PC (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ **python-check**: passed" >> $GITHUB_STEP_SUMMARY
+          # Lint and typecheck are informational (pre-existing tech debt)
+          if [ "$LINT" = "success" ]; then
+            echo "✅ **lint**: passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$LINT" = "failure" ]; then
+            echo "⚠️ **lint**: has errors (non-blocking, tracked separately)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **lint**: $LINT" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$TC" = "success" ]; then
+            echo "✅ **typecheck**: passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "$TC" = "failure" ]; then
+            echo "⚠️ **typecheck**: has errors (non-blocking, tracked separately)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **typecheck**: $TC" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Security audit PASSED** — credential scan and Python check clean. Lint/typecheck issues are tracked separately." >> $GITHUB_STEP_SUMMARY

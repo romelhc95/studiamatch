@@ -42,6 +42,13 @@ run_logs_*.txt
 .github/log/local/
 .wrangler/
 
+# Data exports (never commit database dumps to repo)
+export_*.csv
+*.csv
+
+# Tool lockfiles (local development config)
+skills-lock.json
+
 # Temp/debug scripts (never commit)
 check_counts.py
 test_join.py

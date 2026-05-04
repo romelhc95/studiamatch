@@ -39,8 +39,6 @@ CREATE TABLE IF NOT EXISTS public.institution_site_profiles (
 
 ALTER TABLE public.institution_site_profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY profiles_select_public ON public.institution_site_profiles
-    FOR SELECT TO anon USING (true);
 CREATE POLICY profiles_select_authenticated ON public.institution_site_profiles
     FOR SELECT TO authenticated USING (true);
 CREATE POLICY profiles_service_role ON public.institution_site_profiles
@@ -56,5 +54,16 @@ COMMENT ON COLUMN public.institution_site_profiles.exclusion_patterns IS 'JSONB 
 COMMENT ON COLUMN public.institution_site_profiles.section_keywords IS 'JSONB map of section heading → LLM extraction target. e.g. {"Dirigido a": "target_audience", "Malla Curricular": "curriculum_summary"}';
 COMMENT ON COLUMN public.institution_site_profiles.field_defaults IS 'JSONB map of field → default value when LLM cannot infer. e.g. {"mode": "Presencial", "course_type": "Programa"}';
 COMMENT ON COLUMN public.institution_site_profiles.section_mode_map IS 'JSONB map of URL path segment → default modality. e.g. {"/cursos-talleres/": "Remoto"}';
+
+-- Trigger: auto-update updated_at on row modification
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_updated_at ON institution_site_profiles;
+CREATE TRIGGER set_updated_at
+    BEFORE UPDATE ON institution_site_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 COMMIT;

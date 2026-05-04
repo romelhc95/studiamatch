@@ -6,7 +6,7 @@ Este documento describe el flujo de despliegue para el entorno de desarrollo de 
 - **Rama Git**: `desarrollo`
 - **Hosting**: Cloudflare Pages (Preview)
 - **URL**: [https://studiamatch.pages.dev/](https://studiamatch.pages.dev/)
-- **Base de Datos**: Supabase Free Project (ID: `aqrldlmlszjtgpqiegaa`)
+- **Base de Datos**: Supabase Free Project (ID: `YOUR_FREE_PROJECT_REF`)
 
 ## 2. Flujo de Trabajo
 1. Los desarrollos se inician en ramas de `feature/*`.
@@ -19,12 +19,12 @@ Para que la web de desarrollo (Preview) muestre los datos de Supabase de forma a
 2. **Build command**: `npm install && npm run build`
 3. **Build output directory**: `out`
 4. **Variables de Entorno (PREVIEW)**:
-   - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Free (`https://aqrldlmlszjtgpqiegaa.supabase.co`)
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Free (`https://YOUR_FREE_PROJECT_REF.supabase.co`)
    - `NEXT_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` del proyecto Free
 
 ## 4. Secretos de Backend (GitHub Actions)
 Configurados en el Environment `Development` de GitHub para el pipeline de IA:
-- `SUPABASE_URL`: URL del proyecto Free (`https://aqrldlmlszjtgpqiegaa.supabase.co`)
+- `SUPABASE_URL`: URL del proyecto Free (`https://YOUR_FREE_PROJECT_REF.supabase.co`)
 - `NEXT_SUPABASE_SECRET_KEY`: `sb_secret_...` (permisos de escritura pipeline).
 - `NEXT_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` (lectura frontend).
 - `CF_API_TOKEN` & `CF_ACCOUNT_ID`: Para el motor de Cloudflare AI.

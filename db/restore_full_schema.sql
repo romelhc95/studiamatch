@@ -1,6 +1,6 @@
 -- =============================================================================
 -- RESTORE FULL SCHEMA — StudIAMatch
--- Proyecto: StudIAMatch (Free: aqrldlmlszjtgpqiegaa)
+-- Proyecto: StudIAMatch (Free: YOUR_FREE_PROJECT_REF)
 -- Descripcion: Schema completo desde cero (PRODUCTION_MASTER + migraciones)
 -- Ejecutar en: Supabase Dashboard > SQL Editor (Ctrl+Enter todo)
 -- =============================================================================
@@ -148,19 +148,45 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 -- 4. TABLAS — PIPELINE ETL
 -- =============================================================================
 
--- 4a. crawler_exclusions
-CREATE TABLE IF NOT EXISTS crawler_exclusions (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    institution_id  UUID REFERENCES institutions(id) ON DELETE CASCADE,
-    pattern         TEXT NOT NULL,
-    reason          TEXT,
-    is_active       BOOLEAN DEFAULT TRUE,
-    created_at      TIMESTAMPTZ DEFAULT now()
+-- 4a. institution_site_profiles (fuente unica de exclusiones — Fase 61/74)
+CREATE TABLE IF NOT EXISTS public.institution_site_profiles (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    institution_id UUID NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE UNIQUE,
+    site_type TEXT NOT NULL DEFAULT 'traditional_ssr'
+        CHECK (site_type IN ('traditional_ssr', 'ecommerce', 'spa_js_heavy', 'paginated_catalog', 'catalog_link_extraction', 'cloudflare_protected')),
+    discovery_mode TEXT NOT NULL DEFAULT 'sitemap_bfs'
+        CHECK (discovery_mode IN ('sitemap_bfs', 'hardcoded_urls', 'paginated_catalog', 'catalog_link_extraction')),
+    seed_urls JSONB DEFAULT '[]'::JSONB,
+    exclusion_patterns JSONB DEFAULT '[]'::JSONB,
+    catalog_url_patterns JSONB DEFAULT '[]'::JSONB,
+    catalog_link_selector TEXT,
+    catalog_max_pages INT DEFAULT 5,
+    catalog_scroll_iterations INT DEFAULT 0,
+    requires_stealth BOOLEAN DEFAULT false,
+    requires_cloudflare_bypass BOOLEAN DEFAULT false,
+    warmup_url TEXT,
+    popup_close_selectors JSONB DEFAULT '[]'::JSONB,
+    detail_wait_ms INT DEFAULT 2000,
+    section_keywords JSONB DEFAULT '{}'::JSONB,
+    field_defaults JSONB DEFAULT '{}'::JSONB,
+    section_mode_map JSONB DEFAULT '{}'::JSONB,
+    section_course_type_map JSONB DEFAULT '{}'::JSONB,
+    title_prefix_removals JSONB DEFAULT '[]'::JSONB,
+    title_split_separators JSONB DEFAULT '[]'::JSONB,
+    price_regex TEXT,
+    duration_regex TEXT,
+    max_courses_per_run INT DEFAULT 500,
+    soft_delete_before_scrape BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_crawler_exclusions_institution ON crawler_exclusions(institution_id);
-CREATE INDEX IF NOT EXISTS idx_crawler_exclusions_active ON crawler_exclusions(is_active) WHERE is_active = TRUE;
-ALTER TABLE crawler_exclusions ADD CONSTRAINT IF NOT EXISTS uq_crawler_exclusions_inst_pattern UNIQUE (institution_id, pattern);
-COMMENT ON TABLE crawler_exclusions IS 'Patrones de URL a excluir del harvesting';
+ALTER TABLE public.institution_site_profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY profiles_select_public ON public.institution_site_profiles FOR SELECT TO anon USING (true);
+CREATE POLICY profiles_select_authenticated ON public.institution_site_profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY profiles_service_role ON public.institution_site_profiles FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE INDEX idx_profiles_institution ON public.institution_site_profiles(institution_id);
+COMMENT ON TABLE public.institution_site_profiles IS 'Per-institution scraping profiles: site type, discovery config, exclusion patterns, LLM hints (fuente unica de exclusiones)';
 
 -- 4b. staging_raw
 CREATE TABLE IF NOT EXISTS staging_raw (
@@ -761,20 +787,9 @@ CREATE POLICY "reviews_service_role" ON public.reviews FOR ALL TO service_role U
 -- =============================================================================
 -- 13. RLS — Tablas ETL (anon blocked, service_role ALL)
 -- =============================================================================
-ALTER TABLE crawler_exclusions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE staging_raw ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cleansed_programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enriched_programs ENABLE ROW LEVEL SECURITY;
-
--- crawler_exclusions (anon can see active entries)
-DROP POLICY IF EXISTS "crawler_exclusions_select_public" ON crawler_exclusions;
-CREATE POLICY "crawler_exclusions_select_public"
-ON crawler_exclusions FOR SELECT TO anon, authenticated
-USING (is_active = true);
-DROP POLICY IF EXISTS "crawler_exclusions_service_role" ON crawler_exclusions;
-CREATE POLICY "crawler_exclusions_service_role"
-ON crawler_exclusions FOR ALL TO service_role
-USING (true) WITH CHECK (true);
 
 -- staging_raw (anon completely blocked)
 DROP POLICY IF EXISTS "staging_raw_no_public_access" ON staging_raw;

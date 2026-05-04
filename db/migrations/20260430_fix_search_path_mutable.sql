@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration: Fix function_search_path_mutable — Fase 32A (Prioridad 2)
--- Project: StudIAMatch (Dev Free: fmcxwoqvxatbrawwtqke)
+-- Project: StudIAMatch (Dev Free: YOUR_FREE_PROJECT_REF)
 -- Date: 2026-04-30
 -- Description: Agrega SET search_path = public a 8 funciones RPC
 --   para eliminar los 8 warnings del Supabase Advisor.

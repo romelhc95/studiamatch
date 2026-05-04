@@ -1,144 +1,249 @@
-#!/usr/bin/env python3
-"""Sync Pro pipeline data to Free/Desarrollo DB with institution UUID mapping."""
-import json, urllib.request, sys, time, os
+"""Fase 71: Sincronizar Pro → Free — migración de datos del pipeline con mapeo de UUIDs
+   Las credenciales se leen de variables de entorno (NUNCA hardcodear).
+   Pro: SUPABASE_URL + NEXT_SUPABASE_SECRET_KEY desde .env.gitprod (AGENTS.md §102-107)
+   Free: db_client.py lee de .env.local"""
+import sys, os, json, requests, argparse
 
 sys.path.insert(0, '/app')
-from dotenv import load_dotenv
-load_dotenv()
 
-PRO_URL = os.environ.get("SUPABASE_PRO_URL", "").rstrip("/")
-PRO_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-FREE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").rstrip("/")
-FREE_KEY = os.environ.get("NEXT_SUPABASE_SECRET_KEY", "")
 
-if not all([PRO_URL, PRO_KEY, FREE_URL, FREE_KEY]):
-    print("ERROR: Set SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL, NEXT_SUPABASE_SECRET_KEY env vars")
+def _read_env_file(filepath, var_name, default=''):
+    """Lee una variable de un archivo .env sin contaminar os.environ."""
+    if not os.path.exists(filepath):
+        return os.environ.get(var_name, default)
+    with open(filepath, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('#') or '=' not in line:
+                continue
+            k, _, v = line.partition('=')
+            if k.strip() == var_name:
+                return v.strip().strip('"').strip("'")
+    return os.environ.get(var_name, default)
+
+
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_gitprod = os.path.join(root_dir, '.env.gitprod')
+
+PRO_URL = _read_env_file(env_gitprod, 'SUPABASE_URL', '')
+PRO_KEY = _read_env_file(env_gitprod, 'NEXT_SUPABASE_SECRET_KEY', '')
+
+if not PRO_URL or not PRO_KEY:
+    print("ERROR: Credenciales Pro no encontradas.")
+    print("Opción 1: Tener .env.gitprod (gitignored) en la raíz del proyecto con:")
+    print("  SUPABASE_URL='https://xxx.supabase.co'")
+    print("  NEXT_SUPABASE_SECRET_KEY='sb_secret_xxx'")
+    print("Opción 2: Exportar variables antes de ejecutar:")
+    print("  export SUPABASE_URL='https://xxx.supabase.co'")
+    print("  export NEXT_SUPABASE_SECRET_KEY='sb_secret_xxx'")
     sys.exit(1)
 
-t_out = 30
+# Remove Pro vars from env so db_client can load Free creds from .env.local
+for _v in ('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_SUPABASE_SECRET_KEY', 'NEXT_SUPABASE_PUBLISHABLE_KEY'):
+    os.environ.pop(_v, None)
 
-def api(path, key, base_url):
-    r = urllib.request.Request(f"{base_url}/rest/v1/{path}", headers={"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"})
-    with urllib.request.urlopen(r, timeout=t_out) as resp:
-        return json.loads(resp.read().decode())
+PRO_HEADERS = {
+    'apikey': PRO_KEY,
+    'Authorization': f'Bearer {PRO_KEY}',
+    'Content-Type': 'application/json',
+}
 
-def get_all(path, key, base_url):
-    all_data = []
+from scripts.shared.db_client import get_db_client
+db = get_db_client()
+
+PAGE_SIZE = 1000
+BATCH_SIZE = 200
+EXCLUDE_KEYS = ('id', 'created_at', 'updated_at')
+TABLES = ['staging_raw', 'cleansed_programs', 'enriched_programs', 'courses']
+
+
+def _paginate_get(url):
+    all_rows = []
     offset = 0
-    limit = 1000
     while True:
-        sep = "&" if "?" in path else "?"
-        r = urllib.request.Request(f"{base_url}/rest/v1/{path}{sep}limit={limit}&offset={offset}", headers={"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"})
-        try:
-            with urllib.request.urlopen(r, timeout=t_out) as resp:
-                chunk = json.loads(resp.read().decode())
-        except Exception as e:
-            print(f"  Error fetching: {e}")
+        h = {**PRO_HEADERS, 'Range': f'{offset}-{offset + PAGE_SIZE - 1}', 'Prefer': 'count=exact'}
+        r = requests.get(url, headers=h, timeout=30)
+        if r.status_code in (200, 206):
+            rows = r.json()
+            if rows:
+                all_rows.extend(rows)
+                offset += PAGE_SIZE
+            else:
+                break
+        elif r.status_code == 416:
             break
-        if not chunk:
-            break
-        all_data.extend(chunk)
-        if len(chunk) < limit:
-            break
-        offset += limit
-    return all_data
-
-def insert_batch(rows, table, key, base_url):
-    if not rows:
-        print(f"  (empty) -> {table}, skipping")
-        return
-    chunk_size = 500
-    for i in range(0, len(rows), chunk_size):
-        batch = rows[i:i+chunk_size]
-        data = json.dumps(batch).encode()
-        r = urllib.request.Request(
-            f"{base_url}/rest/v1/{table}", data=data,
-            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"},
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(r, timeout=t_out):
-                print(f"  {len(batch)} -> {table} (batch {i//chunk_size +1}/{(len(rows)-1)//chunk_size+1})")
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()[:200]
-            print(f"  FAIL {table} batch {i//chunk_size +1}: {e.code} {body[:120]}")
-        except Exception as e:
-            print(f"  FAIL {table} batch {i//chunk_size +1}: {e}")
-        time.sleep(0.3)
-
-# Step 1: Get institutions from both DBs
-print("=== Mapeando instituciones PRO vs FREE ===")
-pro_inst = api("institutions?select=id,name,slug", PRO_KEY, PRO_URL)
-free_inst = api("institutions?select=id,name,slug", FREE_KEY, FREE_URL)
-
-# Build mapping: Pro slug -> Free ID
-inst_map = {}
-for p in pro_inst:
-    slug = p["slug"]
-    match = [f for f in free_inst if f["slug"] == slug]
-    if match:
-        inst_map[p["id"]] = match[0]["id"]
-        print(f"  {p['name']}: {p['id'][:8]}... -> {match[0]['id'][:8]}...")
-    else:
-        print(f"  WARN: {p['name']} ({slug}) NO EXISTE en Free")
-
-def remap_institution_id(records, id_field="institution_id"):
-    """Replace Pro institution_id with Free institution_id."""
-    for rec in records:
-        if rec.get(id_field) in inst_map:
-            rec[id_field] = inst_map[rec[id_field]]
         else:
-            print(f"  WARN: {id_field} {rec.get(id_field)} not mapped, skipping record")
-    return [r for r in records if r.get(id_field) in inst_map.values()]
+            print(f"  HTTP {r.status_code} at offset {offset}: {r.text[:100]}")
+            break
+    return all_rows
 
-# Step 2: Export from Pro
-print("\n=== Exportando desde PRO ===")
-print("staging_raw discovered...")
-sr_d = get_all("staging_raw?status=eq.discovered&select=*", PRO_KEY, PRO_URL)
-print("staging_raw pending...")
-sr_p = get_all("staging_raw?status=eq.pending&select=*", PRO_KEY, PRO_URL)
-print("cleansed_programs...")
-cl = get_all("cleansed_programs?select=*", PRO_KEY, PRO_URL)
-print("enriched_programs...")
-en = get_all("enriched_programs?select=*", PRO_KEY, PRO_URL)
 
-staging = sr_d + sr_p
-print(f"\n  staging_raw: {len(staging)}")
-print(f"  cleansed_programs: {len(cl)}")
-print(f"  enriched_programs: {len(en)}")
+def _build_uuid_map(source_list, key_field='slug'):
+    return {r[key_field]: r['id'] for r in (source_list or [])}
 
-# Step 3: Remap institution_ids
-print("\n=== Remapeando institution_ids → FREE ===")
-staging = remap_institution_id(staging)
-cl = remap_institution_id(cl)
-en = remap_institution_id(en)
-print(f"  staging_raw: {len(staging)} (after remap)")
-print(f"  cleansed_programs: {len(cl)} (after remap)")
-print(f"  enriched_programs: {len(en)} (after remap)")
 
-# Step 4: Clear Free staging_raw before import
-print("\n=== Limpiando FREE antes de importar ===")
-for table in ["staging_raw", "cleansed_programs", "enriched_programs"]:
+def _pro_to_free_map(pro_list, free_map, key_field='slug'):
+    m = {}
+    for r in (pro_list or []):
+        k = r.get(key_field)
+        if k and k in free_map:
+            m[r['id']] = free_map[k]
+    return m
+
+
+def _translate_field(row, field, uuid_map):
+    old = row.get(field)
+    if old and old in uuid_map:
+        row[field] = uuid_map[old]
+    return row
+
+
+def _clean_row(row):
+    return {k: v for k, v in row.items() if k not in EXCLUDE_KEYS}
+
+
+def count_free(table):
     try:
-        r = urllib.request.Request(
-            f"{FREE_URL}/rest/v1/{table}?id=neq.00000000-0000-0000-0000-000000000000",  # match all
-            headers={"apikey": FREE_KEY, "Authorization": f"Bearer {FREE_KEY}"},
-            method="DELETE"
-        )
-        with urllib.request.urlopen(r, timeout=t_out):
-            print(f"  Cleared {table}")
-    except urllib.error.HTTPError as e:
-        body = e.read().decode()[:100]
-        print(f"  Clear {table}: {e.code} {body}")
+        if table in ('staging_raw', 'cleansed_programs', 'enriched_programs'):
+            url = f"{db.supabase_url}/rest/v1/{table}?select=count"
+            h = db._get_headers(use_service_role=True)
+            h["Prefer"] = "count=exact"
+            r = requests.get(url, headers=h, timeout=15)
+            if r.status_code == 200:
+                cr = r.headers.get("content-range", "")
+                if "/" in cr:
+                    return int(cr.split("/")[-1])
+            return '?'
+        return db.count(table)
+    except Exception:
+        return '?'
 
-# Step 5: Import to Free
-print("\n=== Importando a FREE ===")
-insert_batch(staging, "staging_raw", FREE_KEY, FREE_URL)
-insert_batch(cl, "cleansed_programs", FREE_KEY, FREE_URL)
-insert_batch(en, "enriched_programs", FREE_KEY, FREE_URL)
 
-print("\n✅ Sync PRO → FREE completado.")
-print("\nPara procesar los datos en desarrollo, ejecuta en orden:")
-print("  1. docker exec studiamatch-dev python3 scripts/core/cleansing_worker.py")
-print("  2. docker exec studiamatch-dev python3 scripts/core/enrichment_worker.py")
-print("  3. docker exec studiamatch-dev python3 scripts/core/sync_vector_worker.py")
+def sync_table(name, pro_data, on_conflict, uuid_map=None, cat_map=None, zero_cleansed=False, use_insert=False):
+    if not pro_data:
+        print(f"  SKIP: {name} — 0 rows from Pro")
+        return 0
+
+    total = len(pro_data)
+    ok = 0
+    for i in range(0, total, BATCH_SIZE):
+        batch = pro_data[i:i + BATCH_SIZE]
+        cleaned = []
+        for row in batch:
+            r = _clean_row(row)
+            if uuid_map:
+                _translate_field(r, 'institution_id', uuid_map)
+            if cat_map:
+                _translate_field(r, 'category_id', cat_map)
+            if zero_cleansed:
+                r['cleansed_id'] = None
+            cleaned.append(r)
+
+        if use_insert:
+            for row in cleaned:
+                r2 = db.insert(name, row)
+                if r2:
+                    ok += 1
+        else:
+            r2 = db.upsert(name, cleaned, on_conflict=on_conflict)
+            if r2:
+                ok += len(cleaned)
+        suffix = '\n' if ok >= total else ''
+        print(f"  {name}: {ok}/{total}", end=suffix)
+    return ok
+
+
+def dry_run_table(name, pro_data, free_count):
+    n_pro = len(pro_data)
+    print(f"  {name}: Pro={n_pro} Free={free_count} → sync {n_pro} rows")
+    return n_pro
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Sync Pro → Free: migration pipeline data with UUID mapping')
+    parser.add_argument('--dry-run', action='store_true', help='Preview counts and mapping without writing')
+    parser.add_argument('--table', choices=TABLES + ['all'], default='all', help='Table to sync (default: all)')
+    parser.add_argument('--truncate-staging', action='store_true', help='Truncate staging_raw in Free before inserting')
+    args = parser.parse_args()
+
+    # ============ Phase 1: Build UUID maps ============
+    print("=== 1. Construyendo mapas de UUIDs ===")
+    free_insts = db.select('institutions', columns='id,slug')
+    pro_insts = _paginate_get(f"{PRO_URL}/rest/v1/institutions?select=id,slug")
+    if not pro_insts:
+        print("ERROR: No institutions found in Pro (¿SUPABASE_URL correcta?)")
+        sys.exit(1)
+    print(f"  Free institutions: {len(free_insts)} | Pro institutions: {len(pro_insts)}")
+
+    free_inst_by_slug = _build_uuid_map(free_insts, 'slug')
+    inst_uuid_map = _pro_to_free_map(pro_insts, free_inst_by_slug, 'slug')
+    print(f"  Institution UUID mapping: {len(inst_uuid_map)}/{len(pro_insts)} matched")
+
+    free_cats = db.select('categories', columns='id,name')
+    pro_cats = _paginate_get(f"{PRO_URL}/rest/v1/categories?select=id,name")
+    if free_cats:
+        free_cat_by_name = _build_uuid_map(free_cats, 'name')
+        cat_uuid_map = _pro_to_free_map(pro_cats, free_cat_by_name, 'name')
+        print(f"  Category UUID mapping: {len(cat_uuid_map)}/{len(pro_cats) if pro_cats else 0} matched")
+    else:
+        cat_uuid_map = {}
+        print(f"  Category UUID mapping: 0 (no categories in Free)")
+
+    if args.dry_run:
+        for slug, free_id in sorted(free_inst_by_slug.items()):
+            pro_id = None
+            for p in (pro_insts or []):
+                if p['slug'] == slug:
+                    pro_id = p['id']
+                    break
+            match = "OK" if pro_id and pro_id in inst_uuid_map else "MISS"
+            print(f"  {match} {slug}: Free={free_id[:8]}... Pro={pro_id[:8] if pro_id else 'N/A'}...")
+
+    # ============ Phase 2: Read & Sync ============
+    if args.table == 'all':
+        targets = TABLES
+        print(f"\n=== 2. Sincronizando todas las tablas ===")
+    else:
+        targets = [args.table]
+        print(f"\n=== 2. Sincronizando {args.table} ===")
+
+    for table in targets:
+        print(f"\n--- {table} ---")
+        free_count = count_free(table)
+        pro_data = _paginate_get(f"{PRO_URL}/rest/v1/{table}?select=*")
+
+        if not pro_data:
+            print(f"  SKIP: 0 rows in Pro")
+            continue
+
+        if args.dry_run:
+            dry_run_table(table, pro_data, free_count)
+            continue
+
+        if table == 'staging_raw' and args.truncate_staging:
+            print(f"  Truncando staging_raw en Free...")
+            try:
+                db.delete('staging_raw', '1=eq.1')
+                print(f"  Truncado OK")
+            except Exception as e:
+                print(f"  WARN: truncate falló: {e}")
+
+        if table == 'courses':
+            ok = sync_table(table, pro_data, 'url', inst_uuid_map, cat_uuid_map)
+        elif table == 'enriched_programs':
+            ok = sync_table(table, pro_data, 'url', inst_uuid_map, zero_cleansed=True, use_insert=True)
+        else:
+            ok = sync_table(table, pro_data, 'url', inst_uuid_map)
+
+        print(f"  DONE: {table} — {ok}/{len(pro_data)}")
+
+    # ============ Summary ============
+    if not args.dry_run and args.table == 'all':
+        print(f"\n=== 3. Verificación post-sync ===")
+        for table in TABLES:
+            after = count_free(table)
+            print(f"  {table}: {after} filas en Free")
+
+
+if __name__ == '__main__':
+    main()
