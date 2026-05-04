@@ -23,7 +23,6 @@ export interface Course {
   slug: string;
   institution_name: string;
   institution_slug?: string;
-  institution_id?: string;
   price_pen: number | null;
   price_status?: string;
   mode: string;
