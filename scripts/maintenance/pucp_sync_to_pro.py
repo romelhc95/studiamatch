@@ -17,6 +17,11 @@ if os.path.exists(PRO_ENV_PATH):
 
 PRO_URL = pro_vars.get('NEXT_PUBLIC_SUPABASE_URL', '')
 PRO_KEY = pro_vars.get('NEXT_SUPABASE_SECRET_KEY', '')
+
+if not PRO_URL or not PRO_KEY:
+    print("ERROR: Pro credentials not found. Check /app/.env.gitprod")
+    sys.exit(1)
+
 PRO_HEADERS = {'apikey': PRO_KEY, 'Authorization': f'Bearer {PRO_KEY}', 'Content-Type': 'application/json'}
 
 # Get PUCP from Free
@@ -57,7 +62,7 @@ else:
         pro_pucp_id = r.json()[0]['id']
         print(f"✅ PUCP created in Pro: id={pro_pucp_id}")
     else:
-        print(f"❌ Pro insert failed: {r.status_code} {r.text[:200]}")
+        print(f"❌ Pro insert failed: HTTP {r.status_code}")
         sys.exit(1)
 
 # Create/update profile in Pro
@@ -89,6 +94,6 @@ else:
 if r.status_code in (200, 201, 204):
     print(f"✅ PUCP profile {action} in Pro")
 else:
-    print(f"❌ PUCP profile {action} failed: {r.status_code} {r.text[:200]}")
+    print(f"❌ PUCP profile {action} failed: HTTP {r.status_code}")
 
 print("\n🎉 PUCP sync complete")

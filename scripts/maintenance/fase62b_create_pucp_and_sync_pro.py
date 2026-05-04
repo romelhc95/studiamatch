@@ -25,8 +25,9 @@ if has_pro:
     PRO_HEADERS = {'apikey': PRO_KEY, 'Authorization': f'Bearer {PRO_KEY}', 'Content-Type': 'application/json'}
     print(f"✅ Pro connection: {PRO_URL[:40]}...")
 else:
-    print("⚠️ No Pro credentials found in .env.gitprod")
-    print("   Export SUPABASE_URL and NEXT_SUPABASE_SECRET_KEY for Pro sync")
+    print("ERROR: Pro credentials not found in /app/.env.gitprod")
+    print("   Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_SUPABASE_SECRET_KEY are set")
+    sys.exit(1)
 
 # ──────────────────────────────────────────────
 # 1. Create PUCP institution in Free
@@ -158,7 +159,7 @@ if has_pro:
                 print(f"  ✅ {slug}: profile updated in Pro")
                 synced += 1
             else:
-                print(f"  ❌ {slug}: PATCH failed {r.status_code}: {r.text[:100]}")
+                print(f"  ❌ {slug}: PATCH failed HTTP {r.status_code}")
         else:
             # INSERT new profile
             api_url = f"{PRO_URL}/rest/v1/institution_site_profiles"
@@ -167,7 +168,7 @@ if has_pro:
                 print(f"  ✅ {slug}: profile created in Pro")
                 synced += 1
             else:
-                print(f"  ❌ {slug}: POST failed {r.status_code}: {r.text[:100]}")
+                print(f"  ❌ {slug}: POST failed HTTP {r.status_code}")
 
     print(f"\n✅ Pro sync complete: {synced}/{len(free_profiles)} profiles synced")
 
