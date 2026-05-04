@@ -22,6 +22,8 @@ export interface Course {
   name: string;
   slug: string;
   institution_name: string;
+  institution_slug?: string;
+  institution_id?: string;
   price_pen: number | null;
   price_status?: string;
   mode: string;
@@ -31,6 +33,7 @@ export interface Course {
   roi_months?: number | null;
   expected_monthly_salary?: number;
   category?: string;
+  category_id?: string;
   description_long?: string;
   objectives?: string;
   target_audience?: string;
@@ -42,6 +45,7 @@ export interface Course {
   start_date?: string;
   syllabus?: string;
   is_active?: boolean;
+  is_verified?: boolean;
 }
 
 export interface Institution {
