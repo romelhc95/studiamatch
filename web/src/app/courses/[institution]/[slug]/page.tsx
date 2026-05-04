@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course } from "@/lib/supabase";
 import type { Metadata } from "next";
 import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
@@ -72,9 +72,9 @@ export async function generateStaticParams() {
     if (!Array.isArray(courses) || courses.length === 0) return defaultPath;
 
     const paths = courses
-      .filter((c: any) => c.slug && c.institutions?.slug)
-      .map((c: any) => ({
-        institution: cleanSlug(c.institutions.slug),
+      .filter((c: { slug: string; institutions?: { slug: string } }) => c.slug && c.institutions?.slug)
+      .map((c: { slug: string; institutions?: { slug: string } }) => ({
+        institution: cleanSlug(c.institutions?.slug || 'general'),
         slug: c.slug
       }));
 
@@ -85,7 +85,7 @@ export async function generateStaticParams() {
   }
 }
 
-function CourseJsonLd({ course }: { course: any }) {
+function CourseJsonLd({ course }: { course: Course & { institutions?: { name: string } } }) {
   const ld = {
     "@context": "https://schema.org",
     "@type": "Course",
