@@ -395,7 +395,7 @@ if __name__ == "__main__":
         # Fase 75: Exclusion Gate — saltar registros de instituciones no listas
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:
-            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_ready=false'})
             continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:

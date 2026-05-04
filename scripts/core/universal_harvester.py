@@ -73,6 +73,21 @@ class UniversalHarvester:
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 20400
 
+    @staticmethod
+    def _normalize_jsonb_list(value):
+        """Convert JSONB string to list if needed (Bug 5 defensive fix)."""
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return []
+        if isinstance(value, list):
+            return value
+        return [] if value is None else value
+
     def _load_site_profile(self):
         try:
             inst_id = self.institution.get('id')
@@ -80,8 +95,14 @@ class UniversalHarvester:
                                        filters=f'institution_id=eq.{inst_id}',
                                        limit=1)
             if profiles and len(profiles) > 0:
-                logger.info(f"Loaded site profile: site_type={profiles[0].get('site_type')}, discovery_mode={profiles[0].get('discovery_mode')}")
-                return profiles[0]
+                profile = profiles[0]
+                norm_fields = ['catalog_url_patterns', 'exclusion_patterns',
+                               'allowed_url_patterns', 'seed_urls']
+                for field in norm_fields:
+                    if field in profile:
+                        profile[field] = self._normalize_jsonb_list(profile[field])
+                logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
+                return profile
         except Exception as e:
             logger.warning(f"Error loading site profile: {e}")
         return {}
