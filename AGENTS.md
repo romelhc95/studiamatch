@@ -150,9 +150,14 @@ git push → escanea diff de commits nuevos por credenciales
   → Si limpio → push exitoso ✅
 ```
 
-### Capa 2: Branch Protection (GitHub Settings — configuración manual)
+### Capa 2: Branch Protection (GitHub — CONFIGURADO ✅)
 ```
-Rama desarrollo: Require PR + 1 approval + required check "security-audit" + no force push
+Ramas desarrollo, certificacion, main:
+  - Require PR + 1 approval + required check "security-audit"
+  - enforce_admins: true (aplica a admins también)
+  - dismiss_stale_reviews: true
+  - allow_force_pushes: false
+  - allow_deletions: false
 ```
 
 ### Capa 3: CI Security Audit (`.github/workflows/security-audit.yml`)
