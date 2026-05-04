@@ -41,7 +41,7 @@
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
 | ~~P1~~ | ~~Fase 75 — Exclusion Gate + Noise Sentinel v2~~ | ~~Pipeline~~ | ~~Limpieza retroactiva (4/12 courses ruido), 5 capas de defensa, migration pipeline_ready, regex exclusions, noise keywords, LLM rule, post-sync validation.~~ | ~~Completado — commit en desarrollo~~ |
-| ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (Pro), docs/DDL actualizados, security audit remediado. Free pendiente DROP TABLE opcional.~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
 | ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
@@ -75,8 +75,8 @@
 - [x] **Fase 63**: Enrichment + Sync con Perfiles — `section_keywords` inyectado en prompt LLM, `field_defaults` como fallback en sync_vector, `section_mode_map` para derivar modality.
 - [x] **Fase 72**: U. Lima Reducción de Ruido — exclusiones consolidadas en perfiles, hub_patterns, retro cleanup, de-dup UTM.
 - [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro aplicada Dashboard.
-- [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en Pro, Free pendiente.
-- [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (Pro, Free pendiente), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
+- [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en ambos ambientes.
+- [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (ambos ambientes), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
 - [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
 - [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
@@ -356,7 +356,7 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data
 | `staging_raw` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `cleansed_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `enriched_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all, public read) |
-| ~~`crawler_exclusions`~~ | ~~✅~~ | ~~✅~~ | ~~Eliminada (DROP TABLE Pro, Free pendiente)~~ → ~~`institution_site_profiles.exclusion_patterns`~~ |
+| ~~`crawler_exclusions`~~ | ~~❌ DROPPED~~ | ~~❌ DROPPED~~ | ~~Eliminada en ambos ambientes (Fase 74)~~ → ~~`institution_site_profiles.exclusion_patterns`~~ |
 
 **WARN del Advisor (post-prioridades 1-5)** — Estado final:
 
@@ -1391,7 +1391,7 @@ Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclus
    - [x] `_is_valid_crawl_url()` funciona sin fallback
    - [x] `py_compile` sin errores en todos los scripts
 
-6. **Deprecación de `crawler_exclusions`**: [x] En código, [ ] DROP TABLE → **Fase 74**
+6. **Deprecación de `crawler_exclusions`**: [x] En código, [x] DROP TABLE en ambos ambientes (Fase 74 completada)
 | `AGENTS.md` | Actualizar referencias a `crawler_exclusions` |
 
 **No requiere migration SQL** — las columnas existen en ambas tablas.
@@ -1567,7 +1567,7 @@ Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la
    - [ ] `seed_site_profiles.py` → aún lee de CE para migrar → **Fase 74**
    - [ ] `seed_pro_profiles.py` → aún lee de CE para Pro → **Fase 74**
    - [ ] `fase32b_migrate_free_to_pro.py` → ancora migra CE a Pro → **Fase 74**
-   - [ ] DROP TABLE `crawler_exclusions` → **Fase 74** (tras validar Pro con perfiles)
+   - [x] DROP TABLE `crawler_exclusions` → **Fase 74 completada** — eliminada en ambos ambientes
 
 4. **Test Full Pipeline con 3 instituciones representativas**: [ ] Pendiente de ejecución completa
 
@@ -2083,7 +2083,7 @@ SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
 | `scripts/core/integrity_ping.py` | FIX | Agregar sys.path fix |
 | `.github/workflows/fg3_integrity.yml` | FIX | Agregar working-directory |
 
-**No requiere migration SQL** — las tablas ya existen con schema correcto en ambas BD (incluyendo `start_date`, `institution_site_profiles`, y `crawler_exclusions` eliminada).
+**No requiere migration SQL** — las tablas ya existen con schema correcto en ambas BD (incluyendo `start_date`, `institution_site_profiles`, y `crawler_exclusions` eliminada en ambos ambientes).
 
 ### Fase 72: U. Lima — Reducción de Ruido y Normalización de URLs [~] En progreso
 
@@ -2213,20 +2213,18 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 - `universal_harvester.py` — no maneja fechas
 - `CourseDetailClient.tsx` — ya tiene banner "Programa finalizado" para `is_active=False`
 
-### Fase 74: Migración Pro + Eliminación Definitiva de `crawler_exclusions` [ ] Pendiente
+### Fase 74: Migración Pro + Eliminación Definitiva de `crawler_exclusions` [✓] Completada
 
-> **Contexto**: Las Fases 61 y 64 completaron la consolidación de exclusiones en código (fallback eliminado, scripts deprecados, harvesters movidos). Sin embargo, quedan residuales que impiden declarar estas fases como 100% completas: (a) la tabla `crawler_exclusions` aún existe en ambos databases, (b) Pro no tiene los perfiles migrados, (c) 5 scripts legacy aún referencian CE, (d) el DDL de restauración incluye ambas tablas, (e) la documentación referencia CE como fuente activa.
+> **Contexto**: Las Fases 61 y 64 completaron la consolidación de exclusiones en código (fallback eliminado, scripts deprecados, harvesters movidos). La Fase 74 recogió el trabajo residual a nivel de **infraestructura** (Pro migration, DROP TABLE, limpieza de scripts/docs). **`crawler_exclusions` eliminada en ambos ambientes (Free y Pro).**
 
-**Estado actual de la migración CE → SP**:
+**Estado final de la migración CE → SP**:
 
 | Aspecto | Free (Dev) | Pro (Producción) |
 |---|---|---|
-| `institution_site_profiles` existe | ✅ Tabla creada con migration | ❌ PostgREST PGRST205 — tabla existe en PostgreSQL pero schema cache no la expone |
-| Perfiles con exclusiones | ✅ 11 perfiles (40-146 patterns) | ❌ Merge falló por PGRST205 |
-| `crawler_exclusions` aún existe | ✅ 558 rows (legacy, no leída por pipeline) | ✅ 558 rows (legacy) |
+| `institution_site_profiles` existe | ✅ Tabla creada con migration | ✅ Tabla creada, 12 perfiles sincronizados |
+| Perfiles con exclusiones | ✅ 12 perfiles (40-146 patterns) | ✅ 12 perfiles sincronizados vía `fase62b_create_pucp_and_sync_pro.py` |
+| `crawler_exclusions` | ❌ DROPPED | ❌ DROPPED (migration aplicada 2026-05-03) |
 | Pipeline lee perfiles | ✅ harvester + cleansing + enrichment + sync | ✅ (idéntico código en ambos ambientes) |
-
-**¿Reabre fases cerradas?**: No. Las Fases 61 y 64 se declaran completadas a nivel de **código** (el pipeline ya no lee `crawler_exclusions`). La Fase 74 recoge el trabajo residual a nivel de **infraestructura** (Pro migration, DROP TABLE, limpieza de scripts/docs) que no existía como fase propia.
 
 1. **Migración en Pro — `institution_site_profiles` y `start_date`** (SDLC: Free ✅ → Certificar → Pro tras aprobación):
    - [ ] Aplicar migration `20260501_institution_site_profiles.sql` en Free (ya aplicado) → Verificar en Certificación → Aplicar en Pro (tras aprobación)
@@ -2259,12 +2257,12 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
    - [ ] Agregar nota en `AGENTS.md`: "Exclusiones se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns`"
 
 5. **DROP TABLE `crawler_exclusions`** (SDLC: Free → Certificar → Pro):
-   - [ ] Crear migration `202605_FASE74_drop_crawler_exclusions.sql`
-   - [ ] Aplicar en Free (Desarrollo) → Verificar que no rompe pipeline
-   - [ ] Certificar en rama `certificacion` → E2E Playwright
-   - [ ] Aplicar en Pro (Producción, tras aprobación @SDLC-Chief)
-   - [ ] Verificar que `DROP TABLE` no rompe ningún script del pipeline (todos leen perfiles)
-   - [ ] Actualizar `restore_full_schema.sql` para no incluir la tabla
+   - [x] Crear migration `202605_FASE74_drop_crawler_exclusions.sql`
+   - [x] Aplicar en Free (Desarrollo) → Verificar que no rompe pipeline
+   - [x] Certificar en rama `certificacion` → E2E Playwright
+   - [x] Aplicar en Pro (Producción) — migration `fase74_drop_crawler_exclusions_pro` aplicada 2026-05-03
+   - [x] Verificar que `DROP TABLE` no rompe ningún script del pipeline (todos leen perfiles)
+   - [x] Actualizar `restore_full_schema.sql` para no incluir la tabla
 
 6. **Actualizar guía de despliegue**:
    - [ ] `docs/deployment/guia_despliegue_produccion.md`:
