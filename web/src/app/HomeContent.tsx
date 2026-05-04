@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, SlidersHorizontal, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course, type Institution } from "@/lib/supabase";
@@ -17,162 +16,11 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const [allCourses, setAllCourses] = useState<Course[]>(initialCourses);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || "");
-  const [loading, setLoading] = useState(initialCourses.length === 0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCourseForInfo, setSelectedCourseForInfo] = useState<Course | null>(null);
-  const [modalType, setModalType] = useState<'recommendation' | 'info'>('recommendation');
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
-  const [activeFilters, setActiveFilters] = useState({
-    priceMin: searchParams.get('min') || "",
-    priceMax: searchParams.get('max') || "",
-    modes: searchParams.get('modalidad') ? searchParams.get('modalidad')!.split(',') : [] as string[],
-    durations: [] as string[],
-    selectedInstitution: searchParams.get('inst') || "Todas",
-    includeConsultar: true
-  });
-
-  const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
-  const [courseTypes, setCourseTypes] = useState<string[]>([]);
-  const [selectedType, setSelectedType] = useState<string>(searchParams.get('tipo') || "Todos");
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>((searchParams.get('sort') as any) || null);
-
-  // Sync state to URL
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (searchTerm) params.set('q', searchTerm);
-    if (selectedCategory !== "Todos") params.set('area', selectedCategory);
-    if (selectedType !== "Todos") params.set('tipo', selectedType);
-    if (activeFilters.selectedInstitution !== "Todas") params.set('inst', activeFilters.selectedInstitution);
-    if (activeFilters.modes.length > 0) params.set('modalidad', activeFilters.modes.join(','));
-    if (activeFilters.priceMax) params.set('max', activeFilters.priceMax);
-    if (sortOrder) params.set('sort', sortOrder);
-
-    const queryString = params.toString();
-    const url = queryString ? `${pathname}?${queryString}` : pathname;
-    router.replace(url, { scroll: false });
-  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router]);
-
-  // Cascading Filters Logic
-  const getFilteredExcluding = (excludeKey: string) => {
-    let result = [...allCourses];
-    
-    if (searchTerm && excludeKey !== 'search') {
-      const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      const s = norm(searchTerm);
-      result = result.filter(c => norm(c.name || "").includes(s) || norm(c.institution_name || "").includes(s));
-    }
-    
-    if (selectedCategory !== "Todos" && excludeKey !== 'area') {
-      result = result.filter(c => c.category === selectedCategory);
-    }
-    
-    if (selectedType !== "Todos" && excludeKey !== 'tipo') {
-      result = result.filter(c => c.course_type === selectedType);
-    }
-    
-    if (activeFilters.selectedInstitution !== "Todas" && excludeKey !== 'inst') {
-      result = result.filter(c => c.institution_name?.toLowerCase().trim() === activeFilters.selectedInstitution.toLowerCase().trim());
-    }
-    
-    if (activeFilters.modes.length > 0 && excludeKey !== 'modalidad') {
-      result = result.filter(c => activeFilters.modes.includes(c.mode));
-    }
-    
-    if ((activeFilters.priceMin || activeFilters.priceMax) && excludeKey !== 'precio') {
-      result = result.filter(c => {
-        const price = c.price_pen;
-        const isConsultar = c.price_status === 'consultar' || !price || price <= 0;
-        if (isConsultar) return false;
-        if (activeFilters.priceMin && price < parseFloat(activeFilters.priceMin)) return false;
-        if (activeFilters.priceMax && price > parseFloat(activeFilters.priceMax)) return false;
-        return true;
-      });
-    }
-    
-    return result;
-  };
-
-  const activeCategories = useMemo(() => {
-    const courses = getFilteredExcluding('area');
-    const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean))).sort() as string[];
-    return ["Todos", ...categories];
-  }, [allCourses, searchTerm, selectedType, activeFilters]);
-
-  const activeTypes = useMemo(() => {
-    const courses = getFilteredExcluding('tipo');
-    const types = Array.from(new Set(courses.map(c => c.course_type).filter(Boolean))).sort() as string[];
-    return ["Todos", ...types];
-  }, [allCourses, searchTerm, selectedCategory, activeFilters]);
-
-  const activeInstitutions = useMemo(() => {
-    const courses = getFilteredExcluding('inst');
-    const institutions = Array.from(new Set(courses.map(c => c.institution_name).filter(Boolean))).sort() as string[];
-    return ["Todas", ...institutions];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax]);
-
-  const activeModes = useMemo(() => {
-    const courses = getFilteredExcluding('modalidad');
-    const modes = Array.from(new Set(courses.map(c => c.mode).filter(Boolean))).sort() as string[];
-    return ["Todas", ...modes];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax]);
-
-  const stats = useMemo(() => {
-    const counts = { categories: {} as any, types: {} as any, institutions: {} as any };
-    allCourses.forEach(c => {
-      if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1;
-      if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1;
-      if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1;
-    });
-    return counts;
-  }, [allCourses]);
-
-  const contextualStats = useMemo(() => {
-    const counts = { categories: {} as any, types: {} as any, institutions: {} as any };
-    const areaCourses = getFilteredExcluding('area');
-    areaCourses.forEach(c => { if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1; });
-    const typeCourses = getFilteredExcluding('tipo');
-    typeCourses.forEach(c => { if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1; });
-    const instCourses = getFilteredExcluding('inst');
-    instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
-    return counts;
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters]);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 12;
-  const [compareList, setCompareList] = useState<Course[]>([]);
-  const [isCompareInitialized, setIsCompareInitialized] = useState(false);
-
-  useEffect(() => {
-    const savedCompare = localStorage.getItem('StudIAMatch_compare_list');
-    if (savedCompare) {
-      try {
-        const parsed = JSON.parse(savedCompare);
-        if (Array.isArray(parsed)) setCompareList(parsed);
-      } catch (e) {
-        console.error("Error parsing saved comparison list", e);
-      }
-    }
-    setIsCompareInitialized(true);
-  }, []);
-
-  useEffect(() => {
-    if (isCompareInitialized) {
-      localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(compareList));
-    }
-  }, [compareList, isCompareInitialized]);
-
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+const [loading, setLoading] = useState(initialCourses.length === 0);
 
   // Only fetch if no initial data was provided (SSR fallback)
   useEffect(() => {
-    if (initialCourses.length > 0) {
-      setLoading(false);
-      return;
-    }
+    if (initialCourses.length > 0) return;
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -184,15 +32,15 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
 
         if (Array.isArray(cData) && Array.isArray(iData)) {
-          const enriched = cData.map((course: any) => ({
+          const enriched = cData.map((course: Course & { institutions?: { name?: string; slug?: string }; categories?: { name?: string } }) => ({
             ...course,
             institution_name: course.institutions?.name || iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
             institution_slug: course.institutions?.slug || iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
             category: course.categories?.name || course.category
           }));
 
-          const uniqueMap = new Map<string, any>();
-          enriched.forEach((course: any) => {
+          const uniqueMap = new Map<string, Course & { institutions?: { name?: string; slug?: string }; categories?: { name?: string } }>();
+          enriched.forEach((course: Course & { institutions?: { name?: string; slug?: string }; categories?: { name?: string } }) => {
             const institutionSlug = course.institutions?.slug || "general";
             const key = `${institutionSlug}-${course.slug}`;
             const existing = uniqueMap.get(key);
@@ -311,9 +159,13 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     return filtered;
   }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder]);
 
-  useEffect(() => {
+  const filterKey = `${searchTerm}|${selectedCategory}|${JSON.stringify(activeFilters)}`;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, activeFilters]);
+    setPrevFilterKey(filterKey);
+  }
 
   const totalPages = Math.ceil(filteredCourses.length / ITEMS_PER_PAGE);
   const paginatedCourses = filteredCourses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -402,7 +254,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                       "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
                                       filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
                                     )}>
-                                      {(contextualStats as any)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
+                                      {(contextualStats as Record<string, Record<string, number>>)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
                                     </span>
                                   )}
                                 </button>
@@ -540,7 +392,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         <span className="text-[11px] font-medium text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">{course.course_type || "Programa"}</span>
                       </div>
 
-                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="group/title flex-1">
+                      <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="group/title flex-1">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
                           {course.name}
                         </h3>
@@ -564,18 +416,18 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                           </div>
                           <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Duración</p>
-                            <p className="text-[13px] font-semibold text-brand-slate truncate">{(course as any).duration || "No especificada"}</p>
+                            <p className="text-[13px] font-semibold text-brand-slate truncate">{course.duration || "No especificada"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inicio</p>
-                            <p className="text-[13px] font-semibold text-brand-slate truncate">{(course as any).start_date_text || "Consultar"}</p>
+                            <p className="text-[13px] font-semibold text-brand-slate truncate">{course.start_date_text || "Consultar"}</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div className="px-5 pb-4 pt-0 flex items-center gap-2">
-                      <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
+                      <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 text-[13px] font-medium text-slate-600 transition-colors">
                         Ver detalle <ArrowRight className="h-3 w-3" />
                       </Link>
                       <button
