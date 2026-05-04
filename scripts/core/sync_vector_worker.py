@@ -2,13 +2,14 @@ import os
 import json
 import logging
 import sys
+import re
 import requests
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import slugify, setup_lima_logging, TimeGuard
+from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
 
 # Setup logging
@@ -20,6 +21,34 @@ logger = setup_lima_logging("SyncVectorWorker")
 class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
+        self.profiles = self._load_profiles()
+        # Fase 75: Exclusion Gate
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
+        # Fase 75: Patrones de ruido — rechazar antes de insertar en courses
+        self.noise_patterns = [
+            re.compile(r'agradecimiento', re.IGNORECASE),
+            re.compile(r'thank.?\s*you', re.IGNORECASE),
+            re.compile(r'^https?://[^/]+/?$'),
+            re.compile(r'/facultad-de-[^/]+/?$'),
+            re.compile(r'matr[ií]cul', re.IGNORECASE),
+            re.compile(r'inscr[ií]b', re.IGNORECASE),
+        ]
+
+    def _load_profiles(self):
+        try:
+            return self.db.select('institution_site_profiles') or []
+        except Exception as e:
+            logger.warning(f"Error loading site profiles: {e}")
+            return []
+
+    def _get_profile(self, institution_id):
+        for p in self.profiles:
+            if p.get('institution_id') == institution_id:
+                return p
+        return {}
 
     def get_pending_enriched(self, limit=500):
         return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
@@ -28,6 +57,20 @@ class SyncVectorWorker:
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
+
+        # Fase 75: Exclusion Gate — skip si la institucion no esta lista
+        inst_id = enriched.get('institution_id')
+        if inst_id and str(inst_id) not in self.ready_inst_ids:
+            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_ready=false")
+            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_ready=false")
+            return
+
+        # Fase 75: Post-sync noise validation
+        for pat in self.noise_patterns:
+            if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
+                logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
+                self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
+                return
 
         # Validate name: reject None, "None", empty, or too-short names
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
@@ -79,15 +122,39 @@ class SyncVectorWorker:
         elif isinstance(raw_categories, str) and raw_categories:
             main_category = raw_categories.split(',')[0].strip()
 
+        # Fase 73: Parse start_date and determine expiration
+        start_date_text = enriched.get('start_date')
+        parsed_date, is_expired = parse_start_date(start_date_text)
+        
+        # Determine is_active: False if expired (90d grace already in parse_start_date)
+        course_is_active = not is_expired
+        if is_expired:
+            logger.info(f"⏰ [EXPIRED] {name} — start_date='{start_date_text}' parsed as {parsed_date}, marking inactive")
+
+        # Fase 63: Load profile defaults for this institution
+        profile = self._get_profile(enriched.get('institution_id'))
+        defaults = profile.get('field_defaults', {}) if profile else {}
+        section_mode_map = profile.get('section_mode_map', {}) if profile else {}
+
+        # Apply section_mode_map: derive mode from URL path
+        resolved_mode = enriched.get('modality') or defaults.get('mode')
+        if not enriched.get('modality') and section_mode_map:
+            course_url = enriched.get('url', '')
+            for path_key, mode_val in section_mode_map.items():
+                if path_key in course_url:
+                    resolved_mode = mode_val
+                    break
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
             "slug": full_slug,
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
-            "mode": enriched.get('modality'),
+            "mode": resolved_mode,
             "duration": enriched.get('duration_text') or enriched.get('duration'),
-            "start_date_text": enriched.get('start_date'),
+            "start_date_text": start_date_text,
+            "start_date": parsed_date.isoformat() if parsed_date else None,
             "description_long": enriched.get('ai_summary'),
             "requirements": list_to_str(enriched.get('requirements')),
             "objectives": enriched.get('graduate_profile'),
@@ -97,7 +164,7 @@ class SyncVectorWorker:
             "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),
             "category": main_category,
-            "is_active": True,
+            "is_active": course_is_active,
             "is_verified": True,
             "last_scraped_at": "now()"
         }

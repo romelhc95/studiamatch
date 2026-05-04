@@ -1,5 +1,12 @@
-import os, sys, json, requests
+import os, sys, json, requests, warnings
 sys.path.insert(0, '/app')
+
+warnings.warn(
+    "DEPRECATED (Fase 61): seed_crawler_exclusions.py is deprecated. "
+    "Use seed_site_profiles.py or merge_exclusions_to_profiles.py instead. "
+    "crawler_exclusions table is no longer the source of truth for URL filtering.",
+    DeprecationWarning
+)
 
 url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
 secret = os.environ.get('NEXT_SUPABASE_SECRET_KEY', '') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
@@ -33,9 +40,20 @@ GLOBAL = [
 CMS = ['/category/', '/author/']  # /tag/ and /archive/ already in GLOBAL
 
 SPECIFIC = {
-    'universidad-de-lima': ['/pregrado/', '/blog-tags/', '/ventana-indiscreta/',
+    'universidad-de-lima': ['/blog-tags/', '/ventana-indiscreta/',
         '/node/', '/promociones/', '/taxonomy/', '/la-universidad/',
-        '/centros-e-institutos/', '/internacional/'],
+        '/centros-e-institutos/', '/internacional/',
+        # Fase 72: Nuevas exclusiones exactas (basadas en lista curada)
+        '/admitidos-', '/athina-seminario', '/contabilidad-curso-actualizacion',
+        '/diomas/portugues', '/educacion-ejecutiva/derecho-y-gestion-publica',
+        '/educacion-ejecutiva/finanzas-contabilidad-y-economia',
+        '/educacion-ejecutiva/executive-summit/', '/educacion-ejecutiva/mooc/',
+        '/examen-de-admision', '/graduados/torneo-', '/guia-',
+        '/idiomas/demo-', '/idiomas/emi-skills', '/idiomas/ingles',
+        '/posgrado/connect-ulima', '/posgrado/epg-agradecimiento',
+        '/posgrado/sustentaciones-de-grado', '/publico-objetivo/',
+        '/registro-completo', '/requisitos-admision-',
+        '/solicitud-de-cambio-de-carrera', '/vida-ulima'],
     'upc': ['/pregrado/', '/vida-universitaria/', '/info-importante/'],
     'usil': ['/pregrado/', '/vida-universitaria/'],
     'universidad-del-pacifico': ['/egp/', '/idiomas/', '/maestrias/'],

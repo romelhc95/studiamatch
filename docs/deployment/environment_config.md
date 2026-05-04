@@ -6,10 +6,10 @@
 |---|---|---|---|---|
 | Ambiente | Rama Git | URL | Supabase Proyecto | DB |
 |---|---|---|---|---|
-| Desarrollo | `desarrollo` | `https://desarrollo.studiamatch.pages.dev` | `aqrldlmlszjtgpqiegaa` | Free |
-| Certificacion | `certificacion` | `https://studiamatch.pages.dev` | `aqrldlmlszjtgpqiegaa` | Free |
+| Desarrollo | `desarrollo` | `https://desarrollo.studiamatch.pages.dev` | `YOUR_FREE_PROJECT_REF` | Free |
+| Certificacion | `certificacion` | `https://studiamatch.pages.dev` | `YOUR_FREE_PROJECT_REF` | Free |
 | Produccion | `main` | `https://www.studiamatch.com` | `[PENDIENTE - CREAR EN R6]` | Pro |
-| Local | N/A | `http://localhost:3000` | `aqrldlmlszjtgpqiegaa` | Free |
+| Local | N/A | `http://localhost:3000` | `YOUR_FREE_PROJECT_REF` | Free |
 
 ## Variables de entorno requeridas por ambiente
 
@@ -19,7 +19,7 @@ Configurar en Cloudflare Dashboard > Workers & Pages > studiamatch > Settings > 
 
 | Variable | Desarrollo | Certificacion | Produccion |
 |---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `[URL_PRO_PENDIENTE]` |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://YOUR_FREE_PROJECT_REF.supabase.co` | `https://YOUR_FREE_PROJECT_REF.supabase.co` | `[URL_PRO_PENDIENTE]` |
 | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free | `sb_publishable_...` de Free | `sb_publishable_...` de Pro |
 | `NODE_VERSION` | `20` | `20` | `20` |
 
@@ -31,10 +31,10 @@ Configurar en GitHub > Settings > Environments:
 
 | Environment | Secret | Valor |
 |---|---|---|
-| Development | `SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| Development | `SUPABASE_URL` | `https://YOUR_FREE_PROJECT_REF.supabase.co` |
 | Development | `NEXT_SUPABASE_SECRET_KEY` | `sb_secret_...` de Free (para escritura pipeline) |
 | Development | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free (para lectura frontend) |
-| Certification | `SUPABASE_URL` | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| Certification | `SUPABASE_URL` | `https://YOUR_FREE_PROJECT_REF.supabase.co` |
 | Certification | `NEXT_SUPABASE_SECRET_KEY` | `sb_secret_...` de Free |
 | Certification | `NEXT_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` de Free |
 | Production | `SUPABASE_URL` | `[URL_PRO_PENDIENTE]` |
@@ -54,10 +54,10 @@ Configurar en GitHub > Settings > Environments:
 
 ## Claves Supabase
 
-### Free tier (Desarrollo — `aqrldlmlszjtgpqiegaa`)
+### Free tier (Desarrollo — `YOUR_FREE_PROJECT_REF`)
 | Key | Valor |
 |---|---|
-| URL | `https://aqrldlmlszjtgpqiegaa.supabase.co` |
+| URL | `https://YOUR_FREE_PROJECT_REF.supabase.co` |
 | Publishable Key | Ver `.env.local` |
 | Secret Key | Ver `.env.local` |
 
