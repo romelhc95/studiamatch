@@ -57,6 +57,7 @@ class UniversalHarvester:
 
         # Fase 62: Perfil-driven config — todo el comportamiento diferenciado sale del perfil
         self.site_type = self.profile.get('site_type', 'traditional_ssr') if self.profile else 'traditional_ssr'
+        self.discovery_mode = self.profile.get('discovery_mode', 'sitemap_bfs') if self.profile else 'sitemap_bfs'
         self.requires_stealth = self.profile.get('requires_stealth', False) if self.profile else False
         self.requires_cf_bypass = self.profile.get('requires_cloudflare_bypass', False) if self.profile else False
         self.popup_selectors = self.profile.get('popup_close_selectors', []) if self.profile else []
@@ -230,8 +231,15 @@ class UniversalHarvester:
             for pattern in allowed:
                 if isinstance(pattern, str):
                     if pattern.startswith('re:'):
+                        pat = pattern[3:]
+                        if len(pat) > 200:
+                            logger.warning(f"Allowed pattern too long, skipping: {pat[:50]}...")
+                            continue
+                        if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                            logger.warning(f"ReDoS-risk allowed pattern rejected: {pat}")
+                            continue
                         try:
-                            if re.search(pattern[3:], low_url, re.IGNORECASE):
+                            if re.search(pat, low_url, re.IGNORECASE):
                                 return True
                         except re.error:
                             continue
