@@ -1,21 +1,9 @@
 import os
-import requests
-import json
-from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
 
-load_dotenv()
-
 db = get_db_client()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}"
-}
 
 # Definición de los 14 Pilares para Auditoría
 PILLARS = [
@@ -25,26 +13,8 @@ PILLARS = [
 ]
 
 def run_audit():
-    print("🚀 Iniciando Auditoría de Coherencia y Calidad (Fase 26)...")
-    # Fetch courses with their institution slugs (con paginación)
-    url = f"{SUPABASE_URL}/rest/v1/courses?select=*,institutions(slug)&is_active=eq.true&limit=1000"
-    all_courses = []
-    offset = 0
-    while True:
-        page_url = f"{url}&offset={offset}"
-        res = requests.get(page_url, headers=headers)
-        if res.status_code != 200:
-            print(f"❌ Error al conectar con Supabase: {res.status_code}")
-            return
-        batch = res.json()
-        if not batch:
-            break
-        all_courses.extend(batch)
-        offset += len(batch)
-        if len(batch) < 1000:
-            break
-
-    courses = all_courses
+    print("Iniciando Auditoría de Coherencia y Calidad (Fase 26)...")
+    courses = db.select_all('courses', filters='is_active=eq.true', columns='*,institutions(slug)')
     total_courses = len(courses)
     flagged_courses = []
 
