@@ -357,7 +357,7 @@ if __name__ == "__main__":
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
                         logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
-                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
+                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped'})
                         continue
                     worker.enrich_record(r)
                     total_processed += 1
