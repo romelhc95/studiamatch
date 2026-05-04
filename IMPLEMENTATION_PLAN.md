@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61-75 completadas. Pipeline con cancelación controlada + Exclusion Gate (5 capas). `institution_site_profiles` es fuente única de verdad + enrutamiento de scraping. 11 harvesters deprecados reemplazados por universal_harvester.py perfil-driven. DMC con discovery_mode=catalog_link_extraction + stealth + Cloudflare bypass. Profiles configurados para routing por site_type, discovery mode, anti-bot y extracción. Security audit remediado (10 hallazgos). UTP `pipeline_ready=true` con 84 exclusiones + allowlist `/cgt/`. **2 cursos UTP CGT activos en Free, 6 ruido desactivados**. Harvester en discovery-only mode cuando `pipeline_ready=false`.
-- **Último Hito**: Fase 62 completada — Harvester Adaptativo Perfil-Driven (62A-62D). universal_harvester.py enruta por `site_type`, descubre por `discovery_mode`, extrae con anti-bot configurable desde perfil. 11 harvesters deprecados reemplazados. DMC configurado como ecommerce con stealth+Cloudflare.
-- **Próxima Acción**: Fase 67A — Setup Resend + Edge Function de email. También: sincronizar perfiles Free→Pro.
+- **Estado Actual**: Fase 76 (Hotfix Pipeline FG2) en progreso. Fases 62-68 **reabiertas parcialmente** por bugs detectados en pipeline FG2 CI/CD. 5 bugs críticos: (1) `self.discovery_mode` faltante en `UniversalHarvester.__init__` → `AttributeError`, (2) `requests.exceptions.DNSResolutionError` no existe en la versión instalada → crash silencioso, (3) `quality_assurance_audit.py` no usa `db_client` → conecta directo sin retry, (4) `fg3_integrity.yml` tiene backslash escapando `${{ }}`, (5) **JSONB string-vs-array** en `institution_site_profiles` → PUCP `catalog_url_patterns` iterado como 68 chars → 884 navegaciones inválidas en producción.
+- **Último Hito**: Fase 75 completada — Exclusion Gate + Noise Sentinel v2. Pipeline corriendo pero bloqueado por bug `discovery_mode` en CI/CD.
+- **Próxima Acción**: Fase 76 — Aplicar hotfixes (5 bugs), fix SQL JSONB en Free+Pro, crear perfiles PUCP/DMC en Pro, commit, push a `desarrollo`, verificar FG2 exitoso.
 
 ## Tareas Pendientes Priorizadas
 
@@ -24,6 +24,7 @@
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
 |---|---|---|---|---|
+| **P0** | **Fase 76 — Hotfix Pipeline FG2** | **Pipeline** | **5 bugs críticos que bloquean FG2 en CI/CD:** (1) `universal_harvester.py` falta `self.discovery_mode` → `AttributeError` (reasgna Fase 62), (2) `db_client.py` catch `DNSResolutionError` que no existe en `requests` → `AttributeError` silencioso (reasgna Fase 68), (3) `quality_assurance_audit.py` no usa `db_client` → sin retry, sin service_role, fallback a localhost (reasgna Fase 26), (4) `fg3_integrity.yml` backslash escapando `${{ }}`, (5) **JSONB string-vs-array** en `institution_site_profiles` → PUCP `catalog_url_patterns` iterado como 68 caracteres individuales → 884 navegaciones inválidas (run 25300423582). Fix código + SQL en Free+Pro. | **Ninguno — branch hotfix** |
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
 | ~~P1~~ | ~~Fase 61 — Site Profiles~~ | ~~Arquitectura~~ | ~~Crear tabla `institution_site_profiles`, migrar exclusiones, seed perfiles~~ | ~~Completado~~ |
@@ -66,9 +67,9 @@
 - [x] **R6**: Proyecto Pro (`YOUR_PRO_PROJECT_REF`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [x] **R7**: GitHub Secrets configurados (3 environments) + Cloudflare Pages env vars configuradas + pipeline ejecutando en producción.
 - [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
-- [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada.
+- [~] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. **REABIERTA**: Bug `DNSResolutionError` inexistente en `requests` → `AttributeError` (Fase 76).
 - [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
-- [x] **Fase 62A**: Site Type Routing — `traditional_ssr` → HTTP-only, `spa_js_heavy` → Playwright, `ecommerce` → Playwright+stealth. Routing en `main()` y `scrape_course_detail()` vs `_scrape_http()`.
+- [ ] **Fase 76**: Hotfix Pipeline FG2 — 5 bugs críticos (`discovery_mode` AttributeError, `DNSResolutionError` inexistente, QA Audit sin `db_client`, YAML backslash, **JSONB string-vs-array**). Fases 62, 68, 26, 61 reabiertas parcialmente.
 - [x] **Fase 62B**: Discovery Modes — `paginated_catalog` (itera `catalog_url_patterns` con `{page}`) y `catalog_link_extraction` (Playwright scroll + link selector). DMC configurado.
 - [x] **Fase 62C**: Perfil-Driven Extraction — `_extract_sections()` con `section_keywords`, `_apply_title_cleansing()` con `title_prefix_removals`/`title_split_separators`, `_extract_price_with_regex()` con `price_regex`, `field_defaults` en metadata.
 - [x] **Fase 62D**: Anti-Bot por Perfil — `requires_stealth` → `playwright_stealth.Stealth.apply_stealth_async()`, `requires_cloudflare_bypass` → warm-up + challenge loop, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
@@ -1446,7 +1447,9 @@ Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclus
 | `pipeline_ready` | bool | Gate: si false, pipeline omite institución | ✅ Capa 0 gate |
 | `max_courses_per_run` | int | Límite de cursos por ejecución | ❌ No implementado |
 
-#### Fase 62A: Site Type Routing [x] Completado
+#### Fase 62A: Site Type Routing [~] Reabierta (Fase 76)
+
+> **Bug detectado**: `self.discovery_mode` nunca se asignó en `UniversalHarvester.__init__`. La línea 715 de `main()` accede a `harvester.discovery_mode` causando `AttributeError` que crashea el harvester en CI/CD. Fix: agregar `self.discovery_mode = self.profile.get('discovery_mode', 'sitemap_bfs') if self.profile else 'sitemap_bfs'` en `__init__`.
 
 Objetivo: El campo `site_type` del perfil enruta el comportamiento del Playwright en `universal_harvester.py`.
 
@@ -1764,7 +1767,10 @@ Objetivo: Mejorar la experiencia del usuario después de enviar un lead, con men
    - [ ] Agregar `status` update: cuando los 3 emails se envían exitosamente, cambiar `status` de `pending` → `contacted`
    - [ ] Si algún email falla, mantener `pending` para reintento manual
 
-### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [ ] Pendiente
+### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [~] Reabierta (Fase 76)
+
+> **Bug detectado**: `db_client.py` línea 23 hace catch de `requests.exceptions.DNSResolutionError`, pero esta excepción no existe en la versión instalada de `requests`. Resultado: cualquier error DNS lanza `AttributeError` en vez de ser rearrito. Fix: usar `getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError)`.
+
 Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones del pipeline y en integrity_ping, evitando que GitHub Actions cancele abruptamente los procesos y se pierda la información de lo procesado hasta el momento. Incluye TIME_GUARD, signal handlers (SIGTERM/SIGINT), alineación de timeouts en workflows y reintentos con backoff para DNS errors.
 
 **Diagnóstico del problema** (3 runs cancelados en `main`, 01-02 May 2026):
@@ -1833,7 +1839,8 @@ Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones de
 7. **`.github/workflows/fg3_integrity.yml` — Timeout + sys.path** (P2 Media):
    - [ ] Agregar `timeout-minutes: 35` al job `integrity` (no tiene, default 360)
 
-8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media):
+8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media) **[~] REABIERTA (Fase 76)**:
+   - [ ] **BUG**: `requests.exceptions.DNSResolutionError` no existe en versiones anteriores de `requests`. Usar `getattr()` retrocompatible.
    - [ ] Crear función `_retry_with_backoff(fn, max_retries=3, base_delay=5)` que envuelve llamadas a Supabase REST API
    - [ ] Aplicar en métodos `_select_api()`, `_insert_api()`, `_patch_api()`, `_upsert_api()`, `_delete_api()`, `rpc()` cuando reciben `ConnectionError` o `NameResolutionError`
    - [ ] Backoff exponencial: 5s → 10s → 20s entre reintentos
@@ -2505,4 +2512,128 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 | `AGENTS.md` | UPDATE | Documentar `pipeline_ready` gate |
 
 **Requiere migrations SQL** — `pipeline_ready` column. Aplicar en Free primero, luego Pro tras certificación.
+
+### Fase 76: Hotfix Pipeline FG2 — 5 Bugs Críticos 🔴 [ ] En progreso
+
+**Diagnóstico**: El pipeline FG2 en CI/CD (rama `desarrollo`) falla con `exit code 1`. Audit de logs históricos + corrida en vivo (run 25298924837) revela 5 bugs que bloquean el pipeline completo. Run 25300423582 en `main` confirma Bug 5 (JSONB string-vs-array) causando 884 navegaciones inválidas a URLs de 1 carácter.
+
+**Bug 1 — `AttributeError: 'UniversalHarvester' object has no attribute 'discovery_mode'`** (CRÍTICO):
+- **Archivo**: `scripts/core/universal_harvester.py` línea 715
+- **Causa**: En `__init__` (líneas 59-70) se asignan `self.site_type`, `self.requires_stealth`, etc. desde el perfil, pero **nunca se asigna `self.discovery_mode`**. Sin embargo, `main()` (línea 715) accede a `harvester.discovery_mode`.
+- **Impacto**: El harvester crashea en la primera institución que procesa. El orchestrator continua a la siguiente, pero el mismo error se repite para TODAS las instituciones.
+- **Fix aplicado**: Agregar `self.discovery_mode = self.profile.get('discovery_mode', 'sitemap_bfs') if self.profile else 'sitemap_bfs'` en `__init__` línea 60.
+- **Reasgna**: Fase 62 (Site Type Routing + Discovery Modes) — se completó sin testing en CI/CD.
+- **Estado**: ✅ Fix aplicado en local, pendiente commit.
+
+**Bug 2 — `requests.exceptions.DNSResolutionError` no existe** (ALTO):
+- **Archivo**: `scripts/shared/db_client.py` línea 23
+- **Causa**: El bloque `except` en `_request_with_retry()` catch `requests.exceptions.DNSResolutionError`, pero esta excepción **no existe** en la versión instalada de `requests`. Se introdujo en `requests>=2.32` (2024) pero el workflow instala la versión disponible. Resultado: cualquier error de DNS/connection lanza `AttributeError` en vez de ser manejado → crash silencioso sin retry.
+- **Impacto**: FG3 (integrity_ping) crashea con `AttributeError` + `Invalid URL` cuando `SUPABASE_URL` no se resuelve. FG2 puede crash en timeouts de red.
+- **Fix**: Reemplazar `requests.exceptions.DNSResolutionError` con `getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError)` para compatibilidad retroactiva.
+- **Reasgna**: Fase 68 (Pipeline Resiliencia) — se completó sin testing de compatibilidad de versión.
+- **Estado**: ⏳ Pendiente.
+
+**Bug 3 — `quality_assurance_audit.py` no usa `db_client`** (MEDIO):
+- **Archivo**: `scripts/maintenance/quality_assurance_audit.py` líneas 30, 35
+- **Causa**: Construye URLs manualmente con `requests.get(url, headers=headers)` en vez de usar `db.select_all()`. No tiene retry logic, no usa service_role key, y falla si `SUPABASE_URL` no está configurado sin el prefijo `https://`.
+- **Impacto**: FG2 Fase 4 (ROI & QA Audit) crashea con `Connection refused` a localhost:54321 cuando corre en CI. En desarrollo local funciona por accidente.
+- **Fix**: Refactorizar para usar `db.select_all('courses', ...)` con `use_service_role=True`.
+- **Reasgna**: Fase 26 (QA Audit) — nunca se migró a `db_client`.
+- **Estado**: ⏳ Pendiente.
+
+**Bug 4 — `fg3_integrity.yml` tiene backslash escapando `${{ }}`** (MEDIO):
+- **Archivo**: `.github/workflows/fg3_integrity.yml` líneas 30-32
+- **Causa**: Las variables de entorno tienen `\$` en vez de `$`, por lo que GitHub Actions no resuelve los secrets. Resultado: `SUPABASE_URL` queda vacío → `Invalid URL '/rest/v1/...'`.
+- **Impacto**: FG3 falla en CI/CD desplegado desde `main`. Funciona localmente porque carga `.env.local`.
+- **Fix**: Eliminar `\` antes de `$`.
+- **Reasgna**: Flujo CI/CD — typo en YAML.
+- **Estado**: ⏳ Pendiente.
+
+**Checklist**:
+
+1. **Bug 1 — `discovery_mode` AttributeError**:
+   - [x] Fix aplicado en `universal_harvester.py` línea 60
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+   - [ ] Verificar FG2 pipeline exitoso en CI
+
+2. **Bug 2 — `DNSResolutionError` inexistente**:
+   - [x] Fix `db_client.py` línea 23 con `getattr()` retrocompatible
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+
+3. **Bug 3 — `quality_assurance_audit.py` refactor**:
+   - [x] Migrar a `db.select_all('courses', ...)` con service_role
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+
+4. **Bug 4 — `fg3_integrity.yml` YAML syntax**:
+   - [x] Eliminar `\` antes de `$` en líneas 30-32
+   - [x] Validar YAML syntax
+   - [ ] Commit + push a `desarrollo`
+
+5. **Security audit hallazgo LOW** (ReDoS en `allowed_url_patterns`):
+    - [x] Validación de longitud >200 chars
+    - [x] Patrón ReDoS-risk detectado
+    - [x] `py_compile` verificado
+
+6. **Bug 5 — JSONB string-vs-array**:
+    - [ ] Fix SQL en Free DB: convertir `string` → `array` para PUCP y UTP
+    - [ ] Fix SQL en Pro DB: crear perfiles faltantes para PUCP y DMC
+    - [ ] Fix código: validación defensiva en `universal_harvester.py` para parsear strings JSON como arrays
+    - [ ] `py_compile` verificado
+    - [ ] Verificar que PUCP ahora itera sobre 1 pattern (no 68 caracteres)
+
+7. **Validación E2E**:
+    - [ ] Ejecutar FG2 en `desarrollo` (workflow_dispatch) → debe pasar Fase 1 sin `AttributeError`
+    - [ ] Ejecutar FG2 en `main` → PUCP debe procesar catalogs sin `Cannot navigate to invalid URL`
+    - [ ] Ejecutar FG3 en `main` (workflow_dispatch) → debe conectar a Supabase sin `Invalid URL`
+    - [ ] Verificar que QA Audit (Fase 4 de FG2) conecta correctamente
+
+**Bug 5 — JSONB string-vs-array en `catalog_url_patterns` / `exclusion_patterns` / `allowed_url_patterns`** (CRÍTICO):
+- **Tabla**: `institution_site_profiles` (Free + Pro)
+- **Causa**: PUCP tiene 3 campos JSONB almacenados como `string` en vez de `array`. Cuando el harvester itera `for pattern in catalog_url_patterns:` sobre un string, itera carácter por carácter → `page.goto("[" )`, `page.goto("h")`, `page.goto("t")`, etc. UTP tiene 2 campos afectados (`allowed_url_patterns`, `exclusion_patterns`). PostgREST retorna strings JSON como listas de caracteres individuales.
+- **Impacto**: FG2 en producción (run `25300423582`) generó 884 navegaciones inválidas a URLs de 1 carácter (`[`, `h`, `t`, `t`, `p`, `:`, `/`, etc.) que saturaron Playwright y cancelaron el pipeline por timeout.
+- **Datos corruptos (Free DB)**:
+  - `pucp`: `catalog_url_patterns` = `'["https://www.pucp.edu.pe/programas/?jsf=jet-engine&pagenum={page}"]'` (68 chars como string) → debe ser `["https://..."]` (1-element array)
+  - `pucp`: `allowed_url_patterns` = `'["re:.*programas.*"]'` (string) → debe ser `["re:.*programas.*"]`
+  - `pucp`: `exclusion_patterns` = `'["/blog/", "/noticias/", ...]'` (string) → debe ser `["/blog/", ...]`
+  - `utp`: `allowed_url_patterns` = `'["re:/cgt/"]'` (string) → debe ser `["re:/cgt/"]`
+  - `utp`: `exclusion_patterns` = `'["/categoria/", ...]'` (string) → debe ser `["/categoria/", ...]`
+- **Pro DB**: Faltan perfiles para PUCP y DMC (solo 10 de 12 instituciones tienen `institution_site_profiles`).
+- **Fix SQL (Free)**:
+  ```sql
+  UPDATE institution_site_profiles
+  SET catalog_url_patterns = catalog_url_patterns::jsonb
+  WHERE jsonb_typeof(catalog_url_patterns) = 'string';
+
+  UPDATE institution_site_profiles
+  SET allowed_url_patterns = allowed_url_patterns::jsonb
+  WHERE jsonb_typeof(allowed_url_patterns) = 'string';
+
+  UPDATE institution_site_profiles
+  SET exclusion_patterns = exclusion_patterns::jsonb
+  WHERE jsonb_typeof(exclusion_patterns) = 'string';
+  ```
+- **Fix código**: Agregar validación defensiva en `universal_harvester.py` `__init__` y `discover_paginated_catalog` para parsear strings JSON como arrays.
+- **Reasgna**: Fase 61 (Site Profiles) — inserción de datos sin validar tipo JSONB. Fase 62B (Discovery Modes) — código no valida tipos.
+- **Estado**: ⏳ Pendiente.
+
+**Fases reabiertas parcialmente**:
+- **Fase 62** (Site Type Routing / Discovery Modes): Bug `discovery_mode` ausente + Bug 5 JSONB string-vs-array.
+- **Fase 68** (Pipeline Resiliencia): Bug `DNSResolutionError` es un defecto de esta fase.
+- **Fase 26** (QA Audit): Bug de no usar `db_client` es deuda técnica de esta fase.
+- **Fase 61** (Site Profiles): Bug 5 JSONB string-vs-array en inserción de datos.
+
+**Archivos modificados**:
+
+| Archivo | Tipo | Bug |
+|---|---|---|
+| `scripts/core/universal_harvester.py` | FIX | Bug 1: agregar `self.discovery_mode` |
+| `scripts/shared/db_client.py` | FIX | Bug 2: `getattr()` retrocompatible |
+| `scripts/maintenance/quality_assurance_audit.py` | REFACTOR | Bug 3: migrar a `db_client` |
+| `.github/workflows/fg3_integrity.yml` | FIX | Bug 4: eliminar `\` escapado |
+| `scripts/core/universal_harvester.py` | FIX | Bug 5: validar JSONB string→array en `catalog_url_patterns`, `exclusion_patterns`, `allowed_url_patterns` |
+| `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 76 |
+| `AGENTS.md` | UPDATE | Documentar bugs y fixes |
 
