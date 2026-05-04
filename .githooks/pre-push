@@ -1,0 +1,33 @@
+#!/bin/sh
+# pre-push hook — Blocks push if new commits contain hardcoded credentials.
+# Installation: git config core.hooksPath .githooks
+# Input from git: <local_ref> <local_sha> <remote_ref> <remote_sha>
+
+echo "🔍 [pre-push] Scanning push diff for hardcoded credentials..."
+
+remote_sha=""
+while read local_ref local_sha remote_ref remote_sha; do
+    # Determine range of commits to check
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Deleting remote ref, skip
+        continue
+    fi
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch, check all commits from root
+        range="HEAD"
+    else
+        range="${remote_sha}..${local_sha}"
+    fi
+
+    # Get diff for new commits and scan for credentials
+    if git diff "$range" 2>/dev/null | grep -qE \
+        "eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}"; then
+        echo "⚠️  CREDENTIAL FOUND in commits being pushed to $remote_ref"
+        echo "   Check the diff above, remove the credential, and use an env var."
+        echo "   To see exact location: git diff $range | grep -n -E '<pattern>'"
+        exit 1
+    fi
+done
+
+echo "✅ [pre-push] No credentials detected in push."
+exit 0

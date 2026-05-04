@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,12 +56,14 @@ export default function CompareContent() {
   const idsString = searchParams.get("ids") || "";
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
     if (!idsString) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       router.push("/");
       return;
@@ -235,7 +237,7 @@ export default function CompareContent() {
                 </div>
 
                 <div className="p-8 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-brand-gray/30 dark:border-white/10 flex flex-col gap-3 mt-auto">
-                  <Link href={`/courses/${cleanSlug((course as any).institution_slug)}/${course.slug}`} className="w-full">
+                   <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="w-full">
                     <Button className="w-full bg-brand-mint hover:bg-brand-mint/90 text-brand-slate font-black h-14 rounded-2xl shadow-lg shadow-brand-mint/10 border-0 uppercase tracking-widest text-xs">
                       Solicitar Info
                     </Button>

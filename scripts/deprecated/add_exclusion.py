@@ -1,19 +1,12 @@
 """Add crawler exclusion patterns to both Free and Pro databases.
 
+DEPRECATED (Fase 61): Esta herramienta escribe en crawler_exclusions (tabla legacy).
+Ahora usa seed_site_profiles.py para escribir en institution_site_profiles.exclusion_patterns
+o apply_noise_exclusions.py que ya migraron a la nueva tabla.
+
 Usage:
-  # Add patterns for an institution (by slug or name):
-  python3 scripts/maintenance/add_exclusion.py --institution dmc --pattern /profesores/ /egresado/
-
-  # Dry-run first:
-  python3 scripts/maintenance/add_exclusion.py --institution dmc --pattern /test/ --dry-run
-
-  # Also cleanup matching staging_raw records retroactively:
-  python3 scripts/maintenance/add_exclusion.py --institution dmc --pattern /blog/ --cleanup
-
-  # Add to both Free and Pro (default), or just one:
-  python3 scripts/maintenance/add_exclusion.py --institution upc --pattern /pregrado/ --db both
-  python3 scripts/maintenance/add_exclusion.py --institution upc --pattern /pregrado/ --db free
-  python3 scripts/maintenance/add_exclusion.py --institution upc --pattern /pregrado/ --db pro
+  python3 scripts/maintenance/seed_site_profiles.py
+  python3 scripts/maintenance/apply_noise_exclusions.py --json noise_audit.json
 """
 import os
 import sys

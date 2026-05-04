@@ -342,6 +342,95 @@ def normalize_url(url):
         return url
 
 
+def parse_start_date(text):
+    """
+    Parses a Spanish/English start date string into a datetime.date.
+    Returns (date, is_expired) tuple or (None, False) if unparseable.
+    
+    Handles: "Abril 2026", "15 de mayo", "2026-04-15", "Marzo 2024", "15/05/2026"
+    Grace period: 90 days past the start date before marking as expired.
+    """
+    if not text or str(text).strip().lower() in ('none', 'null', 'nan', ''):
+        return None, False
+    
+    from datetime import date, timedelta
+    text = str(text).strip()
+    
+    # Try ISO format first: 2026-04-15 or 2026/04/15
+    iso_match = re.match(r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})', text)
+    if iso_match:
+        try:
+            d = date(int(iso_match.group(1)), int(iso_match.group(2)), int(iso_match.group(3)))
+            expired = d < date.today() - timedelta(days=90)
+            return d, expired
+        except ValueError:
+            pass
+    
+    # Try DD/MM/YYYY
+    dmy_match = re.match(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', text)
+    if dmy_match:
+        try:
+            d = date(int(dmy_match.group(3)), int(dmy_match.group(2)), int(dmy_match.group(1)))
+            expired = d < date.today() - timedelta(days=90)
+            return d, expired
+        except ValueError:
+            pass
+    
+    # Spanish month names
+    months = {
+        'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
+        'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
+        'septiembre': 9, 'setiembre': 9, 'octubre': 10,
+        'noviembre': 11, 'diciembre': 12,
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12,
+    }
+    
+    text_lower = text.lower()
+    
+    # Pattern: "Mes AAAA" or "Mes de AAAA" e.g. "Abril 2026", "Marzo de 2024"
+    month_year = re.match(r'([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})', text_lower)
+    if month_year:
+        month_name = month_year.group(1)
+        year_val = int(month_year.group(2))
+        if month_name in months:
+            d = date(year_val, months[month_name], 1)
+            expired = d < date.today() - timedelta(days=90)
+            return d, expired
+    
+    # Pattern: "DD de Mes" or "DD Mes" e.g. "15 de mayo", "15 mayo"
+    # Use current year as default
+    day_month = re.match(r'(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)', text_lower)
+    if day_month:
+        month_name = day_month.group(2)
+        if month_name in months:
+            current_year = date.today().year
+            try:
+                d = date(current_year, months[month_name], int(day_month.group(1)))
+                # If this date is already past for current year, try next year
+                if d < date.today() - timedelta(days=90):
+                    d = date(current_year + 1, months[month_name], int(day_month.group(1)))
+                expired = d < date.today() - timedelta(days=90)
+                return d, expired
+            except ValueError:
+                pass
+    
+    # Pattern: "DD de Mes de AAAA" e.g. "15 de mayo de 2026"
+    full_date = re.match(r'(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})', text_lower)
+    if full_date:
+        month_name = full_date.group(2)
+        if month_name in months:
+            try:
+                d = date(int(full_date.group(3)), months[month_name], int(full_date.group(1)))
+                expired = d < date.today() - timedelta(days=90)
+                return d, expired
+            except ValueError:
+                pass
+    
+    return None, False
+
+
 try:
     from json_repair import repair_json as _jsonrepair_repair
     _JSONREPAIR_AVAILABLE = True

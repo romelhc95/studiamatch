@@ -2,9 +2,10 @@ import os
 import json
 import logging
 import sys
-import requests
 import re
+import html
 import time
+import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -35,6 +36,12 @@ GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
 class EnrichmentWorker:
     def __init__(self):
         self.db = get_db_client()
+        self.profiles = self._load_profiles()
+        # Fase 75: Exclusion Gate
+        self.ready_inst_ids = {
+            str(p['institution_id']) for p in self.profiles
+            if isinstance(p, dict) and p.get('pipeline_ready')
+        }
         cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
         gh_provider = LLMProvider("GitHub", self._call_github)
         gemini_provider = LLMProvider("Gemini", self._call_gemini)
@@ -42,6 +49,19 @@ class EnrichmentWorker:
             providers=[cf_provider, gh_provider, gemini_provider],
             logger=logger,
         )
+
+    def _load_profiles(self):
+        try:
+            return self.db.select('institution_site_profiles') or []
+        except Exception as e:
+            logger.warning(f"Error loading site profiles: {e}")
+            return []
+
+    def _get_profile(self, institution_id):
+        for p in self.profiles:
+            if p.get('institution_id') == institution_id:
+                return p
+        return {}
 
     def get_pending_cleansed(self, limit=None):
         """Obtiene registros de cleansed_programs para IA."""
@@ -112,10 +132,33 @@ class EnrichmentWorker:
         json_str = re.sub(r',\s*\]', ']', json_str)
         return json_str
 
-    def _call_llm_for_pillars(self, name, description):
+    def _sanitize_for_prompt(self, text: str, max_len: int = 1200) -> str:
+        if not text:
+            return ""
+        text = html.unescape(text)
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+        return text[:max_len]
+
+    def _call_llm_for_pillars(self, name, description, inst_id=None):
+        profile = self._get_profile(inst_id) if inst_id else {}
+        section_keywords = profile.get('section_keywords', {})
+        field_defaults = profile.get('field_defaults', {})
+
+        hints = ""
+        if section_keywords:
+            hints = "\nHINTS DE EXTRACCION POR SECCION:\n"
+            for section_label, field_name in section_keywords.items():
+                hints += f'- Si encuentras "{section_label}" en el HTML, extrae su contenido como {field_name}\n'
+        if field_defaults:
+            hints += "\nDEFAULTS (usar si no puedes inferir):\n"
+            for key, val in field_defaults.items():
+                hints += f"- {key}: {val}\n"
+
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
-Nombre: {name}
-Descripción: {description[:1200]}
+[SYS] Nombre: {self._sanitize_for_prompt(name, 200)}
+[SYS] Descripción: {self._sanitize_for_prompt(description, 1200)}
+{hints}
 
 REGLAS CRÍTICAS:
 - Si NO puedes inferir un campo con confianza, responde null (NO uses el string "None" ni cadenas vacías).
@@ -123,6 +166,7 @@ REGLAS CRÍTICAS:
 - Para modality: debe ser exactamente "Presencial", "Remoto" o "Híbrido".
 - Para start_date: si hay fecha de inicio, extraerla. Ej: "Abril 2026" o "15 de mayo". Si no hay info, responder null.
 - Para official_name: usar el nombre completo y formal del programa, nunca abreviaciones.
+- REGLA ABSOLUTA: Si la página es un agradecimiento/thank-you, página de inicio (homepage), confirmation page, listado de facultades sin programa individual, o sede/campus sin programa → responde null en TODOS los campos. NO inventes datos de un programa que no existe.
 
 Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
@@ -133,9 +177,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
 
     def enrich_record(self, cleansed):
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
+        inst_id = cleansed.get('institution_id')
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched = self._call_llm_for_pillars(name, desc)
+            enriched = self._call_llm_for_pillars(name, desc, inst_id)
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
             official_name = enriched.get("official_name")
@@ -186,7 +231,8 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             if suggested_cats:
                 # Buscar el ID de la primera categoría válida
                 cat_name = suggested_cats[0] if isinstance(suggested_cats, list) else suggested_cats
-                res_cat = self.db.select('categories', filters=f"name=ilike.*{cat_name[:5]}*")
+                safe_cat = re.sub(r'[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]', '', cat_name[:5]).strip()
+                res_cat = self.db.select('categories', filters=f"name=ilike.*{safe_cat}*") if safe_cat else None
                 if res_cat: cat_id = res_cat[0]['id']
 
             # Sanitize duration_months: LLM may return 3.5 (float) but DB column is INT
@@ -303,14 +349,20 @@ if __name__ == "__main__":
 
         logger.info(f"📦 Procesando lote de {len(records)} registros...")
         for r in records:
-            if guard.should_exit:
-                logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
-                break
-            if r and isinstance(r, dict):
-                worker.enrich_record(r)
-                total_processed += 1
-                guard.tick(every=50)
-                time.sleep(1.5)
+                if guard.should_exit:
+                    logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
+                    break
+                if r and isinstance(r, dict):
+                    # Fase 75: Exclusion Gate — saltar institucion no lista
+                    inst_id = r.get('institution_id')
+                    if inst_id and str(inst_id) not in worker.ready_inst_ids:
+                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
+                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped', 'error_message': 'pipeline_ready=false'})
+                        continue
+                    worker.enrich_record(r)
+                    total_processed += 1
+                    guard.tick(every=50)
+                    time.sleep(1.5)
 
         if len(records) < fetch_limit:
             logger.info("✅ Cola de enriquecimiento vaciada exitosamente.")

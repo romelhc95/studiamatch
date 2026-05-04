@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, type Course, type Institution } from "@/lib/supabase";
 import HomeContent from "./HomeContent";
 
 export const metadata: Metadata = {
@@ -41,12 +41,22 @@ async function fetchCourses(): Promise<Course[]> {
 
     if (!Array.isArray(cData) || !Array.isArray(iData)) return [];
 
-    return cData.map((course: any) => ({
+type CourseApiRecord = {
+  id: string; name: string; slug: string; url: string;
+  institution_id: string; price_pen: number | null;
+  price_status: string; mode: string; course_type: string;
+  category_id: string; duration: string; start_date_text: string;
+  category: string;
+  institutions?: { name: string; slug: string };
+  categories?: { name: string };
+};
+
+    return cData.map((course: CourseApiRecord) => ({
       ...course,
       institution_name: course.institutions?.name || iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
       institution_slug: course.institutions?.slug || iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
       category: course.categories?.name || course.category
-    })) as Course[];
+    })) as unknown as Course[];
   } catch {
     return [];
   }

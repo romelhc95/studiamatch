@@ -10,11 +10,13 @@
 >
 > **Comando Base Mandatorio**:
 > `docker exec -it studiamatch-dev [comando]`
+>
+> **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: R1-R8, Fases 32-34, 61, 66, 68 completadas. Pipeline con cancelación controlada. Env vars configuradas en Cloudflare Pages (3 ambientes). Frontend estático re-deployed con Supabase embebido. Pendiente: Fase 62 (Harvester Adaptativo), Fases 67A-67D (Email).
-- **Último Hito**: Fases 33-34 completadas — Env vars `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` configuradas en los 3 deploys de Cloudflare Pages. Re-build estático exitoso, páginas de detalle funcionando.
-- **Próxima Acción**: Fase 62 (P2 — Harvester Adaptativo) → Fase 63 (Enrichment + Sync con Perfiles). Todas las fases aplican a las 3 ramas.
+- **Estado Actual**: Fase 76 (Hotfix Pipeline FG2) en progreso. Fases 62-68 **reabiertas parcialmente** por bugs detectados en pipeline FG2 CI/CD. 3 bugs críticos: (1) `self.discovery_mode` faltante en `UniversalHarvester.__init__` → `AttributeError` que mata el harvester en CI, (2) `requests.exceptions.DNSResolutionError` no existe en la versión instalada → crash silencioso en retry de red, (3) `quality_assurance_audit.py` no usa `db_client` → conecta directo sin retry/service_role. Fix (1) ya aplicado en local. Fix (2) y (3) pendientes. Pipeline FG2 rama `desarrollo` fallando con exit code 1.
+- **Último Hito**: Fase 75 completada — Exclusion Gate + Noise Sentinel v2. Pipeline corriendo pero bloqueado por bug `discovery_mode` en CI/CD.
+- **Próxima Acción**: Fase 76 — Aplicar hotfixes restantes (db_client DNS error, QA audit refactor, fg3 yml), commit, push a `desarrollo`, verificar FG2 exitoso.
 
 ## Tareas Pendientes Priorizadas
 
@@ -22,18 +24,28 @@
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
 |---|---|---|---|---|
+| **P0** | **Fase 76 — Hotfix Pipeline FG2** | **Pipeline** | **3 bugs críticos que bloquean FG2 en CI/CD:** (1) `universal_harvester.py` falta `self.discovery_mode` → `AttributeError` (reasgna Fase 62), (2) `db_client.py` catch `DNSResolutionError` que no existe en `requests` → `AttributeError` silencioso (reasgna Fase 68), (3) `quality_assurance_audit.py` no usa `db_client` → sin retry, sin service_role, fallback a localhost (reasgna Fase 26). Incluye fix de `fg3_integrity.yml` con backslash escapando `${{ }}`. | **Ninguno — branch hotfix** |
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
 | ~~P1~~ | ~~Fase 61 — Site Profiles~~ | ~~Arquitectura~~ | ~~Crear tabla `institution_site_profiles`, migrar exclusiones, seed perfiles~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 68 — Pipeline Resiliencia: Cancelación Controlada~~ | ~~Pipeline~~ | ~~TIME_GUARD + signal handler + retry con backoff + timeouts alineados~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
-| **P2** | **Fase 62 — Harvester Adaptativo** | Pipeline | Enrutar `universal_harvester.py` por `site_type`/`discovery_mode`. Reemplaza lógica hardcodeada de 11 harvesters. | Depende de Fase 61 (completada) |
-| **P2** | **Fase 63 — Enrichment + Sync con Perfiles** | Pipeline | Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker. Mejora completitud de campos (precio, modalidad, temario). | Depende de Fase 62 |
+| ~~P1~~ | ~~Fase 61 — Consolidar exclusiones en fuente única~~ | ~~Pipeline~~ | ~~Mergear `crawler_exclusions` → `institution_site_profiles.exclusion_patterns`, eliminar fallback legacy, crear perfil DMC.~~ | ~~Completado — 11 perfiles consolidados (40-146 patterns)~~ |
+| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62B — Discovery Modes~~ | ~~Pipeline~~ | ~~Implementar `paginated_catalog` (iterar `catalog_url_patterns` con paginación) y `catalog_link_extraction` (Playwright scroll + selector `catalog_link_selector`). Reemplaza lógica de PUCP y SmartData harvesters.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
-| **P3** | **Fase 64 — Deprecar Harvesters** | Cleanup | Mover 11 harvesters dedicados a `deprecated/`, migrar URLs hardcodeadas a `seed_urls` en perfiles. Validar pipeline unificado con DMC/U.Lima/PUCP. | Depende de Fase 63 |
+| ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
+| ~~P1~~ | ~~Fase 75 — Exclusion Gate + Noise Sentinel v2~~ | ~~Pipeline~~ | ~~Limpieza retroactiva (4/12 courses ruido), 5 capas de defensa, migration pipeline_ready, regex exclusions, noise keywords, LLM rule, post-sync validation.~~ | ~~Completado — commit en desarrollo~~ |
+| ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
+| ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
+| ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 64 |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
@@ -51,19 +63,23 @@
 - [x] **R1-R3**: Migrar a nuevas API keys Supabase rotativas (`sb_publishable_*`/`sb_secret_*`). Actualizar `db_client.py`, `supabase.ts`, 11 harvesters, 6 maintenance scripts, 3 GHA workflows, AGENTS.md. Recrear contenedor Docker con nuevas credenciales.
 - [x] **R4**: Schema completo reconstruido (`db/restore_full_schema.sql` — 12 tablas, RLS, RPCs, extensiones). Seed 10 instituciones + 346 crawler_exclusions. Funciones RPC adaptadas a PG17 (sin `jsonb_set` en `SECURITY DEFINER`).
 - [x] **R5**: Pipeline test end-to-end con 100 URLs ficticias (10/institución). 2 cursos completaron flujo completo → visibles en frontend local (`localhost:3000`).
-- [x] **R8**: Auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens. 3 docs actualizados con nuevo project ref `aqrldlmlszjtgpqiegaa` y nuevos nombres de keys.
-- [x] **R6**: Proyecto Pro (`xwhtiqmboljkshrtviyw`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
+- [x] **R8**: Auditoría de credenciales viejas: 0 JWTs hardcodeados, 0 sbp_ tokens. 3 docs actualizados con nuevo project ref `YOUR_FREE_PROJECT_REF` y nuevos nombres de keys.
+- [x] **R6**: Proyecto Pro (`YOUR_PRO_PROJECT_REF`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [x] **R7**: GitHub Secrets configurados (3 environments) + Cloudflare Pages env vars configuradas + pipeline ejecutando en producción.
-- [x] **Fase 61**: Site Profiles — Tabla `institution_site_profiles` creada (Free+Pro), 498 exclusiones migradas a 10 perfiles, harvester + cleansing worker actualizados.
-- [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. TIME_GUARD + signal handler en 4 estaciones + integrity_ping. Clase `TimeGuard` reutilizable en `utils.py`. Retry con backoff (5s→10s→20s) en `db_client.py`. Timeouts alineados en workflows (350m/25m/350m/25m/15m + 60m FG3). Aplica a las 3 ramas.
-- [x] **Fases 33-34**: Domain Mapping + Smoke Tests. Env vars `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_SUPABASE_PUBLISHABLE_KEY` configuradas en Cloudflare Pages (3 ambientes). Re-build estático exitoso. Aplica a las 3 ramas.
-- [ ] **Fase 62**: Universal Harvester Adaptativo — enrutar por `site_type`/`discovery_mode`, Playwright config por perfil, extracción por `section_keywords`.
-- [ ] **Fase 63**: Enrichment + Sync con Perfiles — inyectar `section_keywords` y `field_defaults` en prompt LLM, defaults en sync.
-- [ ] **Fase 67A**: Setup Resend + Edge Function — cuenta Resend, dominio verificado, Edge Function `send-lead-emails`, `contact_email` en instituciones.
-- [ ] **Fase 67B**: Database Trigger + pg_net — trigger `AFTER INSERT ON leads`, `pg_net.http_post()`, tabla `email_log`.
-- [ ] **Fase 67C**: Frontend UX Confirmación — toast/banner post-submit, email requerido, rate limiting anti-spam.
-- [ ] **Fase 67D**: Email Templates — 3 templates HTML responsivos (usuario, admin, institución) con branding StudIAMatch.
-- [ ] **Fase 64**: Deprecar Harvesters Dedicados — mover 11 harvesters a `deprecated/`, migrar URLs a `seed_urls`, test DMC/U.Lima/PUCP.
+- [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
+- [~] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. **REABIERTA**: Bug `DNSResolutionError` inexistente en `requests` → `AttributeError` (Fase 76).
+- [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
+- [ ] **Fase 76**: Hotfix Pipeline FG2 — 3 bugs críticos (`discovery_mode` AttributeError, `DNSResolutionError` inexistente, QA Audit sin `db_client`). Fases 62, 68, 26 reabiertas parcialmente.
+- [x] **Fase 62B**: Discovery Modes — `paginated_catalog` (itera `catalog_url_patterns` con `{page}`) y `catalog_link_extraction` (Playwright scroll + link selector). DMC configurado.
+- [x] **Fase 62C**: Perfil-Driven Extraction — `_extract_sections()` con `section_keywords`, `_apply_title_cleansing()` con `title_prefix_removals`/`title_split_separators`, `_extract_price_with_regex()` con `price_regex`, `field_defaults` en metadata.
+- [x] **Fase 62D**: Anti-Bot por Perfil — `requires_stealth` → `playwright_stealth.Stealth.apply_stealth_async()`, `requires_cloudflare_bypass` → warm-up + challenge loop, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
+- [x] **Fase 63**: Enrichment + Sync con Perfiles — `section_keywords` inyectado en prompt LLM, `field_defaults` como fallback en sync_vector, `section_mode_map` para derivar modality.
+- [x] **Fase 72**: U. Lima Reducción de Ruido — exclusiones consolidadas en perfiles, hub_patterns, retro cleanup, de-dup UTM.
+- [x] **Fase 73**: Filtrado por Fecha Expirada — `parse_start_date()`, sync_vector expiration, integrity_ping date check, frontend `start_date_text` display, TypeScript type actualizado. Migration Pro aplicada Dashboard.
+- [x] **Fase 64**: Deprecar Harvesters — 11 harvesters + 3 scripts legacy movidos a `deprecated/`, fallback `crawler_exclusions` eliminado del código, `restore_full_schema.sql` con DDL de `institution_site_profiles`. DROP TABLE ejecutado en ambos ambientes.
+- [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (ambos ambientes), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
+- [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
+- [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 
 ---
@@ -79,7 +95,7 @@ Para garantizar la paridad total y seguridad, **StudIAMatch** utiliza una arquit
 | **TIER 3: Producción** | `main` | `Production` | **Supabase Pro** | Servicio estable y escalable. |
 
 > [!WARNING]
-> **Gestión de Secretos**: Los secretos `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` deben configurarse en sus respectivos entornos de GitHub. Nunca deben incluirse en archivos subidos al repositorio.
+> **Gestión de Secretos**: Los secretos `SUPABASE_URL`, `NEXT_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_SECRET_KEY` deben configurarse en sus respectivos entornos de GitHub. Nunca deben incluirse en archivos subidos al repositorio.
 
 ---
 
@@ -97,9 +113,21 @@ La ejecución del sistema se centraliza en la API de Supabase:
 El código viajará de forma ascendente cumpliendo "Puertas de Calidad" en cada etapa:
 
 1.  **Work In Progress (WIP)**: Se trabaja en ramas de feature (ej: `feat/new-harvester`) que emergen de `desarrollo`. [x] Ramas `desarrollo` y `certificacion` creadas.
-2.  **Pull Request a `desarrollo`**: Revisión tí©cnica y validación de scripts en el sandbox actual.
-3.  **Promoción a `certificacion`**: Ejecución obligatoria de la Suite E2E (`Playwright`) y Auditorí­a de Integridad de Datos.
-4.  **Merge a `main`**: Despliegue automático a producción (Supabase Pro) tras aprobación del @SDLC-Chief.
+2.  **Auditoría de Seguridad** (@security-auditor): **OBLIGATORIA** antes de commit push a `desarrollo`. Todo cambio de código DEBE ser revisado por el security-auditor. Las observaciones encontradas DEBEN remediarse antes de proceder con el commit y push.
+3.  **Pull Request a `desarrollo`**: Revisión técnica, validación de scripts en sandbox, y auditoría de seguridad aprobada.
+4.  **Promoción a `certificacion`**: Ejecución obligatoria de la Suite E2E (`Playwright`) y Auditoría de Integridad de Datos.
+5.  **Merge a `main`**: Despliegue automático a producción (Supabase Pro) tras aprobación del @SDLC-Chief.
+
+### Regla SDLC para Cambios en Base de Datos y Datos
+
+> **IMPORTANTE**: Todo cambio SQL, migración, o modificación de datos DEBE seguir el flujo:
+> 1. **Desarrollo (Free)**: Probar migration/script en Free primero. Validar que no rompe nada.
+> 2. **Auditoría de Seguridad** (@security-auditor): Revisión obligatoria de código antes de commit push a `desarrollo`. Remediar observaciones antes de proceder.
+> 3. **Certificación**: Ejecutar E2E Playwright + auditoría de datos en Free (certificacion branch).
+> 4. **Producción (Pro)**: Aplicar solo tras confirmación explícita del @SDLC-Chief. NUNCA aplicar directamente en Pro sin pasar por Desarrollo y Certificación.
+>
+> Formato correcto en tareas: "Aplicar migration en Free → Auditoría → Certificar → Aplicar en Pro (tras aprobación)"
+> Formato incorrecto: "Aplicar en Free + Pro" (salta certificación)
 
 ---
 
@@ -293,8 +321,8 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data superior del proyecto Dev, incluyendo schema, datos, RPCs, RLS y extensiones.
 
 **Estrategia**: Full Replace vía REST API + SQL consolidado. Se abandonó `pg_dump`/`psql` (imposible por Supabase Free sin conexión directa). En su lugar:
-1. Ambos proyectos (Free `fmcxwoqvxatbrawwtqke` y Pro `zogdcvlqxanzqbvkkdar`) fueron eliminados por exposición de credenciales.
-2. Nuevo proyecto Free creado (`aqrldlmlszjtgpqiegaa`): schema vía `restore_full_schema.sql`, seeds vía `seed_institutions.py` + `seed_crawler_exclusions.py`.
+1. Ambos proyectos (Free `YOUR_FREE_PROJECT_REF` y Pro `YOUR_PRO_PROJECT_REF`) fueron eliminados por exposición de credenciales.
+2. Nuevo proyecto Free creado (`YOUR_FREE_PROJECT_REF`): schema vía `restore_full_schema.sql`, seeds vía `seed_institutions.py` + `seed_crawler_exclusions.py`.
 3. Pro proyecto pendiente (R6) — usará mismo schema + seeds.
 
 **Diagnóstico comparativo**:
@@ -306,7 +334,7 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data
 | Categorías | 18 (con slug, sin duplicados) | 24 (sin slug, duplicados en español) | Reemplazar |
 | Category rules | 105 | 0 | Insertar |
 | Market salaries | 17 | 17 | UPSERT |
-| Crawler exclusions | 255 | Tabla no existe | Crear tabla + data |
+| Crawler exclusions | 558 (Free) | 496 → Eliminada (Pro) | Tabla deprecada, perfiles son fuente única |
 | Pipeline tables | staging_raw:3450, cleansed:586, enriched:728 | No existen | Crear tablas + data |
 | Leads | 0 | 0 | N/A |
 | Ratings/Reviews | Tablas existen (vacías) | Tablas existen (vacías) | N/A |
@@ -329,7 +357,7 @@ Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data
 | `staging_raw` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `cleansed_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all) |
 | `enriched_programs` | ✅ | ✅ | Sin cambios (anon blocked, service all, public read) |
-| `crawler_exclusions` | ✅ | ✅ | Sin cambios (public select active, service all) |
+| ~~`crawler_exclusions`~~ | ~~❌ DROPPED~~ | ~~❌ DROPPED~~ | ~~Eliminada en ambos ambientes (Fase 74)~~ → ~~`institution_site_profiles.exclusion_patterns`~~ |
 
 **WARN del Advisor (post-prioridades 1-5)** — Estado final:
 
@@ -441,8 +469,8 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
 ### Fase 33: Dominios y Cloudflare (studiamatch.com) [x] Completado + Documentación actualizada (R8)
 
 **Dominios confirmados por el usuario**:
-- Desarrollo: `https://desarrollo.studiamatch.pages.dev` (rama `desarrollo`)
-- Certificacion: `https://studiamatch.pages.dev/` (rama `certificacion`)
+- Desarrollo: `https://desarrollo.studiamatch-aty.pages.dev/` (rama `desarrollo`)
+- Certificacion: `https://certificacion.studiamatch-aty.pages.dev/` (rama `certificacion`)
 - Produccion: `https://www.studiamatch.com/` (rama `main`)
 - Local: `http://localhost:3000/`
 
@@ -452,7 +480,7 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
     - [x] `desarrollo branch` → Dominio: `desarrollo.studiamatch.pages.dev`.
 2. **Propagación DNS y SSL**: Verificado — los 3 sitios resuelven correctamente y tienen SSL.
 3. **Documentación de variables de entorno**:
-    - [x] `docs/deployment/environment_config.md` actualizado con nuevo project ref `aqrldlmlszjtgpqiegaa` y nuevas keys: `NEXT_SUPABASE_PUBLISHABLE_KEY`/`NEXT_SUPABASE_SECRET_KEY`.
+    - [x] `docs/deployment/environment_config.md` actualizado con nuevo project ref `YOUR_FREE_PROJECT_REF` y nuevas keys: `NEXT_SUPABASE_PUBLISHABLE_KEY`/`NEXT_SUPABASE_SECRET_KEY`.
     - [x] `docs/deployment/deploy_desarrollo.md` actualizado.
     - [x] `docs/deployment/guia_despliegue_produccion.md` actualizado con pendientes R6.
 4. **Optimización de Seguridad y Performance** (Cloudflare)
@@ -1324,160 +1352,234 @@ Objetivo: Identificar e insertar 8 patrones de ruido para DMC en `crawler_exclus
 
 **Nota**: Los registros en `staging_raw` permanecen (no se eliminan) pero con status `discarded`, lo que impide que avancen a cleansing/enrichment/sync. Las exclusiones insertadas aplican tanto a `_is_valid_crawl_url()` en el harvester como al `cleansing_worker.py`.
 
-### Fase 61: Site Profiles — Tabla `institution_site_profiles` y Migración de Exclusiones [x] Completado
-Objetivo: Reemplazar la tabla `crawler_exclusions` por `institution_site_profiles` que consolida exclusión de URLs + configuración de tipo de sitio + datos de descubrimiento + hints de extracción LLM. Migrar los 145+ exclusion patterns y hacer seed inicial para las 15 instituciones.
+### Fase 61: Site Profiles — Fuente Única de Exclusiones [x] Completado (código, Pro pendiente)
 
-**Problema de arquitectura identificado**: Los 11 harvesters dedicados bypassean el pipeline de 4 estaciones (Golden Path) e insertan directo a `courses` sin enriquecimiento LLM. Resultado: campos vacíos (`price_pen`, `start_date_text`, `requirements`, `syllabus`) en la mayoría de instituciones. Solo DMC (142 cursos) y U. Pacífico (9 cursos) pasan por el pipeline completo.
+> **ESTADO**: Código consolidado. Fallback eliminado. 11 perfiles con patterns completos en Free. **Pro pendiente**: merge no ejecutado por PGRST205 (PostgREST schema cache no expone la tabla). Se resuelve en Fase 74.
 
-**Diagnóstico de calidad de datos por institución** (510 cursos activos, tras Fase 60.6):
+**Diagnóstico original de divergencia** (auditado Mayo 2026 — RESUELTO en Free):
 
-| Institución | Cursos | Precio % | Temario % | Requisitos % | Scraper actual |site_type |
-|---|---|---|---|---|---|---|
-| Continental | 156 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
-| DMC | 4 | 0% | 98% | 0% | Golden Path | ecommerce |
-| U. Lima | 124 | 7% | 19% | 14% | Dedicado (136 URLs) | traditional_ssr |
-| UTP | 111 | 0% | 100%* | 0% | Dedicado (3 URLs) | traditional_ssr |
-| PUCP | 67 | 0% | 100% | 0% | Dedicado (catálogo paginado) | paginated_catalog |
-| SENATI | 28 | 0% | 100%* | 7% | Dedicado (3 URLs) | traditional_ssr |
-| U. Pacífico | 9 | 0% | 0% | 44% | Golden Path | traditional_ssr |
-| UPC | 9 | 0% | 100% | 0% | Dedicado (3 URLs) | spa_js_heavy |
-| IDAT | 2 | 0% | 0% | 0% | Dedicado (9 URLs) | spa_js_heavy |
-| USIL | 0 | - | - | - | Dedicado (3 URLs, fallido) | traditional_ssr |
-| New Horizons | 0 | - | - | - | Dedicado (bloqueado) | catalog_link_extraction |
-| SmartData | 0 | - | - | - | Dedicado (Cloudflare) | cloudflare_protected |
+| Institución | en `crawler_exclusions` | en `site_profiles` (antes) | en `site_profiles` (después merge) |
+|---|---|---|---|
+| U. Lima | 115 | 59 | **146** |
+| Continental | 109 | 59 | **141** |
+| DMC | 40 | 0 | **40** (perfil creado) |
+| Resto (8) | 33-51 | 59 | 59+ (sin pérdida) |
 
-*100% temario es engañoso — en Continental, UTP y SENATI es solo `description_long = title`, no temario real.
+1. **Consolidar exclusiones en `institution_site_profiles`** (merge CE → SP): [x] Hecho en Free
+   - [x] `merge_exclusions_to_profiles.py`: lee `crawler_exclusions` por institution_id, hace UNION con `exclusion_patterns` existentes, upsert en perfil
+   - [x] Resultado: cada perfil tiene la UNION completa (globales + institucionales de CE)
+   - [ ] Ejecutar merge en **Pro** (requiere migration `20260501_institution_site_profiles.sql` vía Dashboard + refresh schema cache)
 
-**Arquitectura propuesta**:
+2. **Crear perfil para DMC**: [x] Hecho en Free
+   - [x] DMC con `site_type=ecommerce`, `discovery_mode=sitemap_bfs`, 40 exclusion patterns
 
-```
-ANTES (2 niveles):
-  Nivel A: 11 harvesters dedicados → courses (sin LLM, campos vacíos)
-  Nivel B: universal_harvester → staging_raw → cleansed → enriched → courses (con LLM)
+3. **Eliminar el fallback a `crawler_exclusions` en el código**: [x] Completado
+   - [x] `universal_harvester.py`: `_load_exclusions()` → usa SOLO `profile.exclusion_patterns`, retorna `[]` si no hay perfil
+   - [x] `cleansing_worker.py`: `_load_exclusions()` → usa SOLO perfiles, retorna `[]` si no hay perfil
+   - [x] `_is_valid_crawl_url()` → simplificado: solo strings
+   - [x] `is_invalid_course()` → simplificado: solo strings, sin `inst_id`
 
-DESPUÉS (1 nivel unificado):
-  universal_harvester (lee site_profiles) → staging_raw → cleansed → enriched → courses
-                                                                   ↑
-                                              enrichment_worker (inyecta section_keywords + field_defaults del perfil)
-                                                                   ↑
-                                              sync_vector_worker (usa field_defaults como fallback)
-```
+4. **Actualizar scripts de mantenimiento**: [x] Completado
+   - [x] `add_exclusion.py` → deprecated con redirect a `seed_site_profiles.py`
+   - [x] `apply_noise_exclusions.py` → escribe en perfiles (JSONB append + upsert)
+   - [x] `seed_crawler_exclusions.py` → deprecated con `DeprecationWarning`
+   - [ ] `preventive_cleanup.py` → aún escribe a `crawler_exclusions` → **Fase 74**
 
-1. **Crear tabla `institution_site_profiles` (DDL)**:
-   - [x] Migration SQL: `20260501_institution_site_profiles.sql`
-   - [x] Columnas principales implementadas (22 columnas + RLS + indexes)
-   - [x] Aplicar migration en Supabase Dashboard (Free + Pro) ✅
+5. **Validación en Free**: [x] Completado
+   - [x] U. Lima perfil tiene 146 patterns (no 59)
+   - [x] Continental perfil tiene 141 patterns (no 59)
+   - [x] DMC tiene perfil con 40 patterns
+   - [x] `_is_valid_crawl_url()` funciona sin fallback
+   - [x] `py_compile` sin errores en todos los scripts
 
-2. **Migrar exclusiones de `crawler_exclusions` → `institution_site_profiles.exclusion_patterns`**:
-   - [x] Script `seed_site_profiles.py` migra exclusiones agrupadas por institution_id
-   - [x] 37 patrones globales migrados como `exclusion_patterns` JSONB en cada perfil
-   - [x] Institution-specific patterns concatenados a globales (Free: 59 exclusions/profile avg)
-   - [x] Pro DB: mismos perfiles seeded via SQL INSERT...ON CONFLICT
-   - [x] `crawler_exclusions` NO eliminada aún (se mantiene como backup hasta Fase 64)
-   - [x] `universal_harvester.py` y `cleansing_worker.py` actualizados para leer de perfiles (con fallback a `crawler_exclusions`)
-   - [x] `_is_valid_crawl_url()` soporta ambos formatos: string patterns (perfil) y dict objects (legacy)
+6. **Deprecación de `crawler_exclusions`**: [x] En código, [x] DROP TABLE en ambos ambientes (Fase 74 completada)
+| `AGENTS.md` | Actualizar referencias a `crawler_exclusions` |
 
-3. **Seed inicial de perfiles para 10 instituciones** (PUCP no existe en DB actual, DMC/SmartData/New Horizons sin institución):
-   - [x] U. Lima: `site_type=traditional_ssr`, `discovery_mode=hardcoded_urls`, `section_mode_map`, `section_course_type_map`, `section_keywords`, `field_defaults`
-   - [x] UPC: `site_type=spa_js_heavy`, `discovery_mode=sitemap_bfs`, `detail_wait_ms=4000`
-   - [x] IDAT: `site_type=spa_js_heavy`, `discovery_mode=sitemap_bfs`, `detail_wait_ms=4000`
-   - [x] Continental, UTP, SENATI, USIL: `site_type=traditional_ssr`, `discovery_mode=sitemap_bfs`
-   - [x] U. Pacífico, UNMSM, UNI: `site_type=traditional_ssr`, `discovery_mode=sitemap_bfs`
-   - [ ] DMC, PUCP, SmartData, New Horizons: pendientes (no existen en DB actual como instituciones)
+**No requiere migration SQL** — las columnas existen en ambas tablas.
 
-4. **Actualizar `universal_harvester.py` para leer perfiles**:
-   - [x] `_load_site_profile()` cargado en `__init__()` antes de exclusions
-   - [x] `self.exclusions` prioriza `profile.exclusion_patterns` (JSONB array de strings) con fallback a `crawler_exclusions`
-   - [x] `_is_valid_crawl_url()` soporta strings (perfil) y dicts (legacy)
+**Nota sobre Fases 72-73**: Las exclusiones agregadas en `seed_crawler_exclusions.py` durante la Fase 72 no se reflejaron en los perfiles. La consolidación (punto 1) resolverá esta divergencia automáticamente.
 
-5. **Actualizar `cleansing_worker.py` para leer perfiles**:
-   - [x] `_load_profiles()` carga todos los perfiles al inicio
-   - [x] `_load_exclusions()` prioriza patterns de perfiles con fallback a `crawler_exclusions`
-   - [x] Lógica de exclusión en `_is_noise()` soporta strings y dicts
+### Fase 62: Universal Harvester Adaptativo — Perfil-Driven [x] Completado
 
-6. **Validación**:
-   - [x] 0 exclusiones perdidas (498 en Free migradas a 10 perfiles con avg 59 patterns)
-   - [x] `universal_harvester.py` compila sin errores
-   - [x] `cleansing_worker.py` compila sin errores
-   - [x] Ambas DBs (Free + Pro) tienen 10 perfiles seeded
+> **Filosofía**: `institution_site_profiles` es la única fuente de verdad. El harvester NO tiene lógica por institución — todo comportamiento diferenciado sale del perfil. Una institución nueva funciona con solo crear un perfil y setear `pipeline_ready=true`.
 
-### Fase 62: Universal Harvester Adaptativo [ ] Pendiente
-Objetivo: Modificar `universal_harvester.py` para enrutar el comportamiento por `site_type` y `discovery_mode` de `institution_site_profiles`, reemplazando la lógica hardcodeada de los 11 harvesters dedicados.
+**Análisis de harvesters deprecados** (casuística que el universal debe cubrir):
 
-1. **Implementar discovery modes en `universal_harvester.py`**:
-   - [ ] `sitemap_bfs`: comportamiento actual (ya funcional)
-   - [ ] `hardcoded_urls`: usar `seed_urls` del perfil como punto semilla + BFS complementario (reemplaza los dicts hardcodeados de U. Lima, Continental, etc.)
-   - [ ] `paginated_catalog`: iterar `catalog_url_patterns` con paginación (reemplaza PUCP harvester)
-   - [ ] `catalog_link_extraction`: scroll + extracción de links (reemplaza New Horizons y SmartData harvesters)
+| Institución | Discovery | Anti-Bot | Extracción | Paginación | Caso en universal |
+|---|---|---|---|---|---|
+| DMC | Catálogo + scroll infinito | `playwright_stealth`, Cloudflare loop, warm-up, `slow_mo`, custom headers | Elementor selectors, keyword headings, price regex | Scroll 15 iteraciones | `site_type=ecommerce` + `requires_stealth=true` + `requires_cloudflare_bypass=true` + `catalog_scroll_iterations=15` + `catalog_link_selector` |
+| PUCP | Catálogo paginado (13 páginas `?jsf=jet-engine&pagenum=N`) | Custom UA, `load` wait | JetEngine selectors, PDF brochure, deep scrape HTML | `catalog_url_patterns` + `?pagenum=N` | `discovery_mode=paginated_catalog` + `catalog_url_patterns` + `catalog_max_pages=13` |
+| New Horizons | Catálogo single page | Custom UA, 5s wait | Heading-based section extraction, 3-level parent traversal | No pagination | `discovery_mode=catalog_link_extraction` + `catalog_link_selector` |
+| U. Lima | Hardcoded URLs (102 por sección) | Custom UA | Secciones organizadas, mode por sección | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` ✅ COMPLETADO |
+| IDAT | Hardcoded URLs (9) | Custom UA | h1 + párrafos, title quality filter | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` ✅ COMPLETADO |
+| UPC | Hardcoded URLs (3) | Custom UA (Mac) | h1, strip "Carrera de " | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` |
+| UTP | Hardcoded URLs (3) | `domcontentloaded` + 4s | nth-child selectors, mode validation | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` + `field_defaults` |
+| Continental | Hardcoded URLs (3) | Ninguno | h1 only, sin descripción | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` (mínimo) |
+| SENATI | Hardcoded URLs (3) | Ninguno | page.title() only | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` (mínimo) |
+| USIL | Hardcoded URLs (3) | Custom UA | h1 + popup dismiss | No pagination | `discovery_mode=hardcoded_urls` + `popup_close_selectors` |
+| Nacional | Hardcoded URLs (4) | Custom UA | page.title(), " - " split | No pagination | `discovery_mode=hardcoded_urls` + `seed_urls` |
 
-2. **Implementar Playwright configuration por perfil**:
-   - [ ] Stealth mode si `requires_stealth=true`
-   - [ ] Cloudflare bypass si `requires_cloudflare_bypass=true`
-   - [ ] Popup handling si `popup_close_selectors` no vacío
-   - [ ] Viewport, wait times, slow_mo desde perfil
+**Campos del perfil que alimentan el harvester** (tabla `institution_site_profiles`):
 
-3. **Implementar extracción con `section_keywords`**:
-   - [ ] Método `_extract_sections()` que usa `section_keywords` del perfil para escanear headings (h2, h3, h4) y extraer contenido por sección
-   - [ ] Fallback a extractores genéricos (og:tags, JSON-LD, meta) si no hay keywords específicos
+| Campo | Tipo | Qué hace | Ya implementado? |
+|---|---|---|---|
+| `site_type` | enum | Routing de rendering: `traditional_ssr` → HTTP-only, `spa_js_heavy` → Playwright full, `ecommerce` → scroll+stealth | ❌ Solo log, no enruta |
+| `discovery_mode` | enum | `hardcoded_urls` (seed_urls), `sitemap_bfs` (default), `paginated_catalog`, `catalog_link_extraction` | ✅ `hardcoded_urls`+`sitemap_bfs`, ❌ otros |
+| `seed_urls` | jsonb | URLs pre-curadas para `hardcoded_urls` | ✅ |
+| `catalog_url_patterns` | jsonb | Patrones de URL para paginación de catálogos | ❌ No implementado |
+| `catalog_link_selector` | text | Selector CSS para extraer links de catálogo | ❌ No implementado |
+| `catalog_max_pages` | int | Máximo de páginas a iterar en catálogo paginado | ❌ Se lee pero no se usa |
+| `catalog_scroll_iterations` | int | Iteraciones de scroll infinito para ecommerce | ❌ Se lee pero no se usa |
+| `requires_stealth` | bool | Usar `playwright_stealth` library | ❌ No implementado |
+| `requires_cloudflare_bypass` | bool | Challenge loop + warm-up | ❌ No implementado |
+| `warmup_url` | text | URL para warm-up antes del scrapeo real | ❌ No implementado |
+| `popup_close_selectors` | jsonb | Selectores CSS para cerrar popups/modals | ❌ No implementado |
+| `detail_wait_ms` | int | Ms de espera después de carga de página | ✅ Se usa en Playwright |
+| `section_keywords` | jsonb | Mapeo heading→campo para extracción por secciones | ✅ En enrichment, ❌ en harvester |
+| `field_defaults` | jsonb | Defaults para campos vacíos (mode, duration) | ✅ En enrichment+sync, ❌ en harvester/cleansing |
+| `section_mode_map` | jsonb | Mapeo sección→modality (ej: `/cgt/` → "Remoto") | ✅ En enrichment |
+| `title_prefix_removals` | jsonb | Prefijos a remover del título ("Carrera de ", "▷ ") | ❌ No implementado |
+| `title_split_separators` | jsonb | Separadores para limpiar título (" \| ", " - ") | ❌ No implementado |
+| `price_regex` | text | Regex para extraer precio del HTML | ❌ No implementado |
+| `duration_regex` | text | Regex para extraer duración del HTML | ❌ No implementado |
+| `exclusion_patterns` | jsonb | Patrones de exclusión (substring o `re:` regex) | ✅ Capa 1 defensa |
+| `allowed_url_patterns` | jsonb | Whitelist positiva de URLs que SÍ son programas | ✅ Capa 0.5 allowlist |
+| `pipeline_ready` | bool | Gate: si false, pipeline omite institución | ✅ Capa 0 gate |
+| `max_courses_per_run` | int | Límite de cursos por ejecución | ❌ No implementado |
 
-4. **Aplicar `field_defaults` del perfil**:
-   - [ ] Pequeño mapeo en `staging_raw` metadata: si el perfil tiene `section_mode_map`, inferir mode por URL path
-   - [ ] Guardar metadatos del perfil en `staging_raw.metadata` para que cleansing/enrichment los usen
+#### Fase 62A: Site Type Routing [~] Reabierta (Fase 76)
 
-5. **Test con DMC** (institución ya en Golden Path):
-   - [ ] Ejecutar universal harvester con perfil DMC
-   - [ ] Confirmar que las exclusiones se respetan (WooCommerce patterns)
-   - [ ] Confirmar que el comportamiento es idéntico al actual
+> **Bug detectado**: `self.discovery_mode` nunca se asignó en `UniversalHarvester.__init__`. La línea 715 de `main()` accede a `harvester.discovery_mode` causando `AttributeError` que crashea el harvester en CI/CD. Fix: agregar `self.discovery_mode = self.profile.get('discovery_mode', 'sitemap_bfs') if self.profile else 'sitemap_bfs'` en `__init__`.
 
-### Fase 63: Enrichment + Sync con Perfiles de Sitio [ ] Pendiente
+Objetivo: El campo `site_type` del perfil enruta el comportamiento del Playwright en `universal_harvester.py`.
+
+1. **Modificar `universal_harvester.py`** — `scrape_course_detail()` vs `_scrape_http()`:
+   - `traditional_ssr` → `_scrape_http()` con `aiohttp`/`curl_cffi` + BeautifulSoup (sin Playwright, más rápido)
+   - `spa_js_heavy` → `scrape_course_detail()` con Playwright headless + `detail_wait_ms` configurable
+   - `ecommerce` → `scrape_course_detail()` con Playwright + anti-bot (`requires_stealth`, `requires_cloudflare_bypass`)
+   - Si `site_type` es null/missing → default a `traditional_ssr` (compatibilidad)
+   - [x] Implementado en universal_harvester.py
+
+2. **Routing en `main()`**:
+   - Playwright se lanza solo si `site_type in ('spa_js_heavy', 'ecommerce')` o `discovery_mode == 'catalog_link_extraction'`
+   - [x] Implementado en universal_harvester.py:728-760
+
+#### Fase 62B: Discovery Modes [x] Completado
+
+Objetivo: Implementar `paginated_catalog` y `catalog_link_extraction` como discovery modes en `universal_harvester.py`, reemplazando la lógica de PUCP y SmartData/New Horizons harvesters.
+
+1. **`paginated_catalog` mode** — `discover_paginated_catalog()`:
+   - [x] Lee `catalog_url_patterns` del perfil, reemplaza `{page}` con número
+   - [x] Itera desde page=1 hasta `catalog_max_pages`
+   - [x] Extrae links con `catalog_link_selector` (HTTP o Playwright según site_type)
+   - [x] Filtra con `_is_valid_crawl_url()` y guarda en staging_raw
+
+2. **`catalog_link_extraction` mode** — `discover_catalog_links()`:
+   - [x] Playwright scroll + `catalog_scroll_iterations`
+   - [x] Extrae links con `catalog_link_selector`
+   - [x] Cierra popups con `popup_close_selectors`
+   - [x] Detecta fin de página (footer reach)
+
+3. **Routing en `discover_courses()`**:
+   ```python
+   if discovery_mode == 'hardcoded_urls': ...
+   elif discovery_mode == 'paginated_catalog': await self.discover_paginated_catalog(browser)
+   elif discovery_mode == 'catalog_link_extraction': await self.discover_catalog_links(browser)
+   else:  # sitemap_bfs (default)
+       sitemap + BFS
+   ```
+
+4. **Perfiles configurados en Free DB**:
+   - DMC: `discovery_mode=catalog_link_extraction`, `catalog_link_selector`, `catalog_scroll_iterations=15`, `requires_stealth=true`, `requires_cloudflare_bypass=true`
+   - PUCP: Config pendiente al agregar institución (catalog_url_patterns, catalog_max_pages=13)
+
+#### Fase 62C: Perfil-Driven Extraction [x] Completado
+
+Objetivo: Usar campos del perfil para mejorar la extracción en harvester y cleansing.
+
+1. **`section_keywords` en harvester** — `_extract_sections()`:
+   - [x] Escanea H2/H3 del HTML
+   - [x] Mapea headings a campos usando `section_keywords` del perfil
+   - [x] Guarda resultado en `metadata.extracted_sections` de staging_raw
+
+2. **`title_prefix_removals` y `title_split_separators` en cleansing_worker**:
+   - [x] Remueve prefijos como "▷ " usando `title_prefix_removals`
+   - [x] Limpia títulos separando por pipes/guiones con `title_split_separators`
+   - [x] Implementado en `_apply_title_cleansing()`
+
+3. **`price_regex` en cleansing_worker**:
+   - [x] Extrae precio usando `price_regex` del perfil con fallback a `extract_price()` default
+   - [x] Implementado en `_extract_price_with_regex()`
+
+4. **`field_defaults` en staging_raw metadata**:
+   - [x] Guarda `field_defaults` del perfil en `metadata` de cada registro
+
+#### Fase 62D: Anti-Bot por Perfil [x] Completado
+
+Objetivo: Centralizar toda la lógica anti-bot en el perfil, eliminando la necesidad de harvesters dedicados.
+
+1. **`requires_stealth`**:
+   - [x] Importa `playwright_stealth.Stealth.apply_stealth_async()`condicionalmente
+   - [x] Aplica stealth si `requires_stealth=true` y librería disponible
+   - [x] DMC: `requires_stealth=true`
+
+2. **`requires_cloudflare_bypass`**:
+   - [x] `_check_cloudflare_challenge()`: detecta "Just a moment" en title, espera 10s x 12 intentos
+   - [x] `_warmup_browser()`: visita homepage + mouse simulation
+   - [x] DMC: `requires_cloudflare_bypass=true`, `warmup_url="https://www.dmc.pe/"`
+   - [x] `slow_mo=50` en launch cuando `requires_stealth`
+
+3. **`popup_close_selectors`**:
+   - [x] `_dismiss_popups()`: después de cada page.goto(), cierra popups con selectores del perfil
+   - [x] USIL: `["button.close", ".modal-close", "[data-dismiss=\"modal\"]"]`
+
+4. **`detail_wait_ms`**:
+   - [x] Usa `detail_wait_ms` del perfil en vez de hardcoded `random.uniform(1, 3)`
+   - [x] IDAT/UPC: 4000ms, U. Lima: 3000ms, resto: 2000ms (default)
+
+### Fase 63: Enrichment + Sync con Perfiles de Sitio [x] Completado
+
 Objetivo: Inyectar `section_keywords` y `field_defaults` del perfil en el prompt LLM del enrichment worker, y usar `field_defaults` como fallback en sync_vector_worker.
 
-1. **Modificar `enrichment_worker.py`**:
-   - [ ] Cargar `institution_site_profiles` al inicio del worker
-   - [ ] Inyectar `section_keywords` del perfil en el prompt LLM como hints ("Si encuentras una sección con heading 'Dirigido a', extrae su contenido como target_audience")
-   - [ ] Inyectar `price_regex` y `duration_regex` como patrones de extracción adicionales
-   - [ ] Inyectar `field_defaults` como fallback cuando el LLM no puede inferir (ej: si el sitio típicamente tiene modalidad "Presencial")
+**Completado**:
+- [x] `section_keywords` inyectado en prompt LLM como hints de extracción (enrichment_worker.py)
+- [x] `field_defaults` inyectado en prompt LLM como fallback (enrichment_worker.py)
+- [x] `field_defaults` usado como fallback en sync_vector_worker.py (ej: `mode = enriched.get('modality') or defaults.get('mode')`)
+- [x] `section_mode_map` implementado en enrichment para derivar modality por sección URL
 
-2. **Modificar `sync_vector_worker.py`**:
-   - [ ] Cargar `institution_site_profiles` al inicio del worker
-   - [ ] Para campos vacíos después del LLM, usar `field_defaults` del perfil (ej: si `mode` es null y el perfil dice `default_mode: "Presencial"`, usar "Presencial")
-   - [ ] Aplicar `section_mode_map`: si la URL del curso contiene `/cursos-talleres/`, usar `mode: "Remoto"` como default
+### Fase 64: Deprecar Harvesters Dedicados + Eliminar Fuente Dual de Exclusiones [x] Completado (código), [ ] DROP TABLE pendiente → Fase 74
 
-3. **Modificar `cleansing_worker.py`**:
-   - [ ] Usar `exclusion_patterns` del perfil (ya migrado de `crawler_exclusions`)
-   - [ ] Usar `title_prefix_removals` y `title_split_separators` para limpieza de nombres de curso
+Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la tabla `crawler_exclusions` como fuente de datos, y validar que el pipeline unificado produce datos de igual o mejor calidad.
 
-4. **Modificar `master_orchestrator.py`**:
-   - [ ] Cargar perfiles al inicio y pasar institution_id a cada etapa del pipeline
-   - [ ] Loggear el `site_type` de cada institución para trazabilidad
+> **Prerequisito**: Fase 61 (consolidación de exclusiones en perfiles) debe estar COMPLETA antes de ejecutar este paso. Sin el fallback a `crawler_exclusions` eliminado del código, deprecar esta tabla causaría pérdida de exclusiones.
 
-### Fase 64: Deprecar Harvesters Dedicados [ ] Pendiente
-Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/` y validar que el pipeline unificado produce datos de igual o mejor calidad.
+1. **Migrar URLs hardcodeadas a `seed_urls` en perfiles**: [x] Completado (en Fase 61 y 72)
+   - [x] U. Lima: 102 seed URLs en perfil
+   - [x] PUCP: `catalog_url_patterns` configurado
+   - [x] Resto: 3 URLs cada uno
 
-1. **Migrar URLs hardcodeadas a `seed_urls` en perfiles**:
-   - [ ] U. Lima: 136 URLs de `URIS_BY_SECTION` → `seed_urls` JSONB con section tags
-   - [ ] PUCP: catálogo paginado → `catalog_url_patterns`
-   - [ ] IDAT: 9 URLs → `seed_urls`
-   - [ ] Continental, UTP, SENATI, UPC, USIL: 3 URLs cada uno → `seed_urls`
-   - [ ] SmartData: 2 URLs de catálogo → `catalog_url_patterns` + `catalog_scroll_iterations=15`
-   - [ ] New Horizons: 1 URL de catálogo → `catalog_url_patterns`
+2. **Mover harvesters a `scripts/deprecated/`**: [x] Completado
+   - [x] 11 archivos movidos de `scripts/harvesters/` a `scripts/deprecated/harvesters/`
 
-2. **Mover harvesters a `scripts/deprecated/`**:
-   - [ ] Mover 11 archivos de `scripts/harvesters/` a `scripts/deprecated/harvesters/`
-   - [ ] Actualizar imports en `master_orchestrator.py` si los referencia
-   - [ ] Confirmar que `production_pipeline.yml` no invoca harvesters dedicados directamente
+3. **Eliminar `crawler_exclusions` como fuente**:
+   - [x] Confirmar que `_load_exclusions()` en harvester y cleansing worker ya no usa fallback a `crawler_exclusions`
+   - [x] `add_exclusion.py` → deprecated con redirect
+   - [x] `apply_noise_exclusions.py` → escribe en perfiles
+   - [x] `seed_crawler_exclusions.py` → deprecated con `DeprecationWarning`
+   - [ ] `preventive_cleanup.py` → aún escribe a CE → **Fase 74**
+   - [ ] `seed_site_profiles.py` → aún lee de CE para migrar → **Fase 74**
+   - [ ] `seed_pro_profiles.py` → aún lee de CE para Pro → **Fase 74**
+   - [ ] `fase32b_migrate_free_to_pro.py` → ancora migra CE a Pro → **Fase 74**
+   - [x] DROP TABLE `crawler_exclusions` → **Fase 74 completada** — eliminada en ambos ambientes
 
-3. **Test Full Pipeline con 3 instituciones representativas**:
-   - [ ] **DMC** (ecommerce, ya en Golden Path): confirmar que perfil no rompe lo existente
-   - [ ] **U. Lima** (traditional_ssr, 136 seed_urls): confirmar que seed_urls complementan discovery del sitemap
-   - [ ] **PUCP** (paginated_catalog): confirmar que catálogo paginado descubre cursos como el harvester dedicado
+4. **Test Full Pipeline con 3 instituciones representativas**: [ ] Pendiente de ejecución completa
 
-4. **Validar calidad de datos**:
-   - [ ] Comparar conteo de cursos por institución antes/después
-   - [ ] Comparar % de completitud de campos (`mode`, `price_pen`, `syllabus`, `start_date_text`) antes/después
-   - [ ] Confirmar que la cobertura de UTP (111 cursos) no se reduce al pasar por pipeline completo
+5. **Validar calidad de datos**: [ ] Pendiente de ejecución completa
 
 ### Fase 65: Limpieza de Datos Falsos y Auditoría Final [ ] Pendiente
+
+> **NOTA**: La limpieza retroactiva de courses de ruido (agradecimientos, homepages, sedes) se realiza en la Fase 75 paso 1. Esta fase se enfoca en la corrección de datos incompletos o falsos en cursos legítimos (description_long = title, campos vacíos).
+
 Objetivo: Eliminar `description_long = title` falso (Continental, UTP, SENATI), re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
 
 1. **Identificar y marcar datos falsos**:
@@ -1575,13 +1677,13 @@ Frontend POST /rest/v1/leads (ya funciona)
 
 2. **Agregar campo `contact_email` a tabla `institutions`**:
    - [ ] Migration SQL: `ALTER TABLE institutions ADD COLUMN contact_email TEXT;`
-   - [ ] Aplicar migration en Free + Pro
+   - [ ] Aplicar migration en Free → Certificar → Pro (tras aprobación)
    - [ ] Seed de `contact_email` para las 10 instituciones (investigar emails de contacto/admisión de cada website)
 
 3. **Crear Edge Function `send-lead-emails`**:
    - [ ] `supabase/functions/send-lead-emails/index.ts`
    - [ ] Recibe POST con `{ lead_id: UUID }`
-   - [ ] Busca lead + course + institution details via PostgREST (service_role)
+   - [ ] Busca lead + course + institution details via PostgREST
    - [ ] Llama Resend API (`POST https://api.resend.com/emails`) para cada destinatario
    - [ ] Templates HTML inline (sin React Email para simplicidad inicial)
    - [ ] Manejo de errores: log en tabla `email_log`, no fallar el INSERT del lead si email falla
@@ -1589,7 +1691,7 @@ Frontend POST /rest/v1/leads (ya funciona)
 4. **Configurar secrets en Supabase**:
    - [ ] `RESEND_API_KEY` en Dashboard > Edge Functions > Secrets
    - [ ] `ADMIN_EMAIL` (email del admin que recibe notificaciones, ej: `admin@example.com`)
-   - [ ] `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (para que la Edge Function busque datos del lead)
+   - [ ] `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` (para que la Edge Function busque datos del lead)
 
 5. **Validación**:
    - [ ] Invocar Edge Function manualmente con un `lead_id` de prueba
@@ -1602,7 +1704,7 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
 1. **Habilitar extensión `pg_net`** (si no está):
    - [ ] Verificar con `SELECT * FROM pg_extension WHERE extname = 'pg_net';`
    - [ ] Habilitar con `CREATE EXTENSION IF NOT EXISTS pg_net;` si falta
-   - [ ] Aplicar en Free + Pro
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
 2. **Crear tabla `email_log` para auditoría**:
    - [ ] Migration SQL:
@@ -1624,9 +1726,9 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
      CREATE INDEX idx_email_log_lead_id ON email_log(lead_id);
      CREATE INDEX idx_email_log_status ON email_log(status);
      ```
-   - [ ] Aplicar en Free + Pro
+- [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
-3. **Crear trigger function `notify_new_lead()`**:
+ 3. **Crear trigger function `notify_new_lead()`**:
    - [ ] SQL function que hace `net.http_post()` a la Edge Function URL
    - [ ] Payload: `{ "lead_id": NEW.id }`
    - [ ] Headers: `Authorization: Bearer <anon_key>`, `Content-Type: application/json`
@@ -1635,9 +1737,9 @@ Objetivo: Crear trigger automático en la DB que invoque la Edge Function cada v
 
 4. **Crear trigger**:
    - [ ] `CREATE TRIGGER trg_notify_new_lead AFTER INSERT ON leads FOR EACH ROW EXECUTE FUNCTION notify_new_lead();`
-   - [ ] Aplicar en Free + Pro
+- [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
 
-5. **Validación end-to-end**:
+ 5. **Validación end-to-end**:
    - [ ] Insertar un lead de prueba desde el frontend
    - [ ] Confirmar que el trigger dispara la Edge Function
    - [ ] Confirmar que los 3 correos se envían
@@ -1665,7 +1767,10 @@ Objetivo: Mejorar la experiencia del usuario después de enviar un lead, con men
    - [ ] Agregar `status` update: cuando los 3 emails se envían exitosamente, cambiar `status` de `pending` → `contacted`
    - [ ] Si algún email falla, mantener `pending` para reintento manual
 
-### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [ ] Pendiente
+### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [~] Reabierta (Fase 76)
+
+> **Bug detectado**: `db_client.py` línea 23 hace catch de `requests.exceptions.DNSResolutionError`, pero esta excepción no existe en la versión instalada de `requests`. Resultado: cualquier error DNS lanza `AttributeError` en vez de ser rearrito. Fix: usar `getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError)`.
+
 Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones del pipeline y en integrity_ping, evitando que GitHub Actions cancele abruptamente los procesos y se pierda la información de lo procesado hasta el momento. Incluye TIME_GUARD, signal handlers (SIGTERM/SIGINT), alineación de timeouts en workflows y reintentos con backoff para DNS errors.
 
 **Diagnóstico del problema** (3 runs cancelados en `main`, 01-02 May 2026):
@@ -1734,7 +1839,8 @@ Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones de
 7. **`.github/workflows/fg3_integrity.yml` — Timeout + sys.path** (P2 Media):
    - [ ] Agregar `timeout-minutes: 35` al job `integrity` (no tiene, default 360)
 
-8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media):
+8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media) **[~] REABIERTA (Fase 76)**:
+   - [ ] **BUG**: `requests.exceptions.DNSResolutionError` no existe en versiones anteriores de `requests`. Usar `getattr()` retrocompatible.
    - [ ] Crear función `_retry_with_backoff(fn, max_retries=3, base_delay=5)` que envuelve llamadas a Supabase REST API
    - [ ] Aplicar en métodos `_select_api()`, `_insert_api()`, `_patch_api()`, `_upsert_api()`, `_delete_api()`, `rpc()` cuando reciben `ConnectionError` o `NameResolutionError`
    - [ ] Backoff exponencial: 5s → 10s → 20s entre reintentos
@@ -1857,4 +1963,638 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 - `_call_cloudflare()`, `_call_github()`, `_call_gemini()` — lógica interna sin cambios
 - `_generate_smart_mock()` — fallback final sin cambios
 - `db_client.py` — no relevante para esta fase
+
+### Fase 71: Sincronización Pro→Free + Pipeline Producción [✓] Completada
+
+Objetivo: Emparejar Free (desarrollo/certificación) con Pro (producción) trayendo data real, y poblar Pro con más cursos vía pipeline FG2.
+
+**Premisa de seguridad**: Los scripts que sincronizan datos entre Free y Pro DEBEN usar exclusivamente las Publishable y Secret API keys (`sb_publishable_*` / `sb_secret_*`), NUNCA compartir credenciales entre ambientes ni hardcodear keys. Las credenciales se leen de variables de entorno productivo: `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` para Pro, `.env.local` para Free. Ambas keys son rotables ante exposición.
+
+**Diagnóstico actual** (04 May 2026):
+
+| Métrica | Free (Desarrollo) | Pro (Producción) | Acción |
+|---|---|---|---|
+| institutions | 11 | 11 | ✅ Igual contenido, UUIDs diferentes |
+| categories | 17 | 17 | ✅ 17/17 mapeados por slug |
+| category_rules | 108 | 108 | ✅ Depende de institution_id |
+| market_salaries | 17 | 17 | ✅ Depende de category_id |
+| institution_site_profiles | 11 | 11 | ✅ Depende de institution_id |
+| **courses** | **12** | **12** (UTP) | ✅ Synced (slug mapping) |
+| **staging_raw** | **6,498** | **6,498** | ✅ Synced (UPSERT por URL) |
+| cleansed_programs | 242 | 242 | ✅ Synced |
+| enriched_programs | 12 | 12 | ✅ Synced (INSERT directo) |
+| leads | 0 | 0 | N/A |
+| crawler_exclusions | ❌ DROPPED | ❌ DROPPED | Confirmado eliminada en ambos |
+
+**Mapeo de UUIDs** (institutions — los IDs difieren entre ambientes):
+
+| slug | Free UUID | Pro UUID |
+|---|---|---|
+| dmc | `74022aa7-...` | `9aebb0fb-...` |
+| idat | `2033fba3-...` | `a7a77d2a-...` |
+| senati | `e8aa52da-...` | `1adeb662-...` |
+| uni | `0921f586-...` | `2647058e-...` |
+| universidad-continental | `302a19be-...` | `7dc17e61-...` |
+| universidad-de-lima | `9e41419f-...` | `9ec85305-...` |
+| universidad-del-pacifico | `99700d5d-...` | `a4fd99a6-...` |
+| unmsm | `db127b65-...` | `312d1aa3-...` |
+| upc | `6479d48d-...` | `19c4ec63-...` |
+| usil | `24418880-...` | `1f376ef7-...` |
+| utp | `c63e0290-...` | `6c86caf1-...` |
+
+**Arquitectura del script `sync_pro_to_free.py`**:
+
+```
+PRO (lectura) ──────────────────────────────────────────> FREE (escritura)
+SUPABASE_PRO_URL + sb_secret_* (env vars)      db_client.py (.env.local)
+        │                                                │
+        ├─ GET /institutions ──┐                         │
+        │                       ├─ slug_map ─────────────┤─ UPSERT staging_raw (6,498)
+        ├─ GET /categories ─────┤  pro_uuid → free_uuid  ├─ UPSERT cleansed_programs (242)
+        │   (Pro slug→UUID)   │                         ├─ UPSERT enriched_programs (12)
+        │                       │                         └─ UPSERT courses (12)
+        ├─ GET /courses ────────┤   batch_size=200
+        ├─ GET /staging_raw ───┤
+        ├─ GET /cleansed ──────┤   on_conflict=url
+        └─ GET /enriched ──────┘
+```
+
+**Tablas a sincronizar** (en orden por FK):
+
+| # | Tabla | FK a traducir | On Conflict | Batch Size | Notas |
+|---|---|---|---|---|---|
+| 1 | `staging_raw` | `institution_id` | `url` | 200 | 6,498 rows, la tabla más pesada |
+| 2 | `cleansed_programs` | `institution_id` | `url` | 200 | 242 rows |
+| 3 | `enriched_programs` | `institution_id`, `cleansed_id`* | `url` | 50 | 12 rows, `cleansed_id` puede omitirse si no existe en Free |
+| 4 | `courses` | `institution_id`, `category_id` | `url` | 50 | 12 rows, mapear ambos FKs |
+
+**NO se sincronizan** (ya iguales o dependientes):
+- `institutions` (11 = 11, UUIDs diferentes pero misma data)
+- `categories` (17 = 17, verificar UUIDs)
+- `category_rules` (108 = 108, dependen de institution_id + category_id)
+- `market_salaries` (17 = 17, dependen de category_id)
+- `institution_site_profiles` (11 = 11, ya sincronizados en Fase 74)
+
+1. **Crear script de sincronización Pro→Free**:
+    - [x] Crear `scripts/maintenance/sync_pro_to_free.py` con slug mapping automático
+    - [x] Lectura: Pro via REST API (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` env vars productivas)
+    - [x] Escritura: Free via `db_client.py` (lee de `.env.local`, usa `sb_secret_*`)
+    - [x] Mapeo automático: construir diccionario `pro_uuid → slug → free_uuid` para `institution_id` y `category_id`
+    - [x] Modo `--dry-run`: contar filas y mostrar mapping sin escribir
+    - [x] Modo `--full`: sincronizar las 4 tablas (default)
+    - [x] Modo `--table <tabla>`: sincronizar solo una tabla específica
+    - [x] Modo `--truncate-staging`: borrar staging_raw en Free antes de insertar
+    - [x] JSONB fields (`exclusion_patterns`, `section_keywords`, etc.): PostgREST devuelve tipos correctos, NO usar `json.dumps()`
+    - [x] Batch inserts de 200 rows para no timeout
+    - [x] Logging detallado por tabla: `OK: 6498/6498 staging_raw`, `SKIP: 15 already exist`, etc.
+
+2. **Probar sincronización con dry-run**:
+    - [x] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --dry-run` en Docker
+    - [x] Verificar que el slug mapping produce 11 mapeos correctos
+    - [x] Verificar que no hay UUIDs huérfanos (institution_id/category_id que no existen en Free)
+
+3. **Ejecutar sincronización real**:
+    - [x] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` en Docker
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM courses` retorna 12
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM staging_raw` retorna ≥6,498
+    - [x] Verificar en Free Dashboard: `SELECT count(*) FROM enriched_programs` retorna 12
+
+4. **Fix FG3 Integrity Ping** (`ModuleNotFoundError: No module named 'shared'`):
+    - [x] Agregar `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` al inicio de `integrity_ping.py`
+    - [x] Agregar `working-directory: scripts/core` en `.github/workflows/fg3_integrity.yml`
+    - [x] Validar que FG3 ejecuta sin `ModuleNotFoundError`
+
+5. **Ejecutar pipeline FG2** (SDLC: Desarrollo → Certificación → Producción):
+   - [ ] **Desarrollo**: Ejecutar pipeline en Free (desarrollo) con `pipeline_ready=true` en al menos 1 institución
+   - [ ] **Desarrollo**: Verificar que harvester → cleansing → enrichment → sync producen cursos sin ruido
+   - [ ] **Certificación**: Ejecutar E2E Playwright en rama `certificacion`
+   - [ ] **Producción**: Ejecutar pipeline FG2 en Pro (`workflow_dispatch` en rama `main`) — **tras aprobación @SDLC-Chief**
+   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` en `Production` corresponde a Pro
+   - [ ] Verificar que cleansing → enrichment → sync producen registros en Pro
+   - [ ] Target: ≥100 cursos activos/verificados en Pro
+
+6. **Re-sincronizar Pro→Free post-pipeline**:
+    - [ ] Ejecutar `python3 scripts/maintenance/sync_pro_to_free.py --full` nuevamente
+    - [ ] Free queda como espejo de Pro para desarrollo/certificación
+
+7. **Verificar frontend studiamatch.com**:
+    - [ ] Confirmar que `studiamatch.com` muestra cursos (`is_active=eq.true&is_verified=eq.true` retorna resultados)
+    - [ ] Confirmar que la página de detalle carga correctamente
+    - [ ] Confirmar que filtros por institución funcionan (U. Lima, UTP, etc.)
+
+**Archivos que se crean/modifican**:
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `scripts/maintenance/sync_pro_to_free.py` | NUEVO | Sincronización Pro→Free con slug mapping, env vars para credenciales |
+| `scripts/core/integrity_ping.py` | FIX | Agregar sys.path fix |
+| `.github/workflows/fg3_integrity.yml` | FIX | Agregar working-directory |
+
+**No requiere migration SQL** — las tablas ya existen con schema correcto en ambas BD (incluyendo `start_date`, `institution_site_profiles`, y `crawler_exclusions` eliminada en ambos ambientes).
+
+### Fase 72: U. Lima — Reducción de Ruido y Normalización de URLs [~] En progreso
+
+> **NOTA**: Los pendientes de esta fase se absorben en la Fase 75 (Exclusion Gate + Noise Sentinel v2), que implementa un sistema más robusto de 5 capas de defensa. La consolidación de exclusiones, limpieza retroactiva y validación de URLs se realizarán como parte de la Fase 75.
+
+**Completado**:
+- [x] Remover pattern `/pregrado/` de exclusiones de U. Lima (bloqueaba 12 carreras válidas)
+- [x] Agregar `hub_patterns` en `cleansing_worker.py` para landing pages de U. Lima
+- [x] Poblar `seed_urls` con 102 URLs válidas en `institution_site_profiles`
+- [x] Normalización UTM ya implementada en `normalize_url()` (strip de query params)
+- [x] Harvester adaptativo: `discover_hardcoded_urls()` enruta por `discovery_mode=hardcoded_urls`
+- [x] Ejecutar `seed_crawler_exclusions.py` en Free (407 rows, 558 total)
+- [x] Ejecutar `seed_site_profiles.py` en Free (10/11 perfiles)
+- [x] Sync Pro → Free de datos ETL (317 staging, 242 cleansed, 12 enriched)
+- [x] `py_compile` sin errores en todos los scripts modificados
+
+**Migrado a Fase 75**:
+- [ ] **Consolidar exclusiones**: ver Fase 75 paso 3 (regex exclusion patterns)
+- [ ] Limpieza retroactiva: ver Fase 75 paso 1 (SQL cleanup de 5 courses de ruido)
+- [ ] De-duplicar cursos con URLs UTM vs sin UTM: ver Fase 75 paso 1
+- [ ] Validar con harvester que URLs pasan/filtran: ver Fase 75 paso 9 (validación E2E)
+
+Objetivo: Actualizar las exclusiones de U. Lima en `institution_site_profiles.exclusion_patterns` (fuente única), agregar normalización de parámetros UTM, y garantizar que las 102 URLs válidas pasen el filtro.
+
+**Contexto arquitectónico** (actualizado):
+- `institution_site_profiles.exclusion_patterns` es la **fuente única** de exclusiones (consolidación Fase 61)
+- `crawler_exclusions` se mantiene como backup deprecado hasta Fase 64 — NO se usa para lectura
+- Los 21 patterns de U. Lima agregados en `seed_crawler_exclusions.py` se migrarán al perfil vía `merge_exclusions_to_profiles.py`
+- Los 4 `hub_patterns` en `cleansing_worker.py` son regex backend (no data), complementan las exclusiones URL
+
+### Fase 73: Filtrado por Fecha de Inicio — Programas Expirados [~] En progreso
+
+**Completado**:
+- [x] Migration SQL `20260503_fase73_start_date.sql` — `start_date DATE` en `courses` y `enriched_programs` + índice
+- [x] Función `parse_start_date()` en `utils.py` — parsea fechas en español/inglés con 90d de gracia
+  - "Abril 2026" → `date(2026,4,1)`, "15 de mayo de 2024" → `date(2024,5,15)`, ISO format, DD/MM/YYYY
+  - Retorna `(date, is_expired)` — `is_expired=True` si la fecha < hoy - 90 días
+- [x] `sync_vector_worker.py` — importa `parse_start_date`, determina `is_active` según expiración, escribe `start_date` en courses
+- [x] `cleansing_worker.py` — función `detect_expired_start_date()` descarta programas con "Inicio: [fecha expirada]" en el HTML
+- [x] Migration aplicada en Supabase Dashboard (Free)
+- [x] `py_compile` sin errores
+
+**Pendiente**:
+- [x] `integrity_ping.py` — date expiration check agregado. Query `start_date < CURRENT_DATE - 90 days` → `is_active = False`
+- [~] Aplicar migration en Pro — FALLÓ (requiere Supabase Management API token o Dashboard, ver issue abajo)
+- [ ] Frontend — mostrar "Próximo inicio: {start_date_text}" o "Inicio expirado"
+- [ ] Validación E2E: verificar que programa con `start_date_text = "2024"` se marca `is_active = False`
+
+> ⚠️ **Migraciones pendientes en Pro**: El proyecto Pro (`YOUR_PRO_PROJECT_REF`) no tiene las migraciones:
+> - `20260501_institution_site_profiles.sql` — tabla `institution_site_profiles`
+> - `20260503_fase73_start_date.sql` — columnas `start_date DATE` en `courses` y `enriched_programs`
+>
+> Ambas deben aplicarse manualmente en Supabase Dashboard > SQL Editor.
+Objetivo: Implementar lógica de filtrado por fecha de inicio para que los programas cuya fecha de inicio ya pasó no se muestren como activos en el frontend. Actualmente no existe ninguna validación de fechas — `start_date_text` es VARCHAR de texto libre (ej: "Abril 2026") y ningún script verifica si la fecha expiró.
+
+**Diagnóstico actual**:
+
+| Aspecto | Estado actual | Gap |
+|---|---|---|
+| Columna `start_date_text` | `VARCHAR` (texto libre: "Abril 2026", "15 de mayo") | No parseable para comparación |
+| Columna DATE parseable | No existe | Imposible comparar con `CURRENT_DATE` |
+| LLM date extraction | Texto libre sin normalización | No se puede ordenar ni filtrar |
+| `sync_vector_worker.py` | Siempre `is_active: True` | Programas expirados se muestran como activos |
+| `integrity_ping.py` | Solo 404-based inactivation | No considera fechas |
+| Frontend | Filtra `is_active=eq.true` | No filtra por fecha |
+| `cleansing_worker.py` | `detect_obsolete_dates()` filtra años pasados en HTML crudo | Opera solo en cleansing stage, no en courses final |
+
+**Caso de uso**: U. Lima "Programa Especializado en Derecho Empresarial" tiene `start_date_text = "2024"` → ya expirado, no debe mostrarse como activo.
+
+1. **Agregar columna `start_date` tipo DATE a `courses`** (nullable):
+   - [ ] Migration SQL: `ALTER TABLE courses ADD COLUMN start_date DATE;`
+   - [ ] Crear índice: `CREATE INDEX idx_courses_start_date ON courses(start_date) WHERE start_date IS NOT NULL;`
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
+
+2. **Agregar columna `start_date` tipo DATE a `enriched_programs`** (nullable):
+   - [ ] Migration SQL: `ALTER TABLE enriched_programs ADD COLUMN start_date DATE;`
+   - [ ] Aplicar en Free → Certificar → Pro (tras aprobación)
+
+3. **Normalizar `start_date` en `enrichment_worker.py`** — parsear texto libre a ISO DATE:
+   - [ ] Agregar función `_parse_start_date(text: str) -> date|None` que convierte texto libre a fecha:
+     - "Abril 2026" → `2026-04-01`
+     - "15 de mayo" → `2026-05-15` (asumir año actual si no se especifica)
+     - "2024" → `2024-01-01`
+     - "I Semestre 2026" → `2026-03-01`
+     - "II Semestre 2026" → `2026-08-01`
+     - null / "" / "None" → `None`
+   - [ ] Guardar tanto `start_date` (DATE) como `start_date_text` (VARCHAR original) en `enriched_programs`
+   - [ ] Agregar `start_date` al schema del prompt LLM como campo separado del texto
+
+4. **Mapear `start_date` en `sync_vector_worker.py`**:
+   - [ ] Agregar `"start_date": enriched.get('start_date')` al dict `course_data`
+   - [ ] Agregar lógica de expiración: si `start_date < date.today()` → `"is_active": False`
+   - [ ] Loguear: `"Marking as inactive (expired): {name} — start_date={start_date}"`
+
+5. **Agregar verificación periódica en `integrity_ping.py`**:
+   - [ ] Además de 404 check, agregar date check: `SELECT id, name, start_date FROM courses WHERE is_active = true AND start_date < CURRENT_DATE`
+   - [ ] Para cursos con `start_date < CURRENT_DATE - 90 days` (3 meses de gracia): set `is_active = False`
+   - [ ] Loguear: `"Expired course deactivated: {name} (start_date={start_date})"`
+   - [ ] Período de gracia: cursos expirados hace menos de 90 días se mantienen activos (pueden tener próximas cohortes)
+
+6. **Frontend — Mostrar indicador de programas con fecha próxima**:
+   - [ ] Agregar badge "Próximo inicio: {start_date_text}" en card de curso cuando `start_date` está en el futuro
+   - [ ] Mostrar banner "Inscripciones cerradas" cuando `is_active = False` (ya existe en `CourseDetailClient.tsx:453`)
+   - [ ] Agregar filtro de fecha en HomeContent: "Próximos programas" (start_date > today) vs "Todos"
+
+7. **Validación**:
+   - [ ] `_parse_start_date("Abril 2026")` → `2026-04-01` ✅
+   - [ ] `_parse_start_date("2024")` → `2024-01-01` → marcar como `is_active: False` ✅
+   - [ ] `_parse_start_date(None)` → `None` → no afecta `is_active` ✅
+   - [ ] Migration SQL aplicada en Free (Desarrollo) → Certificar → Pro (tras aprobación) sin errores
+   - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
+   - [ ] `python3 -m py_compile scripts/core/sync_vector_worker.py` sin errores
+   - [ ] `python3 -m py_compile scripts/core/integrity_ping.py` sin errores
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `db/migrations/20260503_add_start_date_columns.sql` | Agregar `start_date DATE` a `courses` y `enriched_programs` |
+| `scripts/core/enrichment_worker.py` | Agregar `_parse_start_date()`, guardar `start_date` DATE |
+| `scripts/core/sync_vector_worker.py` | Mapear `start_date`, marcar `is_active=False` si expirado |
+| `scripts/core/integrity_ping.py` | Agregar date-based inactivation con 90 días de gracia |
+| `web/src/app/HomeContent.tsx` | Mostrar badge de fecha próxima |
+
+**Archivos que NO se modifican**:
+- `cleansing_worker.py` — `detect_obsolete_dates()` sigue operando en cleansing stage (primera línea de defensa)
+- `universal_harvester.py` — no maneja fechas
+- `CourseDetailClient.tsx` — ya tiene banner "Programa finalizado" para `is_active=False`
+
+### Fase 74: Migración Pro + Eliminación Definitiva de `crawler_exclusions` [✓] Completada
+
+> **Contexto**: Las Fases 61 y 64 completaron la consolidación de exclusiones en código (fallback eliminado, scripts deprecados, harvesters movidos). La Fase 74 recogió el trabajo residual a nivel de **infraestructura** (Pro migration, DROP TABLE, limpieza de scripts/docs). **`crawler_exclusions` eliminada en ambos ambientes (Free y Pro).**
+
+**Estado final de la migración CE → SP**:
+
+| Aspecto | Free (Dev) | Pro (Producción) |
+|---|---|---|
+| `institution_site_profiles` existe | ✅ Tabla creada con migration | ✅ Tabla creada, 12 perfiles sincronizados |
+| Perfiles con exclusiones | ✅ 12 perfiles (40-146 patterns) | ✅ 12 perfiles sincronizados vía `fase62b_create_pucp_and_sync_pro.py` |
+| `crawler_exclusions` | ❌ DROPPED | ❌ DROPPED (migration aplicada 2026-05-03) |
+| Pipeline lee perfiles | ✅ harvester + cleansing + enrichment + sync | ✅ (idéntico código en ambos ambientes) |
+
+1. **Migración en Pro — `institution_site_profiles` y `start_date`** (SDLC: Free ✅ → Certificar → Pro tras aprobación):
+   - [ ] Aplicar migration `20260501_institution_site_profiles.sql` en Free (ya aplicado) → Verificar en Certificación → Aplicar en Pro (tras aprobación)
+   - [ ] Aplicar migration `20260503_fase73_start_date.sql` en Free (ya aplicado) → Verificar en Certificación → Aplicar en Pro (tras aprobación)
+   - [ ] Refrescar schema cache de PostgREST en Pro (tras aprobación)
+   - [ ] Verificar que `GET /rest/v1/institution_site_profiles` retorna 200 en Pro (no PGRST205)
+   - [ ] Ejecutar `merge_exclusions_to_profiles.py` contra Pro (tras aprobación)
+   - [ ] Ejecutar `seed_site_profiles.py` contra Pro (tras aprobación)
+   - [ ] Verificar: cada perfil en Pro tiene >= número de exclusiones que tenía en `crawler_exclusions`
+
+2. **Validación Pro post-migración**:
+   - [ ] `SELECT institution_id, jsonb_array_length(exclusion_patterns) as count FROM institution_site_profiles ORDER BY count DESC;` — confirmar 11 perfiles con counts >= Free
+   - [ ] `SELECT count(*) FROM crawler_exclusions WHERE is_active = true;` — debe coincidir con total de patterns en perfiles
+   - [ ] `SELECT count(*) FROM courses WHERE start_date IS NOT NULL;` — confirmar columna existe
+
+3. **Reescribir scripts legacy que referencian `crawler_exclusions`**:
+   - [ ] `preventive_cleanup.py` — reescribir para usar `institution_site_profiles.exclusion_patterns` en vez de `INSERT INTO crawler_exclusions`
+   - [ ] `seed_site_profiles.py` — eliminar función `migrate_exclusions_to_profile()` (linea 222-229) que lee de CE; los perfiles ya están consolidados
+   - [ ] `seed_pro_profiles.py` — reescribir para upsertar perfiles completos (con seed_urls, section_keywords, field_defaults, etc.) en vez de leer CE para exclusiones
+   - [ ] `fase32b_migrate_free_to_pro.py` — archivar a `scripts/deprecated/` (era un script one-shot de migración R6, ya no necesario)
+   - [ ] `add_exclusion.py` — ya deprecado con redirect, marcar para eliminación futura
+   - [ ] `seed_crawler_exclusions.py` — ya deprecado con warning, marcar para eliminación futura
+
+4. **Eliminar `crawler_exclusions` del schema de restauración**:
+   - [ ] Remover CREATE TABLE + indexes + constraints de `crawler_exclusions` en `restore_full_schema.sql` (lineas 151-163)
+   - [ ] Remover RLS policies de `crawler_exclusions` en `restore_full_schema.sql` (lineas 804-817)
+   - [ ] Remover `seed_crawler_exclusions.py` de la guía de despliegue (`docs/deployment/guia_despliegue_produccion.md` linea 11)
+   - [ ] Actualizar `docs/deployment/guia_despliegue_produccion.md`: reemplazar paso 4 con `seed_site_profiles.py`
+   - [ ] Actualizar `AGENTS.md`: remover `crawler_exclusions` de lista de tablas ETL donde anon no puede escribir
+   - [ ] Agregar nota en `AGENTS.md`: "Exclusiones se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns`"
+
+5. **DROP TABLE `crawler_exclusions`** (SDLC: Free → Certificar → Pro):
+   - [x] Crear migration `202605_FASE74_drop_crawler_exclusions.sql`
+   - [x] Aplicar en Free (Desarrollo) → Verificar que no rompe pipeline
+   - [x] Certificar en rama `certificacion` → E2E Playwright
+   - [x] Aplicar en Pro (Producción) — migration `fase74_drop_crawler_exclusions_pro` aplicada 2026-05-03
+   - [x] Verificar que `DROP TABLE` no rompe ningún script del pipeline (todos leen perfiles)
+   - [x] Actualizar `restore_full_schema.sql` para no incluir la tabla
+
+6. **Actualizar guía de despliegue**:
+   - [ ] `docs/deployment/guia_despliegue_produccion.md`:
+     - Paso 4: `seed_site_profiles.py` en vez de `seed_crawler_exclusions.py`
+     - Agregar paso: `merge_exclusions_to_profiles.py` para consolidar exclusiones
+   - [ ] Verificar que `restore_full_schema.sql` funciona sin `crawler_exclusions`
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `scripts/maintenance/preventive_cleanup.py` | Reescribir para usar perfiles en vez de CE |
+| `scripts/maintenance/seed_site_profiles.py` | Eliminar `migrate_exclusions_to_profile()` que lee CE |
+| `scripts/maintenance/seed_pro_profiles.py` | Reescribir para upsertar perfiles completos (sin leer CE) |
+| `scripts/maintenance/fase32b_migrate_free_to_pro.py` | Mover a `scripts/deprecated/` |
+| `db/restore_full_schema.sql` | Remover `crawler_exclusions` DDL + RLS |
+| `db/migrations/202605_FASE74_drop_crawler_exclusions.sql` | NUEVO: `DROP TABLE crawler_exclusions` |
+| `docs/deployment/guia_despliegue_produccion.md` | `seed_site_profiles.py` en vez de `seed_crawler_exclusions.py` |
+| `AGENTS.md` | Remover `crawler_exclusions` de lista ETL, agregar nota de fuente única |
+
+**Archivos que se mueven a deprecated**:
+
+| Archivo | Destino |
+|---|---|
+| `scripts/maintenance/fase32b_migrate_free_to_pro.py` | `scripts/deprecated/` |
+| `scripts/maintenance/seed_crawler_exclusions.py` | `scripts/deprecated/` (ya deprecated en código) |
+| `scripts/maintenance/add_exclusion.py` | `scripts/deprecated/` (ya deprecated en código) |
+
+**Dependencias**:
+- Paso 1-2 requiere acceso a Supabase Dashboard Pro (SQL Editor) o Management API token
+- Paso 3-6 es trabajo de código que se puede hacer sin acceso a Pro
+- Paso 5 (DROP TABLE) requiere que paso 1-2 estén completados y validados en Pro
+
+### Fase 75: Exclusion Gate + Noise Sentinel v2 [✓] Completada
+
+**Objetivo**: Eliminar el 42% de ruido en courses (5/12), implementar 5 capas de defensa que previenen ruido futuro, y afinar exclusiones institución por institución antes de ejecutar el pipeline. **No ejecutar el pipeline FG2 hasta que cada institución tenga exclusiones afinadas y `pipeline_ready = true`**.
+
+**Diagnóstico actual (Free DB)**:
+
+| Institución | Exclusiones | Courses activos | Ruido en courses | `discovered` pendientes | Nivel riesgo |
+|---|---|---|---|---|---|
+| U. Lima | 146 | 3 | **3 agradecimientos** | 96 | **CRÍTICO** |
+| U. Continental | 141 | 1 | **1 homepage** | 2 | **ALTO** |
+| UTP | 66 | 8 | **1 sede + 2-3 facultades** | 0 | **MEDIO** |
+| UPC | 67 | 0 | N/A | 53 | **MEDIO** |
+| UNMSM | 67 | 0 | N/A | 78 | **ALTO** |
+| SENATI | 65 | 0 | N/A | 73 | **MEDIO** |
+| U. Pacífico | 67 | 0 | N/A | 15 | **BAJO** |
+| IDAT | 65 | 0 | N/A | 0 | **BAJO** |
+| DMC | 40 | 0 | N/A | 0 | **BAJO** |
+| UNI | 65 | 0 | N/A | 0 | **BAJO** |
+| USIL | 66 | 0 | N/A | 0 | **BAJO** |
+
+**Ruido actual en courses (5/12 = 42%)**:
+
+| Curso | URL | Tipo de ruido | Por qué pasó |
+|---|---|---|---|
+| MGI Agradecimiento | `ulima.edu.pe/posgrado/maestria/mgi-agradecimiento/` | Agradecimiento | Pattern no atrapa `-agradecimiento/` |
+| DC Agradecimiento | `ulima.edu.pe/posgrado/doctorado/dc-agradecimiento/` | Agradecimiento | Igual |
+| EPG Agradecimiento | `ulima.edu.pe/posgrado/epg-agradecimiento/` | Agradecimiento | Igual |
+| U. Continental homepage | `ucontinental.edu.pe/` | Homepage | Sin exclusión para bare domain |
+| UTP Ate | `utp.edu.pe/ate/` | Sede/Campus | Sin exclusión para sedes |
+
+**5 Capas de Defensa**:
+
+#### Capa 0: Exclusion Gate (`pipeline_ready`) — NUEVO
+
+Campo booleano en `institution_site_profiles` que bloquea el pipeline por institución si no está afinada:
+
+```sql
+ALTER TABLE institution_site_profiles
+ADD COLUMN pipeline_ready boolean DEFAULT false,
+ADD COLUMN allowed_url_patterns jsonb DEFAULT '[]'::jsonb;
+```
+
+- `pipeline_ready = true` → el pipeline procesa esta institución (harvester, cleansing, enrichment, sync)
+- `pipeline_ready = false` (default) → el pipeline **RECHAZA** todas las etapas para esta institución
+- `allowed_url_patterns` → lista de regex que SON programas (whitelist positivo)
+
+**Flujo de habilitación**:
+1. Revisar URLs descubiertas de la institución
+2. Agregar exclusiones faltantes a `exclusion_patterns`
+3. Ejecutar `--dry-run` para verificar qué pasaría
+4. Si todo limpio → `pipeline_ready = true`
+5. Si hay dudas → revisar manualmente URLs, ajustar, repetir
+
+**Archivos modificados**:
+- `universal_harvester.py`: verificar `pipeline_ready` antes de procesar institución
+- `cleansing_worker.py`: verificar `pipeline_ready` antes de procesar registros de esa institución
+- `enrichment_worker.py`: verificar `pipeline_ready` antes de enriquecer
+- `sync_vector_worker.py`: verificar `pipeline_ready` antes de sincronizar a `courses`
+- `db/migrations/20260504_fase75_pipeline_ready.sql`: DDL
+
+#### Capa 1: Regex Exclusion Patterns (harvester + cleansing)
+
+Agregar soporte para patterns tipo regex (prefijo `re:`) en `exclusion_patterns`:
+
+```python
+# universal_harvester.py y cleansing_worker.py
+for exc in self.exclusions:
+    if isinstance(exc, str):
+        if exc.startswith('re:'):
+            if re.search(exc[3:], low_url, re.IGNORECASE):
+                return False
+        elif exc.lower() in low_url:
+            return False
+```
+
+Patterns globales de noise (agregar a TODAS las instituciones):
+- `re:agradecimiento` — atrapa `/agradecimiento/` y `-agradecimiento/`
+- `re:thank.?you` — atrapa `/thank-you/` y `/thankyou/`
+
+**Archivos modificados**:
+- `universal_harvester.py`: `_is_valid_crawl_url()` soporte regex
+- `cleansing_worker.py`: `is_invalid_course()` soporte regex
+
+#### Capa 2: Post-Cleansing Noise Keywords — NUEVO
+
+Validación de nombres que son claramente no-programas en `cleansing_worker.py`:
+
+```python
+NOISE_NAME_PATTERNS = [
+    r'agradecimiento', r'thank.?you', r'gracias',
+    r'matr[ií]culas?\s+abiert', r'inscr[ií]bete',
+    r'^facultad\s+de\b',
+    r'^universidad\s+\w+\s*\|',  # "Universidad Continental |" = homepage
+]
+```
+
+Si match → `discarded` con razón `noise_name_pattern`.
+
+#### Capa 3: Reforzar Prompt LLM (enrichment_worker)
+
+Agregar regla explícita al prompt:
+
+> **REGLA ABSOLUTA**: Si la página es un agradecimiento, página de inicio (homepage), página de confirmación, listado de facultades sin programa individual, o sede/campus sin programa → responde `null` en TODOS los campos. NO inventes datos de un programa que no existe.
+
+#### Capa 4: Post-Sync Validation (sync_vector_worker)
+
+Validación final antes de insertar en `courses`:
+
+```python
+NOISE_PATTERNS = [
+    r'agradecimiento', r'thank.?you',
+    r'^https?://[^/]+/?$',  # bare homepage
+    r'/facultad-de-[^/]+/?$',  # faculty listing
+    r'matr[ií]cul', r'inscr[ií]b',
+]
+```
+
+Si match → `enriched_programs.status = 'discarded'`, NO insertar en courses, log warning.
+
+**Archivos modificados**:
+- `sync_vector_worker.py`
+- `enrichment_worker.py` (prompt)
+
+#### Capa 5: Retroactive Cleanup
+
+SQL para limpiar el ruido existente:
+
+```sql
+-- U. Lima agradecimientos
+UPDATE courses SET is_active = false, is_verified = false
+WHERE name ILIKE '%agradecimiento%';
+
+-- U. Continental homepage
+UPDATE courses SET is_active = false, is_verified = false
+WHERE url = 'https://ucontinental.edu.pe/';
+
+-- UTP sede (campus listing, no programa individual)
+UPDATE courses SET is_active = false, is_verified = false
+WHERE name ILIKE '%matrícula%abierta%' OR name ILIKE '%inscríbete%';
+
+-- Cascade: enriched_programs + staging_raw
+UPDATE enriched_programs SET status = 'discarded'
+WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = false);
+```
+
+**Checklist de pasos**:
+
+1. **Limpieza retroactiva** (SQL en Free) — **COMPLETADO**:
+   - [x] Desactivar 4 courses de ruido (3 agradecimientos U. Lima, 1 homepage Continental) — **en Free**
+   - [ ] Aplicar mismo cleanup en Pro (tras aprobación)
+   - [x] UTP: 8 courses activos pendientes de decisión del usuario (sedes/facultades vs programas)
+   - [x] Re-sync Free desde Pro con `sync_pro_to_free.py` para reflejar cambios
+
+2. **Capa 0: `pipeline_ready` field** — **COMPLETADO en Free**:
+   - [x] Migration SQL `20260504_fase75_pipeline_ready.sql`
+   - [x] Aplicar en Free ✅
+   - [x] Aplicar en Pro ✅ (migration DDL no-destructiva, ADD COLUMN DEFAULT false)
+   - [x] Todas las instituciones con `pipeline_ready=false` — pipeline bloqueado
+
+3-6. **Capas 1-4** — **COMPLETADO** en código (commit `dfeb596`):
+   - [x] Regex exclusion support en harvester + cleansing
+   - [x] `NOISE_NAME_PATTERNS` en cleansing_worker
+   - [x] Regla absoluta en prompt LLM
+   - [x] Post-sync `NOISE_PATTERNS` validation
+   - [x] `pipeline_ready` gate en los 4 workers
+   - [x] `py_compile` sin errores
+
+7. **Afinar exclusiones institución por institución** — **PENDIENTE (revisión con usuario)**:
+
+| Institución | Nuevos patterns sugeridos | Estado |
+|---|---|---|
+| UTP | `/ate/`, `/ica/`, `/lima-sur/`, `/tacna/` (sedes) + `/facultad-de-` (listing) | ⏳ Pendiente decisión usuario |
+| U. Lima | `re:agradecimiento` (regex global) | ⏳ Pendiente decisión usuario |
+| U. Continental | pattern para homepage bare domain | ⏳ Pendiente decisión usuario |
+| UPC | `/servicios/`, `/ingles-en-la-upc/`, `/upc-internacional/ncuk/`, `/transparencia-` | ⏳ Pendiente decisión usuario |
+| UNMSM | `/cursos-y-talleres/`, `/direcciones-artisticas/`, `/agenda-cultural/`, etc. | ⏳ Pendiente decisión usuario |
+| SENATI | `/bolsa-de-trabajo`, `/egresados/`, `/busqueda-`, etc. | ⏳ Pendiente decisión usuario |
+| U. Pacífico | `/maestrias/`, `/idiomas/` | ⏳ Pendiente decisión usuario |
+
+8. **Set `pipeline_ready = true` por institución** — **PENDIENTE**: después de afinar exclusiones.
+
+9. **Validación E2E** — **PENDIENTE**: después de afinar.
+
+**Exclusiones sugeridas por institución** (para revisión del usuario):
+
+| Institución | Nuevos patterns sugeridos | Justificación |
+|---|---|---|
+| U. Lima | `agradecimiento` (regex), `/posgrado/` (si excluir todo posgrado) | 3 courses de ruido son agradecimientos |
+| U. Continental | `/` (bare domain homepage) | 1 course de ruido es homepage |
+| UTP | `/ate/`, `/ica/`, `/lima-sur/`, `/tacna/`, `/vida-universitaria/` + `/facultad-de-` (regex para listing pages) | Sedes y facultades son listing pages |
+| UPC | `/servicios/`, `/ingles-en-la-upc/`, `/upc-internacional/ncuk/`, `/transparencia-`, `/becas-` | 53 URLs discovered son mostly no-programs |
+| UNMSM | `/cursos-y-talleres/`, `/direcciones-artisticas/`, `/agenda-cultural/`, `/comunidad/`, `/cultura/`, `/museo-`, `/biblioteca`, `/formacion-academica/educacion-continua`, `/investigacion/`, `/movilidad-y-cooperacion` | 78 URLs discovered are talleres culturales, no carreras |
+| SENATI | `/bolsa-de-trabajo`, `/egresados/`, `/busqueda-`, `/content/centro-`, `/content/modalidades`, `/publicaciones`, `/patrocinio`, `/sedes` | 73 URLs discovered, many non-program pages |
+| U. Pacífico | `/maestrias/`, `/idiomas/` | Already has `/egp/`, few non-program URLs |
+
+**Archivos que se crean/modifican**:
+
+| Archivo | Tipo | Descripción |
+|---|---|---|
+| `db/migrations/20260504_fase75_pipeline_ready.sql` | NUEVO | `pipeline_ready` + `allowed_url_patterns` columns |
+| `scripts/core/universal_harvester.py` | FIX | `pipeline_ready` check + regex exclusion support |
+| `scripts/core/cleansing_worker.py` | FIX | `pipeline_ready` check + regex exclusion + `NOISE_NAME_PATTERNS` |
+| `scripts/core/enrichment_worker.py` | FIX | `pipeline_ready` check + reinforced prompt |
+| `scripts/core/sync_vector_worker.py` | FIX | `pipeline_ready` check + `NOUSE_PATTERNS` post-sync |
+| `scripts/maintenance/apply_noise_exclusions.py` | EXISTENTE | Actualizar para usar `allowed_url_patterns` |
+| `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 75 |
+| `AGENTS.md` | UPDATE | Documentar `pipeline_ready` gate |
+
+**Requiere migrations SQL** — `pipeline_ready` column. Aplicar en Free primero, luego Pro tras certificación.
+
+### Fase 76: Hotfix Pipeline FG2 — 3 Bugs Críticos 🔴 [ ] En progreso
+
+**Diagnóstico**: El pipeline FG2 en CI/CD (rama `desarrollo`) falla con `exit code 1`. Audit de logs históricos + corrida en vivo (run 25298924837) revela 3 bugs que bloquean el pipeline completo.
+
+**Bug 1 — `AttributeError: 'UniversalHarvester' object has no attribute 'discovery_mode'`** (CRÍTICO):
+- **Archivo**: `scripts/core/universal_harvester.py` línea 715
+- **Causa**: En `__init__` (líneas 59-70) se asignan `self.site_type`, `self.requires_stealth`, etc. desde el perfil, pero **nunca se asigna `self.discovery_mode`**. Sin embargo, `main()` (línea 715) accede a `harvester.discovery_mode`.
+- **Impacto**: El harvester crashea en la primera institución que procesa. El orchestrator continua a la siguiente, pero el mismo error se repite para TODAS las instituciones.
+- **Fix aplicado**: Agregar `self.discovery_mode = self.profile.get('discovery_mode', 'sitemap_bfs') if self.profile else 'sitemap_bfs'` en `__init__` línea 60.
+- **Reasgna**: Fase 62 (Site Type Routing + Discovery Modes) — se completó sin testing en CI/CD.
+- **Estado**: ✅ Fix aplicado en local, pendiente commit.
+
+**Bug 2 — `requests.exceptions.DNSResolutionError` no existe** (ALTO):
+- **Archivo**: `scripts/shared/db_client.py` línea 23
+- **Causa**: El bloque `except` en `_request_with_retry()` catch `requests.exceptions.DNSResolutionError`, pero esta excepción **no existe** en la versión instalada de `requests`. Se introdujo en `requests>=2.32` (2024) pero el workflow instala la versión disponible. Resultado: cualquier error de DNS/connection lanza `AttributeError` en vez de ser manejado → crash silencioso sin retry.
+- **Impacto**: FG3 (integrity_ping) crashea con `AttributeError` + `Invalid URL` cuando `SUPABASE_URL` no se resuelve. FG2 puede crash en timeouts de red.
+- **Fix**: Reemplazar `requests.exceptions.DNSResolutionError` con `getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError)` para compatibilidad retroactiva.
+- **Reasgna**: Fase 68 (Pipeline Resiliencia) — se completó sin testing de compatibilidad de versión.
+- **Estado**: ⏳ Pendiente.
+
+**Bug 3 — `quality_assurance_audit.py` no usa `db_client`** (MEDIO):
+- **Archivo**: `scripts/maintenance/quality_assurance_audit.py` líneas 30, 35
+- **Causa**: Construye URLs manualmente con `requests.get(url, headers=headers)` en vez de usar `db.select_all()`. No tiene retry logic, no usa service_role key, y falla si `SUPABASE_URL` no está configurado sin el prefijo `https://`.
+- **Impacto**: FG2 Fase 4 (ROI & QA Audit) crashea con `Connection refused` a localhost:54321 cuando corre en CI. En desarrollo local funciona por accidente.
+- **Fix**: Refactorizar para usar `db.select_all('courses', ...)` con `use_service_role=True`.
+- **Reasgna**: Fase 26 (QA Audit) — nunca se migró a `db_client`.
+- **Estado**: ⏳ Pendiente.
+
+**Bug 4 — `fg3_integrity.yml` tiene backslash escapando `${{ }}`** (MEDIO):
+- **Archivo**: `.github/workflows/fg3_integrity.yml` líneas 30-32
+- **Causa**: Las variables de entorno tienen `\$` en vez de `$`, por lo que GitHub Actions no resuelve los secrets. Resultado: `SUPABASE_URL` queda vacío → `Invalid URL '/rest/v1/...'`.
+- **Impacto**: FG3 falla en CI/CD desplegado desde `main`. Funciona localmente porque carga `.env.local`.
+- **Fix**: Eliminar `\` antes de `$`.
+- **Reasgna**: Flujo CI/CD — typo en YAML.
+- **Estado**: ⏳ Pendiente.
+
+**Checklist**:
+
+1. **Bug 1 — `discovery_mode` AttributeError**:
+   - [x] Fix aplicado en `universal_harvester.py` línea 60
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+   - [ ] Verificar FG2 pipeline exitoso en CI
+
+2. **Bug 2 — `DNSResolutionError` inexistente**:
+   - [x] Fix `db_client.py` línea 23 con `getattr()` retrocompatible
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+
+3. **Bug 3 — `quality_assurance_audit.py` refactor**:
+   - [x] Migrar a `db.select_all('courses', ...)` con service_role
+   - [x] `py_compile` verificado en contenedor
+   - [ ] Commit + push a `desarrollo`
+
+4. **Bug 4 — `fg3_integrity.yml` YAML syntax**:
+   - [x] Eliminar `\` antes de `$` en líneas 30-32
+   - [x] Validar YAML syntax
+   - [ ] Commit + push a `desarrollo`
+
+5. **Security audit hallazgo LOW** (ReDoS en `allowed_url_patterns`):
+   - [x] Validación de longitud >200 chars
+   - [x] Patrón ReDoS-risk detectado
+   - [x] `py_compile` verificado
+
+6. **Validación E2E**:
+   - [ ] Ejecutar FG2 en `desarrollo` (workflow_dispatch) → debe pasar Fase 1 sin `AttributeError`
+   - [ ] Ejecutar FG3 en `main` (workflow_dispatch) → debe conectar a Supabase sin `Invalid URL`
+   - [ ] Verificar que QA Audit (Fase 4 de FG2) conecta correctamente
+
+**Fases reabiertas parcialmente**:
+- **Fase 62** (Site Type Routing / Discovery Modes): Bug `discovery_mode` ausente es un defecto de esta fase.
+- **Fase 68** (Pipeline Resiliencia): Bug `DNSResolutionError` es un defecto de esta fase.
+- **Fase 26** (QA Audit): Bug de no usar `db_client` es deuda técnica de esta fase.
+
+**Archivos modificados**:
+
+| Archivo | Tipo | Bug |
+|---|---|---|
+| `scripts/core/universal_harvester.py` | FIX | Bug 1: agregar `self.discovery_mode` |
+| `scripts/shared/db_client.py` | FIX | Bug 2: `getattr()` retrocompatible |
+| `scripts/maintenance/quality_assurance_audit.py` | REFACTOR | Bug 3: migrar a `db_client` |
+| `.github/workflows/fg3_integrity.yml` | FIX | Bug 4: eliminar `\` escapado |
+| `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 76 |
+| `AGENTS.md` | UPDATE | Documentar bugs y fixes |
 
