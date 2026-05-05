@@ -371,6 +371,21 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     }
   }, [course]);
 
+  // Fase 82A: Increment view counter on mount
+  useEffect(() => {
+    if (!course?.id) return;
+    const increment = async () => {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ p_course_id: course.id })
+        });
+      } catch (e) { console.warn("increment_view_count failed:", e); }
+    };
+    increment();
+  }, [course?.id]);
+
   if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
       <div className="w-12 h-12 border-4 border-brand-mint border-t-transparent rounded-full animate-spin mb-4"></div>
