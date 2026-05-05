@@ -9,7 +9,7 @@ import {
   ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus
 } from "lucide-react";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
 
 // Componente Skeleton para Feedback Inmediato
 const ComparisonSkeleton = () => (
@@ -75,7 +75,7 @@ export default function CompareContent() {
       try {
         setLoading(true);
         const queryIds = ids.join(',');
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=*,institutions(name,slug),categories(name)`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`, {
           headers: {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`

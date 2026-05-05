@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -167,19 +167,16 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Only fetch if no initial data was provided (SSR fallback)
+  // Fetch data from Supabase on every page load (Fase 80B: real-time, no rebuild needed)
   useEffect(() => {
-    if (initialCourses.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLoading(false);
-      return;
-    }
+    const CACHE_KEY = 'StudIAMatch_courses_cache';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
     const fetchData = async () => {
-      setLoading(true);
       try {
         const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
         const [cRes, iRes] = await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
           fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
         ]);
         const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
@@ -204,16 +201,42 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               uniqueMap.set(key, course);
             }
           });
-          
-          setAllCourses(Array.from(uniqueMap.values()));
+
+          const deduped = Array.from(uniqueMap.values());
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setAllCourses(deduped);
+
+          // Cache in localStorage for offline/fast reload
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ data: deduped, timestamp: Date.now() }));
+          } catch (_e) {
+            // localStorage may be full, ignore
+          }
         }
       } catch (error) {
         console.error("Error cargando datos:", error);
-      } finally {
-        setLoading(false);
+        // Fallback: keep SSR data if background fetch fails
       }
     };
-    fetchData();
+
+    // Use cached data if available and fresh
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_TTL && Array.isArray(data) && data.length > 0) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setAllCourses(data);
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (_e) {
+      // cache parse error, ignore
+    }
+
+    fetchData().finally(() => setLoading(false));
   }, []);
 
   const handleSubmitLead = async (e: React.FormEvent) => {
