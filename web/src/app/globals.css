@@ -179,4 +179,10 @@
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+  .section-spacing {
+    @apply py-16 md:py-20;
+  }
+  .section-spacing-sm {
+    @apply py-10 md:py-14;
+  }
 }

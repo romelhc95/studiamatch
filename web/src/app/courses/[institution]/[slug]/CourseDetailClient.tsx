@@ -81,6 +81,36 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [userNickname, setUserNickname] = useState("");
   const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
   const [socialSuccess, setSocialSuccess] = useState(false);
+  const [compareList, setCompareList] = useState<Array<{ id: string; name: string }>>([]);
+  const [compareInit, setCompareInit] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('StudIAMatch_compare_list');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setCompareList(parsed);
+        }
+      }
+    } catch {}
+    setCompareInit(true);
+  }, []);
+
+  useEffect(() => {
+    if (compareInit) {
+      localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(compareList));
+    }
+  }, [compareList, compareInit]);
+
+  const toggleCompare = (course: Course) => {
+    setCompareList(prev => {
+      if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
+      if (prev.length >= 3) return prev;
+      return [...prev, { id: course.id, name: course.name }];
+    });
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -861,6 +891,30 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 </div>
               )}
             </Card>
+
+            <div className="sticky top-24 mt-6">
+              <button
+                onClick={() => toggleCompare(course)}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-[12px] uppercase tracking-wider transition-all active:scale-[0.98] border",
+                  compareList.find(c => c.id === course.id)
+                    ? "bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/20"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue shadow-md"
+                )}
+              >
+                {compareList.find(c => c.id === course.id) ? "✓ En comparativa" : "+ Agregar a comparativa"}
+              </button>
+              {compareList.length > 0 && (
+                <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <p className="text-[10px] text-slate-400 font-medium">{compareList.length}/3 programas seleccionados</p>
+                  <Link href={`/compare?ids=${compareList.map(c => c.id).join(",")}`}>
+                    <button className="mt-2 text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 underline underline-offset-2">
+                      Ver comparativa
+                    </button>
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
