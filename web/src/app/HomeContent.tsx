@@ -244,6 +244,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
   }, [compareList, isCompareInitialized]);
 
+  const toggleCompare = (course: Course) => {
+    setCompareList(prev => {
+      if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
+      if (prev.length >= 3) return prev;
+      return [...prev, course];
+    });
+  };
+
   const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -515,7 +523,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   type="text"
                   inputMode="numeric"
                   placeholder="Precio Máx"
-                  className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 w-full rounded-none shadow-none"
+                  className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 w-full rounded-xl"
                   value={activeFilters.priceMax}
                   onKeyDown={(e) => {
                     if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault();
@@ -880,7 +888,25 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     priceRangeBadge ? { label: priceRangeBadge.label, color: 'bg-slate-50 text-slate-600' } : null,
                   ].filter(canShowBadges).slice(0, 3);
                   return (
-                  <article key={course.id} className="group flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
+                  <article key={course.id} className="group relative flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
+                    <div
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleCompare(course); }}
+                      className={cn(
+                        "absolute top-3 right-3 z-10 flex h-5 w-5 items-center justify-center rounded border transition-all duration-200 cursor-pointer",
+                        compareList.find(c => c.id === course.id)
+                          ? "bg-brand-blue border-brand-blue text-white"
+                          : compareList.length >= 3
+                          ? "bg-white border-slate-200 opacity-40 cursor-not-allowed"
+                          : "bg-white border-slate-300 hover:border-brand-blue"
+                      )}
+                      title={compareList.length >= 3 && !compareList.find(c => c.id === course.id) ? "Máximo 3 programas" : "Agregar a comparativa"}
+                    >
+                      {compareList.find(c => c.id === course.id) && (
+                        <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
                     <div className="p-5 flex-1 flex flex-col">
                       <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="group/title">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
