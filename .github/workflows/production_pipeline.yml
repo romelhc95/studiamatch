@@ -20,6 +20,8 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.48.0-noble
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
       - name: Cache pip & Playwright
@@ -55,6 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -80,6 +84,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -98,6 +104,7 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NVCF_API_KEY: ${{ secrets.NVCF_API_KEY }}
         run: python scripts/core/enrichment_worker.py
 
   # 🚉 STATION 3: Production Sync (Vectors & Slugs)
@@ -109,6 +116,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -134,6 +143,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    env:
+      PYTHONIOENCODING: utf-8
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
