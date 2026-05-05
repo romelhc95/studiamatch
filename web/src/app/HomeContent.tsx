@@ -1153,19 +1153,18 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-elevated relative overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-3 right-3 p-1.5 hover:bg-slate-50 rounded-md transition-all z-20">
-              <X className="h-4 w-4 text-slate-400" />
-            </button>
-
-            <div className="p-8">
-              <p className="text-[12px] font-medium text-brand-blue mb-2">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 pb-4 px-4 overflow-y-auto bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white w-full max-w-md rounded-xl shadow-elevated relative border border-slate-100 animate-in zoom-in-95 duration-200 my-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-30 flex items-center justify-between bg-white rounded-t-xl border-b border-slate-100 px-6 py-3">
+              <p className="text-[12px] font-semibold text-brand-blue">
                 {modalType === 'info' ? 'Consulta directa' : 'Asesoría personalizada'}
               </p>
-              <h3 className="text-xl font-bold mb-6 text-brand-slate tracking-tight leading-tight">
-                {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
-              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-md transition-all">
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-6">
 
               {isSuccess ? (
                 <div className="py-10 text-center animate-in zoom-in duration-300">
@@ -1177,6 +1176,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </div>
               ) : (
                 <form onSubmit={handleSubmitLead} className="space-y-3.5">
+                  <h3 className="text-xl font-bold mb-2 text-brand-slate tracking-tight leading-tight">
+                    {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
+                  </h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[12px] font-medium text-slate-400 mb-1 block">Nombre</label>

@@ -54,6 +54,7 @@ class EnrichmentWorker:
             providers=[cf_provider, gh_provider, nv_provider, gemini_provider],
             logger=logger,
         )
+        self._mock_only = False
 
     def _load_profiles(self):
         try:
@@ -174,6 +175,11 @@ class EnrichmentWorker:
         return text[:max_len]
 
     def _call_llm_for_pillars(self, name, description, inst_id=None):
+        # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
+        if self._mock_only:
+            logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
+            return self._generate_smart_mock(name, description), None
+
         profile = self._get_profile(inst_id) if inst_id else {}
         section_keywords = profile.get('section_keywords', {})
         section_keywords = profile.get('section_keywords', {})
@@ -367,6 +373,10 @@ if __name__ == "__main__":
     guard = TimeGuard(max_seconds=20400, logger=logger)
 
     worker.orchestrator.run_health_checks()
+    # Fase 77: Early-exit si todos los providers fallaron health check inicial
+    if all(not p.is_healthy for p in worker.orchestrator.providers):
+        logger.warning("🚨 TODOS los providers fallaron health check — solo smart mock para toda la corrida.")
+        worker._mock_only = True
 
     total_processed = 0
     batch_size = 10
@@ -398,6 +408,10 @@ if __name__ == "__main__":
                         logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
                         worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped'})
                         continue
+                    # Fase 77: Early-exit dinámico
+                    if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():
+                        logger.warning("🚨 Todos los providers degradados dinámicamente. Restantes a smart mock.")
+                        worker._mock_only = True
                     worker.enrich_record(r)
                     total_processed += 1
                     guard.tick(every=50)
