@@ -15,13 +15,13 @@ export function Header() {
     return false;
   };
 
-  const handleMobileClose = () => handleMobileClose;
+  const handleMobileClose = () => setMobileOpen(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center space-x-3" onClick={() => handleMobileClose}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-blue to-brand-teal text-sm font-black text-white shadow-premium">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-blue text-sm font-black text-white shadow-premium">
             SM
           </div>
           <span className="hidden sm:block text-sm font-bold tracking-tight text-slate-800">
@@ -58,7 +58,7 @@ export function Header() {
           </Link>
           <Link
             href="/#programas"
-            className="rounded-lg bg-gradient-to-r from-brand-blue to-brand-teal px-4 py-2 text-xs font-bold text-white shadow-premium hover:shadow-lg transition-all"
+            className="rounded-lg bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow-premium hover:shadow-lg transition-all"
           >
             Explorar Carreras
           </Link>
