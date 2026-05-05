@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 81-84 completadas y mergeadas a desarrollo. UX/Design: Smart Discovery + Data-Driven Enhancements + Design System Polish + Minimalist Redesign implementados. Fase 65 (Limpieza Datos Falsos) pendiente. Solo 1 curso test activo en DB Free (`is_mock_data=true`).
-- **Último Hito**: Fase 84 completada — Hero minimalista con search primero y 3 filtros visibles + "Más filtros" colapsable; cards con nombre primero, max 3 badges, grid Inversión+ROI, CTA único; Nav con estado activo y logo 40px; Footer con 3 columnas; espaciado consistente con tokens; backend polling 5min + timestamp; excluye `is_mock_data=true` del fetch.
-- **Próxima Acción**: Ejecutar Phase de Datos (correr pipeline FG2 para poblar DB con cursos reales).
+- **Estado Actual**: Fases 81-83 completadas y mergeadas a desarrollo. UX/Design: Smart Discovery + Data-Driven Enhancements + Design System Polish implementados. Fase 65 (Limpieza Datos Falsos) pendiente.
+- **Último Hito**: Fases 82+83 completadas — view_count/comparison_count schema, duration/price quick filters, region filter, price range badges, count-up animation, staggered skeleton, cross-browser scrollbar, Header React state, Compare UX polish.
+- **Próxima Acción**: Ejecutar Fase 65 — Limpieza Datos Falsos (eliminar description_long = title, re-ejecutar LLM, auditoría final).
 
 ## Tareas Pendientes Priorizadas
 
@@ -59,7 +59,6 @@
 | ~~P1~~ | ~~Fase 81 — UX/Design: Smart Discovery + Engagement~~ | ~~Frontend + UX~~ | ~~Rediseño de discovery: filtros contextuales, badges visuales, comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI.~~ | ~~Ninguno~~ |
 | ~~P2~~ | ~~Fase 82 — UX/Design: Data-Driven Enhancements~~ | ~~Frontend + Datos~~ | ~~Campos de datos subutilizados: certification, benefits, seniority_level, region, start_date hacia la UI. view_count + comparison_count schema. Duration quick filters. Price range badges.~~ | ~~Ninguno~~ |
 | ~~P3~~ | ~~Fase 83 — UX/Design: Design System Polish~~ | ~~Frontend~~ | ~~Header React state, count-up animation, staggered skeleton, cross-browser scrollbar, Compare UX polish.~~ | ~~Dep. 81 completada~~ |
-| ~~P1~~ | ~~Fase 84 — Minimalist UX Redesign~~ | ~~Frontend + UX~~ | ~~Rediseño minimalista basado en auditoría UX: Hero: search primero, 3 filtros visibles + Más filtros colapsable, career goals colapsables, stats al catálogo. Cards: nombre primero, max 3 badges, grid Inversión+ROI, CTA único. Nav: estado activo (border-b), logo 40px, mobile overlay+X. Footer: 3 columnas+social. Espaciado: tokens section-spacing. Backend: polling 5min, timestamp, excluye mock data.~~ | ~~Depende de 81+82+83 completadas~~ |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
@@ -95,7 +94,6 @@
 - [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
 - [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
-- [x] **Fase 84**: Minimalist UX Redesign — hero simplificado (search primero, filtros colapsables), cards minimalistas (3 badges max, CTA único), nav activa + footer 3 columnas, responsive compacto, espaciado consistente, datos en tiempo real verificados.
 
 ---
 
@@ -3238,97 +3236,4 @@ progresivo     totales  best    badge   context   best    de área/
    - [x] Reemplazar icono `Plus` rotado 45° como close button → usar icono `X` real
    - [x] Agregar `aria-label="Remover de comparativa"` a botones de remover
    - [x] Cuando < 3 cursos seleccionados, el slot vacío "Espacio disponible" → link con scroll a `#programas`
-
-### Fase 84: UX/Design — Minimalist Redesign [x] Completada
-
-**Objetivo**: Rediseñar la interfaz para ser minimalista y organizada, reduciendo la sobrecarga cognitiva. Basado en auditoría completa del sitio desplegado.
-
-**Problema raíz**: El hero tiene 20+ elementos interactivos en primera vista, las tarjetas muestran 6+ badges simultáneos, el nav no indica la página activa, y el responsive amontona verticalmente sin jerarquía.
-
-#### Sub-fase 84A: Hero Simplificado
-
-1. **Reordenar hero — Search primero**:
-   - [x] Search input como primer elemento visible (arriba de todo)
-   - [x] Career goals como sección separada con botón "Personalizar" toggleable (no chips siempre visibles)
-   - [x] Máximo 3 filtros primarios visibles: Área, Modalidad, Institución
-   - [x] Tipo, Ubicación, Duración, Precio dentro de "Más filtros" (botón expandible)
-   - [x] Precio máximo integrado dentro del search bar (input inline)
-
-2. **Colapsar filtros secundarios**:
-   - [x] Duración y Precio → agrupar en "Más filtros" seccionable
-   - [x] Quick sort: solo "Populares" y "Recientes" visibles
-   - [x] Eliminar fila separada de Duration+Price chips del hero
-   - [x] "Más filtros" con panel expandible (estado showMoreFilters)
-
-3. **Mover stats al catálogo header**:
-   - [x] Stats (+X Programas | Y Instituciones) → mover de hero al `#programas` section header
-   - [x] Hero queda con: H1 + descripción + search box + 3 filtros primarios + career goals colapsable
-   - [x] Stats dinámicos de `allCourses.length` y `stats.institutions`
-
-#### Sub-fase 84B: Cards Minimalistas
-
-1. **Reducir badges — máximo 3**:
-   - [x] Prioridad: modalidad > certificación > precio range (ocultar si >3)
-   - [x] Institución + tipo de programa integrados en header del card
-   - [x] Inicio y Duración → solo visibles en detail page, no en card
-   - [x] `view_count` → visible como "X visitas" sutil cuando >0
-
-2. **Reordenar card interior**:
-   - [x] Nombre del curso PRIMERO (posición 1)
-   - [x] Instituto + verified badge en línea debajo del nombre (posición 2)
-   - [x] Máximo 3 badges en línea (modalidad + certificación + precio) (posición 3)
-   - [x] Datos: solo Inversión + ROI en grid 2x1 (eliminados Duración/Inicio de card)
-   - [x] CTA único: "Ver detalle" (removidos botones "Info" y "+")
-
-3. **Comparar desde detail page**:
-   - [x] Botón "Comparar" visible solo en CourseDetailClient, no en card
-   - [x] Compare bar bottom mantiene su funcionalidad actual
-   - [x] Botón "Agregar a comparativa" + indicador 3/3 en sidebar
-
-#### Sub-fase 84C: Nav y Footer
-
-1. **Header — estado activo + touch targets**:
-   - [x] Link activo: `text-brand-blue font-bold border-b-2 border-brand-blue` cuando ruta coincide via `usePathname()`
-   - [x] Logo: incrementado de `h-8 w-8` a `h-10 w-10`
-   - [x] Mobile: overlay oscuro fuera del menú + botón X explícito
-   - [x] Nav links: cambiados de `text-xs` a `text-sm` para mejor legibilidad
-
-2. **Footer — 3 columnas + social proof**:
-   - [x] Tercera columna: "Contacto" con email y LinkedIn
-   - [x] Links Privacidad/Términos con `/privacidad` y `/terminos`
-   - [x] Tagline cambiado: "Transparencia educativa para el futuro del Perú"
-   - [x] Indicador "Datos actualizados periódicamente" con dot verde
-
-#### Sub-fase 84D: Responsive Rhythm
-
-1. **Hero mobile compacto**:
-   - [x] Career goals ocultos tras botón "Personalizar" en mobile y desktop
-   - [x] Search bar: input + precio máx + botón explorar en flex row (wrap en mobile)
-   - [x] Stats counter movido del hero al catálogo header
-   - [x] Máximo 3 filtros visibles, resto en "Más filtros"
-
-2. **Card mobile simplificado**:
-   - [x] Nombre + institución + precio son los elementos principales
-   - [x] Badges: máximo 3, modo responsivo con flex-wrap
-   - [x] Grid de datos: Inversión + ROI (mínimo en card)
-
-3. **Sistema de espaciado consistente**:
-   - [x] Tokens CSS: `.section-spacing` = `py-16 md:py-20`, `.section-spacing-sm` = `py-10 md:py-14`
-   - [x] Hero `pb-8` → `pb-10 md:pb-14`
-   - [x] Cómo Funciona: `section-spacing` class
-   - [x] Nosotros: `section-spacing` class
-   - [x] CTA: `section-spacing` class
-
-#### Sub-fase 84E: Datos en Tiempo Real (Fase 80B completar)
-
-1. **Client-side fetch verificando funcionalidad**:
-   - [x] Fetch con `is_active=eq.true&is_verified=eq.true&is_mock_data=neq.true` — excluye cursos test
-   - [x] Polling: `setInterval` cada 5 minutos re-ejecuta fetch
-   - [x] Timestamp "Actualizado HH:MM" en catálogo header
-   - [x] Caché localStorage con TTL 5min como fallback rápido
-
-2. **Vaciar mock data y poblar pipeline**:
-   - [ ] Eliminar curso `Psicología` (mock) de la DB Free — **pendiente (no borrar hasta tener datos reales)**
-   - [ ] Verificar que pipeline FG2 está ejecutando en CI/CD
-   - [ ] Confirmar que `is_active=true AND is_verified=true AND is_mock_data≠true` courses aparecen en frontend
 
