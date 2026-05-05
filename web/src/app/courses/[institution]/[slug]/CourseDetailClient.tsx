@@ -11,7 +11,7 @@ import {
   Star, MessageSquare, User
 } from "lucide-react";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface Rating {
@@ -245,7 +245,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         const safeInstSlug = encodeURIComponent(institutionSlug);
 
         // Buscamos el curso que coincida con el slug Y cuya institución vinculada también coincida con el slug de la URL
-        const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=*,institutions!inner(name,slug),categories(name)`;
+        const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`;
         
         const response = await fetch(url, {
           headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
@@ -260,7 +260,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           console.warn("⚠️ No encontrado por slug exacto, intentando búsqueda por URL y coincidencia parcial...");
           
           // Intentamos buscar por coincidencia en la URL (muy robusto si el slug se extrajo de ahí)
-          const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=*,institutions!inner(name,slug),categories(name)&limit=1`;
+          const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
           const urlRes = await fetch(urlMatch, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
           });
@@ -275,7 +275,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             const safeKeywords = encodeURIComponent(keywords);
             
             try {
-              const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=*,institutions!inner(name,slug),categories(name)&limit=1`;
+              const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
               const likeRes = await fetch(likeUrl, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
               });
@@ -336,7 +336,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           ];
 
           if (safeCatId) {
-            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses?category_id=eq.${safeCatId}&id=neq.${safeId}&limit=3&select=*,institutions(name,slug)`, { headers }));
+            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses?category_id=eq.${safeCatId}&id=neq.${safeId}&is_active=eq.true&is_verified=eq.true&limit=3&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug)`, { headers }));
           }
 
           const results = await Promise.all(promises);
