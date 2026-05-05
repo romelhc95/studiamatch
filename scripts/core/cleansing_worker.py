@@ -118,6 +118,17 @@ class CleansingWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and p.get('pipeline_ready')
         }
+        # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado
+        self.default_noise_name_patterns = [
+            r'agradecimiento',
+            r'thank.?\s*you',
+            r'gracias',
+            r'matr[ií]culas?\s+abiert',
+            r'inscr[ií]bete',
+            r'^facultad\s+de\b',
+            r'^universidad\s+\w+\s*\|',
+        ]
+        self.noise_name_patterns = self._load_noise_patterns()
         # Páginas que son solo contenedores y no cursos reales
         # Fase 72: hub_patterns diferencian landing page vs subpáginas vía /?$ (regex)
         # /idiomas/?$ bloquea /idiomas pero NO /idiomas/english-media
@@ -202,6 +213,29 @@ class CleansingWorker:
                     name = parts[0]
         return name
 
+    def _load_noise_patterns(self):
+        db_patterns = set()
+        for p in self.profiles or []:
+            patterns = p.get('noise_patterns', [])
+            if isinstance(patterns, list):
+                for pat in patterns:
+                    if isinstance(pat, str):
+                        if len(pat) > 200:
+                            logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
+                            continue
+                        if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                            logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
+                            continue
+                        try:
+                            re.compile(pat, re.IGNORECASE)
+                        except re.error as e:
+                            logger.warning(f"Invalid noise regex '{pat}': {e}")
+                            continue
+                        db_patterns.add(pat)
+        if db_patterns:
+            return list(sorted(db_patterns))
+        return self.default_noise_name_patterns
+
     def _extract_price_with_regex(self, text: str, profile: Dict[str, Any]):
         profile_regex = profile.get('price_regex')
         if profile_regex:
@@ -269,19 +303,13 @@ class CleansingWorker:
                 if exc in low_url:
                     return f"hard_db_exclusion:{exc}"
 
-        # Fase 75: Noise name patterns — detecta nombres de programas que son claramente ruido
-        noise_patterns = [
-            r'agradecimiento',
-            r'thank.?\s*you',
-            r'gracias',
-            r'matr[ií]culas?\s+abiert',
-            r'inscr[ií]bete',
-            r'^facultad\s+de\b',
-            r'^universidad\s+\w+\s*\|',
-        ]
-        for pat in noise_patterns:
-            if re.search(pat, low_name, re.IGNORECASE):
-                return f"noise_name_pattern:{pat}"
+        # Fase 79C: Noise name patterns — detecta nombres de programas que son claramente ruido
+        for pat in self.noise_name_patterns:
+            try:
+                if re.search(pat, low_name, re.IGNORECASE):
+                    return f"noise_name_pattern:{pat}"
+            except re.error:
+                continue
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
         if not description or len(description) < 20: return "description_too_short"

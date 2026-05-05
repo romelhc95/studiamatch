@@ -30,8 +30,8 @@ class SyncVectorWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and p.get('pipeline_ready')
         }
-        # Fase 75: Patrones de ruido — rechazar antes de insertar en courses
-        self.noise_patterns = [
+        # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado
+        self.default_noise_patterns = [
             re.compile(r'agradecimiento', re.IGNORECASE),
             re.compile(r'thank.?\s*you', re.IGNORECASE),
             re.compile(r'^https?://[^/]+/?$'),
@@ -39,6 +39,7 @@ class SyncVectorWorker:
             re.compile(r'matr[ií]cul', re.IGNORECASE),
             re.compile(r'inscr[ií]b', re.IGNORECASE),
         ]
+        self.noise_patterns = self._load_noise_patterns()
 
     def _load_profiles(self):
         try:
@@ -52,6 +53,29 @@ class SyncVectorWorker:
             if p.get('institution_id') == institution_id:
                 return p
         return {}
+
+    def _load_noise_patterns(self):
+        db_patterns = set()
+        for p in self.profiles or []:
+            patterns = p.get('noise_patterns', [])
+            if isinstance(patterns, list):
+                for pat in patterns:
+                    if isinstance(pat, str):
+                        if len(pat) > 200:
+                            logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
+                            continue
+                        if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                            logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
+                            continue
+                        try:
+                            re.compile(pat, re.IGNORECASE)
+                        except re.error as e:
+                            logger.warning(f"Invalid noise regex '{pat}': {e}")
+                            continue
+                        db_patterns.add(pat)
+        if db_patterns:
+            return [re.compile(p, re.IGNORECASE) for p in sorted(db_patterns)]
+        return self.default_noise_patterns
 
     def get_pending_enriched(self, limit=500):
         return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
@@ -70,10 +94,13 @@ class SyncVectorWorker:
 
         # Fase 75: Post-sync noise validation
         for pat in self.noise_patterns:
-            if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
-                logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
-                self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
-                return
+            try:
+                if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
+                    logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
+                    self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
+                    return
+            except re.error:
+                continue
 
         # Validate name: reject None, "None", empty, or too-short names
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
