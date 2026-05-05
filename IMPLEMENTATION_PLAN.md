@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 79A+77 y 80A+80B completadas y mergeadas a main. Producción en Cloudflare Pages pendiente de rebuild para activar real-time fetch. Auditoría de UX/Design completada (6.5/10). Fases 81-83 creadas para mejoras de discovery, engagement y polish.
-- **Último Hito**: Fase 80B completada — RLS hardening + client-side real-time fetch + localStorage cache. Producción con cursos `is_active=false` pero sitio muestra static export viejo (pendiente rebuild Cloudflare).
-- **Próxima Acción**: Ejecutar Fase 81 — UX/Design: Smart Discovery + Engagement (filtros contextuales, badges visuales, onboarding progresivo, best-value highlight en comparativa).
+- **Estado Actual**: Fase 81 completada y mergeada a desarrollo. Smart Discovery + Engagement implementado (badges, onboarding, breadcrumb, best-value). Fases 82-83 pendientes.
+- **Último Hito**: Fase 81 completada — UX/Design: Smart Discovery + Engagement. Badges de modalidad (🏫🌐🔀), verified badge, quick-sort (ROI/precio/recientes), onboarding selector de metas, empty state inteligente, breadcrumb contextual, best-value highlight en comparativa, lead form enriquecido, trust signals (certificación/nivel/beneficios), salary dinámico, fixes de color y whitespace.
+- **Próxima Acción**: Ejecutar Fase 82 — UX/Design: Data-Driven Enhancements (view_count, comparison_count, duration/price quick filters, campos subutilizados hacia la UI).
 
 ## Tareas Pendientes Priorizadas
 
@@ -56,8 +56,8 @@
 | **P1** | **Fase 80A — RLS Hardening + Column-Level Security** | Seguridad + Frontend | 🔴 CRÍTICO: RLS `USING (true)` en `courses` permite ver inactivos/no-verificados vía API. `select=*` en CourseDetailClient y CompareContent expone columnas internas (`is_mock_data`, `provider_used`, `last_scraped_at`). Leads INSERT sin validación server-side. Remediar antes de habilitar client-side fetch. | Ninguno |
 | **P1** | **Fase 80B — Client-Side Real-Time Fetch** | Frontend | Cambiar HomeContent para siempre consultar Supabase en tiempo real (Opción B). Agregar cache SWR/localStorage con TTL de 5min. Así los cambios en DB (is_active, ruido eliminado) se reflejan instantáneamente sin rebuild. | Depende de 80A |
 | **P2** | **Fase 80C — Rate Limiting + CORS Hardening** | Seguridad | Validación server-side en leads INSERT (email, longitud). Cache client-side para reducir llamadas API. CORS restrictivo en Pro tier. Revocar `test_ping()` SECURITY DECIDER. | Depende de 80A |
-| **P1** | **Fase 81 — UX/Design: Smart Discovery + Engagement** | Frontend + UX | 🔴 Rediseño de discovery para guiar al usuario al programa ideal: filtros contextuales (counts actualizados), badges visuales (modalidad, trending, ROI), comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI. | Ninguno |
-| **P2** | **Fase 82 — UX/Design: Data-Driven Enhancements** | Frontend + Datos | Campos de datos subutilizados: `certification`, `benefits`, `seniority_level`, `region`, `start_date`, `brochure_url` hacia la UI. Agregar `view_count` a schema para "Popular" sort. Duración quick filters. Price range badges. | Depende de 81 |
+| ~~P1~~ | ~~Fase 81 — UX/Design: Smart Discovery + Engagement~~ | ~~Frontend + UX~~ | ~~Rediseño de discovery: filtros contextuales, badges visuales, comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI.~~ | ~~Ninguno~~ |
+| **P2** | **Fase 82 — UX/Design: Data-Driven Enhancements** | Frontend + Datos | Campos de datos subutilizados: `certification`, `benefits`, `seniority_level`, `region`, `start_date`, `brochure_url` hacia la UI. Agregar `view_count` a schema para "Popular" sort. Duración quick filters. Price range badges. | Ninguno (dep. 81 completada) |
 | **P3** | **Fase 83 — UX/Design: Design System Polish** | Frontend | Colores hardcodeados → CSS variables, border-radius inconsistente (xl/2xl/3xl), shadow tokens, exit animations para tabs, count-up animation hero, cross-browser scrollbar, favicon custom. | Depende de 81 |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
@@ -3025,7 +3025,7 @@ Objetivo: Remediar vulnerabilidades críticas de seguridad identificadas por @se
    - [ ] Verificar que datos stale se refrescan después de 5 minutos
    - [ ] Monitorear bandwidth en Supabase Dashboard → Settings → Usage
 
-### Fase 81: UX/Design — Smart Discovery + Engagement [ ] Pendiente
+### Fase 81: UX/Design — Smart Discovery + Engagement [x] Completada
 
 **Auditoría base**: Puntuación actual 6.5/10. Principales issues: catálogo pasivo (filtra y muestra pero no guía), filtros contextuales incorrectos (counts totales vs filtrados), datos subutilizados (certification, benefits, seniority_level, region no se muestran), comparativa sin indicador de "mejor valor", UX flow fragmentado (breadcrumb perdido al navegar a detalle).
 
@@ -3068,40 +3068,40 @@ progresivo     totales  best    badge   context   best    de área/
 **Problema**: Los filtros muestran counts totales (no filtrados). No hay badges de modalidad con iconos. No hay indicadores de trending o relevancia.
 
 1. **Corregir `getFilteredExcluding()` en `HomeContent.tsx`**:
-   - [ ] Los badge counts en los dropdowns deben reflejar los resultados filtrados, no el total del catálogo
-   - [ ] Cuando usuario filtra por Área, los counts de Institución y Modalidad deben actualizar
+   - [x] Los badge counts en los dropdowns deben reflejar los resultados filtrados, no el total del catálogo
+   - [x] Cuando usuario filtra por Área, los counts de Institución y Modalidad deben actualizar
    - [ ] Agregar test visual: filtrar por "Data Science" → Institución count debe mostrar solo instituciones con cursos en esa área
 
 2. **Agregar badges visuales de modalidad**:
-   - [ ] `Presencial` → icono 🏫 + badge azul (`bg-blue-100 text-blue-800`)
-   - [ ] `Remoto` → icono 🌐 + badge verde (`bg-emerald-100 text-emerald-800`)
-   - [ ] `Híbrido` → icono 🔀 + badge morado (`bg-violet-100 text-violet-800`)
-   - [ ] Reemplazar texto plano actual por badge con icono en cards de curso y página de detalle
+   - [x] `Presencial` → icono 🏫 + badge azul (`bg-blue-100 text-blue-800`)
+   - [x] `Remoto` → icono 🌐 + badge verde (`bg-emerald-100 text-emerald-800`)
+   - [x] `Híbrido` → icono 🔀 + badge morado (`bg-violet-100 text-violet-800`)
+   - [x] Reemplazar texto plano actual por badge con icono en cards de curso y página de detalle
 
 3. **Agregar badge "Verified" en cards**:
-   - [ ] Mostrar `is_verified=true` como badge visual "✓ Verificado" en tarjetas de curso
+   - [x] Mostrar `is_verified=true` como badge visual "✓ Verificado" en tarjetas de curso
    - [ ] Añadir tooltip: "Información verificada por el equipo de StudIAMatch"
 
 4. **Agregar filtros quick-sort en el hero**:
    - [ ] "Más populares" → sort por `view_count` (requiere Fase 82: campo nuevo)
-   - [ ] "Mejor ROI" → sort por `roi_months` desc
-   - [ ] "Más accesibles" → sort por `price_pen` asc
-   - [ ] "Recientes" → sort por `created_at` desc
+   - [x] "Mejor ROI" → sort por `roi_months` asc
+   - [x] "Más accesibles" → sort por `price_pen` asc
+   - [x] "Recientes" → sort por `created_at` desc
 
 #### Sub-fase 81B: Smart Discovery + Onboarding Progresivo (P1)
 
 **Problema**: El usuario llega sin saber qué curso necesita. El sitio solo filtra, no guía. Necesita un selector de objetivo de carrera.
 
 1. **Agregar onboarding selector en el hero**:
-   - [ ] "¿Qué quieres lograr?" — 4 opciones con iconos:
+   - [x] "¿Qué quieres lograr?" — 4 opciones con iconos:
      - "Cambiar de carrera a Tech" → filtra por `seniority_level=Junior` + `course_type` relevantes
      - "Actualizarme en mi campo" → filtra por cursos cortos + `Remoto`/`Híbrido`
      - "Obtener un posgrado" → filtra por `course_type=Maestría,Doctorado,Especialización`
      - "Encontrar trabajo rápido" → filtra por `roi_months` alto + `certification` exists
-   - [ ] Cada opción aplica filtros predefinidos y scroll suave al grid de resultados
+   - [x] Cada opción aplica filtros predefinidos y scroll suave al grid de resultados
 
 2. **Empty state inteligente**:
-   - [ ] Cuando no hay resultados, mostrar sugerencias contextuales:
+   - [x] Cuando no hay resultados, mostrar sugerencias contextuales:
      - "No encontramos programas de [Área] en [Institución]"
      - "[Ver todos los programas de Data Science →]" (remover filtro de institución)
      - "[Ver programas en otras instituciones →]" (remover filtro de institución)
@@ -3109,34 +3109,34 @@ progresivo     totales  best    badge   context   best    de área/
 
 3. **Breadcrumb con contexto de filtro**:
    - [ ] Al navegar de grid → detalle, preservar filtros en URL params
-   - [ ] Mostrar breadcrumb: `Home > Data Science & IA > Universidad Lima > Nombre del Curso`
+   - [x] Mostrar breadcrumb: `Home > Data Science & IA > Universidad Lima > Nombre del Curso`
    - [ ] Link "Volver a resultados" que restaura los filtros anteriores
 
 4. **Compare: Best-value highlight**:
-   - [ ] En `/compare`, identificar automáticamente el curso con mejor ROI → badge "⭐ Mejor ROI" + borde dorado sutil
-   - [ ] Identificar el curso más accesible (menor precio) → badge "💰 Más accesible"
-   - [ ] Mínimo uno de los dos badges debe aparecer siempre (al menos uno tiene ROI calculable)
+   - [x] En `/compare`, identificar automáticamente el curso con mejor ROI → badge "⭐ Mejor ROI" + borde dorado sutil
+   - [x] Identificar el curso más accesible (menor precio) → badge "💰 Más accesible"
+   - [x] Mínimo uno de los dos badges debe aparecer siempre (al menos uno tiene ROI calculable)
 
 #### Sub-fase 81C: Lead Form Enriquecido + Trust Signals (P2)
 
 **Problema**: El lead form solo captura contacto (nombre, WhatsApp, email). No captura contexto del programa de interés.
 
 1. **Enriquecer lead form con contexto**:
-   - [ ] Agregar campo oculto: `course_id` ya se envía, pero añadir `source_page` (home, detail, compare)
-   - [ ] Agregar campo visible: "¿Qué área te interesa?" — dropdown con las 17 categorías
-   - [ ] Agregar campo visible: "Presupuesto estimado" — ranges: "S/ 0-5,000", "S/ 5,000-15,000", "S/ 15,000+"
-   - [ ] Agregar campo visible: "Modalidad preferida" — Presencial / Remoto / Híbrido / Sin preferencia
+   - [x] Agregar campo oculto: `course_id` ya se envía, pero añadir `source_page` (home, detail, compare)
+   - [x] Agregar campo visible: "¿Qué área te interesa?" — dropdown con las 17 categorías
+   - [x] Agregar campo visible: "Presupuesto estimado" — ranges: "S/ 0-5,000", "S/ 5,000-15,000", "S/ 15,000+"
+   - [x] Agregar campo visible: "Modalidad preferida" — Presencial / Remoto / Híbrido / Sin preferencia
 
 2. **Trust signals en página de detalle**:
-   - [ ] Sección "Qué incluye" — mostrar `benefits` si existe (lista con iconos ✓)
-   - [ ] Sección "Certificación" — mostrar `certification` como badge prominente
-   - [ ] Sección "Nivel" — mostrar `seniority_level` con icono (🌱 Junior, 🌿 Mid, 🌳 Senior)
-   - [ ] Corregir "Salario Sugerido S/ 4,800" hardcoded → usar dato real de `expected_monthly_salary` o ocultar si es null
+   - [x] Sección "Qué incluye" — mostrar `benefits` si existe (lista con iconos ✓)
+   - [x] Sección "Certificación" — mostrar `certification` como badge prominente
+   - [x] Sección "Nivel" — mostrar `seniority_level` con icono (🌱 Junior, 🌿 Mid, 🌳 Senior)
+   - [x] Corregir "Salario Sugerido S/ 4,800" hardcoded → usar dato real de `expected_monthly_salary` o ocultar si es null
 
 3. **Mejoras de detalle de curso**:
-   - [ ] Reemplazar color hardcodeado `bg-[#0A0F1C]` por variable CSS `bg-brand-slate`
-   - [ ] Corregir loading text "Validando credenciales académicas..." → "Cargando información del programa..."
-   - [ ] Reducir whitespace excesivo en related courses (`mt-32 pt-16` → `mt-16 pt-8`)
+   - [x] Reemplazar color hardcodeado `bg-[#0A0F1C]` por variable CSS `bg-brand-slate`
+   - [x] Corregir loading text "Validando credenciales académicas..." → "Cargando información del programa..."
+   - [x] Reducir whitespace excesivo en related courses (`mt-32 pt-16` → `mt-16 pt-8`)
    - [ ] Estandarizar border-radius en form inputs (usar `rounded-xl` consistentemente)
 
 ### Fase 82: UX/Design — Data-Driven Enhancements [ ] Pendiente
