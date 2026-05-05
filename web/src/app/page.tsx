@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, type Course, type Institution } from "@/lib/supabase";
 import HomeContent from "./HomeContent";
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ async function fetchCourses(): Promise<Course[]> {
     };
 
     const [cRes, iRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,categories(name),institutions(name,slug)&order=created_at.desc`, {
+      fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, {
         headers,
         next: { revalidate: 3600 }
       }),
