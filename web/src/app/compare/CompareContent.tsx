@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus, Star, DollarSign
+  ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus, Star, DollarSign, X, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
@@ -104,6 +104,15 @@ export default function CompareContent() {
         });
 
         setCourses(enriched);
+
+        // Fase 82A: Increment comparison_count for each loaded course
+        enriched.forEach((c: Course) => {
+          fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+            body: JSON.stringify({ p_course_id: c.id })
+          }).catch((e) => console.warn("increment_view_count failed:", e));
+        });
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
       } finally {
@@ -185,7 +194,7 @@ export default function CompareContent() {
                   className="absolute top-4 right-4 h-8 w-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm"
                   title="Retirar de la comparativa"
                 >
-                  <Plus className="h-4 w-4 rotate-45" />
+                  <X className="h-4 w-4" />
                 </button>
 
                 <div className="p-8 flex-1 space-y-8">
@@ -295,9 +304,9 @@ export default function CompareContent() {
                   <div className="text-xl font-bold text-slate-400">Espacio disponible</div>
                   <p className="text-sm text-slate-400 max-w-[200px] mx-auto">Agrega otro programa para una comparativa más completa.</p>
                 </div>
-                <Link href="/">
+                <Link href="/#programas">
                   <Button variant="outline" className="rounded-xl border-brand-blue text-brand-blue font-bold hover:bg-brand-blue hover:text-white transition-all">
-                    + Agregar más programas
+                    <ArrowRight className="h-4 w-4 mr-1" /> Agregar más programas
                   </Button>
                 </Link>
               </div>
