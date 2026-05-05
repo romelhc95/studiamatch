@@ -16,6 +16,9 @@ from shared.db_client import get_db_client
 load_dotenv()
 logger = setup_lima_logging("SyncVectorWorker")
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # Supabase credentials are now handled by db_client
 
 class SyncVectorWorker:
@@ -166,7 +169,9 @@ class SyncVectorWorker:
             "category": main_category,
             "is_active": course_is_active,
             "is_verified": True,
-            "last_scraped_at": "now()"
+            "last_scraped_at": "now()",
+            "provider_used": enriched.get('provider_used', 'mock'),
+            "is_mock_data": enriched.get('is_mock_data', True)
         }
 
         # Generate Embedding (Placeholder for OpenAI call)

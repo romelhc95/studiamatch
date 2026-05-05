@@ -27,6 +27,9 @@ from shared.db_client import get_db_client, DatabaseClient
 load_dotenv()
 logger = setup_lima_logging("CleansingWorker")
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 
 def aggressive_html_clean(raw_html: str) -> str:
     if not raw_html: return ""

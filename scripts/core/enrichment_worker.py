@@ -27,11 +27,15 @@ from shared.db_client import get_db_client
 load_dotenv()
 logger = setup_lima_logging("EnrichmentWorker")
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # API Keys & Credits (Multicloud Policy)
 CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
+NVCF_API_KEY = os.getenv("NVCF_API_KEY")
 
 class EnrichmentWorker:
     def __init__(self):
@@ -44,9 +48,10 @@ class EnrichmentWorker:
         }
         cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
         gh_provider = LLMProvider("GitHub", self._call_github)
+        nv_provider = LLMProvider("NVIDIA", self._call_nvidia)
         gemini_provider = LLMProvider("Gemini", self._call_gemini)
         self.orchestrator = ProviderOrchestrator(
-            providers=[cf_provider, gh_provider, gemini_provider],
+            providers=[cf_provider, gh_provider, nv_provider, gemini_provider],
             logger=logger,
         )
 
@@ -121,6 +126,34 @@ class EnrichmentWorker:
             return None
         return None
 
+    def _call_nvidia(self, prompt):
+        if not NVCF_API_KEY: return None
+        try:
+            url = "https://integrate.api.nvidia.com/v1/chat/completions"
+            payload = {
+                "model": "meta/llama-3.1-70b-instruct",
+                "messages": [
+                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 1024
+            }
+            headers = {
+                "Authorization": f"Bearer {NVCF_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=30)
+            if res.status_code == 200:
+                return res.json()["choices"][0]["message"]["content"]
+            else:
+                logger.warning(f"NVIDIA error: HTTP {res.status_code} - {res.text[:200]}")
+                return None
+        except Exception as e:
+            logger.warning(f"NVIDIA error: {e}")
+            return None
+        return None
+
     def _clean_json_response(self, text):
         if not text: return None
         text = re.sub(r'```json\s*', '', text)
@@ -142,6 +175,7 @@ class EnrichmentWorker:
 
     def _call_llm_for_pillars(self, name, description, inst_id=None):
         profile = self._get_profile(inst_id) if inst_id else {}
+        section_keywords = profile.get('section_keywords', {})
         section_keywords = profile.get('section_keywords', {})
         field_defaults = profile.get('field_defaults', {})
 
@@ -170,17 +204,18 @@ REGLAS CRÍTICAS:
 
 Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "total_cost_est": null, "requirements": [], "graduate_profile": "", "curriculum_summary": {{"pilares": []}}, "modality": "Presencial|Remoto|Híbrido", "primary_campus": "", "degree_type": "Maestría|Especialización|Diplomado|Curso|Taller|Bootcamp", "start_date": null, "categories": [], "difficulty_level": "", "ai_summary": ""}}"""
 
-        result = self.orchestrator.call_with_fallback(prompt, self._clean_json_response)
+        result, provider_name = self.orchestrator.call_with_fallback(prompt, self._clean_json_response)
         if result is not None:
-            return result
-        return self._generate_smart_mock(name, description)
+            return result, provider_name
+        return self._generate_smart_mock(name, description), None
 
     def enrich_record(self, cleansed):
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched = self._call_llm_for_pillars(name, desc, inst_id)
+            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id)
+            is_mock = provider_name is None
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
             official_name = enriched.get("official_name")
@@ -262,7 +297,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "categories": normalize(enriched.get("categories")),
                 "difficulty_level": enriched.get("difficulty_level"),
                 "ai_summary": enriched.get("ai_summary"),
-                "status": "pending"
+                "status": "pending",
+                "provider_used": provider_name or "mock",
+                "is_mock_data": is_mock
             }
 
             # 🛡️ Guardar en enriched_programs con toda la metadata de 14 pilares
@@ -285,7 +322,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     "start_date": save_data.get("start_date"),
                     "categories": save_data.get("categories"),
                     "difficulty_level": save_data.get("difficulty_level"),
-                    "ai_summary": save_data.get("ai_summary")
+                    "ai_summary": save_data.get("ai_summary"),
+                    "provider_used": save_data.get("provider_used", "mock"),
+                    "is_mock_data": save_data.get("is_mock_data", True)
                 }]
                 rpc_result = self.db.rpc('atomic_enrichment_promote', {
                     "p_enriched_data": rpc_data,

@@ -71,11 +71,13 @@ class LimaFormatter(logging.Formatter):
         return dt.isoformat()
 
 def setup_lima_logging(name: str):
-    """Configures a logger with Lima Time formatting."""
+    """Configures a logger with Lima Time formatting and UTF-8 encoding."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     
     if not logger.handlers:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
         handler = logging.StreamHandler(sys.stdout)
         formatter = LimaFormatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
@@ -544,34 +546,47 @@ class ProviderOrchestrator:
         return normal + degraded
 
     def call_with_fallback(self, prompt, clean_fn):
-        """Iterate active providers, apply clean_fn, try jsonrepair on failure, return parsed dict or None."""
+        """Iterate active providers, apply clean_fn, try jsonrepair on failure.
+        Returns (parsed_dict, provider_name) on success, or (None, None) if all fail."""
         import json as _json
         active = self.get_active_providers()
         for provider in active:
             try:
+                t0 = time.time()
                 raw = provider.call_fn(prompt)
+                elapsed_ms = int((time.time() - t0) * 1000)
                 cleaned = clean_fn(raw) if raw else None
                 if cleaned:
                     try:
                         result = _json.loads(cleaned)
                         provider.record_success()
-                        return result
+                        self.logger.info(f"Provider {provider.name} success ({elapsed_ms}ms)")
+                        return result, provider.name
                     except (_json.JSONDecodeError, ValueError):
                         repaired = self._try_jsonrepair(cleaned)
                         if repaired is not None:
                             provider.record_success()
                             provider.record_repair()
-                            self.logger.info(f"JSON reparado vía jsonrepair para {provider.name}")
-                            return repaired
+                            self.logger.info(f"JSON reparado vía jsonrepair para {provider.name} ({elapsed_ms}ms)")
+                            return repaired, provider.name
                         provider.record_fail()
-                        self.logger.warning(f"JSON inválido de {provider.name} (jsonrepair tampoco pudo reparar)")
+                        self.logger.warning(f"JSON inválido de {provider.name} ({elapsed_ms}ms, jsonrepair tampoco pudo reparar)")
                 else:
                     provider.record_fail()
+                    self.logger.warning(f"Provider {provider.name} returned None ({elapsed_ms}ms)")
             except Exception as e:
                 provider.record_fail()
                 self.logger.warning(f"Fallo con {provider.name}: {e}")
-        self.logger.warning("Todos los providers fallaron — usando smart mock")
-        return None
+        # All providers failed — check for early-exit
+        if self._all_degraded():
+            self.logger.warning("TODOS los proveedores están degradados. Activando early-exit.")
+        return None, None
+
+    def _all_degraded(self):
+        """Returns True if all providers have fail_rate > 0.8 after 5+ calls each."""
+        if len(self.providers) == 0:
+            return True
+        return all(p.is_degraded for p in self.providers)
 
     def _try_jsonrepair(self, text):
         """Attempt jsonrepair if available, return parsed dict or None."""

@@ -38,6 +38,9 @@ from shared.db_client import get_db_client
 logger = setup_lima_logging("UniversalHarvester")
 load_dotenv()
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 
 class UniversalHarvester:
     def __init__(self, institution, global_start=None):
