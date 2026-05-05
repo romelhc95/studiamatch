@@ -15,6 +15,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const pathname = usePathname();
 
   const [allCourses, setAllCourses] = useState<Course[]>(initialCourses);
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || "");
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || "");
   const [loading, setLoading] = useState(initialCourses.length === 0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +47,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     { id: 'postgrad', label: 'Posgrado', icon: GraduationCap, desc: 'Maestrías y especializaciones' },
     { id: 'fast-job', label: 'Trabajo rápido', icon: TrendingUp, desc: 'Alto ROI con certificación' },
   ];
+
+  // Debounce: espera 300ms después del último tipeo para actualizar filtros
+  useEffect(() => {
+    const t = setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   // Sync state to URL
   useEffect(() => {
@@ -508,12 +515,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-slate-300 group-focus-within:text-brand-blue transition-colors" />
                 </div>
-                <Input
-                  placeholder="¿Qué quieres estudiar hoy?"
-                  className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                  <Input
+                    placeholder="¿Qué quieres estudiar hoy?"
+                    className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                  />
               </div>
 
               <div className="h-10 w-px bg-slate-100 self-center hidden md:block" />

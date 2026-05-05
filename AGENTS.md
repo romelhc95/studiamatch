@@ -294,7 +294,9 @@ Harvester       Cleansing              Enrichment           Sync Vector
 
 ## Notas Críticas de Arquitectura
 
-1. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
+1. **CORS en Supabase Free tier**: Por defecto, Supabase Free permite todos los orígenes (`Access-Control-Allow-Origin: *`). No es posible restringir CORS en Free tier. Esto es un **riesgo aceptado** — la API solo expone datos públicos (RLS filtra `is_active=true AND is_verified=true`). En Pro tier se debe restringir a `https://studiamatch.com` y `https://*.studiamatch.pages.dev`.
+
+2. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
 
 2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar `publishable_key` o `secret_key`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
 
