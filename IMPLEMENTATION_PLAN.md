@@ -53,6 +53,9 @@
 | **P2** | **Fase 79B — Circuit Breaker por Institución** | Pipeline | Agregar `max_consecutive_errors`, `circuit_open`, `circuit_opened_at` a `institution_site_profiles`. Skippear institución tras N errores 403/429. Early-exit en enrichment cuando todos los providers están degraded. | Depende de 79A |
 | **P2** | **Fase 79C — Noise Patterns Centralizados** | Pipeline | Mover `noise_patterns` de hardcoded en `sync_vector_worker.py` a JSONB en `institution_site_profiles`. Permits overrides por institución. | Depende de 79A |
 | **P2** | **Fase 79D — Schema Validation + JSONB Guardrails** | Pipeline | CHECK constraints para JSONB arrays, `validate_jsonb_is_array()` SQL, auto-corrección en db_client y harvester. Prevenir Bug 5 (string-vs-array) a nivel schema. | Depende de 79C |
+| **P1** | **Fase 80A — RLS Hardening + Column-Level Security** | Seguridad + Frontend | 🔴 CRÍTICO: RLS `USING (true)` en `courses` permite ver inactivos/no-verificados vía API. `select=*` en CourseDetailClient y CompareContent expone columnas internas (`is_mock_data`, `provider_used`, `last_scraped_at`). Leads INSERT sin validación server-side. Remediar antes de habilitar client-side fetch. | Ninguno |
+| **P1** | **Fase 80B — Client-Side Real-Time Fetch** | Frontend | Cambiar HomeContent para siempre consultar Supabase en tiempo real (Opción B). Agregar cache SWR/localStorage con TTL de 5min. Así los cambios en DB (is_active, ruido eliminado) se reflejan instantáneamente sin rebuild. | Depende de 80A |
+| **P2** | **Fase 80C — Rate Limiting + CORS Hardening** | Seguridad | Validación server-side en leads INSERT (email, longitud). Cache client-side para reducir llamadas API. CORS restrictivo en Pro tier. Revocar `test_ping()` SECURITY DEFINER. | Depende de 80A |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
@@ -2914,4 +2917,108 @@ Objetivo: Resolver bug de encoding `ó`→`+` (mojibake) en frontend y pipeline,
 4. **Validación**:
    - [ ] Ejecutar health check con datos existentes y verificar que no hay JSONB strings
    - [ ] Intentar INSERT con JSONB string y verificar que el CHECK constraint lo rechaza
+
+### Fase 80: Frontend Security Hardening + Real-Time Fetch [ ] Pendiente
+Objetivo: Remediar vulnerabilidades críticas de seguridad identificadas por @security-auditor y habilitar client-side real-time fetch para que cambios en DB (is_active, ruido eliminado) se reflejen instantáneamente sin rebuild.
+
+**Hallazgos Críticos (existentes HOY, no causados por Opción B)**:
+
+| Severidad | Hallazgo | Ubicación | Impacto |
+|-----------|----------|-----------|---------|
+| 🔴 CRÍTICO | `select=*` expone columnas internas (`is_mock_data`, `provider_used`, `last_scraped_at`, `last_404_at`) | `CourseDetailClient.tsx:248,263,278`, `CompareContent.tsx:78` | Revela cuáles cursos son mock vs reales, infraestructura de scraping |
+| 🔴 CRÍTICO | RLS `USING (true)` permite ver cursos inactivos/no verificados vía API directa | Supabase: `courses_select_public` | Bypass de filtros `is_active`/`is_verified` del frontend |
+| 🟡 ALTO | Falta filtro `is_active=eq.true&is_verified=eq.true` en queries de detalle | `CourseDetailClient.tsx:248,263,278` | Acceso a cursos en borrador |
+| 🟡 ALTO | `leads` INSERT con `WITH CHECK (true)` — sin validación server-side | Supabase: `leads_insert_public` | Spam, posible XSS vía `first_name`/`description` |
+| 🟡 MEDIO | Sin rate limiting en API anónima | Supabase Free tier | Abuso/DoS |
+| 🟡 MEDIO | CORS abierto por defecto en Free tier | Supabase config | Cualquier dominio puede consultar la API |
+
+#### Sub-fase 80A: RLS Hardening + Column-Level Security (P1)
+
+1. **Redefinir RLS en `courses` — solo cursos activos y verificados para anon**:
+   - [ ] Migration SQL (Free + Pro):
+     ```sql
+     DROP POLICY IF EXISTS courses_select_public ON courses;
+     CREATE POLICY courses_select_public ON courses
+       FOR SELECT TO anon
+       USING (is_active = true AND is_verified = true);
+     ```
+   - [ ] Verificar que el frontend sigue funcionando (los queries ya filtran `is_active=eq.true&is_verified=eq.true`)
+   - [ ] Verificar que `service_role` y `publishable_key` aún pueden ver todos los cursos (para pipeline)
+
+2. **Reemplazar `select=*` con lista explícita de columnas públicas**:
+   - [ ] Crear constante `COURSE_PUBLIC_FIELDS` en `supabase.ts`:
+     ```typescript
+     export const COURSE_PUBLIC_FIELDS = 'id,name,slug,url,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,institution_id,created_at,updated_at,provider_used';
+     ```
+   - [ ] `HomeContent.tsx` línea 182: reemplazar el query actual con `select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)`
+   - [ ] `CourseDetailClient.tsx` líneas 248, 263, 278: reemplazar `select=*` con `select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)`
+   - [ ] `CompareContent.tsx` línea 78: reemplazar `select=*` con `select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)`
+
+3. **Agregar filtro `is_active=eq.true&is_verified=eq.true` a queries de detalle**:
+   - [ ] `CourseDetailClient.tsx`: agregar `&is_active=eq.true&is_verified=eq.true` a todas las queries de cursos
+   - [ ] `CompareContent.tsx`: agregar el mismo filtro
+   - [ ] Verificar que al ingresar URL directa de un curso inactivo, se muestra 404 o mensaje "Curso no disponible"
+
+4. **Validación server-side en `leads` INSERT**:
+   - [ ] Migration SQL (Free + Pro):
+     ```sql
+     DROP POLICY IF EXISTS leads_insert_public ON leads;
+     CREATE POLICY leads_insert_public ON leads
+       FOR INSERT TO anon
+       WITH CHECK (
+         length(first_name) > 0 AND length(first_name) <= 100
+         AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+         AND length(email) <= 255
+         AND length(whatsapp) <= 30
+       );
+     ```
+   - [ ] Agregar sanitización XSS en `HomeContent.tsx` y `CourseDetailClient.tsx` para campos de lead (strip HTML tags, limitar longitud)
+
+5. **Remover `test_ping()` SECURITY DEFINER**:
+   - [ ] `DROP FUNCTION IF EXISTS test_ping();` o revocar execute a anon
+   - [ ] Agregar `search_path` a las 8 funciones con search_path mutable (ya detectadas por advisor)
+
+6. **Validación post-implementación**:
+   - [ ] Verificar con `curl` que `/rest/v1/courses` con anon key solo retorna cursos activos y verificados
+   - [ ] Verificar que `/rest/v1/courses?select=provider_used,is_mock_data` con anon key NO retorna datos (debería retornar las columnas pero solo de cursos activos)
+   - [ ] Verificar que un INSERT a `leads` sin email válido es rechazado con 403/406
+   - [ ] Verificar que course detail muestra 404 para cursos inactivos
+
+#### Sub-fase 80B: Client-Side Real-Time Fetch (P1)
+
+1. **Modificar `HomeContent.tsx` para siempre consultar Supabase**:
+   - [ ] Cambiar lógica `useEffect`: remover `if (initialCourses.length > 0) return;` para siempre hacer fetch
+   - [ ] Agregar `stale-while-revalidate` pattern: usar `initialCourses` como dato inicial, luego re-fetch en background
+   - [ ] Implementar cache con `localStorage` y TTL de 5 minutos para evitar llamadas redundantes
+   - [ ] Actualizar estadísticas (`allCourses.length`, contadores de instituciones) después del re-fetch
+
+2. **Agregar `COURSE_PUBLIC_FIELDS` a `page.tsx`**:
+   - [ ] Reemplazar la query SSR en `fetchCourses()` (línea 30) con `select=${COURSE_PUBLIC_FIELDS}` + filtro `is_active=eq.true&is_verified=eq.true`
+   - [ ] Mantener `next: { revalidate: 3600 }` como fallback para ISR si el client-side fetch falla
+
+3. **Validación post-implementación**:
+   - [ ] Hacer `is_active = false` en un curso desde Supabase Dashboard
+   - [ ] Recargar `studiamatch.com` y verificar que el curso desaparece sin necesidad de rebuild
+   - [ ] Verificar que el contador de programas se actualiza dinámicamente
+   - [ ] Verificar que la primera carga es rápida (usa SSR data) y luego se actualiza en background
+
+#### Sub-fase 80C: Rate Limiting + CORS Hardening (P2)
+
+1. **Cache client-side para reducir llamadas API**:
+   - [ ] Implementar cache en `localStorage` con TTL de 5 minutos para courses e institutions
+   - [ ] Agregar hash del query como key del cache para evitar colisiones
+   - [ ] Invalidar cache cuando se detecten cambios (via `updated_at` timestamp)
+
+2. **CORS restrictivo (requiere Pro tier)**:
+   - [ ] En Supabase Pro: configurar CORS allow-origins a `https://studiamatch.com` y `https://*.studiamatch.pages.dev`
+   - [ ] Mientras tanto en Free tier: documentar limitación y aceptar riesgo
+
+3. **Rate limiting mitigations**:
+   - [ ] Agregar debounce de 300ms a búsquedas en `HomeContent.tsx` para evitar spin de la API
+   - [ ] Considerar Supabase Edge Function como BFF proxy con rate limitingIP-based (futuro)
+
+4. **Validación**:
+   - [ ] Verificar que el sitio carga correctamente con cache habilitado
+   - [ ] Verificar que datos stale se refrescan después de 5 minutos
+   - [ ] Monitorear bandwidth en Supabase Dashboard → Settings → Usage
 
