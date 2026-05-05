@@ -890,9 +890,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                   <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
                 </div>
               )}
-            </Card>
-
-            <div className="sticky top-24 mt-6">
+            <div className="mt-6">
               <button
                 onClick={() => toggleCompare(course)}
                 className={cn(
@@ -915,6 +913,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 </div>
               )}
             </div>
+            </Card>
           </div>
         </div>
 

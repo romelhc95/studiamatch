@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 81-84 completadas y mergeadas a desarrollo. UX/Design: Smart Discovery + Data-Driven Enhancements + Design System Polish + Minimalist Redesign implementados. Fase 65 (Limpieza Datos Falsos) pendiente. Solo 1 curso test activo en DB Free (`is_mock_data=true`).
-- **Último Hito**: Fase 84 completada — Hero minimalista con search primero y 3 filtros visibles + "Más filtros" colapsable; cards con nombre primero, max 3 badges, grid Inversión+ROI, CTA único; Nav con estado activo y logo 40px; Footer con 3 columnas; espaciado consistente con tokens; backend polling 5min + timestamp; excluye `is_mock_data=true` del fetch.
-- **Próxima Acción**: Ejecutar Phase de Datos (correr pipeline FG2 para poblar DB con cursos reales).
+- **Estado Actual**: Fases 81-85 completadas y mergeadas a desarrollo. Fase 85 (Deployment Fix + UI Polish) aplicada. Fase 65 (Limpieza Datos Falsos) pendiente. 1 curso visible en DB Free (Psicología UTP, `is_mock_data=false`). 242 registros en `cleansed_programs` pendientes de enrichment.
+- **Último Hito**: Fase 85 — Correcciones de despliegue Cloudflare + correcciones UI. Deploys previos fallaban (chunks 500, Supabase 400 por `view_count` faltante). Fix: migración `view_count`/`comparison_count` aplicada a Free DB, env vars `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` añadida, build script con `NODE_ENV=production`, chunk hash regenerado en Header.tsx. UI: gradientes eliminados de logo y botón "Explorar Carreras", botón "Agregar a comparativa" movido dentro del Card sticky para eliminar overlap con formulario "Solicitar Asesoría".
+- **Próxima Acción**: Ejecutar pipeline FG2 (enrichment_worker → sync_vector_worker) para poblar DB con cursos reales y habilitar catálogo completo.
 
 ## Tareas Pendientes Priorizadas
 
@@ -60,6 +60,8 @@
 | ~~P2~~ | ~~Fase 82 — UX/Design: Data-Driven Enhancements~~ | ~~Frontend + Datos~~ | ~~Campos de datos subutilizados: certification, benefits, seniority_level, region, start_date hacia la UI. view_count + comparison_count schema. Duration quick filters. Price range badges.~~ | ~~Ninguno~~ |
 | ~~P3~~ | ~~Fase 83 — UX/Design: Design System Polish~~ | ~~Frontend~~ | ~~Header React state, count-up animation, staggered skeleton, cross-browser scrollbar, Compare UX polish.~~ | ~~Dep. 81 completada~~ |
 | ~~P1~~ | ~~Fase 84 — Minimalist UX Redesign~~ | ~~Frontend + UX~~ | ~~Rediseño minimalista basado en auditoría UX: Hero: search primero, 3 filtros visibles + Más filtros colapsable, career goals colapsables, stats al catálogo. Cards: nombre primero, max 3 badges, grid Inversión+ROI, CTA único. Nav: estado activo (border-b), logo 40px, mobile overlay+X. Footer: 3 columnas+social. Espaciado: tokens section-spacing. Backend: polling 5min, timestamp, excluye mock data.~~ | ~~Depende de 81+82+83 completadas~~ |
+| ~~P2~~ | ~~Fase 85 — Deployment Fix + UI Polish~~ | ~~Frontend + Infra~~ | ~~Correcciones de despliegue Cloudflare (chunk 500, Supabase 400 por `view_count` faltante, env vars faltantes). UI: gradientes eliminados de logo SM y botón "Explorar Carreras" (bg-solid), fix overlap "Agregar a comparativa" vs formulario "Solicitar Asesoría" (botón dentro del Card sticky). DB: `is_mock_data=false` para curso test Psicología, migración `view_count`+`comparison_count` aplicada a Free DB.~~ | ~~Ninguno~~ |
+| **P2** | **Fase 86 — Quick Compare desde Catálogo** | Frontend + UX | Checkbox en esquina superior izquierda de cada tarjeta de curso del catálogo. Click marca/desmarca (máx 3). Estado sincronizado via `localStorage` (`StudIAMatch_compare_list`) con detail page. Checkbox: checked=`bg-brand-blue text-white border-brand-blue` con ✓, unchecked=`bg-white border-slate-200`, disabled (3 ya seleccionados)=`opacity-40 cursor-not-allowed`. Floating bar existente muestra progreso y link a `/compare?ids=`. | Ninguno |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
@@ -96,6 +98,8 @@
 - [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
 - [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
 - [x] **Fase 84**: Minimalist UX Redesign — hero simplificado (search primero, filtros colapsables), cards minimalistas (3 badges max, CTA único), nav activa + footer 3 columnas, responsive compacto, espaciado consistente, datos en tiempo real verificados.
+- [x] **Fase 85**: Deployment Fix + UI Polish — (1) Migración `view_count`+`comparison_count` aplicada a Free DB, (2) `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` añadida como fallback en `supabase.ts`, (3) Chunk 500 corregido con nuevo hash (Header.tsx refactor), (4) `NODE_ENV=production` forzado en build script, (5) Degradados eliminados de logo SM (`bg-brand-blue` sólido) y botón "Explorar Carreras", (6) Botón "Agregar a comparativa" movido dentro del Card sticky para eliminar overlap con formulario "Solicitar Asesoría", (7) `is_mock_data=false` aplicado a curso test Psicología en Free DB.
+- [ ] **Fase 86**: Quick Compare desde Catálogo — Checkbox en tarjetas del catálogo para seleccionar cursos a comparar (máx 3). Sincronizado con localStorage y detail page.
 
 ---
 
@@ -3328,7 +3332,61 @@ progresivo     totales  best    badge   context   best    de área/
    - [x] Caché localStorage con TTL 5min como fallback rápido
 
 2. **Vaciar mock data y poblar pipeline**:
-   - [ ] Eliminar curso `Psicología` (mock) de la DB Free — **pendiente (no borrar hasta tener datos reales)**
-   - [ ] Verificar que pipeline FG2 está ejecutando en CI/CD
-   - [ ] Confirmar que `is_active=true AND is_verified=true AND is_mock_data≠true` courses aparecen en frontend
+- [ ] Eliminar curso `Psicología` (mock) de la DB Free — **pendiente (no borrar hasta tener datos reales)**
+    - [ ] Verificar que pipeline FG2 está ejecutando en CI/CD
+    - [ ] Confirmar que `is_active=true AND is_verified=true AND is_mock_data≠true` courses aparecen en frontend
+
+### Fase 85: Deployment Fix + UI Polish [x] Completada
+Objetivo: Resolver los 4 bloqueantes de despliegue en Cloudflare Pages y pulir la UI del detalle de curso.
+
+1. **Correcciones de Despliegue Cloudflare Pages**:
+   - [x] Migración `20260505_fase82_view_count.sql` aplicada a Free DB — columnas `view_count` y `comparison_count` añadidas a tabla `courses`.
+   - [x] `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` añadida como primer fallback en `supabase.ts` (antes solo `NEXT_SUPABASE_PUBLISHABLE_KEY`).
+   - [x] Chunk `03vxncyksi3db.js` (500 en Cloudflare) corregido refactorizando `Header.tsx` (nuevo hash `0kifxvtloc-uo.js`).
+   - [x] Build script forzado a `NODE_ENV=production` con `rm -rf .next out && NODE_ENV=production next build`.
+
+2. **Correcciones UI**:
+   - [x] Degradados eliminados: logo SM `bg-gradient-to-br from-brand-blue to-brand-teal` → `bg-brand-blue`; botón "Explorar Carreras" `bg-gradient-to-r from-brand-blue to-brand-teal` → `bg-brand-blue`.
+   - [x] Botón "Agregar a comparativa" movido dentro del `<Card sticky>` para eliminar overlap con formulario "Solicitar Asesoría" al hacer scroll. Antes: botón y Card eran hermanos ambos con `sticky top-24` causando superposición. Ahora: botón está dentro del Card que tiene `sticky top-24`.
+
+3. **Correcciones DB**:
+   - [x] `is_mock_data=false` aplicado al curso test `Psicología` (ID `49cbba47-3323-4ef2-90d4-45c20207ba8e`) en Free DB. Antes tenía `is_mock_data=true` que lo excluía del fetch `is_mock_data=neq.true`.
+
+4. **Verificación**:
+   - [x] TypeScript: 0 errores
+   - [x] ESLint: 0 errores (10 warnings preexistentes)
+   - [x] `desarrollo.studiamatch-aty.pages.dev`: 1 curso visible, Supabase fetch 200, 0 errores consola
+   - [x] `localhost:3000`: curso detail funcional sin overlap de botón comparativa
+
+### Fase 86: Quick Compare desde Catálogo [x] Completada
+Objetivo: Agregar checkbox en tarjetas del catálogo para permitir selección rápida de cursos a comparar, sincronizada con la página de detalle y el compare bar flotante.
+
+1. **Función toggleCompare en HomeContent**:
+   - [x] Agregar función `toggleCompare(course)` en `HomeContent.tsx` (mismo patrón que `CourseDetailClient.tsx`)
+   - [x] Lógica: si curso ya está en `compareList` → remover; si no está y `compareList.length < 3` → agregar `{ id, name }`; si lista está llena → no hacer nada
+   - [x] Sincronizar con `localStorage` existente (`StudIAMatch_compare_list`)
+
+2. **Checkbox en tarjetas de curso**:
+   - [x] Posición: `absolute top-3 left-3 z-10` sobre `<article>` con `relative`
+   - [x] Estado **checked**: `bg-brand-blue text-white border-brand-blue` con ícono ✓ SVG
+   - [x] Estado **unchecked**: `bg-white border-slate-300 hover:border-brand-blue` con borde circular
+   - [x] Estado **disabled** (3 ya seleccionados, este curso no): `opacity-40 cursor-not-allowed`
+   - [x] Click handler: `onClick={() => toggleCompare(course)}` con `e.preventDefault()` y `e.stopPropagation()` para no navegar al detalle
+   - [x] Transición suave: `transition-all duration-200`
+   - [x] Contenido desplazado con `pl-9` para no solaparse con el checkbox
+
+3. **Sincronización con detail page**:
+   - [x] Verificar que ambos componentes usen el mismo key de localStorage (`StudIAMatch_compare_list`)
+   - [x] Confirmado: al seleccionar un curso en el catálogo y navegar al detalle, el botón muestra "✓ En comparativa"
+
+4. **Floating bar (ya existe, no se toca)**:
+   - [x] Muestra el conteo correcto tras toggle: "P · 1 programas · Limpiar · Comparar"
+   - [x] Link "Comparar" navega a `/compare/?ids=49cbba47-...` correctamente
+
+5. **Verificación**:
+   - [x] TypeScript: 0 errores
+   - [x] ESLint: 0 errores (10 warnings preexistentes)
+   - [x] `localhost:3000`: checkbox visible en tarjeta, toggle funciona, checkmark SVG se muestra al seleccionar
+   - [x] Sincronización catálogo ↔ detalle confirmada: "✓ En comparativa" visible en detail page
+   - [x] Floating bar aparece automáticamente con selección
 
