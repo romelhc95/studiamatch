@@ -341,25 +341,25 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 border border-white/[0.08]">
                 <div className="h-1.5 w-1.5 rounded-full bg-brand-mint" />
                 <span className="text-[11px] font-medium text-white/50">
-                  Stud<span className="text-brand-blue font-bold">IA</span>Match -� Data-driven decisions
+                  Stud<span className="text-brand-blue font-bold">IA</span>Match — Data-driven decisions
                 </span>
               </div>
 
               <h1 className="text-2xl md:text-4xl font-bold leading-[1.15] tracking-tight text-white text-balance">
-                Elige tu pr+�ximo programa con{" "}
+                Elige tu próximo programa con{" "}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-mint">datos reales</span>
               </h1>
 
               <p className="text-sm md:text-base text-slate-300 leading-relaxed max-w-lg font-medium">
-                Compara inversi+�n, contenido y retorno financiero de programas tech en Per+�.
+                Compara inversión, contenido y retorno financiero de programas tech en Perú.
               </p>
 
               <div id="hero-search" className="pt-2 max-w-4xl scroll-mt-32 w-full">
                 <div className="flex flex-wrap items-center gap-2 mb-3 px-1 pb-1">
                   {[
-                    { id: 'area', label: '+�rea', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
+                    { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
                     { id: 'tipo', label: 'Tipo', icon: GraduationCap, current: selectedType, setter: setSelectedType, options: activeTypes },
-                    { id: 'inst', label: 'Instituci+�n', icon: Building2, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), options: activeInstitutions },
+                    { id: 'inst', label: 'Institución', icon: Building2, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), options: activeInstitutions },
                     { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: activeModes },
                   ].map((filter) => (
                     <div key={filter.id} className="relative">
@@ -426,7 +426,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       <Search className="h-5 w-5 text-slate-300 group-focus-within:text-brand-blue transition-colors" />
                     </div>
                     <Input
-                      placeholder="-+Qu+� quieres estudiar hoy?"
+                      placeholder="¿Qué quieres estudiar hoy?"
                       className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -439,7 +439,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     <Input
                       type="text"
                       inputMode="numeric"
-                      placeholder="Precio M+�x"
+                      placeholder="Precio Máx"
                       className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 w-full rounded-none shadow-none"
                       value={activeFilters.priceMax}
                       onKeyDown={(e) => {
@@ -495,12 +495,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       <div id="programas" className="mx-auto max-w-6xl px-6 py-8 scroll-mt-16">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-brand-slate">Cat+�logo de Programas</h2>
+            <h2 className="text-xl font-bold tracking-tight text-brand-slate">Catálogo de Programas</h2>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-[13px] text-slate-400 font-medium">{filteredCourses.length} resultados encontrados</p>
               {(searchTerm || selectedCategory !== "Todos" || selectedType !== "Todos" || activeFilters.selectedInstitution !== "Todas" || activeFilters.modes.length > 0 || activeFilters.priceMax || sortOrder) && (
                 <>
-                  <span className="text-slate-300">���</span>
+                  <span className="text-slate-300">·</span>
                   <button 
                     onClick={() => {
                       setSearchTerm("");
@@ -558,7 +558,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       <div className="mt-4 pt-3 border-t border-slate-50">
                         <div className="grid grid-cols-2 gap-y-3">
                           <div>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inversi+�n</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inversión</p>
                             <p className="text-[13px] font-semibold text-brand-slate tabular-nums truncate">
                               {course.price_status === 'consultar' || !course.price_pen || course.price_pen <= 0 ? "Consultar" : `S/ ${course.price_pen.toLocaleString()}`}
                             </p>
@@ -568,7 +568,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                             <p className="text-[13px] font-semibold text-brand-slate capitalize truncate">{course.mode || "No especificada"}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Duraci+�n</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Duración</p>
                             <p className="text-[13px] font-semibold text-brand-slate truncate">{course.duration || "No especificada"}</p>
                           </div>
                           <div>
@@ -598,7 +598,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                             : "border-slate-200 text-slate-400 hover:border-brand-blue hover:text-brand-blue"
                         )}
                       >
-                        {compareList.find(c => c.id === course.id) ? "ԣ�" : "+"}
+                        {compareList.find(c => c.id === course.id) ? "✓" : "+"}
                       </button>
                       <Button
                         onClick={() => openModal('info', course)}
@@ -682,20 +682,20 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         </div>
       )}
 
-      {/* C+�mo Funciona */}
+      {/* Cómo Funciona */}
       <section id="como-funciona" className="py-16 bg-slate-50/50 scroll-mt-16">
         <div className="mx-auto max-w-6xl px-6">
           <div className="max-w-lg mb-10">
-            <p className="text-[13px] font-medium text-brand-blue mb-1.5">Metodolog+�a</p>
-            <h2 className="text-2xl font-bold tracking-tight">-+C+�mo funciona StudIAMatch?</h2>
-            <p className="text-[14px] text-slate-400 mt-2 leading-relaxed">Tres pilares para garantizar la transparencia de tu inversi+�n educativa.</p>
+            <p className="text-[13px] font-medium text-brand-blue mb-1.5">Metodología</p>
+            <h2 className="text-2xl font-bold tracking-tight">¿Cómo funciona StudIAMatch?</h2>
+            <p className="text-[14px] text-slate-400 mt-2 leading-relaxed">Tres pilares para garantizar la transparencia de tu inversión educativa.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { step: '01', title: 'Curaci+�n', desc: 'Auditamos programas bajo una matriz de 14 pilares de calidad.', icon: Search },
-              { step: '02', title: 'An+�lisis', desc: 'Calculamos el ROI basado en salarios de mercado actuales.', icon: TrendingUp },
-              { step: '03', title: 'Decisi+�n', desc: 'Ruta imparcial sin sesgo institucional.', icon: CheckCircle2 },
+              { step: '01', title: 'Curación', desc: 'Auditamos programas bajo una matriz de 14 pilares de calidad.', icon: Search },
+              { step: '02', title: 'Análisis', desc: 'Calculamos el ROI basado en salarios de mercado actuales.', icon: TrendingUp },
+              { step: '03', title: 'Decisión', desc: 'Ruta imparcial sin sesgo institucional.', icon: CheckCircle2 },
             ].map((item) => (
               <div key={item.step} className="bg-white p-6 rounded-xl border border-slate-100 hover:border-slate-200 transition-all hover:shadow-card group">
                 <div className="flex items-center justify-between mb-4">
@@ -715,12 +715,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         <div className="mx-auto max-w-6xl px-6">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 space-y-5">
-              <p className="text-[13px] font-medium text-brand-blue">Nuestra misi+�n</p>
+              <p className="text-[13px] font-medium text-brand-blue">Nuestra misión</p>
               <h2 className="text-2xl font-bold tracking-tight text-balance">
-                Democratizar la inteligencia educativa en Per+�.
+                Democratizar la inteligencia educativa en Perú.
               </h2>
               <p className="text-[14px] text-slate-400 leading-relaxed">
-                En un mercado saturado de promesas, aportamos claridad. Consolidamos datos reales de instituciones para que tomes decisiones basadas en m+�rito y retorno financiero.
+                En un mercado saturado de promesas, aportamos claridad. Consolidamos datos reales de instituciones para que tomes decisiones basadas en mérito y retorno financiero.
               </p>
               <div className="flex gap-3 pt-1">
                 <div className="px-4 py-3 rounded-lg bg-slate-50 border border-slate-100">
@@ -750,14 +750,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       <section className="mx-auto max-w-6xl px-6 pb-16">
         <div className="rounded-xl bg-brand-blue p-10 md:p-12 text-center text-white relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">-+Listo para elegir con <span className="text-brand-mint">certeza</span>?</h2>
-            <p className="text-blue-200/60 text-[14px] mt-3 max-w-md mx-auto">Obt+�n una recomendaci+�n personalizada basada en datos reales de mercado.</p>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">¿Listo para elegir con <span className="text-brand-mint">certeza</span>?</h2>
+            <p className="text-blue-200/60 text-[14px] mt-3 max-w-md mx-auto">Obtén una recomendación personalizada basada en datos reales de mercado.</p>
             <div className="mt-6">
               <Button
                 onClick={() => { setModalType('recommendation'); setSelectedCourseForInfo(null); setIsModalOpen(true); }}
                 className="bg-white hover:bg-slate-50 text-brand-blue font-semibold rounded-lg px-8 h-11 text-[13px] border-0 shadow-lg shadow-black/10 transition-all active:scale-[0.98]"
               >
-                Solicitar asesor+�a
+                Solicitar asesoría
               </Button>
             </div>
           </div>
@@ -775,10 +775,10 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
             <div className="p-8">
               <p className="text-[12px] font-medium text-brand-blue mb-2">
-                {modalType === 'info' ? 'Consulta directa' : 'Asesor+�a personalizada'}
+                {modalType === 'info' ? 'Consulta directa' : 'Asesoría personalizada'}
               </p>
               <h3 className="text-xl font-bold mb-6 text-brand-slate tracking-tight leading-tight">
-                {modalType === 'info' ? selectedCourseForInfo?.name : 'Obt+�n tu ruta educativa.'}
+                {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
               </h3>
 
               {isSuccess ? (
@@ -786,8 +786,8 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   <div className="h-14 w-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="h-7 w-7 text-emerald-500" />
                   </div>
-                  <h3 className="text-[15px] font-semibold text-brand-slate">Enviado con +�xito</h3>
-                  <p className="text-[13px] text-slate-400 mt-1">Un asesor te contactar+� pronto.</p>
+                  <h3 className="text-[15px] font-semibold text-brand-slate">Enviado con éxito</h3>
+                  <p className="text-[13px] text-slate-400 mt-1">Un asesor te contactará pronto.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmitLead} className="space-y-3.5">
@@ -812,7 +812,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     </div>
                   )}
                   <Button disabled={isSubmitting} type="submit" className="w-full h-10 bg-brand-slate hover:bg-black text-white font-medium rounded-lg border-0 text-[13px] mt-2 transition-all active:scale-[0.98]">
-                    {isSubmitting ? "Enviando�Ǫ" : "Confirmar solicitud"}
+                    {isSubmitting ? "Enviando…" : "Confirmar solicitud"}
                   </Button>
                 </form>
               )}

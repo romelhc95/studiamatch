@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 76 completada — 7 bugs del pipeline FG2 corregidos y mergeados. Fases 62, 68, 26, 61, 75 reabiertas parcialmente.
-- **Último Hito**: Fase 76 completada. Bugs 1-7 corregidos y promovidos a producción.
-- **Próxima Acción**: Validación E2E — ejecutar FG2 workflow_dispatch en `main` para verificar pipeline sin errores.
+- **Estado Actual**: Fase 76 completada. FG2 validación E2E ejecutada (run #25324179676 en desarrollo). 3 providers de LLM fallaron (0% efectividad), 99.5% smart mock. Nueva Fase 77 creada para agregar NVIDIA NIM + diagnóstico de providers.
+- **Último Hito**: Fase 76 completada. FG2 ejecución manual en desarrollo: 4/5 estaciones completadas (Harvesting 118 NEW, Cleansing 21 promoted, Enrichment 10,794 smart mock, Sync 10/10, QA 13 inconsistencias). FG2 en main falló por timeout de `apt-get` (infraestructura transitoria).
+- **Próxima Acción**: Ejecutar Fase 77 — agregar NVIDIA NIM como 4to provider LLM + diagnóstico de providers existentes.
 
 ## Tareas Pendientes Priorizadas
 
@@ -46,7 +46,14 @@
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
 | ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
-| **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 64 |
+| **P1** | **Fase 77 — NVIDIA NIM + Provider Diagnostics** | Pipeline | Agregar NVIDIA Build (`meta/llama-3.1-70b-instruct`) como 4to provider LLM en enrichment_worker. Diagnosticar por qué Cloudflare (0%), GitHub (0.44%) y Gemini (0%) fallaron en run #25324179676. Implementar early-exit cuando todos los providers están degraded (evitar 5.67h procesando smart mock). | Ninguno |
+| **P2** | **Fase 78 — CI/CD Resiliencia** | Infraestructura | Migrar Job 1 (Harvesting) de Docker+apt-get a `actions/setup-python@v5` como los otros 4 jobs. Agregar retry en apt-get. Agregar `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` a workflows. | Ninguno |
+| **P2** | **Fase 62D-rev — Fix stealth_async** | Pipeline | Corregir `name 'stealth_async' is not defined` en harvester DMC (`catalog_scroll`). Verificar import de `playwright_stealth`. | Ninguno |
+| **P1** | **Fase 79A — Fix Encoding + Trazabilidad** | Pipeline + Frontend | Resolver 30 instancias de mojibake `ó`→`+` en `HomeContent.tsx`, agregar `.editorconfig` con `charset=utf-8`, forzar UTF-8 en pipeline (workers + CI), agregar `provider_used` + `is_mock_data` a `enriched_programs`, métricas de latency/tokens por provider LLM. | Ninguno |
+| **P2** | **Fase 79B — Circuit Breaker por Institución** | Pipeline | Agregar `max_consecutive_errors`, `circuit_open`, `circuit_opened_at` a `institution_site_profiles`. Skippear institución tras N errores 403/429. Early-exit en enrichment cuando todos los providers están degraded. | Depende de 79A |
+| **P2** | **Fase 79C — Noise Patterns Centralizados** | Pipeline | Mover `noise_patterns` de hardcoded en `sync_vector_worker.py` a JSONB en `institution_site_profiles`. Permits overrides por institución. | Depende de 79A |
+| **P2** | **Fase 79D — Schema Validation + JSONB Guardrails** | Pipeline | CHECK constraints para JSONB arrays, `validate_jsonb_is_array()` SQL, auto-corrección en db_client y harvester. Prevenir Bug 5 (string-vs-array) a nivel schema. | Depende de 79C |
+| **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
 | **P4** | **Fase 58/59 — Verificación frontend** | QA | Confirmar que campos mapeados (start_date, price, objectives, syllabus) se muestran correctamente en UI. Evaluar si Phase 2 necesita Playwright. | No bloqueante |
@@ -2641,7 +2648,7 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 - **Impacto**: FG2 Fase 1.5 (Cleansing) genera cientos de errores PGRST204 por registro con `pipeline_ready=false`. El `status` se actualiza a `skipped` (columna válida), pero el motivo del skip no se registra.
 - **Fix**: Cambiar `error_message` → `processing_error` en `cleansing_worker.py:398`.
 - **Reasgna**: Fase 75 (Exclusion Gate) — el código de skip se escribió asumiendo un nombre de columna incorrecto.
-- **Estado**: ⏳ Pendiente.
+- **Estado**: ✅ Corregido en Fase 76.
 
 **Bug 7 — `error_message` columna inexistente en `cleansed_programs`** (MEDIO):
 - **Archivo**: `scripts/core/enrichment_worker.py` línea 360
@@ -2649,7 +2656,7 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 - **Impacto**: FG2 Fase 2 (Enrichment) genera errores PGRST204 por cada registro con `pipeline_ready=false`. El registro queda sin motivo de skip documentado.
 - **Fix**: Cambiar el PATCH a solo `{'status': 'skipped'}` (sin `error_message`) ya que `cleansed_programs` no tiene columna de error. Alternativa: agregar columna `processing_error` a `cleansed_programs` vía migration.
 - **Reasgna**: Fase 75 (Exclusion Gate) — mismmo problema que Bug 6.
-- **Estado**: ⏳ Pendiente.
+- **Estado**: ✅ Corregido en Fase 76.
 
 **Fases reabiertas parcialmente**:
 - **Fase 62** (Site Type Routing / Discovery Modes): Bug `discovery_mode` ausente + Bug 5 JSONB string-vs-array.
@@ -2671,4 +2678,240 @@ WHERE url IN (SELECT url FROM courses WHERE is_active = false AND is_verified = 
 | `scripts/core/enrichment_worker.py` | FIX | Bug 7: eliminar `error_message` de PATCH a `cleansed_programs` (no tiene columna de error) |
 | `IMPLEMENTATION_PLAN.md` | UPDATE | Fase 76 |
 | `AGENTS.md` | UPDATE | Documentar bugs y fixes |
+
+### Fase 77: NVIDIA NIM + Provider Diagnostics [ ] Pendiente
+Objetivo: Agregar NVIDIA Build como 4to provider LLM para el enriquecimiento, diagnosticar por qué los 3 providers actuales fallan masivamente (Cloudflare 0%, GitHub 0.44%, Gemini 0%), e implementar early-exit cuando todos los providers están degraded.
+
+**Diagnóstico del run #25324179676 (desarrollo, workflow_dispatch)**:
+- Enrichment procesó 10,794 registros en 5.67h
+- Cloudflare: 0/10,746 exitosos (0%)
+- GitHub Models: 48/10,794 exitosos (0.44%)
+- Gemini: 0/10,746 exitosos (0%)
+- 99.5% recibió smart mock (datos vacíos sin valor real)
+- 13 inconsistencias en QA audit (esperado: datos mock no fiables)
+
+1. **Agregar NVIDIA NIM como 4to provider**:
+   - [ ] Agregar `NVCF_API_KEY = os.getenv("NVCF_API_KEY")` en `enrichment_worker.py` (línea ~35)
+   - [ ] Implementar `_call_nvidia(self, prompt)` — endpoint OpenAI-compatible `https://integrate.api.nvidia.com/v1/chat/completions`, modelo `meta/llama-3.1-70b-instruct`, system prompt español, `temperature=0.3`, `max_tokens=2048`, `timeout=60`
+   - [ ] Registrar NVIDIA como 2do provider en `ProviderOrchestrator` (después de GitHub, antes de Cloudflare): `providers=[gh_provider, nvidia_provider, cf_provider, gemini_provider]`
+   - [ ] Agregar `NVCF_API_KEY` a `.github/workflows/production_pipeline.yml` env del step "Multicloud AI Enrichment"
+   - [ ] Agregar `NVCF_API_KEY` a GitHub Secrets en los 3 environments (Development, Certification, Production)
+   - [ ] Actualizar `AGENTS.md` con la nueva variable de entorno
+
+2. **Diagnosticar providers existentes**:
+   - [ ] Verificar que `CF_API_TOKEN` y `CF_ACCOUNT_ID` estén configurados en GitHub Secrets (Development environment)
+   - [ ] Verificar que `GH_MODELS_TOKEN` esté configurado y no expirado en GitHub Secrets
+   - [ ] Verificar que `GEMINI_API_KEY` esté configurada y no expirada en GitHub Secrets
+   - [ ] Agregar logging detallado de errores HTTP en `_call_cloudflare()`, `_call_github()`, `_call_gemini()` (response status code + body snippet)
+   - [ ] Ejecutar FG2 workflow_dispatch en `desarrollo` y analizar los errores de cada provider
+
+3. **Implementar early-exit en degradación masiva**:
+   - [ ] En `ProviderOrchestrator.call_with_fallback()`: si los 4 providers fallan en los primeros 5 registros consecutivos, loggear `CRITICAL: All providers failed 5 consecutive calls. Switching to fast smart mock mode.` y usar `_generate_smart_mock()` para los registros restantes sin intentar LLM calls (evitar 5.67h procesando mock)
+   - [ ] Agregar métrica `fast_mock_count` al summary final para distinguir entre LLM-enriched y fast-mock records
+
+4. **Fix `stealth_async` en DMC harvester** (Fase 62D-rev):
+   - [ ] Corregir `name 'stealth_async' is not defined` en `universal_harvester.py` cuando DMC ejecuta `catalog_scroll` con Playwright
+   - [ ] Verificar que `playwright_stealth` esté correctamente importado y que `Stealth.apply_stealth_async()` se use solo cuando Playwright está disponible
+
+5. **Validación post-implementación**:
+   - [ ] Ejecutar FG2 workflow_dispatch en `desarrollo` y verificar que NVIDIA responde con datos reales (no smart mock)
+   - [ ] Verificar que al menos 1 de los 4 providers produce datos enriquecidos válidos
+   - [ ] Confirmar que el early-exit funciona cuando todos los providers fallan
+   - [ ] Promover a certificacion y main siguiendo SDLC
+
+### Fase 78: CI/CD Resiliencia [ ] Pendiente
+Objetivo: Resolver fallos de infraestructura en GitHub Actions que bloquean el pipeline FG2 en la rama `main`.
+
+**Diagnóstico del run #25358491355 (main, schedule)**:
+- Job 1 (Massive Harvesting) falló en step "Install dependencies (system python)"
+- Causa: `apt-get install python3-pip` no puede conectar a `archive.ubuntu.com:80` (timeout de red transitorio)
+- Los otros 4 jobs (1.5-4) se SKIPPARON porque dependían del Job 1
+- El Job 1 en `desarrollo` usa `actions/setup-python@v5` (no requiere apt-get) y funciona correctamente
+
+1. **Migrar Job 1 (Harvesting) de Docker+apt-get a actions/setup-python**:
+   - [ ] En `.github/workflows/production_pipeline.yml`, reemplazar el step "Initialize containers" (Docker) y "Install dependencies (system python)" (apt-get) con `actions/setup-python@v5` + `pip install -r requirements.txt` (idéntico a los Jobs 1.5-4)
+   - [ ] Verificar que Playwright se instala correctamente en el Job 1 sin Docker (usar cache de Playwright como los otros jobs)
+
+2. **Agregar retry a pasos de infraestructura**:
+   - [ ] Si se mantiene apt-get en algún job, agregar `retry` (máximo 3 intentos) con delay de 30s entre intentos
+   - [ ] Agregar timeout explícito de 5 minutos a `apt-get install` para evitar colgar 10+ minutos
+
+3. **Node.js 20 deprecation**:
+   - [ ] Agregar `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` como environment variable en los 3 workflows (`production_pipeline.yml`, `fg3_integrity.yml`, `fg1_inventory.yml`)
+   - [ ] O alternativamente: actualizar `actions/checkout@v4` → `actions/checkout@v5` y `actions/setup-python@v5` → versión compatible con Node.js 24 cuando estén disponibles
+
+4. **Validación post-implementación**:
+   - [ ] Ejecutar FG2 workflow_dispatch en `main` y verificar que el Job 1 completa sin errores de dependencias
+   - [ ] Verificar que los 5 jobs completan sin SKIPPED
+
+### Fase 79: Encoding + Telemetría + Resiliencia Pipeline [ ] Pendiente
+Objetivo: Resolver bug de encoding `ó`→`+` (mojibake) en frontend y pipeline, agregar trazabilidad al pipeline, y fortalecer resiliencia por institución.
+
+**Bug Encoding — Diagnóstico Completo**:
+- **Frontend (CRÍTICO)**: `web/src/app/HomeContent.tsx` tiene **30 instancias de mojibake** — el único archivo afectado de los 13 archivos TSX/TS auditados
+- **Patrón de corrupción**: Los bytes líderes UTF-8 fueron reemplazados por ASCII:
+  - `C3 XX` (ó, á, é, í, ú, ñ, Á) → `+` + U+FFFD (ej: `ó` → `+´`)
+  - `C2 XX` (¿, ¡) → `-` + `+` (ej: `¿` → `-+`)
+  - `E2 80 XX` (—, …, ✓) → `-` + U+FFFD (ej: `—` → `-?`)
+- **Causa raíz**: El archivo fue abierto/guardado con un editor en Windows que no manejó correctamente UTF-8 (probablemente Latin-1 o Windows-1252)
+- **Pipeline (preventivo)**: `slugify()` usa NFD normalization (correcto para slugs), pero logs en GitHub Actions pueden mostrar mojibake si el locale no es UTF-8
+- **Instancias afectadas en `HomeContent.tsx`** (30 total):
+
+| Línea | Actual (mojibake) | Correcto | Contexto |
+|-------|-------------------|----------|-----------|
+| 344 | `Match -? Data-driven` | `Match — Data-driven` | Badge hero |
+| 349 | `pr+ximo` | `próximo` | H1 hero |
+| 354 | `inversi+n` / `Per+` | `inversión` / `Perú` | Subtítulo hero |
+| 360 | `+rea` | `Área` | Filtro dropdown |
+| 362 | `Instituci+n` | `Institución` | Filtro dropdown |
+| 429 | `-+Qu+ quieres` | `¿Qué quieres` | Placeholder búsqueda |
+| 442 | `M+x` | `Máx` | Placeholder precio |
+| 498 | `Cat+logo` | `Catálogo` | Título sección |
+| 503 | `???` | `·` | Separador |
+| 561 | `Inversi+n` | `Inversión` | Label card |
+| 571 | `Duraci+n` | `Duración` | Label card |
+| 601 | `???` | `✓` | Botón comparar |
+| 685 | `C+mo` | `Cómo` | Comentario JSX |
+| 689 | `Metodolog+a` | `Metodología` | Label sección |
+| 690 | `-+C+mo` | `¿Cómo` | H2 sección |
+| 691 | `inversi+n` | `inversión` | P sección |
+| 696 | `Curaci+n` | `Curación` | Card paso 01 |
+| 697 | `An+lisis` | `Análisis` | Card paso 02 |
+| 698 | `Decisi+n` | `Decisión` | Card paso 03 |
+| 718 | `misi+n` | `misión` | Label sección |
+| 720 | `Per+` | `Perú` | H2 sección |
+| 723 | `m+rito` | `mérito` | P sección |
+| 753 | `-+Listo` | `¿Listo` | H2 CTA |
+| 754 | `Obt+n` / `recomendaci+n` | `Obtén` / `recomendación` | P CTA |
+| 760 | `asesor+a` | `asesoría` | Botón CTA |
+| 778 | `Asesor+a` | `Asesoría` | Label modal |
+| 781 | `Obt+n` | `Obtén` | H3 modal |
+| 789 | `+xito` | `éxito` | H3 modal success |
+| 790 | `contactar+` | `contactará` | P modal success |
+| 815 | `Enviando???` | `Enviando…` | Botón submit |
+
+- **Archivos verificados limpios** (sin mojibake): `page.tsx`, `layout.tsx`, `globals.css`, `CourseDetailClient.tsx`, `CourseDetailClientWrapper.tsx`, `page.tsx` (courses), `page.tsx` (compare), `CompareContent.tsx`, `Header.tsx`, `Footer.tsx`, `supabase.ts`, `utils.ts`
+
+#### Sub-fase 79A: Fix Encoding + Trazabilidad (P1)
+
+1. **Corregir 30 instancias de mojibake en `HomeContent.tsx`**:
+   - [ ] Línea 344: `Match -? Data-driven` → `Match — Data-driven`
+   - [ ] Línea 349: `pr+ximo` → `próximo`
+   - [ ] Línea 354: `inversi+n` → `inversión`, `Per+` → `Perú`
+   - [ ] Línea 360: `+rea` → `Área`
+   - [ ] Línea 362: `Instituci+n` → `Institución`
+   - [ ] Línea 429: `-+Qu+ quieres` → `¿Qué quieres`
+   - [ ] Línea 442: `M+x` → `Máx`
+   - [ ] Línea 498: `Cat+logo` → `Catálogo`
+   - [ ] Línea 503: `???` → `·` (separador)
+   - [ ] Línea 561: `Inversi+n` → `Inversión`
+   - [ ] Línea 571: `Duraci+n` → `Duración`
+   - [ ] Línea 601: `???` → `✓` (checkmark)
+   - [ ] Línea 685: `C+mo` → `Cómo` (comentario JSX)
+   - [ ] Línea 689: `Metodolog+a` → `Metodología`
+   - [ ] Línea 690: `-+C+mo` → `¿Cómo`
+   - [ ] Línea 691: `inversi+n` → `inversión`
+   - [ ] Línea 696: `Curaci+n` → `Curación`
+   - [ ] Línea 697: `An+lisis` → `Análisis`
+   - [ ] Línea 698: `Decisi+n` → `Decisión`
+   - [ ] Línea 718: `misi+n` → `misión`
+   - [ ] Línea 720: `Per+` → `Perú`
+   - [ ] Línea 723: `m+rito` → `mérito`
+   - [ ] Línea 753: `-+Listo` → `¿Listo`
+   - [ ] Línea 754: `Obt+n` → `Obtén`, `recomendaci+n` → `recomendación`
+   - [ ] Línea 760: `asesor+a` → `asesoría`
+   - [ ] Línea 778: `Asesor+a` → `Asesoría`
+   - [ ] Línea 781: `Obt+n` → `Obtén`
+   - [ ] Línea 789: `+xito` → `éxito`
+   - [ ] Línea 790: `contactar+` → `contactará`
+   - [ ] Línea 815: `Enviando???` → `Enviando…`
+
+2. **Prevenir re-incidencia de mojibake**:
+   - [ ] Crear `.editorconfig` en la raíz del repo con `charset = utf-8`, `end_of_line = lf`, `indent_style = space`, `indent_size = 2` (para TSX/TS/JS/CSS) e `indent_size = 4` (para Python)
+   - [ ] Agregar `.editorconfig` al tracking de git y commit
+   - [ ] Verificar que VS Code muestra `UTF-8` en la barra de estado para todos los archivos TSX/TS
+
+3. **Forzar UTF-8 en pipeline (preventivo)**:
+   - [ ] Agregar `sys.stdout.reconfigure(encoding='utf-8')` al inicio de cada worker (harvester, cleansing, enrichment, sync) para asegurar que stdout/stderr usen UTF-8 en GitHub Actions
+   - [ ] Agregar `PYTHONIOENCODING=utf-8` como env var en `.github/workflows/production_pipeline.yml` (los 5 jobs)
+   - [ ] En `scripts/shared/utils.py`, modificar `LimaFormatter` y `setup_lima_logging()` para garantizar encoding UTF-8 en todos los StreamHandler y FileHandler
+
+4. **Agregar trazabilidad de providers LLM**:
+   - [ ] Agregar columna `provider_used TEXT` a `enriched_programs` (migration SQL: `ALTER TABLE enriched_programs ADD COLUMN IF NOT EXISTS provider_used TEXT DEFAULT 'mock';`)
+   - [ ] Agregar columna `is_mock_data BOOLEAN DEFAULT true` a `enriched_programs` (distingue datos reales de smart mock = 99.5% del run actual)
+   - [ ] En `enrichment_worker.py`: guardar `provider_used` y `is_mock_data` cuando un registro es enriquecido por LLM real vs smart mock
+   - [ ] En `sync_vector_worker.py`: propagar `provider_used` e `is_mock_data` a `courses` para trazabilidad end-to-end
+
+5. **Métricas de latency + tokens por provider**:
+   - [ ] Agregar log structurado al final de cada `_call_*()` en `ProviderOrchestrator` con: provider, latency_ms, tokens_input, tokens_output, success, model
+   - [ ] Agregar resumen al final de cada run: total calls por provider, tasa de éxito, avg latency, total tokens consumidos
+   - [ ] Guardar métricas en `enriched_programs.metadata` como JSONB: `{"provider": "github", "latency_ms": 3420, "tokens": 1500, "model": "gpt-4o"}`
+
+6. **Validación post-implementación**:
+   - [ ] Verificar que `HomeContent.tsx` muestra correctamente todos los caracteres con acentuación en el navegador (ó, á, é, í, ú, ñ, ¿, ¡, —, …, ✓)
+   - [ ] Ejecutar `npx tsc --noEmit` en `/app/web` para verificar que no hay errores TypeScript
+   - [ ] Ejecutar harvester con una institución que tenga acentos en nombres de programas y verificar que logs muestran caracteres correctos (no `+` ni `?`)
+   - [ ] Verificar `PYTHONIOENCODING=utf-8` en GitHub Actions
+   - [ ] Consultar `SELECT provider_used, is_mock_data, count(*) FROM enriched_programs GROUP BY 1,2` para confirmar trazabilidad
+
+#### Sub-fase 79B: Circuit Breaker por Institución (P2)
+
+1. **Agregar campos de circuit breaker a `institution_site_profiles`**:
+   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS max_consecutive_errors INT DEFAULT 10;`
+   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS consecutive_errors INT DEFAULT 0;`
+   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS circuit_open BOOLEAN DEFAULT false;`
+   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS circuit_opened_at TIMESTAMPTZ;`
+
+2. **Implementar circuit breaker en `universal_harvester.py`**:
+   - [ ] Incrementar `consecutive_errors` en cada error 403/429/timeout para la institución
+   - [ ] Si `consecutive_errors >= max_consecutive_errors` → set `circuit_open=true`, `circuit_opened_at=now()`, y skippear esa institución por el resto de la sesión
+   - [ ] Reset `consecutive_errors=0` y `circuit_open=false` tras X downloads exitosos
+   - [ ] Log warning cuando circuit se abre/cierra para observabilidad
+
+3. **Implementar circuit breaker en `enrichment_worker.py`**:
+   - [ ] Si un provider falla 5 registros consecutivos → marcarlo como degraded (ya existe lógica parcial)
+   - [ ] Si todos los providers están degraded → activar early-exit con smart mock masivo (evitar 5.67h procesando mock inútil)
+   - [ ] Agregar métrica: cuántos registros se procesaron con smart mock vs LLM real
+
+4. **Validación**:
+   - [ ] Simular errores 403 consecutivos y verificar que circuit se abre correctamente
+   - [ ] Verificar que el harvester continúa con otras instituciones cuando circuit está abierto
+
+#### Sub-fase 79C: Noise Patterns Centralizados (P2)
+
+1. **Agregar columna `noise_patterns` a `institution_site_profiles`**:
+   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS noise_patterns JSONB DEFAULT '[]'::jsonb;`
+   - [ ] Seed: migrar los 6 patterns hardcoded de `sync_vector_worker.py:31-38` a perfiles existentes
+
+2. **Cargar noise_patterns dinámicamente en `sync_vector_worker.py`**:
+   - [ ] Reemplazar `self.noise_patterns` hardcoded por carga desde `institution_site_profiles.noise_patterns`
+   - [ ] Fallback: si el perfil no tiene `noise_patterns`, usar la lista hardcodeada actual como default
+   - [ ] Compilar regex desde JSONB: `patterns = [re.compile(p) for p in profile.get('noise_patterns', [])]`
+
+3. **Permitir overrides por institución**:
+   - [ ] Instituciones con ruido específico (ej: UTP con "diplomado", UPC con "agradecimiento") pueden tener patterns propios en su perfil
+   - [ ] Los patterns globales (`agradecimiento`, `matrícula`, `inscríbete`) se aplican a todas las instituciones
+
+4. **Validación**:
+   - [ ] Verificar que los noise patterns existentes siguen funcionando igual
+   - [ ] Agregar un pattern a un perfil específico y verificar que se aplica solo a esa institución
+
+#### Sub-fase 79D: Schema Validation + JSONB Guardrails (P2)
+
+1. **Crear función SQL de validación**:
+   - [ ] `CREATE OR REPLACE FUNCTION validate_jsonb_is_array(table_name TEXT, column_name TEXT) RETURNS TABLE(column TEXT, invalid_count BIGINT)` — busca JSONB strings donde debería ser array
+   - [ ] Agregar CHECK constraint para campos JSONB críticos: `ALTER TABLE institution_site_profiles ADD CONSTRAINT check_exclusion_patterns_is_array CHECK (jsonb_typeof(exclusion_patterns) = 'array');`
+   - [ ] Similar para `allowed_url_patterns`, `noise_patterns` (79C)
+
+2. **Agregar validación en `universal_harvester.py`**:
+   - [ ] Ejecutar `_normalize_jsonb_list()` no solo para `exclusion_patterns` sino también para `allowed_url_patterns`, `catalog_url_patterns`, `section_keywords`, `title_prefix_removals`, `title_split_separators`
+   - [ ] Log warning si un perfil tiene JSONB string en vez de array y auto-corregir
+
+3. **Agregar validación en `db_client.py`**:
+   - [ ] Método `validate_jsonb_arrays(table, columns)` que checkee tipos antes de INSERT/UPSERT
+   - [ ] Auto-corregir: si recibe string donde espera array, envolver en `[]`
+
+4. **Validación**:
+   - [ ] Ejecutar health check con datos existentes y verificar que no hay JSONB strings
+   - [ ] Intentar INSERT con JSONB string y verificar que el CHECK constraint lo rechaza
 
