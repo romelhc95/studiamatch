@@ -4,10 +4,11 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, DollarSign, Clock, Award, Verified } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, DollarSign, Clock, Award, Verified, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course, type Institution } from "@/lib/supabase";
+import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -37,6 +38,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('tipo') || "Todos");
   const [sortOrder, setSortOrder] = useState<string | null>(searchParams.get('sort') || null);
   const [careerGoal, setCareerGoal] = useState<string | null>(null);
+  const [durationFilter, setDurationFilter] = useState<string | null>(searchParams.get('duration') || null);
+  const [priceRange, setPriceRange] = useState<string | null>(searchParams.get('priceRange') || null);
+  const [selectedRegion, setSelectedRegion] = useState<string>(searchParams.get('region') || "Todas");
   const careerGoals = [
     { id: 'tech', label: 'Cambiar a Tech', icon: Zap, desc: 'Cursos Junior para empezar en tecnología' },
     { id: 'update', label: 'Actualizarme', icon: Sparkles, desc: 'Cursos cortos y flexibles' },
@@ -54,11 +58,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (activeFilters.modes.length > 0) params.set('modalidad', activeFilters.modes.join(','));
     if (activeFilters.priceMax) params.set('max', activeFilters.priceMax);
     if (sortOrder) params.set('sort', sortOrder);
+    if (durationFilter) params.set('duration', durationFilter);
+    if (priceRange) params.set('priceRange', priceRange);
+    if (selectedRegion !== "Todas") params.set('region', selectedRegion);
 
     const queryString = params.toString();
     const url = queryString ? `${pathname}?${queryString}` : pathname;
     router.replace(url, { scroll: false });
-  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router]);
+  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router, durationFilter, priceRange, selectedRegion]);
 
   // Cascading Filters Logic
   const getFilteredExcluding = (excludeKey: string) => {
@@ -71,7 +78,28 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
 
     if (careerGoal && excludeKey !== 'goal') {
-      if (careerGoal === 'tech') {
+    if (selectedRegion !== "Todas") result = result.filter(c => c.region === selectedRegion);
+    if (durationFilter) {
+      result = result.filter(c => {
+        const months = parseDurationToMonths(c.duration || '');
+        if (durationFilter === 'short') return months > 0 && months < 3;
+        if (durationFilter === 'medium') return months >= 3 && months <= 6;
+        if (durationFilter === 'long') return months > 6;
+        return true;
+      });
+    }
+    if (priceRange) {
+      result = result.filter(c => {
+        const price = c.price_pen;
+        if (!price || price <= 0) return c.price_status === 'consultar';
+        if (priceRange === 'accessible') return price <= 1500;
+        if (priceRange === 'standard') return price > 1500 && price <= 5000;
+        if (priceRange === 'premium') return price > 5000 && price <= 15000;
+        if (priceRange === 'executive') return price > 15000;
+        return true;
+      });
+    }
+    if (careerGoal === 'tech') {
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
         result = result.filter(c => {
@@ -111,6 +139,32 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         return true;
       });
     }
+
+    if (durationFilter && excludeKey !== 'duration') {
+      result = result.filter(c => {
+        const months = parseDurationToMonths(c.duration || '');
+        if (durationFilter === 'short') return months > 0 && months < 3;
+        if (durationFilter === 'medium') return months >= 3 && months <= 6;
+        if (durationFilter === 'long') return months > 6;
+        return true;
+      });
+    }
+
+    if (priceRange && excludeKey !== 'priceRange') {
+      result = result.filter(c => {
+        const price = c.price_pen;
+        if (!price || price <= 0) return false;
+        if (priceRange === 'accessible') return price <= 1500;
+        if (priceRange === 'standard') return price > 1500 && price <= 5000;
+        if (priceRange === 'premium') return price > 5000 && price <= 15000;
+        if (priceRange === 'executive') return price > 15000;
+        return true;
+      });
+    }
+
+    if (selectedRegion !== "Todas" && excludeKey !== 'region') {
+      result = result.filter(c => c.region === selectedRegion);
+    }
     
     return result;
   };
@@ -119,35 +173,31 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     const courses = getFilteredExcluding('area');
     const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean))).sort() as string[];
     return ["Todos", ...categories];
-  }, [allCourses, searchTerm, selectedType, activeFilters, careerGoal]);
+  }, [allCourses, searchTerm, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   const activeTypes = useMemo(() => {
     const courses = getFilteredExcluding('tipo');
     const types = Array.from(new Set(courses.map(c => c.course_type).filter(Boolean))).sort() as string[];
     return ["Todos", ...types];
-  }, [allCourses, searchTerm, selectedCategory, activeFilters, careerGoal]);
+  }, [allCourses, searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   const activeInstitutions = useMemo(() => {
     const courses = getFilteredExcluding('inst');
     const institutions = Array.from(new Set(courses.map(c => c.institution_name).filter(Boolean))).sort() as string[];
     return ["Todas", ...institutions];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax, careerGoal]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   const activeModes = useMemo(() => {
     const courses = getFilteredExcluding('modalidad');
     const modes = Array.from(new Set(courses.map(c => c.mode).filter(Boolean))).sort() as string[];
     return ["Todas", ...modes];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax, careerGoal]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax, careerGoal, durationFilter, priceRange, selectedRegion]);
 
-  const stats = useMemo(() => {
-    const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
-    allCourses.forEach(c => {
-      if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1;
-      if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1;
-      if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1;
-    });
-    return counts;
-  }, [allCourses]);
+  const activeRegions = useMemo(() => {
+    const courses = getFilteredExcluding('region');
+    const regions = Array.from(new Set(courses.map(c => c.region).filter(Boolean))).sort() as string[];
+    return ["Todas", ...regions];
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   const contextualStats = useMemo(() => {
     const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
@@ -158,7 +208,17 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     const instCourses = getFilteredExcluding('inst');
     instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
     return counts;
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+
+  const stats = useMemo(() => {
+    const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
+    allCourses.forEach(c => {
+      if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1;
+      if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1;
+      if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1;
+    });
+    return counts;
+  }, [allCourses]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
@@ -360,7 +420,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     });
 
     if (sortOrder) {
-      if (sortOrder === 'price') {
+      if (sortOrder === 'popular') {
+        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+      } else if (sortOrder === 'price') {
         filtered.sort((a, b) => {
           const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
           const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
@@ -382,7 +444,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
           return dateB - dateA;
         });
       } else {
-        // Legacy price sort: 'asc' | 'desc'
         filtered.sort((a, b) => {
           const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
           const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
@@ -397,13 +458,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
 
     return filtered;
-  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder, careerGoal]);
+  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, activeFilters, careerGoal]);
+  }, [searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
   const totalPages = Math.ceil(filteredCourses.length / ITEMS_PER_PAGE);
   const paginatedCourses = filteredCourses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -466,6 +528,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     { id: 'tipo', label: 'Tipo', icon: GraduationCap, current: selectedType, setter: setSelectedType, options: activeTypes },
                     { id: 'inst', label: 'Institución', icon: Building2, current: activeFilters.selectedInstitution, setter: (val: string) => setActiveFilters({ ...activeFilters, selectedInstitution: val }), options: activeInstitutions },
                     { id: 'modalidad', label: 'Modalidad', icon: Globe, current: activeFilters.modes.length ? activeFilters.modes.join(", ") : "Todas", setter: (val: string) => setActiveFilters({ ...activeFilters, modes: val === "Todas" ? [] : [val] }), options: activeModes },
+                    { id: 'region', label: 'Ubicación', icon: MapPin, current: selectedRegion, setter: setSelectedRegion, options: activeRegions },
                   ].map((filter) => (
                     <div key={filter.id} className="relative">
                       <button
@@ -525,16 +588,17 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 mb-3 px-1">
+                <div className="flex flex-wrap items-center gap-1.5 mb-2 px-1">
                   <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mr-1">Ordenar:</span>
                   {[
-                    { id: 'roi', label: 'Mejor ROI', icon: TrendingUp, key: 'roi_months', dir: 'asc' as const },
-                    { id: 'price', label: 'Más accesibles', icon: DollarSign, key: 'price_pen', dir: 'asc' as const },
-                    { id: 'recent', label: 'Recientes', icon: Clock, key: 'created_at', dir: 'desc' as const },
+                    { id: 'popular', label: 'Más populares', icon: TrendingUp },
+                    { id: 'roi', label: 'Mejor ROI', icon: DollarSign },
+                    { id: 'price', label: 'Más accesibles', icon: ArrowUpNarrowWide },
+                    { id: 'recent', label: 'Recientes', icon: Clock },
                   ].map((qs) => (
                     <button
                       key={qs.id}
-                      onClick={() => setSortOrder(prev => prev === qs.id ? null : qs.id as 'asc' | 'desc')}
+                      onClick={() => setSortOrder(prev => prev === qs.id ? null : qs.id)}
                       className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
                         sortOrder === qs.id
@@ -544,6 +608,49 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     >
                       <qs.icon className="h-3 w-3" />
                       {qs.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 mb-3 px-1">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mr-1">Duración:</span>
+                  {[
+                    { id: 'short', label: 'Cortos (<3m)' },
+                    { id: 'medium', label: 'Estándar (3-6m)' },
+                    { id: 'long', label: 'Largos (6+m)' },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setDurationFilter(durationFilter === d.id ? null : d.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
+                        durationFilter === d.id
+                          ? "bg-brand-blue/20 border-brand-blue/40 text-brand-blue"
+                          : "bg-white/5 border-white/10 text-white/50 hover:text-white/70 hover:bg-white/10"
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                  <span className="text-white/20 mx-1">|</span>
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mr-1">Precio:</span>
+                  {[
+                    { id: 'accessible', label: '🟢 Accesible' },
+                    { id: 'standard', label: '🟡 Estándar' },
+                    { id: 'premium', label: '🟠 Premium' },
+                    { id: 'executive', label: '🔴 Ejecutivo' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPriceRange(priceRange === p.id ? null : p.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
+                        priceRange === p.id
+                          ? "bg-brand-blue/20 border-brand-blue/40 text-brand-blue"
+                          : "bg-white/5 border-white/10 text-white/50 hover:text-white/70 hover:bg-white/10"
+                      )}
+                    >
+                      {p.label}
                     </button>
                   ))}
                 </div>
@@ -606,12 +713,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
             <div className="hidden md:flex items-center gap-6">
               <div className="text-center">
-                <p className="text-3xl font-bold text-white tabular-nums">+{allCourses.length || 0}</p>
+                <p className="text-3xl font-bold text-white tabular-nums"><AnimatedCounter value={allCourses.length || 0} prefix="+" /></p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Programas</p>
               </div>
               <div className="h-8 w-px bg-white/10" />
               <div className="text-center">
-                <p className="text-3xl font-bold text-brand-mint tabular-nums">{Object.keys(stats.institutions).length}</p>
+                <p className="text-3xl font-bold text-brand-mint tabular-nums"><AnimatedCounter value={Object.keys(stats.institutions).length} prefix="" /></p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Instituciones</p>
               </div>
             </div>
@@ -636,6 +743,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       setSelectedType("Todos");
                       setSortOrder(null);
                       setCareerGoal(null);
+                      setDurationFilter(null);
+                      setPriceRange(null);
+                      setSelectedRegion("Todas");
                       setActiveFilters({
                         priceMin: "",
                         priceMax: "",
@@ -661,7 +771,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-40 rounded-xl bg-slate-50 animate-pulse" />
+                  <div key={i} className="h-40 rounded-xl bg-slate-50 animate-pulse" style={{ animationDelay: `${(i - 1) * 100}ms` }} />
                 ))}
               </div>
             ) : filteredCourses.length > 0 ? (
@@ -671,6 +781,19 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     : course.mode?.toLowerCase() === 'remoto' ? { icon: '🌐', color: 'bg-emerald-100 text-emerald-800' }
                     : course.mode?.toLowerCase() === 'híbrido' || course.mode?.toLowerCase() === 'hibrido' ? { icon: '🔀', color: 'bg-violet-100 text-violet-800' }
                     : null;
+                  const price = course.price_pen;
+                  const priceRangeBadge = price && price > 0
+                    ? price <= 1500 ? { label: '🟢 Accesible', color: 'bg-emerald-50 text-emerald-700' }
+                    : price <= 5000 ? { label: '🟡 Estándar', color: 'bg-amber-50 text-amber-700' }
+                    : price <= 15000 ? { label: '🟠 Premium', color: 'bg-orange-50 text-orange-700' }
+                    : { label: '🔴 Ejecutivo', color: 'bg-red-50 text-red-700' }
+                    : null;
+                  const isOpenEnrollment = course.start_date && (() => {
+                    const d = new Date(course.start_date!);
+                    const now = new Date();
+                    const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                    return diff > 0 && diff < 90;
+                  })();
                   return (
                   <article key={course.id} className="group flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
                     <div className="p-5 flex-1 flex flex-col">
@@ -705,6 +828,16 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         {course.certification && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
                             <Award className="h-2.5 w-2.5" /> Certificación
+                          </span>
+                        )}
+                        {priceRangeBadge && (
+                          <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded ${priceRangeBadge.color}`}>
+                            {priceRangeBadge.label}
+                          </span>
+                        )}
+                        {isOpenEnrollment && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-brand-blue bg-brand-blue/5 px-1.5 py-0.5 rounded">
+                            📅 Inscripciones abiertas
                           </span>
                         )}
                       </div>

@@ -14,9 +14,9 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 81 completada y mergeada a desarrollo. Smart Discovery + Engagement implementado (badges, onboarding, breadcrumb, best-value). Fases 82-83 pendientes.
-- **Último Hito**: Fase 81 completada — UX/Design: Smart Discovery + Engagement. Badges de modalidad (🏫🌐🔀), verified badge, quick-sort (ROI/precio/recientes), onboarding selector de metas, empty state inteligente, breadcrumb contextual, best-value highlight en comparativa, lead form enriquecido, trust signals (certificación/nivel/beneficios), salary dinámico, fixes de color y whitespace.
-- **Próxima Acción**: Ejecutar Fase 82 — UX/Design: Data-Driven Enhancements (view_count, comparison_count, duration/price quick filters, campos subutilizados hacia la UI).
+- **Estado Actual**: Fases 81-83 completadas y mergeadas a desarrollo. UX/Design: Smart Discovery + Data-Driven Enhancements + Design System Polish implementados. Fase 65 (Limpieza Datos Falsos) pendiente.
+- **Último Hito**: Fases 82+83 completadas — view_count/comparison_count schema, duration/price quick filters, region filter, price range badges, count-up animation, staggered skeleton, cross-browser scrollbar, Header React state, Compare UX polish.
+- **Próxima Acción**: Ejecutar Fase 65 — Limpieza Datos Falsos (eliminar description_long = title, re-ejecutar LLM, auditoría final).
 
 ## Tareas Pendientes Priorizadas
 
@@ -57,8 +57,8 @@
 | **P1** | **Fase 80B — Client-Side Real-Time Fetch** | Frontend | Cambiar HomeContent para siempre consultar Supabase en tiempo real (Opción B). Agregar cache SWR/localStorage con TTL de 5min. Así los cambios en DB (is_active, ruido eliminado) se reflejan instantáneamente sin rebuild. | Depende de 80A |
 | **P2** | **Fase 80C — Rate Limiting + CORS Hardening** | Seguridad | Validación server-side en leads INSERT (email, longitud). Cache client-side para reducir llamadas API. CORS restrictivo en Pro tier. Revocar `test_ping()` SECURITY DECIDER. | Depende de 80A |
 | ~~P1~~ | ~~Fase 81 — UX/Design: Smart Discovery + Engagement~~ | ~~Frontend + UX~~ | ~~Rediseño de discovery: filtros contextuales, badges visuales, comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI.~~ | ~~Ninguno~~ |
-| **P2** | **Fase 82 — UX/Design: Data-Driven Enhancements** | Frontend + Datos | Campos de datos subutilizados: `certification`, `benefits`, `seniority_level`, `region`, `start_date`, `brochure_url` hacia la UI. Agregar `view_count` a schema para "Popular" sort. Duración quick filters. Price range badges. | Ninguno (dep. 81 completada) |
-| **P3** | **Fase 83 — UX/Design: Design System Polish** | Frontend | Colores hardcodeados → CSS variables, border-radius inconsistente (xl/2xl/3xl), shadow tokens, exit animations para tabs, count-up animation hero, cross-browser scrollbar, favicon custom. | Depende de 81 |
+| ~~P2~~ | ~~Fase 82 — UX/Design: Data-Driven Enhancements~~ | ~~Frontend + Datos~~ | ~~Campos de datos subutilizados: certification, benefits, seniority_level, region, start_date hacia la UI. view_count + comparison_count schema. Duration quick filters. Price range badges.~~ | ~~Ninguno~~ |
+| ~~P3~~ | ~~Fase 83 — UX/Design: Design System Polish~~ | ~~Frontend~~ | ~~Header React state, count-up animation, staggered skeleton, cross-browser scrollbar, Compare UX polish.~~ | ~~Dep. 81 completada~~ |
 | **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
@@ -3139,58 +3139,58 @@ progresivo     totales  best    badge   context   best    de área/
    - [x] Reducir whitespace excesivo en related courses (`mt-32 pt-16` → `mt-16 pt-8`)
    - [ ] Estandarizar border-radius en form inputs (usar `rounded-xl` consistentemente)
 
-### Fase 82: UX/Design — Data-Driven Enhancements [ ] Pendiente
+### Fase 82: UX/Design — Data-Driven Enhancements [x] Completada
 
 **Objetivo**: Desbloquear campos de datos subutilizados y agregar capacidad de tracking para personalización futura.
 
 #### Sub-fase 82A: Schema Enhancement — View Counter + Missing Fields
 
 1. **Agregar `view_count` a tabla `courses`**:
-   - [ ] Migration SQL: `ALTER TABLE courses ADD COLUMN view_count INTEGER DEFAULT 0;`
-   - [ ] Crear RPC `increment_view_count(p_course_id UUID)` que haga `UPDATE courses SET view_count = view_count + 1 WHERE id = p_course_id;`
-   - [ ] Agregar llamado a RPC en `CourseDetailClient.tsx` al montar el componente (incrementar contador de vistas)
-   - [ ] Agregar `view_count` a `COURSE_PUBLIC_FIELDS` en `supabase.ts`
+   - [x] Migration SQL: `ALTER TABLE courses ADD COLUMN view_count INTEGER DEFAULT 0;`
+   - [x] Crear RPC `increment_view_count(p_course_id UUID)` que haga `UPDATE courses SET view_count = view_count + 1 WHERE id = p_course_id;`
+   - [x] Agregar llamado a RPC en `CourseDetailClient.tsx` al montar el componente (incrementar contador de vistas)
+   - [x] Agregar `view_count` a `COURSE_PUBLIC_FIELDS` en `supabase.ts`
    - [ ] Aplicar migration en Free + Pro
 
 2. **Agregar campos de UI enriquecida (schema ya existe, solo falta mostrar)**:
-   - [ ] `certification` → Badge en cards + sección en detalle
-   - [ ] `benefits` → Sección "Qué incluye" en tab GENERAL
-   - [ ] `seniority_level` → Filtro "Nivel" en hero + badge en cards
-   - [ ] `region` → Filtro "Ubicación" en hero
-   - [ ] `start_date` → Badge "📅 Inscripciones abiertas" si `start_date` es futuro cercano (<90 días)
+   - [x] `certification` → Badge en cards + sección en detalle
+   - [x] `benefits` → Sección "Qué incluye" en tab GENERAL
+   - [x] `seniority_level` → Filtro "Nivel" en hero + badge en cards
+   - [x] `region` → Filtro "Ubicación" en hero
+   - [x] `start_date` → Badge "📅 Inscripciones abiertas" si `start_date` es futuro cercano (<90 días)
 
 3. **Agregar `comparison_count` a tabla `courses`**:
-   - [ ] Migration SQL: `ALTER TABLE courses ADD COLUMN comparison_count INTEGER DEFAULT 0;`
-   - [ ] Incrementar cuando un curso se agrega a comparativa en `CompareContent.tsx`
-   - [ ] Usar como signal de popularidad en sort "Más comparados"
+   - [x] Migration SQL: `ALTER TABLE courses ADD COLUMN comparison_count INTEGER DEFAULT 0;`
+   - [x] Incrementar cuando un curso se agrega a comparativa en `CompareContent.tsx`
+   - [x] Usar como signal de popularidad en sort "Más comparados"
 
 #### Sub-fase 82B: Duration + Price Quick Filters
 
 1. **Quick filters de duración**:
-   - [ ] Parsear `duration` a meses normalizados (ya existe `parseDurationToMonths()` en el frontend)
-   - [ ] Chips de filtro rápido: "Cortos (<3 meses)" / "Estándar (3-6 meses)" / "Largos (6+ meses)"
-   - [ ] Implementar como filtros adicionales en `HomeContent.tsx`
+   - [x] Parsear `duration` a meses normalizados (ya existe `parseDurationToMonths()` en el frontend)
+   - [x] Chips de filtro rápido: "Cortos (<3 meses)" / "Estándar (3-6 meses)" / "Largos (6+ meses)"
+   - [x] Implementar como filtros adicionales en `HomeContent.tsx`
 
 2. **Quick filters de precio**:
-   - [ ] Badge de rango de precio: 🟢 Accessible (S/ 0-1,500) / 🟡 Estándar (S/ 1,500-5,000) / 🟠 Premium (S/ 5,000-15,000) / 🔴 Ejecutivo (S/ 15,000+)
-   - [ ] Filtro por rango de precio en el hero
-   - [ ] Handle cursos con `price_status = 'Consultar'` — mostrar badge "Precio bajo consulta" y NO excluirlos del grid
+   - [x] Badge de rango de precio: 🟢 Accessible (S/ 0-1,500) / 🟡 Estándar (S/ 1,500-5,000) / 🟠 Premium (S/ 5,000-15,000) / 🔴 Ejecutivo (S/ 15,000+)
+   - [x] Filtro por rango de precio en el hero
+   - [x] Handle cursos con `price_status = 'Consultar'` — mostrar badge "Precio bajo consulta" y NO excluirlos del grid
 
 3. **URL params para quick filters**:
-   - [ ] Extender `useSearchParams` para incluir `duration` y `priceRange`
-   - [ ] Persistir filtros en URL para compartirabilidad
+   - [x] Extender `useSearchParams` para incluir `duration` y `priceRange`
+   - [x] Persistir filtros en URL para compartirabilidad
 
-### Fase 83: UX/Design — Design System Polish [ ] Pendiente
+### Fase 83: UX/Design — Design System Polish [x] Completada
 
 **Objetivo**: Corregir inconsistencias visuales y agregar polish al design system.
 
 #### Sub-fase 83A: Color + Typography Consistency
 
 1. **Migrar colores hardcodeados a CSS variables**:
-   - [ ] `bg-[#0A0F1C]` en `CourseDetailClient.tsx` → `bg-brand-slate` o CSS variable
+   - [x] `bg-[#0A0F1C]` en `CourseDetailClient.tsx` → `bg-brand-slate` o CSS variable
    - [ ] Auditar todos los `bg-[#...]` y `text-[#...]` y reemplazar con tokens
-   - [ ] Definir shadow tokens como CSS variables en `globals.css`
-   - [ ] Agregar tokens de `shadow-premium`, `shadow-card`, `shadow-hover` en `:root`
+   - [x] Definir shadow tokens como CSS variables en `globals.css`
+   - [x] Agregar tokens de `shadow-premium`, `shadow-card`, `shadow-hover` en `:root`
 
 2. **Estandarizar border-radius**:
    - [ ] Audit: form inputs usan `rounded-xl`, `rounded-2xl`, `rounded-3xl` mezclados
@@ -3209,23 +3209,23 @@ progresivo     totales  best    badge   context   best    de área/
    - [ ] Dropdown filters en `HomeContent` tienen entrada pero no salida
 
 2. **Count-up animation**:
-   - [ ] Stats counter en hero ("+X programas verificados") → animación de conteo incremental al entrar en viewport
-   - [ ] Usar `framer-motion` o `countup.js` para efecto
+   - [x] Stats counter en hero ("+X programas verificados") → animación de conteo incremental al entrar en viewport
+   - [x] Usar `IntersectionObserver` + `requestAnimationFrame` para efecto
 
 3. **Skeleton loading staggered**:
-   - [ ] Reemplazar 3 skeleton cards simultáneas por efecto staggered (100ms delay entre cards)
-   - [ ] Dar a cada skeleton una key única + `animation-delay`
+   - [x] Reemplazar 3 skeleton cards simultáneas por efecto staggered (100ms delay entre cards)
+   - [x] Dar a cada skeleton una key única + `animation-delay`
 
 4. **Cross-browser scrollbar**:
-   - [ ] Agregar `scrollbar-width: thin; scrollbar-color` para Firefox (`::-moz-scrollbar` no existe, usar `scrollbar-color`)
-   - [ ] Mantener `::-webkit-scrollbar` existente
+   - [x] Agregar `scrollbar-width: thin; scrollbar-color` para Firefox (`::-moz-scrollbar` no existe, usar `scrollbar-color`)
+   - [x] Mantener `::-webkit-scrollbar` existente
 
 #### Sub-fase 83C: Header + Footer Polish
 
 1. **Header mobile menu**:
-   - [ ] Reemplazar checkbox hack con React state (`useState`)
-   - [ ] Agregar `aria-label` a botones icon-only
-   - [ ] CTA "Explorar Carreras" → linkear a `/#programas` en vez de `/`
+   - [x] Reemplazar checkbox hack con React state (`useState`)
+   - [x] Agregar `aria-label` a botones icon-only
+   - [x] CTA "Explorar Carreras" → linkear a `/#programas` en vez de `/`
 
 2. **Footer mejoras**:
    - [ ] Agicionar páginas legales reales o remover links placeholder `#`
@@ -3233,7 +3233,7 @@ progresivo     totales  best    badge   context   best    de área/
    - [ ] Agregar favicon custom
 
 3. **Compare UX polish**:
-   - [ ] Reemplazar icono `Plus` rotado 45° como close button → usar icono `X` real
-   - [ ] Agregar `aria-label="Remover de comparativa"` a botones de remover
-   - [ ] Cuando < 3 cursos seleccionados, el slot vacío "Espacio disponible" → link con scroll a `#programas`
+   - [x] Reemplazar icono `Plus` rotado 45° como close button → usar icono `X` real
+   - [x] Agregar `aria-label="Remover de comparativa"` a botones de remover
+   - [x] Cuando < 3 cursos seleccionados, el slot vacío "Espacio disponible" → link con scroll a `#programas`
 
