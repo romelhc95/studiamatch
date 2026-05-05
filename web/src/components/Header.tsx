@@ -15,10 +15,12 @@ export function Header() {
     return false;
   };
 
+  const handleMobileClose = () => handleMobileClose;
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center space-x-3" onClick={() => setMobileOpen(false)}>
+        <Link href="/" className="flex items-center space-x-3" onClick={() => handleMobileClose}>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-blue to-brand-teal text-sm font-black text-white shadow-premium">
             SM
           </div>
@@ -79,12 +81,12 @@ export function Header() {
 
       {mobileOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => handleMobileClose} />
           <div className="relative z-50 md:hidden border-t border-slate-100 bg-white px-6 py-6 space-y-4 shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Navegación</span>
               <button
-                onClick={() => setMobileOpen(false)}
+                onClick={() => handleMobileClose}
                 className="p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 aria-label="Cerrar menú"
               >
@@ -99,14 +101,14 @@ export function Header() {
                 "block text-sm font-semibold transition-colors py-1",
                 isActive("/") ? "text-brand-blue" : "text-slate-600"
               )}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => handleMobileClose}
             >
               Inicio
             </Link>
             <Link
               href="/#como-funciona"
               className="block text-sm font-semibold text-slate-600 transition-colors hover:text-brand-blue"
-              onClick={() => setMobileOpen(false)}
+              onClick={() => handleMobileClose}
             >
               Cómo Funciona
             </Link>
@@ -116,14 +118,14 @@ export function Header() {
                 "block text-sm font-semibold transition-colors py-1",
                 isActive("/compare") ? "text-brand-blue" : "text-slate-600"
               )}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => handleMobileClose}
             >
               Comparar
             </Link>
             <Link
               href="/#programas"
               className="block text-sm font-bold text-brand-blue pt-1"
-              onClick={() => setMobileOpen(false)}
+              onClick={() => handleMobileClose}
             >
               Explorar Carreras
             </Link>
