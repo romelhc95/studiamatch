@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
-  ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus
+  ChevronLeft, MapPin, Clock, TrendingUp, GraduationCap, Plus, Star, DollarSign
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
@@ -69,7 +70,7 @@ export default function CompareContent() {
       return;
     }
 
-    const ids = idsString.split(",");
+    const ids = idsString.split(",").filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
     const fetchCourses = async () => {
       try {
@@ -126,6 +127,21 @@ export default function CompareContent() {
     localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(updatedCourses));
   };
 
+  // Best-value analysis
+  const bestRoiCourse = useMemo(() => {
+    if (courses.length < 2) return null;
+    const withRoi = courses.filter(c => c.roi_months && c.roi_months > 0);
+    if (withRoi.length === 0) return null;
+    return withRoi.reduce((best, c) => (c.roi_months! < best.roi_months! ? c : best));
+  }, [courses]);
+
+  const cheapestCourse = useMemo(() => {
+    if (courses.length < 2) return null;
+    const withPrice = courses.filter(c => c.price_pen && c.price_pen > 0);
+    if (withPrice.length === 0) return null;
+    return withPrice.reduce((best, c) => (c.price_pen! < best.price_pen! ? c : best));
+  }, [courses]);
+
   if (!mounted) return null;
 
   return (
@@ -150,9 +166,20 @@ export default function CompareContent() {
           <ComparisonSkeleton />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {courses.map((course) => (
-              <Card key={course.id} className="relative overflow-hidden border-brand-gray/50 dark:border-white/10 shadow-premium flex flex-col rounded-3xl bg-white dark:bg-zinc-900/40 hover:shadow-2xl transition-all hover:-translate-y-1">
-                <div className="h-2 bg-brand-blue w-full" />
+            {courses.map((course) => {
+              const isBestRoi = bestRoiCourse?.id === course.id;
+              const isCheapest = cheapestCourse?.id === course.id && course.id !== bestRoiCourse?.id;
+              return (
+              <Card key={course.id} className={cn(
+                "relative overflow-hidden border-brand-gray/50 dark:border-white/10 shadow-premium flex flex-col rounded-3xl bg-white dark:bg-zinc-900/40 hover:shadow-2xl transition-all hover:-translate-y-1",
+                isBestRoi && "ring-2 ring-amber-400/40 border-amber-300/50"
+              )}>
+                {isBestRoi && (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-yellow-500 z-10" />
+                )}
+                {isCheapest && (
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 z-10" />
+                )}
                 <button
                   onClick={() => handleRemove(course.id)}
                   className="absolute top-4 right-4 h-8 w-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm"
@@ -170,6 +197,18 @@ export default function CompareContent() {
                       {course.course_type && (
                         <Badge variant="outline" className="border-brand-gray/30 text-slate-400 font-bold px-3 text-[9px] uppercase tracking-widest">
                           {course.course_type}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {isBestRoi && (
+                        <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-bold text-[9px] px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> Mejor ROI
+                        </Badge>
+                      )}
+                      {isCheapest && (
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold text-[9px] px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <DollarSign className="h-3 w-3 text-emerald-500" /> Más accesible
                         </Badge>
                       )}
                     </div>
@@ -244,7 +283,8 @@ export default function CompareContent() {
                   </Link>
                 </div>
               </Card>
-            ))}
+            );
+            })}
 
             {courses.length < 3 && (
               <div className="border-2 border-dashed border-brand-gray/50 dark:border-white/10 rounded-3xl flex flex-col items-center justify-center p-12 text-center space-y-6 bg-slate-50/20">

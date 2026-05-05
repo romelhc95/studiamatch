@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, DollarSign, Clock, Award, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course, type Institution } from "@/lib/supabase";
@@ -35,7 +35,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
   const [courseTypes, setCourseTypes] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('tipo') || "Todos");
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>((searchParams.get('sort') as 'asc' | 'desc') || null);
+  const [sortOrder, setSortOrder] = useState<string | null>(searchParams.get('sort') || null);
+  const [careerGoal, setCareerGoal] = useState<string | null>(null);
+  const careerGoals = [
+    { id: 'tech', label: 'Cambiar a Tech', icon: Zap, desc: 'Cursos Junior para empezar en tecnología' },
+    { id: 'update', label: 'Actualizarme', icon: Sparkles, desc: 'Cursos cortos y flexibles' },
+    { id: 'postgrad', label: 'Posgrado', icon: GraduationCap, desc: 'Maestrías y especializaciones' },
+    { id: 'fast-job', label: 'Trabajo rápido', icon: TrendingUp, desc: 'Alto ROI con certificación' },
+  ];
 
   // Sync state to URL
   useEffect(() => {
@@ -61,6 +68,21 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       const s = norm(searchTerm);
       result = result.filter(c => norm(c.name || "").includes(s) || norm(c.institution_name || "").includes(s));
+    }
+
+    if (careerGoal && excludeKey !== 'goal') {
+      if (careerGoal === 'tech') {
+        result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
+      } else if (careerGoal === 'update') {
+        result = result.filter(c => {
+          const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
+          return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
+        });
+      } else if (careerGoal === 'postgrad') {
+        result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
+      } else if (careerGoal === 'fast-job') {
+        result = result.filter(c => (c.roi_months ?? 999) <= 6 && !!c.certification);
+      }
     }
     
     if (selectedCategory !== "Todos" && excludeKey !== 'area') {
@@ -97,25 +119,25 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     const courses = getFilteredExcluding('area');
     const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean))).sort() as string[];
     return ["Todos", ...categories];
-  }, [allCourses, searchTerm, selectedType, activeFilters]);
+  }, [allCourses, searchTerm, selectedType, activeFilters, careerGoal]);
 
   const activeTypes = useMemo(() => {
     const courses = getFilteredExcluding('tipo');
     const types = Array.from(new Set(courses.map(c => c.course_type).filter(Boolean))).sort() as string[];
     return ["Todos", ...types];
-  }, [allCourses, searchTerm, selectedCategory, activeFilters]);
+  }, [allCourses, searchTerm, selectedCategory, activeFilters, careerGoal]);
 
   const activeInstitutions = useMemo(() => {
     const courses = getFilteredExcluding('inst');
     const institutions = Array.from(new Set(courses.map(c => c.institution_name).filter(Boolean))).sort() as string[];
     return ["Todas", ...institutions];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax, careerGoal]);
 
   const activeModes = useMemo(() => {
     const courses = getFilteredExcluding('modalidad');
     const modes = Array.from(new Set(courses.map(c => c.mode).filter(Boolean))).sort() as string[];
     return ["Todas", ...modes];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax, careerGoal]);
 
   const stats = useMemo(() => {
     const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
@@ -136,7 +158,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     const instCourses = getFilteredExcluding('inst');
     instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
     return counts;
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
@@ -241,6 +263,10 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) { alert("Por favor, ingresa un email válido."); return; }
+    if (formData.whatsapp.replace(/\D/g, '').length < 9) { alert("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); return; }
+    if (!formData.first_name.trim()) { alert("Por favor, ingresa tu nombre."); return; }
     setIsSubmitting(true);
     try {
       const leadData = {
@@ -248,6 +274,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         last_name: formData.last_name,
         email: formData.email,
         whatsapp: formData.whatsapp,
+        source_page: 'home',
         type: modalType,
         course_id: selectedCourseForInfo?.id || null,
         area_interest: formData.area_interest || (modalType === 'info' ? selectedCourseForInfo?.category : ""),
@@ -297,6 +324,18 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       const s = norm(searchTerm);
       result = result.filter(c => norm(c.name || "").includes(s) || norm(c.institution_name || "").includes(s));
     }
+    if (careerGoal === 'tech') {
+      result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
+    } else if (careerGoal === 'update') {
+      result = result.filter(c => {
+        const months = c.duration ? parseInt(c.duration.match(/\d+/)?.[0] || '12') : 12;
+        return months <= 6 && (c.mode === 'Remoto' || c.mode === 'Híbrido');
+      });
+    } else if (careerGoal === 'postgrad') {
+      result = result.filter(c => c.course_type === 'Maestría' || c.course_type === 'Doctorado' || c.course_type === 'Especialización');
+    } else if (careerGoal === 'fast-job') {
+      result = result.filter(c => (c.roi_months ?? 999) <= 6 && !!c.certification);
+    }
     if (selectedCategory !== "Todos") result = result.filter(c => c.category === selectedCategory);
     if (selectedType !== "Todos") result = result.filter(c => c.course_type === selectedType);
 
@@ -321,27 +360,50 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     });
 
     if (sortOrder) {
-      filtered.sort((a, b) => {
-        const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
-        const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
-
-        if (hasPriceA && !hasPriceB) return -1;
-        if (!hasPriceA && hasPriceB) return 1;
-        if (!hasPriceA && !hasPriceB) return 0;
-
-        const priceA = a.price_pen!;
-        const priceB = b.price_pen!;
-        return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
-      });
+      if (sortOrder === 'price') {
+        filtered.sort((a, b) => {
+          const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
+          const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
+          if (hasPriceA && !hasPriceB) return -1;
+          if (!hasPriceA && hasPriceB) return 1;
+          if (!hasPriceA && !hasPriceB) return 0;
+          return a.price_pen! - b.price_pen!;
+        });
+      } else if (sortOrder === 'roi') {
+        filtered.sort((a, b) => {
+          const roiA = a.roi_months ?? 999;
+          const roiB = b.roi_months ?? 999;
+          return roiA - roiB;
+        });
+      } else if (sortOrder === 'recent') {
+        filtered.sort((a, b) => {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA;
+        });
+      } else {
+        // Legacy price sort: 'asc' | 'desc'
+        filtered.sort((a, b) => {
+          const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
+          const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
+          if (hasPriceA && !hasPriceB) return -1;
+          if (!hasPriceA && hasPriceB) return 1;
+          if (!hasPriceA && !hasPriceB) return 0;
+          const priceA = a.price_pen!;
+          const priceB = b.price_pen!;
+          return sortOrder === 'asc' ? priceA - priceB : priceB - priceA;
+        });
+      }
     }
 
     return filtered;
-  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder]);
+  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder, careerGoal]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, activeFilters]);
+  }, [searchTerm, selectedCategory, activeFilters, careerGoal]);
 
   const totalPages = Math.ceil(filteredCourses.length / ITEMS_PER_PAGE);
   const paginatedCourses = filteredCourses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -377,7 +439,27 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 Compara inversión, contenido y retorno financiero de programas tech en Perú.
               </p>
 
-              <div id="hero-search" className="pt-2 max-w-4xl scroll-mt-32 w-full">
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mr-0.5">¿Qué quieres lograr?</span>
+                {careerGoals.map((goal) => (
+                  <button
+                    key={goal.id}
+                    onClick={() => setCareerGoal(careerGoal === goal.id ? null : goal.id)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all border",
+                      careerGoal === goal.id
+                        ? "bg-brand-blue/20 border-brand-blue/40 text-brand-blue"
+                        : "bg-white/5 border-white/10 text-white/50 hover:text-white/70 hover:bg-white/10"
+                    )}
+                    title={goal.desc}
+                  >
+                    <goal.icon className="h-3 w-3" />
+                    {goal.label}
+                  </button>
+                ))}
+              </div>
+
+              <div id="hero-search" className="pt-3 max-w-4xl scroll-mt-32 w-full">
                 <div className="flex flex-wrap items-center gap-2 mb-3 px-1 pb-1">
                   {[
                     { id: 'area', label: 'Área', icon: LayoutGrid, current: selectedCategory, setter: setSelectedCategory, options: activeCategories },
@@ -440,6 +522,29 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         </>
                       )}
                     </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 mb-3 px-1">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest mr-1">Ordenar:</span>
+                  {[
+                    { id: 'roi', label: 'Mejor ROI', icon: TrendingUp, key: 'roi_months', dir: 'asc' as const },
+                    { id: 'price', label: 'Más accesibles', icon: DollarSign, key: 'price_pen', dir: 'asc' as const },
+                    { id: 'recent', label: 'Recientes', icon: Clock, key: 'created_at', dir: 'desc' as const },
+                  ].map((qs) => (
+                    <button
+                      key={qs.id}
+                      onClick={() => setSortOrder(prev => prev === qs.id ? null : qs.id as 'asc' | 'desc')}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
+                        sortOrder === qs.id
+                          ? "bg-brand-mint/15 border-brand-mint/30 text-brand-mint"
+                          : "bg-white/5 border-white/10 text-white/50 hover:text-white/70 hover:bg-white/10"
+                      )}
+                    >
+                      <qs.icon className="h-3 w-3" />
+                      {qs.label}
+                    </button>
                   ))}
                 </div>
 
@@ -530,6 +635,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       setSelectedCategory("Todos");
                       setSelectedType("Todos");
                       setSortOrder(null);
+                      setCareerGoal(null);
                       setActiveFilters({
                         priceMin: "",
                         priceMax: "",
@@ -560,11 +666,23 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               </div>
             ) : filteredCourses.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 transition-all duration-300">
-                {paginatedCourses.map((course) => (
+                {paginatedCourses.map((course) => {
+                  const modeBadge = course.mode?.toLowerCase() === 'presencial' ? { icon: '🏫', color: 'bg-blue-100 text-blue-800' }
+                    : course.mode?.toLowerCase() === 'remoto' ? { icon: '🌐', color: 'bg-emerald-100 text-emerald-800' }
+                    : course.mode?.toLowerCase() === 'híbrido' || course.mode?.toLowerCase() === 'hibrido' ? { icon: '🔀', color: 'bg-violet-100 text-violet-800' }
+                    : null;
+                  return (
                   <article key={course.id} className="group flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
                     <div className="p-5 flex-1 flex flex-col">
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-[11px] font-medium text-slate-400">{course.institution_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-medium text-slate-400">{course.institution_name}</span>
+                          {course.is_verified && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              <Verified className="h-2.5 w-2.5" /> Verificado
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] font-medium text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">{course.course_type || "Programa"}</span>
                       </div>
 
@@ -578,7 +696,20 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         <p className="text-[12px] text-slate-400 mt-1.5">{course.category}</p>
                       )}
 
-                      <div className="mt-4 pt-3 border-t border-slate-50">
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {modeBadge && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${modeBadge.color}`}>
+                            <span className="text-[11px]">{modeBadge.icon}</span> {course.mode}
+                          </span>
+                        )}
+                        {course.certification && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                            <Award className="h-2.5 w-2.5" /> Certificación
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-slate-50">
                         <div className="grid grid-cols-2 gap-y-3">
                           <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inversión</p>
@@ -587,12 +718,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                             </p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Modalidad</p>
-                            <p className="text-[13px] font-semibold text-brand-slate capitalize truncate">{course.mode || "No especificada"}</p>
-                          </div>
-                          <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Duración</p>
                             <p className="text-[13px] font-semibold text-brand-slate truncate">{course.duration || "No especificada"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">ROI</p>
+                            <p className="text-[13px] font-semibold text-brand-slate truncate">{course.roi_months ? `${course.roi_months.toFixed(1)} meses` : "—"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Inicio</p>
@@ -632,7 +763,8 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       </Button>
                     </div>
                   </article>
-                ))}
+                );
+                })}
 
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center gap-4 col-span-full pt-6">
@@ -665,24 +797,50 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 )}
               </div>
             ) : (
-              <div className="py-20 text-center rounded-xl border-2 border-dashed border-slate-100">
+              <div className="py-16 text-center rounded-xl border-2 border-dashed border-slate-100">
                 <Search className="h-10 w-10 text-slate-200 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-400">Sin resultados</h3>
-                <p className="text-[13px] text-slate-400 mt-1 mb-6">Intenta con otros filtros.</p>
-                <Button variant="outline" size="sm" onClick={() => { 
-                  setSearchTerm(""); 
-                  setSelectedCategory("Todos"); 
-                  setSelectedType("Todos");
-                  setSortOrder(null);
-                  setActiveFilters({ 
-                    priceMin: "", 
-                    priceMax: "", 
-                    modes: [], 
-                    durations: [], 
-                    selectedInstitution: "Todas", 
-                    includeConsultar: true 
-                  }); 
-                }} className="rounded-lg text-[13px]">Reiniciar filtros</Button>
+                <p className="text-[13px] text-slate-400 mt-1 mb-6 max-w-md mx-auto">
+                  {selectedCategory !== "Todos" && activeFilters.selectedInstitution !== "Todas"
+                    ? `No encontramos programas de ${selectedCategory} en ${activeFilters.selectedInstitution}.`
+                    : selectedCategory !== "Todos"
+                    ? `No encontramos programas de ${selectedCategory} con los filtros actuales.`
+                    : activeFilters.selectedInstitution !== "Todas"
+                    ? `No encontramos programas en ${activeFilters.selectedInstitution} con los filtros actuales.`
+                    : "Intenta con otros filtros o términos de búsqueda."}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {selectedCategory !== "Todos" && (
+                    <Button variant="outline" size="sm" onClick={() => setSelectedCategory("Todos")} className="rounded-lg text-[11px]">
+                      Ver todas las áreas
+                    </Button>
+                  )}
+                  {activeFilters.selectedInstitution !== "Todas" && (
+                    <Button variant="outline" size="sm" onClick={() => setActiveFilters({ ...activeFilters, selectedInstitution: "Todas" })} className="rounded-lg text-[11px]">
+                      Ver todas las instituciones
+                    </Button>
+                  )}
+                  {activeFilters.modes.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={() => setActiveFilters({ ...activeFilters, modes: [] })} className="rounded-lg text-[11px]">
+                      Ver todas las modalidades
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => { 
+                    setSearchTerm(""); 
+                    setSelectedCategory("Todos"); 
+                    setSelectedType("Todos");
+                    setSortOrder(null);
+                    setCareerGoal(null);
+                    setActiveFilters({ 
+                      priceMin: "", 
+                      priceMax: "", 
+                      modes: [], 
+                      durations: [], 
+                      selectedInstitution: "Todas", 
+                      includeConsultar: true 
+                    }); 
+                  }} className="rounded-lg text-[11px]">Reiniciar todos los filtros</Button>
+                </div>
               </div>
             )}
           </main>
@@ -827,6 +985,46 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   <div>
                     <label className="text-[12px] font-medium text-slate-400 mb-1 block">Email</label>
                     <Input required type="email" className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Área de interés</label>
+                    <select
+                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
+                      value={formData.area_interest}
+                      onChange={(e) => setFormData({ ...formData, area_interest: e.target.value })}
+                    >
+                      <option value="">Selecciona un área</option>
+                      {Array.from(new Set(allCourses.map(c => c.category).filter(Boolean))).sort().map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Presupuesto estimado</label>
+                    <select
+                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
+                      value={formData.budget}
+                      onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                    >
+                      <option value="">Selecciona un rango</option>
+                      <option value="5000">S/ 0 - 5,000</option>
+                      <option value="15000">S/ 5,000 - 15,000</option>
+                      <option value="30000">S/ 15,000 - 30,000</option>
+                      <option value="999999">S/ 30,000+</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Modalidad preferida</label>
+                    <select
+                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
+                      value={formData.modality}
+                      onChange={(e) => setFormData({ ...formData, modality: e.target.value })}
+                    >
+                      <option value="Remoto">Remoto</option>
+                      <option value="Presencial">Presencial</option>
+                      <option value="Híbrido">Híbrido</option>
+                      <option value="Sin preferencia">Sin preferencia</option>
+                    </select>
                   </div>
                   {modalType === 'recommendation' && (
                     <div>

@@ -48,6 +48,11 @@ export interface Course {
   syllabus?: string;
   is_active?: boolean;
   is_verified?: boolean;
+  certification?: string;
+  benefits?: string;
+  seniority_level?: string;
+  region?: string;
+  created_at?: string;
 }
 
 export interface Institution {

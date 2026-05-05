@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   MapPin, TrendingUp, ChevronLeft, 
   CheckCircle, ShieldCheck, GraduationCap, Download, Info,
-  Star, MessageSquare, User
+  Star, MessageSquare, User, Award, Sprout
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
@@ -57,6 +57,9 @@ interface Course {
   brochure_text?: string;
   is_active?: boolean;
   start_date_text?: string;
+  certification?: string;
+  benefits?: string;
+  seniority_level?: string;
 }
 
 export default function CourseDetailClient({ institutionSlug, courseSlug }: { institutionSlug: string, courseSlug: string }) {
@@ -66,7 +69,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "" });
+  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
   const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
 
   // SOCIAL PROOF STATE
@@ -202,6 +205,10 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         whatsapp: formData.whatsapp.trim(),
         type: 'info',
         course_id: course.id,
+        source_page: 'detail',
+        area_interest: formData.area_interest || course.category || '',
+        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
+        modality: formData.modality_pref || course.mode || '',
         is_late_enrollment_request: true
       };
 
@@ -367,7 +374,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
       <div className="w-12 h-12 border-4 border-brand-mint border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="animate-pulse font-bold uppercase tracking-widest text-xs text-brand-mint">Validando credenciales académicas...</p>
+      <p className="animate-pulse font-bold uppercase tracking-widest text-xs text-brand-mint">Cargando información del programa...</p>
     </div>
   );
 
@@ -384,6 +391,11 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   );
 
   if (!course) return null;
+
+  const isValidUrl = (url: string) => {
+    try { const p = new URL(url); return p.protocol === 'https:' || p.protocol === 'http:'; }
+    catch { return false; }
+  };
 
   // Render text blocks with smart formatting for bullet points and paragraphs
   const renderText = (text: string | undefined) => {
@@ -448,9 +460,23 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   return (
     <div className="min-h-screen bg-white dark:bg-brand-slate text-brand-slate dark:text-white font-sans selection:bg-brand-mint/30 pb-20">
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <Link href="/" className="inline-flex items-center text-[11px] font-black text-brand-blue hover:translate-x-[-4px] transition-all mb-10 group uppercase tracking-widest">
-          <ChevronLeft className="h-4 w-4 mr-1" /> Volver a la búsqueda
-        </Link>
+        <nav className="flex items-center gap-2 text-[11px] text-slate-400 mb-10 font-medium">
+          <Link href="/" className="hover:text-brand-blue transition-colors">Home</Link>
+          {course?.category && (
+            <>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-600">{course.category}</span>
+            </>
+          )}
+          {course?.institution_name && (
+            <>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-600">{course.institution_name}</span>
+            </>
+          )}
+          <span className="text-slate-300">/</span>
+          <span className="text-brand-slate dark:text-white font-semibold truncate max-w-[200px]">{course?.name || ""}</span>
+        </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
           <div className="lg:col-span-2 space-y-10">
@@ -476,17 +502,32 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                   {course.name}
                 </h1>
 
-                <div className="flex items-center gap-3 flex-wrap pt-2">
+                <div className="flex items-center gap-2 flex-wrap pt-2">
                   {course.category && (
                     <Badge variant="outline" className="border-brand-mint/30 text-brand-mint font-bold uppercase tracking-widest text-[9px] px-3 py-1 bg-brand-mint/5">
                       {course.category}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="border-slate-200 text-slate-400 font-bold uppercase tracking-widest text-[9px] px-3 py-1">{course.mode}</Badge>
+                  {course.mode && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                      {course.mode.toLowerCase() === 'presencial' ? '🏫' : course.mode.toLowerCase() === 'remoto' ? '🌐' : course.mode.toLowerCase() === 'híbrido' || course.mode.toLowerCase() === 'hibrido' ? '🔀' : ''}
+                      {' '}{course.mode}
+                    </span>
+                  )}
+                  {course.certification && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-50 text-amber-700">
+                      <Award className="h-3 w-3" /> Certificación
+                    </span>
+                  )}
+                  {course.seniority_level && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                      <Sprout className="h-3 w-3" /> {course.seniority_level}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {course.brochure_url && (
+              {course.brochure_url && isValidUrl(course.brochure_url) && (
                 <div className="pt-4">
                   <a href={course.brochure_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-3 bg-brand-blue text-white px-8 py-3.5 rounded-xl font-black transition-all uppercase tracking-widest text-[10px] shadow-xl shadow-brand-blue/20 hover:scale-105 active:scale-95">
                     <Download className="h-4 w-4" /> Descargar Brochure (PDF)
@@ -502,7 +543,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
               </div>
             </header>
 
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#0A0F1C] p-10 text-white shadow-2xl border border-white/5">
+            <section className="relative overflow-hidden rounded-[2rem] bg-brand-slate p-10 text-white shadow-2xl border border-white/5">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-8">
                   <TrendingUp className="h-4 w-4 text-brand-mint" />
@@ -517,15 +558,17 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Salario Sugerido</p>
-                    <p className="text-3xl font-black text-brand-mint">S/ {course.expected_monthly_salary?.toLocaleString() || "4,800"}</p>
+                    <p className="text-3xl font-black text-brand-mint">
+                      {course.expected_monthly_salary ? `S/ ${course.expected_monthly_salary.toLocaleString()}` : "S/ --"}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">ROI (Estimado)</p>
-                    <p className="text-3xl font-black">x{Number(course.roi_months || 1.8).toFixed(1)}</p>
+                    <p className="text-3xl font-black">{course.roi_months ? `x${Number(course.roi_months).toFixed(1)}` : "—"}</p>
                   </div>
                 </div>
                 <p className="mt-8 text-[9px] text-white/30 font-bold uppercase tracking-wider leading-relaxed border-t border-white/5 pt-4">
-                  * Cálculos basados en Big Data laboral 2026 para {course.category}.
+                  * Cálculos basados en Big Data laboral 2026 para {course.category || "tu área"}.
                 </p>
               </div>
             </section>
@@ -556,6 +599,15 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </div>
                     </div>
                     
+                    {course.benefits && (
+                      <div className="space-y-4 pt-6 border-t border-brand-gray/30">
+                        <h2 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-brand-blue" /> Qué Incluye</h2>
+                        <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
+                          {renderText(course.benefits)}
+                        </div>
+                      </div>
+                    )}
+
                     {course.objectives && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
                         <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="h-6 w-6 text-brand-blue" /> Qué Aprenderás (Objetivos)</h2>
@@ -747,11 +799,38 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
+                      <select
+                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
+                        value={formData.budget}
+                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
+                      >
+                        <option value="">Selecciona un rango</option>
+                        <option value="5000">S/ 0 - 5,000</option>
+                        <option value="15000">S/ 5,000 - 15,000</option>
+                        <option value="30000">S/ 15,000 - 30,000</option>
+                        <option value="999999">S/ 30,000+</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
+                      <select
+                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
+                        value={formData.modality_pref}
+                        onChange={(e) => setFormData({...formData, modality_pref: e.target.value})}
+                      >
+                        <option value="">Sin preferencia</option>
+                        <option value="Presencial">Presencial</option>
+                        <option value="Remoto">Remoto</option>
+                        <option value="Híbrido">Híbrido</option>
+                      </select>
+                    </div>
                   
                   <Button 
                     disabled={isSubmitting}
                     type="submit" 
-                    className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-4 active:scale-95"
+                    className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-2 active:scale-95"
                   >
                     {isSubmitting ? "Tramitando..." : "Confirmar Solicitud"}
                   </Button>
@@ -772,7 +851,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
         {/* Related Courses Section - Minimalist */}
         {relatedCourses.length > 0 && (
-          <section className="mt-32 pt-16 border-t border-brand-gray/50">
+          <section className="mt-16 pt-8 border-t border-brand-gray/50">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
               <div className="space-y-3">
                 <div className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Recomendaciones</div>
