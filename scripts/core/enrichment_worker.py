@@ -346,6 +346,13 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             logger.error(f"Error en enriquecimiento: {e}")
 
     def _generate_smart_mock(self, name, description):
+        # Fallback: extract summary from description if available
+        ai_summary = ""
+        if description and len(description.strip()) > 20:
+            clean_desc = html.unescape(description)
+            clean_desc = re.sub(r'<[^>]+>', '', clean_desc)
+            clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+            ai_summary = clean_desc[:300] + "..." if len(clean_desc) > 300 else clean_desc
         return {
             "official_name": name,
             "duration_text": "Consultar",
@@ -360,7 +367,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             "start_date": None,
             "categories": [],
             "difficulty_level": "",
-            "ai_summary": ""
+            "ai_summary": ai_summary,
         }
 
 if __name__ == "__main__":
@@ -450,7 +457,6 @@ if __name__ == "__main__":
                         worker.enrich_record(r)
                     except Exception as e:
                         logger.error(f"Error inesperado en enrich_record {rid}: {e}")
-                    total_processed += 1
                     total_processed += 1
                     guard.tick(every=50)
                     time.sleep(1.5)
