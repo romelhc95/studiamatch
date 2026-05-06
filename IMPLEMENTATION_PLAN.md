@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Free DB lista para FG2 (noise patterns corregidos, pipeline_ready solo DMC). Pro pendiente de migration SQL (columna `noise_patterns` no existe en `xwhtiqmboljkshrtviyw`). Fase 91 completada: diagnosticado que el bug fue por scripts temp usando `to_jsonb()`, no por la migration SQL que usa JSON literals correctos. Migration SQL de Fase 79C verificada: escapes correctos.
-- **Último Hito**: Fase 91 completada. Bug de double-escaping diagnosticado: causado por `to_jsonb()` en scripts, no por migration SQL. Migration SQL `20260505_fase79c_noise_patterns.sql` usa JSON literals `'["patron"]'::jsonb` que preservan backslashes correctamente.
-- **Próxima Acción**: Ejecutar FG2 en Free (cleansing → enrichment → sync). Luego aplicar migration SQL en Pro y re-ejecutar FG2 allí.
+- **Estado Actual**: FG2 ejecutado en Free. 45 cursos DMC en courses (40 real NVIDIA + 5 mock por rate limit). Frontend: filtro `is_mock_data=neq.true` removido para mostrar todos los cursos. RPC `atomic_enrichment_promote` corregido (provider_used, is_mock_data, status condition, curriculum_summary). Pro pendiente de migration SQL + FG2.
+- **Último Hito**: 45/45 cursos DMC visibles en frontend. 40 con descripciones reales (NVIDIA), 5 con smart mock (NVIDIA rate limit).
+- **Próxima Acción**: Ejecutar migration SQL en Pro + FG2 en Pro.
 
 ## Tareas Pendientes Priorizadas
 
