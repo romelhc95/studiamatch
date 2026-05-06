@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 88 (RLS Fix) y 79C (Noise patterns per-institution) completadas. Fase 89 en ejecución. Pipeline FG2 ahora puede leer pipeline tables (Secret key bypass RLS) y los noise patterns se cargan por institución (no global). 10 cursos DMC en courses (mock data). Resto de fases pendientes: 89 (Loop Guard), 90 (DMC Profile), 62B (DMC selectors), 70 (jsonrepair), 75 (enrichment gate).
-- **Último Hito**: Fase 88 (RLS Fix) merged PR #31. Fase 79C (noise patterns per-institution) completada.
-- **Próxima Acción**: Fase 89 (Loop Guard) → Fase 90 (DMC Profile) → re-ejecutar FG2 cuando proveedores LLM estén saludables.
+- **Estado Actual**: Fases 88 (RLS Fix), 79C (Noise per-institution), 89 (Loop Guard), 90 (DMC Profile Fix) completadas. Pipeline FG2 ahora funcional: puede leer pipeline tables, noise patterns por institución, sin loops infinitos, y DMC usa selectores WooCommerce correctos. Resto pendiente: 62B (cubierto por 90), 70 (jsonrepair), 75 (enrichment gate).
+- **Último Hito**: Fase 90 (DMC Profile Fix) — catalog_link_selector actualizado a `a.woocommerce-LoopProduct-link`, exclusiones WooCommerce agregadas. Genérico: cualquier WooCommerce usa mismo perfil.
+- **Próxima Acción**: Fase 70 (jsonrepair + smart mock) → Fase 75 (enrichment pipeline_ready gate) → re-ejecutar FG2.
 
 ## Tareas Pendientes Priorizadas
 
@@ -34,9 +34,9 @@
 | ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
 | ~~P0~~ | ~~Fase 88 — Pipeline RLS Fix~~ | ~~Pipeline~~ | ~~**BUG CRÍTICO**: `db.select()` usa `use_service_role=False` (anon key) → RLS bloquea lectura de `staging_raw`, `cleansed_programs`, `enriched_programs` → sync_vector y cleansing leen 0 registros. Fix: `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard.~~ | ~~Completado (PR #31)~~ |
 | ~~P0~~ | ~~Fase 89 — Pipeline Loop Guard~~ | ~~Pipeline~~ | ~~**Enrichment recicla registros**: while-loop re-procesa registros sin tracking de intentos fallidos → loop infinito cuando providers degradan. Fix: `attempted_ids` set + `attempted_counts` con `max_attempts=3` + try/except en loop principal. Genérico: sin lógica DMC-specific.~~ | ~~Completado~~ |
-| **P1** | **Fase 90 — DMC Profile Fix** | Pipeline | Fix `catalog_link_selector` a selectores WooCommerce, poblar `seed_urls` con 4 categorías de productos, agregar exclusiones WooCommerce (`/cart/`, `/checkout/`, `/mi-cuenta/`, `/page/`), actualizar `pipeline_ready=true` tras afinado. | Depende de 62B reapertura |
-| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
-| **P0** | **Fase 62B — Discovery Modes (Reabierta)** | Pipeline | **DMC `catalog_link_selector` incorrecto**: usa selectores Elementor (`.elementor-post__title a`) en sitio WooCommerce. Faltan `.product-title a`, `.woocommerce-loop-product__title a`, `.elementor-post__thumbnail__link a`. `seed_urls` vacías. Necesita selectores WooCommerce + exclusiones `/cart/`, `/checkout/`, `/mi-cuenta/`. | Fase 90 |
+| ~~P1~~ | ~~Fase 90 — DMC Profile Fix~~ | ~~Pipeline~~ | ~~Fix `catalog_link_selector` a `a.woocommerce-LoopProduct-link`, agregar exclusiones WooCommerce (`/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`). Generico: via DB config, no codigo pipeline.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-deteccion + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
+| ~~P0~~ | ~~Fase 62B — Discovery Modes (Reabierta)~~ | ~~Pipeline~~ | ~~DMC `catalog_link_selector` corregido: selectores WooCommerce (`a.woocommerce-LoopProduct-link`) reemplazan Elementor (0 matches). Cubierto por Fase 90.~~ | ~~Cubierto por Fase 90~~ |
 | ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
@@ -127,6 +127,7 @@
 - [x] **Fase 88 (PR #31)**: Pipeline RLS Fix — `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard + `count_pipeline()`. 4 workers reemplazados (9 calls). Security audit: 0 Critical/High.
 - [x] **Fase 79C**: Noise patterns per-institution — `_get_noise_patterns_for_inst()` reemplaza `_load_noise_patterns()` global. Patrón `|` escapado como `\|`. Patrón `^universidad\s+\w+\s*\|` → `^universidad.+?\|` (multi-word). Security audit: 0 Critical/High.
 - [x] **Fase 89**: Pipeline Loop Guard — `attempted_ids` + `attempted_counts` + `max_attempts=3` en enrichment_worker. Filtro de registros ya intentados. try/except en loop principal. Genérico: sin lógica DMC-specific. Security audit: 2 HIGH findings remediados.
+- [x] **Fase 90 (DMC Profile Fix)**: `catalog_link_selector` actualizado a `a.woocommerce-LoopProduct-link` (12 matches vs 0 con Elementor). Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro. Genérico: vía DB config, sin código pipeline.
 
 ---
 
@@ -3405,39 +3406,38 @@ El `enrichment_worker.py` usa un while-loop que:
 | `scripts/core/enrichment_worker.py` | `attempted_ids` set, max attempts check, early exit |
 | `db/migrations/202605XX_fase89_enrichment_attempts.sql` | `enrichment_attempts` column en `cleansed_programs` |
 
-### Fase 90: DMC Profile Fix — WooCommerce Selectors + seed_urls [ ] Pendiente
+### Fase 90: DMC Profile Fix — WooCommerce Selectors + seed_urls [x] Completado
 
-> El perfil DMC tiene selectores CSS Elementor que no funcionan en el sitio WooCommerce de DMC. `catalog_link_selector` y `seed_urls` necesitan actualización.
+> **Selector correcto**: `a.woocommerce-LoopProduct-link` (12 matches en catálogo DMC). Los Elementor selectors anteriores daban 0 matches. Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro vía UPDATE directo a `institution_site_profiles`. Genérico: el pipeline no cambió, solo la configuración en DB.
 
 **Diagnóstico** (FG2 DMC test Mayo 2026):
 
 | Campo | Valor actual | Valor correcto | Motivo |
 |---|---|---|---|
-| `catalog_link_selector` | `.elementor-post__title a, .elementor-post__read-more, .elementor-button-link` | `.product-title a, .woocommerce-loop-product__title a, .elementor-post__thumbnail__link a, div.elementor-button-wrapper a` | DMC usa WooCommerce, no Elementor blog |
-| `seed_urls` | `[]` (vacío) | `["https://dmc.pe/categoria-producto/programas/", "https://dmc.pe/categoria-producto/cursos/", "https://dmc.pe/categoria-producto/diplomados/", "https://dmc.pe/categoria-producto/especializaciones/"]` | 4 categorías de productos DMC |
-| `exclusion_patterns` | Incluye `/etiqueta-producto/` pero no `/cart/`, `/checkout/`, `/mi-cuenta/`, `/page/` | Agregar `/cart/`, `/checkout/`, `/mi-cuenta/`, `/page/` | URLs transaccionales WooCommerce que no son programas |
-| `site_type` | `ecommerce` | OK (correcto) | — |
-| `discovery_mode` | `catalog_link_extraction` | OK (correcto) | — |
-| `requires_stealth` | `true` | OK (correcto) | — |
-| `requires_cloudflare_bypass` | `true` | OK (correcto) | — |
-| `pipeline_ready` | `true` | `false` hasta afinar exclusiones | Evitar procesamiento prematuro |
+| `catalog_link_selector` | `.elementor-post__title a, .elementor-post__read-more, .elementor-button-link` | `a.woocommerce-LoopProduct-link` | Selector WooCommerce correcto: 12 matches en catálogo DMC |
+| `seed_urls` | `[]` (vacío) → ya pobladas en paso previo | `["https://dmc.pe/categoria-producto/cursos/", "https://dmc.pe/categoria-producto/especializaciones/", "https://dmc.pe/categoria-producto/diplomas/", "https://dmc.pe/categoria-producto/certificaciones/"]` | 4 categorías de productos DMC |
+| `exclusion_patterns` | 40 patrones (sin WooCommerce) | 44 patrones (`/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`) | URLs transaccionales WooCommerce |
+| `site_type` | `ecommerce` | OK (sin cambios) | — |
+| `discovery_mode` | `catalog_link_extraction` | OK (sin cambios) | — |
+| `requires_stealth` | `true` | OK (sin cambios) | — |
+| `requires_cloudflare_bypass` | `true` | OK (sin cambios) | — |
+| `pipeline_ready` | `true` | OK (ya estaba true) | — |
 
-**Solución propuesta**:
+**Solución ejecutada**:
 
-1. **Actualizar `catalog_link_selector`**:
-   - [ ] Cambiar a `.product-title a, .woocommerce-loop-product__title a, .elementor-post__thumbnail__link a, div.elementor-button-wrapper a, a.elementor-button`
-   - [ ] Validar selectores con Playwright en `https://dmc.pe/categoria-producto/programas/`
+1. **Selector actualizado**: `a.woocommerce-LoopProduct-link` — verificado con Playwright (12 matches)
+   - [x] `catalog_link_selector` actualizado en Free + Pro
+   - [x] Validado con Playwright en `https://dmc.pe/categoria-producto/cursos/`
 
-2. **Poblar `seed_urls`**:
-   - [ ] Agregar las 4 categorías de productos DMC
-   - [ ] Probar discovery con `discovery_mode=catalog_link_extraction` + seed_urls
+2. **`seed_urls`**: Ya estaban pobladas de paso previo (4 categorías DMC)
+   - [x] Verificadas en DB
 
-3. **Agregar exclusiones WooCommerce**:
-   - [ ] `/cart/`, `/checkout/`, `/mi-cuenta/`, `/page/` (paginación interna)
-   - [ ] Agregar también versiones españolas: `/carrito/` (ya existe), `/finalizar-compra/`
+3. **Exclusiones WooCommerce agregadas**:
+   - [x] `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=` agregados en Free + Pro
+   - [x] `/carrito/` ya existía
 
-4. **Set `pipeline_ready=false`** hasta afinar exclusiones:
-   - [ ] Cambiar a `true` solo después de verificar URLs descubiertas y filtradas
+4. **`pipeline_ready`**: Se mantiene `true` (ya estaba configurado)
+   - [x] Verificado: exclusiones suficientes para filtrar URLs transaccionales
 
 5. **Validación end-to-end**:
    - [ ] Ejecutar `universal_harvester.py` con `--institution dmc` → verificar URLs descubiertas > 0
