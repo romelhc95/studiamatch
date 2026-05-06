@@ -43,7 +43,7 @@ class SyncVectorWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select('institution_site_profiles') or []
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
@@ -78,7 +78,7 @@ class SyncVectorWorker:
         return self.default_noise_patterns
 
     def get_pending_enriched(self, limit=500):
-        return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
+        return self.db.select_pipeline('enriched_programs', filters="status=eq.pending", limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']

@@ -58,7 +58,7 @@ class EnrichmentWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select('institution_site_profiles') or []
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
@@ -72,7 +72,7 @@ class EnrichmentWorker:
     def get_pending_cleansed(self, limit=None):
         """Obtiene registros de cleansed_programs para IA."""
         try:
-            res = self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
+            res = self.db.select_pipeline('cleansed_programs', filters="status=eq.pending", limit=limit)
             if res and len(res) > 0:
                 return res
         except Exception as e:

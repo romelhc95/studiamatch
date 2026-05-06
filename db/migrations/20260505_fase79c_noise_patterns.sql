@@ -8,15 +8,15 @@ ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS noise_patterns JS
 UPDATE institution_site_profiles
 SET noise_patterns = '[
   "agradecimiento",
-  "thank.?\\\\s*you",
+  "thank.?\\s*you",
   "^https?://[^/]+/?$",
   "/facultad-de-[^/]+/?$",
   "matr[ií]cul",
   "inscr[ií]b",
   "gracias",
-  "matr[ií]culas?\\\\s+abiert",
+  "matr[ií]culas?\\s+abiert",
   "inscr[ií]bete",
-  "^facultad\\\\s+de\\\\b",
-  "^universidad\\\\s+\\\\w+\\\\s*|"
+  "^facultad\\s+de\\b",
+  "^universidad\\s+\\w+\\s*\\|"
 ]'::jsonb
 WHERE noise_patterns = '[]'::jsonb OR noise_patterns IS NULL;
