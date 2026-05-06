@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 88, 79C, 89, 90, 70 completadas. Pipeline FG2 listo para re-ejecución: RLS fix aplicado, noise patterns por institución, loop guard, DMC selectores WooCommerce, jsonrepair instalado, smart mock con fallback description. Solo pendiente Fase 75 (enrichment pipeline_ready gate).
-- **Último Hito**: Fase 70 (jsonrepair + smart mock description fallback). `jsonrepair` instalado y funcionando. `_generate_smart_mock()` ahora extrae `ai_summary` del HTML description (hasta 300 chars). Bug `total_processed += 1` duplicado corregido.
-- **Próxima Acción**: Fase 75 (enrichment pipeline_ready gate) → re-ejecutar FG2.
+- **Estado Actual**: Fases 88, 79C, 89, 90, 70, 75 completadas. Pipeline FG2 listo para re-ejecución: todas las 4 estaciones tienen pipeline_ready gate, noise patterns por institución, RLS fix, loop guard, jsonrepair, smart mock con fallback description.
+- **Último Hito**: Fase 75 (enrichment pipeline_ready gate). `get_pending_cleansed()` ahora filtra por `institution_id IN ready_inst_ids` a nivel DB query, evitando fetch de registros de instituciones no listas.
+- **Próxima Acción**: Re-ejecutar FG2 (enrichment_worker → sync_vector_worker) para poblar DB Free con cursos reales.
 
 ## Tareas Pendientes Priorizadas
 
@@ -45,7 +45,7 @@
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
-| **P1** | **Fase 75 — Exclusion Gate (Reabierta)** | Pipeline | **Bug**: `enrichment_worker` NO tiene gate `pipeline_ready` (solo harvester y cleansing). Enrichment procesa registros basura de instituciones con `pipeline_ready=false`. Agregar check `pipeline_ready` en enrichment. | Depende de 88 (RLS fix) |
+| ~~P1~~ | ~~Fase 75 — Exclusion Gate (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `get_pending_cleansed()` no filtraba por `pipeline_ready` a nivel DB → fetch de registros de instituciones no listas. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check ya existía como defensa.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
@@ -129,6 +129,7 @@
 - [x] **Fase 89**: Pipeline Loop Guard — `attempted_ids` + `attempted_counts` + `max_attempts=3` en enrichment_worker. Filtro de registros ya intentados. try/except en loop principal. Genérico: sin lógica DMC-specific. Security audit: 2 HIGH findings remediados.
 - [x] **Fase 90 (DMC Profile Fix)**: `catalog_link_selector` actualizado a `a.woocommerce-LoopProduct-link` (12 matches vs 0 con Elementor). Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro. Genérico: vía DB config, sin código pipeline.
 - [x] **Fase 70**: jsonrepair instalado en contenedor. `_generate_smart_mock()` ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido. LLMProvider/ProviderOrchestrator ya implementados (Fase 77).
+- [x] **Fase 75**: enrichment `get_pending_cleansed()` filtra por `institution_id IN ready_inst_ids` a nivel DB query. Loop-level check ya existía como defensa en profundidad.
 
 ---
 
@@ -2358,7 +2359,7 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 
 ### Fase 75: Exclusion Gate + Noise Sentinel v2 [✓] Completada
 
-**Objetivo**: Eliminar el 42% de ruido en courses (5/12), implementar 5 capas de defensa que previenen ruido futuro, y afinar exclusiones institución por institución antes de ejecutar el pipeline. **No ejecutar el pipeline FG2 hasta que cada institución tenga exclusiones afinadas y `pipeline_ready = true`**.
+> **Reabierta (Mayo 2026)**: `get_pending_cleansed()` en enrichment_worker no filtraba por `pipeline_ready` a nivel DB query. Fetch traía registros de instituciones no listas, que luego se descartaban individualmente en el loop. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check se mantiene como defensa en profundidad. Genérico: funciona para cualquier institución.
 
 **Diagnóstico actual (Free DB)**:
 

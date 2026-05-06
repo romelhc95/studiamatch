@@ -70,9 +70,15 @@ class EnrichmentWorker:
         return {}
 
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs para IA."""
+        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline_ready=true."""
         try:
-            res = self.db.select_pipeline('cleansed_programs', filters="status=eq.pending", limit=limit)
+            # Fase 75: Exclusion Gate — filtrar solo instituciones con pipeline_ready=true
+            if self.ready_inst_ids:
+                inst_ids = ",".join(sorted(self.ready_inst_ids))
+                filters = f"status=eq.pending&institution_id=in.({inst_ids})"
+            else:
+                filters = "status=eq.pending"
+            res = self.db.select_pipeline('cleansed_programs', filters=filters, limit=limit)
             if res and len(res) > 0:
                 return res
         except Exception as e:
