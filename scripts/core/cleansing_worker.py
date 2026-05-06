@@ -183,7 +183,7 @@ class CleansingWorker:
 
     def _load_profiles(self) -> List[Dict[str, Any]]:
         try:
-            return self.db.select('institution_site_profiles') or []
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
@@ -282,7 +282,7 @@ class CleansingWorker:
                             yield record
                     continue
                 # Fallback: simple select (no lock)
-                batch = self.db.select('staging_raw', filters="status=eq.pending", limit=batch_size)
+                batch = self.db.select_pipeline('staging_raw', filters="status=eq.pending", limit=batch_size)
                 if not batch: break
                 for record in batch: yield record
             except Exception as e:
