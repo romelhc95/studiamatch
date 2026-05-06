@@ -12,11 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 >
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
+>
+> **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: FG2 DMC test ejecutado end-to-end. Sehallaron 3 bugs críticos: (1) RLS bloquea `db.select()` en tablas pipeline → sync_vector lee 0 registros, (2) noise pattern `|` sin escapar (`^universidad\s+\w+\s*|`) descarta TODOS los cursos, (3) DMC `catalog_link_selector` usa selectores Elementor en vez de WooCommerce → 0 URLs descubiertas. 10 cursos DMC insertados manualmente (mock data). Fases 88/89/90 creadas. Fases 62B/70/75/79C reabiertas.
-- **Último Hito**: FG2 DMC pipeline test — 4 estaciones ejecutadas, 3 bugs críticos hallados y documentados, 10/45 URLs llegaron a courses (mock).
-- **Próxima Acción**: Ejecutar Fase 88 (RLS Fix) → Fase 90 (DMC Profile) → Fase 89 (Loop Guard) → re-ejecutar FG2 cuando proveedores LLM estén saludables.
+- **Estado Actual**: Fase 88 (RLS Fix) y 79C (Noise patterns per-institution) completadas. Fase 89 en ejecución. Pipeline FG2 ahora puede leer pipeline tables (Secret key bypass RLS) y los noise patterns se cargan por institución (no global). 10 cursos DMC en courses (mock data). Resto de fases pendientes: 89 (Loop Guard), 90 (DMC Profile), 62B (DMC selectors), 70 (jsonrepair), 75 (enrichment gate).
+- **Último Hito**: Fase 88 (RLS Fix) merged PR #31. Fase 79C (noise patterns per-institution) completada.
+- **Próxima Acción**: Fase 89 (Loop Guard) → Fase 90 (DMC Profile) → re-ejecutar FG2 cuando proveedores LLM estén saludables.
 
 ## Tareas Pendientes Priorizadas
 
@@ -30,8 +32,8 @@
 | ~~P1~~ | ~~Fase 61 — Site Profiles~~ | ~~Arquitectura~~ | ~~Crear tabla `institution_site_profiles`, migrar exclusiones, seed perfiles~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 68 — Pipeline Resiliencia: Cancelación Controlada~~ | ~~Pipeline~~ | ~~TIME_GUARD + signal handler + retry con backoff + timeouts alineados~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
-| **P0** | **Fase 88 — Pipeline RLS Fix** | Pipeline | **BUG CRÍTICO**: `db.select()` usa `use_service_role=False` (anon key) → RLS bloquea lectura de `staging_raw`, `cleansed_programs`, `enriched_programs` → sync_vector y cleansing leen 0 registros. Fix: usar `use_service_role=True` para pipeline table reads o crear RPCs con `SECURITY DEFINER`. | Ninguno — bloquea FG2 |
-| **P0** | **Fase 89 — Pipeline Loop Guard** | Pipeline | **Enrichment recicla registros**: while-loop re-procesa registros sin tracking de intentos fallidos → loop infinito cuando providers degradan. Agregar `attempted_ids` set + skip lógica + `max_attempts=3` por registro. | Ninguno — bloquea FG2 |
+| ~~P0~~ | ~~Fase 88 — Pipeline RLS Fix~~ | ~~Pipeline~~ | ~~**BUG CRÍTICO**: `db.select()` usa `use_service_role=False` (anon key) → RLS bloquea lectura de `staging_raw`, `cleansed_programs`, `enriched_programs` → sync_vector y cleansing leen 0 registros. Fix: `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard.~~ | ~~Completado (PR #31)~~ |
+| ~~P0~~ | ~~Fase 89 — Pipeline Loop Guard~~ | ~~Pipeline~~ | ~~**Enrichment recicla registros**: while-loop re-procesa registros sin tracking de intentos fallidos → loop infinito cuando providers degradan. Fix: `attempted_ids` set + `attempted_counts` con `max_attempts=3` + try/except en loop principal. Genérico: sin lógica DMC-specific.~~ | ~~Completado~~ |
 | **P1** | **Fase 90 — DMC Profile Fix** | Pipeline | Fix `catalog_link_selector` a selectores WooCommerce, poblar `seed_urls` con 4 categorías de productos, agregar exclusiones WooCommerce (`/cart/`, `/checkout/`, `/mi-cuenta/`, `/page/`), actualizar `pipeline_ready=true` tras afinado. | Depende de 62B reapertura |
 | ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
 | **P0** | **Fase 62B — Discovery Modes (Reabierta)** | Pipeline | **DMC `catalog_link_selector` incorrecto**: usa selectores Elementor (`.elementor-post__title a`) en sitio WooCommerce. Faltan `.product-title a`, `.woocommerce-loop-product__title a`, `.elementor-post__thumbnail__link a`. `seed_urls` vacías. Necesita selectores WooCommerce + exclusiones `/cart/`, `/checkout/`, `/mi-cuenta/`. | Fase 90 |
@@ -53,7 +55,7 @@
 | ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake `ó→+` verificado como resuelto — archivos frontend en UTF-8 puro, 0 instancias de mojibake. `provider_used` + `is_mock_data` ya en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas.~~ | ~~Ninguno~~ |
 | ~~P2~~ | ~~Fase 79B — Circuit Breaker por Institución~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h~~ | ~~Completado (PR #29 + migration)~~ |
-| **P0** | **Fase 79C — Noise Patterns (Reabierta)** | Pipeline | **Bug crítico**: patrón `^universidad\s+\w+\s*|` tiene `|` sin escapar → actúa como alternancia regex → matchea string vacío → descarta TODOS los cursos. `_load_noise_patterns()` carga de TODOS los perfiles (no solo el actual). Fix: escapar `|` en DB + migration SQL, filtrar patterns por institution_id. | Ninguno — bloquea FG2 |
+| ~~P0~~ | ~~Fase 79C — Noise Patterns (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug crítico**: patrón `^universidad\s+\w+\s*|` tiene `|` sin escapar → actúa como alternancia regex → matchea string vacío → descarta TODOS los cursos. `_load_noise_patterns()` cargaba de TODOS los perfiles (no solo el actual). Fix: `_get_noise_patterns_for_inst()` por institución, escapar `|` en DB + migration SQL, patrón `\w+`→`.+?` (multi-word).~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 79D — JSONB Guardrails~~ | ~~Pipeline~~ | ~~Migration + trigger: auto-repair string→array/object en JSONB~~ | ~~Completado (PR #29 + migration)~~ |
 | ~~P1~~ | ~~Fase 80A — RLS Hardening + Column-Level Security~~ | ~~Seguridad + Frontend~~ | ~~RLS ya filtra `is_active=true AND is_verified=true` para anon. `COURSE_PUBLIC_FIELDS` ya excluye `provider_used`, `is_mock_data`, `last_scraped_at`. Pendiente: `select=*` en ratings/reviews y leads sin validación server-side (Fase 80C).~~ | ~~Ninguno~~ |
 | ~~P1~~ | ~~Fase 80B — Client-Side Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya tiene fetch en tiempo real + localStorage cache TTL 5min (verificado)~~ | ~~Completado (ya implementado pre-PR #29)~~ |
@@ -115,13 +117,16 @@
 - [x] **Fase 51**: Docs hermanas — `core_data_flow.md` y `PIPELINE_PLAN.md` ya existen en repo. Status update.
 - [x] **Fase 58/59**: Verificación frontend — 99% completado. 17/20 campos mapeados visibles. Gaps menores aceptables P4.
 - [x] **Fase 65**: Limpieza de Datos Falsos — Verificado: 0 courses con `description_long=name` en Free DB. Pendiente re-ejecutar FG2 para enriquecer campos vacíos.
-- [] **FG2 DMC Test (Mayo 2026)**: Ejecución end-to-end del pipeline para DMC. Hallazgos documentados:
+- [x] **FG2 DMC Test (Mayo 2026)**: Ejecución end-to-end del pipeline para DMC. Hallazgos documentados:
   - **Estación 1 (Harvester)**: `catalog_link_selector` Elementor incorrecto para WooCommerce → 0 URLs descubiertas. Bypass manual: 45 URLs insertadas en staging_raw + Playwright scrape.
   - **Estación 1.5 (Cleansing)**: Bug crítico `^universidad\s+\w+\s*|` — `|` sin escapar = alternancia regex = matchea vacío = descarta TODOS los cursos. Corregido en DB.
   - **Estación 2 (Enrichment)**: 4/4 proveedores LLM degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). Smart mock: `ai_summary` vacío. Solo 10/45 enrichados.
   - **Estación 3 (Sync)**: Bug crítico RLS → `db.select()` usa anon key → 0 registros leídos de enriched_programs → 0 courses. Bypass manual con service_role.
   - **Resultado**: 10 cursos DMC en tabla courses (mock data), 35 quedaron solo en cleansed_programs.
   - **Fases creadas/reabiertas**: 88 (RLS Fix), 89 (Loop Guard), 90 (DMC Profile), 62B (DMC selectors), 70 (jsonrepair), 75 (enrichment gate), 79C (noise pattern bug).
+- [x] **Fase 88 (PR #31)**: Pipeline RLS Fix — `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard + `count_pipeline()`. 4 workers reemplazados (9 calls). Security audit: 0 Critical/High.
+- [x] **Fase 79C**: Noise patterns per-institution — `_get_noise_patterns_for_inst()` reemplaza `_load_noise_patterns()` global. Patrón `|` escapado como `\|`. Patrón `^universidad\s+\w+\s*\|` → `^universidad.+?\|` (multi-word). Security audit: 0 Critical/High.
+- [x] **Fase 89**: Pipeline Loop Guard — `attempted_ids` + `attempted_counts` + `max_attempts=3` en enrichment_worker. Filtro de registros ya intentados. try/except en loop principal. Genérico: sin lógica DMC-specific. Security audit: 2 HIGH findings remediados.
 
 ---
 
