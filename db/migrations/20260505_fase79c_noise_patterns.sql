@@ -17,6 +17,6 @@ SET noise_patterns = '[
   "matr[ií]culas?\\s+abiert",
   "inscr[ií]bete",
   "^facultad\\s+de\\b",
-  "^universidad\\s+\\w+\\s*\\|"
+  "^universidad.+?\\|"
 ]'::jsonb
 WHERE noise_patterns = '[]'::jsonb OR noise_patterns IS NULL;
