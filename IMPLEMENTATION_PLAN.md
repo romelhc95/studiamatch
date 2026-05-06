@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 88, 79C, 89, 90, 70, 75 completadas. Pipeline FG2 listo para re-ejecución: todas las 4 estaciones tienen pipeline_ready gate, noise patterns por institución, RLS fix, loop guard, jsonrepair, smart mock con fallback description.
-- **Último Hito**: Fase 75 (enrichment pipeline_ready gate). `get_pending_cleansed()` ahora filtra por `institution_id IN ready_inst_ids` a nivel DB query, evitando fetch de registros de instituciones no listas.
-- **Próxima Acción**: Re-ejecutar FG2 (enrichment_worker → sync_vector_worker) para poblar DB Free con cursos reales.
+- **Estado Actual**: FG2 ejecutado en Free. 45 cursos DMC en courses (40 real NVIDIA + 5 mock por rate limit). Frontend: filtro `is_mock_data=neq.true` removido para mostrar todos los cursos. RPC `atomic_enrichment_promote` corregido (provider_used, is_mock_data, status condition, curriculum_summary). Pro pendiente de migration SQL + FG2.
+- **Último Hito**: 45/45 cursos DMC visibles en frontend. 40 con descripciones reales (NVIDIA), 5 con smart mock (NVIDIA rate limit).
+- **Próxima Acción**: Ejecutar migration SQL en Pro + FG2 en Pro.
 
 ## Tareas Pendientes Priorizadas
 
@@ -55,7 +55,8 @@
 | ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake `ó→+` verificado como resuelto — archivos frontend en UTF-8 puro, 0 instancias de mojibake. `provider_used` + `is_mock_data` ya en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas.~~ | ~~Ninguno~~ |
 | ~~P2~~ | ~~Fase 79B — Circuit Breaker por Institución~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h~~ | ~~Completado (PR #29 + migration)~~ |
-| ~~P0~~ | ~~Fase 79C — Noise Patterns (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug crítico**: patrón `^universidad\s+\w+\s*|` tiene `|` sin escapar → actúa como alternancia regex → matchea string vacío → descarta TODOS los cursos. `_load_noise_patterns()` cargaba de TODOS los perfiles (no solo el actual). Fix: `_get_noise_patterns_for_inst()` por institución, escapar `|` en DB + migration SQL, patrón `\w+`→`.+?` (multi-word).~~ | ~~Completado~~ |
+| ~~P0~~ | ~~Fase 79C — Noise Patterns (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `to_jsonb()` PostgreSQL duplica backslashes → patrones con `\\s`, `\\b`, `\\|` en vez de `\s`, `\b`, `\|`. Cuando `\\|` se interpreta en regex, la `|` actúa como alternancia → descarta TODOS los cursos. Fix: usar JSON string literal `'"patron"'::jsonb` en vez de `to_jsonb('patron'::text)`.~~ | ~~Pendiente de aplicar en Pro (Free ya corregido)~~ |
+| ~~P0~~ | ~~Fase 91 — Noise Pattern Double-Escaping Fix~~ | ~~Pipeline~~ | ~~**BUG diagnosticado en FG2 cleanup**: scripts temp usaron `to_jsonb()` que duplica backslashes. Migration SQL `20260505_fase79c_noise_patterns.sql` usa JSON literals correctos. Free corregido. Migration SQL verificada correcta. Pro requiere ejecutar migration + fix via REST API.~~ | ~~Completado — Free corregido; Pro pendiente de migration SQL~~ |
 | ~~P2~~ | ~~Fase 79D — JSONB Guardrails~~ | ~~Pipeline~~ | ~~Migration + trigger: auto-repair string→array/object en JSONB~~ | ~~Completado (PR #29 + migration)~~ |
 | ~~P1~~ | ~~Fase 80A — RLS Hardening + Column-Level Security~~ | ~~Seguridad + Frontend~~ | ~~RLS ya filtra `is_active=true AND is_verified=true` para anon. `COURSE_PUBLIC_FIELDS` ya excluye `provider_used`, `is_mock_data`, `last_scraped_at`. Pendiente: `select=*` en ratings/reviews y leads sin validación server-side (Fase 80C).~~ | ~~Ninguno~~ |
 | ~~P1~~ | ~~Fase 80B — Client-Side Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya tiene fetch en tiempo real + localStorage cache TTL 5min (verificado)~~ | ~~Completado (ya implementado pre-PR #29)~~ |
@@ -130,6 +131,11 @@
 - [x] **Fase 90 (DMC Profile Fix)**: `catalog_link_selector` actualizado a `a.woocommerce-LoopProduct-link` (12 matches vs 0 con Elementor). Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro. Genérico: vía DB config, sin código pipeline.
 - [x] **Fase 70**: jsonrepair instalado en contenedor. `_generate_smart_mock()` ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido. LLMProvider/ProviderOrchestrator ya implementados (Fase 77).
 - [x] **Fase 75**: enrichment `get_pending_cleansed()` filtra por `institution_id IN ready_inst_ids` a nivel DB query. Loop-level check ya existía como defensa en profundidad.
+- [] **FG2 Cleanup — May 2026**: Pipeline ejecutado en Free. 0/45 cursos DMC llegaron a courses. Bug encontrado:
+  - **Bug crítico**: `noise_patterns` almacenados con double-escaping por `to_jsonb()` → `\\s`, `\\b`, `\\|` en vez de `\s`, `\b`, `\|` → la `|` en `\\|` actúa como alternancia regex → descarta TODO.
+  - **Fix Free**: Patrones corregidos usando `'"patron"'::jsonb` literal. Todos los 12 perfiles verificados con Python (repr correcto, len correcto, regex compila bien).
+  - **Fix Pro**: Pendiente (aplicar mismo fix mediante REST API).
+  - **Fase 91 creada** para documentar y corregir el bug de double-escaping.
 
 ---
 
@@ -2848,7 +2854,9 @@ Objetivo: Resolver bug de encoding `ó`→`+` (mojibake) en frontend y pipeline,
 > Migration `20260505_fase79bd_circuitbreaker_guardrails.sql` aplicada en Free DB.
 > `universal_harvester.py`: auto-detección 403/429 en `_safe_request()`, abre circuito, skippea institución. `enrichment_worker.py`: `_mock_only` flag + `_all_degraded()` early-exit batch-level.
 
-#### Sub-fase 79C: Noise Patterns Centralizados (P2) 🔴 Pendiente
+#### Sub-fase 79C: Noise Patterns Centralizados (P2) [x] Completado — Bug double-escaping detectado (Fase 91)
+
+> **Estado**: Columna `noise_patterns` agregada, carga DB-driven implementada, ReDoS protection operativa. Sin embargo, se detectó un bug crítico: `to_jsonb()` en SQL duplica backslashes al almacenar patrones → todos los patrones con `\s`, `\b`, `\|` se almacenaron como `\\s`, `\\b`, `\\|`. La `|` en `\\|` actúa como alternancia regex → descarta TODOS los cursos. Ver Fase 91 para corrección.
 
 > **Hallazgo**: Patrones hardcodeados en **3 ubicaciones distintas**:
 > - `sync_vector_worker.py:34-41` — 6 patrones (agradecimiento, thank_you, homepage, facultad-de, matrícula, inscríb)
@@ -3451,4 +3459,60 @@ El `enrichment_worker.py` usa un while-loop que:
 |---|---|
 | `db/migrations/202605XX_fase90_dmc_profile_fix.sql` | UPDATE `institution_site_profiles` SET `catalog_link_selector`, `seed_urls`, `exclusion_patterns`, `pipeline_ready` |
 | `scripts/maintenance/fase62_update_profiles.py` | Agregar exclusiones WooCommerce al perfile DMC |
+
+---
+
+### Fase 91: Noise Pattern Double-Escaping Fix — `to_jsonb()` corrompe backslashes [x] Completado
+
+> **BUG diagnosticado en FG2 cleanup (Mayo 2026)**: Scripts temp usaron `to_jsonb()` para actualizar noise patterns. PostgreSQL `to_jsonb('texto\\n'::text)` duplica backslashes al convertir texto a JSONB. Migration SQL `20260505_fase79c_noise_patterns.sql` NO tiene este bug porque usa JSON literales directos: `'["patron"]'::jsonb`.
+>
+> **Free**: Corregido (patrones ok). **Pro**: La columna `noise_patterns` NO existe en el proyecto real `xwhtiqmboljkshrtviyw` — requiere ejecutar migration SQL manualmente en Pro SQL Editor.
+
+**Diagnóstico**:
+
+| Componente | Valor esperado | Valor almacenado (bug) | Efecto |
+|---|---|---|---|
+| `^universidad.+?\|` (SQL) | `\\|` en JSON → `\|` en Python → literal pipe | `\\\\|` en JSON → `\\|` en Python → `\\` (backslash) + `|` (alternancia) | Matches TODO |
+| `thank.?\s*you` | `\\s` en JSON → `\s` en Python → whitespace | `\\\\s` en JSON → `\\s` en Python → backslash + `s` | No encuentra "thank you" |
+| `^facultad\s+de\b` | `\\s`, `\\b` en JSON → escapes correctos | `\\\\s`, `\\\\b` en JSON → dobles escapes | No encuentra facultades |
+
+**Causa raíz**: `to_jsonb('^universidad.+?\\|'::text)` donde `\\` en SQL = un backslash `\`. PostgreSQL `to_jsonb()` recibe el string `^universidad.+?\|` y lo convierte a JSON válido escapando el backslash: `^universidad.+?\\|`. Esto duplica los backslashes.
+
+**Fix correcto**: Usar JSON string literal con `::jsonb` en vez de `to_jsonb()`:
+```sql
+-- MAL (double-escaping):
+UPDATE ... SET noise_patterns = to_jsonb('texto\\n'::text)
+-- BIEN (sin double-escaping):
+UPDATE ... SET noise_patterns = '["texto\\n"]'::jsonb
+```
+
+**Tareas**:
+
+1. **Corregir Pro DB** (aplica mismo fix que Free):
+   - [x] Diagnosticado: Pro no tiene columna `noise_patterns` — requiere ejecutar migration SQL manualmente en Pro SQL Editor
+   - [ ] **Pendiente usuario**: Ejecutar `db/migrations/20260505_fase79c_noise_patterns.sql` en Pro SQL Editor (`xwhtiqmboljkshrtviyw`)
+   - [ ] **Pendiente usuario**: Ejecutar fáse 79B, 79D, 80A migrations que también faltan en Pro
+
+2. **Migration SQL verificada** `db/migrations/20260505_fase79c_noise_patterns.sql`:
+   - [x] Usa JSON string literals `'["patron"]'::jsonb` (NO `to_jsonb()`)
+   - [x] Backslashes correctos: `"\\s"` → `\s` en regex, `"\\|"` → `\|` en regex
+   - [x] Compilado regex validado con Python: `re.compile(r'^universidad.+?\|')` funciona correctamente
+
+3. **Free corregido**:
+   - [x] Patrones actualizados con JSON literals directos
+   - [x] Verificado con Python: `repr('^universidad.+?\\|')` len=17, regex no matchea "Diploma Data Scientist"
+   - [x] Los 12 perfiles verificados sin double backslashes
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `db/migrations/20260505_fase79c_noise_patterns.sql` | Seed values: `to_jsonb()` → JSON string literals |
+| `scripts/maintenance/fase62_update_profiles.py` | (opcional) Documentar advertencia sobre `to_jsonb()` |
+
+**Archivos que NO se modifican**:
+- `scripts/core/cleansing_worker.py` — sin cambios (ya lee patrones correctamente si están bien almacenados)
+- `scripts/core/sync_vector_worker.py` — sin cambios
+- `scripts/shared/db_client.py` — sin cambios
+- `scripts/shared/utils.py` — sin cambios
 

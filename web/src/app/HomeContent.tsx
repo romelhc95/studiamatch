@@ -268,7 +268,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     try {
       const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
       const [cRes, iRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&is_mock_data=neq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
       ]);
       const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
