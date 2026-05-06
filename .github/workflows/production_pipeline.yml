@@ -16,28 +16,29 @@ jobs:
     name: "1. Massive Harvesting"
     runs-on: ubuntu-latest
     timeout-minutes: 350
-    container:
-      image: mcr.microsoft.com/playwright:v1.48.0-noble
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     env:
       PYTHONIOENCODING: utf-8
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-      - name: Cache pip & Playwright
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/ms-playwright
+          path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-pw-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pw-
-      - name: Install dependencies (system python)
-        run: |
-          apt-get update && apt-get install -y python3-pip
-          pip3 install --break-system-packages -r requirements.txt
-          playwright install chromium
+      - name: Install Python Dependencies
+        run: pip install -r requirements.txt
+      - name: Install Playwright browsers
+        run: playwright install chromium
       - name: Set Job Start Time
         run: echo "JOB_START_TIME=$(date +%s)" >> $GITHUB_ENV
       - name: Run Master Orchestrator (Harvesting Only)
@@ -59,6 +60,7 @@ jobs:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     env:
       PYTHONIOENCODING: utf-8
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -86,6 +88,7 @@ jobs:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     env:
       PYTHONIOENCODING: utf-8
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -118,6 +121,7 @@ jobs:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     env:
       PYTHONIOENCODING: utf-8
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -145,6 +149,7 @@ jobs:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     env:
       PYTHONIOENCODING: utf-8
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

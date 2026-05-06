@@ -6,7 +6,7 @@ import re
 import sys
 import hashlib
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ET
 
@@ -71,6 +71,24 @@ class UniversalHarvester:
         self.catalog_scroll_iterations = self.profile.get('catalog_scroll_iterations', 0) if self.profile else 0
         self.section_keywords = self.profile.get('section_keywords', {}) if self.profile else {}
         self.field_defaults = self.profile.get('field_defaults', {}) if self.profile else {}
+        # Fase 79B: Circuit Breaker
+        self.max_consecutive_errors = self.profile.get('max_consecutive_errors', self.BLOCK_THRESHOLD) if self.profile else self.BLOCK_THRESHOLD
+        db_circuit_open = self.profile.get('circuit_open', False) if self.profile else False
+        db_circuit_opened_at = self.profile.get('circuit_opened_at') if self.profile else None
+        if db_circuit_open and db_circuit_opened_at:
+            opened = db_circuit_opened_at
+            if isinstance(opened, str):
+                opened = datetime.fromisoformat(opened.replace('Z', '+00:00'))
+            hours_since = (datetime.now(timezone.utc) - opened).total_seconds() / 3600
+            if hours_since < 24:
+                self.circuit_open = True
+                logger.warning(f"Circuito abierto para {self.institution.get('name')} (abierto hace {hours_since:.1f}h). Saltando.")
+            else:
+                logger.info(f"Circuito auto-cerrado para {self.institution.get('name')} (>24h desde apertura).")
+                try:
+                    self.db.patch('institution_site_profiles', filters=f"institution_id=eq.{self.institution.get('id')}", data={'circuit_open': False, 'circuit_opened_at': None})
+                except Exception:
+                    pass
 
         # ⏱️ TIME GUARD CONFIG
         self.global_start = global_start or time.time()
@@ -94,7 +112,7 @@ class UniversalHarvester:
     def _load_site_profile(self):
         try:
             inst_id = self.institution.get('id')
-            profiles = self.db.select('institution_site_profiles',
+            profiles = self.db.select_pipeline('institution_site_profiles',
                                        filters=f'institution_id=eq.{inst_id}',
                                        limit=1)
             if profiles and len(profiles) > 0:
@@ -167,7 +185,7 @@ class UniversalHarvester:
         try:
             ids = [url, effective_url, canonical_url]
             ids = [normalize_url(i) for i in ids if i]
-            data = self.db.select("staging_raw", filters=f"url=eq.{url}", columns="content_hash")
+            data = self.db.select_pipeline("staging_raw", filters=f"url=eq.{url}", columns="content_hash")
             if data and len(data) > 0:
                 old_hash = data[0].get('content_hash')
                 if old_hash == content_hash:
@@ -180,6 +198,17 @@ class UniversalHarvester:
         try:
             await asyncio.sleep(random.uniform(2, 5))
             resp = await session.get(url, impersonate=self.impersonate, timeout=25)
+            # Fase 79B: Circuit Breaker — detectar 403/429
+            if resp and resp.status_code in (403, 429):
+                self.error_count += 1
+                logger.warning(f"HTTP {resp.status_code} para {url} (error #{self.error_count}/{self.max_consecutive_errors})")
+                if self.error_count >= self.max_consecutive_errors:
+                    logger.error(f"DEMASIOADOS ERRORES ({self.error_count}). Abriendo circuito para {self.institution.get('name')}.")
+                    self.circuit_open = True
+                    try:
+                        self.db.patch('institution_site_profiles', filters=f"institution_id=eq.{self.institution.get('id')}", data={'circuit_open': True, 'circuit_opened_at': datetime.now(timezone.utc).isoformat()})
+                    except Exception as e:
+                        logger.warning(f"No se pudo actualizar circuit_open en DB: {e}")
             return resp
         except Exception as e:
             logger.debug(f"Request failed for {url}: {e}")
@@ -292,7 +321,7 @@ class UniversalHarvester:
     async def _load_existing_urls(self):
         try:
             inst_id = self.institution.get('id')
-            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
+            data = self.db.select_pipeline("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
                 logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
@@ -399,7 +428,8 @@ class UniversalHarvester:
         page = await browser.new_page(user_agent=get_random_user_agent())
         try:
             if self.requires_stealth and STEALTH_AVAILABLE:
-                await stealth_async(page)
+                stealth_local = Stealth()
+                await stealth_local.apply_stealth_async(page)
             await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
             await self._dismiss_popups(page)
             for iteration in range(1, self.catalog_scroll_iterations + 1):

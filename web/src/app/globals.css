@@ -169,4 +169,20 @@
     background: #e2e8f0;
     border-radius: 99px;
   }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+  }
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .section-spacing {
+    @apply py-16 md:py-20;
+  }
+  .section-spacing-sm {
+    @apply py-10 md:py-14;
+  }
 }

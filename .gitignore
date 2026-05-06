@@ -52,6 +52,7 @@ skills-lock.json
 # Temp/debug scripts (never commit)
 check_counts.py
 test_join.py
+scripts/temp/
 scripts/maintenance/export_50k_final.py
 scripts/maintenance/export_50k_prod.py
 scripts/maintenance/test_select.py

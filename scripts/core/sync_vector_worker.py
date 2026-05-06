@@ -4,6 +4,7 @@ import logging
 import sys
 import re
 import requests
+from typing import List
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
@@ -30,8 +31,11 @@ class SyncVectorWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and p.get('pipeline_ready')
         }
-        # Fase 75: Patrones de ruido — rechazar antes de insertar en courses
-        self.noise_patterns = [
+        # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado.
+        # NOTA: Ya no se cargan globalmente — se obtienen por institución vía
+        # _get_noise_patterns_for_inst() para que patrones de una institución
+        # no afecten a otras.
+        self.default_noise_patterns = [
             re.compile(r'agradecimiento', re.IGNORECASE),
             re.compile(r'thank.?\s*you', re.IGNORECASE),
             re.compile(r'^https?://[^/]+/?$'),
@@ -42,7 +46,7 @@ class SyncVectorWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select('institution_site_profiles') or []
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
@@ -53,8 +57,37 @@ class SyncVectorWorker:
                 return p
         return {}
 
+    def _get_noise_patterns_for_inst(self, inst_id) -> List[re.Pattern]:
+        """
+        Retorna noise patterns COMPILADOS de la institución específica.
+        Si la institución no tiene patrones, usa fallback hardcodeado.
+        Esto evita que patrones de una institución afecten a otras.
+        Genérico: funciona para cualquier institución.
+        """
+        profile = self._get_profile(inst_id) if inst_id else {}
+        patterns = profile.get('noise_patterns', []) if isinstance(profile, dict) else []
+        if isinstance(patterns, list) and len(patterns) > 0:
+            validated = []
+            for pat in patterns:
+                if not isinstance(pat, str):
+                    continue
+                if len(pat) > 200:
+                    logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
+                    continue
+                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                    logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
+                    continue
+                try:
+                    validated.append(re.compile(pat, re.IGNORECASE))
+                except re.error as e:
+                    logger.warning(f"Invalid noise regex '{pat}': {e}")
+                    continue
+            if validated:
+                return validated
+        return list(self.default_noise_patterns)
+
     def get_pending_enriched(self, limit=500):
-        return self.db.select('enriched_programs', filters="status=eq.pending", limit=limit)
+        return self.db.select_pipeline('enriched_programs', filters="status=eq.pending", limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
@@ -68,12 +101,16 @@ class SyncVectorWorker:
             self.update_enriched_status(e_id, "skipped", error_msg="pipeline_ready=false")
             return
 
-        # Fase 75: Post-sync noise validation
-        for pat in self.noise_patterns:
-            if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
-                logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
-                self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
-                return
+        # Fase 75: Post-sync noise validation (per-institution, no global)
+        noise_patterns = self._get_noise_patterns_for_inst(inst_id)
+        for pat in noise_patterns:
+            try:
+                if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
+                    logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
+                    self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
+                    return
+            except re.error:
+                continue
 
         # Validate name: reject None, "None", empty, or too-short names
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
