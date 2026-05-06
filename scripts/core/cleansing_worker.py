@@ -126,9 +126,12 @@ class CleansingWorker:
             r'matr[ií]culas?\s+abiert',
             r'inscr[ií]bete',
             r'^facultad\s+de\b',
-            r'^universidad\s+\w+\s*\|',
+            r'^universidad.+?\|',
         ]
-        self.noise_name_patterns = self._load_noise_patterns()
+        # NOTA: noise_name_patterns NO se carga globalmente. Se obtiene por institución
+        # vía _get_noise_patterns_for_inst() para evitar que patrones de una institución
+        # afecten a otras. Ver Fase 79C reapertura.
+
         # Páginas que son solo contenedores y no cursos reales
         # Fase 72: hub_patterns diferencian landing page vs subpáginas vía /?$ (regex)
         # /idiomas/?$ bloquea /idiomas pero NO /idiomas/english-media
@@ -213,28 +216,35 @@ class CleansingWorker:
                     name = parts[0]
         return name
 
-    def _load_noise_patterns(self):
-        db_patterns = set()
-        for p in self.profiles or []:
-            patterns = p.get('noise_patterns', [])
-            if isinstance(patterns, list):
-                for pat in patterns:
-                    if isinstance(pat, str):
-                        if len(pat) > 200:
-                            logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
-                            continue
-                        if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
-                            logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
-                            continue
-                        try:
-                            re.compile(pat, re.IGNORECASE)
-                        except re.error as e:
-                            logger.warning(f"Invalid noise regex '{pat}': {e}")
-                            continue
-                        db_patterns.add(pat)
-        if db_patterns:
-            return list(sorted(db_patterns))
-        return self.default_noise_name_patterns
+    def _get_noise_patterns_for_inst(self, inst_id) -> List[str]:
+        """
+        Retorna noise patterns de la institución específica.
+        Si la institución no tiene patrones, usa fallback hardcodeado.
+        Esto evita que patrones de una institución afecten a otras.
+        Genérico: funciona para cualquier institución.
+        """
+        profile = self._get_profile_for_inst(inst_id) if inst_id else {}
+        patterns = profile.get('noise_patterns', []) if isinstance(profile, dict) else []
+        if isinstance(patterns, list) and len(patterns) > 0:
+            validated = []
+            for pat in patterns:
+                if not isinstance(pat, str):
+                    continue
+                if len(pat) > 200:
+                    logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
+                    continue
+                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                    logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
+                    continue
+                try:
+                    re.compile(pat, re.IGNORECASE)
+                except re.error as e:
+                    logger.warning(f"Invalid noise regex '{pat}': {e}")
+                    continue
+                validated.append(pat)
+            if validated:
+                return sorted(validated)
+        return list(self.default_noise_name_patterns)
 
     def _extract_price_with_regex(self, text: str, profile: Dict[str, Any]):
         profile_regex = profile.get('price_regex')
@@ -289,7 +299,7 @@ class CleansingWorker:
                 logger.error(f"Error streaming pending staging: {e}")
                 break
 
-    def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "") -> Optional[str]:
+    def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "", institution_id: str = "") -> Optional[str]:
         if name is None: name = ""
         if description is None: description = ""
         if url is None: url = ""
@@ -303,8 +313,9 @@ class CleansingWorker:
                 if exc in low_url:
                     return f"hard_db_exclusion:{exc}"
 
-        # Fase 79C: Noise name patterns — detecta nombres de programas que son claramente ruido
-        for pat in self.noise_name_patterns:
+        # Fase 79C: Noise name patterns por institución (no global)
+        noise_patterns = self._get_noise_patterns_for_inst(institution_id)
+        for pat in noise_patterns:
             try:
                 if re.search(pat, low_name, re.IGNORECASE):
                     return f"noise_name_pattern:{pat}"
@@ -356,7 +367,7 @@ class CleansingWorker:
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
             
             # Filtros de Calidad y Hubs
-            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context)
+            discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context, institution_id=inst_id)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
             if not discard_reason: discard_reason = detect_expired_start_date(clean_text_context)
