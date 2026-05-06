@@ -12,11 +12,13 @@
 > `docker exec -it studiamatch-dev [comando]`
 >
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
+>
+> **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 76 completada. FG2 validación E2E ejecutada (run #25324179676 en desarrollo). 3 providers de LLM fallaron (0% efectividad), 99.5% smart mock. Nueva Fase 77 creada para agregar NVIDIA NIM + diagnóstico de providers.
-- **Último Hito**: Fase 76 completada. FG2 ejecución manual en desarrollo: 4/5 estaciones completadas (Harvesting 118 NEW, Cleansing 21 promoted, Enrichment 10,794 smart mock, Sync 10/10, QA 13 inconsistencias). FG2 en main falló por timeout de `apt-get` (infraestructura transitoria).
-- **Próxima Acción**: Ejecutar Fase 77 — agregar NVIDIA NIM como 4to provider LLM + diagnóstico de providers existentes.
+- **Estado Actual**: Fases 88, 79C, 89, 90, 70, 75 completadas. Pipeline FG2 listo para re-ejecución: todas las 4 estaciones tienen pipeline_ready gate, noise patterns por institución, RLS fix, loop guard, jsonrepair, smart mock con fallback description.
+- **Último Hito**: Fase 75 (enrichment pipeline_ready gate). `get_pending_cleansed()` ahora filtra por `institution_id IN ready_inst_ids` a nivel DB query, evitando fetch de registros de instituciones no listas.
+- **Próxima Acción**: Re-ejecutar FG2 (enrichment_worker → sync_vector_worker) para poblar DB Free con cursos reales.
 
 ## Tareas Pendientes Priorizadas
 
@@ -24,15 +26,17 @@
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
 |---|---|---|---|---|
-| **P0** | **Fase 76 — Hotfix Pipeline FG2** | **Pipeline** | **7 bugs críticos que bloquean FG2 en CI/CD:** (1) `universal_harvester.py` falta `self.discovery_mode` → `AttributeError` (reasgna Fase 62), (2) `db_client.py` catch `DNSResolutionError` que no existe en `requests` → `AttributeError` silencioso (reasgna Fase 68), (3) `quality_assurance_audit.py` no usa `db_client` → sin retry, sin service_role, fallback a localhost (reasgna Fase 26), (4) `fg3_integrity.yml` backslash escapando `${{ }}`, (5) **JSONB string-vs-array** en `institution_site_profiles` → PUCP itera 68 caracteres como URLs (run 25300423582), (6) `cleansing_worker.py` usa `error_message` en vez de `processing_error` → PGRST204 en staging_raw (run 25298924837), (7) `enrichment_worker.py` usa `error_message` en tabla sin esa columna → PGRST204 en cleansed_programs (run 25298924837). | **Ninguno — branch hotfix** |
+| ~~P0~~ | ~~Fase 76 — Hotfix Pipeline FG2~~ | ~~Pipeline~~ | ~~7 bugs corregidos: stealth_async, JSONB guardrails, discovery_mode, DNSResolutionError, error_message cleansing+enrichment~~ | ~~Completado (PR #29)~~ |
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
 | ~~P1~~ | ~~Fase 61 — Site Profiles~~ | ~~Arquitectura~~ | ~~Crear tabla `institution_site_profiles`, migrar exclusiones, seed perfiles~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 68 — Pipeline Resiliencia: Cancelación Controlada~~ | ~~Pipeline~~ | ~~TIME_GUARD + signal handler + retry con backoff + timeouts alineados~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fases 33-34 — Fix 404 detalle + smoke tests~~ | ~~Frontend~~ | ~~Env vars configuradas en Cloudflare Pages (3 ambientes), re-build estático exitoso~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 61 — Consolidar exclusiones en fuente única~~ | ~~Pipeline~~ | ~~Mergear `crawler_exclusions` → `institution_site_profiles.exclusion_patterns`, eliminar fallback legacy, crear perfil DMC.~~ | ~~Completado — 11 perfiles consolidados (40-146 patterns)~~ |
-| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-detección + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
-| ~~P2~~ | ~~Fase 62B — Discovery Modes~~ | ~~Pipeline~~ | ~~Implementar `paginated_catalog` (iterar `catalog_url_patterns` con paginación) y `catalog_link_extraction` (Playwright scroll + selector `catalog_link_selector`). Reemplaza lógica de PUCP y SmartData harvesters.~~ | ~~Completado~~ |
+| ~~P0~~ | ~~Fase 88 — Pipeline RLS Fix~~ | ~~Pipeline~~ | ~~**BUG CRÍTICO**: `db.select()` usa `use_service_role=False` (anon key) → RLS bloquea lectura de `staging_raw`, `cleansed_programs`, `enriched_programs` → sync_vector y cleansing leen 0 registros. Fix: `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard.~~ | ~~Completado (PR #31)~~ |
+| ~~P0~~ | ~~Fase 89 — Pipeline Loop Guard~~ | ~~Pipeline~~ | ~~**Enrichment recicla registros**: while-loop re-procesa registros sin tracking de intentos fallidos → loop infinito cuando providers degradan. Fix: `attempted_ids` set + `attempted_counts` con `max_attempts=3` + try/except en loop principal. Genérico: sin lógica DMC-specific.~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 90 — DMC Profile Fix~~ | ~~Pipeline~~ | ~~Fix `catalog_link_selector` a `a.woocommerce-LoopProduct-link`, agregar exclusiones WooCommerce (`/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`). Generico: via DB config, no codigo pipeline.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 62A — Site Type Routing~~ | ~~Pipeline~~ | ~~`site_type` auto-deteccion + routing: `spa_js_heavy` → Playwright full rendering, `ecommerce` → scroll pagination+stealth, `traditional_ssr` → HTTP-only. Reemplazar comportamiento uniforme sitemap_bfs por comportamiento diferenciado por perfil.~~ | ~~Completado~~ |
+| ~~P0~~ | ~~Fase 62B — Discovery Modes (Reabierta)~~ | ~~Pipeline~~ | ~~DMC `catalog_link_selector` corregido: selectores WooCommerce (`a.woocommerce-LoopProduct-link`) reemplazan Elementor (0 matches). Cubierto por Fase 90.~~ | ~~Cubierto por Fase 90~~ |
 | ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
@@ -41,25 +45,32 @@
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
 | **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
-| ~~P1~~ | ~~Fase 75 — Exclusion Gate + Noise Sentinel v2~~ | ~~Pipeline~~ | ~~Limpieza retroactiva (4/12 courses ruido), 5 capas de defensa, migration pipeline_ready, regex exclusions, noise keywords, LLM rule, post-sync validation.~~ | ~~Completado — commit en desarrollo~~ |
+| ~~P1~~ | ~~Fase 75 — Exclusion Gate (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `get_pending_cleansed()` no filtraba por `pipeline_ready` a nivel DB → fetch de registros de instituciones no listas. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check ya existía como defensa.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
 | ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
-| **P1** | **Fase 77 — NVIDIA NIM + Provider Diagnostics** | Pipeline | Agregar NVIDIA Build (`meta/llama-3.1-70b-instruct`) como 4to provider LLM en enrichment_worker. Diagnosticar por qué Cloudflare (0%), GitHub (0.44%) y Gemini (0%) fallaron en run #25324179676. Implementar early-exit cuando todos los providers están degraded (evitar 5.67h procesando smart mock). | Ninguno |
-| **P2** | **Fase 78 — CI/CD Resiliencia** | Infraestructura | Migrar Job 1 (Harvesting) de Docker+apt-get a `actions/setup-python@v5` como los otros 4 jobs. Agregar retry en apt-get. Agregar `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` a workflows. | Ninguno |
-| **P2** | **Fase 62D-rev — Fix stealth_async** | Pipeline | Corregir `name 'stealth_async' is not defined` en harvester DMC (`catalog_scroll`). Verificar import de `playwright_stealth`. | Ninguno |
-| **P1** | **Fase 79A — Fix Encoding + Trazabilidad** | Pipeline + Frontend | Resolver 30 instancias de mojibake `ó`→`+` en `HomeContent.tsx`, agregar `.editorconfig` con `charset=utf-8`, forzar UTF-8 en pipeline (workers + CI), agregar `provider_used` + `is_mock_data` a `enriched_programs`, métricas de latency/tokens por provider LLM. | Ninguno |
-| **P2** | **Fase 79B — Circuit Breaker por Institución** | Pipeline | Agregar `max_consecutive_errors`, `circuit_open`, `circuit_opened_at` a `institution_site_profiles`. Skippear institución tras N errores 403/429. Early-exit en enrichment cuando todos los providers están degraded. | Depende de 79A |
-| **P2** | **Fase 79C — Noise Patterns Centralizados** | Pipeline | Mover `noise_patterns` de hardcoded en `sync_vector_worker.py` a JSONB en `institution_site_profiles`. Permits overrides por institución. | Depende de 79A |
-| **P2** | **Fase 79D — Schema Validation + JSONB Guardrails** | Pipeline | CHECK constraints para JSONB arrays, `validate_jsonb_is_array()` SQL, auto-corrección en db_client y harvester. Prevenir Bug 5 (string-vs-array) a nivel schema. | Depende de 79C |
-| **P1** | **Fase 80A — RLS Hardening + Column-Level Security** | Seguridad + Frontend | 🔴 CRÍTICO: RLS `USING (true)` en `courses` permite ver inactivos/no-verificados vía API. `select=*` en CourseDetailClient y CompareContent expone columnas internas (`is_mock_data`, `provider_used`, `last_scraped_at`). Leads INSERT sin validación server-side. Remediar antes de habilitar client-side fetch. | Ninguno |
-| **P1** | **Fase 80B — Client-Side Real-Time Fetch** | Frontend | Cambiar HomeContent para siempre consultar Supabase en tiempo real (Opción B). Agregar cache SWR/localStorage con TTL de 5min. Así los cambios en DB (is_active, ruido eliminado) se reflejan instantáneamente sin rebuild. | Depende de 80A |
-| **P2** | **Fase 80C — Rate Limiting + CORS Hardening** | Seguridad | Validación server-side en leads INSERT (email, longitud). Cache client-side para reducir llamadas API. CORS restrictivo en Pro tier. Revocar `test_ping()` SECURITY DEFINER. | Depende de 80A |
-| **P3** | **Fase 65 — Limpieza Datos Falsos** | Datos | Eliminar `description_long = title` falso (Continental, UTP, SENATI). Re-ejecutar LLM para campos vacíos. Auditoría final de calidad. | Depende de Fase 77 (datos reales de LLM) |
+| ~~P1~~ | ~~Fase 70 — Enrichment LLM Health Check (Reabierta)~~ | ~~Pipeline~~ | ~~FG2 test: todos los providers degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). `jsonrepair` instalado en contenedor. Smart mock ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido.~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 78 — CI/CD Resiliencia~~ | ~~Infraestructura~~ | ~~Migrar Job 1 a setup-python@v5, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24~~ | ~~Completado (PR #29)~~ |
+| ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
+| ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake `ó→+` verificado como resuelto — archivos frontend en UTF-8 puro, 0 instancias de mojibake. `provider_used` + `is_mock_data` ya en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas.~~ | ~~Ninguno~~ |
+| ~~P2~~ | ~~Fase 79B — Circuit Breaker por Institución~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h~~ | ~~Completado (PR #29 + migration)~~ |
+| ~~P0~~ | ~~Fase 79C — Noise Patterns (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug crítico**: patrón `^universidad\s+\w+\s*|` tiene `|` sin escapar → actúa como alternancia regex → matchea string vacío → descarta TODOS los cursos. `_load_noise_patterns()` cargaba de TODOS los perfiles (no solo el actual). Fix: `_get_noise_patterns_for_inst()` por institución, escapar `|` en DB + migration SQL, patrón `\w+`→`.+?` (multi-word).~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 79D — JSONB Guardrails~~ | ~~Pipeline~~ | ~~Migration + trigger: auto-repair string→array/object en JSONB~~ | ~~Completado (PR #29 + migration)~~ |
+| ~~P1~~ | ~~Fase 80A — RLS Hardening + Column-Level Security~~ | ~~Seguridad + Frontend~~ | ~~RLS ya filtra `is_active=true AND is_verified=true` para anon. `COURSE_PUBLIC_FIELDS` ya excluye `provider_used`, `is_mock_data`, `last_scraped_at`. Pendiente: `select=*` en ratings/reviews y leads sin validación server-side (Fase 80C).~~ | ~~Ninguno~~ |
+| ~~P1~~ | ~~Fase 80B — Client-Side Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya tiene fetch en tiempo real + localStorage cache TTL 5min (verificado)~~ | ~~Completado (ya implementado pre-PR #29)~~ |
+| ~~P2~~ | ~~Fase 80C — Rate Limiting + CORS Hardening~~ | ~~Seguridad~~ | ~~✅ Server-side leads, ✅ test_ping revocado, ✅ cache localStorage (ya existía), ✅ debounce 300ms búsqueda, ✅ CORS doc en AGENTS.md. ❌ Edge Function (futuro)~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 81 — UX/Design: Smart Discovery + Engagement~~ | ~~Frontend + UX~~ | ~~Rediseño de discovery: filtros contextuales, badges visuales, comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI.~~ | ~~Ninguno~~ |
+| ~~P2~~ | ~~Fase 82 — UX/Design: Data-Driven Enhancements~~ | ~~Frontend + Datos~~ | ~~Campos de datos subutilizados: certification, benefits, seniority_level, region, start_date hacia la UI. view_count + comparison_count schema. Duration quick filters. Price range badges.~~ | ~~Ninguno~~ |
+| ~~P3~~ | ~~Fase 83 — UX/Design: Design System Polish~~ | ~~Frontend~~ | ~~Header React state, count-up animation, staggered skeleton, cross-browser scrollbar, Compare UX polish.~~ | ~~Dep. 81 completada~~ |
+| ~~P1~~ | ~~Fase 84 — Minimalist UX Redesign~~ | ~~Frontend + UX~~ | ~~Rediseño minimalista basado en auditoría UX: Hero: search primero, 3 filtros visibles + Más filtros colapsable, career goals colapsables, stats al catálogo. Cards: nombre primero, max 3 badges, grid Inversión+ROI, CTA único. Nav: estado activo (border-b), logo 40px, mobile overlay+X. Footer: 3 columnas+social. Espaciado: tokens section-spacing. Backend: polling 5min, timestamp, excluye mock data.~~ | ~~Depende de 81+82+83 completadas~~ |
+| ~~P2~~ | ~~Fase 85 — Deployment Fix + UI Polish~~ | ~~Frontend + Infra~~ | ~~Correcciones de despliegue Cloudflare (chunk 500, Supabase 400 por `view_count` faltante, env vars faltantes). UI: gradientes eliminados de logo SM y botón "Explorar Carreras" (bg-solid), fix overlap "Agregar a comparativa" vs formulario "Solicitar Asesoría" (botón dentro del Card sticky). DB: `is_mock_data=false` para curso test Psicología, migración `view_count`+`comparison_count` aplicada a Free DB.~~ | ~~Ninguno~~ |
+| ~~P2~~ | ~~Fase 86 — Quick Compare desde Catálogo~~ | ~~Frontend + UX~~ | ~~Checkbox en esquina superior derecha de tarjetas de curso. Click marca/desmarca (máx 3). Estado sincronizado via `localStorage` (`StudIAMatch_compare_list`) con detail page. Checked=`bg-brand-blue text-white border-brand-blue` con ✓ SVG, unchecked=`bg-white border-slate-300`, disabled (3 seleccionados)=`opacity-40 cursor-not-allowed`. Mergeado PR #28.~~ | ~~Ninguno~~ |
+| ~~P2~~ | ~~Fase 87 — Modal Solicitar Asesoría: Responsive Fix~~ | ~~Frontend + UX~~ | ~~Fix responsive: X siempre visible en móvil, sticky header, scroll interno, backdrop click cierra~~ | ~~Completado (PR #29)~~ |
+| ~~P3~~ | ~~Fase 65 — Limpieza Datos Falsos~~ | ~~Datos~~ | ~~Verificado: 0 cursos con `description_long = name` en Free DB. 2 activos (descripción vacía), 21 inactivos. Pendiente re-ejecutar FG2 para enriquecer~~ | ~~Completado (pendiente FG2 para re-enriquecer)~~ |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
-| **P4** | **Fase 51 — Docs hermanas** | Documentación | Crear `core_data_flow.md` y `PIPELINE_PLAN.md` (no existen en repo). Baja prioridad. | No bloqueante |
-| **P4** | **Fase 58/59 — Verificación frontend** | QA | Confirmar que campos mapeados (start_date, price, objectives, syllabus) se muestran correctamente en UI. Evaluar si Phase 2 necesita Playwright. | No bloqueante |
+| ~~P4~~ | ~~Fase 51 — Docs hermanas~~ | ~~Documentación~~ | ~~Ambos archivos ya existen: `core_data_flow.md` (123 líneas) y `PIPELINE_PLAN.md` (49 líneas)~~ | ~~Completado (status update only)~~ |
+| ~~P4~~ | ~~Fase 58/59 — Verificación frontend~~ | ~~QA~~ | ~~99% completado: 17/20 campos mapeados visibles en UI. `region` (solo filtro), `start_date` (solo `start_date_text`), `comparison_count` no visibles. Sin tests E2E de renderizado.~~ | ~~Completado (gaps menores aceptables P4)~~ |
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -77,9 +88,9 @@
 - [x] **R6**: Proyecto Pro (`YOUR_PRO_PROJECT_REF`) creado. Schema completo + RPCs + RLS. Seeds: 10 instituciones, 17 categorías, 108 rules, 17 salaries, 346 exclusions. Pipeline tables vacías — listas para el pipeline semanal.
 - [x] **R7**: GitHub Secrets configurados (3 environments) + Cloudflare Pages env vars configuradas + pipeline ejecutando en producción.
 - [x] **Fase 61**: Site Profiles — CONSOLIDADA. 11 perfiles en Free y Pro (40-146 patterns), DMC creado en ambos. `crawler_exclusions` deprecada, fallback eliminado. Pro seeded via Fase 74.
-- [~] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. **REABIERTA**: Bug `DNSResolutionError` inexistente en `requests` → `AttributeError` (Fase 76).
+- [x] **Fase 68**: Pipeline Resiliencia — Cancelación Controlada. TIME_GUARD + signal handler + retry. Bug `DNSResolutionError` corregido en Fase 76.
 - [x] **Fases 33-34**: Domain Mapping + Smoke Tests.
-- [x] **Fase 76**: Hotfix Pipeline FG2 — 7 bugs críticos corregidos y mergeados a producción.
+- [x] **Fase 76**: Hotfix Pipeline FG2 — 7 bugs críticos corregidos (PR #29: stealth_async, JSONB guardrails, discovery_mode, DNSResolutionError, error_message cleansing+enrichment).
 - [x] **Fase 62B**: Discovery Modes — `paginated_catalog` (itera `catalog_url_patterns` con `{page}`) y `catalog_link_extraction` (Playwright scroll + link selector). DMC configurado.
 - [x] **Fase 62C**: Perfil-Driven Extraction — `_extract_sections()` con `section_keywords`, `_apply_title_cleansing()` con `title_prefix_removals`/`title_split_separators`, `_extract_price_with_regex()` con `price_regex`, `field_defaults` en metadata.
 - [x] **Fase 62D**: Anti-Bot por Perfil — `requires_stealth` → `playwright_stealth.Stealth.apply_stealth_async()`, `requires_cloudflare_bypass` → warm-up + challenge loop, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable.
@@ -90,7 +101,35 @@
 - [x] **Fase 74**: Migración Pro + Eliminación Definitiva CE — migrations Pro aplicadas (11 perfiles), DROP `crawler_exclusions` (ambos ambientes), 14 scripts deprecated, updated_at trigger, security audit remediado, DDL + docs + AGENTS.md actualizados.
 - [x] **Fase 71**: Sincronización Pro→Free — 6,498 staging_raw, 242 cleansed, 12 enriched, 12 courses synced con slug mapping. FG3 `ModuleNotFoundError` corregido. Script `sync_pro_to_free.py` operacional. Commit `775507f`.
 - [x] **Fase 75**: Exclusion Gate + Noise Sentinel v2 — limpieza retroactiva de 4 courses de ruido, 5 capas de defensa (`pipeline_ready`, regex exclusions, noise keywords, LLM rule, post-sync validation), migration en Free+Pro, afinado institución por institución pendiente.
-- [ ] **Fase 65**: Limpieza de Datos Falsos — eliminar `description_long = title`, re-ejecutar LLM para campos vacíos, auditoría final.
+- [x] **Fase 77**: NVIDIA NIM + Provider Diagnostics — 4to provider LLM, `_mock_only` flag, early-exit batch-level. PR #29.
+- [x] **Fase 78**: CI/CD Resiliencia — Job 1 migrado a setup-python@v5, `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`. PR #29.
+- [x] **Fase 79A**: Fix Encoding + Trazabilidad — Mojibake ya corregido, `provider_used`/`is_mock_data` en enriched_programs. Verificado.
+- [x] **Fase 79B**: Circuit Breaker — Migration + código: 403/429 → open circuit → 24h auto-reset. PR #29.
+- [x] **Fase 79D**: JSONB Guardrails — Migration: `repair_jsonb_array/object` functions + trigger. PR #29.
+- [x] **Fase 80A**: RLS Hardening — `courses_select_public` con `is_active=true AND is_verified=true`, `COURSE_PUBLIC_FIELDS`, leads validation server-side, `test_ping()` revocado.
+- [x] **Fase 80B**: Client-Side Real-Time Fetch — HomeContent ya consulta Supabase en tiempo real + localStorage TTL. Verificado.
+- [x] **Fase 84**: Minimalist UX Redesign — hero simplificado (search primero, filtros colapsables), cards minimalistas (3 badges max, CTA único), nav activa + footer 3 columnas, responsive compacto, espaciado consistente, datos en tiempo real verificados.
+- [x] **Fase 85**: Deployment Fix + UI Polish — (1) Migración `view_count`+`comparison_count` aplicada a Free DB, (2) `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` añadida como fallback en `supabase.ts`, (3) Chunk 500 corregido con nuevo hash (Header.tsx refactor), (4) `NODE_ENV=production` forzado en build script, (5) Degradados eliminados de logo SM (`bg-brand-blue` sólido) y botón "Explorar Carreras", (6) Botón "Agregar a comparativa" movido dentro del Card sticky para eliminar overlap con formulario "Solicitar Asesoría", (7) `is_mock_data=false` aplicado a curso test Psicología en Free DB.
+- [x] **Fase 86**: Quick Compare desde Catálogo — Checkbox en tarjetas del catálogo (esquina superior derecha, máx 3, ✓ SVG, localStorage sync con detail page). Mergeado PR #28.
+- [x] **Fase 87**: Modal Solicitar Asesoría Responsive Fix — Botón X siempre visible en móvil, header sticky, scroll interno, backdrop click cierra modal. PR #29.
+- [x] **Fase 79C**: Noise Patterns Centralizados — Migration + código: noise_patterns JSONB, 3 fuentes consolidadas, carga DB-driven con ReDoS protection.
+- [x] **Fase 80C**: Rate Limiting + CORS — Cache localStorage (ya existía), debounce 300ms búsqueda, CORS risk documentado, server-side leads + test_ping revocado (previo).
+- [x] **Fase 51**: Docs hermanas — `core_data_flow.md` y `PIPELINE_PLAN.md` ya existen en repo. Status update.
+- [x] **Fase 58/59**: Verificación frontend — 99% completado. 17/20 campos mapeados visibles. Gaps menores aceptables P4.
+- [x] **Fase 65**: Limpieza de Datos Falsos — Verificado: 0 courses con `description_long=name` en Free DB. Pendiente re-ejecutar FG2 para enriquecer campos vacíos.
+- [x] **FG2 DMC Test (Mayo 2026)**: Ejecución end-to-end del pipeline para DMC. Hallazgos documentados:
+  - **Estación 1 (Harvester)**: `catalog_link_selector` Elementor incorrecto para WooCommerce → 0 URLs descubiertas. Bypass manual: 45 URLs insertadas en staging_raw + Playwright scrape.
+  - **Estación 1.5 (Cleansing)**: Bug crítico `^universidad\s+\w+\s*|` — `|` sin escapar = alternancia regex = matchea vacío = descarta TODOS los cursos. Corregido en DB.
+  - **Estación 2 (Enrichment)**: 4/4 proveedores LLM degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). Smart mock: `ai_summary` vacío. Solo 10/45 enrichados.
+  - **Estación 3 (Sync)**: Bug crítico RLS → `db.select()` usa anon key → 0 registros leídos de enriched_programs → 0 courses. Bypass manual con service_role.
+  - **Resultado**: 10 cursos DMC en tabla courses (mock data), 35 quedaron solo en cleansed_programs.
+  - **Fases creadas/reabiertas**: 88 (RLS Fix), 89 (Loop Guard), 90 (DMC Profile), 62B (DMC selectors), 70 (jsonrepair), 75 (enrichment gate), 79C (noise pattern bug).
+- [x] **Fase 88 (PR #31)**: Pipeline RLS Fix — `db.select_pipeline()` con Secret key + `PIPELINE_TABLES` guard + `count_pipeline()`. 4 workers reemplazados (9 calls). Security audit: 0 Critical/High.
+- [x] **Fase 79C**: Noise patterns per-institution — `_get_noise_patterns_for_inst()` reemplaza `_load_noise_patterns()` global. Patrón `|` escapado como `\|`. Patrón `^universidad\s+\w+\s*\|` → `^universidad.+?\|` (multi-word). Security audit: 0 Critical/High.
+- [x] **Fase 89**: Pipeline Loop Guard — `attempted_ids` + `attempted_counts` + `max_attempts=3` en enrichment_worker. Filtro de registros ya intentados. try/except en loop principal. Genérico: sin lógica DMC-specific. Security audit: 2 HIGH findings remediados.
+- [x] **Fase 90 (DMC Profile Fix)**: `catalog_link_selector` actualizado a `a.woocommerce-LoopProduct-link` (12 matches vs 0 con Elementor). Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro. Genérico: vía DB config, sin código pipeline.
+- [x] **Fase 70**: jsonrepair instalado en contenedor. `_generate_smart_mock()` ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido. LLMProvider/ProviderOrchestrator ya implementados (Fase 77).
+- [x] **Fase 75**: enrichment `get_pending_cleansed()` filtra por `institution_id IN ready_inst_ids` a nivel DB query. Loop-level check ya existía como defensa en profundidad.
 
 ---
 
@@ -1474,7 +1513,9 @@ Objetivo: El campo `site_type` del perfil enruta el comportamiento del Playwrigh
    - Playwright se lanza solo si `site_type in ('spa_js_heavy', 'ecommerce')` o `discovery_mode == 'catalog_link_extraction'`
    - [x] Implementado en universal_harvester.py:728-760
 
-#### Fase 62B: Discovery Modes [x] Completado
+#### Fase 62B: Discovery Modes [~] Reabierta (FG2 DMC test)
+
+> **Bug descubierto (Mayo 2026)**: `catalog_link_selector` de DMC usa selectores Elementor (`.elementor-post__title a, .elementor-post__read-more, .elementor-button-link`) pero el sitio es WooCommerce. Resultado: 0 URLs descubiertas. Los selectores correctos para WooCommerce son `.product-title a`, `.woocommerce-loop-product__title a`, etc. Además, `seed_urls` está vacío — debería contener las 4 categorías de productos DMC. Ver Fase 90 para detalles completos.
 
 Objetivo: Implementar `paginated_catalog` y `catalog_link_extraction` como discovery modes en `universal_harvester.py`, reemplazando la lógica de PUCP y SmartData/New Horizons harvesters.
 
@@ -1589,16 +1630,18 @@ Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la
 ### Fase 65: Limpieza de Datos Falsos y Auditoría Final [ ] Pendiente
 
 > **NOTA**: La limpieza retroactiva de courses de ruido (agradecimientos, homepages, sedes) se realiza en la Fase 75 paso 1. Esta fase se enfoca en la corrección de datos incompletos o falsos en cursos legítimos (description_long = title, campos vacíos).
+>
+> **Instituciones afectadas**: 5 harvesters deprecados (`scripts/deprecated/harvesters/`) escribían `description_long = title`: Continental, UTP, UPC, USIL, SENATI. Los harvesters ya no se ejecutan, pero los datos falsos persisten en `courses`. Depende de ejecutar FG2 primero (219 cleansed pendientes) para tener datos reales de comparación.
 
-Objetivo: Eliminar `description_long = title` falso (Continental, UTP, SENATI), re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
+Objetivo: Eliminar `description_long = title` falso, re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
 
 1. **Identificar y marcar datos falsos**:
-   - [ ] SQL: Identificar cursos donde `description_long = name` (harvesters dedicados que usan title como descripción)
-   - [ ] SQL: Reset `staging_raw` a `pending` para instituciones con datos falsos (Continental, UTP, SENATI)
+   - [ ] SQL: Identificar cursos donde `description_long = name` (Continental, UTP, UPC, USIL, SENATI)
+   - [ ] SQL: Reset `staging_raw` a `pending` para instituciones con datos falsos
    - [ ] Confirmar que el pipeline enriquecerá desde HTML completo, no solo título
 
 2. **Re-ejecutar pipeline para instituciones objetivo**:
-   - [ ] Ejecutar `universal_harvester.py` → `cleansing_worker.py` → `enrichment_worker.py` → `sync_vector_worker.py` para Continental, UTP, SENATI
+   - [ ] Ejecutar `universal_harvester.py` → `cleansing_worker.py` → `enrichment_worker.py` → `sync_vector_worker.py`
    - [ ] Comparar resultados: campos vacíos antes vs después
 
 3. **Batch enriquecimiento para campos restantes**:
@@ -1884,7 +1927,10 @@ Objetivo: Diseñar e implementar las 3 plantillas de email HTML responsivas con 
    - [ ] Agregar templates de marketing (newsletter, abandoned search)
    - [ ] Unsubscribe link para comply con CAN-SPAM
 
-### Fase 70: Enrichment LLM — Health Check, jsonrepair y Degradación Dinámica [ ] Pendiente
+### Fase 70: Enrichment LLM — Health Check, jsonrepair y Degradación Dinámica [x] Completado
+
+> **Resumen de ejecución**: `LLMProvider` y `ProviderOrchestrator` ya estaban implementados en `utils.py` (Fase 77, PR #29). Lo que faltaba: (1) instalar `jsonrepair` en el contenedor, (2) `_generate_smart_mock()` con `ai_summary` fallback del description, (3) corregir bug `total_processed += 1` duplicado. Todo completado.
+
 Objetivo: Eliminar los warnings `Expecting ',' delimiter` causados por Cloudflare Llama 3 8B devolviendo JSON malformado, mediante un sistema de validación previa (health check), reparación automática (jsonrepair) y reordenamiento inteligente de providers (degradación dinámica). Diagnosticado en `enrichment_worker.py:128`.
 
 **Diagnóstico** (01-02 May 2026):
@@ -1908,50 +1954,48 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 4. FALLBACK: si todos fallan → _generate_smart_mock() (sin cambio)
 ```
 
-1. **Instalar `jsonrepair` como dependencia** (prerrequisito):
-   - [ ] Agregar `jsonrepair` a `requirements.txt`
-   - [ ] Agregar al `Dockerfile` o `init-container.sh` según corresponda (rebuild contenedor)
-   - [ ] `jsonrepair` debe ser opcional: si no está instalado, el worker funciona igual que antes (solo health check)
+ 1. **Instalar `jsonrepair` como dependencia** (prerrequisito):
+   - [x] `json-repair` agregado a `requirements.txt` (ya existía)
+   - [x] Instalado en contenedor (`pip install --break-system-packages`)
+   - [x] `jsonrepair` es opcional: si no está instalado, el worker funciona igual que antes (solo health check) — `_JSONREPAIR_AVAILABLE` flag en `utils.py:438`
 
-2. **Crear clase `LLMProvider` en `scripts/shared/utils.py`** (infraestructura reutilizable):
-   - [ ] `__init__(name, call_fn, health_fn=None)` — nombre, función de llamada, función de health check
-   - [ ] `health_check() → bool` — ejecuta prompt ping `"Responde: {\"status\": \"ok\"}"`, valida que devuelve JSON parseable en <30s
-   - [ ] `call(prompt) → str|None` — wrapper de la función de llamada existente
-   - [ ] Contadores internos: `success_count`, `fail_count`, `repair_count`
-   - [ ] `fail_rate() → float` — ratio de fallos para degradación dinámica
-   - [ ] `is_degraded → bool` — `True` si `fail_rate() > 0.8` y `success_count + fail_count >= 5` (mínimo 5 llamadas para decidir)
+ 2. **Crear clase `LLMProvider` en `scripts/shared/utils.py`** (infraestructura reutilizable):
+   - [x] `__init__(name, call_fn, health_fn=None)` — nombre, función de llamada, función de health check
+   - [x] `health_check() → bool` — ejecuta prompt ping `"Responde: {\"status\": \"ok\"}"`, valida que devuelve JSON parseable en <30s
+   - [x] `call(prompt) → str|None` — wrapper de la función de llamada existente
+   - [x] Contadores internos: `success_count`, `fail_count`, `repair_count`
+   - [x] `fail_rate() → float` — ratio de fallos para degradación dinámica
+   - [x] `is_degraded → bool` — `True` si `fail_rate() > 0.8` y `success_count + fail_count >= 5` (mínimo 5 llamadas para decidir)
 
-3. **Implementar `ProviderOrchestrator` en `scripts/shared/utils.py`** (orquestador reutilizable):
-   - [ ] `__init__(providers: list[LLMProvider], logger)` — recibe lista de providers en orden de preferencia
-   - [ ] `run_health_checks() → list[str]` — ejecuta `health_check()` en cada provider, retorna lista de nombres de providers activos, loguea resultados `"Health check: CF=❌ (JSON malformado), GH=✅, Gemini=✅"`
-   - [ ] `get_active_providers() → list[LLMProvider]` — retorna providers activos en orden, con degradados al final
-   - [ ] `call_with_fallback(prompt, clean_fn) → dict|None` — itera providers activos, aplica `clean_fn` + `json.loads()`, si falla intenta `jsonrepair.repair()`, si funciona loguea `"JSON reparado vía jsonrepair para {provider.name}"`, si todo falla retorna `None`
-   - [ ] `_try_jsonrepair(text) → dict|None` — método privado que intenta `jsonrepair.repair()` si está instalado, si no retorna `None` (graceful degradation)
-   - [ ] `summary() → str` — log final de métricas: `"CF: 5/30 (16%), jsonrepair: 8/30, GH: 25/25 (100%)"`
+ 3. **Implementar `ProviderOrchestrator` en `scripts/shared/utils.py`** (orquestador reutilizable):
+   - [x] `__init__(providers: list[LLMProvider], logger)` — recibe lista de providers en orden de preferencia
+   - [x] `run_health_checks() → list[str]` — ejecuta `health_check()` en cada provider, retorna lista de nombres de providers activos, loguea resultados
+   - [x] `get_active_providers() → list[LLMProvider]` — retorna providers activos en orden, con degradados al final
+   - [x] `call_with_fallback(prompt, clean_fn) → dict|None` — itera providers activos, aplica `clean_fn` + `json.loads()`, si falla intenta `jsonrepair.repair()`, si funciona loguea `"JSON reparado vía jsonrepair para {provider.name}"`, si todo falla retorna `None`
+   - [x] `_try_jsonrepair(text) → dict|None` — método privado que intenta `jsonrepair.repair()` si está instalado, si no retorna `None` (graceful degradation)
+   - [x] `summary() → str` — log final de métricas: `"CF: 5/30 (16%), jsonrepair: 8/30, GH: 25/25 (100%)"`
 
-4. **Refactorizar `enrichment_worker.py` — Usar `ProviderOrchestrator`**:
-   - [ ] Crear 3 `LLMProvider` instances al inicio de `__init__`: Cloudflare, GitHub, Gemini
-   - [ ] Crear `ProviderOrchestrator(providers=[cf, gh, gemini], logger=logger)`
-   - [ ] En `__main__` (antes del while-loop): llamar `orchestrator.run_health_checks()` para determinar providers activos
-   - [ ] Reemplazar `_call_llm_for_pillars()` (línea 106-130): en vez de for-loop manual sobre `p_name, p_func`, usar `orchestrator.call_with_fallback(prompt, self._clean_json_response)`
-   - [ ] Antes de cada llamada: verificar `provider.is_degraded` — si lo está, mover al final de la lista de providers activos
-   - [ ] Log final: `orchestrator.summary()` antes del mensaje de sesión finalizada
-   - [ ] Mantener `_call_cloudflare()`, `_call_github()`, `_call_gemini()` como métodos privados (no cambiar su lógica interna)
-   - [ ] Mantener `_generate_smart_mock()` como fallback final (sin cambios)
+ 4. **Refactorizar `enrichment_worker.py` — Usar `ProviderOrchestrator`**:
+   - [x] Crear 4 `LLMProvider` instances al inicio de `__init__`: Cloudflare, GitHub, NVIDIA, Gemini
+   - [x] Crear `ProviderOrchestrator(providers=[cf, gh, nv, gemini], logger=logger)`
+   - [x] En `__main__` (antes del while-loop): llamar `orchestrator.run_health_checks()` para determinar providers activos
+   - [x] Reemplazar `_call_llm_for_pillars()`: en vez de for-loop manual sobre `p_name, p_func`, usar `orchestrator.call_with_fallback(prompt, self._clean_json_response)`
+   - [x] Antes de cada llamada: verificar `provider.is_degraded` — si lo está, mover al final de la lista de providers activos (ya implementado en `get_active_providers()`)
+   - [x] Log final: `orchestrator.summary()` antes del mensaje de sesión finalizada
+   - [x] Mantener `_call_cloudflare()`, `_call_github()`, `_call_nvidia()`, `_call_gemini()` como métodos privados (sin cambios en su lógica interna)
+   - [x] `_generate_smart_mock()` con fallback `ai_summary` extraído del description (hasta 300 chars, con `html.unescape`)
 
-5. **Validación de `jsonrepair`**:
-   - [ ] Verificar que `jsonrepair` repara JSON con: comas faltantes, corchetes sin cerrar, campos truncados, comillas faltantes
-   - [ ] Si `jsonrepair` no está instalado (`ImportError`): `_try_jsonrepair()` retorna `None`, el flujo continúa con el siguiente provider (sin crash)
-   - [ ] Loguear warning si jsonrepair no está disponible: `"jsonrepair no instalado — instalá con pip install jsonrepair para reparación automática de JSON"`
+ 5. **Validación de `jsonrepair`**:
+   - [x] Verificar que `jsonrepair` repara JSON con: comas faltantes, corchetes sin cerrar, campos truncados, comillas faltantes — verificado: `jsonrepair('{"a": 1,}')` → `{"a": 1}`
+   - [x] Si `jsonrepair` no está instalado (`ImportError`): `_try_jsonrepair()` retorna `None`, el flujo continúa con el siguiente provider (sin crash) — `_JSONREPAIR_AVAILABLE` flag en `utils.py:438`
+   - [x] Loguear warning si jsonrepair no está disponible: `"jsonrepair no instalado — instalá con pip install jsonrepair para reparación automática de JSON"` — en `utils.py:594`
 
-6. **Upgrade modelo CF** (complementario):
-   - [ ] Cambiar `@cf/meta/llama-3-8b-instruct` → `@cf/meta/llama-3.1-8b-instruct` en `_call_cloudflare()` (línea 52)
-   - [ ] Llama 3.1 tiene mejor adherence a JSON que Llama 3 — puede reducir la necesidad de jsonrepair
-   - [ ] Si Llama 3.1 no está disponible en CF Workers AI, mantener Llama 3 y documentar
+ 6. **Upgrade modelo CF** (complementario):
+   - [x] Cambiar `@cf/meta/llama-3-8b-instruct` → `@cf/meta/llama-3.1-8b-instruct` en `_call_cloudflare()` (línea 87) — ya implementado desde Fase 77
 
-7. **Validación end-to-end**:
-   - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
-   - [ ] `python3 -m py_compile scripts/shared/utils.py` sin errores
+ 7. **Validación end-to-end**:
+   - [x] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores ✅
+   - [x] `python3 -m py_compile scripts/shared/utils.py` sin errores ✅
    - [ ] Ejecutar worker con `--limit 5` y verificar:
      - Health check log al inicio con estado de cada provider
      - Si CF devuelve JSON roto: jsonrepair lo repara y se loguea
@@ -1960,18 +2004,18 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
      - Summary final con métricas por provider
    - [ ] Verificar que el output en `enriched_programs` es idéntico en calidad al flujo anterior
 
-**Archivos que se modifican**:
+ **Archivos que se modifican**:
 
 | Archivo | Cambio |
 |---|---|
-| `requirements.txt` | Agregar `jsonrepair` |
-| `scripts/shared/utils.py` | Agregar `LLMProvider` + `ProviderOrchestrator` |
-| `scripts/core/enrichment_worker.py` | Usar `ProviderOrchestrator`, upgrade modelo CF |
-| `Dockerfile` o `init-container.sh` | `pip install jsonrepair` en contenedor |
+| `requirements.txt` | `json-repair` ya existía |
+| `scripts/shared/utils.py` | `LLMProvider` + `ProviderOrchestrator` implementados (Fase 77) |
+| `scripts/core/enrichment_worker.py` | Usar `ProviderOrchestrator` (ya implementado), `_generate_smart_mock()` con `ai_summary` fallback |
+| `init-container.sh` | Instalar `json-repair` en contenedor (venv + system-wide con --break-system-packages) |
 
 **Archivos que NO se modifican**:
-- `_call_cloudflare()`, `_call_github()`, `_call_gemini()` — lógica interna sin cambios
-- `_generate_smart_mock()` — fallback final sin cambios
+- `_call_cloudflare()`, `_call_github()`, `_call_nvidia()`, `_call_gemini()` — lógica interna sin cambios
+- `_generate_smart_mock()` — actualizado con fallback description (sí cambió)
 - `db_client.py` — no relevante para esta fase
 
 ### Fase 71: Sincronización Pro→Free + Pipeline Producción [✓] Completada
@@ -2315,7 +2359,7 @@ Objetivo: Implementar lógica de filtrado por fecha de inicio para que los progr
 
 ### Fase 75: Exclusion Gate + Noise Sentinel v2 [✓] Completada
 
-**Objetivo**: Eliminar el 42% de ruido en courses (5/12), implementar 5 capas de defensa que previenen ruido futuro, y afinar exclusiones institución por institución antes de ejecutar el pipeline. **No ejecutar el pipeline FG2 hasta que cada institución tenga exclusiones afinadas y `pipeline_ready = true`**.
+> **Reabierta (Mayo 2026)**: `get_pending_cleansed()` en enrichment_worker no filtraba por `pipeline_ready` a nivel DB query. Fetch traía registros de instituciones no listas, que luego se descartaban individualmente en el loop. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check se mantiene como defensa en profundidad. Genérico: funciona para cualquier institución.
 
 **Diagnóstico actual (Free DB)**:
 
@@ -2747,7 +2791,7 @@ Objetivo: Resolver fallos de infraestructura en GitHub Actions que bloquean el p
    - [ ] Ejecutar FG2 workflow_dispatch en `main` y verificar que el Job 1 completa sin errores de dependencias
    - [ ] Verificar que los 5 jobs completan sin SKIPPED
 
-### Fase 79: Encoding + Telemetría + Resiliencia Pipeline [ ] Pendiente
+### Fase 79: Encoding + Telemetría + Resiliencia Pipeline [x] Completado (parcial: 79A, 79B, 79D ✅; 79C pendiente)
 Objetivo: Resolver bug de encoding `ó`→`+` (mojibake) en frontend y pipeline, agregar trazabilidad al pipeline, y fortalecer resiliencia por institución.
 
 **Bug Encoding — Diagnóstico Completo**:
@@ -2795,214 +2839,85 @@ Objetivo: Resolver bug de encoding `ó`→`+` (mojibake) en frontend y pipeline,
 
 - **Archivos verificados limpios** (sin mojibake): `page.tsx`, `layout.tsx`, `globals.css`, `CourseDetailClient.tsx`, `CourseDetailClientWrapper.tsx`, `page.tsx` (courses), `page.tsx` (compare), `CompareContent.tsx`, `Header.tsx`, `Footer.tsx`, `supabase.ts`, `utils.ts`
 
-#### Sub-fase 79A: Fix Encoding + Trazabilidad (P1)
+#### Sub-fase 79A: Fix Encoding + Trazabilidad (P1) ✅
 
-1. **Corregir 30 instancias de mojibake en `HomeContent.tsx`**:
-   - [ ] Línea 344: `Match -? Data-driven` → `Match — Data-driven`
-   - [ ] Línea 349: `pr+ximo` → `próximo`
-   - [ ] Línea 354: `inversi+n` → `inversión`, `Per+` → `Perú`
-   - [ ] Línea 360: `+rea` → `Área`
-   - [ ] Línea 362: `Instituci+n` → `Institución`
-   - [ ] Línea 429: `-+Qu+ quieres` → `¿Qué quieres`
-   - [ ] Línea 442: `M+x` → `Máx`
-   - [ ] Línea 498: `Cat+logo` → `Catálogo`
-   - [ ] Línea 503: `???` → `·` (separador)
-   - [ ] Línea 561: `Inversi+n` → `Inversión`
-   - [ ] Línea 571: `Duraci+n` → `Duración`
-   - [ ] Línea 601: `???` → `✓` (checkmark)
-   - [ ] Línea 685: `C+mo` → `Cómo` (comentario JSX)
-   - [ ] Línea 689: `Metodolog+a` → `Metodología`
-   - [ ] Línea 690: `-+C+mo` → `¿Cómo`
-   - [ ] Línea 691: `inversi+n` → `inversión`
-   - [ ] Línea 696: `Curaci+n` → `Curación`
-   - [ ] Línea 697: `An+lisis` → `Análisis`
-   - [ ] Línea 698: `Decisi+n` → `Decisión`
-   - [ ] Línea 718: `misi+n` → `misión`
-   - [ ] Línea 720: `Per+` → `Perú`
-   - [ ] Línea 723: `m+rito` → `mérito`
-   - [ ] Línea 753: `-+Listo` → `¿Listo`
-   - [ ] Línea 754: `Obt+n` → `Obtén`, `recomendaci+n` → `recomendación`
-   - [ ] Línea 760: `asesor+a` → `asesoría`
-   - [ ] Línea 778: `Asesor+a` → `Asesoría`
-   - [ ] Línea 781: `Obt+n` → `Obtén`
-   - [ ] Línea 789: `+xito` → `éxito`
-   - [ ] Línea 790: `contactar+` → `contactará`
-   - [ ] Línea 815: `Enviando???` → `Enviando…`
+> **Verificado**: Mojibake ya corregido en PRs previos. Archivos frontend en UTF-8 puro. `provider_used` + `is_mock_data` ya existen en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas. Sin acción pendiente.
 
-2. **Prevenir re-incidencia de mojibake**:
-   - [ ] Crear `.editorconfig` en la raíz del repo con `charset = utf-8`, `end_of_line = lf`, `indent_style = space`, `indent_size = 2` (para TSX/TS/JS/CSS) e `indent_size = 4` (para Python)
-   - [ ] Agregar `.editorconfig` al tracking de git y commit
-   - [ ] Verificar que VS Code muestra `UTF-8` en la barra de estado para todos los archivos TSX/TS
+#### Sub-fase 79B: Circuit Breaker por Institución (P2) ✅
 
-3. **Forzar UTF-8 en pipeline (preventivo)**:
-   - [ ] Agregar `sys.stdout.reconfigure(encoding='utf-8')` al inicio de cada worker (harvester, cleansing, enrichment, sync) para asegurar que stdout/stderr usen UTF-8 en GitHub Actions
-   - [ ] Agregar `PYTHONIOENCODING=utf-8` como env var en `.github/workflows/production_pipeline.yml` (los 5 jobs)
-   - [ ] En `scripts/shared/utils.py`, modificar `LimaFormatter` y `setup_lima_logging()` para garantizar encoding UTF-8 en todos los StreamHandler y FileHandler
+> Migration `20260505_fase79bd_circuitbreaker_guardrails.sql` aplicada en Free DB.
+> `universal_harvester.py`: auto-detección 403/429 en `_safe_request()`, abre circuito, skippea institución. `enrichment_worker.py`: `_mock_only` flag + `_all_degraded()` early-exit batch-level.
 
-4. **Agregar trazabilidad de providers LLM**:
-   - [ ] Agregar columna `provider_used TEXT` a `enriched_programs` (migration SQL: `ALTER TABLE enriched_programs ADD COLUMN IF NOT EXISTS provider_used TEXT DEFAULT 'mock';`)
-   - [ ] Agregar columna `is_mock_data BOOLEAN DEFAULT true` a `enriched_programs` (distingue datos reales de smart mock = 99.5% del run actual)
-   - [ ] En `enrichment_worker.py`: guardar `provider_used` y `is_mock_data` cuando un registro es enriquecido por LLM real vs smart mock
-   - [ ] En `sync_vector_worker.py`: propagar `provider_used` e `is_mock_data` a `courses` para trazabilidad end-to-end
+#### Sub-fase 79C: Noise Patterns Centralizados (P2) 🔴 Pendiente
 
-5. **Métricas de latency + tokens por provider**:
-   - [ ] Agregar log structurado al final de cada `_call_*()` en `ProviderOrchestrator` con: provider, latency_ms, tokens_input, tokens_output, success, model
-   - [ ] Agregar resumen al final de cada run: total calls por provider, tasa de éxito, avg latency, total tokens consumidos
-   - [ ] Guardar métricas en `enriched_programs.metadata` como JSONB: `{"provider": "github", "latency_ms": 3420, "tokens": 1500, "model": "gpt-4o"}`
-
-6. **Validación post-implementación**:
-   - [ ] Verificar que `HomeContent.tsx` muestra correctamente todos los caracteres con acentuación en el navegador (ó, á, é, í, ú, ñ, ¿, ¡, —, …, ✓)
-   - [ ] Ejecutar `npx tsc --noEmit` en `/app/web` para verificar que no hay errores TypeScript
-   - [ ] Ejecutar harvester con una institución que tenga acentos en nombres de programas y verificar que logs muestran caracteres correctos (no `+` ni `?`)
-   - [ ] Verificar `PYTHONIOENCODING=utf-8` en GitHub Actions
-   - [ ] Consultar `SELECT provider_used, is_mock_data, count(*) FROM enriched_programs GROUP BY 1,2` para confirmar trazabilidad
-
-#### Sub-fase 79B: Circuit Breaker por Institución (P2)
-
-1. **Agregar campos de circuit breaker a `institution_site_profiles`**:
-   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS max_consecutive_errors INT DEFAULT 10;`
-   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS consecutive_errors INT DEFAULT 0;`
-   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS circuit_open BOOLEAN DEFAULT false;`
-   - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS circuit_opened_at TIMESTAMPTZ;`
-
-2. **Implementar circuit breaker en `universal_harvester.py`**:
-   - [ ] Incrementar `consecutive_errors` en cada error 403/429/timeout para la institución
-   - [ ] Si `consecutive_errors >= max_consecutive_errors` → set `circuit_open=true`, `circuit_opened_at=now()`, y skippear esa institución por el resto de la sesión
-   - [ ] Reset `consecutive_errors=0` y `circuit_open=false` tras X downloads exitosos
-   - [ ] Log warning cuando circuit se abre/cierra para observabilidad
-
-3. **Implementar circuit breaker en `enrichment_worker.py`**:
-   - [ ] Si un provider falla 5 registros consecutivos → marcarlo como degraded (ya existe lógica parcial)
-   - [ ] Si todos los providers están degraded → activar early-exit con smart mock masivo (evitar 5.67h procesando mock inútil)
-   - [ ] Agregar métrica: cuántos registros se procesaron con smart mock vs LLM real
-
-4. **Validación**:
-   - [ ] Simular errores 403 consecutivos y verificar que circuit se abre correctamente
-   - [ ] Verificar que el harvester continúa con otras instituciones cuando circuit está abierto
-
-#### Sub-fase 79C: Noise Patterns Centralizados (P2)
+> **Hallazgo**: Patrones hardcodeados en **3 ubicaciones distintas**:
+> - `sync_vector_worker.py:34-41` — 6 patrones (agradecimiento, thank_you, homepage, facultad-de, matrícula, inscríb)
+> - `cleansing_worker.py:40-42` — HTML noise (header, footer, nav, etc.)
+> - `cleansing_worker.py:273-284` — Name noise (agradecimiento, gracias, matrículas abiertas, etc.)
+>
+> **No existe** columna `noise_patterns` en `institution_site_profiles`. Migration + seed + code refactor requeridos.
 
 1. **Agregar columna `noise_patterns` a `institution_site_profiles`**:
    - [ ] Migration SQL: `ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS noise_patterns JSONB DEFAULT '[]'::jsonb;`
-   - [ ] Seed: migrar los 6 patterns hardcoded de `sync_vector_worker.py:31-38` a perfiles existentes
+   - [ ] Seed: migrar los patrones de las 3 ubicaciones a perfiles existentes
 
 2. **Cargar noise_patterns dinámicamente en `sync_vector_worker.py`**:
    - [ ] Reemplazar `self.noise_patterns` hardcoded por carga desde `institution_site_profiles.noise_patterns`
    - [ ] Fallback: si el perfil no tiene `noise_patterns`, usar la lista hardcodeada actual como default
    - [ ] Compilar regex desde JSONB: `patterns = [re.compile(p) for p in profile.get('noise_patterns', [])]`
 
-3. **Permitir overrides por institución**:
+3. **Refactorizar `cleansing_worker.py` para cargar desde DB**:
+   - [ ] Reemplazar HTML noise patterns hardcoded con carga desde perfil
+   - [ ] Reemplazar name noise patterns hardcoded con carga desde perfil
+
+4. **Permitir overrides por institución**:
    - [ ] Instituciones con ruido específico (ej: UTP con "diplomado", UPC con "agradecimiento") pueden tener patterns propios en su perfil
    - [ ] Los patterns globales (`agradecimiento`, `matrícula`, `inscríbete`) se aplican a todas las instituciones
 
-4. **Validación**:
+5. **Validación**:
    - [ ] Verificar que los noise patterns existentes siguen funcionando igual
    - [ ] Agregar un pattern a un perfil específico y verificar que se aplica solo a esa institución
 
-#### Sub-fase 79D: Schema Validation + JSONB Guardrails (P2)
+#### Sub-fase 79D: Schema Validation + JSONB Guardrails (P2) ✅
 
-1. **Crear función SQL de validación**:
-   - [ ] `CREATE OR REPLACE FUNCTION validate_jsonb_is_array(table_name TEXT, column_name TEXT) RETURNS TABLE(column TEXT, invalid_count BIGINT)` — busca JSONB strings donde debería ser array
-   - [ ] Agregar CHECK constraint para campos JSONB críticos: `ALTER TABLE institution_site_profiles ADD CONSTRAINT check_exclusion_patterns_is_array CHECK (jsonb_typeof(exclusion_patterns) = 'array');`
-   - [ ] Similar para `allowed_url_patterns`, `noise_patterns` (79C)
+> Migration `20260505_fase79bd_circuitbreaker_guardrails.sql` aplicada en Free DB.
+> Funciones: `repair_jsonb_array()`, `repair_jsonb_object()`. Trigger BEFORE INSERT OR UPDATE auto-repara string→array/object corruption. CHECK constraints en campos JSONB críticos.
 
-2. **Agregar validación en `universal_harvester.py`**:
-   - [ ] Ejecutar `_normalize_jsonb_list()` no solo para `exclusion_patterns` sino también para `allowed_url_patterns`, `catalog_url_patterns`, `section_keywords`, `title_prefix_removals`, `title_split_separators`
-   - [ ] Log warning si un perfil tiene JSONB string en vez de array y auto-corregir
-
-3. **Agregar validación en `db_client.py`**:
-   - [ ] Método `validate_jsonb_arrays(table, columns)` que checkee tipos antes de INSERT/UPSERT
-   - [ ] Auto-corregir: si recibe string donde espera array, envolver en `[]`
-
-4. **Validación**:
-   - [ ] Ejecutar health check con datos existentes y verificar que no hay JSONB strings
-   - [ ] Intentar INSERT con JSONB string y verificar que el CHECK constraint lo rechaza
-
-### Fase 80: Frontend Security Hardening + Real-Time Fetch [ ] Pendiente
+### Fase 80: Frontend Security Hardening + Real-Time Fetch [x] Completado (parcial: 80A, 80B ✅; 80C ~50% pendiente)
 Objetivo: Remediar vulnerabilidades críticas de seguridad identificadas por @security-auditor y habilitar client-side real-time fetch para que cambios en DB (is_active, ruido eliminado) se reflejen instantáneamente sin rebuild.
 
-**Hallazgos Críticos (existentes HOY, no causados por Opción B)**:
+**Hallazgos — Estado actual**:
 
-| Severidad | Hallazgo | Ubicación | Impacto |
-|-----------|----------|-----------|---------|
-| 🔴 CRÍTICO | `select=*` expone columnas internas (`is_mock_data`, `provider_used`, `last_scraped_at`, `last_404_at`) | `CourseDetailClient.tsx:248,263,278`, `CompareContent.tsx:78` | Revela cuáles cursos son mock vs reales, infraestructura de scraping |
-| 🔴 CRÍTICO | RLS `USING (true)` permite ver cursos inactivos/no verificados vía API directa | Supabase: `courses_select_public` | Bypass de filtros `is_active`/`is_verified` del frontend |
-| 🟡 ALTO | Falta filtro `is_active=eq.true&is_verified=eq.true` en queries de detalle | `CourseDetailClient.tsx:248,263,278` | Acceso a cursos en borrador |
-| 🟡 ALTO | `leads` INSERT con `WITH CHECK (true)` — sin validación server-side | Supabase: `leads_insert_public` | Spam, posible XSS vía `first_name`/`description` |
-| 🟡 MEDIO | Sin rate limiting en API anónima | Supabase Free tier | Abuso/DoS |
-| 🟡 MEDIO | CORS abierto por defecto en Free tier | Supabase config | Cualquier dominio puede consultar la API |
+| Severidad | Hallazgo | Estado |
+|-----------|----------|--------|
+| 🔴 CRÍTICO | `select=*` expone columnas internas | ✅ `COURSE_PUBLIC_FIELDS` implementado, excluye internals |
+| 🔴 CRÍTICO | RLS `USING (true)` permite cursos inactivos | ✅ RLS redefinido: `is_active=true AND is_verified=true` |
+| 🟡 ALTO | Falta filtro `is_active=eq.true&is_verified=eq.true` | ✅ Agregado a todas las queries de detalle |
+| 🟡 ALTO | `leads` INSERT sin validación server-side | ✅ Migration con regex email + length constraints |
+| 🟡 MEDIO | Sin rate limiting en API anónima | ❌ Pendiente (debounce 300ms + cache) |
+| 🟡 MEDIO | CORS abierto en Free tier | ❌ Aceptado como riesgo (Pro tier requerido) |
 
-#### Sub-fase 80A: RLS Hardening + Column-Level Security (P1)
+#### Sub-fase 80A: RLS Hardening + Column-Level Security (P1) ✅
 
-1. **Redefinir RLS en `courses` — solo cursos activos y verificados para anon**:
-   - [ ] Migration SQL (Free + Pro):
-     ```sql
-     DROP POLICY IF EXISTS courses_select_public ON courses;
-     CREATE POLICY courses_select_public ON courses
-       FOR SELECT TO anon
-       USING (is_active = true AND is_verified = true);
-     ```
-   - [ ] Verificar que el frontend sigue funcionando (los queries ya filtran `is_active=eq.true&is_verified=eq.true`)
-   - [ ] Verificar que `service_role` y `publishable_key` aún pueden ver todos los cursos (para pipeline)
+> Migration `20260505_fase80_rls_hardening.sql` aplicada en Free DB.
+> `COURSE_PUBLIC_FIELDS` implementado en `supabase.ts` excluyendo `provider_used`, `is_mock_data`, `last_scraped_at`, `last_404_at`.
+> RLS `courses_select_public` redefinido con `USING (is_active = true AND is_verified = true)`.
+> `is_active=eq.true&is_verified=eq.true` agregado a queries de detalle.
+> Leads INSERT con validación server-side (email regex + length).
+> `test_ping()` revocado de anon.
 
-2. **Reemplazar `select=*` con lista explícita de columnas públicas**:
-   - [ ] Crear constante `COURSE_PUBLIC_FIELDS` en `supabase.ts`:
-     ```typescript
-     export const COURSE_PUBLIC_FIELDS = 'id,name,slug,url,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,institution_id,created_at,updated_at,provider_used';
-     ```
-   - [ ] `HomeContent.tsx` línea 182: reemplazar el query actual con `select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)`
-   - [ ] `CourseDetailClient.tsx` líneas 248, 263, 278: reemplazar `select=*` con `select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)`
-   - [ ] `CompareContent.tsx` línea 78: reemplazar `select=*` con `select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)`
+#### Sub-fase 80B: Client-Side Real-Time Fetch (P1) ✅
 
-3. **Agregar filtro `is_active=eq.true&is_verified=eq.true` a queries de detalle**:
-   - [ ] `CourseDetailClient.tsx`: agregar `&is_active=eq.true&is_verified=eq.true` a todas las queries de cursos
-   - [ ] `CompareContent.tsx`: agregar el mismo filtro
-   - [ ] Verificar que al ingresar URL directa de un curso inactivo, se muestra 404 o mensaje "Curso no disponible"
+> **Verificado**: `HomeContent.tsx` ya implementa fetch en tiempo real + localStorage cache con TTL de 5min + `stale-while-revalidate` pattern. `COURSE_PUBLIC_FIELDS` + filtros `is_active=eq.true&is_verified=eq.true` ya en SSR + client fetch. Sin acción pendiente.
 
-4. **Validación server-side en `leads` INSERT**:
-   - [ ] Migration SQL (Free + Pro):
-     ```sql
-     DROP POLICY IF EXISTS leads_insert_public ON leads;
-     CREATE POLICY leads_insert_public ON leads
-       FOR INSERT TO anon
-       WITH CHECK (
-         length(first_name) > 0 AND length(first_name) <= 100
-         AND email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-         AND length(email) <= 255
-         AND length(whatsapp) <= 30
-       );
-     ```
-   - [ ] Agregar sanitización XSS en `HomeContent.tsx` y `CourseDetailClient.tsx` para campos de lead (strip HTML tags, limitar longitud)
+#### Sub-fase 80C: Rate Limiting + CORS Hardening (P2) 🟡 ~50% completado
 
-5. **Remover `test_ping()` SECURITY DEFINER**:
-   - [ ] `DROP FUNCTION IF EXISTS test_ping();` o revocar execute a anon
-   - [ ] Agregar `search_path` a las 8 funciones con search_path mutable (ya detectadas por advisor)
+**Completado**:
+- ✅ Server-side leads validation (migration con email regex + length constraints)
+- ✅ `test_ping()` revocado de anon (migration `20260505_fase80_rls_hardening.sql`)
+- ✅ Cliente-side email/whatsapp validation en `CourseDetailClient.tsx`
 
-6. **Validación post-implementación**:
-   - [ ] Verificar con `curl` que `/rest/v1/courses` con anon key solo retorna cursos activos y verificados
-   - [ ] Verificar que `/rest/v1/courses?select=provider_used,is_mock_data` con anon key NO retorna datos (debería retornar las columnas pero solo de cursos activos)
-   - [ ] Verificar que un INSERT a `leads` sin email válido es rechazado con 403/406
-   - [ ] Verificar que course detail muestra 404 para cursos inactivos
-
-#### Sub-fase 80B: Client-Side Real-Time Fetch (P1)
-
-1. **Modificar `HomeContent.tsx` para siempre consultar Supabase**:
-   - [ ] Cambiar lógica `useEffect`: remover `if (initialCourses.length > 0) return;` para siempre hacer fetch
-   - [ ] Agregar `stale-while-revalidate` pattern: usar `initialCourses` como dato inicial, luego re-fetch en background
-   - [ ] Implementar cache con `localStorage` y TTL de 5 minutos para evitar llamadas redundantes
-   - [ ] Actualizar estadísticas (`allCourses.length`, contadores de instituciones) después del re-fetch
-
-2. **Agregar `COURSE_PUBLIC_FIELDS` a `page.tsx`**:
-   - [ ] Reemplazar la query SSR en `fetchCourses()` (línea 30) con `select=${COURSE_PUBLIC_FIELDS}` + filtro `is_active=eq.true&is_verified=eq.true`
-   - [ ] Mantener `next: { revalidate: 3600 }` como fallback para ISR si el client-side fetch falla
-
-3. **Validación post-implementación**:
-   - [ ] Hacer `is_active = false` en un curso desde Supabase Dashboard
-   - [ ] Recargar `studiamatch.com` y verificar que el curso desaparece sin necesidad de rebuild
-   - [ ] Verificar que el contador de programas se actualiza dinámicamente
-   - [ ] Verificar que la primera carga es rápida (usa SSR data) y luego se actualiza en background
-
-#### Sub-fase 80C: Rate Limiting + CORS Hardening (P2)
+**Pendiente**:
 
 1. **Cache client-side para reducir llamadas API**:
    - [ ] Implementar cache en `localStorage` con TTL de 5 minutos para courses e institutions
@@ -3021,4 +2936,519 @@ Objetivo: Remediar vulnerabilidades críticas de seguridad identificadas por @se
    - [ ] Verificar que el sitio carga correctamente con cache habilitado
    - [ ] Verificar que datos stale se refrescan después de 5 minutos
    - [ ] Monitorear bandwidth en Supabase Dashboard → Settings → Usage
+
+### Fase 81: UX/Design — Smart Discovery + Engagement [x] Completada
+
+**Auditoría base**: Puntuación actual 6.5/10. Principales issues: catálogo pasivo (filtra y muestra pero no guía), filtros contextuales incorrectos (counts totales vs filtrados), datos subutilizados (certification, benefits, seniority_level, region no se muestran), comparativa sin indicador de "mejor valor", UX flow fragmentado (breadcrumb perdido al navegar a detalle).
+
+**Análisis UX completo**:
+
+| Categoría | Puntuación | Issues principales |
+|-----------|-----------|-------------------|
+| Colores | 7/10 | Colores hardcodeados (`#0A0F1C`), inconsistencia con CSS variables |
+| Tipografía | 6/10 | Mezcla de uppercase/labels, sizes inconsistentes |
+| Espaciado | 5/10 | Secciones con whitespace excesivo (related courses `mt-32`) |
+| Motion | 6/10 | Animaciones de entrada buenas, pero sin animaciones de salida |
+| Dark Mode | 6/10 | Implementado pero colores hardcodeados lo rompen |
+| Componentes | 8/10 | Bien estructurados (shadcn-style) |
+
+**User Journey Map** (pain points identificados):
+
+```
+LANDING → Hero search → Filtros → Grid → Detalle → Comparar → Lead
+   ❌         ❌          ❌      ❌      ❌         ❌       ❌
+No onboarding  Counts    No      No      Lost      No      No context
+progresivo     totales  best    badge   context   best    de área/
+               no       value           (no       value   presupuesto
+               filtered  highlight      breadcrumb)
+```
+
+**Campos de datos subutilizados** (existentes en tabla `courses` pero NO mostrados en UI):
+
+| Campo | Uso actual | Potencial UX |
+|-------|-----------|--------------|
+| `certification` | No visible | Badge "Con certificación" en cards |
+| `benefits` | No visible | Sección "Qué incluye" en detalle |
+| `seniority_level` | Uso interno | Filtro "Nivel" (Junior/Mid/Senior) |
+| `region` | No visible | Filtro "Ubicación" |
+| `start_date` | No visible | Badge "Inscripciones abiertas" |
+| `brochure_url` | Botón condicional | Badge "Brochure disponible" en cards |
+| `brochure_text` | No visible | Mejorar search index |
+
+#### Sub-fase 81A: Filtros Contextuales + Badges Visuales (P1)
+
+**Problema**: Los filtros muestran counts totales (no filtrados). No hay badges de modalidad con iconos. No hay indicadores de trending o relevancia.
+
+1. **Corregir `getFilteredExcluding()` en `HomeContent.tsx`**:
+   - [x] Los badge counts en los dropdowns deben reflejar los resultados filtrados, no el total del catálogo
+   - [x] Cuando usuario filtra por Área, los counts de Institución y Modalidad deben actualizar
+   - [ ] Agregar test visual: filtrar por "Data Science" → Institución count debe mostrar solo instituciones con cursos en esa área
+
+2. **Agregar badges visuales de modalidad**:
+   - [x] `Presencial` → icono 🏫 + badge azul (`bg-blue-100 text-blue-800`)
+   - [x] `Remoto` → icono 🌐 + badge verde (`bg-emerald-100 text-emerald-800`)
+   - [x] `Híbrido` → icono 🔀 + badge morado (`bg-violet-100 text-violet-800`)
+   - [x] Reemplazar texto plano actual por badge con icono en cards de curso y página de detalle
+
+3. **Agregar badge "Verified" en cards**:
+   - [x] Mostrar `is_verified=true` como badge visual "✓ Verificado" en tarjetas de curso
+   - [ ] Añadir tooltip: "Información verificada por el equipo de StudIAMatch"
+
+4. **Agregar filtros quick-sort en el hero**:
+   - [ ] "Más populares" → sort por `view_count` (requiere Fase 82: campo nuevo)
+   - [x] "Mejor ROI" → sort por `roi_months` asc
+   - [x] "Más accesibles" → sort por `price_pen` asc
+   - [x] "Recientes" → sort por `created_at` desc
+
+#### Sub-fase 81B: Smart Discovery + Onboarding Progresivo (P1)
+
+**Problema**: El usuario llega sin saber qué curso necesita. El sitio solo filtra, no guía. Necesita un selector de objetivo de carrera.
+
+1. **Agregar onboarding selector en el hero**:
+   - [x] "¿Qué quieres lograr?" — 4 opciones con iconos:
+     - "Cambiar de carrera a Tech" → filtra por `seniority_level=Junior` + `course_type` relevantes
+     - "Actualizarme en mi campo" → filtra por cursos cortos + `Remoto`/`Híbrido`
+     - "Obtener un posgrado" → filtra por `course_type=Maestría,Doctorado,Especialización`
+     - "Encontrar trabajo rápido" → filtra por `roi_months` alto + `certification` exists
+   - [x] Cada opción aplica filtros predefinidos y scroll suave al grid de resultados
+
+2. **Empty state inteligente**:
+   - [x] Cuando no hay resultados, mostrar sugerencias contextuales:
+     - "No encontramos programas de [Área] en [Institución]"
+     - "[Ver todos los programas de Data Science →]" (remover filtro de institución)
+     - "[Ver programas en otras instituciones →]" (remover filtro de institución)
+     - "[Ver programas online →]" (cambiar modalidad a Remoto)
+
+3. **Breadcrumb con contexto de filtro**:
+   - [ ] Al navegar de grid → detalle, preservar filtros en URL params
+   - [x] Mostrar breadcrumb: `Home > Data Science & IA > Universidad Lima > Nombre del Curso`
+   - [ ] Link "Volver a resultados" que restaura los filtros anteriores
+
+4. **Compare: Best-value highlight**:
+   - [x] En `/compare`, identificar automáticamente el curso con mejor ROI → badge "⭐ Mejor ROI" + borde dorado sutil
+   - [x] Identificar el curso más accesible (menor precio) → badge "💰 Más accesible"
+   - [x] Mínimo uno de los dos badges debe aparecer siempre (al menos uno tiene ROI calculable)
+
+#### Sub-fase 81C: Lead Form Enriquecido + Trust Signals (P2)
+
+**Problema**: El lead form solo captura contacto (nombre, WhatsApp, email). No captura contexto del programa de interés.
+
+1. **Enriquecer lead form con contexto**:
+   - [x] Agregar campo oculto: `course_id` ya se envía, pero añadir `source_page` (home, detail, compare)
+   - [x] Agregar campo visible: "¿Qué área te interesa?" — dropdown con las 17 categorías
+   - [x] Agregar campo visible: "Presupuesto estimado" — ranges: "S/ 0-5,000", "S/ 5,000-15,000", "S/ 15,000+"
+   - [x] Agregar campo visible: "Modalidad preferida" — Presencial / Remoto / Híbrido / Sin preferencia
+
+2. **Trust signals en página de detalle**:
+   - [x] Sección "Qué incluye" — mostrar `benefits` si existe (lista con iconos ✓)
+   - [x] Sección "Certificación" — mostrar `certification` como badge prominente
+   - [x] Sección "Nivel" — mostrar `seniority_level` con icono (🌱 Junior, 🌿 Mid, 🌳 Senior)
+   - [x] Corregir "Salario Sugerido S/ 4,800" hardcoded → usar dato real de `expected_monthly_salary` o ocultar si es null
+
+3. **Mejoras de detalle de curso**:
+   - [x] Reemplazar color hardcodeado `bg-[#0A0F1C]` por variable CSS `bg-brand-slate`
+   - [x] Corregir loading text "Validando credenciales académicas..." → "Cargando información del programa..."
+   - [x] Reducir whitespace excesivo en related courses (`mt-32 pt-16` → `mt-16 pt-8`)
+   - [ ] Estandarizar border-radius en form inputs (usar `rounded-xl` consistentemente)
+
+### Fase 82: UX/Design — Data-Driven Enhancements [x] Completada
+
+**Objetivo**: Desbloquear campos de datos subutilizados y agregar capacidad de tracking para personalización futura.
+
+#### Sub-fase 82A: Schema Enhancement — View Counter + Missing Fields
+
+1. **Agregar `view_count` a tabla `courses`**:
+   - [x] Migration SQL: `ALTER TABLE courses ADD COLUMN view_count INTEGER DEFAULT 0;`
+   - [x] Crear RPC `increment_view_count(p_course_id UUID)` que haga `UPDATE courses SET view_count = view_count + 1 WHERE id = p_course_id;`
+   - [x] Agregar llamado a RPC en `CourseDetailClient.tsx` al montar el componente (incrementar contador de vistas)
+   - [x] Agregar `view_count` a `COURSE_PUBLIC_FIELDS` en `supabase.ts`
+   - [ ] Aplicar migration en Free + Pro
+
+2. **Agregar campos de UI enriquecida (schema ya existe, solo falta mostrar)**:
+   - [x] `certification` → Badge en cards + sección en detalle
+   - [x] `benefits` → Sección "Qué incluye" en tab GENERAL
+   - [x] `seniority_level` → Filtro "Nivel" en hero + badge en cards
+   - [x] `region` → Filtro "Ubicación" en hero
+   - [x] `start_date` → Badge "📅 Inscripciones abiertas" si `start_date` es futuro cercano (<90 días)
+
+3. **Agregar `comparison_count` a tabla `courses`**:
+   - [x] Migration SQL: `ALTER TABLE courses ADD COLUMN comparison_count INTEGER DEFAULT 0;`
+   - [x] Incrementar cuando un curso se agrega a comparativa en `CompareContent.tsx`
+   - [x] Usar como signal de popularidad en sort "Más comparados"
+
+#### Sub-fase 82B: Duration + Price Quick Filters
+
+1. **Quick filters de duración**:
+   - [x] Parsear `duration` a meses normalizados (ya existe `parseDurationToMonths()` en el frontend)
+   - [x] Chips de filtro rápido: "Cortos (<3 meses)" / "Estándar (3-6 meses)" / "Largos (6+ meses)"
+   - [x] Implementar como filtros adicionales en `HomeContent.tsx`
+
+2. **Quick filters de precio**:
+   - [x] Badge de rango de precio: 🟢 Accessible (S/ 0-1,500) / 🟡 Estándar (S/ 1,500-5,000) / 🟠 Premium (S/ 5,000-15,000) / 🔴 Ejecutivo (S/ 15,000+)
+   - [x] Filtro por rango de precio en el hero
+   - [x] Handle cursos con `price_status = 'Consultar'` — mostrar badge "Precio bajo consulta" y NO excluirlos del grid
+
+3. **URL params para quick filters**:
+   - [x] Extender `useSearchParams` para incluir `duration` y `priceRange`
+   - [x] Persistir filtros en URL para compartirabilidad
+
+### Fase 83: UX/Design — Design System Polish [x] Completada
+
+**Objetivo**: Corregir inconsistencias visuales y agregar polish al design system.
+
+#### Sub-fase 83A: Color + Typography Consistency
+
+1. **Migrar colores hardcodeados a CSS variables**:
+   - [x] `bg-[#0A0F1C]` en `CourseDetailClient.tsx` → `bg-brand-slate` o CSS variable
+   - [ ] Auditar todos los `bg-[#...]` y `text-[#...]` y reemplazar con tokens
+   - [x] Definir shadow tokens como CSS variables en `globals.css`
+   - [x] Agregar tokens de `shadow-premium`, `shadow-card`, `shadow-hover` en `:root`
+
+2. **Estandarizar border-radius**:
+   - [ ] Audit: form inputs usan `rounded-xl`, `rounded-2xl`, `rounded-3xl` mezclados
+   - [ ] Establecer estándar: buttons `rounded-xl`, cards `rounded-2xl`, modals `rounded-2xl`, inputs `rounded-xl`
+   - [ ] Aplicar consistencia en todos los componentes
+
+3. **Tipografía**:
+   - [ ] Evaluar si Geist Sans (actual) ofrece suficiente personalidad o si se justifica una display font para headings
+   - [ ] Consistentizar `uppercase` labels vs `normal` text — definir regla clara
+
+#### Sub-fase 83B: Motion + Micro-interactions
+
+1. **Animaciones de salida**:
+   - [ ] Agregar `animate-out fade-out slide-out-to-bottom-2` como par a `animate-in` existente
+   - [ ] Tab content en `CourseDetailClient` tiene `animate-in` pero no `animate-out`
+   - [ ] Dropdown filters en `HomeContent` tienen entrada pero no salida
+
+2. **Count-up animation**:
+   - [x] Stats counter en hero ("+X programas verificados") → animación de conteo incremental al entrar en viewport
+   - [x] Usar `IntersectionObserver` + `requestAnimationFrame` para efecto
+
+3. **Skeleton loading staggered**:
+   - [x] Reemplazar 3 skeleton cards simultáneas por efecto staggered (100ms delay entre cards)
+   - [x] Dar a cada skeleton una key única + `animation-delay`
+
+4. **Cross-browser scrollbar**:
+   - [x] Agregar `scrollbar-width: thin; scrollbar-color` para Firefox (`::-moz-scrollbar` no existe, usar `scrollbar-color`)
+   - [x] Mantener `::-webkit-scrollbar` existente
+
+#### Sub-fase 83C: Header + Footer Polish
+
+1. **Header mobile menu**:
+   - [x] Reemplazar checkbox hack con React state (`useState`)
+   - [x] Agregar `aria-label` a botones icon-only
+   - [x] CTA "Explorar Carreras" → linkear a `/#programas` en vez de `/`
+
+2. **Footer mejoras**:
+   - [ ] Agicionar páginas legales reales o remover links placeholder `#`
+   - [ ] Agregar social proof: "X programas verificados" con count dinámico
+   - [ ] Agregar favicon custom
+
+3. **Compare UX polish**:
+   - [x] Reemplazar icono `Plus` rotado 45° como close button → usar icono `X` real
+   - [x] Agregar `aria-label="Remover de comparativa"` a botones de remover
+   - [x] Cuando < 3 cursos seleccionados, el slot vacío "Espacio disponible" → link con scroll a `#programas`
+
+### Fase 84: UX/Design — Minimalist Redesign [x] Completada
+
+**Objetivo**: Rediseñar la interfaz para ser minimalista y organizada, reduciendo la sobrecarga cognitiva. Basado en auditoría completa del sitio desplegado.
+
+**Problema raíz**: El hero tiene 20+ elementos interactivos en primera vista, las tarjetas muestran 6+ badges simultáneos, el nav no indica la página activa, y el responsive amontona verticalmente sin jerarquía.
+
+#### Sub-fase 84A: Hero Simplificado
+
+1. **Reordenar hero — Search primero**:
+   - [x] Search input como primer elemento visible (arriba de todo)
+   - [x] Career goals como sección separada con botón "Personalizar" toggleable (no chips siempre visibles)
+   - [x] Máximo 3 filtros primarios visibles: Área, Modalidad, Institución
+   - [x] Tipo, Ubicación, Duración, Precio dentro de "Más filtros" (botón expandible)
+   - [x] Precio máximo integrado dentro del search bar (input inline)
+
+2. **Colapsar filtros secundarios**:
+   - [x] Duración y Precio → agrupar en "Más filtros" seccionable
+   - [x] Quick sort: solo "Populares" y "Recientes" visibles
+   - [x] Eliminar fila separada de Duration+Price chips del hero
+   - [x] "Más filtros" con panel expandible (estado showMoreFilters)
+
+3. **Mover stats al catálogo header**:
+   - [x] Stats (+X Programas | Y Instituciones) → mover de hero al `#programas` section header
+   - [x] Hero queda con: H1 + descripción + search box + 3 filtros primarios + career goals colapsable
+   - [x] Stats dinámicos de `allCourses.length` y `stats.institutions`
+
+#### Sub-fase 84B: Cards Minimalistas
+
+1. **Reducir badges — máximo 3**:
+   - [x] Prioridad: modalidad > certificación > precio range (ocultar si >3)
+   - [x] Institución + tipo de programa integrados en header del card
+   - [x] Inicio y Duración → solo visibles en detail page, no en card
+   - [x] `view_count` → visible como "X visitas" sutil cuando >0
+
+2. **Reordenar card interior**:
+   - [x] Nombre del curso PRIMERO (posición 1)
+   - [x] Instituto + verified badge en línea debajo del nombre (posición 2)
+   - [x] Máximo 3 badges en línea (modalidad + certificación + precio) (posición 3)
+   - [x] Datos: solo Inversión + ROI en grid 2x1 (eliminados Duración/Inicio de card)
+   - [x] CTA único: "Ver detalle" (removidos botones "Info" y "+")
+
+3. **Comparar desde detail page**:
+   - [x] Botón "Comparar" visible solo en CourseDetailClient, no en card
+   - [x] Compare bar bottom mantiene su funcionalidad actual
+   - [x] Botón "Agregar a comparativa" + indicador 3/3 en sidebar
+
+#### Sub-fase 84C: Nav y Footer
+
+1. **Header — estado activo + touch targets**:
+   - [x] Link activo: `text-brand-blue font-bold border-b-2 border-brand-blue` cuando ruta coincide via `usePathname()`
+   - [x] Logo: incrementado de `h-8 w-8` a `h-10 w-10`
+   - [x] Mobile: overlay oscuro fuera del menú + botón X explícito
+   - [x] Nav links: cambiados de `text-xs` a `text-sm` para mejor legibilidad
+
+2. **Footer — 3 columnas + social proof**:
+   - [x] Tercera columna: "Contacto" con email y LinkedIn
+   - [x] Links Privacidad/Términos con `/privacidad` y `/terminos`
+   - [x] Tagline cambiado: "Transparencia educativa para el futuro del Perú"
+   - [x] Indicador "Datos actualizados periódicamente" con dot verde
+
+#### Sub-fase 84D: Responsive Rhythm
+
+1. **Hero mobile compacto**:
+   - [x] Career goals ocultos tras botón "Personalizar" en mobile y desktop
+   - [x] Search bar: input + precio máx + botón explorar en flex row (wrap en mobile)
+   - [x] Stats counter movido del hero al catálogo header
+   - [x] Máximo 3 filtros visibles, resto en "Más filtros"
+
+2. **Card mobile simplificado**:
+   - [x] Nombre + institución + precio son los elementos principales
+   - [x] Badges: máximo 3, modo responsivo con flex-wrap
+   - [x] Grid de datos: Inversión + ROI (mínimo en card)
+
+3. **Sistema de espaciado consistente**:
+   - [x] Tokens CSS: `.section-spacing` = `py-16 md:py-20`, `.section-spacing-sm` = `py-10 md:py-14`
+   - [x] Hero `pb-8` → `pb-10 md:pb-14`
+   - [x] Cómo Funciona: `section-spacing` class
+   - [x] Nosotros: `section-spacing` class
+   - [x] CTA: `section-spacing` class
+
+#### Sub-fase 84E: Datos en Tiempo Real (Fase 80B completar)
+
+1. **Client-side fetch verificando funcionalidad**:
+   - [x] Fetch con `is_active=eq.true&is_verified=eq.true&is_mock_data=neq.true` — excluye cursos test
+   - [x] Polling: `setInterval` cada 5 minutos re-ejecuta fetch
+   - [x] Timestamp "Actualizado HH:MM" en catálogo header
+   - [x] Caché localStorage con TTL 5min como fallback rápido
+
+2. **Vaciar mock data y poblar pipeline**:
+- [ ] Eliminar curso `Psicología` (mock) de la DB Free — **pendiente (no borrar hasta tener datos reales)**
+    - [ ] Verificar que pipeline FG2 está ejecutando en CI/CD
+    - [ ] Confirmar que `is_active=true AND is_verified=true AND is_mock_data≠true` courses aparecen en frontend
+
+### Fase 85: Deployment Fix + UI Polish [x] Completada
+Objetivo: Resolver los 4 bloqueantes de despliegue en Cloudflare Pages y pulir la UI del detalle de curso.
+
+1. **Correcciones de Despliegue Cloudflare Pages**:
+   - [x] Migración `20260505_fase82_view_count.sql` aplicada a Free DB — columnas `view_count` y `comparison_count` añadidas a tabla `courses`.
+   - [x] `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` añadida como primer fallback en `supabase.ts` (antes solo `NEXT_SUPABASE_PUBLISHABLE_KEY`).
+   - [x] Chunk `03vxncyksi3db.js` (500 en Cloudflare) corregido refactorizando `Header.tsx` (nuevo hash `0kifxvtloc-uo.js`).
+   - [x] Build script forzado a `NODE_ENV=production` con `rm -rf .next out && NODE_ENV=production next build`.
+
+2. **Correcciones UI**:
+   - [x] Degradados eliminados: logo SM `bg-gradient-to-br from-brand-blue to-brand-teal` → `bg-brand-blue`; botón "Explorar Carreras" `bg-gradient-to-r from-brand-blue to-brand-teal` → `bg-brand-blue`.
+   - [x] Botón "Agregar a comparativa" movido dentro del `<Card sticky>` para eliminar overlap con formulario "Solicitar Asesoría" al hacer scroll. Antes: botón y Card eran hermanos ambos con `sticky top-24` causando superposición. Ahora: botón está dentro del Card que tiene `sticky top-24`.
+
+3. **Correcciones DB**:
+   - [x] `is_mock_data=false` aplicado al curso test `Psicología` (ID `49cbba47-3323-4ef2-90d4-45c20207ba8e`) en Free DB. Antes tenía `is_mock_data=true` que lo excluía del fetch `is_mock_data=neq.true`.
+
+4. **Verificación**:
+   - [x] TypeScript: 0 errores
+   - [x] ESLint: 0 errores (10 warnings preexistentes)
+   - [x] `desarrollo.studiamatch-aty.pages.dev`: 1 curso visible, Supabase fetch 200, 0 errores consola
+   - [x] `localhost:3000`: curso detail funcional sin overlap de botón comparativa
+
+### Fase 86: Quick Compare desde Catálogo [x] Completada
+Objetivo: Agregar checkbox en tarjetas del catálogo para permitir selección rápida de cursos a comparar, sincronizada con la página de detalle y el compare bar flotante.
+
+1. **Función toggleCompare en HomeContent**:
+   - [x] Agregar función `toggleCompare(course)` en `HomeContent.tsx` (mismo patrón que `CourseDetailClient.tsx`)
+   - [x] Lógica: si curso ya está en `compareList` → remover; si no está y `compareList.length < 3` → agregar `{ id, name }`; si lista está llena → no hacer nada
+   - [x] Sincronizar con `localStorage` existente (`StudIAMatch_compare_list`)
+
+2. **Checkbox en tarjetas de curso**:
+   - [x] Posición: `absolute top-3 left-3 z-10` sobre `<article>` con `relative`
+   - [x] Estado **checked**: `bg-brand-blue text-white border-brand-blue` con ícono ✓ SVG
+   - [x] Estado **unchecked**: `bg-white border-slate-300 hover:border-brand-blue` con borde circular
+   - [x] Estado **disabled** (3 ya seleccionados, este curso no): `opacity-40 cursor-not-allowed`
+   - [x] Click handler: `onClick={() => toggleCompare(course)}` con `e.preventDefault()` y `e.stopPropagation()` para no navegar al detalle
+   - [x] Transición suave: `transition-all duration-200`
+   - [x] Contenido desplazado con `pl-9` para no solaparse con el checkbox
+
+3. **Sincronización con detail page**:
+   - [x] Verificar que ambos componentes usen el mismo key de localStorage (`StudIAMatch_compare_list`)
+   - [x] Confirmado: al seleccionar un curso en el catálogo y navegar al detalle, el botón muestra "✓ En comparativa"
+
+4. **Floating bar (ya existe, no se toca)**:
+   - [x] Muestra el conteo correcto tras toggle: "P · 1 programas · Limpiar · Comparar"
+   - [x] Link "Comparar" navega a `/compare/?ids=49cbba47-...` correctamente
+
+5. **Verificación**:
+   - [x] TypeScript: 0 errores
+   - [x] ESLint: 0 errores (10 warnings preexistentes)
+   - [x] `localhost:3000`: checkbox visible en tarjeta, toggle funciona, checkmark SVG se muestra al seleccionar
+   - [x] Sincronización catálogo ↔ detalle confirmada: "✓ En comparativa" visible en detail page
+   - [x] Floating bar aparece automáticamente con selección
+
+### Fase 87: Modal Solicitar Asesoría — Responsive Fix [ ] En progreso
+Objetivo: Corregir el modal "Solicitar Asesoría" en pantallas pequeñas donde el botón X se perdía fuera del viewport.
+
+1. **Problema**: En pantallas ≤667px (iPhone SE), el modal usaba `flex items-center justify-center` con `overflow-hidden`. El contenido del modal excedía el viewport y el botón X (`absolute top-3 right-3`) quedaba fuera de la pantalla (Y=-40px), haciendo imposible cerrar el modal.
+
+2. **Solución aplicada**:
+   - [x] Overlay: `flex items-center justify-center` → `flex items-start justify-center pt-4 pb-4 overflow-y-auto` (permite scroll del backdrop)
+   - [x] Click en backdrop cierra el modal: `onClick={() => setIsModalOpen(false)}` con `e.stopPropagation()` en el card interior
+   - [x] Header sticky con botón X siempre visible: `sticky top-0 z-30 bg-white border-b`
+   - [x] Contenido scrolleable: `max-h-[70vh] overflow-y-auto p-6`
+   - [x] Título del modal movido al header sticky (tipo de asesoría + X en misma fila)
+   - [x] Título descriptivo movido dentro del formulario (solo visible en estado no-success)
+
+3. **Verificación en móvil (375x667)**:
+   - [x] Botón X visible en top: 89px (dentro de viewport 679px)
+   - [x] Header sticky permanece visible al hacer scroll (position: sticky)
+   - [x] Contenido scrolleable: scrollHeight 632 > clientHeight 467
+   - [x] Click en backdrop cierra el modal
+   - [x] Click en X cierra el modal
+
+---
+
+### Fase 88: Pipeline RLS Fix — `db.select()` usa Publishable key en tablas pipeline [ ] Pendiente
+
+> **BUG CRÍTICO descubierto en FG2 DMC test (Mayo 2026)**: `db.select()` usa `use_service_role=False` → Publishable key → RLS bloquea lectura de `staging_raw`, `cleansed_programs`, `enriched_programs` porque esas tablas tienen política `_no_public_access` para role anon (nivel al que autentica la Publishable key). Los 3 workers pipeline leen 0 registros y la estación siguiente no recibe datos.
+>
+> **Aclaración de Keys** (según recomendación Supabase y AGENTS.md):
+> - **Publishable key** (`NEXT_SUPABASE_PUBLISHABLE_KEY` / `sb_publishable_*`): Para frontend y lecturas que DEBEN respetar RLS. Reemplaza legacy anon key. NO puede leer tablas pipeline que explicitamente bloquean `anon`.
+> - **Secret key** (`NEXT_SUPABASE_SECRET_KEY` / `sb_secret_*`): Para operaciones server-side que NECESITAN bypass RLS. Reemplaza legacy service_role key.
+>
+> El bug NO está en el naming de keys sino en que `db.select()` fuerza `use_service_role=False` (Publishable key) al leer tablas pipeline que deliberadamente bloquean acceso público.
+
+**Diagnóstico**:
+
+| Tabla | RLS para `anon` (Publishable key) | Resultado `db.select()` | Impacto |
+|---|---|---|---|
+| `staging_raw` | Policy `_no_public_access` → `false` | 0 filas | Cleansing no puede leer URLs |
+| `cleansed_programs` | Policy `_no_public_access` → `false` | 0 filas | Enrichment no puede leer datos |
+| `enriched_programs` | Policy `_no_public_access` → `false` | 0 filas | Sync no puede leer datos |
+| `courses` | Policy `_select_public` → `is_active=true` | Solo activos | Frontend funciona OK |
+
+**Solución propuesta**: El `db_client.py` ya refleja la jerarquía correcta (`_publishable_key` + `_service_key`). Falta:
+
+1. **Agregar `select_pipeline()` en `db_client.py`**:
+   - [ ] Nuevo método que usa `use_service_role=True` (Secret key bypass RLS)
+   - [ ] Reemplazar `db.select('staging_raw', ...)` → `db.select_pipeline('staging_raw', ...)` en `cleansing_worker.py`
+   - [ ] Reemplazar `db.select('cleansed_programs', ...)` → `db.select_pipeline('cleansed_programs', ...)` en `enrichment_worker.py`
+   - [ ] Reemplazar `db.select('enriched_programs', ...)` → `db.select_pipeline('enriched_programs', ...)` en `sync_vector_worker.py`
+   - [ ] Reemplazar `db.select('institution_site_profiles', ...)` → `db.select_pipeline(...)` en workers que lo usan
+
+2. **Validación**:
+   - [ ] `python3 -m py_compile scripts/shared/db_client.py` sin errores
+   - [ ] `python3 -m py_compile scripts/core/cleansing_worker.py` sin errores
+   - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
+   - [ ] `python3 -m py_compile scripts/core/sync_vector_worker.py` sin errores
+   - [ ] Ejecutar sync_vector con `--limit 5` y verificar que lee enriched_programs correctamente
+   - [ ] Verificar que frontend sigue leyendo `is_active=true AND is_verified=true` con Publishable key
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `scripts/shared/db_client.py` | Agregar `select_pipeline()` que usa Secret key (bypass RLS) |
+| `scripts/core/cleansing_worker.py` | `db.select('staging_raw'...)` → `db.select_pipeline(...)` |
+| `scripts/core/enrichment_worker.py` | `db.select('cleansed_programs'...)` → `db.select_pipeline(...)` |
+| `scripts/core/sync_vector_worker.py` | `db.select('enriched_programs'...)` → `db.select_pipeline(...)` |
+
+### Fase 89: Pipeline Loop Guard — enrichment recicla registros [ ] Pendiente
+
+> **Bug descubierto en FG2 DMC test (Mayo 2026)**: `enrichment_worker` while-loop re-procesa registros que ya intentó sin tracking de intentos fallidos → loop infinito cuando providers degradan.
+
+**Diagnóstico**:
+
+El `enrichment_worker.py` usa un while-loop que:
+1. Lee `cleansed_programs` con `status=pending`
+2. Para cada registro, intenta enriquecer con LLM
+3. Si falla, NO marca el registro (se queda `pending`)
+4. En la siguiente iteración, vuelve a leer el mismo registro
+5. Resultado: loop infinito procesando los mismos N registros sin esperanza de éxito
+
+**Solución propuesta**:
+
+1. **Tracking de intentos** en `enrichment_worker.py`:
+   - [ ] Agregar `attempted_ids: set[str]` al inicio del loop
+   - [ ] Antes de procesar cada registro, verificar si ya está en `attempted_ids`
+   - [ ] Si el registro ya fue intentado, skippear y loguear
+   - [ ] Al final del batch, si todos los registros están en `attempted_ids`, romper el loop
+
+2. **Max attempts por registro**:
+   - [ ] Agregar columna `enrichment_attempts INTEGER DEFAULT 0` a `cleansed_programs`
+   - [ ] Antes de enriquecer, incrementar `enrichment_attempts`
+   - [ ] Si `enrichment_attempts >= 3`, marcar como `status=error` con `error_message="max_attempts_exceeded"`
+   - [ ] Filtrar `enrichment_attempts < 3` en query de registros pendientes
+
+3. **Early exit cuando todos los providers fallan**:
+   - [ ] Si circuit breaker está abierto para TODOS los providers, romper el while-loop inmediatamente
+   - [ ] Log: "All providers degraded, exiting enrichment loop"
+
+4. **Validación**:
+   - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
+   - [ ] Ejecutar enrichment con `--limit 10` y providers degradados → debe salir después de N intentos, no loop infinito
+   - [ ] Verificar que `enrichment_attempts` se incrementa en `cleansed_programs`
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `scripts/core/enrichment_worker.py` | `attempted_ids` set, max attempts check, early exit |
+| `db/migrations/202605XX_fase89_enrichment_attempts.sql` | `enrichment_attempts` column en `cleansed_programs` |
+
+### Fase 90: DMC Profile Fix — WooCommerce Selectors + seed_urls [x] Completado
+
+> **Selector correcto**: `a.woocommerce-LoopProduct-link` (12 matches en catálogo DMC). Los Elementor selectors anteriores daban 0 matches. Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro vía UPDATE directo a `institution_site_profiles`. Genérico: el pipeline no cambió, solo la configuración en DB.
+
+**Diagnóstico** (FG2 DMC test Mayo 2026):
+
+| Campo | Valor actual | Valor correcto | Motivo |
+|---|---|---|---|
+| `catalog_link_selector` | `.elementor-post__title a, .elementor-post__read-more, .elementor-button-link` | `a.woocommerce-LoopProduct-link` | Selector WooCommerce correcto: 12 matches en catálogo DMC |
+| `seed_urls` | `[]` (vacío) → ya pobladas en paso previo | `["https://dmc.pe/categoria-producto/cursos/", "https://dmc.pe/categoria-producto/especializaciones/", "https://dmc.pe/categoria-producto/diplomas/", "https://dmc.pe/categoria-producto/certificaciones/"]` | 4 categorías de productos DMC |
+| `exclusion_patterns` | 40 patrones (sin WooCommerce) | 44 patrones (`/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`) | URLs transaccionales WooCommerce |
+| `site_type` | `ecommerce` | OK (sin cambios) | — |
+| `discovery_mode` | `catalog_link_extraction` | OK (sin cambios) | — |
+| `requires_stealth` | `true` | OK (sin cambios) | — |
+| `requires_cloudflare_bypass` | `true` | OK (sin cambios) | — |
+| `pipeline_ready` | `true` | OK (ya estaba true) | — |
+
+**Solución ejecutada**:
+
+1. **Selector actualizado**: `a.woocommerce-LoopProduct-link` — verificado con Playwright (12 matches)
+   - [x] `catalog_link_selector` actualizado en Free + Pro
+   - [x] Validado con Playwright en `https://dmc.pe/categoria-producto/cursos/`
+
+2. **`seed_urls`**: Ya estaban pobladas de paso previo (4 categorías DMC)
+   - [x] Verificadas en DB
+
+3. **Exclusiones WooCommerce agregadas**:
+   - [x] `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=` agregados en Free + Pro
+   - [x] `/carrito/` ya existía
+
+4. **`pipeline_ready`**: Se mantiene `true` (ya estaba configurado)
+   - [x] Verificado: exclusiones suficientes para filtrar URLs transaccionales
+
+5. **Validación end-to-end**:
+   - [ ] Ejecutar `universal_harvester.py` con `--institution dmc` → verificar URLs descubiertas > 0
+   - [ ] Verificar que URLs transaccionales (`/cart/`, `/checkout/`) se excluyen
+   - [ ] Ejecutar cleansing → enrichment → sync (con providers saludables)
+   - [ ] Verificar cursos DMC en tabla `courses`
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `db/migrations/202605XX_fase90_dmc_profile_fix.sql` | UPDATE `institution_site_profiles` SET `catalog_link_selector`, `seed_urls`, `exclusion_patterns`, `pipeline_ready` |
+| `scripts/maintenance/fase62_update_profiles.py` | Agregar exclusiones WooCommerce al perfile DMC |
 
