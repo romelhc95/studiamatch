@@ -54,10 +54,11 @@ class EnrichmentWorker:
             providers=[cf_provider, gh_provider, nv_provider, gemini_provider],
             logger=logger,
         )
+        self._mock_only = False
 
     def _load_profiles(self):
         try:
-            return self.db.select('institution_site_profiles') or []
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
@@ -69,9 +70,15 @@ class EnrichmentWorker:
         return {}
 
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs para IA."""
+        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline_ready=true."""
         try:
-            res = self.db.select('cleansed_programs', filters="status=eq.pending", limit=limit)
+            # Fase 75: Exclusion Gate — filtrar solo instituciones con pipeline_ready=true
+            if self.ready_inst_ids:
+                inst_ids = ",".join(sorted(self.ready_inst_ids))
+                filters = f"status=eq.pending&institution_id=in.({inst_ids})"
+            else:
+                filters = "status=eq.pending"
+            res = self.db.select_pipeline('cleansed_programs', filters=filters, limit=limit)
             if res and len(res) > 0:
                 return res
         except Exception as e:
@@ -174,6 +181,11 @@ class EnrichmentWorker:
         return text[:max_len]
 
     def _call_llm_for_pillars(self, name, description, inst_id=None):
+        # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
+        if self._mock_only:
+            logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
+            return self._generate_smart_mock(name, description), None
+
         profile = self._get_profile(inst_id) if inst_id else {}
         section_keywords = profile.get('section_keywords', {})
         section_keywords = profile.get('section_keywords', {})
@@ -340,6 +352,13 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             logger.error(f"Error en enriquecimiento: {e}")
 
     def _generate_smart_mock(self, name, description):
+        # Fallback: extract summary from description if available
+        ai_summary = ""
+        if description and len(description.strip()) > 20:
+            clean_desc = html.unescape(description)
+            clean_desc = re.sub(r'<[^>]+>', '', clean_desc)
+            clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+            ai_summary = clean_desc[:300] + "..." if len(clean_desc) > 300 else clean_desc
         return {
             "official_name": name,
             "duration_text": "Consultar",
@@ -354,7 +373,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             "start_date": None,
             "categories": [],
             "difficulty_level": "",
-            "ai_summary": ""
+            "ai_summary": ai_summary,
         }
 
 if __name__ == "__main__":
@@ -367,9 +386,17 @@ if __name__ == "__main__":
     guard = TimeGuard(max_seconds=20400, logger=logger)
 
     worker.orchestrator.run_health_checks()
+    # Fase 77: Early-exit si todos los providers fallaron health check inicial
+    if all(not p.is_healthy for p in worker.orchestrator.providers):
+        logger.warning("🚨 TODOS los providers fallaron health check — solo smart mock para toda la corrida.")
+        worker._mock_only = True
 
     total_processed = 0
     batch_size = 10
+    # Fase 89: Pipeline Loop Guard — tracking de IDs intentados para evitar loops infinitos
+    attempted_ids: set = set()
+    attempted_counts: dict = {}  # contador de reintentos por registro (hasta max_attempts)
+    max_attempts = 3  # máximo de intentos por registro por sesión
 
     logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
 
@@ -386,19 +413,56 @@ if __name__ == "__main__":
             logger.info("✅ No hay más registros pendientes por enriquecer.")
             break
 
+        # Fase 89: Filtrar registros ya intentados o que excedieron max_attempts
+        new_records = []
+        for r in records:
+            if not isinstance(r, dict):
+                continue
+            rid = r.get('id')
+            if not rid:
+                continue
+            current_attempts = attempted_counts.get(rid, 0)
+            if current_attempts >= max_attempts:
+                logger.warning(f"⏩ SKIP registro {rid}: excedió max_attempts={max_attempts}")
+                continue
+            if rid in attempted_ids:
+                continue
+            new_records.append(r)
+        skipped_repeat = len(records) - len(new_records)
+        if skipped_repeat > 0:
+            logger.warning(f"⏩ Saltando {skipped_repeat} registros ya intentados (estaban en attempted_ids)")
+        if not new_records:
+            logger.warning("⚠️ Todos los registros en este batch ya fueron intentados. Rompiendo loop.")
+            break
+        records = new_records
+
         logger.info(f"📦 Procesando lote de {len(records)} registros...")
         for r in records:
                 if guard.should_exit:
                     logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante lote. Registros procesados: {total_processed}")
                     break
                 if r and isinstance(r, dict):
+                    rid = r.get('id')
+                    if not rid:
+                        logger.warning("⏩ SKIP registro sin id, saltando")
+                        continue
                     # Fase 75: Exclusion Gate — saltar institucion no lista
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
                         logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
-                        worker.db.patch('cleansed_programs', filters=f"id=eq.{r['id']}", data={'status': 'skipped'})
+                        worker.db.patch('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped'})
                         continue
-                    worker.enrich_record(r)
+                    # Fase 77: Early-exit dinámico
+                    if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():
+                        logger.warning("🚨 Todos los providers degradados dinámicamente. Restantes a smart mock.")
+                        worker._mock_only = True
+                    # Fase 89: Marcar intento antes de procesar (evita loop infinito)
+                    attempted_ids.add(rid)
+                    attempted_counts[rid] = attempted_counts.get(rid, 0) + 1
+                    try:
+                        worker.enrich_record(r)
+                    except Exception as e:
+                        logger.error(f"Error inesperado en enrich_record {rid}: {e}")
                     total_processed += 1
                     guard.tick(every=50)
                     time.sleep(1.5)
