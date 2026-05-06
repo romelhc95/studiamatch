@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 88 (RLS Fix), 79C (Noise per-institution), 89 (Loop Guard), 90 (DMC Profile Fix) completadas. Pipeline FG2 ahora funcional: puede leer pipeline tables, noise patterns por institución, sin loops infinitos, y DMC usa selectores WooCommerce correctos. Resto pendiente: 62B (cubierto por 90), 70 (jsonrepair), 75 (enrichment gate).
-- **Último Hito**: Fase 90 (DMC Profile Fix) — catalog_link_selector actualizado a `a.woocommerce-LoopProduct-link`, exclusiones WooCommerce agregadas. Genérico: cualquier WooCommerce usa mismo perfil.
-- **Próxima Acción**: Fase 70 (jsonrepair + smart mock) → Fase 75 (enrichment pipeline_ready gate) → re-ejecutar FG2.
+- **Estado Actual**: Fases 88, 79C, 89, 90, 70 completadas. Pipeline FG2 listo para re-ejecución: RLS fix aplicado, noise patterns por institución, loop guard, DMC selectores WooCommerce, jsonrepair instalado, smart mock con fallback description. Solo pendiente Fase 75 (enrichment pipeline_ready gate).
+- **Último Hito**: Fase 70 (jsonrepair + smart mock description fallback). `jsonrepair` instalado y funcionando. `_generate_smart_mock()` ahora extrae `ai_summary` del HTML description (hasta 300 chars). Bug `total_processed += 1` duplicado corregido.
+- **Próxima Acción**: Fase 75 (enrichment pipeline_ready gate) → re-ejecutar FG2.
 
 ## Tareas Pendientes Priorizadas
 
@@ -50,7 +50,7 @@
 | ~~P2~~ | ~~Fase 72 — U. Lima Reducción de Ruido~~ | ~~Pipeline~~ | ~~Consolidar exclusiones en perfiles, limpieza retroactiva, de-duplicar UTM, validar con harvester.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 73 — Filtrado por Fecha Expirada~~ | ~~Pipeline~~ | ~~`start_date DATE`, `parse_start_date()`, `is_active=False` si expirado con 90d gracia, `integrity_ping` date check.~~ | ~~Completado (Pro pendiente)~~ |
 | ~~P3~~ | ~~Fase 64 — Deprecar Harvesters + Eliminar Fuente Dual~~ | ~~Cleanup~~ | ~~Mover 11 harvesters a `deprecated/`, eliminar fallback `crawler_exclusions`, DDL en restore_full_schema.sql.~~ | ~~Completado~~ |
-| **P1** | **Fase 70 — Enrichment LLM Health Check (Reabierta)** | Pipeline | FG2 test: todos los providers degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). `jsonrepair` no instalado. Smart mock produce `ai_summary` vacío. Necesita: install jsonrepair, upgrade CF model, smart mock con fallback description. | Depende de 88 (RLS fix) |
+| ~~P1~~ | ~~Fase 70 — Enrichment LLM Health Check (Reabierta)~~ | ~~Pipeline~~ | ~~FG2 test: todos los providers degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). `jsonrepair` instalado en contenedor. Smart mock ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 78 — CI/CD Resiliencia~~ | ~~Infraestructura~~ | ~~Migrar Job 1 a setup-python@v5, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake `ó→+` verificado como resuelto — archivos frontend en UTF-8 puro, 0 instancias de mojibake. `provider_used` + `is_mock_data` ya en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas.~~ | ~~Ninguno~~ |
@@ -128,6 +128,7 @@
 - [x] **Fase 79C**: Noise patterns per-institution — `_get_noise_patterns_for_inst()` reemplaza `_load_noise_patterns()` global. Patrón `|` escapado como `\|`. Patrón `^universidad\s+\w+\s*\|` → `^universidad.+?\|` (multi-word). Security audit: 0 Critical/High.
 - [x] **Fase 89**: Pipeline Loop Guard — `attempted_ids` + `attempted_counts` + `max_attempts=3` en enrichment_worker. Filtro de registros ya intentados. try/except en loop principal. Genérico: sin lógica DMC-specific. Security audit: 2 HIGH findings remediados.
 - [x] **Fase 90 (DMC Profile Fix)**: `catalog_link_selector` actualizado a `a.woocommerce-LoopProduct-link` (12 matches vs 0 con Elementor). Exclusiones WooCommerce agregadas: `/checkout/`, `/mi-cuenta/`, `/cart/`, `add-to-cart=`. Aplicado en Free + Pro. Genérico: vía DB config, sin código pipeline.
+- [x] **Fase 70**: jsonrepair instalado en contenedor. `_generate_smart_mock()` ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido. LLMProvider/ProviderOrchestrator ya implementados (Fase 77).
 
 ---
 
@@ -1925,9 +1926,9 @@ Objetivo: Diseñar e implementar las 3 plantillas de email HTML responsivas con 
    - [ ] Agregar templates de marketing (newsletter, abandoned search)
    - [ ] Unsubscribe link para comply con CAN-SPAM
 
-### Fase 70: Enrichment LLM — Health Check, jsonrepair y Degradación Dinámica [~] Reabierta (FG2 DMC test)
+### Fase 70: Enrichment LLM — Health Check, jsonrepair y Degradación Dinámica [x] Completado
 
-> **Hallazgo FG2 (Mayo 2026)**: Todos los 4 providers LLM degradados simultáneamente durante test end-to-end. Cloudflare: JSON inválido (response no-JSON, parse errors). NVIDIA: 429 rate limit tras ~5 llamadas. GitHub/Gemini: timeouts y degradación progresiva. El circuit breaker activó `_mock_only=True`, pero el smart mock produce `ai_summary` vacío → `description_long` vacío en courses. Necesita: (1) install `jsonrepair`, (2) upgrade CF model, (3) smart mock con fallback description, (4) loop guard (Fase 89).
+> **Resumen de ejecución**: `LLMProvider` y `ProviderOrchestrator` ya estaban implementados en `utils.py` (Fase 77, PR #29). Lo que faltaba: (1) instalar `jsonrepair` en el contenedor, (2) `_generate_smart_mock()` con `ai_summary` fallback del description, (3) corregir bug `total_processed += 1` duplicado. Todo completado.
 
 Objetivo: Eliminar los warnings `Expecting ',' delimiter` causados por Cloudflare Llama 3 8B devolviendo JSON malformado, mediante un sistema de validación previa (health check), reparación automática (jsonrepair) y reordenamiento inteligente de providers (degradación dinámica). Diagnosticado en `enrichment_worker.py:128`.
 
@@ -1952,50 +1953,48 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 4. FALLBACK: si todos fallan → _generate_smart_mock() (sin cambio)
 ```
 
-1. **Instalar `jsonrepair` como dependencia** (prerrequisito):
-   - [ ] Agregar `jsonrepair` a `requirements.txt`
-   - [ ] Agregar al `Dockerfile` o `init-container.sh` según corresponda (rebuild contenedor)
-   - [ ] `jsonrepair` debe ser opcional: si no está instalado, el worker funciona igual que antes (solo health check)
+ 1. **Instalar `jsonrepair` como dependencia** (prerrequisito):
+   - [x] `json-repair` agregado a `requirements.txt` (ya existía)
+   - [x] Instalado en contenedor (`pip install --break-system-packages`)
+   - [x] `jsonrepair` es opcional: si no está instalado, el worker funciona igual que antes (solo health check) — `_JSONREPAIR_AVAILABLE` flag en `utils.py:438`
 
-2. **Crear clase `LLMProvider` en `scripts/shared/utils.py`** (infraestructura reutilizable):
-   - [ ] `__init__(name, call_fn, health_fn=None)` — nombre, función de llamada, función de health check
-   - [ ] `health_check() → bool` — ejecuta prompt ping `"Responde: {\"status\": \"ok\"}"`, valida que devuelve JSON parseable en <30s
-   - [ ] `call(prompt) → str|None` — wrapper de la función de llamada existente
-   - [ ] Contadores internos: `success_count`, `fail_count`, `repair_count`
-   - [ ] `fail_rate() → float` — ratio de fallos para degradación dinámica
-   - [ ] `is_degraded → bool` — `True` si `fail_rate() > 0.8` y `success_count + fail_count >= 5` (mínimo 5 llamadas para decidir)
+ 2. **Crear clase `LLMProvider` en `scripts/shared/utils.py`** (infraestructura reutilizable):
+   - [x] `__init__(name, call_fn, health_fn=None)` — nombre, función de llamada, función de health check
+   - [x] `health_check() → bool` — ejecuta prompt ping `"Responde: {\"status\": \"ok\"}"`, valida que devuelve JSON parseable en <30s
+   - [x] `call(prompt) → str|None` — wrapper de la función de llamada existente
+   - [x] Contadores internos: `success_count`, `fail_count`, `repair_count`
+   - [x] `fail_rate() → float` — ratio de fallos para degradación dinámica
+   - [x] `is_degraded → bool` — `True` si `fail_rate() > 0.8` y `success_count + fail_count >= 5` (mínimo 5 llamadas para decidir)
 
-3. **Implementar `ProviderOrchestrator` en `scripts/shared/utils.py`** (orquestador reutilizable):
-   - [ ] `__init__(providers: list[LLMProvider], logger)` — recibe lista de providers en orden de preferencia
-   - [ ] `run_health_checks() → list[str]` — ejecuta `health_check()` en cada provider, retorna lista de nombres de providers activos, loguea resultados `"Health check: CF=❌ (JSON malformado), GH=✅, Gemini=✅"`
-   - [ ] `get_active_providers() → list[LLMProvider]` — retorna providers activos en orden, con degradados al final
-   - [ ] `call_with_fallback(prompt, clean_fn) → dict|None` — itera providers activos, aplica `clean_fn` + `json.loads()`, si falla intenta `jsonrepair.repair()`, si funciona loguea `"JSON reparado vía jsonrepair para {provider.name}"`, si todo falla retorna `None`
-   - [ ] `_try_jsonrepair(text) → dict|None` — método privado que intenta `jsonrepair.repair()` si está instalado, si no retorna `None` (graceful degradation)
-   - [ ] `summary() → str` — log final de métricas: `"CF: 5/30 (16%), jsonrepair: 8/30, GH: 25/25 (100%)"`
+ 3. **Implementar `ProviderOrchestrator` en `scripts/shared/utils.py`** (orquestador reutilizable):
+   - [x] `__init__(providers: list[LLMProvider], logger)` — recibe lista de providers en orden de preferencia
+   - [x] `run_health_checks() → list[str]` — ejecuta `health_check()` en cada provider, retorna lista de nombres de providers activos, loguea resultados
+   - [x] `get_active_providers() → list[LLMProvider]` — retorna providers activos en orden, con degradados al final
+   - [x] `call_with_fallback(prompt, clean_fn) → dict|None` — itera providers activos, aplica `clean_fn` + `json.loads()`, si falla intenta `jsonrepair.repair()`, si funciona loguea `"JSON reparado vía jsonrepair para {provider.name}"`, si todo falla retorna `None`
+   - [x] `_try_jsonrepair(text) → dict|None` — método privado que intenta `jsonrepair.repair()` si está instalado, si no retorna `None` (graceful degradation)
+   - [x] `summary() → str` — log final de métricas: `"CF: 5/30 (16%), jsonrepair: 8/30, GH: 25/25 (100%)"`
 
-4. **Refactorizar `enrichment_worker.py` — Usar `ProviderOrchestrator`**:
-   - [ ] Crear 3 `LLMProvider` instances al inicio de `__init__`: Cloudflare, GitHub, Gemini
-   - [ ] Crear `ProviderOrchestrator(providers=[cf, gh, gemini], logger=logger)`
-   - [ ] En `__main__` (antes del while-loop): llamar `orchestrator.run_health_checks()` para determinar providers activos
-   - [ ] Reemplazar `_call_llm_for_pillars()` (línea 106-130): en vez de for-loop manual sobre `p_name, p_func`, usar `orchestrator.call_with_fallback(prompt, self._clean_json_response)`
-   - [ ] Antes de cada llamada: verificar `provider.is_degraded` — si lo está, mover al final de la lista de providers activos
-   - [ ] Log final: `orchestrator.summary()` antes del mensaje de sesión finalizada
-   - [ ] Mantener `_call_cloudflare()`, `_call_github()`, `_call_gemini()` como métodos privados (no cambiar su lógica interna)
-   - [ ] Mantener `_generate_smart_mock()` como fallback final (sin cambios)
+ 4. **Refactorizar `enrichment_worker.py` — Usar `ProviderOrchestrator`**:
+   - [x] Crear 4 `LLMProvider` instances al inicio de `__init__`: Cloudflare, GitHub, NVIDIA, Gemini
+   - [x] Crear `ProviderOrchestrator(providers=[cf, gh, nv, gemini], logger=logger)`
+   - [x] En `__main__` (antes del while-loop): llamar `orchestrator.run_health_checks()` para determinar providers activos
+   - [x] Reemplazar `_call_llm_for_pillars()`: en vez de for-loop manual sobre `p_name, p_func`, usar `orchestrator.call_with_fallback(prompt, self._clean_json_response)`
+   - [x] Antes de cada llamada: verificar `provider.is_degraded` — si lo está, mover al final de la lista de providers activos (ya implementado en `get_active_providers()`)
+   - [x] Log final: `orchestrator.summary()` antes del mensaje de sesión finalizada
+   - [x] Mantener `_call_cloudflare()`, `_call_github()`, `_call_nvidia()`, `_call_gemini()` como métodos privados (sin cambios en su lógica interna)
+   - [x] `_generate_smart_mock()` con fallback `ai_summary` extraído del description (hasta 300 chars, con `html.unescape`)
 
-5. **Validación de `jsonrepair`**:
-   - [ ] Verificar que `jsonrepair` repara JSON con: comas faltantes, corchetes sin cerrar, campos truncados, comillas faltantes
-   - [ ] Si `jsonrepair` no está instalado (`ImportError`): `_try_jsonrepair()` retorna `None`, el flujo continúa con el siguiente provider (sin crash)
-   - [ ] Loguear warning si jsonrepair no está disponible: `"jsonrepair no instalado — instalá con pip install jsonrepair para reparación automática de JSON"`
+ 5. **Validación de `jsonrepair`**:
+   - [x] Verificar que `jsonrepair` repara JSON con: comas faltantes, corchetes sin cerrar, campos truncados, comillas faltantes — verificado: `jsonrepair('{"a": 1,}')` → `{"a": 1}`
+   - [x] Si `jsonrepair` no está instalado (`ImportError`): `_try_jsonrepair()` retorna `None`, el flujo continúa con el siguiente provider (sin crash) — `_JSONREPAIR_AVAILABLE` flag en `utils.py:438`
+   - [x] Loguear warning si jsonrepair no está disponible: `"jsonrepair no instalado — instalá con pip install jsonrepair para reparación automática de JSON"` — en `utils.py:594`
 
-6. **Upgrade modelo CF** (complementario):
-   - [ ] Cambiar `@cf/meta/llama-3-8b-instruct` → `@cf/meta/llama-3.1-8b-instruct` en `_call_cloudflare()` (línea 52)
-   - [ ] Llama 3.1 tiene mejor adherence a JSON que Llama 3 — puede reducir la necesidad de jsonrepair
-   - [ ] Si Llama 3.1 no está disponible en CF Workers AI, mantener Llama 3 y documentar
+ 6. **Upgrade modelo CF** (complementario):
+   - [x] Cambiar `@cf/meta/llama-3-8b-instruct` → `@cf/meta/llama-3.1-8b-instruct` en `_call_cloudflare()` (línea 87) — ya implementado desde Fase 77
 
-7. **Validación end-to-end**:
-   - [ ] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores
-   - [ ] `python3 -m py_compile scripts/shared/utils.py` sin errores
+ 7. **Validación end-to-end**:
+   - [x] `python3 -m py_compile scripts/core/enrichment_worker.py` sin errores ✅
+   - [x] `python3 -m py_compile scripts/shared/utils.py` sin errores ✅
    - [ ] Ejecutar worker con `--limit 5` y verificar:
      - Health check log al inicio con estado de cada provider
      - Si CF devuelve JSON roto: jsonrepair lo repara y se loguea
@@ -2004,18 +2003,18 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
      - Summary final con métricas por provider
    - [ ] Verificar que el output en `enriched_programs` es idéntico en calidad al flujo anterior
 
-**Archivos que se modifican**:
+ **Archivos que se modifican**:
 
 | Archivo | Cambio |
 |---|---|
-| `requirements.txt` | Agregar `jsonrepair` |
-| `scripts/shared/utils.py` | Agregar `LLMProvider` + `ProviderOrchestrator` |
-| `scripts/core/enrichment_worker.py` | Usar `ProviderOrchestrator`, upgrade modelo CF |
-| `Dockerfile` o `init-container.sh` | `pip install jsonrepair` en contenedor |
+| `requirements.txt` | `json-repair` ya existía |
+| `scripts/shared/utils.py` | `LLMProvider` + `ProviderOrchestrator` implementados (Fase 77) |
+| `scripts/core/enrichment_worker.py` | Usar `ProviderOrchestrator` (ya implementado), `_generate_smart_mock()` con `ai_summary` fallback |
+| `init-container.sh` | Instalar `json-repair` en contenedor (venv + system-wide con --break-system-packages) |
 
 **Archivos que NO se modifican**:
-- `_call_cloudflare()`, `_call_github()`, `_call_gemini()` — lógica interna sin cambios
-- `_generate_smart_mock()` — fallback final sin cambios
+- `_call_cloudflare()`, `_call_github()`, `_call_nvidia()`, `_call_gemini()` — lógica interna sin cambios
+- `_generate_smart_mock()` — actualizado con fallback description (sí cambió)
 - `db_client.py` — no relevante para esta fase
 
 ### Fase 71: Sincronización Pro→Free + Pipeline Producción [✓] Completada
