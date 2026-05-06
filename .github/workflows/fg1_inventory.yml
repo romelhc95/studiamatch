@@ -11,10 +11,12 @@ concurrency:
 
 jobs:
   inventory:
-    name: \"0. Institution Inventory\"
+    name: "0. Institution Inventory"
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     environment:
-      name: \${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
@@ -26,7 +28,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run Discovery Institutions
         env:
-          SUPABASE_URL: \${{ secrets.SUPABASE_URL }}
-          NEXT_SUPABASE_SECRET_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: \${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python scripts/core/discovery_institutions.py

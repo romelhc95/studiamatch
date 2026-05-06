@@ -27,10 +27,14 @@ def update_profile(inst_slug, updates):
     db.patch('institution_site_profiles', f"id=eq.{profile_id}", data)
     print(f"  OK {inst_slug}: {list(updates.keys())}")
 
-# ── DMC (ecommerce, catalog_link_extraction, stealth, Cloudflare) ──
+# ── DMC (ecommerce: WooCommerce + Elementor, catalog_link_extraction, stealth, Cloudflare) ──
+# NOTA: Los selectores WooCommerce correctos para DMC son a.woocommerce-LoopProduct-link.
+# Los selectores Elementor (.elementor-post__title a) dan 0 resultados.
+# Las exclusiones WooCommerce necesarias: /checkout/, /mi-cuenta/, /cart/, add-to-cart=
+# Genérico: cualquier institución WooCommerce puede usar el mismo patrón.
 update_profile('dmc', {
     'discovery_mode': 'catalog_link_extraction',
-    'catalog_link_selector': '.elementor-post__title a, .elementor-post__read-more, .elementor-button-link',
+    'catalog_link_selector': 'a.woocommerce-LoopProduct-link',
     'catalog_scroll_iterations': 15,
     'requires_stealth': True,
     'requires_cloudflare_bypass': True,
