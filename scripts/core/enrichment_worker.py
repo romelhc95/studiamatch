@@ -301,7 +301,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "total_cost_est": enriched.get("total_cost_est"),
                 "requirements": normalize(enriched.get("requirements")),
                 "graduate_profile": enriched.get("graduate_profile"),
-                "curriculum_summary": normalize(enriched.get("curriculum_summary")),
+                "curriculum_summary": normalize(enriched.get("curriculum_summary")) or '{}',
                 "modality": enriched.get("modality"),
                 "primary_campus": enriched.get("primary_campus"),
                 "degree_type": enriched.get("degree_type"),
@@ -343,8 +343,8 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     "p_cleansed_id": str(c_id)
                 })
                 if not rpc_result:
-                    # Fallback: traditional upsert + patch
-                    self.db.upsert('enriched_programs', save_data, on_conflict="url")
+                    # Fallback: traditional upsert (uses cleansed_id unique constraint) + patch
+                    self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
                     self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": "enriched"})
             except Exception as e:
                 logger.warning(f"No se pudo guardar en enriched_programs ({e}). El registro quedará pendiente para reintento.")
