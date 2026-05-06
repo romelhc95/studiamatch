@@ -112,7 +112,7 @@ class UniversalHarvester:
     def _load_site_profile(self):
         try:
             inst_id = self.institution.get('id')
-            profiles = self.db.select('institution_site_profiles',
+            profiles = self.db.select_pipeline('institution_site_profiles',
                                        filters=f'institution_id=eq.{inst_id}',
                                        limit=1)
             if profiles and len(profiles) > 0:
@@ -185,7 +185,7 @@ class UniversalHarvester:
         try:
             ids = [url, effective_url, canonical_url]
             ids = [normalize_url(i) for i in ids if i]
-            data = self.db.select("staging_raw", filters=f"url=eq.{url}", columns="content_hash")
+            data = self.db.select_pipeline("staging_raw", filters=f"url=eq.{url}", columns="content_hash")
             if data and len(data) > 0:
                 old_hash = data[0].get('content_hash')
                 if old_hash == content_hash:
@@ -321,7 +321,7 @@ class UniversalHarvester:
     async def _load_existing_urls(self):
         try:
             inst_id = self.institution.get('id')
-            data = self.db.select("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
+            data = self.db.select_pipeline("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
                 logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")

@@ -48,24 +48,36 @@ else:
 class DatabaseClient:
     """
     Universal Database Client for StudIAMatch.
-    Uses anon key for reads (public API) and service_role key for
-    writes (bypass RLS). Required after Fase 32A RLS hardening.
+    Uses Publishable key for frontend reads (respects RLS, public API)
+    and Secret key (service_role) for pipeline writes+reads (bypasses RLS).
+    
+    Key hierarchy:
+    - Publishable key (sb_publishable_...): Frontend-facing reads, respects RLS.
+      Used by `select()` for public tables (courses with is_active=true).
+    - Secret key (sb_secret_...): Server-side pipeline operations, bypasses RLS.
+      Used by all writes and by `select_pipeline()` for pipeline table reads.
+    
+    Legacy anon key (NEXT_PUBLIC_SUPABASE_ANON_KEY) is NOT used — Supabase
+    recommends Publishable keys as the modern replacement.
     """
+    PIPELINE_TABLES = frozenset([
+        'staging_raw', 'cleansed_programs', 'enriched_programs',
+        'institution_site_profiles',
+    ])
+
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self.supabase_key = supabase_key if supabase_key is not None else (os.getenv("SUPABASE_KEY") or os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
-        self._anon_key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        self._publishable_key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
         self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
-        if self._service_key:
-            self.supabase_key = self._service_key
+        self.supabase_key = supabase_key if supabase_key is not None else (self._service_key or self._publishable_key)
 
     def _get_headers(self, use_service_role=None):
         if use_service_role is None:
             key = self.supabase_key
         elif use_service_role and self._service_key:
             key = self._service_key
-        elif not use_service_role and self._anon_key:
-            key = self._anon_key
+        elif not use_service_role and self._publishable_key:
+            key = self._publishable_key
         else:
             key = self.supabase_key
         return {
@@ -74,7 +86,7 @@ class DatabaseClient:
             "Content-Type": "application/json"
         }
 
-    def _select_api(self, table, filters, columns, limit, order):
+    def _select_api(self, table, filters, columns, limit, order, use_service_role=False):
         if columns == "count":
             url = f"{self.supabase_url}/rest/v1/{table}?select=count"
         else:
@@ -87,7 +99,7 @@ class DatabaseClient:
         if limit:
             url += f"&limit={limit}"
             
-        res = _request_with_retry(requests.get, url, headers=self._get_headers(use_service_role=False))
+        res = _request_with_retry(requests.get, url, headers=self._get_headers(use_service_role=use_service_role))
         if res.status_code == 200:
             data = res.json()
             if columns == "count":
@@ -133,8 +145,51 @@ class DatabaseClient:
     # --- Public API methods (Cloud-Only) ---
 
     def select(self, table, filters=None, columns="*", limit=None, order=None):
-        """Select records from Supabase REST API."""
-        return self._select_api(table, filters, columns, limit, order)
+        """Select records with Publishable key (respects RLS). For public tables only."""
+        return self._select_api(table, filters, columns, limit, order, use_service_role=False)
+
+    def select_pipeline(self, table, filters=None, columns="*", limit=None, order=None):
+        """
+        Select records with Secret key (bypasses RLS). For pipeline tables only.
+        Required because pipeline tables (staging_raw, cleansed_programs, enriched_programs,
+        institution_site_profiles) have RLS policies that block public access.
+        Generic: works for any institution, not DMC-specific.
+        
+        Raises ValueError if called on a non-pipeline table (defense-in-depth).
+        """
+        if table not in self.PIPELINE_TABLES:
+            raise ValueError(
+                f"select_pipeline() called on non-pipeline table '{table}'. "
+                f"Allowed: {sorted(self.PIPELINE_TABLES)}"
+            )
+        return self._select_api(table, filters, columns, limit, order, use_service_role=True)
+
+    def count_pipeline(self, table, filters=None):
+        """
+        Returns exact count of rows for pipeline tables using Secret key (bypasses RLS).
+        Analogous to select_pipeline() but returns count.
+        """
+        if table not in self.PIPELINE_TABLES:
+            raise ValueError(
+                f"count_pipeline() called on non-pipeline table '{table}'. "
+                f"Allowed: {sorted(self.PIPELINE_TABLES)}"
+            )
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code in (200, 206):
+            content_range = res.headers.get("Content-Range", "")
+            if content_range:
+                parts = content_range.split("/")
+                if len(parts) == 2:
+                    try:
+                        return int(parts[1])
+                    except ValueError:
+                        pass
+        return 0
 
     def insert(self, table, data):
         """Insert a record via Supabase REST API."""
@@ -152,7 +207,7 @@ class DatabaseClient:
 
     def select_all(self, table, filters=None, columns="*", batch_size=1000, order=None):
         """
-        Paginated select that returns ALL matching records by looping through batches.
+        Paginated select with Publishable key (respects RLS). For public tables only.
         Supabase API limits results to 1000 by default, so this handles pagination transparently.
         """
         all_results = []
@@ -179,6 +234,43 @@ class DatabaseClient:
                     break
             else:
                 print(f"DB_CLIENT_API_ERROR (SelectAll {table}): {res.status_code} - {res.text}")
+                break
+        return all_results
+
+    def select_all_pipeline(self, table, filters=None, columns="*", batch_size=1000, order=None):
+        """
+        Paginated select with Secret key (bypasses RLS). For pipeline tables only.
+        Required because pipeline tables have RLS policies blocking public access.
+        """
+        if table not in self.PIPELINE_TABLES:
+            raise ValueError(
+                f"select_all_pipeline() called on non-pipeline table '{table}'. "
+                f"Allowed: {sorted(self.PIPELINE_TABLES)}"
+            )
+        all_results = []
+        offset = 0
+        while True:
+            limit = min(batch_size, 1000)
+            url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
+            if filters:
+                url += f"&{filters}"
+            if order:
+                url += f"&order={order}"
+            url += f"&limit={limit}&offset={offset}"
+            headers = self._get_headers(use_service_role=True)
+            headers["Range"] = f"{offset}-{offset + limit - 1}"
+            headers["Prefer"] = "count=exact"
+            res = _request_with_retry(requests.get, url, headers=headers)
+            if res.status_code == 200:
+                batch = res.json()
+                if not batch:
+                    break
+                all_results.extend(batch)
+                offset += len(batch)
+                if len(batch) < limit:
+                    break
+            else:
+                print(f"DB_CLIENT_API_ERROR (SelectAllPipeline {table}): {res.status_code} - {res.text}")
                 break
         return all_results
 
