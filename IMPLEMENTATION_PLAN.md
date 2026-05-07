@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 92 (filter cascading) y Fase 93 (DMC harvester) completadas. Pipeline DMC ejecutado. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
-- **Último Hito**: Fase 93 — DMC Harvester: Section Keywords + H4 Extractor. Perfil DMC configurado con section_keywords, field_defaults, seed_urls, price/duration regex, pipeline_ready=true. Extractor de secciones mejorado para soportar H4 y contenido anidado de Bricks/Elementor.
-- **Próxima Acción**: Verificar resultados del pipeline DMC con el nuevo código. Merge PR #47 (Fase 92). Migration SQL en Pro.
+- **Estado Actual**: Fases 92, 93 y 94 completadas. Pipeline DMC ejecutado con extracción WooCommerce. 35 cursos DMC en courses con total_cost_est y start_date poblados. Pro pendiente de migration SQL + FG2.
+- **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. JSON-LD Product schema extraído para precio, data-fecha-inicio para start_date, categoría WooCommerce. Sections incluidas en prompt LLM. Mode normalization (Híbrido → Hibrido). raw_html 200KB.
+- **Próxima Acción**: Merge PR #50 (Fase 94) y PR #47 (Fase 92) a desarrollo. Migration SQL en Pro. Ejecutar FG2 en Pro.
 
 ## Tareas Pendientes Priorizadas
 
