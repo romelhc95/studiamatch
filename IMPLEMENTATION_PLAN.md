@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 92 completada. Todos los filtros del frontend ahora tienen cascading completo y conteos visibles. Los 3 bugs principales corregidos: bracket nesting, lógica faltante en `filteredCourses`, y estado muerto. FG2 ejecutado en Free. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
-- **Último Hito**: Fase 92 — Filter Cascading + Counters. Bracket nesting corregido en `getFilteredExcluding` (selectedRegion/durationFilter/priceRange ya no están anidados dentro de careerGoal). Lógica de filtrado agregada en `filteredCourses`. conteos extendidos a todos los dropdowns y chips. Estado muerto (`durations`, `includeConsultar`) eliminado.
-- **Próxima Acción**: Ejecutar migration SQL en Pro + FG2 en Pro.
+- **Estado Actual**: Fase 92 (filter cascading) y Fase 93 (DMC harvester) completadas. Pipeline DMC ejecutado. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
+- **Último Hito**: Fase 93 — DMC Harvester: Section Keywords + H4 Extractor. Perfil DMC configurado con section_keywords, field_defaults, seed_urls, price/duration regex, pipeline_ready=true. Extractor de secciones mejorado para soportar H4 y contenido anidado de Bricks/Elementor.
+- **Próxima Acción**: Verificar resultados del pipeline DMC con el nuevo código. Merge PR #47 (Fase 92). Migration SQL en Pro.
 
 ## Tareas Pendientes Priorizadas
 
@@ -73,6 +73,7 @@
 | ~~P4~~ | ~~Fase 51 — Docs hermanas~~ | ~~Documentación~~ | ~~Ambos archivos ya existen: `core_data_flow.md` (123 líneas) y `PIPELINE_PLAN.md` (49 líneas)~~ | ~~Completado (status update only)~~ |
 | ~~P4~~ | ~~Fase 58/59 — Verificación frontend~~ | ~~QA~~ | ~~99% completado: 17/20 campos mapeados visibles en UI. `region` (solo filtro), `start_date` (solo `start_date_text`), `comparison_count` no visibles. Sin tests E2E de renderizado.~~ | ~~Completado (gaps menores aceptables P4)~~ |
 | **P2** | **Fase 92 — Filter Cascading + Counters** | Frontend | Corregir bracket nesting que aísla region/duration/price del cascading. Agregar lógica faltante en `filteredCourses`. Extender conteos a todos los filtros (Tipo, Ubicación, Duración, Precio). Remover estado muerto. | **Completado** |
+| **P2** | **Fase 93 — DMC Harvester: Section Keywords + H4 Extractor** | Pipeline | Configurar `section_keywords`, `field_defaults`, `seed_urls`, `price_regex`, `duration_regex` para DMC. Extender `_extract_sections()` para H4 y contenido anidado Bricks. Activar `pipeline_ready`. | **Completado** |
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -3519,6 +3520,69 @@ UPDATE ... SET noise_patterns = '["texto\\n"]'::jsonb
 
 ---
 
+### Fase 93: DMC Harvester — Section Keywords + H4 Extractor [x] Completado
+
+> **Problema**: El perfil DMC en `institution_site_profiles` tiene `section_keywords: {}`, `field_defaults: {}`, `seed_urls: []`, sin `price_regex`/`duration_regex`, y `pipeline_ready: false`. El harvester no extrae datos estructurados de las páginas de DMC (construidas con Bricks builder, headings H3/H4, contenido en divs anidados). El LLM recibe texto plano sin secciones identificadas.
+
+**Diagnóstico** (basado en análisis real de `https://dmc.pe/producto/diploma-estrategia-liderazgo-data-ia/`):
+
+| # | Problema | Impacto | Archivo |
+|---|----------|---------|---------|
+| 1 | `section_keywords: {}` — no mapea headings a campos del pipeline | Harvester devuelve `{}` → LLM sin contexto estructurado | DB config |
+| 2 | `field_defaults: {}` — sin hint de modalidad para LLM | LLM sin fallback; DMC usa "Blended" que mapea a Híbrido | DB config |
+| 3 | `seed_urls: []` — sin URLs semilla de catálogo | Descubrimiento solo por `catalog_link_extraction` lento | DB config |
+| 4 | Sin `price_regex`/`duration_regex` | Cleansing no extrae precio/duración vía regex | DB config |
+| 5 | `pipeline_ready: false` | Los 4 workers saltan DMC | DB config |
+| 6 | `_extract_sections()` solo busca H2/H3; DMC usa H4 | Headings "Pre-requisitos:", etc. no se capturan | `universal_harvester.py` |
+| 7 | `_extract_sections()` asume contenido como sibling directo; Bricks anida en divs | Contenido después de heading no se extrae aunque el heading se detecte | `universal_harvester.py` |
+
+**Tareas**:
+
+1. **Migration SQL — Configurar perfil DMC** (`db/migrations/202605XX_fase93_dmc_profile_config.sql`):
+   - `section_keywords`: mapear headings reales de DMC (H3/H4) a campos del pipeline
+   - `field_defaults`: `{"mode": "Híbrido"}` como hint para LLM
+   - `seed_urls`: 4 URLs de catálogo WooCommerce
+   - `price_regex`: `S/[\s]*[\d,]+`
+   - `duration_regex`: `(\d+)\s*hrs?\.?\s*acad`
+   - `title_prefix_removals`: `["- DMC Institute"]`
+   - `pipeline_ready`: `true`
+
+2. **Migration SQL — section_keywords propuesto**:
+   ```json
+   {
+     "Pre-requisitos": "requirements",
+     "Lo que vas a obtener": "graduate_profile",
+     "Objetivo General": "objectives",
+     "Objetivos Específicos": "objectives",
+     "Características": "curriculum_summary",
+     "Certificación": "certification",
+     "Inicio": "start_date",
+     "Duración": "duration_text",
+     "Modalidad": "modality"
+   }
+   ```
+
+3. **Extender `_extract_sections()` en `universal_harvester.py`**:
+   - Agregar `h4` a `soup.find_all(['h2', 'h3', 'h4'])`
+   - Mejorar la lógica de extracción de contenido: cuando el siguiente elemento no es un sibling directo (estructura anidada de Bricks/Elementor), buscar dentro del contenedor padre usando selectores como `.brxe-accordion`, `.brxe-tabs`, o `div` con clases específicas
+   - Mantener retrocompatibilidad: instituciones existentes (U. Lima, Pacifico, etc.) no se ven afectadas
+
+4. **Validación**:
+   - [x] Migration SQL creada en `db/migrations/20260507_fase93_dmc_profile_config.sql`
+   - [x] `python3 -m py_compile scripts/core/universal_harvester.py` sin errores
+   - [ ] Migration SQL aplicada en Free (vía Supabase Dashboard)
+   - [ ] Ejecutar harvester DMC: `python3 scripts/core/universal_harvester.py --institution dmc --limit 3`
+   - [ ] Verificar que `staging_raw.metadata.extracted_sections` tenga datos para DMC
+   - [ ] Verificar que `cleansed_programs.modality` refleje "Híbrido" para cursos Blended
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `db/migrations/202605XX_fase93_dmc_profile_config.sql` | Migration SQL con todos los ajustes de perfil DMC |
+| `scripts/core/universal_harvester.py` | Extender `_extract_sections()`: H4 + contenido anidado Bricks |
+
+---
 ### Fase 92: Filter Cascading + Counters [x] Completado
 
 > **Problema**: Los filtros de "Más filtros" (Duración, Rango de Precio, Ubicación) no filtran los resultados visibles ni participan en el cascading de los otros dropdowns. Los conteos solo existen en los 3 dropdowns primarios (Área, Modalidad, Institución).
