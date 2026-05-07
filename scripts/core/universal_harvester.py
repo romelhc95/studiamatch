@@ -417,43 +417,52 @@ class UniversalHarvester:
         return new_urls
 
     async def discover_catalog_links(self, browser):
-        """Discovery mode: Playwright scroll + link extraction (replaces SmartData/New Horizons)."""
-        catalog_url = self.institution.get('website_url')
+        """Discovery mode: Playwright scroll + link extraction (replaces SmartData/New Horizons).
+        Navigates through seed_urls (from profile) and fallback to website_url."""
         if not browser:
             logger.warning("Catalog link extraction requires Playwright browser")
             return None
         logger.info(f"🔍 [CATALOG LINKS] Starting scroll discovery for {self.institution.get('name')}")
         existing_urls = await self._load_existing_urls()
         new_urls = []
+        seed_urls = self.profile.get('seed_urls', []) if self.profile else []
+        catalog_urls = list(seed_urls) if seed_urls else []
+        fallback_url = self.institution.get('website_url')
+        if fallback_url and fallback_url not in catalog_urls:
+            catalog_urls.append(fallback_url)
         page = await browser.new_page(user_agent=get_random_user_agent())
         try:
             if self.requires_stealth and STEALTH_AVAILABLE:
                 stealth_local = Stealth()
                 await stealth_local.apply_stealth_async(page)
-            await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
-            await self._dismiss_popups(page)
-            for iteration in range(1, self.catalog_scroll_iterations + 1):
+            for catalog_url in catalog_urls:
                 if self.check_time_guard():
                     break
-                scroll_y = 400 + iteration * 100
-                await page.evaluate(f'window.scrollBy(0, {scroll_y})')
-                await asyncio.sleep(2)
-                if self.catalog_link_selector:
-                    els = await page.query_selector_all(self.catalog_link_selector)
-                    for el in els:
-                        href = await el.get_attribute('href')
-                        if href:
-                            full_url = normalize_url(urljoin(catalog_url, href))
-                            if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                                new_urls.append(full_url)
-                                self.course_urls.add(full_url)
-                                self._save_discovered_url(full_url)
-                if iteration % 5 == 0:
-                    logger.info(f"  Scroll {iteration}/{self.catalog_scroll_iterations}: {len(new_urls)} new URLs so far")
-                has_footer = await page.evaluate('() => document.querySelector("footer") !== null && window.scrollY + window.innerHeight >= document.body.scrollHeight')
-                if has_footer:
-                    logger.info("  Reached page bottom, stopping scroll")
-                    break
+                logger.info(f"  Navigating to catalog page: {catalog_url}")
+                await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
+                await self._dismiss_popups(page)
+                for iteration in range(1, self.catalog_scroll_iterations + 1):
+                    if self.check_time_guard():
+                        break
+                    scroll_y = 400 + iteration * 100
+                    await page.evaluate(f'window.scrollBy(0, {scroll_y})')
+                    await asyncio.sleep(2)
+                    if self.catalog_link_selector:
+                        els = await page.query_selector_all(self.catalog_link_selector)
+                        for el in els:
+                            href = await el.get_attribute('href')
+                            if href:
+                                full_url = normalize_url(urljoin(catalog_url, href))
+                                if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
+                                    new_urls.append(full_url)
+                                    self.course_urls.add(full_url)
+                                    self._save_discovered_url(full_url)
+                    if iteration % 5 == 0:
+                        logger.info(f"  Scroll {iteration}/{self.catalog_scroll_iterations}: {len(new_urls)} new URLs so far")
+                    has_footer = await page.evaluate('() => document.querySelector("footer") !== null && window.scrollY + window.innerHeight >= document.body.scrollHeight')
+                    if has_footer:
+                        logger.info("  Reached page bottom, stopping scroll")
+                        break
         except Exception as e:
             logger.warning(f"Error during catalog scroll discovery: {e}")
         finally:
@@ -543,6 +552,38 @@ class UniversalHarvester:
             # Fase 62C: Section keywords extraction from rendered HTML
             sections = self._extract_sections(raw_html)
 
+            # Fase 94: WooCommerce structured data extraction
+            woocommerce_price = None
+            woocommerce_start_date = None
+            woocommerce_category = None
+            # Extract price from Product JSON-LD (now a dict of blocks with 'product' key)
+            product_ld = json_ld.get('product', {}) if isinstance(json_ld, dict) else {}
+            if product_ld:
+                offers = product_ld.get('offers')
+                if isinstance(offers, list) and len(offers) > 0:
+                    offer = offers[0]
+                    if isinstance(offer, dict):
+                        ps = offer.get('priceSpecification')
+                        if isinstance(ps, list) and len(ps) > 0 and isinstance(ps[0], dict):
+                            woocommerce_price = ps[0].get('price')
+                if not woocommerce_price:
+                    woocommerce_price = product_ld.get('price')
+            # Extract start_date from data-fecha-inicio attribute via Playwright
+            try:
+                woocommerce_start_date = await page.evaluate('() => document.querySelector("[data-fecha-inicio]")?.getAttribute("data-fecha-inicio") || null')
+            except Exception:
+                pass
+            # Extract category: from raw_html (breadcrumb), second choice from URL
+            # Check raw_html for WooCommerce product category
+            cat_match = re.search(r'categoria-produto[^"]*[/]([^/]+)', raw_html[:10000])
+            if cat_match:
+                woocommerce_category = cat_match.group(1).rstrip('/')
+            if not woocommerce_category:
+                for seg in url.split('/'):
+                    if seg in ('cursos', 'diplomas', 'especializaciones', 'certificaciones'):
+                        woocommerce_category = seg
+                        break
+
             return {
                 "raw_name": title,
                 "url": url,
@@ -551,11 +592,17 @@ class UniversalHarvester:
                 "raw_description": description,
                 "raw_json_ld": json_ld,
                 "raw_og_tags": og_tags,
-                "raw_html": raw_html[:50000],
+                "raw_html": raw_html[:200000],
                 "content_hash": content_hash,
                 "institution_id": self.institution['id'],
                 "status": "pending",
-                "metadata": json.dumps({"extracted_sections": sections, "field_defaults": self.field_defaults}),
+                "metadata": json.dumps({
+                    "extracted_sections": sections,
+                    "field_defaults": self.field_defaults,
+                    "woocommerce_price": woocommerce_price,
+                    "woocommerce_start_date": woocommerce_start_date,
+                    "woocommerce_category": woocommerce_category,
+                }),
             }
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
@@ -722,13 +769,27 @@ class UniversalHarvester:
 
     async def _extract_json_ld(self, page):
         scripts = await page.query_selector_all('script[type="application/ld+json"]')
+        all_json = []
         for script in scripts:
             try:
                 content = await script.inner_text()
-                return json.loads(content)
+                all_json.append(json.loads(content))
             except Exception:
                 continue
-        return {}
+        # Return dict with all blocks: 'product' (WooCommerce) and 'first' (Yoast fallback)
+        result = {}
+        for item in all_json:
+            if isinstance(item, dict):
+                if item.get('@type') == 'Product' or 'offers' in item:
+                    result['product'] = item
+                elif '@graph' in item:
+                    result['seo'] = item
+                    for node in item['@graph']:
+                        if isinstance(node, dict) and node.get('@type') == 'Product':
+                            result['product'] = node
+                else:
+                    result['first'] = item
+        return result  # Returns dict with 'product' and/or 'seo' and/or 'first'
 
     async def _extract_og_tags(self, page):
         return await page.evaluate('''() => {
@@ -740,13 +801,20 @@ class UniversalHarvester:
         }''')
 
     async def _extract_title(self, page, og, ld):
-        title = og.get('og:title') or (ld.get('name') if isinstance(ld, dict) else None)
+        # ld is a dict of blocks: {'product': ..., 'seo': ..., 'first': ...}
+        ld_block = None
+        if isinstance(ld, dict):
+            ld_block = ld.get('seo') or ld.get('first') or ld.get('product')
+        title = og.get('og:title') or (ld_block.get('name') if isinstance(ld_block, dict) else None)
         if not title:
             title = await page.title()
         return title
 
     async def _extract_description(self, page, og, ld):
-        desc = og.get('og:description') or (ld.get('description') if isinstance(ld, dict) else None)
+        ld_block = None
+        if isinstance(ld, dict):
+            ld_block = ld.get('seo') or ld.get('first')
+        desc = og.get('og:description') or (ld_block.get('description') if isinstance(ld_block, dict) else None)
         if not desc:
             desc = await page.evaluate('() => document.querySelector("meta[name=\'description\']")?.content || ""')
         return desc
