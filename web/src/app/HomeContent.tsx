@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified, MapPin } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
@@ -27,9 +27,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     priceMin: searchParams.get('min') || "",
     priceMax: searchParams.get('max') || "",
     modes: searchParams.get('modalidad') ? searchParams.get('modalidad')!.split(',') : [] as string[],
-    durations: [] as string[],
     selectedInstitution: searchParams.get('inst') || "Todas",
-    includeConsultar: true
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
@@ -38,7 +36,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [careerGoal, setCareerGoal] = useState<string | null>(null);
   const [durationFilter, setDurationFilter] = useState<string | null>(searchParams.get('duration') || null);
   const [priceRange, setPriceRange] = useState<string | null>(searchParams.get('priceRange') || null);
-  const [selectedRegion, setSelectedRegion] = useState<string>(searchParams.get('region') || "Todas");
   const [showGoals, setShowGoals] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const careerGoals = [
@@ -66,12 +63,11 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     if (sortOrder) params.set('sort', sortOrder);
     if (durationFilter) params.set('duration', durationFilter);
     if (priceRange) params.set('priceRange', priceRange);
-    if (selectedRegion !== "Todas") params.set('region', selectedRegion);
 
     const queryString = params.toString();
     const url = queryString ? `${pathname}?${queryString}` : pathname;
     router.replace(url, { scroll: false });
-  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router, durationFilter, priceRange, selectedRegion]);
+  }, [searchTerm, selectedCategory, selectedType, activeFilters, sortOrder, pathname, router, durationFilter, priceRange]);
 
   // Cascading Filters Logic
   const getFilteredExcluding = (excludeKey: string) => {
@@ -84,28 +80,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
 
     if (careerGoal && excludeKey !== 'goal') {
-    if (selectedRegion !== "Todas") result = result.filter(c => c.region === selectedRegion);
-    if (durationFilter) {
-      result = result.filter(c => {
-        const months = parseDurationToMonths(c.duration || '');
-        if (durationFilter === 'short') return months > 0 && months < 3;
-        if (durationFilter === 'medium') return months >= 3 && months <= 6;
-        if (durationFilter === 'long') return months > 6;
-        return true;
-      });
-    }
-    if (priceRange) {
-      result = result.filter(c => {
-        const price = c.price_pen;
-        if (!price || price <= 0) return c.price_status === 'consultar';
-        if (priceRange === 'accessible') return price <= 1500;
-        if (priceRange === 'standard') return price > 1500 && price <= 5000;
-        if (priceRange === 'premium') return price > 5000 && price <= 15000;
-        if (priceRange === 'executive') return price > 15000;
-        return true;
-      });
-    }
-    if (careerGoal === 'tech') {
+      if (careerGoal === 'tech') {
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
         result = result.filter(c => {
@@ -168,10 +143,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       });
     }
 
-    if (selectedRegion !== "Todas" && excludeKey !== 'region') {
-      result = result.filter(c => c.region === selectedRegion);
-    }
-    
     return result;
   };
 
@@ -179,42 +150,69 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     const courses = getFilteredExcluding('area');
     const categories = Array.from(new Set(courses.map(c => c.category).filter(Boolean))).sort() as string[];
     return ["Todos", ...categories];
-  }, [allCourses, searchTerm, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, searchTerm, selectedType, activeFilters, careerGoal, durationFilter, priceRange]);
 
   const activeTypes = useMemo(() => {
     const courses = getFilteredExcluding('tipo');
     const types = Array.from(new Set(courses.map(c => c.course_type).filter(Boolean))).sort() as string[];
     return ["Todos", ...types];
-  }, [allCourses, searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange]);
 
   const activeInstitutions = useMemo(() => {
     const courses = getFilteredExcluding('inst');
     const institutions = Array.from(new Set(courses.map(c => c.institution_name).filter(Boolean))).sort() as string[];
     return ["Todas", ...institutions];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.modes, activeFilters.priceMax, careerGoal, durationFilter, priceRange]);
 
   const activeModes = useMemo(() => {
     const courses = getFilteredExcluding('modalidad');
     const modes = Array.from(new Set(courses.map(c => c.mode).filter(Boolean))).sort() as string[];
     return ["Todas", ...modes];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters.selectedInstitution, activeFilters.priceMax, careerGoal, durationFilter, priceRange]);
 
-  const activeRegions = useMemo(() => {
-    const courses = getFilteredExcluding('region');
-    const regions = Array.from(new Set(courses.map(c => c.region).filter(Boolean))).sort() as string[];
-    return ["Todas", ...regions];
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+  const activeDurations = useMemo(() => {
+    const courses = getFilteredExcluding('duration');
+    const durs = { short: 0, medium: 0, long: 0 };
+    courses.forEach(c => {
+      const months = parseDurationToMonths(c.duration || '');
+      if (months > 0 && months < 3) durs.short++;
+      else if (months >= 3 && months <= 6) durs.medium++;
+      else if (months > 6) durs.long++;
+    });
+    return durs;
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, priceRange]);
+
+  const activePriceRanges = useMemo(() => {
+    const courses = getFilteredExcluding('priceRange');
+    const prices = { accessible: 0, standard: 0, premium: 0, executive: 0 };
+    courses.forEach(c => {
+      const price = c.price_pen;
+      if (!price || price <= 0) return;
+      if (price <= 1500) prices.accessible++;
+      else if (price <= 5000) prices.standard++;
+      else if (price <= 15000) prices.premium++;
+      else prices.executive++;
+    });
+    return prices;
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter]);
 
   const contextualStats = useMemo(() => {
-    const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
+    const counts = {
+      categories: {} as Record<string, number>,
+      types: {} as Record<string, number>,
+      institutions: {} as Record<string, number>,
+      modes: {} as Record<string, number>,
+    };
     const areaCourses = getFilteredExcluding('area');
     areaCourses.forEach(c => { if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1; });
     const typeCourses = getFilteredExcluding('tipo');
     typeCourses.forEach(c => { if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1; });
     const instCourses = getFilteredExcluding('inst');
     instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
+    const modeCourses = getFilteredExcluding('modalidad');
+    modeCourses.forEach(c => { if (c.mode) counts.modes[c.mode] = (counts.modes[c.mode] || 0) + 1; });
     return counts;
-  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange]);
 
   const stats = useMemo(() => {
     const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
@@ -414,6 +412,28 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       );
     }
 
+    if (durationFilter) {
+      result = result.filter(c => {
+        const months = parseDurationToMonths(c.duration || '');
+        if (durationFilter === 'short') return months > 0 && months < 3;
+        if (durationFilter === 'medium') return months >= 3 && months <= 6;
+        if (durationFilter === 'long') return months > 6;
+        return true;
+      });
+    }
+
+    if (priceRange) {
+      result = result.filter(c => {
+        const price = c.price_pen;
+        if (!price || price <= 0) return false;
+        if (priceRange === 'accessible') return price <= 1500;
+        if (priceRange === 'standard') return price > 1500 && price <= 5000;
+        if (priceRange === 'premium') return price > 5000 && price <= 15000;
+        if (priceRange === 'executive') return price > 15000;
+        return true;
+      });
+    }
+
     const filtered = result.filter(c => {
       if (activeFilters.modes.length > 0 && !activeFilters.modes.includes(c.mode)) return false;
       const price = c.price_pen;
@@ -467,12 +487,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
 
     return filtered;
-  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [allCourses, activeFilters, searchTerm, selectedCategory, selectedType, sortOrder, careerGoal, durationFilter, priceRange]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
+  }, [searchTerm, selectedCategory, activeFilters, careerGoal, durationFilter, priceRange]);
 
   const totalPages = Math.ceil(filteredCourses.length / ITEMS_PER_PAGE);
   const paginatedCourses = filteredCourses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -619,7 +639,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                   "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
                                   filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
                                 )}>
-                                  {(contextualStats as Record<string, Record<string, number>>)[filter.id === 'area' ? 'categories' : (filter.id === 'inst' ? 'institutions' : 'types')][opt] || 0}
+                                  {contextualStats[filter.id === 'area' ? 'categories' : (filter.id === 'modalidad' ? 'modes' : (filter.id === 'inst' ? 'institutions' : 'types'))][opt] || 0}
                                 </span>
                               )}
                             </button>
@@ -652,7 +672,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       <div className="flex flex-wrap gap-2">
                         {[
                           { id: 'tipo', label: 'Tipo', icon: GraduationCap, current: selectedType, setter: setSelectedType, options: activeTypes },
-                          { id: 'region', label: 'Ubicación', icon: MapPin, current: selectedRegion, setter: setSelectedRegion, options: activeRegions },
                         ].map((filter) => (
                           <div key={filter.id} className="relative">
                             <button
@@ -682,6 +701,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                       )}
                                     >
                                       <span className="truncate">{opt}</span>
+                                    {opt !== "Todos" && opt !== "Todas" && (
+                                      <span className={cn(
+                                        "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
+                                        filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
+                                      )}>
+                                        {contextualStats.types[opt] || 0}
+                                      </span>
+                                    )}
                                     </button>
                                   ))}
                                 </div>
@@ -709,7 +736,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                   : "border-slate-200 text-slate-500 hover:text-slate-700"
                               )}
                             >
-                              {d.label}
+                              <span>{d.label}</span>
+                              {activeDurations[d.id as keyof typeof activeDurations] > 0 && (
+                                <span className="text-[10px] tabular-nums ml-1 opacity-60">
+                                  ({activeDurations[d.id as keyof typeof activeDurations]})
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -734,7 +766,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                   : "border-slate-200 text-slate-500 hover:text-slate-700"
                               )}
                             >
-                              {p.label}
+                              <span>{p.label}</span>
+                              {activePriceRanges[p.id as keyof typeof activePriceRanges] > 0 && (
+                                <span className="text-[10px] tabular-nums ml-1 opacity-60">
+                                  ({activePriceRanges[p.id as keyof typeof activePriceRanges]})
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -845,14 +882,11 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       setCareerGoal(null);
                       setDurationFilter(null);
                       setPriceRange(null);
-                      setSelectedRegion("Todas");
                       setActiveFilters({
                         priceMin: "",
                         priceMax: "",
                         modes: [],
-                        durations: [],
                         selectedInstitution: "Todas",
-                        includeConsultar: true
                       });
                     }}
                     className="text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
@@ -1047,9 +1081,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       priceMin: "", 
                       priceMax: "", 
                       modes: [], 
-                      durations: [], 
                       selectedInstitution: "Todas", 
-                      includeConsultar: true 
                     }); 
                   }} className="rounded-lg text-[11px]">Reiniciar todos los filtros</Button>
                 </div>
