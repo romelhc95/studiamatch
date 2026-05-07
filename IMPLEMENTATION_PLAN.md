@@ -16,9 +16,9 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fase 92 completada. Fase 93 planificada pendiente de ejecución. FG2 ejecutado en Free. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
+- **Estado Actual**: Fase 92 (filter cascading) y Fase 93 (DMC harvester) completadas. Pipeline DMC ejecutado. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
 - **Último Hito**: Fase 93 — DMC Harvester: Section Keywords + H4 Extractor. Perfil DMC configurado con section_keywords, field_defaults, seed_urls, price/duration regex, pipeline_ready=true. Extractor de secciones mejorado para soportar H4 y contenido anidado de Bricks/Elementor.
-- **Próxima Acción**: Aplicar migration SQL en Free (via Supabase Dashboard), ejecutar harvester DMC, security audit y commit.
+- **Próxima Acción**: Verificar resultados del pipeline DMC con el nuevo código. Merge PR #47 (Fase 92). Migration SQL en Pro.
 
 ## Tareas Pendientes Priorizadas
 
@@ -3583,7 +3583,6 @@ UPDATE ... SET noise_patterns = '["texto\\n"]'::jsonb
 | `scripts/core/universal_harvester.py` | Extender `_extract_sections()`: H4 + contenido anidado Bricks |
 
 ---
-
 ### Fase 92: Filter Cascading + Counters [x] Completado
 
 > **Problema**: Los filtros de "Más filtros" (Duración, Rango de Precio, Ubicación) no filtran los resultados visibles ni participan en el cascading de los otros dropdowns. Los conteos solo existen en los 3 dropdowns primarios (Área, Modalidad, Institución).
