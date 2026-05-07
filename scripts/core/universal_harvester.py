@@ -637,12 +637,17 @@ class UniversalHarvester:
     # ─────────────────────────────────────────────────────────
 
     def _extract_sections(self, html: str) -> dict:
-        """Scan H2/H3 headings and map to profile section_keywords."""
+        """Scan H2/H3/H4 headings and map to profile section_keywords.
+
+        Handles Bricks/Elementor nested structures: if no direct sibling content
+        is found, falls back to searching for the next content block in the
+        document after the heading.
+        """
         if not self.section_keywords or not html:
             return {}
         soup = BeautifulSoup(html, 'html.parser')
         result = {}
-        for heading in soup.find_all(['h2', 'h3']):
+        for heading in soup.find_all(['h2', 'h3', 'h4']):
             text = heading.get_text(strip=True)
             if not text:
                 continue
@@ -651,10 +656,22 @@ class UniversalHarvester:
                 if keyword.lower() in text_lower:
                     next_el = heading.find_next_sibling()
                     content_parts = []
-                    while next_el and next_el.name not in ('h2', 'h3'):
+                    while next_el and next_el.name not in ('h2', 'h3', 'h4'):
                         if next_el.name in ('p', 'ul', 'ol', 'div'):
                             content_parts.append(next_el.get_text(strip=True))
                         next_el = next_el.find_next_sibling()
+                    # Fallback: if no sibling content, try parent container
+                    if not content_parts:
+                        parent = heading.find_parent(['div', 'section', 'article'])
+                        if parent:
+                            for sibling in parent.find_next_siblings():
+                                txt = sibling.get_text(strip=True)
+                                if txt and len(txt) > 20:
+                                    content_parts.append(txt)
+                                if content_parts:
+                                    break
+                    if not content_parts:
+                        content_parts.append(heading.get_text(strip=True))
                     result[field_name] = ' '.join(content_parts)[:1000]
         return result
 
