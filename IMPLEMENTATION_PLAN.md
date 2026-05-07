@@ -18,7 +18,7 @@
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
 - **Estado Actual**: Fases 92, 93 y 94 completadas. Pipeline DMC ejecutado con extracción WooCommerce. 35 cursos DMC en courses con total_cost_est y start_date poblados. Pro pendiente de migration SQL + FG2.
 - **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. JSON-LD Product schema extraído para precio, data-fecha-inicio para start_date, categoría WooCommerce. Sections incluidas en prompt LLM. Mode normalization (Híbrido → Hibrido). raw_html 200KB.
-- **Próxima Acción**: Merge PR #50 (Fase 94) y PR #47 (Fase 92) a desarrollo. Migration SQL en Pro. Ejecutar FG2 en Pro.
+- **Próxima Acción**: Merge PR #50 (Fase 94) a desarrollo. Migration SQL en Pro. Ejecutar FG2 en Pro.
 
 ## Tareas Pendientes Priorizadas
 
