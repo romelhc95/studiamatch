@@ -185,6 +185,12 @@ class SyncVectorWorker:
                     resolved_mode = mode_val
                     break
 
+        # Normalize mode to match DB check constraint (e.g. Híbrido → Hibrido)
+        if resolved_mode:
+            mode_normalized = resolved_mode.lower().replace("í", "i").replace("ó", "o").replace("é", "e").replace("á", "a").replace("ú", "u")
+            if mode_normalized == "hibrido":
+                resolved_mode = "Hibrido"
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
