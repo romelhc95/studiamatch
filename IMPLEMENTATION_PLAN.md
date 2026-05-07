@@ -16,8 +16,8 @@
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: FG2 ejecutado en Free. 45 cursos DMC en courses (40 real NVIDIA + 5 mock por rate limit). Frontend: filtro `is_mock_data=neq.true` removido para mostrar todos los cursos. RPC `atomic_enrichment_promote` corregido (provider_used, is_mock_data, status condition, curriculum_summary). Pro pendiente de migration SQL + FG2.
-- **Último Hito**: 45/45 cursos DMC visibles en frontend. 40 con descripciones reales (NVIDIA), 5 con smart mock (NVIDIA rate limit).
+- **Estado Actual**: Fase 92 completada. Todos los filtros del frontend ahora tienen cascading completo y conteos visibles. Los 3 bugs principales corregidos: bracket nesting, lógica faltante en `filteredCourses`, y estado muerto. FG2 ejecutado en Free. 45 cursos DMC en courses. Pro pendiente de migration SQL + FG2.
+- **Último Hito**: Fase 92 — Filter Cascading + Counters. Bracket nesting corregido en `getFilteredExcluding` (selectedRegion/durationFilter/priceRange ya no están anidados dentro de careerGoal). Lógica de filtrado agregada en `filteredCourses`. conteos extendidos a todos los dropdowns y chips. Estado muerto (`durations`, `includeConsultar`) eliminado.
 - **Próxima Acción**: Ejecutar migration SQL en Pro + FG2 en Pro.
 
 ## Tareas Pendientes Priorizadas
@@ -72,6 +72,7 @@
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
 | ~~P4~~ | ~~Fase 51 — Docs hermanas~~ | ~~Documentación~~ | ~~Ambos archivos ya existen: `core_data_flow.md` (123 líneas) y `PIPELINE_PLAN.md` (49 líneas)~~ | ~~Completado (status update only)~~ |
 | ~~P4~~ | ~~Fase 58/59 — Verificación frontend~~ | ~~QA~~ | ~~99% completado: 17/20 campos mapeados visibles en UI. `region` (solo filtro), `start_date` (solo `start_date_text`), `comparison_count` no visibles. Sin tests E2E de renderizado.~~ | ~~Completado (gaps menores aceptables P4)~~ |
+| **P2** | **Fase 92 — Filter Cascading + Counters** | Frontend | Corregir bracket nesting que aísla region/duration/price del cascading. Agregar lógica faltante en `filteredCourses`. Extender conteos a todos los filtros (Tipo, Ubicación, Duración, Precio). Remover estado muerto. | **Completado** |
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -3515,4 +3516,75 @@ UPDATE ... SET noise_patterns = '["texto\\n"]'::jsonb
 - `scripts/core/sync_vector_worker.py` — sin cambios
 - `scripts/shared/db_client.py` — sin cambios
 - `scripts/shared/utils.py` — sin cambios
+
+---
+
+### Fase 92: Filter Cascading + Counters [x] Completado
+
+> **Problema**: Los filtros de "Más filtros" (Duración, Rango de Precio, Ubicación) no filtran los resultados visibles ni participan en el cascading de los otros dropdowns. Los conteos solo existen en los 3 dropdowns primarios (Área, Modalidad, Institución).
+
+**Diagnóstico** (HomeContent.tsx):
+
+| # | Bug | Líneas | Efecto |
+|---|---|---|---|
+| 1 | `selectedRegion`, `durationFilter`, `priceRange` anidados dentro de `if(careerGoal)` en `getFilteredExcluding` | 86-120 | No participan en cascading a menos que careerGoal esté activo |
+| 2 | `durationFilter`, `priceRange`, `selectedRegion` no aplican en `filteredCourses` | 388-470 | Los chips de Duración/Precio y dropdown Ubicación no filtran resultados visibles |
+| 3 | `activeFilters.durations` y `includeConsultar` definidos pero nunca usados | 30, 32 | Estado muerto que ensucia el código |
+| 4 | Solo Área/Modalidad/Institución muestran conteos; Tipo, Ubicación, Duración, Precio no | 617-623 | Inconsistencia UX: el usuario no sabe cuántos resultados tiene cada opción |
+
+**Tareas**:
+
+1. **Corregir bracket nesting en `getFilteredExcluding()`**:
+   - Mover `selectedRegion`, `durationFilter` y `priceRange` FUERA del bloque `if (careerGoal && excludeKey !== 'goal')`
+   - Deben ser filtros independientes que se aplican siempre, no solo cuando hay career goal
+   - Resultado: Al seleccionar Ubicación/Duración/Precio, los dropdowns de Área, Tipo, Institución y Modalidad se actualizan correctamente
+
+2. **Agregar lógica faltante en `filteredCourses()`**:
+   - Insertar filtro `durationFilter` con la misma lógica de `parseDurationToMonths()`:
+     - `short`: meses < 3
+     - `medium`: meses >= 3 y <= 6
+     - `long`: meses > 6
+   - Insertar filtro `priceRange` con los mismos buckets:
+     - `accessible`: price <= 1500
+     - `standard`: 1500 < price <= 5000
+     - `premium`: 5000 < price <= 15000
+     - `executive`: price > 15000
+   - Insertar filtro `selectedRegion`: `c.region === selectedRegion`
+   - Resultado: Los cursos mostrados en el catálogo responden a TODOS los filtros
+
+3. **Extender `contextualStats` para cubrir todos los tipos de filtro**:
+   - Agregar conteos para `modes`, `regions`, `durations`, `priceRanges`
+   - Refactorizar para que el map sea genérico (no solo categories/types/institutions)
+   - Resultado: Todos los dropdowns y chips tienen datos de conteo
+
+4. **Agregar `activeDurations` y `activePriceRanges` derivados**:
+   - Nuevos `useMemo` que usan `getFilteredExcluding` para computar qué chips de duración y precio tienen resultados disponibles
+   - Chips sin resultados se ocultan o muestran count 0
+   - Resultado: Cascading completo — seleccionar "Remoto" oculta chips de duración que no existen en cursos remotos
+
+5. **Agregar conteos en UI de "Más filtros"**:
+   - Dropdown Tipo: mostrar conteos (como ya hacen Área/Modalidad/Institución)
+   - Dropdown Ubicación: mostrar conteos
+   - Chips Duración: mostrar `(<N>)` al lado del label
+   - Chips Precio: mostrar `(<N>)` al lado del label
+   - Resultado: UX informativa — el usuario sabe cuántos resultados tiene cada opción
+
+6. **Limpiar estado muerto**:
+   - Eliminar `durations: []` de `activeFilters`
+   - Eliminar `includeConsultar: true` de `activeFilters` (o implementarlo correctamente si es deseado)
+   - Resultado: Código más limpio, sin estado que no afecta el comportamiento
+
+**Validación**:
+- [x] `npx tsc --noEmit` sin errores en `web/`
+- [x] `npm run lint` sin errores (0 errors, solo warnings pre-existentes) en `web/`
+- [ ] Verificar en navegador: seleccionar "Híbrido" → dropdown Área solo muestra categorías con cursos Híbrido
+- [ ] Verificar en navegador: seleccionar "Diplomado" → chips de Duración solo muestran duraciones disponibles
+- [ ] Verificar en navegador: chips muestran conteos `(<N>)` al lado
+- [ ] Verificar en navegador: los 3 filtros reparados (Ubicación, Duración, Precio) realmente filtran el grid
+
+**Archivos que se modifican**:
+
+| Archivo | Cambio |
+|---|---|
+| `web/src/app/HomeContent.tsx` | Fix bracket nesting, agregar filtros faltantes, extender contextualStats, agregar activeDurations/activePriceRanges, agregar conteos en UI, limpiar estado muerto |
 

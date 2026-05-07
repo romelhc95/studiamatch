@@ -27,9 +27,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     priceMin: searchParams.get('min') || "",
     priceMax: searchParams.get('max') || "",
     modes: searchParams.get('modalidad') ? searchParams.get('modalidad')!.split(',') : [] as string[],
-    durations: [] as string[],
     selectedInstitution: searchParams.get('inst') || "Todas",
-    includeConsultar: true
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
@@ -84,28 +82,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }
 
     if (careerGoal && excludeKey !== 'goal') {
-    if (selectedRegion !== "Todas") result = result.filter(c => c.region === selectedRegion);
-    if (durationFilter) {
-      result = result.filter(c => {
-        const months = parseDurationToMonths(c.duration || '');
-        if (durationFilter === 'short') return months > 0 && months < 3;
-        if (durationFilter === 'medium') return months >= 3 && months <= 6;
-        if (durationFilter === 'long') return months > 6;
-        return true;
-      });
-    }
-    if (priceRange) {
-      result = result.filter(c => {
-        const price = c.price_pen;
-        if (!price || price <= 0) return c.price_status === 'consultar';
-        if (priceRange === 'accessible') return price <= 1500;
-        if (priceRange === 'standard') return price > 1500 && price <= 5000;
-        if (priceRange === 'premium') return price > 5000 && price <= 15000;
-        if (priceRange === 'executive') return price > 15000;
-        return true;
-      });
-    }
-    if (careerGoal === 'tech') {
+      if (careerGoal === 'tech') {
         result = result.filter(c => c.seniority_level === 'Junior' || !c.seniority_level);
       } else if (careerGoal === 'update') {
         result = result.filter(c => {
@@ -205,14 +182,68 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     return ["Todas", ...regions];
   }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
+  const activeDurations = useMemo(() => {
+    const courses = getFilteredExcluding('duration');
+    const durs = { short: 0, medium: 0, long: 0 };
+    courses.forEach(c => {
+      const months = parseDurationToMonths(c.duration || '');
+      if (months > 0 && months < 3) durs.short++;
+      else if (months >= 3 && months <= 6) durs.medium++;
+      else if (months > 6) durs.long++;
+    });
+    return durs;
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, priceRange, selectedRegion]);
+
+  const activePriceRanges = useMemo(() => {
+    const courses = getFilteredExcluding('priceRange');
+    const prices = { accessible: 0, standard: 0, premium: 0, executive: 0 };
+    courses.forEach(c => {
+      const price = c.price_pen;
+      if (!price || price <= 0) return;
+      if (price <= 1500) prices.accessible++;
+      else if (price <= 5000) prices.standard++;
+      else if (price <= 15000) prices.premium++;
+      else prices.executive++;
+    });
+    return prices;
+  }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, selectedRegion]);
+
   const contextualStats = useMemo(() => {
-    const counts = { categories: {} as Record<string, number>, types: {} as Record<string, number>, institutions: {} as Record<string, number> };
+    const counts = {
+      categories: {} as Record<string, number>,
+      types: {} as Record<string, number>,
+      institutions: {} as Record<string, number>,
+      modes: {} as Record<string, number>,
+      regions: {} as Record<string, number>,
+      durations: {} as Record<string, number>,
+      priceRanges: {} as Record<string, number>,
+    };
     const areaCourses = getFilteredExcluding('area');
     areaCourses.forEach(c => { if (c.category) counts.categories[c.category] = (counts.categories[c.category] || 0) + 1; });
     const typeCourses = getFilteredExcluding('tipo');
     typeCourses.forEach(c => { if (c.course_type) counts.types[c.course_type] = (counts.types[c.course_type] || 0) + 1; });
     const instCourses = getFilteredExcluding('inst');
     instCourses.forEach(c => { if (c.institution_name) counts.institutions[c.institution_name] = (counts.institutions[c.institution_name] || 0) + 1; });
+    const modeCourses = getFilteredExcluding('modalidad');
+    modeCourses.forEach(c => { if (c.mode) counts.modes[c.mode] = (counts.modes[c.mode] || 0) + 1; });
+    const regionCourses = getFilteredExcluding('region');
+    regionCourses.forEach(c => { if (c.region) counts.regions[c.region] = (counts.regions[c.region] || 0) + 1; });
+    const durationCourses = getFilteredExcluding('duration');
+    durationCourses.forEach(c => {
+      const months = parseDurationToMonths(c.duration || '');
+      if (months > 0 && months < 3) counts.durations['short'] = (counts.durations['short'] || 0) + 1;
+      else if (months >= 3 && months <= 6) counts.durations['medium'] = (counts.durations['medium'] || 0) + 1;
+      else if (months > 6) counts.durations['long'] = (counts.durations['long'] || 0) + 1;
+    });
+    const priceCourses = getFilteredExcluding('priceRange');
+    priceCourses.forEach(c => {
+      const price = c.price_pen;
+      if (!price || price <= 0) return;
+      if (price <= 1500) counts.priceRanges['accessible'] = (counts.priceRanges['accessible'] || 0) + 1;
+      else if (price <= 5000) counts.priceRanges['standard'] = (counts.priceRanges['standard'] || 0) + 1;
+      else if (price <= 15000) counts.priceRanges['premium'] = (counts.priceRanges['premium'] || 0) + 1;
+      else counts.priceRanges['executive'] = (counts.priceRanges['executive'] || 0) + 1;
+    });
     return counts;
   }, [allCourses, searchTerm, selectedCategory, selectedType, activeFilters, careerGoal, durationFilter, priceRange, selectedRegion]);
 
@@ -412,6 +443,30 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       result = result.filter(c =>
         c.institution_name?.toLowerCase().trim() === activeFilters.selectedInstitution.toLowerCase().trim()
       );
+    }
+
+    if (selectedRegion !== "Todas") result = result.filter(c => c.region === selectedRegion);
+
+    if (durationFilter) {
+      result = result.filter(c => {
+        const months = parseDurationToMonths(c.duration || '');
+        if (durationFilter === 'short') return months > 0 && months < 3;
+        if (durationFilter === 'medium') return months >= 3 && months <= 6;
+        if (durationFilter === 'long') return months > 6;
+        return true;
+      });
+    }
+
+    if (priceRange) {
+      result = result.filter(c => {
+        const price = c.price_pen;
+        if (!price || price <= 0) return false;
+        if (priceRange === 'accessible') return price <= 1500;
+        if (priceRange === 'standard') return price > 1500 && price <= 5000;
+        if (priceRange === 'premium') return price > 5000 && price <= 15000;
+        if (priceRange === 'executive') return price > 15000;
+        return true;
+      });
     }
 
     const filtered = result.filter(c => {
@@ -682,6 +737,14 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                       )}
                                     >
                                       <span className="truncate">{opt}</span>
+                                    {opt !== "Todos" && opt !== "Todas" && (
+                                      <span className={cn(
+                                        "text-[10px] tabular-nums px-1.5 py-0.5 rounded",
+                                        filter.current === opt ? "bg-white/20" : "bg-slate-100 text-slate-400"
+                                      )}>
+                                        {(contextualStats as Record<string, Record<string, number>>)[filter.id === 'tipo' ? 'types' : 'regions'][opt] || 0}
+                                      </span>
+                                    )}
                                     </button>
                                   ))}
                                 </div>
@@ -709,7 +772,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                   : "border-slate-200 text-slate-500 hover:text-slate-700"
                               )}
                             >
-                              {d.label}
+                              <span>{d.label}</span>
+                              {activeDurations[d.id as keyof typeof activeDurations] > 0 && (
+                                <span className="text-[10px] tabular-nums ml-1 opacity-60">
+                                  ({activeDurations[d.id as keyof typeof activeDurations]})
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -734,7 +802,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                                   : "border-slate-200 text-slate-500 hover:text-slate-700"
                               )}
                             >
-                              {p.label}
+                              <span>{p.label}</span>
+                              {activePriceRanges[p.id as keyof typeof activePriceRanges] > 0 && (
+                                <span className="text-[10px] tabular-nums ml-1 opacity-60">
+                                  ({activePriceRanges[p.id as keyof typeof activePriceRanges]})
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -850,9 +923,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         priceMin: "",
                         priceMax: "",
                         modes: [],
-                        durations: [],
                         selectedInstitution: "Todas",
-                        includeConsultar: true
                       });
                     }}
                     className="text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 uppercase tracking-wider flex items-center gap-1 transition-colors group"
@@ -1047,9 +1118,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       priceMin: "", 
                       priceMax: "", 
                       modes: [], 
-                      durations: [], 
                       selectedInstitution: "Todas", 
-                      includeConsultar: true 
                     }); 
                   }} className="rounded-lg text-[11px]">Reiniciar todos los filtros</Button>
                 </div>
