@@ -180,7 +180,7 @@ class EnrichmentWorker:
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
         return text[:max_len]
 
-    def _call_llm_for_pillars(self, name, description, inst_id=None, extracted_sections=None):
+    def _call_llm_for_pillars(self, name, description, inst_id=None, extracted_sections=None, woocommerce_data=None):
         # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
         if self._mock_only:
             logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
@@ -197,6 +197,14 @@ class EnrichmentWorker:
             for field_name, content in extracted_sections.items():
                 if content and str(content).strip():
                     extra_context += f"\n[{field_name}]: {str(content)[:500]}"
+        # Append WooCommerce structured data if available
+        if woocommerce_data:
+            if woocommerce_data.get('price'):
+                extra_context += f"\n[Precio (JSON-LD)]: S/ {woocommerce_data['price']}"
+            if woocommerce_data.get('start_date'):
+                extra_context += f"\n[Fecha de inicio (data-fecha-inicio)]: {woocommerce_data['start_date']}"
+            if woocommerce_data.get('category'):
+                extra_context += f"\n[Categoria WooCommerce]: {woocommerce_data['category']}"
         full_description = (description or "") + extra_context
 
         hints = ""
@@ -229,28 +237,49 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             return result, provider_name
         return self._generate_smart_mock(name, description), None
 
-    def _fetch_sr_sections(self, staging_id):
-        """Look up extracted_sections from staging_raw metadata for richer LLM context."""
+    def _fetch_sr_enrichment_data(self, staging_id):
+        """Look up extracted_sections + WooCommerce metadata from staging_raw for richer LLM context.
+        Also extracts duration_text and date range from raw_html for post-processing."""
+        sections = {}
+        woo = {}
         try:
-            sr = self.db.select_pipeline('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata')
+            sr = self.db.select_pipeline('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata,raw_html')
             if sr and sr[0].get('metadata'):
                 meta = sr[0]['metadata']
                 if isinstance(meta, str):
                     import json
                     meta = json.loads(meta)
-                return meta.get('extracted_sections', {})
+                sections = meta.get('extracted_sections', {})
+                if meta.get('woocommerce_price'):
+                    woo['price'] = meta['woocommerce_price']
+                if meta.get('woocommerce_start_date'):
+                    woo['start_date'] = meta['woocommerce_start_date']
+                if meta.get('woocommerce_category'):
+                    woo['category'] = meta['woocommerce_category']
+            # Extract duration and date range from raw_html for post-LLM fallback
+            raw_html = sr[0].get('raw_html', '') if sr else ''
+            if raw_html:
+                import re
+                dur_match = re.search(r'(\d+)\s*hrs?\.?\s*acad', raw_html, re.IGNORECASE)
+                if dur_match:
+                    woo['duration_text_raw'] = dur_match.group(0)
+                date_range = re.search(r'Inicio:\s*(\d{2}/\d{2}/\d{4})\s*-\s*Fin:\s*(\d{2}/\d{2}/\d{4})', raw_html)
+                if date_range:
+                    woo['date_range_start'] = date_range.group(1)
+                    woo['date_range_end'] = date_range.group(2)
+            return sections, woo
         except Exception as e:
-            logger.debug(f"Could not fetch SR sections for {staging_id}: {e}")
-        return {}
+            logger.debug(f"Could not fetch SR enrichment data for {staging_id}: {e}")
+        return sections, woo
 
     def enrich_record(self, cleansed):
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
-        sections = self._fetch_sr_sections(staging_id) if staging_id else {}
+        sections, woo_data = self._fetch_sr_enrichment_data(staging_id) if staging_id else ({}, {})
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections)
+            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections, woocommerce_data=woo_data)
             is_mock = provider_name is None
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
@@ -272,6 +301,33 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 enriched["modality"] = "Presencial"
             elif not modality_norm or modality_norm.lower() in ('none', 'null', 'nan', ''):
                 enriched["modality"] = "Presencial"
+
+            # Fase 94: Fallback a WooCommerce structured data si LLM no pudo extraer
+            if woo_data.get('price') and (enriched.get("total_cost_est") is None or str(enriched.get("total_cost_est")).strip().lower() in ('none', 'null', 'nan', '')):
+                try:
+                    enriched["total_cost_est"] = float(woo_data['price'])
+                except (ValueError, TypeError):
+                    pass
+            if woo_data.get('start_date') and (not enriched.get("start_date") or str(enriched.get("start_date")).strip().lower() in ('none', 'null', 'nan', '') or enriched.get("start_date") == enriched.get("official_name")):
+                enriched["start_date"] = woo_data['start_date']
+            if woo_data.get('category') and (not enriched.get("degree_type") or str(enriched.get("degree_type")).strip().lower() in ('none', 'null', 'nan', '')):
+                cat_map = {'cursos': 'Curso', 'diplomas': 'Diplomado', 'especializaciones': 'Especialización', 'certificaciones': 'Certificación'}
+                enriched["degree_type"] = cat_map.get(woo_data['category'], enriched.get("degree_type"))
+            if woo_data.get('duration_text_raw') and (not enriched.get("duration_text") or str(enriched.get("duration_text")).strip().lower() in ('none', 'null', '', 'no especificado', 'no disponible', 'no se especifica', 'n/a')):
+                enriched["duration_text"] = woo_data['duration_text_raw']
+            if woo_data.get('date_range_start') and woo_data.get('date_range_end') and (not enriched.get("duration_months") or enriched.get("duration_months") == 0):
+                try:
+                    from datetime import datetime
+                    d1 = datetime.strptime(woo_data['date_range_start'], '%d/%m/%Y')
+                    d2 = datetime.strptime(woo_data['date_range_end'], '%d/%m/%Y')
+                    months = (d2.year - d1.year) * 12 + (d2.month - d1.month)
+                    if months > 0:
+                        enriched["duration_months"] = months
+                except (ValueError, TypeError):
+                    pass
+            if woo_data.get('category') and (not enriched.get("categories") or not any(c for c in (enriched.get("categories") or []) if c)):
+                cat_names = {'cursos': 'Curso', 'diplomas': 'Diplomado', 'especializaciones': 'Especialización', 'certificaciones': 'Certificación'}
+                enriched["categories"] = [cat_names.get(woo_data['category'], woo_data['category'])]
 
             # Parse total_cost_est: extract number from strings like "S/ 1,500" or "1500 soles"
             cost_raw = enriched.get("total_cost_est")
