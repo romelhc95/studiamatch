@@ -180,7 +180,7 @@ class EnrichmentWorker:
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
         return text[:max_len]
 
-    def _call_llm_for_pillars(self, name, description, inst_id=None):
+    def _call_llm_for_pillars(self, name, description, inst_id=None, extracted_sections=None):
         # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
         if self._mock_only:
             logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
@@ -190,6 +190,14 @@ class EnrichmentWorker:
         section_keywords = profile.get('section_keywords', {})
         section_keywords = profile.get('section_keywords', {})
         field_defaults = profile.get('field_defaults', {})
+
+        # Append extracted section content for richer context
+        extra_context = ""
+        if extracted_sections:
+            for field_name, content in extracted_sections.items():
+                if content and str(content).strip():
+                    extra_context += f"\n[{field_name}]: {str(content)[:500]}"
+        full_description = (description or "") + extra_context
 
         hints = ""
         if section_keywords:
@@ -203,7 +211,7 @@ class EnrichmentWorker:
 
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
 [SYS] Nombre: {self._sanitize_for_prompt(name, 200)}
-[SYS] Descripción: {self._sanitize_for_prompt(description, 1200)}
+[SYS] Descripción: {self._sanitize_for_prompt(full_description, 5000)}
 {hints}
 
 REGLAS CRÍTICAS:
@@ -221,12 +229,28 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             return result, provider_name
         return self._generate_smart_mock(name, description), None
 
+    def _fetch_sr_sections(self, staging_id):
+        """Look up extracted_sections from staging_raw metadata for richer LLM context."""
+        try:
+            sr = self.db.select_pipeline('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata')
+            if sr and sr[0].get('metadata'):
+                meta = sr[0]['metadata']
+                if isinstance(meta, str):
+                    import json
+                    meta = json.loads(meta)
+                return meta.get('extracted_sections', {})
+        except Exception as e:
+            logger.debug(f"Could not fetch SR sections for {staging_id}: {e}")
+        return {}
+
     def enrich_record(self, cleansed):
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
+        staging_id = cleansed.get('staging_id')
+        sections = self._fetch_sr_sections(staging_id) if staging_id else {}
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id)
+            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections)
             is_mock = provider_name is None
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty

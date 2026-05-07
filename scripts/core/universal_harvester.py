@@ -417,43 +417,52 @@ class UniversalHarvester:
         return new_urls
 
     async def discover_catalog_links(self, browser):
-        """Discovery mode: Playwright scroll + link extraction (replaces SmartData/New Horizons)."""
-        catalog_url = self.institution.get('website_url')
+        """Discovery mode: Playwright scroll + link extraction (replaces SmartData/New Horizons).
+        Navigates through seed_urls (from profile) and fallback to website_url."""
         if not browser:
             logger.warning("Catalog link extraction requires Playwright browser")
             return None
         logger.info(f"🔍 [CATALOG LINKS] Starting scroll discovery for {self.institution.get('name')}")
         existing_urls = await self._load_existing_urls()
         new_urls = []
+        seed_urls = self.profile.get('seed_urls', []) if self.profile else []
+        catalog_urls = list(seed_urls) if seed_urls else []
+        fallback_url = self.institution.get('website_url')
+        if fallback_url and fallback_url not in catalog_urls:
+            catalog_urls.append(fallback_url)
         page = await browser.new_page(user_agent=get_random_user_agent())
         try:
             if self.requires_stealth and STEALTH_AVAILABLE:
                 stealth_local = Stealth()
                 await stealth_local.apply_stealth_async(page)
-            await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
-            await self._dismiss_popups(page)
-            for iteration in range(1, self.catalog_scroll_iterations + 1):
+            for catalog_url in catalog_urls:
                 if self.check_time_guard():
                     break
-                scroll_y = 400 + iteration * 100
-                await page.evaluate(f'window.scrollBy(0, {scroll_y})')
-                await asyncio.sleep(2)
-                if self.catalog_link_selector:
-                    els = await page.query_selector_all(self.catalog_link_selector)
-                    for el in els:
-                        href = await el.get_attribute('href')
-                        if href:
-                            full_url = normalize_url(urljoin(catalog_url, href))
-                            if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                                new_urls.append(full_url)
-                                self.course_urls.add(full_url)
-                                self._save_discovered_url(full_url)
-                if iteration % 5 == 0:
-                    logger.info(f"  Scroll {iteration}/{self.catalog_scroll_iterations}: {len(new_urls)} new URLs so far")
-                has_footer = await page.evaluate('() => document.querySelector("footer") !== null && window.scrollY + window.innerHeight >= document.body.scrollHeight')
-                if has_footer:
-                    logger.info("  Reached page bottom, stopping scroll")
-                    break
+                logger.info(f"  Navigating to catalog page: {catalog_url}")
+                await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
+                await self._dismiss_popups(page)
+                for iteration in range(1, self.catalog_scroll_iterations + 1):
+                    if self.check_time_guard():
+                        break
+                    scroll_y = 400 + iteration * 100
+                    await page.evaluate(f'window.scrollBy(0, {scroll_y})')
+                    await asyncio.sleep(2)
+                    if self.catalog_link_selector:
+                        els = await page.query_selector_all(self.catalog_link_selector)
+                        for el in els:
+                            href = await el.get_attribute('href')
+                            if href:
+                                full_url = normalize_url(urljoin(catalog_url, href))
+                                if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
+                                    new_urls.append(full_url)
+                                    self.course_urls.add(full_url)
+                                    self._save_discovered_url(full_url)
+                    if iteration % 5 == 0:
+                        logger.info(f"  Scroll {iteration}/{self.catalog_scroll_iterations}: {len(new_urls)} new URLs so far")
+                    has_footer = await page.evaluate('() => document.querySelector("footer") !== null && window.scrollY + window.innerHeight >= document.body.scrollHeight')
+                    if has_footer:
+                        logger.info("  Reached page bottom, stopping scroll")
+                        break
         except Exception as e:
             logger.warning(f"Error during catalog scroll discovery: {e}")
         finally:
