@@ -158,7 +158,15 @@ class CleansingWorker:
                 for p in self.profiles:
                     ep = p.get('exclusion_patterns', [])
                     if ep:
-                        raw_patterns.extend(ep)
+                        if isinstance(ep, str):
+                            try:
+                                parsed = json.loads(ep)
+                                if isinstance(parsed, list):
+                                    raw_patterns.extend(parsed)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        else:
+                            raw_patterns.extend(ep)
                 if raw_patterns:
                     compiled = []
                     for exc in set(raw_patterns):
