@@ -71,21 +71,32 @@ def _exec_sql_direct(db, sql_text):
         return False
 
     project_ref = match.group(1)
-    dsn = f"postgresql://postgres:{secret_key}@db.{project_ref}.supabase.co:5432/postgres"
+    # Try connection pooler first (port 6543), fall back to direct (port 5432)
+    poolers = [
+        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-1.pooler.supabase.com:6543/postgres",
+        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-2.pooler.supabase.com:6543/postgres",
+    ]
 
     try:
         import psycopg2
-        conn = psycopg2.connect(dsn, connect_timeout=10)
-        conn.autocommit = True
-        cur = conn.cursor()
-        cur.execute(sql_text)
-        cur.close()
-        conn.close()
-        return True
+        last_err = None
+        for dsn in poolers:
+            try:
+                conn = psycopg2.connect(dsn, connect_timeout=10)
+                conn.autocommit = True
+                cur = conn.cursor()
+                cur.execute(sql_text)
+                cur.close()
+                conn.close()
+                return True
+            except Exception as e:
+                last_err = e
+                continue
+        raise last_err or Exception("All poolers failed")
     except ImportError:
         print("  ⚠️  psycopg2 no instalado — no se puede conectar directamente")
     except Exception as e:
-        print(f"  ⚠️  Conexión directa falló: {e}")
+        print(f"  ⚠️  Conexión por pooler falló: {e}")
 
     return False
 
