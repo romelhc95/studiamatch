@@ -33,7 +33,7 @@
 - **Estado Actual**: Fases 92, 93 y 94 completadas. PR #50 ya fusionado en `desarrollo` y promovido a `certificacion` → `main`. Free DB: 48 cursos activos, 35 enriched DMC synced. Pro DB: **0 cursos, 0 enriched, 0 cleansed, 0 staging** — pipeline NUNCA ejecutado en Pro.
 - **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. Código y config en Free funcionales. Migrations SQL pendientes en Pro para Fases 79B, 79C, 82, 90, 93, 94.
 - **Brecha Free ↔ Pro**: Pro carece de 4 columnas en `institution_site_profiles` (`noise_patterns`, `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`) y tiene menos exclusiones en perfiles. Sin datos de pipeline.
-- **Próxima Acción**: Fase 95 (Pro Schema Sync) → Fase 96 (FG2 en Pro) → Fase 97 (db_migrate.py automation) → Fase 98 (parity check).
+- **Próxima Acción**: Merge PR #57 (Fases 95-98) a `desarrollo` → `certificacion` → `main`. Al llegar a `main`, `db-sync-to-pro.yml` aplica migrations pendientes y dispara FG2 automáticamente en Pro.
 
 ## Tareas Pendientes Priorizadas
 
@@ -2106,7 +2106,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    - [x] Misma migration aplicada en Free
    - [x] Paridad Free ↔ Pro verificada: columnas, RPCs, perfil DMC coinciden
 
-### Fase 96: FG2 en Pro — Primera Ejecución [~] En progreso (GH Actions run #25610442408)
+### Fase 96: FG2 en Pro — Primera Ejecución [ ] Pendiente — se ejecutará automáticamente al mergear PR #57 a `main` vía `db-sync-to-pro.yml`
 
 **Objetivo**: Ejecutar el pipeline completo en Pro por primera vez. Pro debe producir los mismos ~48 cursos DMC que Free.
 
