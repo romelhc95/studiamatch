@@ -1,0 +1,103 @@
+name: DB Sync to Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: studiamatch-db-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: "Detect pending migrations"
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    outputs:
+      pending_count: ${{ steps.check.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check pending migrations
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          python3 scripts/maintenance/db_migrate.py --env pro --dry-run > report.txt
+          count=$(grep -c "PENDIENTE" report.txt || echo 0)
+          echo "count=$count" >> $GITHUB_OUTPUT
+          cat report.txt
+
+  apply:
+    name: "Apply pending migrations"
+    needs: detect
+    if: needs.detect.outputs.pending_count > 0
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Apply migrations to Pro
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+        run: python3 scripts/maintenance/db_migrate.py --env pro
+
+  verify:
+    name: "Verify schema parity"
+    needs: apply
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run parity check
+        id: parity
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+        continue-on-error: true
+        run: python3 scripts/maintenance/check_db_parity.py --env pro
+      - name: Report parity result
+        run: |
+          if [ "${{ steps.parity.outcome }}" = "failure" ]; then
+            echo "❌ Parity check FAILED — Pro no está en paridad con Free"
+            exit 1
+          else
+            echo "✅ Parity check PASSED"
+          fi
+
+  trigger-fg2:
+    name: "Trigger FG2 in Production"
+    needs: [apply, verify]
+    if: success()
+    uses: ./.github/workflows/production_pipeline.yml
+    secrets:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+      NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
