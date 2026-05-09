@@ -226,7 +226,7 @@ CREATE OR REPLACE FUNCTION exec_sql(sql_text text)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, pg_temp
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
   EXECUTE sql_text;
