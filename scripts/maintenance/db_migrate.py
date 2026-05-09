@@ -22,6 +22,7 @@ import os
 import sys
 import glob
 import argparse
+import time
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,6 +59,33 @@ def extract_name(filepath):
     return os.path.splitext(basename)[0]
 
 
+def _exec_sql_with_retry(db, sql, max_retries=3):
+    """Ejecuta SQL via RPC exec_sql con reintento si el schema cache no está actualizado."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = db.rpc("exec_sql", {"sql_text": sql})
+            if result is None:
+                error_text = getattr(result, 'text', '') or ''
+                if 'PGRST202' in error_text or 'Could not find the function' in str(result):
+                    if attempt < max_retries:
+                        print(f"  ⏳ Schema cache no actualizado. Reintento {attempt}/{max_retries}...")
+                        db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
+                        time.sleep(2)
+                        continue
+                print(f"  ❌ ERROR: RPC exec_sql retornó None")
+                return None
+            return result
+        except Exception as e:
+            estr = str(e)
+            if 'PGRST202' in estr and attempt < max_retries:
+                print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries}...")
+                time.sleep(3)
+                continue
+            print(f"  ❌ ERROR: {e}")
+            return None
+    return None
+
+
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
@@ -75,15 +103,10 @@ def apply_migration(db, filepath, dry_run=False):
 
     print(f"  ⏳ {name} — aplicando...")
 
-    try:
-        result = db.rpc("exec_sql", {"sql_text": sql})
-        if result is None:
-            print(f"  ❌ {name} — ERROR: RPC exec_sql retornó None")
-            return False
-        print(f"  ✅ {name} — OK")
-    except Exception as e:
-        print(f"  ❌ {name} — ERROR: {e}")
+    result = _exec_sql_with_retry(db, sql)
+    if result is None:
         return False
+    print(f"  ✅ {name} — OK")
 
     try:
         now = datetime.utcnow().isoformat()
