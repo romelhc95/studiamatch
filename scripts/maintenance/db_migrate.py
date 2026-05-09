@@ -96,6 +96,11 @@ def apply_migration(db, filepath, dry_run=False):
     except Exception as e:
         print(f"  ⚠️  {name} — aplicada pero no se pudo registrar: {e}")
 
+    try:
+        db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
+    except Exception:
+        pass
+
     return True
 
 
