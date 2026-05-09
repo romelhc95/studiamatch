@@ -63,23 +63,18 @@ def _exec_sql_with_retry(db, sql, max_retries=3):
     """Ejecuta SQL via RPC exec_sql con reintento si el schema cache no está actualizado."""
     for attempt in range(1, max_retries + 1):
         try:
-            result = db.rpc("exec_sql", {"sql_text": sql})
-            if result is None:
-                error_text = getattr(result, 'text', '') or ''
-                if 'PGRST202' in error_text or 'Could not find the function' in str(result):
-                    if attempt < max_retries:
-                        print(f"  ⏳ Schema cache no actualizado. Reintento {attempt}/{max_retries}...")
-                        db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
-                        time.sleep(2)
-                        continue
-                print(f"  ❌ ERROR: RPC exec_sql retornó None")
-                return None
+            result = db.rpc_raise("exec_sql", {"sql_text": sql})
             return result
         except Exception as e:
             estr = str(e)
             if 'PGRST202' in estr and attempt < max_retries:
                 print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries}...")
-                time.sleep(3)
+                for _ in range(3):
+                    try:
+                        db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
+                    except Exception:
+                        pass
+                    time.sleep(2)
                 continue
             print(f"  ❌ ERROR: {e}")
             return None
