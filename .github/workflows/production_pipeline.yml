@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '0 2 * * *' # Diario: 02:00 UTC (Rolling Shard)
   workflow_dispatch:      # Manual
+  workflow_call:          # Called by db-sync-to-pro.yml after schema sync
 
 concurrency:
   group: studiamatch-fg2-${{ github.ref }}
