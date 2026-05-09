@@ -71,18 +71,23 @@ def _exec_sql_direct(db, sql_text):
         return False
 
     project_ref = match.group(1)
-    # Try connection pooler first (port 6543), fall back to direct (port 5432)
-    poolers = [
+    region = os.environ.get("SUPABASE_REGION", "us-west-1")
+
+    dsn_list = [
+        # Pooler (port 6543) — different region variants
+        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-{region}.pooler.supabase.com:6543/postgres",
         f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-1.pooler.supabase.com:6543/postgres",
         f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-2.pooler.supabase.com:6543/postgres",
+        # Direct (port 5432)
+        f"postgresql://postgres:{secret_key}@db.{project_ref}.supabase.co:5432/postgres",
     ]
 
     try:
         import psycopg2
         last_err = None
-        for dsn in poolers:
+        for dsn in dsn_list:
             try:
-                conn = psycopg2.connect(dsn, connect_timeout=10)
+                conn = psycopg2.connect(dsn, connect_timeout=8)
                 conn.autocommit = True
                 cur = conn.cursor()
                 cur.execute(sql_text)
@@ -91,28 +96,37 @@ def _exec_sql_direct(db, sql_text):
                 return True
             except Exception as e:
                 last_err = e
+                print(f"  ⚠️  DSN {dsn[:60]}... falló: {type(e).__name__}")
                 continue
-        raise last_err or Exception("All poolers failed")
+        raise last_err or Exception("All connections failed")
     except ImportError:
         print("  ⚠️  psycopg2 no instalado — no se puede conectar directamente")
     except Exception as e:
-        print(f"  ⚠️  Conexión por pooler falló: {e}")
+        print(f"  ⚠️  Todas las conexiones directas fallaron: {e}")
 
     return False
 
 
-def _exec_sql_with_retry(db, sql, max_retries=3):
-    """Ejecuta SQL via RPC exec_sql con reintento y fallback a conexión directa."""
+def _exec_sql_with_retry(db, sql, max_retries=6):
+    """Ejecuta SQL via RPC exec_sql con reintento y fallback a conexión directa.
+    PostgREST puede tardar varios segundos en refrescar su schema cache
+    después de crear nuevas funciones. Los reintentos cada 10s permiten
+    que PostgREST detecte los cambios."""
     for attempt in range(1, max_retries + 1):
         try:
             result = db.rpc_raise("exec_sql", {"sql_text": sql})
             return result
         except Exception as e:
             estr = str(e)
-            if 'PGRST202' in estr and attempt < max_retries:
-                print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries}...")
-                time.sleep(5)
-                continue
+            if 'PGRST202' in estr:
+                if attempt < max_retries:
+                    print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries} (esperando 10s)...")
+                    try:
+                        db.select('institutions', limit=1)
+                    except Exception:
+                        pass
+                    time.sleep(10)
+                    continue
             print(f"  ❌ ERROR: {e}")
             break
 
