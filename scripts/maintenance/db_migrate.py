@@ -21,12 +21,13 @@ Requisito: La BD debe tener el RPC exec_sql(text) creado (Fase 95).
 import os
 import sys
 import glob
+import re
 import argparse
 import time
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.db_client import get_db_client
+from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -59,8 +60,38 @@ def extract_name(filepath):
     return os.path.splitext(basename)[0]
 
 
+def _exec_sql_direct(db, sql_text):
+    """Ejecuta SQL directamente contra la BD usando conexión psycopg2 vía URL.",
+    Fallback cuando exec_sql RPC no está disponible (PGRST202 schema cache miss).
+    """
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    secret_key = os.environ.get("NEXT_SUPABASE_SECRET_KEY", "")
+    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
+    if not match or not secret_key:
+        return False
+
+    project_ref = match.group(1)
+    dsn = f"postgresql://postgres:{secret_key}@db.{project_ref}.supabase.co:5432/postgres"
+
+    try:
+        import psycopg2
+        conn = psycopg2.connect(dsn, connect_timeout=10)
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute(sql_text)
+        cur.close()
+        conn.close()
+        return True
+    except ImportError:
+        print("  ⚠️  psycopg2 no instalado — no se puede conectar directamente")
+    except Exception as e:
+        print(f"  ⚠️  Conexión directa falló: {e}")
+
+    return False
+
+
 def _exec_sql_with_retry(db, sql, max_retries=3):
-    """Ejecuta SQL via RPC exec_sql con reintento si el schema cache no está actualizado."""
+    """Ejecuta SQL via RPC exec_sql con reintento y fallback a conexión directa."""
     for attempt in range(1, max_retries + 1):
         try:
             result = db.rpc_raise("exec_sql", {"sql_text": sql})
@@ -69,15 +100,16 @@ def _exec_sql_with_retry(db, sql, max_retries=3):
             estr = str(e)
             if 'PGRST202' in estr and attempt < max_retries:
                 print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries}...")
-                for _ in range(3):
-                    try:
-                        db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
-                    except Exception:
-                        pass
-                    time.sleep(2)
+                time.sleep(5)
                 continue
             print(f"  ❌ ERROR: {e}")
-            return None
+            break
+
+    print("  ⏳ Intentando conexión directa a la base de datos...")
+    if _exec_sql_direct(db, sql):
+        print("  ✅ Ejecutado via conexión directa")
+        return {"status": "success"}
+    print("  ❌ Falló también la conexión directa")
     return None
 
 
