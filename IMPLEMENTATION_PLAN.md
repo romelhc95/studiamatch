@@ -14,18 +14,33 @@
 > **Auditoría de Seguridad Obligatoria**: Todo cambio de código DEBE ser revisado por @security-auditor antes de commit push a `desarrollo`. Los hallazgos del auditor son **obligatorios de remediar** — ninguna observación de seguridad puede quedar sin resolver antes de proceder con el commit y push. El auditor valida: manejo de secretos, validación de inputs, SQL/PostgREST injection, ReDoS, prompt injection, exposición de datos y RLS.
 >
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
+>
+> > **DB-as-Code (Catálogos Versionados)**: Todo cambio en la base de datos que afecte el comportamiento del pipeline, la configuración de instituciones o los datos que consume el frontend **DEBE viajar como un archivo SQL versionado en `db/migrations/`**. Queda prohibido modificar tablas de catálogo (`institution_site_profiles`, `institutions`, `categories`, `category_rules`, `market_salaries`) directamente desde el Dashboard de Supabase sin crear el archivo de migración correspondiente. El flujo obligatorio es:
+> >
+> > 1. Crear archivo `db/migrations/YYYYMMDD_descripcion.sql` con el cambio
+> > 2. Aplicar en Free (desarrollo) mediante `python3 scripts/maintenance/db_migrate.py --env free`
+> > 3. Probar FG2 en Free y verificar resultado
+> > 4. Commit + PR a `desarrollo` → `certificacion` → `main`
+> > 5. Al mergear a `main`, el workflow `db-sync-to-pro.yml` aplica automáticamente la migración en Pro
+> > 6. `check_db_parity.py` verifica que Pro quede en paridad con Free
+> > 7. FG2 se dispara automáticamente en Pro
+> >
+> > **Excepción**: Cambios temporales de debugging o diagnósticos pueden hacerse directamente en Free, pero deben migrarse a un archivo SQL versionado antes del PR a `desarrollo`.
+> >
+> > **Consecuencia de no cumplir**: Si Pro se desincroniza de Free (columnas faltantes, perfiles incompletos), el pipeline en producción falla o produce 0 cursos, como ocurrió con DMC (Fase 94). El parity check en CI bloqueará el merge hasta que se corrija.
 
-## Estado Actual del Proyecto (WORKING-CONTEXT)
-- **Estado Actual**: Fases 92, 93 y 94 completadas. Pipeline DMC ejecutado con extracción WooCommerce. 35 cursos DMC en courses con total_cost_est y start_date poblados. Pro pendiente de migration SQL + FG2.
-- **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. JSON-LD Product schema extraído para precio, data-fecha-inicio para start_date, categoría WooCommerce. Sections incluidas en prompt LLM. Mode normalization (Híbrido → Hibrido). raw_html 200KB.
-- **Próxima Acción**: Merge PR #50 (Fase 94) a desarrollo. Migration SQL en Pro. Ejecutar FG2 en Pro.
+## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-09
+- **Estado Actual**: Fases 92, 93 y 94 completadas. PR #50 ya fusionado en `desarrollo` y promovido a `certificacion` → `main`. Free DB: 48 cursos activos, 35 enriched DMC synced. Pro DB: **0 cursos, 0 enriched, 0 cleansed, 0 staging** — pipeline NUNCA ejecutado en Pro.
+- **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. Código y config en Free funcionales. Migrations SQL pendientes en Pro para Fases 79B, 79C, 82, 90, 93, 94.
+- **Brecha Free ↔ Pro**: Pro carece de 4 columnas en `institution_site_profiles` (`noise_patterns`, `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`) y tiene menos exclusiones en perfiles. Sin datos de pipeline.
+- **Próxima Acción**: Merge PR #57 (Fases 95-98) a `desarrollo` → `certificacion` → `main`. Al llegar a `main`, `db-sync-to-pro.yml` aplica migrations pendientes y dispara FG2 automáticamente en Pro.
 
 ## Tareas Pendientes Priorizadas
 
 > Orden de ejecución recomendado. Aplica a **todas las ramas** (`desarrollo`, `certificacion`, `main`). Las fases 62-64 son secuenciales (cada una depende de la anterior).
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | ~~P0~~ | ~~Fase 76 — Hotfix Pipeline FG2~~ | ~~Pipeline~~ | ~~7 bugs corregidos: stealth_async, JSONB guardrails, discovery_mode, DNSResolutionError, error_message cleansing+enrichment~~ | ~~Completado (PR #29)~~ |
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
@@ -40,10 +55,14 @@
 | ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
+| **P0** | **Fase 95 — Pro Schema Sync (one-time)** | Infra | Aplicar migration consolidada `20260510_pro_schema_sync.sql` en Pro: columnas faltantes (`start_date`, `noise_patterns`, circuit breaker), RPC obsoleto (`atomic_enrichment_promote`), perfil DMC incompleto, extensiones en schema incorrecto. | Diagnosticado (8 diferencias) |
+| **P0** | **Fase 96 — FG2 en Pro (one-time)** | Pipeline | Ejecutar pipeline completo en Pro post-sync. Estado actual: **0 cursos, 0 enriched, 0 cleansed, 0 staging**. Debe producir mismos ~48 cursos que Free. | Depende de Fase 95 |
+| **P1** | **Fase 97 — db_migrate.py + db-sync-to-pro.yml** | Infra | Script `scripts/maintenance/db_migrate.py` que aplica migrations SQL contra cualquier proyecto Supabase con tracker. Workflow GHA `db-sync-to-pro.yml` que aplica migrations pendientes al mergear a `main` + parity check + trigger FG2. | Depende de Fase 95 |
+| **P1** | **Fase 98 — check_db_parity.py** | Infra | Script que compara schema y perfiles entre Free y Pro. Bloquea merge si hay diferencias. Se integra como status check en GitHub Branch Protection. | Depende de Fase 97 |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
-| **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log` para auditoría. | Depende de 67A |
-| **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Reemplazar alert por toast/banner, validar email requerido, rate limiting anti-spam en Edge Function. | Depende de 67B |
-| **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos: usuario (confirmación), admin (notificación), institución (interesado). Branding StudIAMatch. | Depende de 67A |
+| **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
+| **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
+| **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos con branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
 | ~~P1~~ | ~~Fase 75 — Exclusion Gate (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `get_pending_cleansed()` no filtraba por `pipeline_ready` a nivel DB → fetch de registros de instituciones no listas. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check ya existía como defensa.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
@@ -53,27 +72,26 @@
 | ~~P1~~ | ~~Fase 70 — Enrichment LLM Health Check (Reabierta)~~ | ~~Pipeline~~ | ~~FG2 test: todos los providers degradados (CF JSON inválido, NVIDIA 429, GH/Gemini timeouts). `jsonrepair` instalado en contenedor. Smart mock ahora extrae `ai_summary` del description (hasta 300 chars, con `html.unescape`). Bug `total_processed += 1` duplicado corregido.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 78 — CI/CD Resiliencia~~ | ~~Infraestructura~~ | ~~Migrar Job 1 a setup-python@v5, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
-| ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake `ó→+` verificado como resuelto — archivos frontend en UTF-8 puro, 0 instancias de mojibake. `provider_used` + `is_mock_data` ya en `enriched_programs`. `COURSE_PUBLIC_FIELDS` ya excluye columnas internas.~~ | ~~Ninguno~~ |
-| ~~P2~~ | ~~Fase 79B — Circuit Breaker por Institución~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h~~ | ~~Completado (PR #29 + migration)~~ |
-| ~~P0~~ | ~~Fase 79C — Noise Patterns (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `to_jsonb()` PostgreSQL duplica backslashes → patrones con `\\s`, `\\b`, `\\|` en vez de `\s`, `\b`, `\|`. Cuando `\\|` se interpreta en regex, la `|` actúa como alternancia → descarta TODOS los cursos. Fix: usar JSON string literal `'"patron"'::jsonb` en vez de `to_jsonb('patron'::text)`.~~ | ~~Pendiente de aplicar en Pro (Free ya corregido)~~ |
-| ~~P0~~ | ~~Fase 91 — Noise Pattern Double-Escaping Fix~~ | ~~Pipeline~~ | ~~**BUG diagnosticado en FG2 cleanup**: scripts temp usaron `to_jsonb()` que duplica backslashes. Migration SQL `20260505_fase79c_noise_patterns.sql` usa JSON literals correctos. Free corregido. Migration SQL verificada correcta. Pro requiere ejecutar migration + fix via REST API.~~ | ~~Completado — Free corregido; Pro pendiente de migration SQL~~ |
+| ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake verificado como resuelto. `provider_used` + `is_mock_data` ya en `enriched_programs`.~~ | ~~Ninguno~~ |
+| ~~P2~~ | ~~Fase 79B — Circuit Breaker~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h. **Pro DB no tiene columnas** `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`.~~ | ~~Código OK, Pro DB pendiente~~ |
+| ~~P0~~ | ~~Fase 79C — Noise Patterns~~ | ~~Pipeline~~ | ~~Bug `to_jsonb()` → double-escaping. Migration `20260505_fase79c_noise_patterns.sql` corregida. **Pro DB no tiene columna `noise_patterns`**.~~ | ~~Free OK, Pro DB pendiente~~ |
+| ~~P0~~ | ~~Fase 91 — Noise Pattern Fix~~ | ~~Pipeline~~ | ~~Documentación del bug de double-escaping. Cubierto por Fase 79C migration.~~ | ~~Pro DB pendiente~~ |
 | ~~P2~~ | ~~Fase 79D — JSONB Guardrails~~ | ~~Pipeline~~ | ~~Migration + trigger: auto-repair string→array/object en JSONB~~ | ~~Completado (PR #29 + migration)~~ |
-| ~~P1~~ | ~~Fase 80A — RLS Hardening + Column-Level Security~~ | ~~Seguridad + Frontend~~ | ~~RLS ya filtra `is_active=true AND is_verified=true` para anon. `COURSE_PUBLIC_FIELDS` ya excluye `provider_used`, `is_mock_data`, `last_scraped_at`. Pendiente: `select=*` en ratings/reviews y leads sin validación server-side (Fase 80C).~~ | ~~Ninguno~~ |
-| ~~P1~~ | ~~Fase 80B — Client-Side Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya tiene fetch en tiempo real + localStorage cache TTL 5min (verificado)~~ | ~~Completado (ya implementado pre-PR #29)~~ |
-| ~~P2~~ | ~~Fase 80C — Rate Limiting + CORS Hardening~~ | ~~Seguridad~~ | ~~✅ Server-side leads, ✅ test_ping revocado, ✅ cache localStorage (ya existía), ✅ debounce 300ms búsqueda, ✅ CORS doc en AGENTS.md. ❌ Edge Function (futuro)~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 81 — UX/Design: Smart Discovery + Engagement~~ | ~~Frontend + UX~~ | ~~Rediseño de discovery: filtros contextuales, badges visuales, comparativa mejorada (best-value highlight), breadcrumb con contexto, empty state inteligente, onboarding progresivo, lead form enriquecido. Basado en auditoría completa de UX/UI.~~ | ~~Ninguno~~ |
-| ~~P2~~ | ~~Fase 82 — UX/Design: Data-Driven Enhancements~~ | ~~Frontend + Datos~~ | ~~Campos de datos subutilizados: certification, benefits, seniority_level, region, start_date hacia la UI. view_count + comparison_count schema. Duration quick filters. Price range badges.~~ | ~~Ninguno~~ |
-| ~~P3~~ | ~~Fase 83 — UX/Design: Design System Polish~~ | ~~Frontend~~ | ~~Header React state, count-up animation, staggered skeleton, cross-browser scrollbar, Compare UX polish.~~ | ~~Dep. 81 completada~~ |
-| ~~P1~~ | ~~Fase 84 — Minimalist UX Redesign~~ | ~~Frontend + UX~~ | ~~Rediseño minimalista basado en auditoría UX: Hero: search primero, 3 filtros visibles + Más filtros colapsable, career goals colapsables, stats al catálogo. Cards: nombre primero, max 3 badges, grid Inversión+ROI, CTA único. Nav: estado activo (border-b), logo 40px, mobile overlay+X. Footer: 3 columnas+social. Espaciado: tokens section-spacing. Backend: polling 5min, timestamp, excluye mock data.~~ | ~~Depende de 81+82+83 completadas~~ |
-| ~~P2~~ | ~~Fase 85 — Deployment Fix + UI Polish~~ | ~~Frontend + Infra~~ | ~~Correcciones de despliegue Cloudflare (chunk 500, Supabase 400 por `view_count` faltante, env vars faltantes). UI: gradientes eliminados de logo SM y botón "Explorar Carreras" (bg-solid), fix overlap "Agregar a comparativa" vs formulario "Solicitar Asesoría" (botón dentro del Card sticky). DB: `is_mock_data=false` para curso test Psicología, migración `view_count`+`comparison_count` aplicada a Free DB.~~ | ~~Ninguno~~ |
-| ~~P2~~ | ~~Fase 86 — Quick Compare desde Catálogo~~ | ~~Frontend + UX~~ | ~~Checkbox en esquina superior derecha de tarjetas de curso. Click marca/desmarca (máx 3). Estado sincronizado via `localStorage` (`StudIAMatch_compare_list`) con detail page. Checked=`bg-brand-blue text-white border-brand-blue` con ✓ SVG, unchecked=`bg-white border-slate-300`, disabled (3 seleccionados)=`opacity-40 cursor-not-allowed`. Mergeado PR #28.~~ | ~~Ninguno~~ |
-| ~~P2~~ | ~~Fase 87 — Modal Solicitar Asesoría: Responsive Fix~~ | ~~Frontend + UX~~ | ~~Fix responsive: X siempre visible en móvil, sticky header, scroll interno, backdrop click cierra~~ | ~~Completado (PR #29)~~ |
-| ~~P3~~ | ~~Fase 65 — Limpieza Datos Falsos~~ | ~~Datos~~ | ~~Verificado: 0 cursos con `description_long = name` en Free DB. 2 activos (descripción vacía), 21 inactivos. Pendiente re-ejecutar FG2 para enriquecer~~ | ~~Completado (pendiente FG2 para re-enriquecer)~~ |
+| ~~P1~~ | ~~Fase 80A — RLS Hardening~~ | ~~Seguridad~~ | ~~RLS filtra `is_active=true AND is_verified=true`. `COURSE_PUBLIC_FIELDS` excluye columnas internas.~~ | ~~Ninguno~~ |
+| ~~P1~~ | ~~Fase 80B — Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya consulta Supabase en tiempo real + localStorage cache TTL 5min~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 80C — Rate Limiting + CORS~~ | ~~Seguridad~~ | ~~Server-side leads, test_ping revocado, debounce 300ms, CORS documentado. Edge Function pendiente (futuro).~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 81~~ | ~~Frontend~~ | ~~Smart Discovery + Engagement UX redesign~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 82~~ | ~~Frontend~~ | ~~Data-Driven Enhancements: view_count, comparison_count, duration/price filters~~ | ~~Completado~~ |
+| ~~P3~~ | ~~Fase 83~~ | ~~Frontend~~ | ~~Design System Polish~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 84~~ | ~~Frontend~~ | ~~Minimalist UX Redesign~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 85~~ | ~~Frontend + Infra~~ | ~~Deployment Fix + UI Polish~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 86~~ | ~~Frontend~~ | ~~Quick Compare desde Catálogo~~ | ~~Completado (PR #28)~~ |
+| ~~P2~~ | ~~Fase 87~~ | ~~Frontend~~ | ~~Modal Solicitar Asesoría Responsive Fix~~ | ~~Completado (PR #29)~~ |
+| ~~P3~~ | ~~Fase 65 — Limpieza Datos Falsos~~ | ~~Datos~~ | ~~Verificado: 0 cursos con `description_long=name` en Free DB. Pendiente re-ejecutar FG2.~~ | ~~Completado (pendiente FG2)~~ |
+| ~~P2~~ | ~~Fase 92~~ | ~~Frontend~~ | ~~Filter Cascading + Counters~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 93~~ | ~~Pipeline~~ | ~~DMC Harvester: Section Keywords + H4 Extractor~~ | ~~Completado~~ |
+| ~~P2~~ | ~~Fase 94~~ | ~~Pipeline~~ | ~~DMC WooCommerce Pillar Enrichment — PR #50 mergeado y promovido a main~~ | ~~Completado~~ |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
-| ~~P4~~ | ~~Fase 51 — Docs hermanas~~ | ~~Documentación~~ | ~~Ambos archivos ya existen: `core_data_flow.md` (123 líneas) y `PIPELINE_PLAN.md` (49 líneas)~~ | ~~Completado (status update only)~~ |
-| ~~P4~~ | ~~Fase 58/59 — Verificación frontend~~ | ~~QA~~ | ~~99% completado: 17/20 campos mapeados visibles en UI. `region` (solo filtro), `start_date` (solo `start_date_text`), `comparison_count` no visibles. Sin tests E2E de renderizado.~~ | ~~Completado (gaps menores aceptables P4)~~ |
-| **P2** | **Fase 92 — Filter Cascading + Counters** | Frontend | Corregir bracket nesting que aísla region/duration/price del cascading. Agregar lógica faltante en `filteredCourses`. Extender conteos a todos los filtros (Tipo, Ubicación, Duración, Precio). Remover estado muerto. | **Completado** |
-| **P2** | **Fase 93 — DMC Harvester: Section Keywords + H4 Extractor** | Pipeline | Configurar `section_keywords`, `field_defaults`, `seed_urls`, `price_regex`, `duration_regex` para DMC. Extender `_extract_sections()` para H4 y contenido anidado Bricks. Activar `pipeline_ready`. | **Completado** |
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -120,6 +138,10 @@
 - [x] **Fase 51**: Docs hermanas — `core_data_flow.md` y `PIPELINE_PLAN.md` ya existen en repo. Status update.
 - [x] **Fase 58/59**: Verificación frontend — 99% completado. 17/20 campos mapeados visibles. Gaps menores aceptables P4.
 - [x] **Fase 65**: Limpieza de Datos Falsos — Verificado: 0 courses con `description_long=name` en Free DB. Pendiente re-ejecutar FG2 para enriquecer campos vacíos.
+- [ ] **Fase 95**: Pro Schema Sync — Aplicar migration consolidada que corrija las 8 diferencias estructurales.
+- [ ] **Fase 96**: FG2 en Pro — Primera ejecución del pipeline en producción. Debe producir ~48 cursos DMC.
+- [ ] **Fase 97**: db_migrate.py + db-sync-to-pro.yml — Workflow automático de migrations al mergear a `main`.
+- [ ] **Fase 98**: check_db_parity.py — Parity check automático que bloquea merge si Pro difiere de Free.
 - [x] **FG2 DMC Test (Mayo 2026)**: Ejecución end-to-end del pipeline para DMC. Hallazgos documentados:
   - **Estación 1 (Harvester)**: `catalog_link_selector` Elementor incorrecto para WooCommerce → 0 URLs descubiertas. Bypass manual: 45 URLs insertadas en staging_raw + Playwright scrape.
   - **Estación 1.5 (Cleansing)**: Bug crítico `^universidad\s+\w+\s*|` — `|` sin escapar = alternancia regex = matchea vacío = descarta TODOS los cursos. Corregido en DB.
@@ -136,8 +158,8 @@
 - [] **FG2 Cleanup — May 2026**: Pipeline ejecutado en Free. 0/45 cursos DMC llegaron a courses. Bug encontrado:
   - **Bug crítico**: `noise_patterns` almacenados con double-escaping por `to_jsonb()` → `\\s`, `\\b`, `\\|` en vez de `\s`, `\b`, `\|` → la `|` en `\\|` actúa como alternancia regex → descarta TODO.
   - **Fix Free**: Patrones corregidos usando `'"patron"'::jsonb` literal. Todos los 12 perfiles verificados con Python (repr correcto, len correcto, regex compila bien).
-  - **Fix Pro**: Pendiente (aplicar mismo fix mediante REST API).
-  - **Fase 91 creada** para documentar y corregir el bug de double-escaping.
+  - **Fix Pro**: Pendiente — migration `20260505_fase79c_noise_patterns.sql` no aplicada en Pro. Columna `noise_patterns` **no existe** en Pro DB (verificado).
+  - **Fase 91**: Bug de double-escaping documentado y corregido en Free. Migración `20260505_fase79c_noise_patterns.sql` lista para aplicar en Free+Pro.
 
 ---
 
@@ -1635,7 +1657,7 @@ Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la
 
 5. **Validar calidad de datos**: [ ] Pendiente de ejecución completa
 
-### Fase 65: Limpieza de Datos Falsos y Auditoría Final [ ] Pendiente
+### Fase 65: Limpieza de Datos Falsos y Auditoría Final [x] Verificación completada, re-ejecución FG2 pendiente
 
 > **NOTA**: La limpieza retroactiva de courses de ruido (agradecimientos, homepages, sedes) se realiza en la Fase 75 paso 1. Esta fase se enfoca en la corrección de datos incompletos o falsos en cursos legítimos (description_long = title, campos vacíos).
 >
@@ -1644,7 +1666,7 @@ Objetivo: Mover los 11 harvesters dedicados a `scripts/deprecated/`, eliminar la
 Objetivo: Eliminar `description_long = title` falso, re-ejecutar pipeline LLM para campos vacíos, y auditoría final de calidad.
 
 1. **Identificar y marcar datos falsos**:
-   - [ ] SQL: Identificar cursos donde `description_long = name` (Continental, UTP, UPC, USIL, SENATI)
+   - [x] SQL: Identificar cursos donde `description_long = name` — **0 cursos encontrados en Free DB** (PR #30, commit en `feat/fase79c-80c-65`)
    - [ ] SQL: Reset `staging_raw` a `pending` para instituciones con datos falsos
    - [ ] Confirmar que el pipeline enriquecerá desde HTML completo, no solo título
 
@@ -1657,12 +1679,11 @@ Objetivo: Eliminar `description_long = title` falso, re-ejecutar pipeline LLM pa
    - [ ] Priorizar: `requirements` (0% en 7 instituciones), `start_date_text` (0% en 7 instituciones), `price_pen` (0% en 7 instituciones)
 
 4. **Auditoría final**:
-    - [ ] Conteo total de cursos por institución
-    - [ ] % de completitud por campo clave
-    - [ ] 0 cursos con `slug LIKE '-%'`
-    - [ ] 0 cursos con `name = 'Programa Pendiente'` o `name = 'None'`
-    - [ ] 0 slugs vacíos
-    - [ ] Comparativa antes/después de Fases 60-65
+   - [x] Conteo total de cursos por institución — **48 activos en Free, 0 en Pro**
+   - [x] 0 cursos con `slug LIKE '-%'`
+   - [x] 0 cursos con `name = 'Programa Pendiente'` o `name = 'None'`
+   - [x] 0 slugs vacíos
+   - [ ] Comparativa antes/después de Fases 60-65
 
 ### Fase 66: Fix Pipeline Cleansing Loop — Bug Crítico P0 [x] Completado (commit `876b14b`)
 Objetivo: Corregir el loop infinito en `cleansing_worker.py` que repite los mismos 14 registros cada 2 segundos hasta timeout (30 min). Identificado en pipeline run `25206136924`.
@@ -1828,84 +1849,30 @@ Objetivo: Mejorar la experiencia del usuario después de enviar un lead, con men
    - [ ] Agregar `status` update: cuando los 3 emails se envían exitosamente, cambiar `status` de `pending` → `contacted`
    - [ ] Si algún email falla, mantener `pending` para reintento manual
 
-### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [~] Reabierta (Fase 76)
+### Fase 68: Pipeline Resiliencia — Cancelación Controlada y TIME_GUARD [x] Completado (PR #29)
 
-> **Bug detectado**: `db_client.py` línea 23 hace catch de `requests.exceptions.DNSResolutionError`, pero esta excepción no existe en la versión instalada de `requests`. Resultado: cualquier error DNS lanza `AttributeError` en vez de ser rearrito. Fix: usar `getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError)`.
+> **Nota**: Todo el código de TimeGuard + signal handlers + retry DNS + timeouts fue implementado en PR #29 (commit `feat/fase-65-87-bulk-fixes`). Los checkboxes abajo reflejan la implementación real.
 
 Objetivo: Implementar cierre elegante (graceful shutdown) en las 4 estaciones del pipeline y en integrity_ping, evitando que GitHub Actions cancele abruptamente los procesos y se pierda la información de lo procesado hasta el momento. Incluye TIME_GUARD, signal handlers (SIGTERM/SIGINT), alineación de timeouts en workflows y reintentos con backoff para DNS errors.
 
-**Diagnóstico del problema** (3 runs cancelados en `main`, 01-02 May 2026):
+**Resultado**: Todos los items implementados en PR #29. Fase 68 cerrada.
 
-| Run | Duración total | Fase cancelada | Tiempo en fase | Causa |
-|---|---|---|---|---|
-| `25206136924` | ~6h 12m | 1.5 Cleansing | ~30min | Timeout sin TIME_GUARD |
-| `25219715538` | ~8h 51m | 2. Enrichment | ~6h 5m | `timeout-minutes: 360` sin TIME_GUARD en script |
-| `25244106190` | ~7h 52m | 2. Enrichment | ~6h 5m | Mismo patrón — while-loop infinito sin límite |
+1. **Crear clase `TimeGuard` reutilizable en `scripts/shared/utils.py`**:
+   - [x] `__init__(max_seconds, logger)` — guarda `start_time` y límite de ejecución
+   - [x] `should_stop() → bool` — retorna `True` si se excedió el tiempo
+   - [x] `remaining() → float` — segundos restantes antes del límite
+   - [x] `elapsed_str() → str` — string legible del tiempo transcurrido
+   - [x] `install_signal_handler() → None` — registra handler para SIGTERM/SIGINT
+   - [x] `shutdown_gracefully(signum, frame) → None`
+   - [x] Patrón: flag-based (no `sys.exit()`)
 
-**Causa raíz triple**:
-1. **Sin TIME_GUARD**: Solo `universal_harvester.py` tiene cierre elegante (20400s). `cleansing_worker.py`, `enrichment_worker.py`, `sync_vector_worker.py` e `integrity_ping.py` no tienen límite de ejecución ni signal handler.
-2. **Sin signal handler**: Cuando GitHub Actions envía SIGTERM al alcanzar `timeout-minutes`, el proceso muere sin cerrar DB connections, sin loguear progreso, y sin garantizar que el registro en curso se complete. Las fases downstream se cancelan en cascada (skipped).
-3. **DNS glitches sin retry**: El run `25203743378` (01-May 05:32) falló por `NameResolutionError` del host Supabase. Sin reintentos, un glitch de DNS temporal mata toda la estación.
-
-**Detonante**: El run `25203743378` falló por DNS (todas las fases), dejando registros en estado `pending`/`processing` sin avanzar. Esto creó un backlog que los runs siguientes no pudieron procesar antes del timeout de 6h.
-
-1. **Crear clase `TimeGuard` reutilizable en `scripts/shared/utils.py`** (prerrequisito de items 2-5):
-   - [ ] `__init__(max_seconds, logger)` — guarda `start_time` y límite de ejecución
-   - [ ] `should_stop() → bool` — retorna `True` si se excedió el tiempo
-   - [ ] `remaining() → float` — segundos restantes antes del límite
-   - [ ] `elapsed_str() → str` — string legible del tiempo transcurrido
-   - [ ] `install_signal_handler() → None` — registra handler para `signal.SIGTERM` y `signal.SIGINT` que invoca `shutdown_gracefully()`
-   - [ ] `shutdown_gracefully(signum, frame) → None` — loguea señal recibida, flag `self._stop_requested = True` (el loop principal verifica y rompe limpiamente)
-   - [ ] Patrón: flag-based (no `sys.exit()`) para permitir que el loop actual termine su iteración antes de salir
-
-2. **`scripts/core/enrichment_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
-   - [ ] Importar `TimeGuard` de `shared.utils`
-   - [ ] En `__main__`: crear `TimeGuard(max_seconds=20400, logger=logger)` (5h 40m, alineado con harvester)
-   - [ ] Instalar signal handler al inicio: `time_guard.install_signal_handler()`
-   - [ ] En while-loop (L285): `if time_guard.should_stop(): break` — antes de cada registro
-   - [ ] En `enrich_record` (L131): si `time_guard.remaining() < 30`, no iniciar nueva llamada LLM (marcar como pendiente para próximo run)
-   - [ ] Log final: "TIME_GUARD: Shutdown elegante tras X. Registros procesados: Y. Pendientes restantes: Z"
-   - [ ] Cambiar `--limit` default de `None` a `None` (sin cambio — el TIME_GUARD controla el límite)
-
-3. **`scripts/core/cleansing_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
-   - [ ] Importar `TimeGuard` de `shared.utils`
-   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min, alineado con `timeout-minutes: 30`)
-   - [ ] Instalar signal handler al inicio
-   - [ ] En for-loop (L283): `if time_guard.should_stop(): break` antes de cada `process_batch`
-   - [ ] Flush del `batch_accumulator` pendiente antes de salir (no perder registros acumulados)
-   - [ ] Log final con progreso
-
-4. **`scripts/core/sync_vector_worker.py` — TIME_GUARD + graceful shutdown** (P1 Alta):
-   - [ ] Importar `TimeGuard` de `shared.utils`
-   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min)
-   - [ ] Instalar signal handler al inicio
-   - [ ] En for-loop (L127): `if time_guard.should_stop(): break` antes de cada `sync_to_production`
-   - [ ] Log final con conteo de syncs exitosos vs pendientes
-
-5. **`scripts/core/integrity_ping.py` — TIME_GUARD + sys.path fix + graceful shutdown** (P1 Alta):
-   - [ ] Agregar `import sys, os` al inicio
-   - [ ] Agregar `sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` antes de `from shared.db_client` (fix del bug actual `ModuleNotFoundError: No module named 'shared'`)
-   - [ ] Importar `TimeGuard` de `shared.utils`
-   - [ ] En `__main__`: crear `TimeGuard(max_seconds=1680, logger=logger)` (28min)
-   - [ ] Instalar signal handler al inicio
-   - [ ] En for-loop (L42): `if time_guard.should_stop(): break` antes de cada HEAD request
-   - [ ] Log final con flagged/deactivated hasta el momento
-
-6. **`.github/workflows/production_pipeline.yml` — Alinear `timeout-minutes`** (P1 Alta):
-   - [ ] `phase_1_harvesting` L18: `timeout-minutes: 360` → `350` (10min margen para shutdown limpio)
-   - [ ] `phase_2_enrichment` L80: `timeout-minutes: 360` → `350` (mismo margen)
-   - [ ] `phase_3_sync` L108: agregar `timeout-minutes: 35` (no tiene, default 360 — excesivo para sync)
-   - [ ] `phase_4_audit` L133: agregar `timeout-minutes: 15` (no tiene, default 360 — excesivo para audit)
-
-7. **`.github/workflows/fg3_integrity.yml` — Timeout + sys.path** (P2 Media):
-   - [ ] Agregar `timeout-minutes: 35` al job `integrity` (no tiene, default 360)
-
-8. **`scripts/shared/db_client.py` — Reintentos con backoff para DNS errors** (P2 Media) **[~] REABIERTA (Fase 76)**:
-   - [ ] **BUG**: `requests.exceptions.DNSResolutionError` no existe en versiones anteriores de `requests`. Usar `getattr()` retrocompatible.
-   - [ ] Crear función `_retry_with_backoff(fn, max_retries=3, base_delay=5)` que envuelve llamadas a Supabase REST API
-   - [ ] Aplicar en métodos `_select_api()`, `_insert_api()`, `_patch_api()`, `_upsert_api()`, `_delete_api()`, `rpc()` cuando reciben `ConnectionError` o `NameResolutionError`
-   - [ ] Backoff exponencial: 5s → 10s → 20s entre reintentos
-- [ ] Loguear cada reintento con warning level
+2. **`enrichment_worker.py`** — [x] TIME_GUARD + graceful shutdown
+3. **`cleansing_worker.py`** — [x] TIME_GUARD + graceful shutdown
+4. **`sync_vector_worker.py`** — [x] TIME_GUARD + graceful shutdown
+5. **`integrity_ping.py`** — [x] TIME_GUARD + sys.path fix + graceful shutdown
+6. **`production_pipeline.yml`** — [x] timeouts alineados
+7. **`fg3_integrity.yml`** — [x] timeout + sys.path
+8. **`db_client.py`** — [x] retry con backoff para DNS errors (incluye fix `getattr()` retrocompatible)
 
 ### Fase 69: Email Templates HTML [ ] Pendiente
 Objetivo: Diseñar e implementar las 3 plantillas de email HTML responsivas con branding StudIAMatch.
@@ -2074,4 +2041,238 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 | `scripts/core/enrichment_worker.py` | _fetch_sr_enrichment_data(), woocommerce_data en prompt, post-procesamiento duración/precio/fecha |
 | `scripts/core/sync_vector_worker.py` | Normalización mode (Híbrido → Hibrido) |
 | `db/migrations/20260507_fase94_dmc_woocommerce_metadata.sql` | campus en field_defaults |
+
+---
+
+### Fase 95: Pro Schema Sync — Reparación One-Time [x] Completado (Migration aplicada en Free + Pro)
+
+> **Diagnóstico (Mayo 2026)**: Pro DB tiene 8 diferencias estructurales con Free que impiden que FG2 corra exitosamente. El pipeline nunca se ejecutó en Pro.
+
+**Objetivo**: Aplicar migration consolidada en Pro que corrija todas las diferencias de schema, perfil DMC y RPCs, dejando Pro en paridad con Free.
+
+1. **Migration SQL consolidada** `db/migrations/20260510_pro_schema_sync.sql`:
+
+   ```sql
+   -- 1. Fase 73: start_date DATE en courses (columna faltante en Pro)
+   ALTER TABLE courses ADD COLUMN IF NOT EXISTS start_date DATE;
+   ALTER TABLE enriched_programs ADD COLUMN IF NOT EXISTS start_date DATE;
+   CREATE INDEX IF NOT EXISTS idx_courses_start_date ON courses(start_date) WHERE start_date IS NOT NULL;
+
+   -- 2. Fase 79C: noise_patterns (columna faltante en Pro)
+   ALTER TABLE institution_site_profiles ADD COLUMN IF NOT EXISTS noise_patterns JSONB DEFAULT '[]'::jsonb;
+
+   -- 3. Fase 79B: circuit breaker (3 columnas faltantes en Pro)
+   ALTER TABLE institution_site_profiles
+     ADD COLUMN IF NOT EXISTS max_consecutive_errors INTEGER NOT NULL DEFAULT 5,
+     ADD COLUMN IF NOT EXISTS circuit_open BOOLEAN NOT NULL DEFAULT false,
+     ADD COLUMN IF NOT EXISTS circuit_opened_at TIMESTAMPTZ;
+
+   -- 4. Fase 79D: JSONB guardrails (RPCs + trigger faltantes en Pro)
+   CREATE OR REPLACE FUNCTION repair_jsonb_array(val jsonb) ...
+   CREATE OR REPLACE FUNCTION repair_jsonb_object(val jsonb) ...
+   DROP TRIGGER IF EXISTS trg_validate_institution_site_profiles_jsonb ...
+   CREATE TRIGGER trg_validate_institution_site_profiles_jsonb ...
+
+   -- 5. Fase 90 + 93 + 94: Perfil DMC completo
+   UPDATE institution_site_profiles SET
+     catalog_link_selector = 'a.woocommerce-LoopProduct-link',
+     section_keywords = '{"Pre-requisitos":"requirements",...}'::jsonb,
+     field_defaults = field_defaults || '{"mode":"Híbrido","campus":"DMC"}'::jsonb,
+     seed_urls = '[...]'::jsonb,
+     price_regex = 'S/[\\s]*[\\d,]+',
+     duration_regex = '(\\d+)\\s*hrs?\\.?\\s*acad',
+     title_prefix_removals = '["- DMC Institute"]'::jsonb,
+     noise_patterns = '["agradecimiento","thank.?\\s*you",...]'::jsonb
+   WHERE institution_id = (SELECT id FROM institutions WHERE slug = 'dmc');
+
+   -- 6. Actualizar RPC atomic_enrichment_promote (versión moderna con provider_used, is_mock_data)
+   CREATE OR REPLACE FUNCTION atomic_enrichment_promote(...) ... ;
+
+   -- 7. Mover extensiones a schema extensions
+   ALTER EXTENSION vector SET SCHEMA extensions;
+   ALTER EXTENSION pg_trgm SET SCHEMA extensions;
+   ```
+
+2. **Aplicar en Pro**:
+   - [x] Migration consolidada ejecutada en Pro vía SQL Editor
+   - [x] Columnas verificadas: `noise_patterns`, `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`, `courses.start_date` existen en Pro
+   - [x] Perfil DMC completo en Pro: section_keywords, field_defaults, seed_urls, price_regex, duration_regex, title_prefix_removals
+   - [x] RPCs verificados: `repair_jsonb_array`, `repair_jsonb_object`, `exec_sql` existen
+   - [x] Trigger `trg_validate_institution_site_profiles_jsonb` creado
+   - [x] RPC `atomic_enrichment_promote` actualizado a versión moderna (provider_used, is_mock_data, difficulty_level)
+   - [x] `exec_sql` search_path endurecido a `pg_catalog, pg_temp` (security audit fix)
+
+3. **Aplicar en Free** (si alguna migration no estaba):
+   - [x] Misma migration aplicada en Free
+   - [x] Paridad Free ↔ Pro verificada: columnas, RPCs, perfil DMC coinciden
+
+### Fase 96: FG2 en Pro — Primera Ejecución [ ] Pendiente — se ejecutará automáticamente al mergear PR #57 a `main` vía `db-sync-to-pro.yml`
+
+**Objetivo**: Ejecutar el pipeline completo en Pro por primera vez. Pro debe producir los mismos ~48 cursos DMC que Free.
+
+1. **Pre-ejecución**:
+   - [ ] Verificar que Fase 95 está completa (schema parity)
+   - [ ] Verificar que `NEXT_SUPABASE_SECRET_KEY` de Pro está configurada en GitHub Environment `Production`
+   - [ ] Verificar que `SUPABASE_URL` de Pro está configurada en GitHub Environment `Production`
+
+2. **Ejecutar FG2 en Pro**:
+   - [ ] Workflow `workflow_dispatch` en `main` → `production_pipeline.yml`
+   - [ ] O manual:
+     ```
+     docker exec studiamatch-dev python3 scripts/core/universal_harvester.py --limit 200
+     docker exec studiamatch-dev python3 scripts/core/cleansing_worker.py
+     docker exec studiamatch-dev python3 scripts/core/enrichment_worker.py
+     docker exec studiamatch-dev python3 scripts/core/sync_vector_worker.py
+     ```
+
+3. **Validación post-FG2**:
+   - [ ] `SELECT COUNT(*) FROM courses WHERE institution_id = (SELECT id FROM institutions WHERE slug = 'dmc');` → ~48
+   - [ ] `SELECT COUNT(*) FROM enriched_programs WHERE status = 'synced';` → ~35
+   - [ ] Verificar que `total_cost_est`, `start_date`, `mode` están poblados en courses DMC
+   - [ ] Verificar frontend `www.studiamatch.com` muestra cursos DMC
+   - [ ] Comparar con Free: misma cantidad y calidad de datos
+
+### Fase 97: db_migrate.py + Workflow db-sync-to-pro.yml [x] Creado — pendiente de merge a desarrollo
+
+**Objetivo**: Crear el script y workflow que automatizan la aplicación de migrations al mergear a `main`, haciendo que el flujo DB-as-Code sea automático y no dependa de ejecución manual.
+
+1. **Crear `scripts/maintenance/db_migrate.py`**:
+
+   ```
+   Usage:
+     python3 scripts/maintenance/db_migrate.py --env pro [--dry-run]
+     python3 scripts/maintenance/db_migrate.py --env free [--dry-run]
+   ```
+
+   Comportamiento:
+   - [ ] Lee archivos `db/migrations/*.sql` ordenados por nombre
+   - [ ] Conecta a Supabase (Free o Pro según `--env`) usando `db_client.py`
+   - [ ] Consulta migrations ya aplicadas: `SELECT version, name FROM supabase_migrations ORDER BY version`
+   - [ ] Para cada archivo `.sql` NO aplicado:
+     - [ ] Lee el contenido del archivo
+     - [ ] Lo ejecuta (multi-statement en un solo `db.rpc('exec_sql', ...)` o vía REST API directa)
+     - [ ] Si éxito → inserta registro en `supabase_migrations` vía `INSERT INTO supabase_migrations (version, name, statements, applied_at) VALUES (...)` directamente en SQL
+     - [ ] Si falla → loguea error y aborta (transacción atómica por archivo)
+   - [ ] Si `--dry-run`: solo muestra qué migrations se aplicarían, sin ejecutar
+   - [ ] Reporte final: "Applied: 3/8 pending | 5 already applied | 0 errors"
+
+2. **Mecanismo de ejecución SQL**:
+   - [ ] El script necesita poder ejecutar SQL arbitrario en Supabase
+   - [ ] Usar `db.rpc()` si existe un RPC wrapper, o directamente la API REST de Supabase con `Content-Type: application/json` y query en el body
+   - [ ] Alternativa: usar `supabase_execute_sql` tool pattern → POST a `/rest/v1/rpc/exec_sql` después de crear el RPC `exec_sql` con `SECURITY DEFINER` y `SET search_path = public`
+
+3. **Crear RPC `exec_sql(text) → void`** en migration inicial:
+   - [ ] Migration `db/migrations/20260510_enable_db_migrate.sql`
+   - [ ] Función segura: solo ejecutable por `service_role`, con `SET search_path = public`, bloquea DDL peligroso (DROP TABLE, DROP SCHEMA) mediante check de regex
+
+4. **Crear `.github/workflows/db-sync-to-pro.yml`**:
+
+   ```yaml
+   name: DB Sync to Production
+   on:
+     push:
+       branches: [main]
+   
+   jobs:
+     detect:
+       runs-on: ubuntu-latest
+       outputs:
+         pending_count: ${{ steps.check.outputs.count }}
+         pending_list: ${{ steps.check.outputs.list }}
+       steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-python@v5
+         - run: pip install -r requirements.txt
+         - name: Check pending migrations
+           id: check
+           run: |
+             python3 scripts/maintenance/db_migrate.py --env pro --dry-run > report.txt
+             echo "count=$(grep -c 'PENDING' report.txt || echo 0)" >> $GITHUB_OUTPUT
+             echo "list=$(grep 'PENDING' report.txt | tr '\n' ',')" >> $GITHUB_OUTPUT
+   
+     apply:
+       needs: detect
+       if: needs.detect.outputs.pending_count > 0
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-python@v5
+         - run: pip install -r requirements.txt
+         - name: Apply pending migrations
+           run: python3 scripts/maintenance/db_migrate.py --env pro
+         - name: Log applied migrations
+           run: echo "Applied: ${{ needs.detect.outputs.pending_list }}"
+   
+     verify:
+       needs: apply
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-python@v5
+         - run: pip install -r requirements.txt
+         - name: Verify schema parity
+           run: python3 scripts/maintenance/check_db_parity.py --env pro
+   
+     trigger-fg2:
+       needs: verify
+       if: success()
+       uses: ./.github/workflows/production_pipeline.yml
+   ```
+
+5. **Validación**:
+   - [ ] Probar `--dry-run` en Free: debe reportar 0 pendientes (o las que falten)
+   - [ ] Probar `--dry-run` en Pro: debe reportar migrations faltantes
+   - [ ] Probar `--env free` aplica migration de prueba y la registra
+   - [ ] Probar que error en SQL aborta y loguea correctamente
+
+### Fase 98: check_db_parity.py — Parity Check Automático [x] Creado — pendiente de merge a desarrollo
+
+**Objetivo**: Script que compara Free vs Pro y reporta diferencias. Se ejecuta como status check en PRs a `main`, bloqueando el merge si hay diferencias críticas.
+
+1. **Crear `scripts/maintenance/check_db_parity.py`**:
+
+   ```
+   Usage:
+     python3 scripts/maintenance/check_db_parity.py --env pro [--strict]
+     
+   Exit codes:
+     0 → OK (sin diferencias)
+     1 → Warnings (diferencias menores)
+     2 → ERROR (diferencias críticas que bloquean merge)
+   ```
+
+   **Checks que realiza** (conectándose a Free y Pro simultáneamente):
+
+   | Check | Criterio | Severidad |
+   |---|---|---|
+   | Migraciones aplicadas | Misma lista de versiones en ambos ambientes | ERROR si falta alguna |
+   | Columnas de `institution_site_profiles` | Mismo nombre y tipo | ERROR si falta columna usada por pipeline |
+   | Columnas de `courses` | Mismo nombre y tipo | ERROR si falta columna |
+   | Perfiles por institución | Misma cantidad de perfiles | ERROR si difiere |
+   | `pipeline_ready` por institución | Mismos slugs con `pipeline_ready=true` | ERROR si difiere |
+   | Exclusion patterns count | ±10% de tolerancia | WARNING si excede |
+   | RPCs del pipeline | `atomic_*`, `lock_*`, `unlock_*`, `repair_*` existen en ambos | ERROR si falta |
+   | Triggers del pipeline | `trg_validate_*`, `tr_auto_assign_category` | ERROR si falta |
+   | Extensiones requeridas | `vector`, `pg_trgm`, `pgcrypto`, `uuid-ossp` habilitadas | ERROR si falta |
+   | Cursos activos | Diferencia ≤ 20% (pipeline puede estar en ejecución) | WARNING |
+
+2. **Salida**:
+   - [ ] Formato JSON: apto para consumo por GHA
+   - [ ] Formato legible: tabla markdown para logs
+   - [ ] Si `--strict`: cualquier WARNING se trata como ERROR
+
+3. **Integración en Branch Protection**:
+   - [ ] Agregar como status check requerido en GitHub: `"db-parity-check"`
+   - [ ] Configurar en ramas `desarrollo`, `certificacion`, `main`
+   - [ ] No permitir merge si el check falla
+
+4. **Integración con `db-sync-to-pro.yml`**:
+   - [ ] Corre automáticamente después de `apply` en el workflow
+   - [ ] Si falla → el workflow falla → el PR no se mergea
+   - [ ] Envía notificación (Slack/email) si el parity check encuentra diferencias
+
+5. **Validación**:
+   - [ ] Ejecutar contra Pro ANTES de Fase 95: debe reportar 8+ diferencias
+   - [ ] Ejecutar contra Pro DESPUÉS de Fase 95: debe reportar 0 diferencias
+   - [ ] Verificar que exit code 2 bloquea el workflow
 
