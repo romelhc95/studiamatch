@@ -304,6 +304,8 @@ class DatabaseClient:
         """
         Calls a Supabase RPC function.
         Uses service_role key (pipeline RPCs require bypass of RLS).
+        Returns None on error (legacy behavior, safe for callers that check `if result:`).
+        For error details, check stdout logs (DB_CLIENT_API_ERROR).
         """
         url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
         headers = self._get_headers(use_service_role=True)
@@ -313,6 +315,16 @@ class DatabaseClient:
             return res.json() if res.content else {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {res.text}")
         return None
+
+    def rpc_raise(self, function_name, params=None):
+        """
+        Like rpc() but raises an exception on error.
+        Use this when the caller needs to inspect and handle API errors.
+        """
+        result = self.rpc(function_name, params)
+        if result is None:
+            raise RuntimeError(f"RPC {function_name} failed (see DB_CLIENT_API_ERROR above)")
+        return result
 
 def get_db_client():
     return DatabaseClient()
