@@ -318,13 +318,18 @@ class DatabaseClient:
 
     def rpc_raise(self, function_name, params=None):
         """
-        Like rpc() but raises an exception on error.
-        Use this when the caller needs to inspect and handle API errors.
+        Like rpc() but raises RuntimeError with the API response text on error.
+        Use this when the caller needs to detect specific errors like PGRST202.
         """
-        result = self.rpc(function_name, params)
-        if result is None:
-            raise RuntimeError(f"RPC {function_name} failed (see DB_CLIENT_API_ERROR above)")
-        return result
+        url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.post, url, headers=headers, json=params or {})
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        err_msg = f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {res.text}"
+        print(err_msg)
+        raise RuntimeError(err_msg)
 
 def get_db_client():
     return DatabaseClient()
