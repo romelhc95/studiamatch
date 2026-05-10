@@ -112,7 +112,7 @@ class DatabaseClient:
         res = _request_with_retry(requests.post, url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {(res.text or '')[:200]}")
         return None
 
     def _patch_api(self, table, filters, data):
@@ -120,7 +120,7 @@ class DatabaseClient:
         res = _request_with_retry(requests.patch, url, headers=self._get_headers(use_service_role=True), json=data)
         if res.status_code in [200, 204]:
             return {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {(res.text or '')[:200]}")
         return {"status": "error"}
 
     def _delete_api(self, table, filters):
@@ -128,7 +128,7 @@ class DatabaseClient:
         res = _request_with_retry(requests.delete, url, headers=self._get_headers(use_service_role=True))
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (Delete {table}): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (Delete {table}): {res.status_code} - {(res.text or '')[:200]}")
         return None
 
     def _upsert_api(self, table, data, on_conflict):
@@ -139,7 +139,7 @@ class DatabaseClient:
         res = _request_with_retry(requests.post, url, headers=headers, json=data)
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (Upsert {table}): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (Upsert {table}): {res.status_code} - {(res.text or '')[:200]}")
         return None
 
     # --- Public API methods (Cloud-Only) ---
@@ -233,7 +233,7 @@ class DatabaseClient:
                 if len(batch) < limit:
                     break
             else:
-                print(f"DB_CLIENT_API_ERROR (SelectAll {table}): {res.status_code} - {res.text}")
+                print(f"DB_CLIENT_API_ERROR (SelectAll {table}): {res.status_code} - {(res.text or '')[:200]}")
                 break
         return all_results
 
@@ -270,7 +270,7 @@ class DatabaseClient:
                 if len(batch) < limit:
                     break
             else:
-                print(f"DB_CLIENT_API_ERROR (SelectAllPipeline {table}): {res.status_code} - {res.text}")
+                print(f"DB_CLIENT_API_ERROR (SelectAllPipeline {table}): {res.status_code} - {(res.text or '')[:200]}")
                 break
         return all_results
 
@@ -304,6 +304,8 @@ class DatabaseClient:
         """
         Calls a Supabase RPC function.
         Uses service_role key (pipeline RPCs require bypass of RLS).
+        Returns None on error (legacy behavior, safe for callers that check `if result:`).
+        For error details, check stdout logs (DB_CLIENT_API_ERROR).
         """
         url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
         headers = self._get_headers(use_service_role=True)
@@ -311,8 +313,23 @@ class DatabaseClient:
         res = _request_with_retry(requests.post, url, headers=headers, json=params or {})
         if res.status_code in [200, 201, 204]:
             return res.json() if res.content else {"status": "success"}
-        print(f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {res.text}")
+        print(f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {(res.text or '')[:200]}")
         return None
+
+    def rpc_raise(self, function_name, params=None):
+        """
+        Like rpc() but raises RuntimeError with the API response text on error.
+        Use this when the caller needs to detect specific errors like PGRST202.
+        """
+        url = f"{self.supabase_url}/rest/v1/rpc/{function_name}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.post, url, headers=headers, json=params or {})
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else {"status": "success"}
+        err_msg = f"DB_CLIENT_API_ERROR (RPC {function_name}): {res.status_code} - {(res.text or '')[:200]}"
+        print(err_msg)
+        raise RuntimeError(err_msg)
 
 def get_db_client():
     return DatabaseClient()
