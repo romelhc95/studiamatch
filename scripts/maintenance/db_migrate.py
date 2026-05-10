@@ -24,6 +24,7 @@ import glob
 import re
 import argparse
 import time
+import requests
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -107,11 +108,37 @@ def _exec_sql_direct(db, sql_text):
     return False
 
 
-def _exec_sql_with_retry(db, sql, max_retries=6):
-    """Ejecuta SQL via RPC exec_sql con reintento y fallback a conexión directa.
-    PostgREST puede tardar varios segundos en refrescar su schema cache
-    después de crear nuevas funciones. Los reintentos cada 10s permiten
-    que PostgREST detecte los cambios."""
+def _exec_sql_via_mgmt_api(sql_text):
+    """Ejecuta SQL usando la Management API de Supabase (NO necesita PostgREST)."""
+    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    if not access_token or not supabase_url:
+        return False
+
+    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
+    if not match:
+        return False
+    project_ref = match.group(1)
+
+    mgmt_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
+        if resp.status_code in (200, 201, 204):
+            print("  ✅ Ejecutado via Management API")
+            return True
+        print(f"  ⚠️  Management API: {resp.status_code} - {resp.text[:200]}")
+    except Exception as e:
+        print(f"  ⚠️  Management API falló: {e}")
+    return False
+
+
+def _exec_sql_with_retry(db, sql, max_retries=2):
+    """Ejecuta SQL via RPC exec_sql con reintento y fallback a Management API.
+    Si la Management API no está disponible, intenta conexión directa vía psycopg2."""
     for attempt in range(1, max_retries + 1):
         try:
             result = db.rpc_raise("exec_sql", {"sql_text": sql})
@@ -120,15 +147,15 @@ def _exec_sql_with_retry(db, sql, max_retries=6):
             estr = str(e)
             if 'PGRST202' in estr:
                 if attempt < max_retries:
-                    print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries} (esperando 10s)...")
-                    try:
-                        db.select('institutions', limit=1)
-                    except Exception:
-                        pass
-                    time.sleep(10)
+                    print(f"  ⏳ Schema cache no actualizado (PGRST202). Reintento {attempt}/{max_retries}...")
+                    time.sleep(3)
                     continue
             print(f"  ❌ ERROR: {e}")
             break
+
+    print("  ⏳ Intentando Management API...")
+    if _exec_sql_via_mgmt_api(sql):
+        return {"status": "success"}
 
     print("  ⏳ Intentando conexión directa a la base de datos...")
     if _exec_sql_direct(db, sql):
