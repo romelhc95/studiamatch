@@ -27,6 +27,7 @@ import sys
 import json
 import re
 import argparse
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import DatabaseClient
