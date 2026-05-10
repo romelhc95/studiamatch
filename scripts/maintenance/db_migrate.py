@@ -165,6 +165,16 @@ def _exec_sql_with_retry(db, sql, max_retries=2):
     return None
 
 
+def _ensure_migration_table(db):
+    """Crea supabase_migrations si no existe."""
+    try:
+        db.rpc_raise("exec_sql", {
+            "sql_text": f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());"
+        })
+    except Exception:
+        pass
+
+
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
@@ -188,6 +198,7 @@ def apply_migration(db, filepath, dry_run=False):
     print(f"  ✅ {name} — OK")
 
     try:
+        _ensure_migration_table(db)
         now = datetime.utcnow().isoformat()
         db.insert(SUPABASE_MIGRATIONS_TABLE, [{
             "version": 0,
