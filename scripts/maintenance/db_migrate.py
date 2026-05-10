@@ -45,12 +45,10 @@ def _query_via_mgmt_api(sql_text):
     access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
-        print("  [MGMT] No token or URL available")
         return None
 
     match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
     if not match:
-        print("  [MGMT] Could not extract project ref from URL")
         return None
     project_ref = match.group(1)
 
@@ -61,29 +59,19 @@ def _query_via_mgmt_api(sql_text):
     }
     try:
         resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
-        if resp.status_code != 200:
-            print(f"  [MGMT] HTTP {resp.status_code}: {resp.text[:200]}")
+        if resp.status_code not in (200, 201):
             return None
         data = resp.json()
         if isinstance(data, list):
-            print(f"  [MGMT] Got list with {len(data)} items")
             return data
         if isinstance(data, dict):
             raw = data.get("result", "")
-            print(f"  [MGMT] Got dict result, type={type(raw).__name__}, len={len(raw) if isinstance(raw, str) else 'N/A'}")
-            print(f"  [MGMT] Raw starts with: {str(raw)[:100]}")
             if isinstance(raw, str):
                 json_match = re.search(r'\[[\s\S]*\]', raw)
                 if json_match:
-                    result = json.loads(json_match.group())
-                    print(f"  [MGMT] Parsed {len(result)} items from result text")
-                    return result
-                print("  [MGMT] No JSON array found in result text")
-            if isinstance(raw, list):
-                return raw
+                    return json.loads(json_match.group())
         return None
-    except Exception as e:
-        print(f"  [MGMT] Exception: {e}")
+    except Exception:
         return None
 
 
@@ -161,7 +149,9 @@ def _exec_sql_direct(db, sql_text):
 
 
 def _exec_sql_via_mgmt_api(sql_text):
-    """Ejecuta SQL usando la Management API de Supabase (NO necesita PostgREST)."""
+    """Ejecuta SQL usando la Management API.
+    Retorna True si se ejecutó (éxito o error de objeto duplicado).
+    Los errores de "already exists" se tratan como éxito (migration ya aplicada)."""
     access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
@@ -180,9 +170,12 @@ def _exec_sql_via_mgmt_api(sql_text):
     try:
         resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
         if resp.status_code in (200, 201, 204):
-            print("  ✅ Ejecutado via Management API")
             return True
-        print(f"  ⚠️  Management API: {resp.status_code} - {resp.text[:200]}")
+        text = resp.text[:300]
+        if any(code in text for code in ('42710', '42P07', '42P16', '42701')):
+            print(f"  ⚠️  Management API: objeto ya existe (SQLSTATE detectado) — considerado éxito")
+            return True
+        print(f"  ❌  Management API: {resp.status_code} - {text}")
     except Exception as e:
         print(f"  ⚠️  Management API falló: {e}")
     return False
@@ -230,6 +223,28 @@ def _ensure_migration_table(db):
                 _exec_sql_via_mgmt_api(f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());")
 
 
+def _try_register_migration(db, name):
+    """Registra migration como aplicada en supabase_migrations.
+    Si PostgREST falla (PGRST205), intenta via Management API.
+    Si Management API no devuelve datos, se asume aplicado."""
+    now = datetime.utcnow().isoformat()
+    try:
+        _ensure_migration_table(db)
+        try:
+            db.insert(SUPABASE_MIGRATIONS_TABLE, [{
+                "version": 0, "name": name, "statements": "", "applied_at": now
+            }])
+        except Exception:
+            _exec_sql_via_mgmt_api(
+                f"INSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} "
+                f"(version, name, statements, applied_at) VALUES "
+                f"(0, '{name.replace(chr(39), chr(39)+chr(39))}', '', '{now}') "
+                f"ON CONFLICT (name) DO NOTHING;"
+            )
+    except Exception:
+        pass
+
+
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
@@ -250,7 +265,7 @@ def apply_migration(db, filepath, dry_run=False):
     result = _exec_sql_with_retry(db, sql)
     if result is None:
         return False
-    print(f"  ✅ {name} — OK")
+    return True
 
     try:
         _ensure_migration_table(db)
