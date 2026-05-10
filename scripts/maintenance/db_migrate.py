@@ -39,8 +39,35 @@ MIGRATIONS_DIR = os.path.join(
 SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 
 
+def _query_via_mgmt_api(sql_text):
+    """Ejecuta query SQL y retorna resultados via Management API."""
+    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    if not access_token or not supabase_url:
+        return None
+
+    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
+    if not match:
+        return None
+    project_ref = match.group(1)
+
+    mgmt_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
+        if resp.status_code == 200:
+            return resp.json()
+        return None
+    except Exception:
+        return None
+
+
 def get_applied_migrations(db):
-    """Retorna set de nombres de migrations ya aplicadas."""
+    """Retorna set de nombres de migrations ya aplicadas.
+    Primero intenta via PostgREST, si falla por schema cache usa Management API."""
     try:
         result = db.select(
             SUPABASE_MIGRATIONS_TABLE,
@@ -49,9 +76,12 @@ def get_applied_migrations(db):
         )
         if result and isinstance(result, list):
             return {row.get("name") for row in result if row.get("name")}
-    except Exception as e:
-        print(f"  [INFO] No se pudo leer {SUPABASE_MIGRATIONS_TABLE}: {e}")
-        print(f"  [INFO] Se asumirá que ninguna migration está aplicada.")
+    except Exception:
+        pass
+
+    rows = _query_via_mgmt_api(f"SELECT name FROM public.{SUPABASE_MIGRATIONS_TABLE}")
+    if rows and isinstance(rows, list):
+        return {row.get("name") for row in rows if row.get("name")}
     return set()
 
 
@@ -166,13 +196,16 @@ def _exec_sql_with_retry(db, sql, max_retries=2):
 
 
 def _ensure_migration_table(db):
-    """Crea supabase_migrations si no existe."""
-    try:
-        db.rpc_raise("exec_sql", {
-            "sql_text": f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());"
-        })
-    except Exception:
-        pass
+    """Crea supabase_migrations si no existe (RPC o Management API)."""
+    for attempt in range(2):
+        try:
+            db.rpc_raise("exec_sql", {
+                "sql_text": f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());"
+            })
+            return
+        except Exception:
+            if attempt == 0:
+                _exec_sql_via_mgmt_api(f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());")
 
 
 def apply_migration(db, filepath, dry_run=False):
@@ -200,12 +233,17 @@ def apply_migration(db, filepath, dry_run=False):
     try:
         _ensure_migration_table(db)
         now = datetime.utcnow().isoformat()
-        db.insert(SUPABASE_MIGRATIONS_TABLE, [{
-            "version": 0,
-            "name": name,
-            "statements": "",
-            "applied_at": now
-        }])
+        try:
+            db.insert(SUPABASE_MIGRATIONS_TABLE, [{
+                "version": 0,
+                "name": name,
+                "statements": "",
+                "applied_at": now
+            }])
+        except Exception:
+            _exec_sql_via_mgmt_api(
+                f"INSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} (version, name, statements, applied_at) VALUES (0, '{name}', '', '{now}') ON CONFLICT (name) DO NOTHING;"
+            )
     except Exception as e:
         print(f"  ⚠️  {name} — aplicada pero no se pudo registrar: {e}")
 
