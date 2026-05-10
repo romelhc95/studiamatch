@@ -281,6 +281,8 @@ class CleansingWorker:
         """Streams pending staging records using lock RPC if available, falls back to simple select."""
         seen_ids: set = set()
         iterations = 0
+        rpc_failures = 0
+        rpc_fallback = False
         while True:
             iterations += 1
             if iterations > max_iterations:
@@ -288,17 +290,25 @@ class CleansingWorker:
                 break
             try:
                 # Try atomic lock via RPC first (PG17-safe, UPDATE+RETURNING atomico)
-                locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
-                if locked and len(locked) > 0:
-                    current_ids = {r['id'] for r in locked if isinstance(r, dict)}
-                    if current_ids.issubset(seen_ids):
-                        logger.warning("Detected repeated IDs from lock_staging_records. Breaking to prevent infinite loop.")
+                if not rpc_fallback:
+                    locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
+                    if locked and len(locked) > 0:
+                        rpc_failures = 0
+                        current_ids = {r['id'] for r in locked if isinstance(r, dict)}
+                        if current_ids.issubset(seen_ids):
+                            logger.warning("Detected repeated IDs from lock_staging_records. Breaking to prevent infinite loop.")
+                            break
+                        seen_ids.update(current_ids)
+                        for record in locked:
+                            if isinstance(record, dict):
+                                yield record
+                        continue
+                    if locked is not None:
                         break
-                    seen_ids.update(current_ids)
-                    for record in locked:
-                        if isinstance(record, dict):
-                            yield record
-                    continue
+                    rpc_failures += 1
+                    if rpc_failures >= 3:
+                        logger.warning(f"RPC lock_staging_records failed {rpc_failures} consecutive times. Switching to fallback-only mode.")
+                        rpc_fallback = True
                 # Fallback: simple select (no lock)
                 batch = self.db.select_pipeline('staging_raw', filters="status=eq.pending", limit=batch_size)
                 if not batch: break
