@@ -41,16 +41,16 @@ SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 
 
 def _query_via_mgmt_api(sql_text):
-    """Ejecuta query SQL y retorna resultados via Management API.
-    La API devuelve los resultados como texto plano dentro de un campo 'result'.
-    Esta función extrae y parsea el JSON del texto."""
+    """Ejecuta query SQL y retorna resultados via Management API."""
     access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
+        print("  [MGMT] No token or URL available")
         return None
 
     match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
     if not match:
+        print("  [MGMT] Could not extract project ref from URL")
         return None
     project_ref = match.group(1)
 
@@ -62,20 +62,28 @@ def _query_via_mgmt_api(sql_text):
     try:
         resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
         if resp.status_code != 200:
+            print(f"  [MGMT] HTTP {resp.status_code}: {resp.text[:200]}")
             return None
         data = resp.json()
         if isinstance(data, list):
+            print(f"  [MGMT] Got list with {len(data)} items")
             return data
         if isinstance(data, dict):
             raw = data.get("result", "")
+            print(f"  [MGMT] Got dict result, type={type(raw).__name__}, len={len(raw) if isinstance(raw, str) else 'N/A'}")
+            print(f"  [MGMT] Raw starts with: {str(raw)[:100]}")
             if isinstance(raw, str):
                 json_match = re.search(r'\[[\s\S]*\]', raw)
                 if json_match:
-                    return json.loads(json_match.group())
+                    result = json.loads(json_match.group())
+                    print(f"  [MGMT] Parsed {len(result)} items from result text")
+                    return result
+                print("  [MGMT] No JSON array found in result text")
             if isinstance(raw, list):
                 return raw
         return None
-    except Exception:
+    except Exception as e:
+        print(f"  [MGMT] Exception: {e}")
         return None
 
 
