@@ -42,7 +42,7 @@ SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 
 def _query_via_mgmt_api(sql_text):
     """Ejecuta query SQL y retorna resultados via Management API."""
-    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
+    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "") or os.environ.get("SUPABASE_MGMT_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
         return None
@@ -152,7 +152,7 @@ def _exec_sql_via_mgmt_api(sql_text):
     """Ejecuta SQL usando la Management API.
     Retorna True si se ejecutó (éxito o error de objeto duplicado).
     Los errores de "already exists" se tratan como éxito (migration ya aplicada)."""
-    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
+    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "") or os.environ.get("SUPABASE_MGMT_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
         return False
@@ -264,24 +264,8 @@ def apply_migration(db, filepath, dry_run=False):
     result = _exec_sql_with_retry(db, sql)
     if result is None:
         return False
-    return True
 
-    try:
-        _ensure_migration_table(db)
-        now = datetime.utcnow().isoformat()
-        try:
-            db.insert(SUPABASE_MIGRATIONS_TABLE, [{
-                "version": 0,
-                "name": name,
-                "statements": "",
-                "applied_at": now
-            }])
-        except Exception:
-            _exec_sql_via_mgmt_api(
-                f"INSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} (version, name, statements, applied_at) VALUES (0, '{name}', '', '{now}') ON CONFLICT (name) DO NOTHING;"
-            )
-    except Exception as e:
-        print(f"  ⚠️  {name} — aplicada pero no se pudo registrar: {e}")
+    _try_register_migration(db, name)
 
     try:
         db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
