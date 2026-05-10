@@ -12,6 +12,8 @@ jobs:
   detect:
     name: "Detect pending migrations"
     runs-on: ubuntu-latest
+    environment:
+      name: Production
     outputs:
       pending_count: ${{ steps.check.outputs.count }}
     steps:
