@@ -18,7 +18,7 @@ COMMENT ON COLUMN institution_site_profiles.circuit_opened_at IS 'Fase 79B: Time
 
 -- Funcion helper: repara valores JSONB que son strings invalidos
 CREATE OR REPLACE FUNCTION repair_jsonb_array(val jsonb)
-RETURNS jsonb LANGUAGE plpgsql IMMUTABLE AS 
+RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path = pg_catalog, public AS 
 BEGIN
   IF val IS NULL THEN RETURN '[]'::jsonb; END IF;
   IF jsonb_typeof(val) = 'array' THEN RETURN val; END IF;
@@ -32,7 +32,7 @@ END;
 ;
 
 CREATE OR REPLACE FUNCTION repair_jsonb_object(val jsonb)
-RETURNS jsonb LANGUAGE plpgsql IMMUTABLE AS 
+RETURNS jsonb LANGUAGE plpgsql IMMUTABLE SET search_path = pg_catalog, public AS 
 BEGIN
   IF val IS NULL THEN RETURN '{}'::jsonb; END IF;
   IF jsonb_typeof(val) = 'object' THEN RETURN val; END IF;
@@ -56,7 +56,7 @@ UPDATE institution_site_profiles SET
 
 -- Trigger: previene inserts/updates con valores JSONB invalidos
 CREATE OR REPLACE FUNCTION validate_institution_site_profiles_jsonb()
-RETURNS trigger LANGUAGE plpgsql AS 
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS 
 BEGIN
   NEW.seed_urls := repair_jsonb_array(NEW.seed_urls);
   NEW.exclusion_patterns := repair_jsonb_array(NEW.exclusion_patterns);
