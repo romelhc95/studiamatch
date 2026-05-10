@@ -445,7 +445,7 @@ class CleansingWorker:
 
 if __name__ == "__main__":
     worker = CleansingWorker()
-    guard = TimeGuard(max_seconds=1800, logger=logger)
+    guard = TimeGuard(max_seconds=3500, logger=logger)
     logger.info("--- Starting Station 1.5: High Fidelity Smart Sync ---")
     total_processed, batch_accumulator = 0, []
     for record in worker.stream_pending_staging(batch_size=200):

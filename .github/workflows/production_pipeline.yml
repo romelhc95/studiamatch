@@ -55,7 +55,7 @@ jobs:
   phase_1_5_cleansing:
     name: "1.5. High Fidelity Cleansing"
     needs: phase_1_harvesting
-    timeout-minutes: 25
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -116,7 +116,7 @@ jobs:
   phase_3_sync:
     name: "3. Integrity & Sync"
     needs: phase_2_enrichment
-    timeout-minutes: 25
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
