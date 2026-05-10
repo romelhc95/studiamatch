@@ -31,6 +31,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           python3 scripts/maintenance/db_migrate.py --env pro --dry-run > report.txt
           count=$(grep -c "PENDIENTE" report.txt || echo 0)
@@ -58,6 +59,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: python3 scripts/maintenance/db_migrate.py --env pro
 
   verify:
@@ -81,23 +83,28 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-        continue-on-error: true
         run: python3 scripts/maintenance/check_db_parity.py --env pro
       - name: Report parity result
         run: |
           if [ "${{ steps.parity.outcome }}" = "failure" ]; then
             echo "❌ Parity check FAILED — Pro no está en paridad con Free"
             exit 1
-          else
-            echo "✅ Parity check PASSED"
           fi
+          echo "✅ Parity check PASSED"
 
   trigger-fg2:
     name: "Trigger FG2 in Production"
     needs: [apply, verify]
     if: success()
-    uses: ./.github/workflows/production_pipeline.yml
-    secrets:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-      NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch FG2 pipeline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref main
+          echo "✅ FG2 dispatched in Production"
