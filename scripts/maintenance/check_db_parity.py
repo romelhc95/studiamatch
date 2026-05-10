@@ -41,7 +41,13 @@ def compare_migrations(db_free, db_pro):
     return "OK", []
 
 
+ALLOWED_TABLES = {"institution_site_profiles", "courses"}
+ALLOWED_COLUMNS = set(PIPELINE_COLUMNS) | set(COURSES_COLUMNS)
+
+
 def check_column_exists(db, table, col):
+    if table not in ALLOWED_TABLES or col not in ALLOWED_COLUMNS:
+        raise ValueError(f"Tabla/columna no permitida: {table}.{col}")
     sql = f"SELECT column_name FROM information_schema.columns WHERE table_name='{table}' AND column_name='{col}';"
     result = try_rpc(db, sql)
     return result and len(result) > 0
