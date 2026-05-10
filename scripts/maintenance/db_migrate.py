@@ -20,6 +20,7 @@ Requisito: La BD debe tener el RPC exec_sql(text) creado (Fase 95).
 
 import os
 import sys
+import json
 import glob
 import re
 import argparse
@@ -40,7 +41,9 @@ SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 
 
 def _query_via_mgmt_api(sql_text):
-    """Ejecuta query SQL y retorna resultados via Management API."""
+    """Ejecuta query SQL y retorna resultados via Management API.
+    La API devuelve los resultados como texto plano dentro de un campo 'result'.
+    Esta función extrae y parsea el JSON del texto."""
     access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
     supabase_url = os.environ.get("SUPABASE_URL", "")
     if not access_token or not supabase_url:
@@ -58,8 +61,19 @@ def _query_via_mgmt_api(sql_text):
     }
     try:
         resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
-        if resp.status_code == 200:
-            return resp.json()
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            raw = data.get("result", "")
+            if isinstance(raw, str):
+                json_match = re.search(r'\[[\s\S]*\]', raw)
+                if json_match:
+                    return json.loads(json_match.group())
+            if isinstance(raw, list):
+                return raw
         return None
     except Exception:
         return None
