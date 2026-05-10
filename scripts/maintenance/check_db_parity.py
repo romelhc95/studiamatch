@@ -58,6 +58,36 @@ COURSES_COLUMNS_CHECK = ["start_date"]
 IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
+def _mgmt_query(sql_text, supabase_url=None):
+    """Ejecuta SQL SELECT via Management API y retorna resultados.
+    Si supabase_url es None, usa SUPABASE_URL del environment actual."""
+    token = os.environ.get("SUPABASE_ACCESS_TOKEN", "")
+    url = supabase_url or os.environ.get("SUPABASE_URL", "")
+    if not token or not url:
+        return None
+    match = re.match(r"https?://([^.]+)\.supabase\.co", url)
+    if not match:
+        return None
+    mgmt_url = f"https://api.supabase.com/v1/projects/{match.group(1)}/database/query"
+    try:
+        resp = requests.post(mgmt_url, headers={
+            "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+        }, json={"query": sql_text}, timeout=30)
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            if isinstance(data, list):
+                return data
+            if isinstance(data, dict):
+                raw = data.get("result", "")
+                if isinstance(raw, str):
+                    m = re.search(r'\[[\s\S]*\]', raw)
+                    if m:
+                        return json.loads(m.group())
+        return None
+    except Exception:
+        return None
+
+
 def _sanitize_identifier(name: str) -> str:
     """Sanitiza un identificador SQL (table, column, function name)."""
     if not name or not IDENTIFIER_RE.match(name):
@@ -104,7 +134,7 @@ def check_column(db, table, column):
         f"SELECT column_name FROM information_schema.columns "
         f"WHERE table_name = '{safe_table}' AND column_name = '{safe_col}';"
     )
-    result = db.rpc("exec_sql", {"sql_text": sql})
+    result = _mgmt_query(sql)
     exists = result and len(result) > 0
     if not exists:
         print(f"  ❌ Tabla '{table}' no tiene columna '{column}'")
@@ -159,8 +189,8 @@ def compare_profiles(db_free, db_pro):
             "JOIN institutions i ON i.id = p.institution_id "
             "WHERE p.pipeline_ready = true ORDER BY i.slug;"
         )
-        free_ready = db_free.rpc("exec_sql", {"sql_text": sql}) or []
-        pro_ready = db_pro.rpc("exec_sql", {"sql_text": sql}) or []
+        free_ready = _mgmt_query(sql, db_free.supabase_url) or []
+        pro_ready = _mgmt_query(sql, db_pro.supabase_url) or []
     except Exception:
         return "WARN", ["No se pudo leer pipeline_ready"]
 
@@ -179,8 +209,8 @@ def compare_profiles(db_free, db_pro):
             "SELECT i.slug, jsonb_array_length(COALESCE(p.exclusion_patterns, '[]'::jsonb)) as cnt "
             "FROM institution_site_profiles p JOIN institutions i ON i.id = p.institution_id ORDER BY i.slug;"
         )
-        free_exc = db_free.rpc("exec_sql", {"sql_text": sql}) or []
-        pro_exc = db_pro.rpc("exec_sql", {"sql_text": sql}) or []
+        free_exc = _mgmt_query(sql, db_free.supabase_url) or []
+        pro_exc = _mgmt_query(sql, db_pro.supabase_url) or []
     except Exception:
         return "WARN", ["No se pudo leer exclusion_patterns"]
 
@@ -208,7 +238,7 @@ def check_rpcs(db, label):
     for rpc_name in REQUIRED_RPCS:
         safe_name = _sanitize_identifier(rpc_name)
         sql = f"SELECT proname FROM pg_proc WHERE proname = '{safe_name}' AND pronamespace = 'public'::regnamespace;"
-        result = db.rpc("exec_sql", {"sql_text": sql})
+        result = _mgmt_query(sql)
         if not result or len(result) == 0:
             missing.append(rpc_name)
     return missing
@@ -239,7 +269,7 @@ def check_triggers(db, label):
             f"SELECT trigger_name FROM information_schema.triggers "
             f"WHERE event_object_table = '{safe_table}' AND trigger_name = '{safe_trigger}';"
         )
-        result = db.rpc("exec_sql", {"sql_text": sql})
+        result = _mgmt_query(sql)
         if not result or len(result) == 0:
             missing.append(f"{table}.{trigger}")
     return missing
@@ -263,7 +293,7 @@ def compare_extensions(db_free, db_pro):
     for ext in REQUIRED_EXTENSIONS:
         safe_ext = _sanitize_literal(_sanitize_identifier(ext))
         sql = f"SELECT extname FROM pg_extension WHERE extname = '{safe_ext}';"
-        result = db_pro.rpc("exec_sql", {"sql_text": sql})
+        result = _mgmt_query(sql, db_pro.supabase_url)
         if not result or len(result) == 0:
             missing.append(ext)
 
