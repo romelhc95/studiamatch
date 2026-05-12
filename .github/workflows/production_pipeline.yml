@@ -144,7 +144,7 @@ jobs:
   phase_4_audit:
     name: "4. ROI & QA Audit"
     needs: phase_3_sync
-    timeout-minutes: 15
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     environment:
       name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
@@ -179,3 +179,24 @@ jobs:
         with:
           name: final-audit-reports-${{ github.ref_name }}
           path: docs/qa-engineer/
+      - name: Trigger Cloudflare Pages rebuild
+        if: success() && github.ref_name == 'main'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          PROJECT_NAME: studiamatch
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${PROJECT_NAME}/deployments" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"branch":"main"}')
+          STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('success', False))")
+          if [ "$STATUS" = "True" ]; then
+            echo "Cloudflare Pages rebuild triggered successfully"
+          else
+            ERRORS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('errors', 'unknown'))")
+            echo "Cloudflare Pages rebuild trigger returned: $ERRORS"
+            exit 1
+          fi
