@@ -445,16 +445,62 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   // Render text blocks with smart formatting for bullet points and paragraphs
   const renderText = (text: string | undefined) => {
     if (!text) return "Información en proceso de validación.";
-    
-    let displayLines: string[] = [];
-    
-    // INTELIGENCIA DE FORMATO: Detectar si es un array JSON (común en respuestas de IA)
+
     const trimmedText = text.trim();
+
+    // Handle JSON objects: { "section": [...] }
+    if (trimmedText.startsWith('{') && trimmedText.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmedText);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          const elements: React.ReactNode[] = [];
+          let idx = 0;
+
+          Object.entries(parsed).forEach(([key, value]) => {
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+            elements.push(
+              <h4 key={`h-${idx}`} className="text-sm font-black uppercase tracking-wider text-brand-blue mt-4 mb-2">
+                {label}
+              </h4>
+            );
+
+            if (Array.isArray(value)) {
+              elements.push(
+                <ul key={`ul-${idx}`} className="my-2 space-y-1 pl-2">
+                  {value.map((item: unknown, i: number) => (
+                    <li key={`li-${idx}-${i}`} className="flex items-start gap-2">
+                      <span className="text-brand-mint mt-1.5 shrink-0">•</span>
+                      <span>{String(item)}</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            } else if (typeof value === 'object' && value !== null) {
+              elements.push(<p key={`p-${idx}`} className="mb-2 italic">Información estructurada disponible.</p>);
+            } else {
+              elements.push(<p key={`p-${idx}`} className="mb-2">{String(value)}</p>);
+            }
+
+            idx += 1;
+          });
+
+          return <div className="text-lg text-slate-600 dark:text-slate-400">{elements}</div>;
+        }
+      } catch {
+        // fallthrough to plain text parser
+      }
+    }
+
+    let displayLines: string[] = [];
+    let isJsonArrayInput = false;
+
+    // Detect JSON arrays (common in AI outputs)
     if (trimmedText.startsWith('[') && trimmedText.endsWith(']')) {
       try {
         const parsed = JSON.parse(trimmedText);
         if (Array.isArray(parsed)) {
-          displayLines = parsed.map(item => String(item));
+          displayLines = parsed.map((item: unknown) => String(item));
+          isJsonArrayInput = true;
         } else {
           displayLines = text.split('\n');
         }
@@ -464,18 +510,18 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     } else {
       displayLines = text.split('\n');
     }
-    
-    const lines = displayLines.map(l => l.trim()).filter(l => l.length > 0);
+
+    const lines = displayLines.map((line) => line.trim()).filter((line) => line.length > 0);
     const elements: React.ReactNode[] = [];
     let currentList: string[] = [];
-    
+
     const flushList = () => {
       if (currentList.length > 0) {
         elements.push(
           <ul key={`ul-${elements.length}`} className="my-4 space-y-2 pl-2">
             {currentList.map((item, i) => (
               <li key={`li-${i}`} className="flex items-start gap-2">
-                <span className="text-brand-mint mt-1.5">•</span>
+                <span className="text-brand-mint mt-1.5 shrink-0">•</span>
                 <span>{item.replace(/^[-*•]\s*/, '')}</span>
               </li>
             ))}
@@ -486,9 +532,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     };
 
     lines.forEach((line, i) => {
-      // Si el texto ya venía como JSON, forzamos que cada item sea un punto de lista
-      const isListItem = /^[-*•]\s+/.test(line) || (trimmedText.startsWith('[') && Array.isArray(displayLines));
-      
+      const isListItem = /^[-*•]\s+/.test(line) || isJsonArrayInput;
       if (isListItem) {
         currentList.push(line);
       } else {
@@ -496,9 +540,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         elements.push(<p key={`p-${i}`} className="mb-4 last:mb-0 leading-relaxed">{line}</p>);
       }
     });
-    
+
     flushList();
-    
+
     return <div className="text-lg text-slate-600 dark:text-slate-400">{elements}</div>;
   };
 
