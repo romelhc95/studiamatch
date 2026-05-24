@@ -13,9 +13,6 @@ from shared.utils import setup_lima_logging
 db = get_db_client()
 logger = setup_lima_logging("MasterOrchestrator")
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
 def run_script(script_path, args=None):
     cmd = [sys.executable, script_path]
     if args:

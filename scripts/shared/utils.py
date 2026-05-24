@@ -250,8 +250,11 @@ def standardize_category(potential_cat, course_name=""):
     global _category_rules_cache
     
     text = (potential_cat + " " + course_name).lower()
-    url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+    key = (
+        os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY")
+        or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+    )
 
     # 1. Initialize Cache if empty
     if _category_rules_cache is None:

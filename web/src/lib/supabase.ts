@@ -1,14 +1,14 @@
 // Centralized Supabase Configuration
 // All frontend components should import from here.
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || !process.env.NODE_ENV;
   
   if (process.env.NODE_ENV === 'production' && !isBuildTime) {
-    console.error("Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_SUPABASE_PUBLISHABLE_KEY.");
+    console.error("Missing Supabase environment variables. Check SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_SUPABASE_PUBLISHABLE_KEY.");
   } else {
     console.warn("Supabase environment variables are missing. Defaulting to empty strings.");
   }

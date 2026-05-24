@@ -1,9 +1,9 @@
-# Plan de Implementación: StudIAMatch - Tech Education Intelligence
+﻿# Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
-## Premisas Obligatorias de Ingenierí­a (Nivel 0)
+## Premisas Obligatorias de Ingeniería (Nivel 0)
 
 > [!IMPORTANT]
-> **Documentación de Referencia (Golden Pipeline)**: El diseño arquitectónico, el flujo ETL de 4 estaciones y el diccionario de datos maestro se rigen estrictamente por lo definido en [docs/architecture/Documento_Detallado_workflow](docs/architecture/Documento_Detallado_workflow). Este documento es la "íšnica Fuente de Verdad" para la lógica de datos.
+> **Documentación de Referencia (Golden Pipeline)**: El diseño arquitectónico, el flujo ETL de 4 estaciones y el diccionario de datos maestro se rigen estrictamente por lo definido en [docs/architecture/Documento_Detallado_workflow](docs/architecture/Documento_Detallado_workflow). Este documento es la "única Fuente de Verdad" para la lógica de datos.
 >
 > **Aislamiento Total y Paridad Linux**: Queda estrictamente prohibido ejecutar comandos de desarrollo (npm, python, audit) directamente en el host Windows. 
 > Todo comando **DEBE** ser ejecutado dentro del contenedor `studiamatch-dev` (Debian) para garantizar la paridad del 100% con los servidores de despliegue (Cloudflare/Linux).
@@ -15,7 +15,7 @@
 >
 > **Genérico por Diseño (FG1/FG2/FG3)**: Todo código nuevo o modificado en los pipelines FG1 (descubrimiento), FG2 (harvesting→cleansing→enrichment→sync) y FG3 (integridad) **DEBE ser genérico por diseño**. Ninguna institución (incluyendo DMC) puede tener lógica hardcodeada ni condicionales `if slug == 'dmc'` o similares en el pipeline. El comportamiento diferenciado por institución se define **exclusivamente** vía configuración en `institution_site_profiles` (DB). Esto garantiza que nuevas instituciones se integren sin modificar código del pipeline — solo creando un perfil en DB con `pipeline_ready=true`.
 >
-> > **DB-as-Code (Catálogos Versionados)**: Todo cambio en la base de datos que afecte el comportamiento del pipeline, la configuración de instituciones o los datos que consume el frontend **DEBE viajar como un archivo SQL versionado en `db/migrations/`**. Queda prohibido modificar tablas de catálogo (`institution_site_profiles`, `institutions`, `categories`, `category_rules`, `market_salaries`) directamente desde el Dashboard de Supabase sin crear el archivo de migración correspondiente. El flujo obligatorio es:
+> > **DB-as-Code (Catálogos Versionados)**: Todo cambio en la base de datos que afecte el comportamiento del pipeline, la configuración de instituciones o los catálogos que consume el frontend **DEBE viajar como un archivo SQL versionado en `db/migrations/`**. Queda prohibido modificar tablas de catálogo (`institution_site_profiles`, `institutions`, `categories`, `category_rules`, `market_salaries`) directamente desde el Dashboard de Supabase sin crear el archivo de migración correspondiente. Las tablas operativas (`staging_raw`, `cleansed_programs`, `enriched_programs`, `courses`) NO se sincronizan desde Free hacia Pro en este flujo; Pro las genera ejecutando FG2 localmente. El flujo obligatorio es:
 > >
 > > 1. Crear archivo `db/migrations/YYYYMMDD_descripcion.sql` con el cambio
 > > 2. Aplicar en Free (desarrollo) mediante `python3 scripts/maintenance/db_migrate.py --env free`
@@ -23,17 +23,17 @@
 > > 4. Commit + PR a `desarrollo` → `certificacion` → `main`
 > > 5. Al mergear a `main`, el workflow `db-sync-to-pro.yml` aplica automáticamente la migración en Pro
 > > 6. `check_db_parity.py` verifica que Pro quede en paridad con Free
-> > 7. FG2 se dispara automáticamente en Pro
+> > 7. FG2 NO se dispara inmediatamente por DB sync; Pro espera la ventana programada de `production_pipeline.yml` o un `workflow_dispatch` explícito.
 > >
 > > **Excepción**: Cambios temporales de debugging o diagnósticos pueden hacerse directamente en Free, pero deben migrarse a un archivo SQL versionado antes del PR a `desarrollo`.
 > >
 > > **Consecuencia de no cumplir**: Si Pro se desincroniza de Free (columnas faltantes, perfiles incompletos), el pipeline en producción falla o produce 0 cursos, como ocurrió con DMC (Fase 94). El parity check en CI bloqueará el merge hasta que se corrija.
 
-## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-09
-- **Estado Actual**: Fases 92, 93 y 94 completadas. PR #50 ya fusionado en `desarrollo` y promovido a `certificacion` → `main`. Free DB: 48 cursos activos, 35 enriched DMC synced. Pro DB: **0 cursos, 0 enriched, 0 cleansed, 0 staging** — pipeline NUNCA ejecutado en Pro.
-- **Último Hito**: Fase 94 — DMC WooCommerce Pillar Enrichment. Código y config en Free funcionales. Migrations SQL pendientes en Pro para Fases 79B, 79C, 82, 90, 93, 94.
-- **Brecha Free ↔ Pro**: Pro carece de 4 columnas en `institution_site_profiles` (`noise_patterns`, `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`) y tiene menos exclusiones en perfiles. Sin datos de pipeline.
-- **Próxima Acción**: Merge PR #57 (Fases 95-98) a `desarrollo` → `certificacion` → `main`. Al llegar a `main`, `db-sync-to-pro.yml` aplica migrations pendientes y dispara FG2 automáticamente en Pro.
+## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-24
+- **Estado Actual**: El repo ya avanzó más allá de la foto de 2026-05-09. La **Fase 95** aparece completada en este mismo documento, y los artefactos de **Fase 97** y **Fase 98** ya existen en repo (`scripts/maintenance/db_migrate.py`, `scripts/maintenance/check_db_parity.py`, `.github/workflows/db-sync-to-pro.yml`). El frente abierto principal ya no es de diseño sino de **cierre operativo en Pro**.
+- **Último Hito**: Trabajo de remediación posterior a la promoción a `main` reflejado por el commit `075a2ac` (`renderText()` para JSON anidado, trigger de rebuild de Cloudflare Pages post-FG2, fix de `lock_staging_records` en plpgsql y normalización de `syllabus`). Ver también `docs/PLAN_REMEDIACION_DEFINITIVA.md`.
+- **Brecha Free ↔ Pro**: La brecha principal observada ya no es schema parity sino **procesamiento/publicación**. Según el plan de remediación, Pro muestra **28/147 cursos visibles** y mantiene **378 registros pendientes** de drenar en FG2. También quedó identificado el acoplamiento entre FG2 y el rebuild estático de Cloudflare Pages.
+- **Próxima Acción**: Consolidar el cierre de **Fase 96** en Pro: ejecutar FG2 hasta drenar staging/cleansed pendientes, verificar visibilidad real en web, y validar en la rama de promoción correspondiente que `db-sync-to-pro.yml` + `check_db_parity.py` queden operativos como guardrails permanentes.
 
 ## Tareas Pendientes Priorizadas
 
@@ -55,10 +55,15 @@
 | ~~P2~~ | ~~Fase 62C — Perfil-Driven Extraction~~ | ~~Pipeline~~ | ~~Escanear headings con `section_keywords` en harvester, aplicar `field_defaults` a metadata de `staging_raw`, `price_regex`/`duration_regex` en cleansing, `title_prefix_removals`/`title_split_separators` en limpieza de nombres.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
-| **P0** | **Fase 95 — Pro Schema Sync (one-time)** | Infra | Aplicar migration consolidada `20260510_pro_schema_sync.sql` en Pro: columnas faltantes (`start_date`, `noise_patterns`, circuit breaker), RPC obsoleto (`atomic_enrichment_promote`), perfil DMC incompleto, extensiones en schema incorrecto. | Diagnosticado (8 diferencias) |
-| **P0** | **Fase 96 — FG2 en Pro (one-time)** | Pipeline | Ejecutar pipeline completo en Pro post-sync. Estado actual: **0 cursos, 0 enriched, 0 cleansed, 0 staging**. Debe producir mismos ~48 cursos que Free. | Depende de Fase 95 |
-| **P1** | **Fase 97 — db_migrate.py + db-sync-to-pro.yml** | Infra | Script `scripts/maintenance/db_migrate.py` que aplica migrations SQL contra cualquier proyecto Supabase con tracker. Workflow GHA `db-sync-to-pro.yml` que aplica migrations pendientes al mergear a `main` + parity check + trigger FG2. | Depende de Fase 95 |
-| **P1** | **Fase 98 — check_db_parity.py** | Infra | Script que compara schema y perfiles entre Free y Pro. Bloquea merge si hay diferencias. Se integra como status check en GitHub Branch Protection. | Depende de Fase 97 |
+| ~~P0~~ | ~~Fase 95 — Pro Schema Sync (one-time)~~ | ~~Infra~~ | ~~Migration consolidada `20260510_pro_schema_sync.sql` aplicada para cerrar las 8 diferencias estructurales entre Free y Pro.~~ | ~~Completado~~ |
+| **P0** | **Fase 96 — FG2 en Pro (cierre operativo)** | Pipeline | Pro restaurado desde estado `INACTIVE` y FG2 manual disparado en `main` (`run 26369726951`). El workflow termino `success`, pero Pro siguio en `courses=0`, `staging_raw=36 discovered`, `cleansed/enriched=0`. Bloqueo: validar/corregir secrets del environment `Production`, porque el run no escribio en `StudiaMatch-Pro`. | Bloqueado por credenciales/env Production |
+| ~~P1~~ | ~~Fase 97 — db_migrate.py + db-sync-to-pro.yml~~ | ~~Infra~~ | ~~`db_migrate.py` validado con `--only`, lectura service-role de `supabase_migrations` y soporte de envs prefijados Free/Pro; workflow ajustado para aplicar migrations y verificar paridad.~~ | ~~Completado; bloqueado operativamente si `Production` secrets apuntan al project ref obsoleto~~ |
+| ~~P1~~ | ~~Fase 98 — check_db_parity.py~~ | ~~Infra~~ | ~~`check_db_parity.py` validado como guardrail de configuracion/schema; en CI usa `--target-only` porque cada GitHub Environment expone los mismos nombres de secrets.~~ | ~~Completado; usa secrets configurados por ambiente~~ |
+| ~~P0~~ | ~~Fase 99 — Política DB-as-Code: catálogos vs tablas operativas~~ | ~~Infra + DB~~ | ~~Formalizado que `institutions` sí migra a Pro como catálogo, pero `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` NO se sincronizan desde Free.~~ | ~~Completado~~ |
+| ~~P0~~ | ~~Fase 100 — Gating por institución (discovery/pipeline/production)~~ | ~~Pipeline + DB~~ | ~~Reemplazada ambigüedad de `pipeline_ready` con flags explícitos para discovery, pipeline y publicación por institución.~~ | ~~Completado en Free; pendiente promocion normal a Pro~~ |
+| ~~P0~~ | ~~Fase 101 — Hardening temporal desde `artifacts/urls_interes/<slug>.txt`~~ | ~~Pipeline + Proceso~~ | ~~Estandarizado el uso del `.txt` como insumo temporal de análisis para derivar `allowed_url_patterns`, `exclusion_patterns`, `seed_urls` y demás configuración persistente.~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 102 — Promoción diferida a Pro (sin FG2 inmediato)~~ | ~~Infra + Workflows~~ | ~~`db-sync-to-pro.yml` ya no dispara FG2 inmediato; `production_pipeline.yml` queda por schedule diario o `workflow_dispatch`.~~ | ~~Completado~~ |
+| ~~P1~~ | ~~Fase 103 — Parity check orientado a configuración, no a datos ETL~~ | ~~Infra~~ | ~~`check_db_parity.py` compara migrations, columnas criticas, `institutions` y perfiles por slug; conteos ETL/courses son informativos.~~ | ~~Completado~~ |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
@@ -73,9 +78,9 @@
 | ~~P2~~ | ~~Fase 78 — CI/CD Resiliencia~~ | ~~Infraestructura~~ | ~~Migrar Job 1 a setup-python@v5, FORCE_JAVASCRIPT_ACTIONS_TO_NODE24~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 62D-rev — Fix stealth_async~~ | ~~Pipeline~~ | ~~`Stealth().apply_stealth_async(page)` en vez de `stealth_async(page)`~~ | ~~Completado (PR #29)~~ |
 | ~~P2~~ | ~~Fase 79A — Fix Encoding + Trazabilidad~~ | ~~Pipeline + Frontend~~ | ~~Mojibake verificado como resuelto. `provider_used` + `is_mock_data` ya en `enriched_programs`.~~ | ~~Ninguno~~ |
-| ~~P2~~ | ~~Fase 79B — Circuit Breaker~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h. **Pro DB no tiene columnas** `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`.~~ | ~~Código OK, Pro DB pendiente~~ |
-| ~~P0~~ | ~~Fase 79C — Noise Patterns~~ | ~~Pipeline~~ | ~~Bug `to_jsonb()` → double-escaping. Migration `20260505_fase79c_noise_patterns.sql` corregida. **Pro DB no tiene columna `noise_patterns`**.~~ | ~~Free OK, Pro DB pendiente~~ |
-| ~~P0~~ | ~~Fase 91 — Noise Pattern Fix~~ | ~~Pipeline~~ | ~~Documentación del bug de double-escaping. Cubierto por Fase 79C migration.~~ | ~~Pro DB pendiente~~ |
+| ~~P2~~ | ~~Fase 79B — Circuit Breaker~~ | ~~Pipeline~~ | ~~Migration + código: circuit breaker 403/429, auto-reset 24h. `StudiaMatch-Pro` verificado con `max_consecutive_errors`, `circuit_open`, `circuit_opened_at`.~~ | ~~Completado; `.env.gitprod` local apunta a target obsoleto/inconsistente~~ |
+| ~~P0~~ | ~~Fase 79C — Noise Patterns~~ | ~~Pipeline~~ | ~~Bug `to_jsonb()` → double-escaping. Migration `20260505_fase79c_noise_patterns.sql` corregida. `StudiaMatch-Pro` verificado con `noise_patterns`.~~ | ~~Completado; `.env.gitprod` local apunta a target obsoleto/inconsistente~~ |
+| ~~P0~~ | ~~Fase 91 — Noise Pattern Fix~~ | ~~Pipeline~~ | ~~Documentación del bug de double-escaping. Cubierto por Fase 79C migration y columna `noise_patterns` verificada en `StudiaMatch-Pro`.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 79D — JSONB Guardrails~~ | ~~Pipeline~~ | ~~Migration + trigger: auto-repair string→array/object en JSONB~~ | ~~Completado (PR #29 + migration)~~ |
 | ~~P1~~ | ~~Fase 80A — RLS Hardening~~ | ~~Seguridad~~ | ~~RLS filtra `is_active=true AND is_verified=true`. `COURSE_PUBLIC_FIELDS` excluye columnas internas.~~ | ~~Ninguno~~ |
 | ~~P1~~ | ~~Fase 80B — Real-Time Fetch~~ | ~~Frontend~~ | ~~HomeContent ya consulta Supabase en tiempo real + localStorage cache TTL 5min~~ | ~~Completado~~ |
@@ -92,6 +97,211 @@
 | ~~P2~~ | ~~Fase 93~~ | ~~Pipeline~~ | ~~DMC Harvester: Section Keywords + H4 Extractor~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 94~~ | ~~Pipeline~~ | ~~DMC WooCommerce Pillar Enrichment — PR #50 mergeado y promovido a main~~ | ~~Completado~~ |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
+
+## Flujo Vigente: Desarrollo → Producción
+
+> Flujo operativo consolidado a partir de `AGENTS.md`, los workflows versionados y el estado actual del repo. Este es el proceso que debe seguirse hoy para promover cambios de código, SQL y datos hacia producción.
+
+### 1. Desarrollo local / rama feature
+
+1. Partir desde `desarrollo` y abrir una rama `feat/*`.
+2. Ejecutar cambios **solo** dentro del contenedor `studiamatch-dev`.
+3. Si hay cambios SQL o de catálogos, crear archivo en `db/migrations/` antes de pensar en promoción.
+4. Probar primero contra **Free** (`Development`) y verificar impacto funcional/pipeline.
+
+### 2. Gate de seguridad antes de subir a `desarrollo`
+
+1. Ejecutar revisión de `@security-auditor` sobre los cambios.
+2. Remediar cualquier hallazgo antes de commit/push.
+3. Los hooks `.githooks/pre-commit` y `.githooks/pre-push` bloquean credenciales hardcodeadas.
+4. Abrir PR hacia `desarrollo`.
+
+### 3. Promoción a `desarrollo`
+
+1. El PR a `desarrollo` debe pasar el check obligatorio **`security-audit`**.
+2. La revisión técnica ocurre sobre la rama/PR, no directamente sobre `main`.
+3. Una vez mergeado, `desarrollo` queda como fuente de verdad del trabajo activo.
+
+### 4. Promoción a `certificacion`
+
+1. La transición `desarrollo` → `certificacion` **no es automática**; solo ocurre cuando se pide explícitamente.
+2. En `certificacion` se ejecutan validaciones de QA, E2E Playwright y auditoría/integridad de datos.
+3. Si el cambio afecta pipeline o datos, aquí se confirma que Free sigue consistente antes de tocar Pro.
+
+### 5. Promoción a `main`
+
+1. La transición `certificacion` → `main` también requiere instrucción explícita y aprobación correspondiente.
+2. Al mergear a `main`, entra el ambiente **Production** (Supabase Pro + Cloudflare Pages).
+3. Para cambios de base de datos, el flujo objetivo actual es:
+    - `db-sync-to-pro.yml` detecta migrations pendientes,
+    - aplica migrations en Pro con `db_migrate.py`,
+    - corre `check_db_parity.py`,
+    - si todo sale bien, deja FG2 diferido para la ventana programada o ejecución manual explícita.
+4. Para cambios de frontend, `main` alimenta el despliegue productivo en Cloudflare Pages.
+
+### 6. Estado real del flujo hoy
+
+- **Ya existe en repo** la base del guardrail de producción:
+  - `scripts/maintenance/db_migrate.py`
+  - `scripts/maintenance/check_db_parity.py`
+  - `.github/workflows/db-sync-to-pro.yml`
+- **Todavía queda validación operativa** para confirmar ese flujo end-to-end como mecanismo único y estable de promoción DB-as-Code a Pro.
+- **El cuello de botella actual** no es abrir nuevas fases de diseño, sino cerrar la operación de Pro/FG2 y confirmar que la publicación final quede sincronizada con Cloudflare Pages.
+
+## Prioridad Operativa para el Desarrollador
+
+> **Orden recomendado de inicio**: **Fase 103 → Fase 102**.  
+> Motivo: las Fases 99, 100 y 101 ya quedaron implementadas; Fase 96 queda bloqueada por validacion/correccion de credenciales del environment `Production` antes de poder cerrarse operativamente.
+
+### Fase 99: Política DB-as-Code — Catálogos vs Tablas Operativas [x] Completado
+
+**Objetivo**: dejar explícito en código y documentación qué objetos sí se promueven de Free a Pro y cuáles no.
+
+**Cambios realizados**:
+1. **Documentación y criterio operativo**:
+   - Confirmado que `institutions` **sí** es catálogo migrable.
+   - Confirmado que `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` **no** se migran desde Free.
+2. **Archivos ajustados**:
+   - `IMPLEMENTATION_PLAN.md`
+   - `docs/architecture/Documento_Detallado_workflow.md`
+   - `AGENTS.md`
+3. **Resultado esperado**:
+   - Pro recibe instituciones, perfiles y catálogos vía migration.
+   - Pro genera sus propios datos operativos ejecutando FG2 localmente.
+
+**Validación**:
+- El plan maestro y la documentación ya no sugieren que `courses` o tablas ETL viajan desde Free como flujo normal.
+- La incorporación de una institución nueva no debe requerir alta manual duplicada en Pro si ya viaja en migration.
+
+### Fase 100: Gating por Institución (Discovery / Pipeline / Production) [x] Completado
+
+**Objetivo**: reemplazar la ambigüedad actual de `pipeline_ready` por tres flags explícitos por institución.
+
+**Cambios realizados**:
+1. **Migration SQL nueva** en `db/migrations/` para `institution_site_profiles`:
+   - Agregado en `20260524_fase100_institution_gates.sql`:
+     - `discovery_enabled BOOLEAN NOT NULL DEFAULT false`
+     - `pipeline_enabled BOOLEAN NOT NULL DEFAULT false`
+     - `production_enabled BOOLEAN NOT NULL DEFAULT false`
+   - Hacer backfill desde `pipeline_ready`.
+   - Agregar constraint(s) de consistencia:
+     - `pipeline_enabled => discovery_enabled`
+     - `production_enabled => pipeline_enabled`
+2. **Workers ajustados**:
+   - `scripts/core/universal_harvester.py`
+   - `scripts/core/cleansing_worker.py`
+   - `scripts/core/enrichment_worker.py`
+   - `scripts/core/sync_vector_worker.py`
+3. **Semántica final**:
+   - `discovery_enabled=false`: la institución no participa.
+   - `discovery_enabled=true`, `pipeline_enabled=false`: solo discovery a `staging_raw`.
+   - `pipeline_enabled=true`, `production_enabled=false`: corre ETL pero no queda visible públicamente.
+   - `production_enabled=true`: institución plenamente habilitada.
+4. **Compatibilidad**:
+    - Mantener `pipeline_ready` como fallback temporal.
+5. **Aplicacion en Free**:
+   - Migration aplicada en `StudiaMatch` (Free/desarrollo).
+   - Verificado: 12 perfiles con columnas nuevas; 2 perfiles habilitados por backfill desde `pipeline_ready`.
+
+**Validación**:
+- Casos a cubrir:
+  - `false/false/false`
+  - `true/false/false`
+  - `true/true/false`
+  - `true/true/true`
+- Las combinaciones inválidas deben ser rechazadas o normalizadas por la migration.
+
+### Fase 101: Uso Temporal de `artifacts/urls_interes/<slug>.txt` para Hardening [x] Completado
+
+**Objetivo**: estandarizar el uso del archivo `.txt` como insumo temporal de análisis, nunca como dependencia operativa del pipeline.
+
+**Cambios realizados**:
+1. **Proceso oficial por institución**:
+    - Leer `artifacts/urls_interes/<slug>.txt` solo mediante helper offline.
+   - Identificar taxonomía de URLs válidas y de ruido.
+   - Traducir ese análisis a configuración persistente en `institution_site_profiles`.
+2. **Campos a poblar o endurecer**:
+   - `seed_urls`
+   - `catalog_url_patterns`
+   - `allowed_url_patterns`
+   - `exclusion_patterns`
+   - `discovery_mode`
+   - `catalog_link_selector`
+   - `site_type`
+   - regex auxiliares si aplica
+3. **Regla crítica**:
+    - El runtime no debe leer `artifacts/urls_interes/*.txt`.
+4. **Artefactos creados**:
+    - `docs/operations/url_interest_hardening.md`
+    - `scripts/maintenance/analyze_url_interest_artifact.py`
+5. **Aplicación típica**:
+   - Hoy DMC
+   - mañana U. Lima
+   - pasado IDAT
+   - cada institución se endurece y habilita por flags, no por lista fija en runtime.
+
+**Validación**:
+- URLs nuevas con la misma forma deben seguir entrando aunque no estén en el `.txt`.
+- URLs basura deben quedar fuera por patrón.
+- El `.txt` no debe aparecer referenciado por workers ni workflows.
+
+### Fase 102: Promoción Diferida a Producción (sin FG2 inmediato) [x] Completado
+
+**Objetivo**: evitar que Pro scrapee inmediatamente después de una corrida manual en desarrollo, reduciendo riesgo de bloqueo por IP o rate limiting.
+
+**Cambios realizados**:
+1. **Workflow a ajustar**:
+    - `.github/workflows/db-sync-to-pro.yml`
+2. **Cambio funcional**:
+   - Mantener:
+     - detectar migrations
+     - aplicar migrations
+     - correr parity
+    - Quitado el dispatch inmediato de FG2 en `main`.
+3. **Workflow a revisar/activar**:
+   - `.github/workflows/production_pipeline.yml`
+4. **Cambio funcional**:
+    - Reactivada la ventana automática diaria de producción para `main`.
+   - Mantener `workflow_dispatch` para emergencias.
+5. **Comportamiento final**:
+   - Desarrollo prueba manualmente.
+   - `main` recibe la configuración.
+   - Pro espera a la siguiente ventana diaria para scrape real.
+   - Luego ocurre rebuild de Cloudflare Pages si FG2 termina bien.
+
+**Validación**:
+- Al mergear a `main`, `db-sync-to-pro.yml` ya no dispara FG2 inmediato.
+- FG2 corre por schedule diario o por `workflow_dispatch` explicito.
+
+### Fase 103: Parity Check Orientado a Configuración, no a Datos ETL [x] Completado
+
+**Objetivo**: ajustar `check_db_parity.py` para validar schema y configuración promotable, sin bloquear por diferencias esperadas en tablas operativas.
+
+**Cambios realizados**:
+1. **Archivo a ajustar**:
+   - `scripts/maintenance/check_db_parity.py`
+2. **Debe validar**:
+   - migrations aplicadas
+   - columnas críticas de `institution_site_profiles`
+   - nuevos flags:
+     - `discovery_enabled`
+     - `pipeline_enabled`
+     - `production_enabled`
+   - presencia/paridad de `institutions` por slug
+   - cantidad de perfiles por institución
+   - RPCs/triggers críticos si se amplía el script
+3. **Debe dejar como warning/informativo**:
+   - diferencias en `staging_raw`
+   - diferencias en `cleansed_programs`
+   - diferencias en `enriched_programs`
+   - diferencias en `courses`
+4. **Razón**:
+   - Esas tablas son operativas y deben divergir entre Free y Pro según cuándo corra FG2.
+
+**Validación**:
+- La paridad falla si falta una institución migrable o un perfil/configuración crítica.
+- La paridad no falla solo porque Pro tenga menos cursos o menos registros ETL que Free; esos conteos se reportan como informativos.
+- Validacion local detecto correctamente credenciales Free/Pro iguales o inconsistentes y evita falsa paridad.
 
 ## Hoja de Ruta: Lanzamiento Producción
 - [x] **Fases 50, 52, 53, 54, 55, 56**: Noise Sentinel + Golden Pipeline + Correcciones P0/P1/P2 + SEO + U. Lima Visibility completados.
@@ -138,10 +348,10 @@
 - [x] **Fase 51**: Docs hermanas — `core_data_flow.md` y `PIPELINE_PLAN.md` ya existen en repo. Status update.
 - [x] **Fase 58/59**: Verificación frontend — 99% completado. 17/20 campos mapeados visibles. Gaps menores aceptables P4.
 - [x] **Fase 65**: Limpieza de Datos Falsos — Verificado: 0 courses con `description_long=name` en Free DB. Pendiente re-ejecutar FG2 para enriquecer campos vacíos.
-- [ ] **Fase 95**: Pro Schema Sync — Aplicar migration consolidada que corrija las 8 diferencias estructurales.
-- [ ] **Fase 96**: FG2 en Pro — Primera ejecución del pipeline en producción. Debe producir ~48 cursos DMC.
-- [ ] **Fase 97**: db_migrate.py + db-sync-to-pro.yml — Workflow automático de migrations al mergear a `main`.
-- [ ] **Fase 98**: check_db_parity.py — Parity check automático que bloquea merge si Pro difiere de Free.
+- [x] **Fase 95**: Pro Schema Sync — Migration consolidada aplicada; el gap estructural inicial Free ↔ Pro queda documentado como resuelto.
+- [ ] **Fase 96**: FG2 en Pro — En progreso/bloqueada. Pro fue restaurado a `ACTIVE_HEALTHY`, pero el run manual `26369726951` termino `success` sin escribir en `StudiaMatch-Pro` (`courses=0`, `staging_raw=36 discovered`, `cleansed/enriched=0`). Revisar secrets `Production` antes de repetir FG2.
+- [x] **Fase 97**: db_migrate.py + db-sync-to-pro.yml — Artefactos ya creados en repo; pendiente confirmar su adopción operativa/estado final en ramas protegidas.
+- [x] **Fase 98**: check_db_parity.py — Script ya creado en repo; pendiente validar su ejecución end-to-end como guardrail permanente.
 - [x] **FG2 DMC Test (Mayo 2026)**: Ejecución end-to-end del pipeline para DMC. Hallazgos documentados:
   - **Estación 1 (Harvester)**: `catalog_link_selector` Elementor incorrecto para WooCommerce → 0 URLs descubiertas. Bypass manual: 45 URLs insertadas en staging_raw + Playwright scrape.
   - **Estación 1.5 (Cleansing)**: Bug crítico `^universidad\s+\w+\s*|` — `|` sin escapar = alternancia regex = matchea vacío = descarta TODOS los cursos. Corregido en DB.
@@ -218,10 +428,10 @@ La ejecución del sistema se divide en 3 Fases Generales (FG) para optimizar cos
   - **Script Principal**: `register_institution.py` (o procesos de Nivel 1).
 * **FG2: Carga Masiva y Delta Scraping (Frecuencia: Semanal)**
   - **Objetivo**: Extracción exhaustiva del catálogo de cursos. La carga inicial obtiene toda la información de las webs institucionales. Las ejecuciones posteriores aplican "Delta Scraping" (mediante Hashing) para extraer y procesar *solo* lo nuevo o modificado, reduciendo radicalmente el costo.
-  - **Flujo de Scripts**: `universal_harvester.py` -> `cleansing_worker.py` -> `enrichment_worker.py` -> `sync_vector_worker.py` -> auditorí­as.
+  - **Flujo de Scripts**: `universal_harvester.py` -> `cleansing_worker.py` -> `enrichment_worker.py` -> `sync_vector_worker.py` -> auditorías.
 * **FG3: Integridad y Periodo de Gracia (Frecuencia: Diaria)**
   - **Objetivo**: Validar la disponibilidad de los enlaces existentes (404).
-  - **Mecanismo**: Comprobar si el curso sigue activo. Si falla, entra en un "Periodo de Gracia" de 3 dí­as antes de inactivarse. Esto desliga al harvester de la verificación diaria.
+  - **Mecanismo**: Comprobar si el curso sigue activo. Si falla, entra en un "Periodo de Gracia" de 3 días antes de inactivarse. Esto desliga al harvester de la verificación diaria.
   - **Script Principal**: `integrity_ping.py`.
 
 ## Arquitectura del Cerebro de Datos (Flujo ETL Histórico)
@@ -229,18 +439,18 @@ La ejecución del sistema se divide en 3 Fases Generales (FG) para optimizar cos
 2. **Harvesting de URLs (The Collector)** [x] Completado.
 3. **Extracción de Data Bruta (Deep Scrape)** [x] Completado.
 4. **Enriquecimiento IA/LLM (The Brain)** [x] Completado.
-5. **Quality Guard (Auditorí­a Aleatoria)** [x] Completado (Salud del catálogo certificada al 100%).
-6. **Taxonomí­a Automática (Motor de Reglas)** [x] Completado.
+5. **Quality Guard (Auditoría Aleatoria)** [x] Completado (Salud del catálogo certificada al 100%).
+6. **Taxonomía Automática (Motor de Reglas)** [x] Completado.
 7. **Visualización UX (Next.js 15)** [x] Completado (Detalle de 14 pilares y Social Proof funcionales).
 
 > [!CAUTION]
 > **Escritores a `courses`**: Actualmente 2 scripts escriben a `courses` (Golden Path): `sync_vector_worker.py` (UPSERT) e `integrity_ping.py` (PATCH mantenimiento). Los 11 harvesters dedicados bypassean el pipeline e insertan datos de calidad inferior directo a `courses`. Plan de remedición: Fases 61-65 unifican la arquitectura en un único `universal_harvester` que lee perfiles de sitio desde `institution_site_profiles` y enruta todo por el pipeline de 4 estaciones. Ver detalle en Fase 61.
 
 ## Estructura de Scripts (Producción)
-Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
+Jerarquía organizada para garantizar el mantenimiento y balanceo de carga:
 - `scripts/core/`: Orquestación, Universal Harvester (FG2) y Mapeo (FG1).
-- `scripts/harvesters/`: Scrapers especí­ficos por institución.
-- `scripts/maintenance/`: Auditorí­a de calidad y Ping de integridad 404/Gracia (FG3).
+- `scripts/harvesters/`: Scrapers específicos por institución.
+- `scripts/maintenance/`: Auditoría de calidad y Ping de integridad 404/Gracia (FG3).
 - `scripts/legacy/`: Historial de desarrollo y scripts de un solo uso.
 
 ## Pasos de Implementación
@@ -253,7 +463,7 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 
 ### Fase 12: Inteligencia de Recomendación y Social Proof [x] Completado
 - [x] Sistema de Ratings y Reviews operativo en Supabase y Web.
-- [x] Motor de Recomendación por Categorí­a verificado.
+- [x] Motor de Recomendación por Categoría verificado.
 
 ### Fase 13: Escalamiento Nacional e Infraestructura [x] Completado
 1. **Nivel 1: Descubrimiento (Monthly Discovery)** [x] Completado
@@ -261,19 +471,19 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 2. **Nivel 2: Carga Maestra (Weekly Master Load)** [x] Completado
    - [x] `scripts/core/master_orchestrator.py`: Balanceador de carga certificado.
 3. **Nivel 3: Integridad (Daily Integrity Ping)** [x] Completado
-   - [x] `scripts/core/integrity_ping.py`: Motor 404 con lógica de gracia de 3 dí­as operativo.
+   - [x] `scripts/core/integrity_ping.py`: Motor 404 con lógica de gracia de 3 días operativo.
 4. **Optimización de Búsqueda (Fuzzy Search)** [x] Completado
    - [x] Búsqueda difusa activa en producción.
 
-### Fase 14: Garantí­a de Calidad y Humo de Datos [x] Completado
-- [x] Auditorí­a de 14 pilares y eliminación de data acumulada en UI.
+### Fase 14: Garantía de Calidad y Humo de Datos [x] Completado
+- [x] Auditoría de 14 pilares y eliminación de data acumulada en UI.
 
 ### Fase 15: Testeo de Usuario y Funcionalidad E2E [x] Completado
-- [x] Corregido bug de botón de reseñas y habilitadas polí­ticas RLS.
+- [x] Corregido bug de botón de reseñas y habilitadas políticas RLS.
 
 ### Fase 16: Saneamiento de Huí©rfanos y Expansión Taxonómica [x] Completado
-- [x] Implementadas 5 categorí­as: Finanzas, Ingenierí­a, Arte, Derecho, Marketing.
-- [x] Cero cursos en categorí­a 'General'. Catálogo 100% autónomo.
+- [x] Implementadas 5 categorías: Finanzas, Ingeniería, Arte, Derecho, Marketing.
+- [x] Cero cursos en categoría 'General'. Catálogo 100% autónomo.
 
 ### Fase 17: Refinamiento UX y Comparativa Avanzada [x] Completado
 ...
@@ -283,16 +493,16 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 3. **Automatización del Cálculo de ROI** [x] Completado (Fórmula dinámica activa).
 4. **UI de Transparencia Financiera** [x] Completado (Nota de fuente de datos integrada).
 
-### Fase 19: Auditorí­a de Coherencia y Calidad Final [x] Completado
+### Fase 19: Auditoría de Coherencia y Calidad Final [x] Completado
 - Acción: Ejecutado `taxonomy_roi_audit.py`. Reducción de 140 a 0 inconsistencias.
 - Resultado: Catálogo 100% veraz y sincronizado para producción.
 
 ### Fase 20: Certificación de Producción Autónoma [x] Completado
 1. **Saneamiento Quirúrgico**: Truncado de tablas `courses`, `institutions`, `leads`, `ratings`, `reviews` (Preservando `market_salaries` y `categories`). [x] Completado
 2. **Descubrimiento Nacional (Nivel 1)**: Ejecución de `discovery_institutions.py` para identificar ~10 nuevos cursos/instituciones. [x] Completado
-3. **Desarrollo de Harvesters (Nivel 2)**: Creación e implementación de scrapers especí­ficos para la muestra descubierta. [x] Completado
+3. **Desarrollo de Harvesters (Nivel 2)**: Creación e implementación de scrapers específicos para la muestra descubierta. [x] Completado
 4. **Orquestación y Enriquecimiento**: Ejecución del `master_orchestrator.py` y `llm_enrichment_worker.py` para la muestra. [x] Completado
-5. **Auditorí­a Final de Integridad**: Validar 0 inconsistencias y 100% de coherencia financiera/taxónomica. [x] Completado
+5. **Auditoría Final de Integridad**: Validar 0 inconsistencias y 100% de coherencia financiera/taxónomica. [x] Completado
 6. **Firma Digital**: Certificación final de la arquitectura y despliegue en entornos productivos. [x] Completado
 
 ### Fase 21: Automatización de Producción (Golden Pipeline) [x] Completado
@@ -313,7 +523,7 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
    - [x] Reemplazo masivo de "Yachachiy" por "StudIAMatch" en todo el codebase (scripts, web, tests). [x] Completado
 2. **Componentes UI (Web)**:
    - [x] Actualizar Logo de "Yachachiy" a diseño "SM". [x] Completado
-   - [x] Actualizar tí­tulos de página, meta-tags y textos de footer/header. [x] Completado
+   - [x] Actualizar títulos de página, meta-tags y textos de footer/header. [x] Completado
    - [x] Ajustar gradientes o colores si es necesario para la nueva identidad. [x] Completado
 3. **Persistencia y Pipelines**:
    - [x] Actualizar nombres de servicios en scripts y logs. [x] Completado
@@ -322,27 +532,27 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 ### Fase 23: Rediseño Minimalista y Compacto [x] Completado
 1. **Header & Navigation**:
    - [x] Reducir altura del Header y optimizar branding. [x] Completado
-   - [x] Tipografí­a más ní­tida y espaciado compacto. [x] Completado
+   - [x] Tipografía más nítida y espaciado compacto. [x] Completado
 2. **Hero Section (Concepto StudIAMatch)**:
-   - [x] Rediseño minimalista del Hero con el slide "StudIAMatch Â· Data-driven decisions". [x] Completado
+   - [x] Rediseño minimalista del Hero con el slide "StudIAMatch · Data-driven decisions". [x] Completado
    - [x] Mejora de la barra de búsqueda (más compacta y moderna). [x] Completado
 3. **Catálogo y Filtros**:
    - [x] Optimizar sidebar de filtros para que sea más sutil y funcional. [x] Completado
-   - [x] Nuevas tarjetas de curso minimalistas con mejor jerarquí­a visual. [x] Completado
+   - [x] Nuevas tarjetas de curso minimalistas con mejor jerarquía visual. [x] Completado
 4. **Footer & Secciones Informativas**:
    - [x] Compactar Footer manteniendo enlaces clave. [x] Completado
    - [x] Pulir secciones "Cómo Funciona" y "Nosotros" con estí©tica plana y moderna. [x] Completado
 
 ### Fase 24: Validación Funcional E2E [x] Completado
-1. **Auditorí­a de Navegación**: Validar scroll suave y anclas de Header. [x] Completado
+1. **Auditoría de Navegación**: Validar scroll suave y anclas de Header. [x] Completado
 2. **Test de Detalle de Curso**: Verificar sección de ROI y formulario de captura. [x] Completado
-3. **Auditorí­a de Marca**: Confirmar 0 residuos de marca anterior en UI. [x] Completado
+3. **Auditoría de Marca**: Confirmar 0 residuos de marca anterior en UI. [x] Completado
 4. **Generación de Reporte**: Documentar hallazgos en `docs/qa-engineer/`. [x] Completado
 
-### Fase 25: Auditorí­a de Rutas y Coherencia v2 [x] Completado
+### Fase 25: Auditoría de Rutas y Coherencia v2 [x] Completado
 1. **Validación de Rutas Dinámicas**: Confirmar formato `/courses/[institution]/[slug]` en Home y Detalle. [x] Completado
 2. **QA de Integridad de Datos**: Ejecutar `quality_assurance_audit.py` para coherencia en BD. [x] Completado
-3. **Pruebas de Carga Directa**: Validar rutas especí­ficas (ej: upc/psicologia). [x] Completado
+3. **Pruebas de Carga Directa**: Validar rutas específicas (ej: upc/psicologia). [x] Completado
 4. **Actualización de E2E**: Ajustar `mobile_usability.spec.ts` para nuevas rutas y ejecutar. [x] Completado
 5. **Reporte Final**: Generar `docs/qa-engineer/reporte_funcionalidad_v2.md`. [x] Completado
 
@@ -362,15 +572,15 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
    - [x] `CourseDetailClient.tsx`: Implementado escape de parámetros con `encodeURIComponent` en todas las rutas de API.
    - [x] Implementada lógica `try-catch` robusta con validación de estados `response.ok`.
 2. **Optimización de Búsqueda Parcial**:
-   - [x] Corregida sintaxis de `ilike` para PostgREST (uso de `*` como comodí­n en lugar de `%` en la URL).
+   - [x] Corregida sintaxis de `ilike` para PostgREST (uso de `*` como comodín en lugar de `%` en la URL).
 3. **Validación de Datos en Social Proof**:
-   - [x] Añadida validación de nulidad para `category_id` y manejo de arrays vací­os en recomendaciones.
+   - [x] Añadida validación de nulidad para `category_id` y manejo de arrays vacíos en recomendaciones.
 
-### Fase 28: Auditorí­a de De-duplicación e Integridad de URLs [x] Completado
+### Fase 28: Auditoría de De-duplicación e Integridad de URLs [x] Completado
 1. **Filtro de Unicidad en Frontend**: Implementada lógica en `page.tsx` para de-duplicar por `(institution, url)`. [x] Completado
 2. **Sistema de Priorización**: En caso de duplicidad, se selecciona automáticamente el registro tipo 'Programa' sobre 'Curso'. [x] Completado
 3. **Búsqueda Resiliente (Multi-Strategy Lookup)**: Implementada lógica en `CourseDetailClient` que busca por (1) Slug exacto, (2) Coincidencia en URL y (3) Búsqueda difusa. Esto soluciona problemas de tildes o caracteres corruptos en la DB. [x] Completado
-4. **Auditorí­a de Salud de Rutas**: Ejecutado script de integridad validando que el 100% de las rutas dinámicas resuelven correctamente sin errores "Lo sentimos...". [x] Completado
+4. **Auditoría de Salud de Rutas**: Ejecutado script de integridad validando que el 100% de las rutas dinámicas resuelven correctamente sin errores "Lo sentimos...". [x] Completado
 5. **Reporte Formal**: Actualizado `docs/qa-engineer/reporte_duplicidad_integridad.md`. [x] Completado
 
 ### Fase 29: Automatización Core Flow (CI/CD + AI) [x] COMPLETADO
@@ -379,7 +589,7 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
    - [x] `.github/workflows/daily_ingestion.yml` activo en rama `desarrollo`.
    - [x] Secrets configurados en Environment `Development`.
 3. **Estrategia "Data Drip" (IA Multi-Cloud)**:
-   - [x] Lí­mite dinámico (100 cursos: 50 CF + 50 GH/Gemini).
+   - [x] Límite dinámico (100 cursos: 50 CF + 50 GH/Gemini).
    - [x] Filtro de calidad (Min 150 chars en descripción).
    - [x] Fallback automático anti-429 (Cloudflare -> GitHub -> Gemini).
 
@@ -390,14 +600,16 @@ Jerarquí­a organizada para garantizar el mantenimiento y balanceo de carga:
 - [x] Configuración de Pipeline Automático Zero-Touch (Root: /web, Output: out)
 - [x] Limpieza y Documentación de Tier 1 completada
 
-### Fase 31: Configuración de Visualización y Taxonomí­a [x] COMPLETADO
-- [x] Guí­a paso a paso para Cloudflare Dashboard.
+### Fase 31: Configuración de Visualización y Taxonomía [x] COMPLETADO
+- [x] Guía paso a paso para Cloudflare Dashboard.
 - [x] Validación de estructura URL oficial: `/courses/[institution]/[slug]`.
 - [x] Eliminación de colisiones de rutas antiguas (`[slug]`).
 - [x] Despliegue automático 100% verificado en Cloudflare.
 
 ### Fase 32: Migración Full Replace — Dev (Free) → Pro [x] Completado (REST API approach)
 Objetivo: Reemplazar completamente la data del proyecto Supabase Pro con la data superior del proyecto Dev, incluyendo schema, datos, RPCs, RLS y extensiones.
+
+> **NO EJECUTAR / Nota histórica no vigente**: esta fase describe una remediación excepcional posterior a exposición de credenciales y recreación de ambientes. No es el flujo DB-as-Code vigente y no debe usarse como runbook. Desde Fase 99, Free -> Pro solo promueve schema y catálogos versionados; `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` deben generarse en cada ambiente ejecutando FG2 localmente.
 
 **Estrategia**: Full Replace vía REST API + SQL consolidado. Se abandonó `pg_dump`/`psql` (imposible por Supabase Free sin conexión directa). En su lugar:
 1. Ambos proyectos (Free `YOUR_FREE_PROJECT_REF` y Pro `YOUR_PRO_PROJECT_REF`) fueron eliminados por exposición de credenciales.
@@ -502,13 +714,13 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
    - [x] Trigram search (ilike) y vector embeddings verificados funcionales post-movimiento
 
 6. **Modificar `db_client.py` para usar service_role en writes** (IMPACTO CRÍTICO):
-   - [x] Agregar `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` (obtener del Dashboard > Settings > API)
+    - [x] Agregar `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` local y gitignored (obtener del Dashboard > Settings > API; nunca commitear secretos)
    - [x] Modificar `db_client.py`: `_get_headers(use_service_role=None)` — leer `_service_key` para writes, `_anon_key` para reads
    - [x] `_insert_api()`, `_patch_api()`, `_delete_api()`, `_upsert_api()`, `rpc()` → usar `use_service_role=True`
    - [x] `_select_api()`, `select_all()`, `count()` → usar `use_service_role=False`
    - [x] Verificar que los scripts locales pueden INSERT/UPSERT en `courses` con service_role
    - [x] Verificar que el frontend sigue leyendo con anon key (SELECT)
-   - [x] Commit cambios en `db_client.py` y `.env.local` (commit `e58d996`)
+    - [x] Commit cambios en `db_client.py`; `.env.local` debe permanecer fuera de git (commit `e58d996`)
 
 7. **Crear migration SQL y verificar en Dev**:
    - [x] Migration `db/migrations/20260430_rls_hardening.sql` creada y ejecutada
@@ -521,6 +733,7 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
 #### Fase 32B: Migración Full Replace — Free → Pro [x] Completado (REST API approach)
 
 > **Nota**: Se abandonó `pg_dump`/`psql` (imposible por Supabase Free sin conexión directa). Se usó REST API con `service_role` keys vía script `fase32b_migrate_free_to_pro.py` (commit `b34d60f`). Resultado: 648 cursos, 15 instituciones, 728 enriched, RLS replicado, RPCs con search_path fijo.
+> **Estado actual**: mantener solo como antecedente. No repetir este patrón para promoción normal; la política vigente separa catálogos migrables de tablas operativas por ambiente.
 
 1. **Pre-migración — Configurar credenciales**:
    - [x] Obtener service_role keys del Free y Pro desde Dashboard > Settings > API
@@ -599,7 +812,7 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
 5. **Cierre de Ciclo y Documentacion** (Docs)
     - [x] `docs/deployment/environment_config.md`, `deploy_desarrollo.md`, `guia_despliegue_produccion.md` actualizados con nuevo project ref y nuevas keys (R8).
 
-### Fase 35: Reingenierí­a de Calidad de Datos (Raw Harvesting) [x] Completado
+### Fase 35: Reingeniería de Calidad de Datos (Raw Harvesting) [x] Completado
 1. **Infraestructura de Staging**:
    - [x] Crear tabla `harvesting` para almacenamiento de data bruta (URL, HTML, Metatags). [x] Completado
    - [x] Implementar estados: `pending`, `processed`, `discarded`, `error`. [x] Completado
@@ -609,7 +822,7 @@ Prioridad: **CRÍTICA** — Sin esto, el dump replica las vulnerabilidades a Pro
    - [x] Optimización de Gran Volumen (Capacidad 500,000 chars). [x] Completado
 3. **Desarrollo del Processor Intelligen (The Curator)**:
    - [x] Crear `scripts/core/harvest_processor.py` para depuración quirúrgica. [x] Completado
-   - [x] Implementar heurí­stica anti-slogan (detectar "Descubre nuestras carreras", "404", etc.). [x] Completado
+   - [x] Implementar heurística anti-slogan (detectar "Descubre nuestras carreras", "404", etc.). [x] Completado
    - [x] Flujo de promoción: `harvesting` -> Enriquecimiento -> `courses`. [x] Completado
 4. **Validación de la Muestra en Conflictos**:
    - [x] Re-procesar URL de UPC Marketing para validar limpieza automática del nombre. [x] Completado
@@ -621,7 +834,7 @@ Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementa
 ### Las 4 Estaciones del Dato
 1.  **Estación 1: `staging_raw` (Harvesting)**:
     - [x] Motor de descubrimiento masivo (Sitemaps + BFS Crawl). [x] Completado
-    - [x] Almacenamiento de HTML bruto (Lí­mite 500k chars). [x] Completado
+    - [x] Almacenamiento de HTML bruto (Límite 500k chars). [x] Completado
     - [x] Casos de í©xito: **UTP (100 URLs)** y **DMC (100 URLs)**. [x] Completado
 2.  **Estación 2: `cleansed_programs` (Cleansing)**:
     - [x] Script `cleansing_worker.py` funcional. [x] Completado
@@ -642,10 +855,10 @@ Esta fase reemplaza y consolida la anterior estrategia de harvesting, implementa
 **Estado**: Operativo y Automatizado.
 - [x] **Estandarización de Secretos**: Todas las variables movidas a `SUPABASE_URL` y `SUPABASE_KEY` (Fix total de error `None URL`).
 - [x] **Fase 0 (Inventory)**: Activado `discovery_institutions.py` para alimentar el catálogo maestro.
-- [x] **Fase 1 (Massive Harvesting)**: Re-activado `master_orchestrator.py` con lí­mites de 150 URLs (Anti-timeout).
+- [x] **Fase 1 (Massive Harvesting)**: Re-activado `master_orchestrator.py` con límites de 150 URLs (Anti-timeout).
 - [x] **Fase 2 (Multicloud Enrichment)**: Implementado `enrichment_worker.py` con cascada CF -> GitHub -> Gemini.
 - [x] **Fase 3 (Production Sync)**: Activado `sync_vector_worker.py` con slugs persistentes.
-- [x] **Fase 4 (ROI-QA Audit)**: Integración final de auditorí­a de calidad de datos en cada carrera.
+- [x] **Fase 4 (ROI-QA Audit)**: Integración final de auditoría de calidad de datos en cada carrera.
 - [x] **Golden Pipeline**: YAML optimizado a 5 Jobs secuenciales para máxima trazabilidad.
 
 ### Fase 38: Refactorización de universal_harvester.py (Estrategia Stealth Harvesting FG2) [x] Completado
@@ -666,7 +879,7 @@ El objetivo fue transformar el harvester en un motor de alta resiliencia y sigil
    - [x] **Content Hashing**: Solo ejecutar `Upsert` si el hash del contenido limpio ha cambiado. [x] Completado
    - [x] **Sanitización de Backlog**: Implementada lógica `_load_existing_urls` para saltar el descubrimiento de URLs que ya existen en la DB. [x] Completado
 
-### Fase 39: Reingenierí­a y Afinación del Cleansing Worker (Estación 1.5) [x] Completado
+### Fase 39: Reingeniería y Afinación del Cleansing Worker (Estación 1.5) [x] Completado
 Objetivo: Transformar `cleansing_worker.py` en un filtro de alta fidelidad con motor de exclusión por institución, consolidación de sedes y limpieza profunda de HTML.
 
 1. **Infraestructura de Datos**:
@@ -689,7 +902,7 @@ Objetivo: Resolver el problema de múltiples rutas apuntando al mismo contenido 
 
 1. **Infraestructura de Datos (SQL)**:
    - [x] **Esquema de Alta Fidelidad**: Añadir columnas `effective_url` y `canonical_url` en `staging_raw` y `cleansed_programs`. [x] Completado
-   - [x] **índice Compuesto**: Migrar el í­ndice UNIQUE de `cleansed_programs` a la tupla `(institution_id, effective_url)` para evitar colisiones entre instituciones. [x] Completado
+   - [x] **Índice Compuesto**: Migrar el índice UNIQUE de `cleansed_programs` a la tupla `(institution_id, effective_url)` para evitar colisiones entre instituciones. [x] Completado
 2. **Refactorización de Captura (Harvester)**:
    - [x] **Captura de URL Final**: Almacenar `response.url` tras redirecciones automáticas de `curl_cffi` o Playwright. [x] Completado
    - [x] **Extracción de Canonical**: Implementar regex/BeautifulSoup para extraer `<link rel="canonical">` como prioridad de de-duplicación. [x] Completado
@@ -702,7 +915,7 @@ Objetivo: Resolver el problema de múltiples rutas apuntando al mismo contenido 
    - [x] **Validación de Fallback**: Confirmar el uso de `COALESCE` para operar con URLs originales si no hay redirección detectada. [x] Completado
 
 ### Fase 40: Refactorización de Infraestructura CI/CD [x] Completado
-Objetivo: Migrar el pipeline monolí­tico hacia un sistema de 3 flujos atómicos (Mensual, Semanal, Diario) para optimizar costos de computación y mejorar la observabilidad en la nube.
+Objetivo: Migrar el pipeline monolítico hacia un sistema de 3 flujos atómicos (Mensual, Semanal, Diario) para optimizar costos de computación y mejorar la observabilidad en la nube.
 
 1. **Estructura de Workflows (GitHub Actions)**:
    - [x] **FG1 - Institution Inventory**: Flujo mensual para descubrimiento de nuevas semillas (`fg1_inventory.yml`). [x] Completado
@@ -710,11 +923,11 @@ Objetivo: Migrar el pipeline monolí­tico hacia un sistema de 3 flujos atómico
    - [x] **FG3 - Integrity Management**: Flujo diario ligero para validación de 404s (`fg3_integrity.yml`). [x] Completado
 2. **Observabilidad y Resiliencia**:
    - [x] **Jobs Secuenciales**: Separación de 'Harvesting' y 'Cleansing' en jobs independientes para identificar cuellos de botella. [x] Completado
-   - [x] **Delegación del Orquestador**: Modificación de `master_orchestrator.py` para permitir la delegación de fases a GitHub Actions ví­a flags (`--skip-cleansing`). [x] Completado
+   - [x] **Delegación del Orquestador**: Modificación de `master_orchestrator.py` para permitir la delegación de fases a GitHub Actions vía flags (`--skip-cleansing`). [x] Completado
 3. **Mantenimiento y Protocolo Local -> Nube (Smart Sync)**:
    - [x] **Protocolo de Sincronización**: Automatización del flujo de subida de cambios locales a Supabase Free. [x] Completado
      1. Ejecutar `python scripts/local/maintenance/sync_local_to_cloud.py`.
-     2. El script detectará diferencias y realizará **Bulk Upserts** ví­a API REST (evitando el colapso del navegador por SQL pesado).
+     2. El script detectará diferencias y realizará **Bulk Upserts** vía API REST (evitando el colapso del navegador por SQL pesado).
      3. Confirmar en el Dashboard de Supabase que los registros (especialmente `cleansed_programs`) se han actualizado sin duplicados.
    - [x] **Esquema Estructural**: Para cambios en la estructura de tablas (DDL), utilizar el bloque SQL ligero de la arquitectura y ejecutarlo en el SQL Editor (Frecuencia: Solo cuando cambien los campos). [x] Completado
 
@@ -2106,9 +2319,14 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    - [x] Misma migration aplicada en Free
    - [x] Paridad Free ↔ Pro verificada: columnas, RPCs, perfil DMC coinciden
 
-### Fase 96: FG2 en Pro — Primera Ejecución [ ] Pendiente — se ejecutará automáticamente al mergear PR #57 a `main` vía `db-sync-to-pro.yml`
+### Fase 96: FG2 en Pro — Cierre Operativo [ ] Bloqueado
 
-**Objetivo**: Ejecutar el pipeline completo en Pro por primera vez. Pro debe producir los mismos ~48 cursos DMC que Free.
+**Objetivo**: Terminar de drenar FG2 en Pro y estabilizar la publicación. Estado de esta ejecucion: Pro fue restaurado desde `INACTIVE` a `ACTIVE_HEALTHY`; antes del nuevo run tenia `courses=0`, `staging_raw=36 discovered`, `cleansed_programs=0`, `enriched_programs=0`. Se disparo FG2 manual en `main`: `https://github.com/romelhc95/studiamatch/actions/runs/26369726951`.
+
+**Resultado 2026-05-24**:
+- Workflow `26369726951` termino `success` y disparo rebuild de Cloudflare Pages.
+- `StudiaMatch-Pro` quedo sin cambios operativos: `courses=0`, `staging_raw=36 discovered`, `cleansed_programs=0`, `enriched_programs=0`.
+- Los logs del workflow muestran timestamps de `last_harvest_at` que no coinciden con `StudiaMatch-Pro`; por tanto, el bloqueo operativo es validar/corregir los secrets del environment `Production` para que apunten al proyecto Pro esperado antes de repetir FG2.
 
 1. **Pre-ejecución**:
    - [ ] Verificar que Fase 95 está completa (schema parity)
@@ -2132,9 +2350,17 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    - [ ] Verificar frontend `www.studiamatch.com` muestra cursos DMC
    - [ ] Comparar con Free: misma cantidad y calidad de datos
 
-### Fase 97: db_migrate.py + Workflow db-sync-to-pro.yml [x] Creado — pendiente de merge a desarrollo
+### Fase 97: db_migrate.py + Workflow db-sync-to-pro.yml [x] Validado — pendiente secrets Production correctos
 
-**Objetivo**: Crear el script y workflow que automatizan la aplicación de migrations al mergear a `main`, haciendo que el flujo DB-as-Code sea automático y no dependa de ejecución manual.
+**Objetivo**: Dejar validado y operativo el script/workflow que automatiza la aplicación de migrations al mergear a `main`, haciendo que el flujo DB-as-Code no dependa de ejecución manual.
+
+**Resultado 2026-05-24**:
+- `db_migrate.py` soporta `--only` para aplicar migrations puntuales sin disparar todo el historial.
+- `db_migrate.py` carga `.env.local`/`.env.gitprod` o los secrets configurados por GitHub Environment: `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY`, `NEXT_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- La lectura de `supabase_migrations` usa service-role para no fallar por RLS.
+- La validacion local mostro que `.env.gitprod` apunta a un target obsoleto/inconsistente respecto a `StudiaMatch-Pro` gestionado por Supabase; por eso no se debe promover con ese archivo hasta corregirlo. `StudiaMatch-Pro` gestionado por Supabase ya tiene 79B/79C registradas.
+- Validacion final: `py_compile` OK; `--env pro --only 20260505_fase79bd_circuitbreaker_guardrails --only 20260505_fase79c_noise_patterns --dry-run` lista 2 pendientes y aplica 0 por dry-run; `--env free --dry-run` lista 4 pendientes sin aplicar.
+- Auditoria `@security-auditor` final: sin blockers. Riesgo residual: `exec_sql`/Management API tiene privilegios altos y requiere secrets correctamente protegidos.
 
 1. **Crear `scripts/maintenance/db_migrate.py`**:
 
@@ -2213,21 +2439,31 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
          - name: Verify schema parity
            run: python3 scripts/maintenance/check_db_parity.py --env pro
    
-     trigger-fg2:
+     defer-fg2:
        needs: verify
        if: success()
-       uses: ./.github/workflows/production_pipeline.yml
+       runs-on: ubuntu-latest
+       steps:
+         - run: echo "FG2 deferred to scheduled production window or explicit workflow_dispatch"
    ```
 
-5. **Validación**:
-   - [ ] Probar `--dry-run` en Free: debe reportar 0 pendientes (o las que falten)
-   - [ ] Probar `--dry-run` en Pro: debe reportar migrations faltantes
+   5. **Validación / activación**:
+   - [x] Probar `--dry-run` en Free: reporta pendientes sin aplicar (4 al 2026-05-24)
+   - [x] Probar `--dry-run` en Pro: reporta migrations faltantes sin aplicar (2 seleccionadas al 2026-05-24)
    - [ ] Probar `--env free` aplica migration de prueba y la registra
    - [ ] Probar que error en SQL aborta y loguea correctamente
 
-### Fase 98: check_db_parity.py — Parity Check Automático [x] Creado — pendiente de merge a desarrollo
+### Fase 98: check_db_parity.py — Parity Check Automático [x] Validado — requiere secrets Free/Pro separados en CI
 
-**Objetivo**: Script que compara Free vs Pro y reporta diferencias. Se ejecuta como status check en PRs a `main`, bloqueando el merge si hay diferencias críticas.
+**Objetivo**: Dejar validado el script que compara Free vs Pro y reporta diferencias, ejecutándolo como status check/guardrail permanente cuando corresponda.
+
+**Resultado 2026-05-24**:
+- El script compara migrations, columnas criticas, `institutions` por slug y perfiles por slug.
+- La comparacion de perfiles cubre campos activos usados por harvester/cleansing/enrichment/sync: gates, stealth/Cloudflare, waits, selectors, seeds, exclusiones, regexes, section maps y circuit breaker.
+- Los conteos de `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` son informativos y no bloqueantes.
+- El script aborta si Free y Pro resuelven al mismo `SUPABASE_URL`, evitando falsos positivos por secrets mal configurados.
+- En GitHub Actions el workflow usa `--target-only`, porque un job asociado a `Production`/`Certification`/`Development` solo puede leer los secrets de ese environment y todos usan los mismos nombres (`SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY`, `NEXT_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+- Validacion final: `py_compile` OK; contra el target local Pro inconsistente falla limpiamente por drift de migrations, columnas y catalogos/configuracion, sin crash ni exposicion de secretos.
 
 1. **Crear `scripts/maintenance/check_db_parity.py`**:
 
@@ -2275,4 +2511,8 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    - [ ] Ejecutar contra Pro ANTES de Fase 95: debe reportar 8+ diferencias
    - [ ] Ejecutar contra Pro DESPUÉS de Fase 95: debe reportar 0 diferencias
    - [ ] Verificar que exit code 2 bloquea el workflow
+
+
+
+
 
