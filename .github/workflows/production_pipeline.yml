@@ -2,9 +2,8 @@ name: FG2 - StudIAMatch Golden Pipeline
 
 on:
   schedule:
-    - cron: '0 2 * * *' # Diario: 02:00 UTC (Rolling Shard)
+    - cron: '0 5 * * *' # Daily production window; no immediate post-db-sync FG2
   workflow_dispatch:      # Manual
-  workflow_call:          # Called by db-sync-to-pro.yml after schema sync
 
 concurrency:
   group: studiamatch-fg2-${{ github.ref }}
@@ -45,8 +44,10 @@ jobs:
       - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
         run: python3 scripts/core/master_orchestrator.py --limit 5 --skip-cleansing
 
@@ -74,8 +75,10 @@ jobs:
       - name: Run Cleansing Worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python scripts/core/cleansing_worker.py
 
   # 🚉 STATION 2: AI Enrichment (14 Metadata Pillars)
@@ -102,13 +105,12 @@ jobs:
       - name: Multicloud AI Enrichment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          GH_MODELS_TOKEN: ${{ secrets.GH_MODELS_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          NVCF_API_KEY: ${{ secrets.NVCF_API_KEY }}
         run: python scripts/core/enrichment_worker.py
 
   # 🚉 STATION 3: Production Sync (Vectors & Slugs)
@@ -135,8 +137,10 @@ jobs:
       - name: Sync to Production Courses
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python scripts/core/sync_vector_worker.py
 
   # 🚉 STATION 4: ROI & QA Audit
@@ -163,14 +167,18 @@ jobs:
       - name: Quality Assurance Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python scripts/maintenance/quality_assurance_audit.py
       - name: Taxonomy & ROI Audit
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           PYTHONIOENCODING: utf-8
         run: python scripts/maintenance/taxonomy_roi_audit.py
       - name: Upload Final Audit Reports

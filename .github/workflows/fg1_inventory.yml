@@ -2,7 +2,7 @@ name: FG1 - Institution Inventory Management
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # Mensual: Día 1 a las 00:00 UTC
+    - cron: '0 0 1 * *' # ⛔ DESACTIVADO temporalmente hasta redefinir flujo
   workflow_dispatch:      # Manual
 
 concurrency:
@@ -29,6 +29,8 @@ jobs:
       - name: Run Discovery Institutions
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python scripts/core/discovery_institutions.py
