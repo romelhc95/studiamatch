@@ -104,11 +104,19 @@ El archivo `.env.gitprod` (gitignored) contiene:
 ## Convenciones del Proyecto
 
 ### Sincronización Cross-Ambiente
-- Los scripts que sincronizan datos entre Free y Pro (ej: `sync_pro_to_free.py`) DEBEN usar exclusivamente Publishable y Secret API keys (`sb_publishable_*` / `sb_secret_*`), NUNCA compartir credenciales entre ambientes ni hardcodear keys
+- La sincronización operativa Free -> Pro de `staging_raw`, `cleansed_programs`, `enriched_programs` o `courses` NO es parte del flujo normal; solo se permite como backfill/remediación explícita, documentada y aprobada.
+- Los scripts excepcionales que sincronizan datos entre ambientes (ej: `sync_pro_to_free.py`) DEBEN usar exclusivamente Publishable y Secret API keys (`sb_publishable_*` / `sb_secret_*`), NUNCA compartir credenciales entre ambientes ni hardcodear keys
 - Credenciales Pro se leen de variables de entorno: `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY` alojadas en `.env.gitprod`
 - Credenciales Free se leen de variables de entorno: `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local` vía `db_client.py`
 - Los UUIDs de institutions/categories **difieren entre Free y Pro** — sincronización requiere mapeo por slug/nombre
 - Ambas keys son rotables ante exposición
+
+### DB-as-Code: Catálogos vs Datos Operativos
+- `institutions` es catálogo migrable: altas, slugs, URLs base y metadata institucional deben viajar como SQL versionado en `db/migrations/` junto con `institution_site_profiles`, `categories`, `category_rules` y `market_salaries`.
+- `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` son tablas operativas por ambiente: NO se sincronizan desde Free hacia Pro como parte del flujo DB-as-Code.
+- Pro debe generar sus propios registros operativos ejecutando FG2 con sus propias credenciales, perfiles y ventanas de scraping; Free se usa para validar configuración y comportamiento antes de promover migrations.
+- Si una institución nueva queda definida en migrations, Pro debe recibir el registro de `institutions` y su perfil sin alta manual duplicada; los cursos aparecerán cuando FG2 corra en Pro.
+- Scripts de backfill o sincronización puntual de datos operativos solo se permiten como remediación explícita, documentada y aprobada; no son el mecanismo normal de promoción.
 
 ## Fase 75: Exclusion Gate (`pipeline_ready`)
 

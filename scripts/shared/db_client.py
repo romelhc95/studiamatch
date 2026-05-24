@@ -57,8 +57,8 @@ class DatabaseClient:
     - Secret key (sb_secret_...): Server-side pipeline operations, bypasses RLS.
       Used by all writes and by `select_pipeline()` for pipeline table reads.
     
-    Legacy anon key (NEXT_PUBLIC_SUPABASE_ANON_KEY) is NOT used — Supabase
-    recommends Publishable keys as the modern replacement.
+    Legacy anon keys are not used; Supabase recommends Publishable keys as
+    the modern replacement.
     """
     PIPELINE_TABLES = frozenset([
         'staging_raw', 'cleansed_programs', 'enriched_programs',
@@ -67,8 +67,11 @@ class DatabaseClient:
 
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self._publishable_key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-        self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+        self._publishable_key = (
+            os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY")
+            or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+        )
+        self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY")
         self.supabase_key = supabase_key if supabase_key is not None else (self._service_key or self._publishable_key)
 
     def _get_headers(self, use_service_role=None):

@@ -1,33 +1,54 @@
 # Documento Detallado de Pipeline Workflow (Macro/Micro) y Diccionario de Datos - StudIAMatch
 
-Este documento detalla el pipeline de automatización ejecutado en **GitHub Actions**, especificando los scripts involucrados y las tablas impactadas en cada etapa.
+Este documento detalla el pipeline de automatización ejecutado en **GitHub Actions**, especificando los scripts involucrados, las tablas impactadas en cada etapa y el flujo operativo vigente de **FG1**, **FG2** y **FG3**.
+
+> Estado documental consolidado a 2026-05-24:
+> - Los workflows `fg1_inventory.yml`, `production_pipeline.yml` y `fg3_integrity.yml` existen y son el punto de verdad para la ejecución CI/CD.
+> - Los triggers `schedule` siguen definidos, pero actualmente están marcados en comentario como **desactivados temporalmente hasta redefinir flujo**; el uso vigente es principalmente `workflow_dispatch`, y en el caso de FG2 también `workflow_call` desde `db-sync-to-pro.yml`.
+> - La configuración por institución ya no depende de `crawler_exclusions`; el control actual vive en `institution_site_profiles` (`pipeline_ready`, `exclusion_patterns`, `allowed_url_patterns`, `noise_patterns`, y campos relacionados).
+
+## Política DB-as-Code: Catálogos vs Tablas Operativas
+
+El flujo vigente de promoción Free -> Pro transporta **schema y configuración versionada**, no copias de resultados del pipeline.
+
+| Tipo | Tablas | Política de promoción |
+|---|---|---|
+| Catálogos/configuración | `institutions`, `institution_site_profiles`, `categories`, `category_rules`, `market_salaries` | Viajan como SQL versionado en `db/migrations/` y deben quedar en paridad entre ambientes por slug/regla/configuración. |
+| Operativas FG2 | `staging_raw`, `cleansed_programs`, `enriched_programs`, `courses` | No se sincronizan desde Free hacia Pro en DB-as-Code; cada ambiente las produce ejecutando FG2 localmente contra sus propias fuentes y credenciales. |
+
+Consecuencias operativas:
+
+1. Una institución nueva debe promoverse a Pro mediante migration que cree/actualice `institutions` y `institution_site_profiles`.
+2. Los cursos públicos de Pro se generan cuando FG2 corre en Pro; no se copian desde Free aunque Free haya sido usado para validar el perfil.
+3. `check_db_parity.py` debe fallar por diferencias de schema/configuración promotable, pero no por conteos distintos en tablas operativas.
+4. Backfills o sincronizaciones puntuales de `courses`/ETL son remediaciones excepcionales, no el camino normal de promoción.
 
 ## Flujo Macro (Arquitectura de Automatización)
 
 ```mermaid
 graph TD
     subgraph Triggers ["GitHub Actions Triggers"]
-        T1(["Mensual (1ro 00:00)"]) -- "Inicia FG1" --> J0
-        T2(["Diario (02:00 UTC)"]) -- "Rolling Shard FG2" --> J1
-        T3(["Diario (05:00 UTC)"]) -- "Inicia FG3" --> J_Integrity
+        T1(["workflow_dispatch / schedule mensual"]) -- "Inicia FG1" --> J0
+        T2(["workflow_dispatch / workflow_call / schedule"]) -- "Inicia FG2" --> J1
+        T3(["workflow_dispatch / schedule diario"]) -- "Inicia FG3" --> J_Integrity
     end
 
     subgraph Data_Pipeline ["Golden Pipeline(Execution Flow)"]
         direction TB
         
         J0["<b>Fase 0: Manual or Discovery (FG1)</b><br/><i>discovery_institutions.py</i>"]
-        J1["<b>Fase 1: Massive Harvesting (FG2)</b><br/><i>master_orchestrator.py</i><br/>(universal_harvester.py)"]
-        J_Sentinel["<b>Fase 1.1: Noise AI-Sentinel</b><br/><i>scripts/maintenance/noise_discovery_engine.py</i>"]
+        J1["<b>Fase 1: Massive Harvesting (FG2)</b><br/><i>master_orchestrator.py --skip-cleansing</i><br/>(orquesta universal_harvester.py)"]
         J1_5["<b>Fase 1.5: Cleansing</b><br/><i>cleansing_worker.py</i>"]
         J2["<b>Fase 2: Enrichment (FG2)</b><br/><i>enrichment_worker.py</i>"]
         J3["<b>Fase 3: Production Sync (FG2)</b><br/><i>sync_vector_worker.py</i><br/>(Golden Path writer: enriched->courses)"]
-        J4["<b>Fase 4: ROI-QA Audit (FG2)</b><br/><i>quality_assurance_audit.py</i>"]
+        J4["<b>Fase 4: ROI-QA Audit (FG2)</b><br/><i>quality_assurance_audit.py + taxonomy_roi_audit.py</i>"]
+        J5["<b>Post-FG2 en main</b><br/><i>Cloudflare Pages rebuild</i>"]
     end
 
     subgraph Database_Impact ["Supabase"]
         direction LR
         T_Inst[(institutions)]
-        T_Excl[(crawler_exclusions)]
+        T_Profile[(institution_site_profiles)]
         T_Harv[(staging_raw)]
         T_Clean[(cleansed_programs)]
         T_Enri[(enriched_programs)]
@@ -37,11 +58,8 @@ graph TD
     %% Mappings
     J0 -- "Insert Seeds" --> T_Inst
     T_Inst -- "Provides Domain" --> J1
-    T_Excl -- "Load Rules" --> J1
-    J1 -- "Check Exclusion (Pre)" --> T_Harv
-    J1 -- "Scrape & Check Exclusion (Post)" --> T_Harv
-    T_Harv -- "Analyze Noise Patterns" --> J_Sentinel
-    J_Sentinel -. "Suggest Rules (Manual Approve)" .-> T_Excl
+    T_Profile -- "Load profile, gates & patterns" --> J1
+    J1 -- "Discovery + scrape + exclusions" --> T_Harv
     T_Harv -- "Read Raw HTML" --> J1_5
     J1_5 -- "Clean HTML & Consolidate Sibling URLs" --> T_Clean
     T_Clean -- "Read Clean & Normal Data" --> J2
@@ -50,7 +68,8 @@ graph TD
     J3 -- "UPSERT (Golden Path)" --> T_Cour
     T_Cour -- "Read Slug" --> J4
     J4 -- "Update ROI/Salud" --> T_Cour
-    
+    J4 -- "success() on main" --> J5
+
     J_Integrity["<b>FG3: Integrity Ping</b><br/><i>integrity_ping.py</i>"] -- "Set 404/Inactive" --> T_Cour
 
     %% Styling
@@ -59,8 +78,8 @@ graph TD
     classDef db fill:#f1f8e9,stroke:#33691e,stroke-width:2px;
     
     class T1,T2,T3 trigger;
-    class J0,J1,J_Sentinel,J1_5,J2,J3,J4,J_Integrity job;
-    class T_Inst,T_Excl,T_Harv,T_Cour,T_Clean,T_Enri db;
+    class J0,J1,J1_5,J2,J3,J4,J5,J_Integrity job;
+    class T_Inst,T_Profile,T_Harv,T_Cour,T_Clean,T_Enri db;
 ```
 
 ---
@@ -69,24 +88,40 @@ graph TD
 
 ### 1. Inventario y Descubrimiento (FG1)
 *   **Script**: `scripts/core/discovery_institutions.py`
-*   **Propósito**: Identificar o Registrar nuevas instituciones licenciadas y registrarlas como "semillas" para el harvester.
+*   **Workflow**: `.github/workflows/fg1_inventory.yml`
+*   **Trigger vigente**:
+    - `workflow_dispatch` manual
+    - `schedule` mensual definido en YAML, actualmente comentado como desactivado temporalmente
+*   **Propósito**: Identificar o registrar nuevas instituciones licenciadas y registrarlas como "semillas" para el harvester.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
     | `institutions` | `INSERT` | Agrega slugs de nuevas instituciones y URLs base. |
 
+### 1.1. Flujo actual al ejecutar FG1
+1. GitHub Actions selecciona el environment según rama: `Development`, `Certification` o `Production`.
+2. Instala dependencias Python.
+3. Ejecuta `python scripts/core/discovery_institutions.py`.
+4. El resultado esperado es actualización/inserción de semillas en `institutions`; no promueve cursos ni toca `courses`.
+
 ### 2. Massive Harvesting (FG2 - Fase 1)
 *   **Script**: `scripts/core/master_orchestrator.py` (Llama a `universal_harvester.py`).
-*   **Propósito**: Rastreo profundo de Sitemaps y URLs para extraer HTML crudo. Utiliza una estrategia de **Rolling Shards** (fragmentación diaria) para procesar un grupo de instituciones por día basadas en su última fecha de ejecución (`last_harvest_at`), evitando el límite de 6 horas de GitHub Actions.
+*   **Workflow**: `.github/workflows/production_pipeline.yml`
+*   **Trigger vigente**:
+    - `workflow_dispatch` manual
+    - `workflow_call` desde `db-sync-to-pro.yml` al promover cambios DB a `main`
+    - `schedule` definido en YAML, actualmente comentado como desactivado temporalmente
+*   **Propósito**: Rastreo profundo de sitemaps/seed URLs y extracción de HTML crudo. El job actual ejecuta `master_orchestrator.py --limit 5 --skip-cleansing`, que orquesta la fase de harvesting antes de las estaciones posteriores.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
     | `staging_raw` | `INSERT / UPDATE` | Almacena el `raw_html`, `effective_url`, `canonical_url` y `content_hash`. |
     | `institutions` | `UPDATE` | Registra el timestamp (`last_harvest_at`) y la duración de la sesión. |
+    | `institution_site_profiles` | `SELECT` | Provee `pipeline_ready`, exclusiones, whitelists, `noise_patterns`, `field_defaults`, routing y guardrails anti-bot. |
 
 ### 2.5. Saneamiento (FG2 - Fase 1.5)
 *   **Script**: `scripts/core/cleansing_worker.py`.
-*   **Propósito**: Limpieza de HTML crudo (eliminación de scripts, navs, footers) para reducir el consumo de tokens y normalización de metadatos JSON.
+*   **Propósito**: Limpieza de HTML crudo (eliminación de scripts, navs, footers), consolidación de subpáginas y filtrado de ruido antes del LLM.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
@@ -111,38 +146,59 @@ graph TD
     | `courses` | `UPSERT` (por `url`) | Único escritor autorizado del Golden Path. Setea `is_verified=True`. |
 
 ### 5. ROI-QA Audit (FG2 - Fase 4)
-*   **Script**: `scripts/maintenance/taxonomy_roi_audit.py`.
-*   **Propósito**: Verificar coherencia entre salarios del mercado y categorías asignadas.
+*   **Scripts**:
+    - `scripts/maintenance/quality_assurance_audit.py`
+    - `scripts/maintenance/taxonomy_roi_audit.py`
+*   **Propósito**: Verificar calidad del catálogo, coherencia entre salarios del mercado y categorías asignadas, y dejar artefactos de auditoría.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
-    | `courses` | `UPDATE` | Corrige campos inconsistentes. |
+    | `courses` | `SELECT / UPDATE` | Audita y corrige campos inconsistentes cuando corresponde. |
+
+### 5.1. Flujo actual al ejecutar FG2
+1. `phase_1_harvesting`: instala Playwright + dependencias, define `JOB_START_TIME` y ejecuta `master_orchestrator.py --limit 5 --skip-cleansing`.
+2. `phase_1_5_cleansing`: ejecuta `cleansing_worker.py`.
+3. `phase_2_enrichment`: ejecuta `enrichment_worker.py` con fallback multicloud (`Cloudflare`, `GitHub Models`, `Gemini`, `NVIDIA`).
+4. `phase_3_sync`: ejecuta `sync_vector_worker.py` y sincroniza `enriched_programs` hacia `courses`.
+5. `phase_4_audit`: corre `quality_assurance_audit.py` y `taxonomy_roi_audit.py`, y sube artefactos a GitHub Actions.
+6. Si el workflow corre en `main` y la auditoría termina bien, dispara un **Cloudflare Pages rebuild** para refrescar el static export en producción.
+7. Si FG2 fue llamado desde `db-sync-to-pro.yml`, entonces forma parte del flujo de promoción DB-as-Code hacia Pro después de aplicar migrations y verificar paridad.
 
 ### 6. Daily Integrity Ping (FG3)
 *   **Script**: `scripts/core/integrity_ping.py`.
+*   **Workflow**: `.github/workflows/fg3_integrity.yml`
+*   **Trigger vigente**:
+    - `workflow_dispatch` manual
+    - `schedule` diario definido en YAML, actualmente comentado como desactivado temporalmente
 *   **Propósito**: Validar enlaces rotos y manejar el periodo de gracia.
 *   **Tablas Impactadas**:
     | Tabla | Acción | Descripción |
     | :--- | :--- | :--- |
     | `courses` | `PATCH` | Cambia `is_active` a `false` si el 404 persiste por más de 3 días. |
 
+### 6.1. Flujo actual al ejecutar FG3
+1. GitHub Actions instala dependencias Python.
+2. Ejecuta `integrity_ping.py` desde `scripts/core`.
+3. El script revisa disponibilidad de URLs activas en `courses`.
+4. Si una URL falla, actualiza la señal de 404 y aplica el periodo de gracia; si persiste, desactiva el curso (`is_active=false`).
+
 ---
 
 ## Caminos de Escritura a `courses` (Bypass Paths)
 
-Históricamente existían 7 caminos de escritura a la tabla de producción. Post-Fase 52, solo quedan 2:
+Históricamente existían múltiples caminos de escritura a la tabla de producción. En la arquitectura vigente, los caminos autorizados/documentados son:
 
 | # | Escritor | Tipo | Estado | Notas |
 |---|----------|------|--------|-------|
-| BP-7 | `sync_vector_worker.py` (Golden Path) | `UPSERT` | Activo | Único camino completo — pasa por las 4 estaciones. `is_verified=True`. |
-| BP-M | `integrity_ping.py` | `PATCH` | Activo | Solo modifica `is_active` y `last_404_at`. |
+| BP-7 | `sync_vector_worker.py` (Golden Path) | `UPSERT` | Activo | Único camino completo del pipeline genérico — pasa por las 4 estaciones. `is_verified=True`. |
+| BP-M | `integrity_ping.py` | `PATCH` | Activo | Solo modifica `is_active` y señales de integridad/404. |
 
 **Paths eliminados** (Fases 52-53):
 - BP-1: `enrichment_worker.py` escribía directo a `courses` — ahora escribe a `enriched_programs`
 - BP-2: `sync_vector_worker.py` leía de `enriched_programs` como bypass — ahora es el único escritor
 - BP-3: `llm_enrichment_worker.py` — movido a `scripts/deprecated/`
 - BP-4: `harvest_processor.py` — movido a `scripts/deprecated/`
-- BP-5: Harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) — escriben directo a `courses` con `is_verified=True`. By design para datos de alta calidad de fuentes confiables.
+- BP-5: Harvesters dedicados legacy — deprecados/movidos fuera del camino principal; el comportamiento vigente debe concentrarse en el Golden Path configurable por `institution_site_profiles`.
 
 ### Bypass utilitario: `batch_enrich_courses.py`
 - **Script**: `scripts/maintenance/batch_enrich_courses.py`
@@ -302,11 +358,14 @@ Este diccionario detalla el 100% de los campos del modelo de base de datos, su u
     | `status` | TEXT | `enricher` (R) | Estado para la siguiente fase: `pending`, `processing`, `synced`, `discarded`. |
     | `metadata` | JSONB | `cleanser` (W) | Parámetros técnicos del proceso de limpieza. |
 
-### 6. `crawler_exclusions` (Escudo Anti-Ruido)
-| Campo | Tipo | Proceso(s) | Utilidad / Funcionalidad |
+### 6. `crawler_exclusions` (Legacy / deprecada)
+
+> **Estado actual**: tabla legacy eliminada del flujo vigente. La configuración activa de exclusiones, whitelists y ruido vive en `institution_site_profiles`. Esta sección se conserva solo como referencia histórica para entender migraciones y fases anteriores.
+
+| Campo | Tipo | Proceso(s) | Utilidad / Funcionalidad histórica |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | Sistema | ID único de la regla de exclusión. |
-| `institution_id` | UUID | `harvester` (R) | Institución a la que aplica (NULL = regla global para todas). |
+| `institution_id` | UUID | `harvester` (R) | Institución a la que aplicaba (NULL = regla global para todas). |
 | `pattern` | TEXT | `harvester` (R) | Substring o patrón de URL a bloquear (ej: `/noticias/`, `.pdf`). |
 | `reason` | TEXT | Admin | Justificación de la exclusión (ej: "Página de blog, no curso"). |
 | `is_active` | BOOL | `harvester` (R) | Toggle para habilitar/deshabilitar sin borrar la regla. |
