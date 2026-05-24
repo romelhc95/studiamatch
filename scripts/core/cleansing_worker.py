@@ -10,6 +10,11 @@ from bs4 import BeautifulSoup
 import html
 from dotenv import load_dotenv
 
+try:
+    import regex as safe_regex
+except ImportError:
+    safe_regex = None
+
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import (
@@ -113,10 +118,10 @@ class CleansingWorker:
         self.db = db_client or get_db_client()
         self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
-        # Fase 75: Exclusion Gate — solo procesar instituciones con pipeline_ready=true
+        # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
             str(p['institution_id']) for p in self.profiles
-            if isinstance(p, dict) and p.get('pipeline_ready')
+            if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
         # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado
         self.default_noise_name_patterns = [
@@ -173,14 +178,11 @@ class CleansingWorker:
                         if isinstance(exc, str):
                             if exc.startswith('re:'):
                                 pat = exc[3:]
-                                if len(pat) > 200:
-                                    logger.warning(f"Regex pattern too long, skipping: {pat[:50]}...")
-                                    continue
-                                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                                if not self._is_safe_profile_regex(pat):
                                     logger.warning(f"ReDoS-risk pattern rejected: {pat}")
                                     continue
                                 try:
-                                    compiled.append(re.compile(pat, re.IGNORECASE))
+                                    compiled.append(('re', pat))
                                 except re.error as e:
                                     logger.warning(f"Invalid regex pattern '{pat}': {e}")
                                     continue
@@ -198,6 +200,33 @@ class CleansingWorker:
         except Exception as e:
             logger.warning(f"Error loading site profiles: {e}")
             return []
+
+    @staticmethod
+    def _gate_enabled(profile: Dict[str, Any], gate_name: str) -> bool:
+        if gate_name in profile:
+            return bool(profile.get(gate_name))
+        return bool(profile.get('pipeline_ready'))
+
+    @staticmethod
+    def _is_safe_profile_regex(pattern: str) -> bool:
+        if not isinstance(pattern, str) or len(pattern) > 200:
+            return False
+        unsafe = [r'(\([^)]*[*+][^)]*\))+[*+]', r'\\[1-9]', r'\(\?([=!<])']
+        return not any(re.search(expr, pattern) for expr in unsafe)
+
+    @staticmethod
+    def _safe_profile_search(pattern: str, text: str, max_len: int = 2000):
+        text = str(text or '')[:max_len]
+        if safe_regex:
+            try:
+                return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
+            except TimeoutError:
+                logger.warning(f"Profile regex timed out and was rejected: {pattern}")
+                return None
+            except Exception as e:
+                logger.warning(f"Profile regex rejected: {pattern} ({e})")
+                return None
+        return re.search(pattern, text, re.IGNORECASE)
 
     # Fase 62C: Perfil-driven cleansing helpers
     def _get_profile_for_inst(self, inst_id) -> Dict[str, Any]:
@@ -238,10 +267,7 @@ class CleansingWorker:
             for pat in patterns:
                 if not isinstance(pat, str):
                     continue
-                if len(pat) > 200:
-                    logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
-                    continue
-                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                if not self._is_safe_profile_regex(pat):
                     logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
                     continue
                 try:
@@ -257,7 +283,10 @@ class CleansingWorker:
     def _extract_price_with_regex(self, text: str, profile: Dict[str, Any]):
         profile_regex = profile.get('price_regex')
         if profile_regex:
-            match = re.search(profile_regex, text, re.IGNORECASE)
+            if not self._is_safe_profile_regex(profile_regex):
+                logger.warning("Unsafe price_regex rejected")
+                return extract_price(text)
+            match = self._safe_profile_search(profile_regex, text, max_len=10000)
             if match:
                 try:
                     price_str = match.group(1) if match.lastindex else match.group(0)
@@ -324,8 +353,11 @@ class CleansingWorker:
         
         low_url, low_name = url.lower(), name.lower()
         for exc in self.exclusions:
-            if isinstance(exc, re.Pattern):
-                if exc.search(low_url):
+            if isinstance(exc, tuple) and exc[0] == 're':
+                if self._safe_profile_search(exc[1], low_url):
+                    return f"hard_db_exclusion:regex:{exc[1]}"
+            elif isinstance(exc, re.Pattern):
+                if exc.search(low_url[:2000]):
                     return f"hard_db_exclusion:regex:{exc.pattern}"
             elif isinstance(exc, str):
                 if exc in low_url:
@@ -335,7 +367,7 @@ class CleansingWorker:
         noise_patterns = self._get_noise_patterns_for_inst(institution_id)
         for pat in noise_patterns:
             try:
-                if re.search(pat, low_name, re.IGNORECASE):
+                if self._safe_profile_search(pat, low_name):
                     return f"noise_name_pattern:{pat}"
             except re.error:
                 continue
@@ -452,10 +484,10 @@ if __name__ == "__main__":
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
-        # Fase 75: Exclusion Gate — saltar registros de instituciones no listas
+        # Fase 100: saltar registros de instituciones sin pipeline habilitado
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:
-            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_ready=false'})
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_enabled=false'})
             continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:
