@@ -7,7 +7,7 @@ import sys
 import hashlib
 import random
 from datetime import datetime, timezone
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 import xml.etree.ElementTree as ET
 
 import requests
@@ -15,6 +15,11 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from curl_cffi.requests import AsyncSession
 from dotenv import load_dotenv
+
+try:
+    import regex as safe_regex
+except ImportError:
+    safe_regex = None
 
 try:
     from playwright_stealth import Stealth
@@ -109,6 +114,27 @@ class UniversalHarvester:
             return value
         return [] if value is None else value
 
+    @staticmethod
+    def _is_safe_profile_regex(pattern):
+        if not isinstance(pattern, str) or len(pattern) > 200:
+            return False
+        unsafe = [r'(\([^)]*[*+][^)]*\))+[*+]', r'\\[1-9]', r'\(\?([=!<])']
+        return not any(re.search(expr, pattern) for expr in unsafe)
+
+    @staticmethod
+    def _safe_profile_search(pattern, text):
+        text = str(text or '')[:2000]
+        if safe_regex:
+            try:
+                return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
+            except TimeoutError:
+                logger.warning(f"Profile regex timed out and was rejected: {pattern}")
+                return None
+            except Exception as e:
+                logger.warning(f"Profile regex rejected: {pattern} ({e})")
+                return None
+        return re.search(pattern, text, re.IGNORECASE)
+
     def _load_site_profile(self):
         try:
             inst_id = self.institution.get('id')
@@ -144,7 +170,7 @@ class UniversalHarvester:
                                 logger.warning(f"ReDoS-risk pattern rejected: {pat}")
                                 continue
                             try:
-                                compiled.append(re.compile(pat, re.IGNORECASE))
+                                compiled.append(('re', pat))
                             except re.error as e:
                                 logger.warning(f"Invalid regex pattern '{pat}': {e}")
                                 continue
@@ -155,6 +181,13 @@ class UniversalHarvester:
         except Exception as e:
             logger.warning(f"Error loading exclusions: {e}")
             return []
+
+    def _gate_enabled(self, gate_name):
+        if not self.profile:
+            return False
+        if gate_name in self.profile:
+            return bool(self.profile.get(gate_name))
+        return bool(self.profile.get('pipeline_ready'))
 
     def check_time_guard(self):
         """Checks if the global execution time limit has been reached."""
@@ -185,7 +218,7 @@ class UniversalHarvester:
         try:
             ids = [url, effective_url, canonical_url]
             ids = [normalize_url(i) for i in ids if i]
-            data = self.db.select_pipeline("staging_raw", filters=f"url=eq.{url}", columns="content_hash")
+            data = self.db.select_pipeline("staging_raw", filters=f"url=eq.{quote(url, safe='')}", columns="content_hash")
             if data and len(data) > 0:
                 old_hash = data[0].get('content_hash')
                 if old_hash == content_hash:
@@ -273,8 +306,11 @@ class UniversalHarvester:
         if parsed_path.endswith(self.NON_HTML_EXTENSIONS):
             return False
         for exc in self.exclusions:
-            if isinstance(exc, re.Pattern):
-                if exc.search(low_url):
+            if isinstance(exc, tuple) and exc[0] == 're':
+                if self._safe_profile_search(exc[1], low_url):
+                    return False
+            elif isinstance(exc, re.Pattern):
+                if exc.search(low_url[:2000]):
                     return False
             elif isinstance(exc, str):
                 if exc in low_url:
@@ -285,14 +321,11 @@ class UniversalHarvester:
                 if isinstance(pattern, str):
                     if pattern.startswith('re:'):
                         pat = pattern[3:]
-                        if len(pat) > 200:
-                            logger.warning(f"Allowed pattern too long, skipping: {pat[:50]}...")
-                            continue
-                        if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                        if not self._is_safe_profile_regex(pat):
                             logger.warning(f"ReDoS-risk allowed pattern rejected: {pat}")
                             continue
                         try:
-                            if re.search(pat, low_url, re.IGNORECASE):
+                            if self._safe_profile_search(pat, low_url):
                                 return True
                         except re.error:
                             continue
@@ -326,11 +359,12 @@ class UniversalHarvester:
                 existing = {row['url'] for row in data}
                 logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
                 self.visited_urls.update(existing)
-                discovered_count = self.db.patch("staging_raw",
-                    filters=f"institution_id=eq.{inst_id},status=eq.discovered",
-                    data={"status": "pending"})
-                if discovered_count and discovered_count.get("status") == "success":
-                    logger.info(f"Reset discovered → pending for reprocessing.")
+                if self._gate_enabled('pipeline_enabled'):
+                    discovered_count = self.db.patch("staging_raw",
+                        filters=f"institution_id=eq.{inst_id},status=eq.discovered",
+                        data={"status": "pending"})
+                    if discovered_count and discovered_count.get("status") == "success":
+                        logger.info(f"Reset discovered → pending for reprocessing.")
                 return existing
         except Exception as e:
             logger.warning(f"Could not load existing URLs from DB: {e}")
@@ -851,10 +885,14 @@ async def main():
         logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
                      f"Crea un perfil antes de ejecutar el pipeline.")
         return
-    if not harvester.profile.get('pipeline_ready'):
-        logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_ready=false. "
+    if not harvester._gate_enabled('discovery_enabled'):
+        logger.info(f"⏭️ SKIP {inst['name']}: discovery_enabled=false.")
+        return
+    pipeline_enabled = harvester._gate_enabled('pipeline_enabled')
+    if not pipeline_enabled:
+        logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_enabled=false. "
                     f"Harvester will discover URLs into staging_raw for review. "
-                    f"Cleansing/enrichment/sync will skip until pipeline_ready=true.")
+                    f"Cleansing/enrichment/sync will skip until pipeline_enabled=true.")
 
     # Fase 62A: Determine if Playwright is needed based on site_type and discovery_mode
     need_browser = (
@@ -878,6 +916,14 @@ async def main():
         urls = await harvester.discover_courses(browser)
     else:
         urls = await harvester.discover_courses()
+
+    if not pipeline_enabled:
+        logger.info(f"🔍 DISCOVERY-ONLY complete for {inst['name']}: {len(urls)} URLs discovered; detail scraping skipped.")
+        if browser:
+            await browser.close()
+        if pw:
+            await pw.stop()
+        return
 
     async with AsyncSession() as session:
         for i, url in enumerate(urls):
