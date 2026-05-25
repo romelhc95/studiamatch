@@ -31,9 +31,17 @@
 
 ## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-24
 - **Estado Actual**: El repo ya avanzó más allá de la foto de 2026-05-09. La **Fase 95** aparece completada en este mismo documento, y los artefactos de **Fase 97** y **Fase 98** ya existen en repo (`scripts/maintenance/db_migrate.py`, `scripts/maintenance/check_db_parity.py`, `.github/workflows/db-sync-to-pro.yml`). El frente abierto principal ya no es de diseño sino de **cierre operativo en Pro**.
-- **Último Hito**: Trabajo de remediación posterior a la promoción a `main` reflejado por el commit `075a2ac` (`renderText()` para JSON anidado, trigger de rebuild de Cloudflare Pages post-FG2, fix de `lock_staging_records` en plpgsql y normalización de `syllabus`). Ver también `docs/PLAN_REMEDIACION_DEFINITIVA.md`.
-- **Brecha Free ↔ Pro**: La brecha principal observada ya no es schema parity sino **procesamiento/publicación**. Según el plan de remediación, Pro muestra **28/147 cursos visibles** y mantiene **378 registros pendientes** de drenar en FG2. También quedó identificado el acoplamiento entre FG2 y el rebuild estático de Cloudflare Pages.
-- **Próxima Acción**: Consolidar el cierre de **Fase 96** en Pro: ejecutar FG2 hasta drenar staging/cleansed pendientes, verificar visibilidad real en web, y validar en la rama de promoción correspondiente que `db-sync-to-pro.yml` + `check_db_parity.py` queden operativos como guardrails permanentes.
+- **Último Hito (2026-05-24)**: Promoción a `main` del PR #105 — alineación de secrets/variables, Fase 100 migrations, eliminación de providers legacy AI. Validado en desarrollo: 66 programas en https://desarrollo.studiamatch-aty.pages.dev/ (DMC 48 + U. Lima 18).
+- **Validación Pro (2026-05-25)**: Supabase Pro (`xwhtiqmboljkshrtviyw`) auditado con MCP. Estado real:
+  - **26 cursos activos** (14 DMC + 12 U. Lima) — faltan 31 programas DMC vs artifact `dmc.txt` (45 URLs)
+  - **354 staging_raw pendientes** de drenar (196 discovered + 157 processing + 1 pending)
+  - **53 cleansed_programs** (todos pending, 0 synced)
+  - **25 enriched_programs** todos en `status="error"` con metadata `"DB Error"` — irrecuperables por el pipeline
+  - **`exec_sql` RPC NO existe** — `db-sync-to-pro.yml` falla desde que se eliminó Management API fallback
+  - **Migrations Fase 100 NO aplicadas** — faltan columnas `discovery_enabled`, `production_enabled` en Pro
+  - **Bug en código**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → todos los upserts fallan con "DB Error"
+- **Brecha Free ↔ Pro**: Free tiene 48 programas DMC visibles; Pro tiene 14. La causa raíz es el bug `last_scraped_at` que mata todo sync en ambos ambientes, combinado con 25 enriched atrapados en `status="error"` en Pro.
+- **Próxima Acción**: Ejecutar Fase 104-108 (plan de remediación DMC en Pro): fix de código, promoción SDLC, creación de `exec_sql`, limpieza de tablas operativas DMC en Pro, ejecución de pipeline, y validación de cobertura contra `artifacts/urls_interes/dmc.txt`.
 
 ## Tareas Pendientes Priorizadas
 
@@ -56,7 +64,7 @@
 | ~~P2~~ | ~~Fase 62D — Anti-Bot por Perfil~~ | ~~Pipeline~~ | ~~Routing anti-bot: `requires_stealth` → `playwright_stealth`, `requires_cloudflare_bypass` → challenge loop + warm-up, `popup_close_selectors` → auto-dismiss, `detail_wait_ms` configurable por perfil. Reemplaza lógica bespoke de cada harvester deprecado.~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 63 — Enrichment + Sync con Perfiles~~ | ~~Pipeline~~ | ~~Inyectar `section_keywords`/`field_defaults` del perfil en prompt LLM y sync worker.~~ | ~~Completado~~ |
 | ~~P0~~ | ~~Fase 95 — Pro Schema Sync (one-time)~~ | ~~Infra~~ | ~~Migration consolidada `20260510_pro_schema_sync.sql` aplicada para cerrar las 8 diferencias estructurales entre Free y Pro.~~ | ~~Completado~~ |
-| **P0** | **Fase 96 — FG2 en Pro (cierre operativo)** | Pipeline | Pro restaurado desde estado `INACTIVE` y FG2 manual disparado en `main` (`run 26369726951`). El workflow termino `success`, pero Pro siguio en `courses=0`, `staging_raw=36 discovered`, `cleansed/enriched=0`. Bloqueo: validar/corregir secrets del environment `Production`, porque el run no escribio en `StudiaMatch-Pro`. | Bloqueado por credenciales/env Production |
+| ~~P0~~ | ~~Fase 96 — FG2 en Pro (cierre operativo)~~ | ~~Pipeline~~ | ~~Pro restaurado desde estado `INACTIVE` y FG2 manual disparado en `main`. El workflow terminó `success` pero Pro siguió sin cursos. Validado: los secrets de `Production` sí apuntan a `xwhtiqmboljkshrtviyw`. La causa raíz es el bug `last_scraped_at` en `sync_vector_worker.py:258` + `exec_sql` inexistente. Cubierto por Fases 104-108.~~ | ~~Cubierto por Fase 104~~ |
 | ~~P1~~ | ~~Fase 97 — db_migrate.py + db-sync-to-pro.yml~~ | ~~Infra~~ | ~~`db_migrate.py` validado con `--only`, lectura service-role de `supabase_migrations` y soporte de envs prefijados Free/Pro; workflow ajustado para aplicar migrations y verificar paridad.~~ | ~~Completado; bloqueado operativamente si `Production` secrets apuntan al project ref obsoleto~~ |
 | ~~P1~~ | ~~Fase 98 — check_db_parity.py~~ | ~~Infra~~ | ~~`check_db_parity.py` validado como guardrail de configuracion/schema; en CI usa `--target-only` porque cada GitHub Environment expone los mismos nombres de secrets.~~ | ~~Completado; usa secrets configurados por ambiente~~ |
 | ~~P0~~ | ~~Fase 99 — Política DB-as-Code: catálogos vs tablas operativas~~ | ~~Infra + DB~~ | ~~Formalizado que `institutions` sí migra a Pro como catálogo, pero `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` NO se sincronizan desde Free.~~ | ~~Completado~~ |
@@ -64,6 +72,11 @@
 | ~~P0~~ | ~~Fase 101 — Hardening temporal desde `artifacts/urls_interes/<slug>.txt`~~ | ~~Pipeline + Proceso~~ | ~~Estandarizado el uso del `.txt` como insumo temporal de análisis para derivar `allowed_url_patterns`, `exclusion_patterns`, `seed_urls` y demás configuración persistente.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 102 — Promoción diferida a Pro (sin FG2 inmediato)~~ | ~~Infra + Workflows~~ | ~~`db-sync-to-pro.yml` ya no dispara FG2 inmediato; `production_pipeline.yml` queda por schedule diario o `workflow_dispatch`.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 103 — Parity check orientado a configuración, no a datos ETL~~ | ~~Infra~~ | ~~`check_db_parity.py` compara migrations, columnas criticas, `institutions` y perfiles por slug; conteos ETL/courses son informativos.~~ | ~~Completado~~ |
+| **P0** | **Fase 104 — Fix Bug `last_scraped_at` + PR a desarrollo** | Pipeline | **BUG**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → sync falla con "DB Error". 25 enriched atrapados en `status="error"` en Pro. Fix: `datetime.utcnow().isoformat()`. Aplica a ambos ambientes (Free y Pro). Flujo SDLC: feat → desarrollo → certificacion → main. [Ver plan detallado abajo](#fase-104-fix-bug-last_scraped_at--pr-a-desarrollo). | Ninguno |
+| **P0** | **Fase 105 — Promoción a certificación** | Infra | PR `desarrollo` → `certificacion`. Validar CI verde. Merge. | Depende de Fase 104 |
+| **P0** | **Fase 106 — Promoción a main + db-sync** | Infra | PR `certificacion` → `main`. Merge dispara `db-sync-to-pro.yml`. **FALLARÁ si `exec_sql` no existe en Pro** → continuar con Fase 107. [Ver plan detallado abajo](#fase-106-promoción-a-main--db-sync). | Depende de Fase 105 |
+| **P0** | **Fase 107 — Infra Pro: `exec_sql` + limpieza tablas DMC + activar gates** | Infra + DB | **Manual (Supabase Dashboard Pro)**. 3 pasos: (A) Crear función `exec_sql` en Pro. (B) Si db-sync falló, re-ejecutar. (C) Limpiar tablas operativas DMC (courses, enriched, cleansed, staging). (D) Activar gates: `discovery_enabled=true`, `production_enabled=true`. [Ver plan detallado abajo](#fase-107-infra-pro-exec_sql--limpieza-tablas-dmc--activar-gates). | Depende de Fase 106 |
+| **P0** | **Fase 108 — Ejecución FG2 en Pro + validación cobertura** | Pipeline + QA | Ejecutar pipeline manual en `main` (o esperar schedule 05:00 UTC). Validar: (A) Monitorear fases sin "DB Error". (B) Verificar `courses` con ≥ 45 programas DMC. (C) Validar https://www.studiamatch.com/ muestra los 45. (D) Comparar cobertura contra `artifacts/urls_interes/dmc.txt`. [Ver plan detallado abajo](#fase-108-ejecución-fg2-en-pro--validación-cobertura). | Depende de Fase 107 |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
@@ -2511,6 +2524,294 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    - [ ] Ejecutar contra Pro ANTES de Fase 95: debe reportar 8+ diferencias
    - [ ] Ejecutar contra Pro DESPUÉS de Fase 95: debe reportar 0 diferencias
    - [ ] Verificar que exit code 2 bloquea el workflow
+
+
+---
+
+## Plan de Remediación DMC en Producción (Fases 104-108)
+
+> **Fecha**: 2026-05-25  
+> **Objetivo**: Que los 45 programas de `artifacts/urls_interes/dmc.txt` figuren en https://www.studiamatch.com/  
+> **Estado actual Pro**: 14/45 programas DMC visibles (faltan 31)  
+> **Causa raíz**: Bug `last_scraped_at` en `sync_vector_worker.py:258` + `exec_sql` inexistente + 25 enriched atrapados en `status="error"`
+
+---
+
+### 📋 Diagnóstico de Brecha Pro vs Artifact
+
+| Estado en Pro | Cantidad | Detalle |
+|---------------|----------|---------|
+| ✅ En courses (activo) | 14 | Visibles en el sitio |
+| ⚠️ En courses (inactivo) | 2 | `is_active=false` |
+| 📦 En staging (processed) | 34 | Harvested pero no syncados |
+| ❌ Ausente de staging | 11 | Requieren nueva cosecha |
+| **Total artifact** | **45** | `artifacts/urls_interes/dmc.txt` |
+
+**Problemas activos detectados:**
+
+| # | Problema | Ubicación | Severidad |
+|---|----------|-----------|-----------|
+| 1 | `last_scraped_at: "now()"` string → PostgREST rechaza → sync falla con "DB Error" | `scripts/core/sync_vector_worker.py:258` | 🔴 Crítico |
+| 2 | 25 enriched en `status="error"` — pipeline solo procesa `pending` | Supabase Pro | 🔴 Crítico |
+| 3 | `exec_sql` RPC no existe → `db_migrate.py` y `db-sync-to-pro.yml` fallan | Supabase Pro | 🔴 Crítico |
+| 4 | Columnas Fase 100 (`discovery_enabled`, `production_enabled`) no existen | Supabase Pro | 🟡 Alto |
+| 5 | Inconsistencia trailing slash en URLs (artifact sin `/`, courses con `/`) | `sync_vector_worker.py` | 🟡 Medio |
+| 6 | Solo Cloudflare AI como provider de enrichment (sin fallback) | `enrichment_worker.py` | 🟢 Bajo |
+
+---
+
+### Fase 104: Fix Bug `last_scraped_at` + PR a desarrollo
+
+#### Descripción
+Corregir el bug que causa que todos los sync fallen con "DB Error". Una línea de código. Aplica a ambos ambientes.
+
+#### Archivo a modificar
+`scripts/core/sync_vector_worker.py`
+
+#### Código — Antes (~línea 258)
+```python
+"last_scraped_at": "now()",
+```
+
+#### Código — Después
+```python
+"last_scraped_at": datetime.utcnow().isoformat(),
+```
+
+#### Verificar imports (debe existir; si no, agregar)
+```python
+from datetime import datetime
+```
+
+#### Tareas
+
+| Paso | Acción | Comando | Duración |
+|------|--------|---------|----------|
+| 104.1 | Crear rama `feat/fix-sync-last-scraped` desde `desarrollo` | `git checkout -b feat/fix-sync-last-scraped` | 1 min |
+| 104.2 | Editar `scripts/core/sync_vector_worker.py` línea ~258 | Reemplazar `"now()"` → `datetime.utcnow().isoformat()` | 2 min |
+| 104.3 | Compilar verificación Python | `docker exec studiamatch-dev python3 -m py_compile scripts/core/sync_vector_worker.py` | 1 min |
+| 104.4 | Commit | `git add scripts/core/sync_vector_worker.py && git commit -m "fix: replace last_scraped_at string literal with datetime.utcnow()"` | 1 min |
+| 104.5 | Push | `git push origin feat/fix-sync-last-scraped` | 1 min |
+| 104.6 | Crear PR → `desarrollo` | `gh pr create --base desarrollo --head feat/fix-sync-last-scraped --title "fix: last_scraped_at datetime (PGRST202 DB Error)"` | 1 min |
+| 104.7 | Esperar CI `security-audit` verde | Monitorear `gh pr checks` | 2 min |
+| 104.8 | Merge a `desarrollo` | `gh pr merge` | 1 min |
+
+#### Verificación en Free (desarrollo)
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 104.V1 | Disparar FG2 manual en `desarrollo` | `gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref desarrollo` |
+| 104.V2 | Verificar enriched sin nuevos errores | `SELECT count(*) FROM enriched_programs WHERE status = 'error'` → 0 nuevos |
+| 104.V3 | Verificar https://desarrollo.studiamatch-aty.pages.dev/ | ≥ 48 programas DMC |
+
+---
+
+### Fase 105: Promoción a certificación
+
+#### Tareas
+
+| Paso | Acción | Comando |
+|------|--------|---------|
+| 105.1 | Crear PR `desarrollo` → `certificacion` | `gh pr create --base certificacion --head desarrollo --title "Promoción: desarrollo → certificación (fix last_scraped_at)"` |
+| 105.2 | Esperar CI verde | `gh pr checks` |
+| 105.3 | Merge a `certificacion` | `gh pr merge` |
+
+---
+
+### Fase 106: Promoción a main + db-sync
+
+#### Tareas
+
+| Paso | Acción | Comando |
+|------|--------|---------|
+| 106.1 | Crear PR `certificacion` → `main` | `gh pr create --base main --head certificacion --title "Promoción: certificación → producción (fix last_scraped_at)"` |
+| 106.2 | Esperar CI verde | `gh pr checks` |
+| 106.3 | Merge a `main` | `gh pr merge` ← **Dispara `db-sync-to-pro.yml` automáticamente** |
+| 106.4 | Monitorear `DB Sync to Production` | `gh run list --workflow="DB Sync to Production" --branch main --limit 1` |
+
+#### ⚠️ Nota crítica
+El `db-sync-to-pro.yml` **FALLARÁ** si `exec_sql` no existe en Pro (PGRST202). Si falla, NO reintentar — continuar con Fase 107 para crear `exec_sql`, luego re-ejecutar manualmente:
+
+```bash
+gh workflow run "DB Sync to Production" --ref main
+```
+
+---
+
+### Fase 107: Infra Pro — `exec_sql` + limpieza tablas DMC + activar gates
+
+> **ATENCIÓN**: Esta fase requiere acceso al Supabase Dashboard del proyecto Pro (`xwhtiqmboljkshrtviyw`). Solo el dueño del proyecto puede ejecutarla.
+
+#### 107A: Crear función `exec_sql`
+
+**Dónde**: Supabase Dashboard → SQL Editor → New Query (proyecto `xwhtiqmboljkshrtviyw`)
+
+```sql
+CREATE OR REPLACE FUNCTION public.exec_sql(sql_text text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  EXECUTE sql_text;
+END;
+$$;
+```
+
+#### 107B: Re-ejecutar db-sync (si falló en Fase 106)
+
+```bash
+gh workflow run "DB Sync to Production" --ref main
+```
+
+Verificar:
+```sql
+SELECT count(*) FROM supabase_migrations;
+-- Debe ser ≥ 37
+```
+
+#### 107C: Verificar migrations Fase 100 aplicadas
+
+```sql
+-- Verificar columnas Fase 100
+SELECT column_name FROM information_schema.columns 
+WHERE table_schema = 'public' 
+AND table_name = 'institution_site_profiles'
+AND column_name IN ('discovery_enabled', 'production_enabled');
+-- Debe devolver 2 filas
+```
+
+#### 107D: Limpiar tablas operativas de DMC
+
+```sql
+-- Obtener UUID de DMC
+SELECT id, slug FROM institutions WHERE slug = 'dmc';
+-- Copiar el UUID (ej: 9aebb0fb-bb58-4445-9f70-8234612b755a)
+
+-- LIMPIAR (reemplazar UUID_DMC con el valor real):
+DELETE FROM courses WHERE institution_id = 'UUID_DMC';
+DELETE FROM enriched_programs WHERE institution_id = 'UUID_DMC';
+DELETE FROM cleansed_programs WHERE institution_id = 'UUID_DMC';
+DELETE FROM staging_raw WHERE institution_id = 'UUID_DMC';
+```
+
+#### 107E: Activar gates DMC post-migration
+
+```sql
+UPDATE institution_site_profiles 
+SET pipeline_ready = true,
+    discovery_enabled = true,
+    production_enabled = true
+WHERE institution_id = 'UUID_DMC';
+```
+
+#### 107F: Verificar estado limpio
+
+```sql
+-- Deben devolver 0
+SELECT count(*) FROM courses WHERE institution_id = 'UUID_DMC';
+SELECT count(*) FROM enriched_programs WHERE institution_id = 'UUID_DMC';
+SELECT count(*) FROM cleansed_programs WHERE institution_id = 'UUID_DMC';
+SELECT count(*) FROM staging_raw WHERE institution_id = 'UUID_DMC';
+
+-- Debe mostrar true, true, true
+SELECT pipeline_ready, discovery_enabled, production_enabled 
+FROM institution_site_profiles WHERE institution_id = 'UUID_DMC';
+```
+
+---
+
+### Fase 108: Ejecución FG2 en Pro + validación cobertura
+
+#### 108A: Ejecutar pipeline
+
+**Opción 1 — Manual (recomendado para validación inmediata):**
+```bash
+gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref main
+```
+
+**Opción 2 — Esperar schedule automático:**
+- Diario a las 05:00 UTC (00:00 hora Perú)
+- Próxima ejecución: mañana 00:00
+
+#### 108B: Monitorear ejecución
+
+| Fase | Job | Verificar |
+|------|-----|-----------|
+| 1 | Massive Harvesting | staging_raw DMC se puebla con ≥ 45 URLs |
+| 1.5 | High Fidelity Cleansing | cleansed_programs DMC: pending → synced |
+| 2 | AI Enrichment | enriched_programs DMC: **sin "DB Error"** |
+| 3 | Integrity & Sync | **Sin errores de tipo `last_scraped_at`** |
+| 4 | ROI & QA Audit | Reportes limpios, Cloudflare rebuild disparado |
+
+#### 108C: Validar datos en Pro
+
+```sql
+-- Cursos DMC activos
+SELECT count(*) FROM courses 
+WHERE institution_id = 'UUID_DMC' 
+AND is_active = true AND is_verified = true;
+-- Meta: ≥ 43
+
+-- Enriched sin errores
+SELECT count(*) FROM enriched_programs 
+WHERE institution_id = 'UUID_DMC' AND status = 'error';
+-- Meta: 0
+```
+
+#### 108D: Validar sitio web
+
+1. Esperar Cloudflare Pages rebuild (último paso del pipeline)
+2. Navegar a https://www.studiamatch.com/?inst=DMC
+3. Verificar contador de programas ≥ 45
+4. Verificar que las categorías del artifact están representadas:
+   - Especializaciones (~19)
+   - Cursos (~14)
+   - Diplomas (~10)
+   - Campaña Power BI (1)
+   - Certificaciones (1)
+
+#### 108E: Validar cobertura contra artifact
+
+```bash
+docker exec studiamatch-dev python3 scripts/maintenance/validate_dmc_pro_coverage.py
+```
+
+Resultado esperado: **Cobertura ≥ 95%** (≥ 43/45 programas del artifact)
+
+---
+
+### 📊 Resumen de Fases 104-108
+
+| Fase | Qué | Dónde | Duración | Dependencia |
+|------|-----|-------|----------|-------------|
+| **104** | Fix `last_scraped_at` + PR a desarrollo | Código | 10 min | Ninguna |
+| **105** | Promover a certificación | GitHub | 5 min | Fase 104 |
+| **106** | Promover a main (dispara db-sync) | GitHub | 5 min | Fase 105 |
+| **107** | Crear `exec_sql` + limpiar DMC + gates | Supabase Pro Dashboard | 5 min | Fase 106 |
+| **108** | Ejecutar FG2 + validar cobertura | Pipeline + QA | 60 min | Fase 107 |
+| **Total** | | | **~85 min** | |
+
+### 🎯 Probabilidad de éxito
+
+| Escenario | Probabilidad |
+|-----------|-------------|
+| Sin intervención (solo schedule) | ~16% |
+| Con Fases 104-108 completas | ~85% |
+| Con Fases 104-108 + segunda pasada si faltan URLs | ~95% |
+
+### 🔗 Relación con SDLC
+
+```
+feat/fix-sync-last-scraped  →  desarrollo  →  certificacion  →  main
+       (Fase 104)              (Fase 104)      (Fase 105)       (Fase 106)
+                                                                      │
+                                                          db-sync-to-pro.yml
+                                                          (aplica migrations)
+                                                                      │
+                                                          Fase 107 (Pro Dashboard)
+                                                          Fase 108 (FG2 + validación)
+```
 
 
 
