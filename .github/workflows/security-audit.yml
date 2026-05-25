@@ -22,13 +22,12 @@ jobs:
       - name: Scan for hardcoded credentials
         run: |
           FOUND=0
-          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}"
+          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
           find . -type f \
             ! -path './.git/*' \
             ! -path '*/node_modules/*' \
             ! -path '*/.next/*' \
             ! -path '*/out/*' \
-            ! -name '.env*' \
             ! -name '*.lock' \
             ! -name '*.png' ! -name '*.jpg' ! -name '*.jpeg' \
             ! -name '*.gif' ! -name '*.ico' ! -name '*.svg' \
