@@ -8,4 +8,5 @@ curl_cffi
 json-repair
 psycopg2-binary
 regex
+openai==1.82.1
 
