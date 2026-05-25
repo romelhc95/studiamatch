@@ -30,13 +30,23 @@ def run_script(script_path, args=None):
         return False
 
 def get_institutions(limit=10):
-    """Fetch institutions to harvest, prioritizing those not processed recently."""
+    """Fetch institutions to harvest, prioritizing discovery_enabled first, then round-robin."""
     try:
-        # Use ordering to implement Round-Robin/Rolling Shard logic
-        return db.select('institutions', 
-                         columns="id,name,slug,website_url,last_harvest_at", 
-                         order="last_harvest_at.asc.nullsfirst", 
-                         limit=limit)
+        all_insts = db.select('institutions',
+                             columns="id,name,slug,website_url,last_harvest_at",
+                             order="last_harvest_at.asc.nullsfirst")
+
+        profiles = db.select_pipeline('institution_site_profiles',
+                                     columns="institution_id,discovery_enabled")
+        enabled = {p['institution_id']: p.get('discovery_enabled', False)
+                   for p in profiles}
+
+        all_insts.sort(key=lambda i: (
+            not enabled.get(i['id'], False),
+            i.get('last_harvest_at') or ''
+        ))
+
+        return all_insts[:limit]
     except Exception as e:
         logger.error(f"Failed to fetch institutions: {e}")
     return []
@@ -81,7 +91,7 @@ def main():
                 
                 if (now_dt - last_dt) < timedelta(days=3):
                     # Quick count in staging_raw
-                    count = db.count('staging_raw', filters=f"institution_id=eq.{inst_id}")
+                    count = db.count_pipeline('staging_raw', filters=f"institution_id=eq.{inst_id}")
                     
                     if count > 50:
                         logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
