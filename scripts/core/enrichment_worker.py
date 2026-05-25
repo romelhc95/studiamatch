@@ -30,28 +30,22 @@ logger = setup_lima_logging("EnrichmentWorker")
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# API Keys & Credits (Multicloud Policy)
+# API Keys & Credits
 CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GH_MODELS_TOKEN = os.getenv("GH_MODELS_TOKEN")
-NVCF_API_KEY = os.getenv("NVCF_API_KEY")
 
 class EnrichmentWorker:
     def __init__(self):
         self.db = get_db_client()
         self.profiles = self._load_profiles()
-        # Fase 75: Exclusion Gate
+        # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
             str(p['institution_id']) for p in self.profiles
-            if isinstance(p, dict) and p.get('pipeline_ready')
+            if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
         cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
-        gh_provider = LLMProvider("GitHub", self._call_github)
-        nv_provider = LLMProvider("NVIDIA", self._call_nvidia)
-        gemini_provider = LLMProvider("Gemini", self._call_gemini)
         self.orchestrator = ProviderOrchestrator(
-            providers=[cf_provider, gh_provider, nv_provider, gemini_provider],
+            providers=[cf_provider],
             logger=logger,
         )
         self._mock_only = False
@@ -65,19 +59,24 @@ class EnrichmentWorker:
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
-            if p.get('institution_id') == institution_id:
+            if str(p.get('institution_id')) == str(institution_id):
                 return p
         return {}
 
+    @staticmethod
+    def _gate_enabled(profile, gate_name):
+        if gate_name in profile:
+            return bool(profile.get(gate_name))
+        return bool(profile.get('pipeline_ready'))
+
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline_ready=true."""
+        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline habilitado."""
         try:
-            # Fase 75: Exclusion Gate — filtrar solo instituciones con pipeline_ready=true
-            if self.ready_inst_ids:
-                inst_ids = ",".join(sorted(self.ready_inst_ids))
-                filters = f"status=eq.pending&institution_id=in.({inst_ids})"
-            else:
-                filters = "status=eq.pending"
+            # Fase 100: filtrar solo instituciones con pipeline_enabled=true
+            if not self.ready_inst_ids:
+                return []
+            inst_ids = ",".join(sorted(self.ready_inst_ids))
+            filters = f"status=eq.pending&institution_id=in.({inst_ids})"
             res = self.db.select_pipeline('cleansed_programs', filters=filters, limit=limit)
             if res and len(res) > 0:
                 return res
@@ -101,63 +100,6 @@ class EnrichmentWorker:
             if res.status_code == 200: return res.json()["result"]["response"]
         except Exception as e:
             logger.warning(f"Cloudflare error: {e}")
-            return None
-        return None
-
-    def _call_github(self, prompt):
-        if not GH_MODELS_TOKEN: return None
-        try:
-            url = "https://models.inference.ai.azure.com/chat/completions"
-            payload = {
-                "messages": [{"role": "user", "content": prompt}],
-                "model": "gpt-4o",
-                "temperature": 0.3
-            }
-            res = requests.post(url, headers={"Authorization": f"Bearer {GH_MODELS_TOKEN}"}, json=payload, timeout=30)
-            if res.status_code == 200: return res.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            logger.warning(f"GitHub Models error: {e}")
-            return None
-        return None
-
-    def _call_gemini(self, prompt):
-        if not GEMINI_API_KEY: return None
-        try:
-            url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-            headers_gemini = {"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"}
-            payload = {"contents": [{"parts": [{"text": prompt}]}]}
-            res = requests.post(url, headers=headers_gemini, json=payload, timeout=30)
-            if res.status_code == 200: return res.json()['candidates'][0]['content']['parts'][0]['text']
-        except Exception as e:
-            logger.warning(f"Gemini error: {e}")
-            return None
-        return None
-
-    def _call_nvidia(self, prompt):
-        if not NVCF_API_KEY: return None
-        try:
-            url = "https://integrate.api.nvidia.com/v1/chat/completions"
-            payload = {
-                "model": "meta/llama-3.1-70b-instruct",
-                "messages": [
-                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.3,
-                "max_tokens": 1024
-            }
-            headers = {
-                "Authorization": f"Bearer {NVCF_API_KEY}",
-                "Content-Type": "application/json"
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=30)
-            if res.status_code == 200:
-                return res.json()["choices"][0]["message"]["content"]
-            else:
-                logger.warning(f"NVIDIA error: HTTP {res.status_code} - {res.text[:200]}")
-                return None
-        except Exception as e:
-            logger.warning(f"NVIDIA error: {e}")
             return None
         return None
 
@@ -526,10 +468,10 @@ if __name__ == "__main__":
                     if not rid:
                         logger.warning("⏩ SKIP registro sin id, saltando")
                         continue
-                    # Fase 75: Exclusion Gate — saltar institucion no lista
+                    # Fase 100: saltar institucion sin pipeline habilitado
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
-                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_ready=false")
+                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_enabled=false")
                         worker.db.patch('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped'})
                         continue
                     # Fase 77: Early-exit dinámico
