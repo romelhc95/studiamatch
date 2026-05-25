@@ -135,7 +135,9 @@ class DatabaseClient:
         return None
 
     def _upsert_api(self, table, data, on_conflict):
-        url = f"{self.supabase_url}/rest/v1/{table}?on_conflict={on_conflict}"
+        url = f"{self.supabase_url}/rest/v1/{table}"
+        if on_conflict:
+            url += f"?on_conflict={on_conflict}"
         headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
         is_batch = isinstance(data, list)
