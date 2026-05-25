@@ -77,6 +77,7 @@
 | **P0** | **Fase 106 — Promoción a main + db-sync** | Infra | PR `certificacion` → `main`. Merge dispara `db-sync-to-pro.yml`. **FALLARÁ si `exec_sql` no existe en Pro** → continuar con Fase 107. [Ver plan detallado abajo](#fase-106-promoción-a-main--db-sync). | Depende de Fase 105 |
 | **P0** | **Fase 107 — Infra Pro: `exec_sql` + limpieza tablas DMC + activar gates** | Infra + DB | **Manual (Supabase Dashboard Pro)**. 3 pasos: (A) Crear función `exec_sql` en Pro. (B) Si db-sync falló, re-ejecutar. (C) Limpiar tablas operativas DMC (courses, enriched, cleansed, staging). (D) Activar gates: `discovery_enabled=true`, `production_enabled=true`. [Ver plan detallado abajo](#fase-107-infra-pro-exec_sql--limpieza-tablas-dmc--activar-gates). | Depende de Fase 106 |
 | **P0** | **Fase 108 — Ejecución FG2 en Pro + validación cobertura** | Pipeline + QA | Ejecutar pipeline manual en `main` (o esperar schedule 05:00 UTC). Validar: (A) Monitorear fases sin "DB Error". (B) Verificar `courses` con ≥ 45 programas DMC. (C) Validar https://www.studiamatch.com/ muestra los 45. (D) Comparar cobertura contra `artifacts/urls_interes/dmc.txt`. [Ver plan detallado abajo](#fase-108-ejecución-fg2-en-pro--validación-cobertura). | Depende de Fase 107 |
+| **P0** | **Fase 109 — Orquestador: priorizar instituciones con discovery_enabled=true** | Pipeline | **BUG**: `get_institutions()` ordena solo por `last_harvest_at ASC` y trunca a `--limit 5`. Cuando 10/12 instituciones tienen `discovery_enabled=false` y la única habilitada está en posición #9, el pipeline no procesa ninguna. **Fix**: ordenar poniendo `discovery_enabled=true` primero, luego por `last_harvest_at ASC`. [Ver plan detallado abajo](#fase-109-orquestador-priorizar-instituciones-con-discovery_enabledtrue). | Ninguno |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
@@ -163,7 +164,7 @@
 
 ## Prioridad Operativa para el Desarrollador
 
-> **Orden recomendado de inicio**: **Fase 103 → Fase 102**.  
+> **Orden recomendado de inicio**: **Fase 103 → Fase 102**.
 > Motivo: las Fases 99, 100 y 101 ya quedaron implementadas; Fase 96 queda bloqueada por validacion/correccion de credenciales del environment `Production` antes de poder cerrarse operativamente.
 
 ### Fase 99: Política DB-as-Code — Catálogos vs Tablas Operativas [x] Completado
@@ -2778,6 +2779,97 @@ docker exec studiamatch-dev python3 scripts/maintenance/validate_dmc_pro_coverag
 ```
 
 Resultado esperado: **Cobertura ≥ 95%** (≥ 43/45 programas del artifact)
+
+---
+
+### Fase 109: Orquestador — Priorizar Instituciones con `discovery_enabled=true`
+
+#### Diagnóstico (2026-05-25)
+
+El pipeline de medianoche en `main` (run `26392342954`) corrió exitosamente las 5 estaciones pero **produjo 0 cursos** porque:
+
+1. `master_orchestrator.py:36-38` (`get_institutions()`) obtiene instituciones ordenadas por `last_harvest_at ASC` y trunca a `--limit 5`
+2. En Pro, DMC ocupa la **posición #9** de 12 instituciones
+3. Las primeras 5 tienen `discovery_enabled=false` → todas saltadas por `universal_harvester.py`
+4. El pipeline termina "success" sin haber procesado ninguna institución habilitada
+
+**Orden real en Pro antes del fix:**
+
+| # | Institución | `last_harvest_at` | `discovery_enabled` | ¿Procesada? |
+|---|---|---|---|---|
+| 1 | U. Lima | May 23 05:45 | **false** | Skipped |
+| 2 | U. Continental | May 23 05:55 | **false** | Skipped |
+| 3 | UTP | May 23 09:55 | **false** | Skipped |
+| 4 | IDAT | May 23 10:08 | **false** | Skipped |
+| 5 | SENATI | May 23 11:09 | **false** | Skipped |
+| 6-8 | UPC, UNI, PUCP | ... | false | — |
+| **9** | **DMC** | **May 24 06:34** | **true** | **No alcanzada** |
+
+#### Causa raíz
+
+```python
+# master_orchestrator.py:36-38 — Diseño original Fase 42 (Round-Robin)
+return db.select('institutions', 
+                 columns="id,name,slug,website_url,last_harvest_at", 
+                 order="last_harvest_at.asc.nullsfirst", 
+                 limit=limit)
+```
+
+El Round-Robin de la Fase 42 fue diseñado cuando todas las instituciones estaban habilitadas. Ahora, con el sistema de gates de la Fase 100, 10 de 12 instituciones tienen `discovery_enabled=false`. El orden no considera este flag, haciendo que el rolling shard desperdicie sus slots en instituciones deshabilitadas.
+
+#### Cambio
+
+**Archivo**: `scripts/core/master_orchestrator.py`  
+**Función**: `get_institutions(limit=10)`  
+**Líneas modificadas**: 32-50
+
+```python
+def get_institutions(limit=10):
+    """Fetch institutions to harvest, prioritizing discovery_enabled first, then round-robin."""
+    try:
+        all_insts = db.select('institutions',
+                             columns="id,name,slug,website_url,last_harvest_at",
+                             order="last_harvest_at.asc.nullsfirst")
+
+        profiles = db.select_pipeline('institution_site_profiles',
+                                     columns="institution_id,discovery_enabled")
+        enabled = {p['institution_id']: p.get('discovery_enabled', False)
+                   for p in profiles}
+
+        all_insts.sort(key=lambda i: (
+            not enabled.get(i['id'], False),
+            i.get('last_harvest_at') or ''
+        ))
+
+        return all_insts[:limit]
+    except Exception as e:
+        logger.error(f"Failed to fetch institutions: {e}")
+    return []
+```
+
+**Nuevo comportamiento**: Las instituciones con `discovery_enabled=true` se ordenan primero, luego por `last_harvest_at ASC` (respetando Round-Robin). El `limit` se aplica al final.
+
+#### Resultado esperado con `--limit 5` en Pro
+
+| # | Institución | `discovery_enabled` | ¿Procesada? |
+|---|---|---|---|
+| 1 | **DMC** | **true** | Harvest + pipeline completo |
+| 2-5 | U.Lima, U.Continental, UTP, IDAT | false | Skipped (no-op rápido) |
+
+#### Validación
+
+1. `docker exec studiamatch-dev python3 -m py_compile scripts/core/master_orchestrator.py` — sin errores
+2. `@security-auditor` — hallazgos RLS remediados usando `select_pipeline()` para perfiles y `count_pipeline()` para `staging_raw`
+3. El script sigue siendo genérico: no hay lógica específica por institución
+4. Compatible hacia atrás: si todas las instituciones están deshabilitadas, el orden es idéntico al Round-Robin original
+
+#### SDLC
+
+```
+feat/orchestrator-prioritize-enabled → desarrollo → certificacion → main
+```
+
+Al llegar a `main`, las siguientes ejecuciones programadas del pipeline automáticamente procesarán instituciones habilitadas sin importar su posición en el orden.
 
 ---
 
