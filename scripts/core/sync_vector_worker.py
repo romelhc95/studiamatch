@@ -8,6 +8,11 @@ from typing import List
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
+try:
+    import regex as safe_regex
+except ImportError:
+    safe_regex = None
+
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
@@ -26,10 +31,10 @@ class SyncVectorWorker:
     def __init__(self):
         self.db = get_db_client()
         self.profiles = self._load_profiles()
-        # Fase 75: Exclusion Gate
+        # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
             str(p['institution_id']) for p in self.profiles
-            if isinstance(p, dict) and p.get('pipeline_ready')
+            if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
         # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado.
         # NOTA: Ya no se cargan globalmente — se obtienen por institución vía
@@ -53,9 +58,36 @@ class SyncVectorWorker:
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
-            if p.get('institution_id') == institution_id:
+            if str(p.get('institution_id')) == str(institution_id):
                 return p
         return {}
+
+    @staticmethod
+    def _gate_enabled(profile, gate_name):
+        if gate_name in profile:
+            return bool(profile.get(gate_name))
+        return bool(profile.get('pipeline_ready'))
+
+    @staticmethod
+    def _is_safe_profile_regex(pattern):
+        if not isinstance(pattern, str) or len(pattern) > 200:
+            return False
+        unsafe = [r'(\([^)]*[*+][^)]*\))+[*+]', r'\\[1-9]', r'\(\?([=!<])']
+        return not any(re.search(expr, pattern) for expr in unsafe)
+
+    @staticmethod
+    def _safe_profile_search(pattern, text):
+        text = str(text or '')[:2000]
+        if safe_regex:
+            try:
+                return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
+            except TimeoutError:
+                logger.warning(f"Profile regex timed out and was rejected: {pattern}")
+                return None
+            except Exception as e:
+                logger.warning(f"Profile regex rejected: {pattern} ({e})")
+                return None
+        return re.search(pattern, text, re.IGNORECASE)
 
     def _get_noise_patterns_for_inst(self, inst_id) -> List[re.Pattern]:
         """
@@ -71,14 +103,11 @@ class SyncVectorWorker:
             for pat in patterns:
                 if not isinstance(pat, str):
                     continue
-                if len(pat) > 200:
-                    logger.warning(f"Noise pattern too long, skipping: {pat[:50]}...")
-                    continue
-                if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
+                if not self._is_safe_profile_regex(pat):
                     logger.warning(f"ReDoS-risk noise pattern rejected: {pat}")
                     continue
                 try:
-                    validated.append(re.compile(pat, re.IGNORECASE))
+                    validated.append(pat)
                 except re.error as e:
                     logger.warning(f"Invalid noise regex '{pat}': {e}")
                     continue
@@ -87,27 +116,37 @@ class SyncVectorWorker:
         return list(self.default_noise_patterns)
 
     def get_pending_enriched(self, limit=500):
-        return self.db.select_pipeline('enriched_programs', filters="status=eq.pending", limit=limit)
+        if not self.ready_inst_ids:
+            return []
+        inst_ids = ",".join(sorted(self.ready_inst_ids))
+        filters = f"status=eq.pending&institution_id=in.({inst_ids})"
+        return self.db.select_pipeline('enriched_programs', filters=filters, limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
 
-        # Fase 75: Exclusion Gate — skip si la institucion no esta lista
+        # Fase 100: skip si la institucion no tiene pipeline habilitado
         inst_id = enriched.get('institution_id')
         if inst_id and str(inst_id) not in self.ready_inst_ids:
-            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_ready=false")
-            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_ready=false")
+            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_enabled=false")
+            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_enabled=false")
             return
 
         # Fase 75: Post-sync noise validation (per-institution, no global)
         noise_patterns = self._get_noise_patterns_for_inst(inst_id)
         for pat in noise_patterns:
             try:
-                if pat.search(str(url or '')) or pat.search(str(raw_name or '')):
-                    logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat.pattern}' matched on '{raw_name}'")
-                    self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat.pattern}")
+                if isinstance(pat, re.Pattern):
+                    matched = pat.search(str(url or '')[:2000]) or pat.search(str(raw_name or '')[:2000])
+                    pat_label = pat.pattern
+                else:
+                    matched = self._safe_profile_search(pat, str(url or '')) or self._safe_profile_search(pat, str(raw_name or ''))
+                    pat_label = pat
+                if matched:
+                    logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat_label}' matched on '{raw_name}'")
+                    self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat_label}")
                     return
             except re.error:
                 continue
@@ -173,6 +212,10 @@ class SyncVectorWorker:
 
         # Fase 63: Load profile defaults for this institution
         profile = self._get_profile(enriched.get('institution_id'))
+        production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else True
+        course_is_active = course_is_active and production_enabled
+        if not production_enabled:
+            logger.info(f"🚧 [NOT PUBLIC] {name} — production_enabled=false, syncing inactive")
         defaults = profile.get('field_defaults', {}) if profile else {}
         section_mode_map = profile.get('section_mode_map', {}) if profile else {}
 

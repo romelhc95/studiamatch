@@ -2,7 +2,7 @@ name: FG3 - Daily Integrity Management
 
 on:
   schedule:
-    - cron: '0 5 * * *' # Diario: 05:00 UTC
+    - cron: '0 5 * * *' # ⛔ DESACTIVADO temporalmente hasta redefinir flujo
   workflow_dispatch:      # Manual
 
 concurrency:
@@ -30,7 +30,9 @@ jobs:
       - name: Run Integrity Ping
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          SUPABASE_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         working-directory: scripts/core
         run: python integrity_ping.py
