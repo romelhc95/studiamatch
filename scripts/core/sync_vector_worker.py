@@ -4,6 +4,7 @@ import logging
 import sys
 import re
 import requests
+from datetime import datetime, timezone
 from typing import List
 from urllib.parse import urlparse
 from dotenv import load_dotenv
@@ -255,7 +256,7 @@ class SyncVectorWorker:
             "category": main_category,
             "is_active": course_is_active,
             "is_verified": True,
-            "last_scraped_at": "now()",
+            "last_scraped_at": datetime.now(timezone.utc).isoformat(),
             "provider_used": enriched.get('provider_used', 'mock'),
             "is_mock_data": enriched.get('is_mock_data', True)
         }
