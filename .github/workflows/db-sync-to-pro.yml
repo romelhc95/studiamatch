@@ -3,6 +3,7 @@ name: DB Sync to Production
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: studiamatch-db-sync-${{ github.ref }}
@@ -11,6 +12,7 @@ concurrency:
 jobs:
   detect:
     name: "Detect pending migrations"
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -42,7 +44,7 @@ jobs:
   apply:
     name: "Apply pending migrations"
     needs: detect
-    if: needs.detect.outputs.pending_count > 0
+    if: github.ref_name == 'main' && needs.detect.outputs.pending_count > 0
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -67,7 +69,7 @@ jobs:
   verify:
     name: "Verify target schema"
     needs: [detect, apply]
-    if: always() && needs.detect.result == 'success' && (needs.apply.result == 'success' || needs.apply.result == 'skipped')
+    if: always() && github.ref_name == 'main' && needs.detect.result == 'success' && (needs.apply.result == 'success' || needs.apply.result == 'skipped')
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -100,7 +102,7 @@ jobs:
   defer-fg2:
     name: "FG2 deferred to scheduled production window"
     needs: verify
-    if: success()
+    if: success() && github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Confirm deferred production scraping
