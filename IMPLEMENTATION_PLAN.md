@@ -39,9 +39,11 @@
   - **25 enriched_programs** todos en `status="error"` con metadata `"DB Error"` — irrecuperables por el pipeline
   - **`exec_sql` RPC NO existe** — `db-sync-to-pro.yml` falla desde que se eliminó Management API fallback
   - **Migrations Fase 100 NO aplicadas** — faltan columnas `discovery_enabled`, `production_enabled` en Pro
-  - **Bug en código**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → todos los upserts fallan con "DB Error"
+  - **Bug en código (2 bugs, 1 script)**:
+  - **Bug #1 — `last_scraped_at`**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → todos los upserts fallan con "DB Error".
+  - **Bug #2 — `chk_syllabus_is_text` CHECK constraint (RAÍZ DEL PROBLEMA DMC)**: `sync_vector_worker.py:252` escribe `curriculum_summary` como JSON crudo (`json.dumps()`) en el campo `syllabus`, produciendo strings como `{"pilares": [...]}`. La migration `20260512_normalize_syllabus_text.sql` (Fase 75) agregó CHECK `syllabus !~ '^\s*[{[]'` que rechaza cualquier valor que empiece con `{` o `[`. PostgreSQL rechaza todos los inserts con error `23514` (check_violation). El contador del sync worker reporta `"Synced: 10/10"` pero fueron **0/10** porque el código no verifica el resultado del `upsert`. Fix: convertir `curriculum_summary` de JSONB a texto plano (extraer array `pilares`, formatear como bullet points).
 - **Brecha Free ↔ Pro**: Free tiene 48 programas DMC visibles; Pro tiene 14. La causa raíz es el bug `last_scraped_at` que mata todo sync en ambos ambientes, combinado con 25 enriched atrapados en `status="error"` en Pro.
-- **Próxima Acción**: Ejecutar Fase 104-108 (plan de remediación DMC en Pro): fix de código, promoción SDLC, creación de `exec_sql`, limpieza de tablas operativas DMC en Pro, ejecución de pipeline, y validación de cobertura contra `artifacts/urls_interes/dmc.txt`.
+- **Próxima Acción**: Ejecutar Fase 104-111 en orden: (104) fix 2 bugs en sync_vector_worker.py, (105-106) promoción SDLC a main, (107) infra Pro con exec_sql + limpieza, (108) FG2 + validación cobertura DMC, (109) fix orquestador para priorizar discovery_enabled, (110-111) integrar DeepSeek V4 Flash via OpenCode Go API + CI/CD secrets.
 
 ## Tareas Pendientes Priorizadas
 
@@ -72,12 +74,14 @@
 | ~~P0~~ | ~~Fase 101 — Hardening temporal desde `artifacts/urls_interes/<slug>.txt`~~ | ~~Pipeline + Proceso~~ | ~~Estandarizado el uso del `.txt` como insumo temporal de análisis para derivar `allowed_url_patterns`, `exclusion_patterns`, `seed_urls` y demás configuración persistente.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 102 — Promoción diferida a Pro (sin FG2 inmediato)~~ | ~~Infra + Workflows~~ | ~~`db-sync-to-pro.yml` ya no dispara FG2 inmediato; `production_pipeline.yml` queda por schedule diario o `workflow_dispatch`.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 103 — Parity check orientado a configuración, no a datos ETL~~ | ~~Infra~~ | ~~`check_db_parity.py` compara migrations, columnas criticas, `institutions` y perfiles por slug; conteos ETL/courses son informativos.~~ | ~~Completado~~ |
-| **P0** | **Fase 104 — Fix Bug `last_scraped_at` + PR a desarrollo** | Pipeline | **BUG**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → sync falla con "DB Error". 25 enriched atrapados en `status="error"` en Pro. Fix: `datetime.utcnow().isoformat()`. Aplica a ambos ambientes (Free y Pro). Flujo SDLC: feat → desarrollo → certificacion → main. [Ver plan detallado abajo](#fase-104-fix-bug-last_scraped_at--pr-a-desarrollo). | Ninguno |
+| **P0** | **Fase 104 — Fix 2 Bugs en `sync_vector_worker.py`** | Pipeline | **BUG #1 (`last_scraped_at`)**: `sync_vector_worker.py:258` envía `"now()"` como string literal a `timestamptz` → PostgREST rechaza. Fix: `datetime.utcnow().isoformat()`. **BUG #2 (`chk_syllabus_is_text` — RAÍZ DMC)**: `sync_vector_worker.py:252` envía `json.dumps(curriculum_summary)` al campo `syllabus` → produce `{"pilares": [...]}` que viola CHECK constraint `syllabus !~ '^\s*[{[]'` → error `23514`. Fix: convertir `curriculum_summary` JSONB a texto plano (extraer `pilares`, bullet points). [Ver plan detallado](#fase-104-fix-2-bugs-en-sync_vector_workerpy). | Ninguno |
 | **P0** | **Fase 105 — Promoción a certificación** | Infra | PR `desarrollo` → `certificacion`. Validar CI verde. Merge. | Depende de Fase 104 |
 | **P0** | **Fase 106 — Promoción a main + db-sync** | Infra | PR `certificacion` → `main`. Merge dispara `db-sync-to-pro.yml`. **FALLARÁ si `exec_sql` no existe en Pro** → continuar con Fase 107. [Ver plan detallado abajo](#fase-106-promoción-a-main--db-sync). | Depende de Fase 105 |
 | **P0** | **Fase 107 — Infra Pro: `exec_sql` + limpieza tablas DMC + activar gates** | Infra + DB | **Manual (Supabase Dashboard Pro)**. 3 pasos: (A) Crear función `exec_sql` en Pro. (B) Si db-sync falló, re-ejecutar. (C) Limpiar tablas operativas DMC (courses, enriched, cleansed, staging). (D) Activar gates: `discovery_enabled=true`, `production_enabled=true`. [Ver plan detallado abajo](#fase-107-infra-pro-exec_sql--limpieza-tablas-dmc--activar-gates). | Depende de Fase 106 |
 | **P0** | **Fase 108 — Ejecución FG2 en Pro + validación cobertura** | Pipeline + QA | Ejecutar pipeline manual en `main` (o esperar schedule 05:00 UTC). Validar: (A) Monitorear fases sin "DB Error". (B) Verificar `courses` con ≥ 45 programas DMC. (C) Validar https://www.studiamatch.com/ muestra los 45. (D) Comparar cobertura contra `artifacts/urls_interes/dmc.txt`. [Ver plan detallado abajo](#fase-108-ejecución-fg2-en-pro--validación-cobertura). | Depende de Fase 107 |
 | **P0** | **Fase 109 — Orquestador: priorizar instituciones con discovery_enabled=true** | Pipeline | **BUG**: `get_institutions()` ordena solo por `last_harvest_at ASC` y trunca a `--limit 5`. Cuando 10/12 instituciones tienen `discovery_enabled=false` y la única habilitada está en posición #9, el pipeline no procesa ninguna. **Fix**: ordenar poniendo `discovery_enabled=true` primero, luego por `last_harvest_at ASC`. [Ver plan detallado abajo](#fase-109-orquestador-priorizar-instituciones-con-discovery_enabledtrue). | Ninguno |
+| **P1** | **Fase 110 — Integrar DeepSeek V4 Flash via OpenCode Go API** | Pipeline + Infra | Reemplazar el modelo gratuito Cloudflare `llama-3.1-8b-instruct` como provider primario de enrichment por `deepseek-v4-flash` via API OpenAI-compatible de OpenCode Go (suscripción activa). Cloudflare se mantiene como fallback automático. Agregar dependencia `openai` a `requirements.txt`. [Ver plan detallado](#fase-110-integrar-deepseek-v4-flash-via-opencode-go-api). | Ninguno |
+| **P1** | **Fase 111 — CI/CD + Secrets para DeepSeek** | Infra | Agregar `OPENCODE_API_KEY` a GitHub Secrets (3 environments), actualizar `production_pipeline.yml` Phase 2 con la nueva variable de entorno, agregar patrón de detección al security-audit. Rebuild del contenedor Docker. [Ver plan detallado](#fase-111-cicd--secrets-para-deepseek). | Depende de Fase 110 |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
@@ -2561,49 +2565,88 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 
 ---
 
-### Fase 104: Fix Bug `last_scraped_at` + PR a desarrollo
+### Fase 104: Fix 2 Bugs en `sync_vector_worker.py`
 
 #### Descripción
-Corregir el bug que causa que todos los sync fallen con "DB Error". Una línea de código. Aplica a ambos ambientes.
+Corregir 2 bugs que bloquean la promoción de `enriched_programs` a `courses`. Ambos bugs están en el mismo archivo y aplican a Free y Pro.
 
-#### Archivo a modificar
-`scripts/core/sync_vector_worker.py`
+#### Bug #1: `last_scraped_at` string literal
 
-#### Código — Antes (~línea 258)
+**Archivo**: `scripts/core/sync_vector_worker.py` ~línea 258
+
+**Antes**:
 ```python
 "last_scraped_at": "now()",
 ```
-
-#### Código — Después
+**Después**:
 ```python
 "last_scraped_at": datetime.utcnow().isoformat(),
 ```
+**Import requerido**: `from datetime import datetime`
 
-#### Verificar imports (debe existir; si no, agregar)
+---
+
+#### Bug #2: `chk_syllabus_is_text` — RAÍZ DEL PROBLEMA DMC (descubierto 2026-05-25)
+
+**Diagnóstico**: El pipeline Run #145 procesó DMC en Pro. Las 5 estaciones pasaron "success" pero **0 cursos** llegaron a la tabla `courses`. Los 10 registros de `enriched_programs` quedaron con `status='error'`. El log del sync worker reportó falsamente `"Synced: 10/10"`.
+
+**Causa**: `sync_vector_worker.py:252` escribe `curriculum_summary` como JSON crudo:
 ```python
-from datetime import datetime
+"syllabus": json.dumps(enriched.get('curriculum_summary'))
+# Produce: '{"pilares": ["Clases en Vivo", "Laboratorios", ...]}'
 ```
 
-#### Tareas
+La migration `20260512_normalize_syllabus_text.sql` (Fase 75) agregó un CHECK constraint en `courses`:
+```sql
+CHECK (syllabus IS NULL OR syllabus !~ '^\s*[{[]')
+```
+
+PostgreSQL rechaza **todos** los upserts con error `23514` (check_violation) porque el valor empieza con `{`.
+
+**Agravante**: El contador `synced_count` en `sync_vector_worker.py` (~línea 267) se incrementa sin verificar el resultado del `upsert`, ocultando el error. El log dice `"Synced: 10/10"` pero fue **0/10**.
+
+**Fix**: Convertir `curriculum_summary` de JSONB a texto plano antes de pasarlo a `syllabus`:
+```python
+def _curriculum_to_text(curriculum_summary):
+    """Convierte curriculum_summary JSONB → texto plano para syllabus."""
+    if not curriculum_summary or not isinstance(curriculum_summary, dict):
+        return None
+    pilares = curriculum_summary.get('pilares', [])
+    if not pilares:
+        return None
+    return '\n'.join(f'• {p}' for p in pilares if p and isinstance(p, str))
+```
+
+Y en la construcción de `course_data` (~línea 252):
+```python
+"syllabus": _curriculum_to_text(enriched.get('curriculum_summary')),
+```
+
+---
+
+#### Tareas (ambos bugs en misma rama y PR)
 
 | Paso | Acción | Comando | Duración |
 |------|--------|---------|----------|
-| 104.1 | Crear rama `feat/fix-sync-last-scraped` desde `desarrollo` | `git checkout -b feat/fix-sync-last-scraped` | 1 min |
-| 104.2 | Editar `scripts/core/sync_vector_worker.py` línea ~258 | Reemplazar `"now()"` → `datetime.utcnow().isoformat()` | 2 min |
-| 104.3 | Compilar verificación Python | `docker exec studiamatch-dev python3 -m py_compile scripts/core/sync_vector_worker.py` | 1 min |
-| 104.4 | Commit | `git add scripts/core/sync_vector_worker.py && git commit -m "fix: replace last_scraped_at string literal with datetime.utcnow()"` | 1 min |
-| 104.5 | Push | `git push origin feat/fix-sync-last-scraped` | 1 min |
-| 104.6 | Crear PR → `desarrollo` | `gh pr create --base desarrollo --head feat/fix-sync-last-scraped --title "fix: last_scraped_at datetime (PGRST202 DB Error)"` | 1 min |
-| 104.7 | Esperar CI `security-audit` verde | Monitorear `gh pr checks` | 2 min |
-| 104.8 | Merge a `desarrollo` | `gh pr merge` | 1 min |
+| 104.1 | Crear rama `feat/fix-sync-bugs` desde `desarrollo` | `git checkout -b feat/fix-sync-bugs` | 1 min |
+| 104.2 | Fix Bug #1: `last_scraped_at` → `datetime.utcnow().isoformat()` | Editar línea ~258 | 2 min |
+| 104.3 | Fix Bug #2: agregar `_curriculum_to_text()` + reemplazar `json.dumps()` | Editar líneas ~240-260 | 5 min |
+| 104.4 | Agregar verificación de resultado de `upsert` (no incrementar contador si falla) | Editar líneas ~265-275 | 3 min |
+| 104.5 | Compilar verificación Python | `docker exec studiamatch-dev python3 -m py_compile scripts/core/sync_vector_worker.py` | 1 min |
+| 104.6 | Commit | `git add scripts/core/sync_vector_worker.py && git commit -m "fix: syllabus text conversion + last_scraped_at datetime + upsert result check"` | 1 min |
+| 104.7 | Push | `git push origin feat/fix-sync-bugs` | 1 min |
+| 104.8 | Crear PR → `desarrollo` | `gh pr create --base desarrollo --head feat/fix-sync-bugs --title "fix: sync_vector syllabus + last_scraped_at (2 bugs)"` | 1 min |
+| 104.9 | Esperar CI `security-audit` verde | Monitorear `gh pr checks` | 2 min |
+| 104.10 | Merge a `desarrollo` | `gh pr merge` | 1 min |
 
 #### Verificación en Free (desarrollo)
 
 | Paso | Acción | Resultado esperado |
 |------|--------|-------------------|
 | 104.V1 | Disparar FG2 manual en `desarrollo` | `gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref desarrollo` |
-| 104.V2 | Verificar enriched sin nuevos errores | `SELECT count(*) FROM enriched_programs WHERE status = 'error'` → 0 nuevos |
-| 104.V3 | Verificar https://desarrollo.studiamatch-aty.pages.dev/ | ≥ 48 programas DMC |
+| 104.V2 | Verificar enriched sin nuevos errores | `SELECT count(*) FROM enriched_programs WHERE status = 'error' AND institution_id = '74022aa7-...'` → 0 |
+| 104.V3 | Verificar `syllabus` en courses es texto plano | `SELECT syllabus FROM courses WHERE institution_id = '74022aa7-...' LIMIT 3` → bullet points, no JSON |
+| 104.V4 | Verificar https://desarrollo.studiamatch-aty.pages.dev/ | ≥ 48 programas DMC |
 
 ---
 
@@ -2873,16 +2916,237 @@ Al llegar a `main`, las siguientes ejecuciones programadas del pipeline automát
 
 ---
 
-### 📊 Resumen de Fases 104-108
+### Fase 110: Integrar DeepSeek V4 Flash via OpenCode Go API
+
+#### Diagnóstico (2026-05-25)
+
+El pipeline de enrichment actualmente usa **un solo provider LLM**: Cloudflare Workers AI (`@cf/meta/llama-3.1-8b-instruct`). Los otros 3 providers (GitHub Models GPT-4o, NVIDIA NIM Llama 70B, Google Gemini 1.5 Flash) fueron eliminados en Fase 100. Esto significa:
+
+- **Sin fallback real**: Si Cloudflare falla o se degrada, el enrichment cae directo a smart mock (datos de baja calidad, `ai_summary` extraído del HTML, `duration_months=0`).
+- **Modelo limitado**: Llama 3.1 8B es un modelo pequeño con capacidad limitada para extracción estructurada de 14 pilares.
+- **Sin diversidad de providers**: La infraestructura `ProviderOrchestrator` en `utils.py` soporta multi-provider pero actualmente solo tiene 1 registrado.
+
+#### Solución
+
+Integrar **DeepSeek V4 Flash** como provider **primario** via la API OpenAI-compatible de OpenCode Go (suscripción activa del usuario). Cloudflare se mantiene como **fallback automático** usando la infraestructura existente de `ProviderOrchestrator`.
+
+#### API de OpenCode Go
+
+| Elemento | Valor |
+|---|---|
+| **Base URL** | `https://opencode.ai/zen/go/v1` |
+| **Endpoint** | `/chat/completions` (OpenAI-compatible) |
+| **Modelo** | `deepseek-v4-flash` (incluido en suscripción Go $10/mes) |
+| **Autenticación** | `Authorization: Bearer <OPENCODE_API_KEY>` |
+| **SDK Python** | Usar package `openai` con `base_url` personalizado |
+
+#### Cambios
+
+##### 1. `requirements.txt` — Agregar dependencia
+
+```
+openai
+```
+
+El package `openai` se instala automáticamente en Docker via `init-container.sh` y en CI via `pip install -r requirements.txt`. Solo depende de `httpx`, `pydantic`, `tqdm` — todas ligeras y sin conflictos con dependencias existentes.
+
+##### 2. `scripts/core/enrichment_worker.py` — Provider DeepSeek
+
+**Nueva variable de entorno** (junto a las existentes L33-35):
+
+```python
+OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
+```
+
+**Nuevo método `_call_deepseek`** (mismo patrón que los providers legacy eliminados en Fase 100):
+
+```python
+from openai import OpenAI
+
+def _call_deepseek(self, prompt):
+    if not OPENCODE_API_KEY:
+        return None
+    try:
+        client = OpenAI(
+            base_url="https://opencode.ai/zen/go/v1",
+            api_key=OPENCODE_API_KEY
+        )
+        response = client.chat.completions.create(
+            model="deepseek-v4-flash",
+            messages=[
+                {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=1024
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.warning(f"DeepSeek error: {e}")
+        return None
+```
+
+**Registro del provider** (modificar L46-50):
+
+```python
+# Antes (solo Cloudflare):
+cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
+self.orchestrator = ProviderOrchestrator(
+    providers=[cf_provider],
+    logger=logger,
+)
+
+# Después (DeepSeek primario + Cloudflare fallback):
+cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
+ds_provider = LLMProvider("DeepSeek", self._call_deepseek)
+self.orchestrator = ProviderOrchestrator(
+    providers=[ds_provider, cf_provider],  # DeepSeek primero
+    logger=logger,
+)
+```
+
+##### 3. `.env.local` / `.env.gitdesa` / `.env.gitprod` — Nueva variable
+
+```bash
+OPENCODE_API_KEY=<api-key-de-opencode>
+```
+
+##### 4. `scripts/maintenance/batch_enrich_courses.py` — Compatibilidad
+
+Este script importa `EnrichmentWorker` y usa `_call_llm_for_pillars()` directamente. No requiere cambios adicionales: hereda el nuevo provider automáticamente al instanciar `EnrichmentWorker`.
+
+#### Arquitectura Final del Orchestrator
+
+```
+Health check al iniciar:
+  DeepSeek V4 Flash = ✅ → primario
+  Cloudflare Llama 3.1 8B = ✅ → fallback
+
+Por cada record enriched:
+  1. DeepSeek V4 Flash (OpenCode Go, incluido en suscripción)
+     └─ falla? → 2. Cloudflare Llama 3.1 8B (Workers AI, gratuito)
+                   └─ falla? → 3. Smart Mock (extracción local del HTML)
+
+Dynamic degradation:
+  Si DeepSeek >80% fail rate → se degrada, Cloudflare toma el control
+  Si ambos >80% → mock_only (sin llamadas LLM, smart mock para todos)
+```
+
+#### Ventajas sobre el estado actual
+
+| Aspecto | Antes (Cloudflare solo) | Después (DeepSeek + Cloudflare) |
+|---|---|---|
+| **Providers** | 1 | 2 con fallback automático |
+| **Modelo primario** | Llama 3.1 8B (gratuito, pequeño) | DeepSeek V4 Flash (suscripción, mayor capacidad) |
+| **Resiliencia** | Sin fallback → smart mock directo | Degradación gradual: DeepSeek → Cloudflare → mock |
+| **Calidad de extracción** | Limitada (8B params) | Superior (modelo más grande + razonamiento) |
+| **Costo** | Gratuito | Incluido en suscripción Go existente |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 110.V1 | Rebuild Docker | `docker compose up -d --build && docker exec studiamatch-dev bash init-container.sh` → `openai` instalado |
+| 110.V2 | Health check providers | Ejecutar enrichment_worker → log: `"Health check: DeepSeek=✅, Cloudflare=✅"` |
+| 110.V3 | Test enrichment con DeepSeek | 1 registro enriched → `provider_used='DeepSeek'`, JSON válido con 14 pilares |
+| 110.V4 | Test fallback a Cloudflare | Simular fallo DeepSeek → `provider_used='Cloudflare'` |
+| 110.V5 | Test smart mock | Simular fallo ambos → `is_mock_data=true`, `ai_summary` del HTML |
+
+#### SDLC
+
+```
+feat/deepseek-opencode-go → desarrollo → certificacion → main
+```
+
+---
+
+### Fase 111: CI/CD + Secrets para DeepSeek
+
+#### Cambios
+
+##### 1. GitHub Secrets (3 environments)
+
+Agregar secreto `OPENCODE_API_KEY` en los 3 GitHub Environments:
+- `Development` (Free) → misma API key (suscripción personal)
+- `Certification` (Free) → misma API key
+- `Production` (Pro) → misma API key
+
+**Dónde**: GitHub → Settings → Environments → [Environment] → Environment secrets → Add secret
+
+##### 2. `.github/workflows/production_pipeline.yml` — Phase 2
+
+Agregar la variable de entorno en el job `phase_2_enrichment` (líneas 106-114):
+
+```yaml
+- name: Multicloud AI Enrichment
+  env:
+    SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+    NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+    NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+    NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+    CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+    CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+    OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}       # ← NUEVA
+  run: python scripts/core/enrichment_worker.py
+```
+
+`CF_API_TOKEN` y `CF_ACCOUNT_ID` se mantienen para el fallback de Cloudflare.
+
+##### 3. Security Audit — Actualizar patrones de detección
+
+El `.githooks/pre-commit` y `.github/workflows/security-audit.yml` ya detectan patrones genéricos de API keys. `OPENCODE_API_KEY` sigue el formato estándar y será detectado automáticamente si se intenta hardcodear. No se requieren cambios adicionales.
+
+##### 4. Rebuild del contenedor Docker
+
+```bash
+docker compose up -d --build
+docker exec studiamatch-dev bash init-container.sh
+```
+
+Esto instala el package `openai` y deja el contenedor listo para desarrollo local.
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 111.1 | Agregar `OPENCODE_API_KEY` a GitHub Secrets | 3 environments | 3 min |
+| 111.2 | Agregar `OPENCODE_API_KEY` env var a `production_pipeline.yml` Phase 2 | Código | 1 min |
+| 111.3 | Rebuild Docker con `openai` package | Local | 2 min |
+| 111.4 | Commit + PR de cambios CI | `feat/deepseek-opencode-go` | 1 min |
+
+#### Validación en CI
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 111.V1 | Ejecutar FG2 manual en `desarrollo` | `gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref desarrollo` |
+| 111.V2 | Verificar Phase 2 logs | `"Health check: DeepSeek=✅, Cloudflare=✅"` |
+| 111.V3 | Verificar enriched usa DeepSeek | `SELECT provider_used, count(*) FROM enriched_programs WHERE created_at > now() - interval '1 hour' GROUP BY provider_used` → mayoría `DeepSeek` |
+| 111.V4 | Verificar fallback funciona | Si DeepSeek falla, Cloudflare toma el control sin errores |
+
+#### SDLC
+
+```
+feat/deepseek-opencode-go → desarrollo → certificacion → main
+```
+
+Los secrets deben configurarse en los 3 environments **antes** de que el código llegue a cada rama, o el enrichment caerá directo a Cloudflare (comportamiento actual, sin breaking change).
+
+---
+
+### 📊 Resumen de Fases 104-111
 
 | Fase | Qué | Dónde | Duración | Dependencia |
 |------|-----|-------|----------|-------------|
-| **104** | Fix `last_scraped_at` + PR a desarrollo | Código | 10 min | Ninguna |
+| **104** | Fix 2 bugs `sync_vector_worker.py` (syllabus + last_scraped_at) | Código | 15 min | Ninguna |
 | **105** | Promover a certificación | GitHub | 5 min | Fase 104 |
 | **106** | Promover a main (dispara db-sync) | GitHub | 5 min | Fase 105 |
 | **107** | Crear `exec_sql` + limpiar DMC + gates | Supabase Pro Dashboard | 5 min | Fase 106 |
 | **108** | Ejecutar FG2 + validar cobertura | Pipeline + QA | 60 min | Fase 107 |
-| **Total** | | | **~85 min** | |
+| **109** | Orquestador: priorizar discovery_enabled | Código | 10 min | Ninguna |
+| **110** | Integrar DeepSeek V4 Flash (OpenCode Go) | Código + Infra | 20 min | Ninguna |
+| **111** | CI/CD secrets + deploy DeepSeek | GitHub + Docker | 10 min | Fase 110 |
+| **Total** | | | **~130 min** | |
 
 ### 🎯 Probabilidad de éxito
 
@@ -2895,14 +3159,17 @@ Al llegar a `main`, las siguientes ejecuciones programadas del pipeline automát
 ### 🔗 Relación con SDLC
 
 ```
-feat/fix-sync-last-scraped  →  desarrollo  →  certificacion  →  main
-       (Fase 104)              (Fase 104)      (Fase 105)       (Fase 106)
-                                                                      │
-                                                          db-sync-to-pro.yml
-                                                          (aplica migrations)
-                                                                      │
-                                                          Fase 107 (Pro Dashboard)
-                                                          Fase 108 (FG2 + validación)
+feat/fix-sync-bugs ──────→ desarrollo ──→ certificacion ──→ main
+     (Fase 104)              (Fase 104)     (Fase 105)       (Fase 106)
+                                                                   │
+                                                       db-sync-to-pro.yml
+                                                       (aplica migrations)
+                                                                   │
+                                                       Fase 107 (Pro Dashboard)
+                                                       Fase 108 (FG2 + validación)
+
+feat/deepseek-opencode-go → desarrollo ──→ certificacion ──→ main
+     (Fases 110-111)          (Fase 110)     (Fase 111)       (Fase 111)
 ```
 
 

@@ -9,6 +9,11 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -33,6 +38,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 # API Keys & Credits
 CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
+OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
 
 class EnrichmentWorker:
     def __init__(self):
@@ -43,9 +49,10 @@ class EnrichmentWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
+        ds_provider = LLMProvider("DeepSeek", self._call_deepseek)
         cf_provider = LLMProvider("Cloudflare", self._call_cloudflare)
         self.orchestrator = ProviderOrchestrator(
-            providers=[cf_provider],
+            providers=[ds_provider, cf_provider],
             logger=logger,
         )
         self._mock_only = False
@@ -85,6 +92,29 @@ class EnrichmentWorker:
 
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
+
+    def _call_deepseek(self, prompt):
+        if not OPENCODE_API_KEY or OpenAI is None:
+            return None
+        try:
+            client = OpenAI(
+                base_url="https://opencode.ai/zen/go/v1",
+                api_key=OPENCODE_API_KEY,
+            )
+            response = client.chat.completions.create(
+                model="deepseek-v4-flash",
+                messages=[
+                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=1024,
+                timeout=30,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.warning(f"DeepSeek error: {e}")
+            return None
 
     def _call_cloudflare(self, prompt):
         if not CF_API_TOKEN or not CF_ACCOUNT_ID: return None

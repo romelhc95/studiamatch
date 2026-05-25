@@ -88,7 +88,8 @@ class SyncVectorWorker:
             except Exception as e:
                 logger.warning(f"Profile regex rejected: {pattern} ({e})")
                 return None
-        return re.search(pattern, text, re.IGNORECASE)
+        logger.warning("Profile regex rejected because safe regex engine is unavailable")
+        return None
 
     def _get_noise_patterns_for_inst(self, inst_id) -> List[re.Pattern]:
         """
@@ -116,6 +117,31 @@ class SyncVectorWorker:
                 return validated
         return list(self.default_noise_patterns)
 
+    @staticmethod
+    def _curriculum_to_text(curriculum_summary):
+        """Convert enrichment JSON into plain text accepted by courses.syllabus."""
+        if not curriculum_summary:
+            return None
+        if isinstance(curriculum_summary, str):
+            stripped = curriculum_summary.strip()
+            if not stripped or stripped in ("{}", "[]"):
+                return None
+            try:
+                curriculum_summary = json.loads(stripped)
+            except json.JSONDecodeError:
+                return stripped
+        if isinstance(curriculum_summary, dict):
+            pilares = curriculum_summary.get('pilares')
+            if isinstance(pilares, list):
+                lines = [f"- {str(item).strip()}" for item in pilares if str(item or '').strip()]
+                return "\n".join(lines) if lines else None
+            values = [str(v).strip() for v in curriculum_summary.values() if isinstance(v, str) and v.strip()]
+            return "\n".join(values) if values else None
+        if isinstance(curriculum_summary, list):
+            lines = [f"- {str(item).strip()}" for item in curriculum_summary if str(item or '').strip()]
+            return "\n".join(lines) if lines else None
+        return str(curriculum_summary).strip() or None
+
     def get_pending_enriched(self, limit=500):
         if not self.ready_inst_ids:
             return []
@@ -133,7 +159,7 @@ class SyncVectorWorker:
         if inst_id and str(inst_id) not in self.ready_inst_ids:
             logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_enabled=false")
             self.update_enriched_status(e_id, "skipped", error_msg="pipeline_enabled=false")
-            return
+            return False
 
         # Fase 75: Post-sync noise validation (per-institution, no global)
         noise_patterns = self._get_noise_patterns_for_inst(inst_id)
@@ -148,7 +174,7 @@ class SyncVectorWorker:
                 if matched:
                     logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat_label}' matched on '{raw_name}'")
                     self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat_label}")
-                    return
+                    return False
             except re.error:
                 continue
 
@@ -156,7 +182,7 @@ class SyncVectorWorker:
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
             logger.warning(f"Skipping record {e_id}: invalid official_name '{raw_name}'")
             self.update_enriched_status(e_id, "error", error_msg="invalid_name")
-            return
+            return False
 
         name = str(raw_name).strip()
         logger.info(f"Syncing to Production: {name}")
@@ -249,7 +275,7 @@ class SyncVectorWorker:
             "requirements": list_to_str(enriched.get('requirements')),
             "objectives": enriched.get('graduate_profile'),
             "target_audience": enriched.get('graduate_profile'),
-            "syllabus": json.dumps(enriched.get('curriculum_summary')) if isinstance(enriched.get('curriculum_summary'), dict) else enriched.get('curriculum_summary'),
+            "syllabus": self._curriculum_to_text(enriched.get('curriculum_summary')),
             "certification": "",
             "seniority_level": "Mid",
             "course_type": enriched.get('degree_type'),
@@ -270,9 +296,11 @@ class SyncVectorWorker:
         if res:
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
+            return True
         else:
             logger.error(f"Error syncing to production")
             self.update_enriched_status(e_id, "error", error_msg="DB Error")
+            return False
 
     def update_enriched_status(self, e_id, status, error_msg=None):
         payload = {"status": status}
@@ -289,7 +317,7 @@ if __name__ == "__main__":
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante sync. Synced: {synced}/{len(pending)}")
             break
-        worker.sync_to_production(record)
-        synced += 1
+        if worker.sync_to_production(record):
+            synced += 1
         guard.tick(every=50)
     logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Time: {guard.elapsed_hours:.2f}h")
