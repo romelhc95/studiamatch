@@ -27,6 +27,7 @@ import argparse
 import time
 import requests
 from datetime import datetime
+from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
@@ -36,62 +37,60 @@ MIGRATIONS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "db", "migrations"
 )
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 
 
-def _query_via_mgmt_api(sql_text):
-    """Ejecuta query SQL y retorna resultados via Management API."""
-    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "") or os.environ.get("SUPABASE_MGMT_TOKEN", "")
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    if not access_token or not supabase_url:
-        return None
+def load_environment(target):
+    env_file = ".env.gitprod" if target == "pro" else ".env.local"
+    load_dotenv(os.path.join(ROOT_DIR, env_file), override=True)
 
-    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
-    if not match:
-        return None
-    project_ref = match.group(1)
-
-    mgmt_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
+    prefix = "PRO" if target == "pro" else "FREE"
+    mappings = {
+        "SUPABASE_URL": [f"{prefix}_SUPABASE_URL"],
+        "NEXT_PUBLIC_SUPABASE_URL": [f"{prefix}_NEXT_PUBLIC_SUPABASE_URL", f"{prefix}_SUPABASE_URL"],
+        "NEXT_SUPABASE_SECRET_KEY": [f"{prefix}_NEXT_SUPABASE_SECRET_KEY"],
+        "NEXT_SUPABASE_PUBLISHABLE_KEY": [f"{prefix}_NEXT_SUPABASE_PUBLISHABLE_KEY", f"{prefix}_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": [f"{prefix}_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", f"{prefix}_NEXT_SUPABASE_PUBLISHABLE_KEY"],
     }
-    try:
-        resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
-        if resp.status_code not in (200, 201):
-            return None
-        data = resp.json()
-        if isinstance(data, list):
-            return data
-        if isinstance(data, dict):
-            raw = data.get("result", "")
-            if isinstance(raw, str):
-                json_match = re.search(r'\[[\s\S]*\]', raw)
-                if json_match:
-                    return json.loads(json_match.group())
-        return None
-    except Exception:
-        return None
+    for canonical, candidates in mappings.items():
+        for candidate in candidates:
+            value = os.environ.get(candidate)
+            if value:
+                os.environ[canonical] = value
+                break
+
+    if os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+        os.environ["SUPABASE_URL"] = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+
+    os.environ["SUPABASE_ENV"] = target
+
+
+def assert_environment(target):
+    required = ["NEXT_SUPABASE_SECRET_KEY"]
+    missing = [name for name in required if not os.environ.get(name)]
+    if not (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")):
+        missing.append("SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL")
+    if missing:
+        raise RuntimeError(f"Faltan credenciales para {target}: {', '.join(missing)}")
 
 
 def get_applied_migrations(db):
-    """Retorna set de nombres de migrations ya aplicadas.
-    Primero intenta via PostgREST, si falla por schema cache usa Management API."""
+    """Retorna set de nombres de migrations ya aplicadas via PostgREST service key."""
     try:
-        result = db.select(
+        result = db._select_api(
             SUPABASE_MIGRATIONS_TABLE,
+            filters=None,
             columns="name",
-            limit=1000
+            limit=1000,
+            order=None,
+            use_service_role=True,
         )
         if result and isinstance(result, list):
             return {row.get("name") for row in result if row.get("name")}
-    except Exception:
-        pass
-
-    rows = _query_via_mgmt_api(f"SELECT name FROM public.{SUPABASE_MIGRATIONS_TABLE}")
-    if rows and isinstance(rows, list):
-        return {row.get("name") for row in rows if row.get("name")}
+    except Exception as e:
+        print(f"  ⚠️  No se pudo leer supabase_migrations: {e}")
     return set()
 
 
@@ -101,88 +100,8 @@ def extract_name(filepath):
     return os.path.splitext(basename)[0]
 
 
-def _exec_sql_direct(db, sql_text):
-    """Ejecuta SQL directamente contra la BD usando conexión psycopg2 vía URL.",
-    Fallback cuando exec_sql RPC no está disponible (PGRST202 schema cache miss).
-    """
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    secret_key = os.environ.get("NEXT_SUPABASE_SECRET_KEY", "")
-    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
-    if not match or not secret_key:
-        return False
-
-    project_ref = match.group(1)
-    region = os.environ.get("SUPABASE_REGION", "us-west-1")
-
-    dsn_list = [
-        # Pooler (port 6543) — different region variants
-        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-{region}.pooler.supabase.com:6543/postgres",
-        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-1.pooler.supabase.com:6543/postgres",
-        f"postgresql://postgres.{project_ref}:{secret_key}@aws-0-us-west-2.pooler.supabase.com:6543/postgres",
-        # Direct (port 5432)
-        f"postgresql://postgres:{secret_key}@db.{project_ref}.supabase.co:5432/postgres",
-    ]
-
-    try:
-        import psycopg2
-        last_err = None
-        for dsn in dsn_list:
-            try:
-                conn = psycopg2.connect(dsn, connect_timeout=8)
-                conn.autocommit = True
-                cur = conn.cursor()
-                cur.execute(sql_text)
-                cur.close()
-                conn.close()
-                return True
-            except Exception as e:
-                last_err = e
-                print(f"  ⚠️  DSN {dsn[:60]}... falló: {type(e).__name__}")
-                continue
-        raise last_err or Exception("All connections failed")
-    except ImportError:
-        print("  ⚠️  psycopg2 no instalado — no se puede conectar directamente")
-    except Exception as e:
-        print(f"  ⚠️  Todas las conexiones directas fallaron: {e}")
-
-    return False
-
-
-def _exec_sql_via_mgmt_api(sql_text):
-    """Ejecuta SQL usando la Management API.
-    Retorna True si se ejecutó (éxito o error de objeto duplicado).
-    Los errores de "already exists" se tratan como éxito (migration ya aplicada)."""
-    access_token = os.environ.get("SUPABASE_ACCESS_TOKEN", "") or os.environ.get("SUPABASE_MGMT_TOKEN", "")
-    supabase_url = os.environ.get("SUPABASE_URL", "")
-    if not access_token or not supabase_url:
-        return False
-
-    match = re.match(r"https?://([^.]+)\.supabase\.co", supabase_url)
-    if not match:
-        return False
-    project_ref = match.group(1)
-
-    mgmt_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    try:
-        resp = requests.post(mgmt_url, headers=headers, json={"query": sql_text}, timeout=30)
-        if resp.status_code in (200, 201, 204):
-            return True
-        if resp.status_code in (200, 201, 204):
-            return True
-        print(f"  ⚠️  Management API: {resp.status_code} — se considera aplicada (posiblemente ya existía)")
-        return True
-    except Exception as e:
-        print(f"  ⚠️  Management API falló: {e}")
-    return False
-
-
 def _exec_sql_with_retry(db, sql, max_retries=2):
-    """Ejecuta SQL via RPC exec_sql con reintento y fallback a Management API.
-    Si la Management API no está disponible, intenta conexión directa vía psycopg2."""
+    """Ejecuta SQL via RPC exec_sql con reintento."""
     for attempt in range(1, max_retries + 1):
         try:
             result = db.rpc_raise("exec_sql", {"sql_text": sql})
@@ -197,20 +116,12 @@ def _exec_sql_with_retry(db, sql, max_retries=2):
             print(f"  ❌ ERROR: {e}")
             break
 
-    print("  ⏳ Intentando Management API...")
-    if _exec_sql_via_mgmt_api(sql):
-        return {"status": "success"}
-
-    print("  ⏳ Intentando conexión directa a la base de datos...")
-    if _exec_sql_direct(db, sql):
-        print("  ✅ Ejecutado via conexión directa")
-        return {"status": "success"}
-    print("  ❌ Falló también la conexión directa")
+    print("  ❌ No se pudo ejecutar SQL via exec_sql. No se registra la migration.")
     return None
 
 
 def _ensure_migration_table(db):
-    """Crea supabase_migrations si no existe (RPC o Management API)."""
+    """Crea supabase_migrations si no existe usando exec_sql."""
     for attempt in range(2):
         try:
             db.rpc_raise("exec_sql", {
@@ -219,13 +130,12 @@ def _ensure_migration_table(db):
             return
         except Exception:
             if attempt == 0:
-                _exec_sql_via_mgmt_api(f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());")
+                time.sleep(3)
 
 
 def _try_register_migration(db, name):
     """Registra migration como aplicada en supabase_migrations.
-    Si PostgREST falla (PGRST205), intenta via Management API.
-    Si Management API no devuelve datos, se asume aplicado."""
+    Si PostgREST falla, se reporta y la siguiente corrida la volvera a listar."""
     now = datetime.utcnow().isoformat()
     try:
         _ensure_migration_table(db)
@@ -233,15 +143,10 @@ def _try_register_migration(db, name):
             db.insert(SUPABASE_MIGRATIONS_TABLE, [{
                 "version": 0, "name": name, "statements": "", "applied_at": now
             }])
-        except Exception:
-            _exec_sql_via_mgmt_api(
-                f"INSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} "
-                f"(version, name, statements, applied_at) VALUES "
-                f"(0, '{name.replace(chr(39), chr(39)+chr(39))}', '', '{now}') "
-                f"ON CONFLICT (name) DO NOTHING;"
-            )
-    except Exception:
-        pass
+        except Exception as e:
+            print(f"  ⚠️  No se pudo registrar migration {name}: {e}")
+    except Exception as e:
+        print(f"  ⚠️  No se pudo asegurar supabase_migrations: {e}")
 
 
 def apply_migration(db, filepath, dry_run=False):
@@ -281,6 +186,8 @@ def main():
                         help="Ambiente target: free (desarrollo) o pro (producción)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Solo listar migrations pendientes sin ejecutar")
+    parser.add_argument("--only", action="append", default=[],
+                        help="Aplicar/listar solo migrations cuyo nombre coincida exactamente. Repetible.")
     args = parser.parse_args()
 
     print(f"\n{'='*60}")
@@ -290,6 +197,14 @@ def main():
     print(f"{'='*60}\n")
 
     migration_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
+    if args.only:
+        wanted = set(args.only)
+        migration_files = [f for f in migration_files if extract_name(f) in wanted]
+        found = {extract_name(f) for f in migration_files}
+        missing = sorted(wanted - found)
+        if missing:
+            print(f"  🛑 Migrations solicitadas no existen: {missing}")
+            sys.exit(1)
     if not migration_files:
         print("  No se encontraron archivos SQL en db/migrations/")
         sys.exit(0)
@@ -297,7 +212,8 @@ def main():
     print(f"  Archivos encontrados: {len(migration_files)}")
     print()
 
-    os.environ["SUPABASE_ENV"] = args.env
+    load_environment(args.env)
+    assert_environment(args.env)
     db = get_db_client()
 
     applied = get_applied_migrations(db)
@@ -332,7 +248,11 @@ def main():
 
     print(f"\n{'='*60}")
     print(f"  RESUMEN:")
-    print(f"    Aplicadas:  {success_count}/{len(pending)}")
+    if args.dry_run:
+        print(f"    Pendientes listadas: {success_count}/{len(pending)}")
+        print(f"    Aplicadas:           0 (dry-run)")
+    else:
+        print(f"    Aplicadas:  {success_count}/{len(pending)}")
     print(f"    Errores:    {fail_count}")
     print(f"    Previas:    {len(applied)}")
     print(f"{'='*60}\n")
