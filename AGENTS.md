@@ -67,20 +67,35 @@ python3 -m py_compile scripts/core/<archivo>.py
 python3 scripts/maintenance/<script>.py
 ```
 
-## Variables de Entorno Desarrollo/Certifición
+## Configuración de Ambientes Supabase (Fuente de Verdad)
+
+> **Regla Inmutable**: La siguiente tabla es la fuente de verdad para los refs de proyectos Supabase. Cualquier discrepancia debe reportarse y corregirse inmediatamente.
+
+| Ambiente | Project Ref | URL | Archivo local | GitHub Environment |
+|---|---|---|---|---|
+| Free (Desarrollo/Certificación) | `aqrldlmlszjtgpqiegaa` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `.env.local` / `.env.gitdesa` | `Development` / `Certification` |
+| Pro (Producción) | `xwhtiqmboljkshrtviyw` | `https://xwhtiqmboljkshrtviyw.supabase.co` | `.env.gitprod` | `Production` |
+
+**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, crear la función manualmente en Supabase Dashboard → SQL Editor:
+```sql
+CREATE OR REPLACE FUNCTION public.exec_sql(sql_text text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN EXECUTE sql_text; END;
+$$;
+```
+
+## Variables de Entorno Desarrollo/Certificación
 
 El archivo `.env.local` o `.env.gitdesa` (gitignored) contiene:
 
 | Variable | Uso | Quién la necesita |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Free | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Free (`aqrldlmlszjtgpqiegaa`) | Frontend + db_client.py |
 | `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
-| `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
-| `GEMINI_API_KEY` | Google Gemini 1.5 Flash | enrichment_worker.py |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto desarrollo | Scripts de migración diagnósticos |
+| `SUPABASE_URL` | Alias para scripts (deriva a `NEXT_PUBLIC_SUPABASE_URL`) | Scripts de migración |
 
 **IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local`.
 
@@ -90,14 +105,12 @@ El archivo `.env.gitprod` (gitignored) contiene:
 
 | Variable | Uso | Quién la necesita |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Pro| Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Pro (`xwhtiqmboljkshrtviyw`) | Frontend + db_client.py |
 | `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
-| `GH_MODELS_TOKEN` | GitHub Models (GPT-4o) | enrichment_worker.py |
-| `GEMINI_API_KEY` | Google Gemini 1.5 Flash | enrichment_worker.py |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto producción | Scripts de migración diagnósticos |
+| `SUPABASE_URL` | URL del proyecto producción | Scripts de migración diagnósticos |
 
 **IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.gitprod`.
 
