@@ -394,7 +394,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     "p_enriched_data": rpc_data,
                     "p_cleansed_id": str(c_id)
                 })
-                if not rpc_result:
+                if rpc_result:
+                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}&status=eq.pending", data={"status": "enriched"})
+                else:
                     # Fallback: traditional upsert (uses cleansed_id unique constraint) + patch
                     self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
                     self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": "enriched"})
