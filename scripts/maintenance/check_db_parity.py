@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import Any
 
@@ -64,6 +65,12 @@ OPERATIONAL_TABLES = {
 }
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def migration_is_applied(applied: set[str], required_name: str) -> bool:
+    """Accept exact migration names or versioned filenames like 20260525_<name>."""
+    versioned_pattern = re.compile(rf"^\d{{8,14}}_{re.escape(required_name)}$")
+    return required_name in applied or any(versioned_pattern.match(name) for name in applied)
 
 
 def load_environment(target: str) -> None:
@@ -194,7 +201,11 @@ def check_schema_contracts(db_target: DatabaseClient):
     try:
         target_migrations = service_select(db_target, "supabase_migrations", "name") or []
         applied = {row.get("name") for row in target_migrations if row.get("name")}
-        missing_migrations = sorted(REQUIRED_MIGRATIONS - applied)
+        missing_migrations = sorted(
+            required_name
+            for required_name in REQUIRED_MIGRATIONS
+            if not migration_is_applied(applied, required_name)
+        )
         if missing_migrations:
             errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
     except Exception as e:
