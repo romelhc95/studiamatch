@@ -29,21 +29,19 @@
 > >
 > > **Consecuencia de no cumplir**: Si Pro se desincroniza de Free (columnas faltantes, perfiles incompletos), el pipeline en producción falla o produce 0 cursos, como ocurrió con DMC (Fase 94). El parity check en CI bloqueará el merge hasta que se corrija.
 
-## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-24
-- **Estado Actual**: El repo ya avanzó más allá de la foto de 2026-05-09. La **Fase 95** aparece completada en este mismo documento, y los artefactos de **Fase 97** y **Fase 98** ya existen en repo (`scripts/maintenance/db_migrate.py`, `scripts/maintenance/check_db_parity.py`, `.github/workflows/db-sync-to-pro.yml`). El frente abierto principal ya no es de diseño sino de **cierre operativo en Pro**.
-- **Último Hito (2026-05-24)**: Promoción a `main` del PR #105 — alineación de secrets/variables, Fase 100 migrations, eliminación de providers legacy AI. Validado en desarrollo: 66 programas en https://desarrollo.studiamatch-aty.pages.dev/ (DMC 48 + U. Lima 18).
-- **Validación Pro (2026-05-25)**: Supabase Pro (`xwhtiqmboljkshrtviyw`) auditado con MCP. Estado real:
-  - **26 cursos activos** (14 DMC + 12 U. Lima) — faltan 31 programas DMC vs artifact `dmc.txt` (45 URLs)
-  - **354 staging_raw pendientes** de drenar (196 discovered + 157 processing + 1 pending)
-  - **53 cleansed_programs** (todos pending, 0 synced)
-  - **25 enriched_programs** todos en `status="error"` con metadata `"DB Error"` — irrecuperables por el pipeline
-  - **`exec_sql` RPC NO existe** — `db-sync-to-pro.yml` falla desde que se eliminó Management API fallback
-  - **Migrations Fase 100 NO aplicadas** — faltan columnas `discovery_enabled`, `production_enabled` en Pro
-  - **Bug en código (2 bugs, 1 script)**:
-  - **Bug #1 — `last_scraped_at`**: `sync_vector_worker.py:258` envía `"now()"` como string literal a columna `timestamptz` → PostgREST rechaza → todos los upserts fallan con "DB Error".
-  - **Bug #2 — `chk_syllabus_is_text` CHECK constraint (RAÍZ DEL PROBLEMA DMC)**: `sync_vector_worker.py:252` escribe `curriculum_summary` como JSON crudo (`json.dumps()`) en el campo `syllabus`, produciendo strings como `{"pilares": [...]}`. La migration `20260512_normalize_syllabus_text.sql` (Fase 75) agregó CHECK `syllabus !~ '^\s*[{[]'` que rechaza cualquier valor que empiece con `{` o `[`. PostgreSQL rechaza todos los inserts con error `23514` (check_violation). El contador del sync worker reporta `"Synced: 10/10"` pero fueron **0/10** porque el código no verifica el resultado del `upsert`. Fix: convertir `curriculum_summary` de JSONB a texto plano (extraer array `pilares`, formatear como bullet points).
-- **Brecha Free ↔ Pro**: Free tiene 48 programas DMC visibles; Pro tiene 14. La causa raíz es el bug `last_scraped_at` que mata todo sync en ambos ambientes, combinado con 25 enriched atrapados en `status="error"` en Pro.
-- **Próxima Acción**: Ejecutar Fase 104-111 en orden: (104) fix 2 bugs en sync_vector_worker.py, (105-106) promoción SDLC a main, (107) infra Pro con exec_sql + limpieza, (108) FG2 + validación cobertura DMC, (109) fix orquestador para priorizar discovery_enabled, (110-111) integrar DeepSeek V4 Flash via OpenCode Go API + CI/CD secrets.
+## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-25 (post-Fase 111)
+
+- **Fases 104-111 completadas y promovidas a `main`** vía PRs #115-#117 (fix bugs) y #118-#120 (enrichment loop hotfix).
+- **FG2 Run `26416785227` en `main`**: Las 4 estaciones ejecutaron SUCCESS. Pro DB: 34 cursos DMC (todos `is_active=true, is_verified=true`), 29/45 URLs del target `dmc.txt` cubiertas.
+- **Validación Free**: 48 cursos DMC (45 target + 3 duplicates), 100% active+verified, 87% enrichment real (Cloudflare/NVIDIA/GitHub).
+- **Validación Pro**: 34 cursos DMC, 100% active+verified, 100% mock data (`is_mock_data=true` — ver Bug #3 abajo).
+- **Brecha Free ↔ Pro**: 16 URLs del target `dmc.txt` no descubiertas en Pro (variantes estacionales que DMC ya no enlaza desde catálogo activo). Free tiene 48 vs Pro 34 cursos DMC.
+- **Bugs activos en producción (descubiertos 2026-05-25)**:
+  - **Bug #1 — RLS `profiles_select_public` faltante en Pro** (REMEDIADO manualmente 2026-05-25): La tabla `institution_site_profiles` en Pro no tenía política RLS para el rol `anon`. El frontend filtra cursos con `EXISTS (SELECT 1 FROM institution_site_profiles p WHERE p.institution_id = courses.institution_id AND p.production_enabled = true)`. Sin la policy, `anon` no podía leer la tabla → 0 cursos visibles en `https://www.studiamatch.com/` para TODAS las instituciones. **Fix aplicado manualmente**: `CREATE POLICY profiles_select_public ON institution_site_profiles FOR SELECT TO anon USING (true);`. Pendiente versionar como migration SQL.
+  - **Bug #2 — FK `courses_category_id_fkey` faltante en Pro** (ACTIVO — **bloquea el frontend**): Free tiene el FK `courses.category_id → categories.id`. Pro NO lo tiene. El frontend consulta `categories(name)` como recurso embebido en la query de cursos. PostgREST requiere FK declarada para resolver referencias embebidas. Sin el FK, la API retorna **HTTP 400** con error `PGRST200: Could not find a relationship between 'courses' and 'categories'`. Esto afecta a TODAS las consultas de cursos, no solo DMC. Adicionalmente, 12 cursos en Pro tienen `category_id` huérfanos (apuntan a categorías que no existen en Pro por UUID mismatch Free↔Pro). Las categorías DMC no son huérfanas, pero el FK bloquea toda la query igual.
+  - **Bug #3 — Enrichment 100% mock en Pro**: Los 34 `enriched_programs` DMC en Pro tienen `provider_used='mock'`. Los logs de GitHub muestran que Cloudflare sí enriqueció con éxito (~62% de registros), pero la RPC `atomic_enrichment_promote` desplegada en Pro está **obsoleta**: no persiste las columnas `provider_used`, `is_mock_data` ni `difficulty_level` (versión antigua sin esas columnas en INSERT/UPDATE). La migración `20260510_pro_schema_sync.sql` contiene la versión corregida pero no se aplicó completamente en Pro.
+- **Próxima Acción**: Ejecutar Fase 112 (FK `courses_category_id_fkey`) y Fase 113 (versionar migration RLS + sync RPC `atomic_enrichment_promote`) para restaurar visibilidad del frontend y corregir metadata de enrichment.
+- **Proyección multi-institución**: Las Fases 112-115 son contratos de plataforma, no fixes DMC-specific. Toda institución futura debe publicar cursos mediante el mismo modelo: FK declaradas para recursos embebidos (`courses → categories/institutions`), gates públicos mínimos (`institution_id`, `production_enabled`), perfiles sensibles no expuestos, y RPCs de pipeline ejecutables solo por `service_role`.
 
 ## Tareas Pendientes Priorizadas
 
@@ -82,6 +80,10 @@
 | **P0** | **Fase 109 — Orquestador: priorizar instituciones con discovery_enabled=true** | Pipeline | **BUG**: `get_institutions()` ordena solo por `last_harvest_at ASC` y trunca a `--limit 5`. Cuando 10/12 instituciones tienen `discovery_enabled=false` y la única habilitada está en posición #9, el pipeline no procesa ninguna. **Fix**: ordenar poniendo `discovery_enabled=true` primero, luego por `last_harvest_at ASC`. [Ver plan detallado abajo](#fase-109-orquestador-priorizar-instituciones-con-discovery_enabledtrue). | Ninguno |
 | **P1** | **Fase 110 — Integrar DeepSeek V4 Flash via OpenCode Go API** | Pipeline + Infra | Reemplazar el modelo gratuito Cloudflare `llama-3.1-8b-instruct` como provider primario de enrichment por `deepseek-v4-flash` via API OpenAI-compatible de OpenCode Go (suscripción activa). Cloudflare se mantiene como fallback automático. Agregar dependencia `openai` a `requirements.txt`. [Ver plan detallado](#fase-110-integrar-deepseek-v4-flash-via-opencode-go-api). | Ninguno |
 | **P1** | **Fase 111 — CI/CD + Secrets para DeepSeek** | Infra | Agregar `OPENCODE_API_KEY` a GitHub Secrets (3 environments), actualizar `production_pipeline.yml` Phase 2 con la nueva variable de entorno, agregar patrón de detección al security-audit. Rebuild del contenedor Docker. [Ver plan detallado](#fase-111-cicd--secrets-para-deepseek). | Depende de Fase 110 |
+| **P0** | **Fase 112 — Pro: FK `courses_category_id_fkey`** | DB + Infra | **BUG CRÍTICO**: PostgREST retorna HTTP 400 porque `courses` no tiene FK a `categories` en Pro. El frontend consulta `categories(name)` como recurso embebido → sin FK, la query falla para TODOS los cursos. Free sí tiene el FK. [Ver plan detallado](#fase-112-pro-fk-courses_category_id_fkey). | Ninguno |
+| **P0** | **Fase 113 — Pro: Versionar RLS + sync RPC `atomic_enrichment_promote`** | DB + Infra | (A) Versionar la policy `profiles_select_public` aplicada manualmente como migration SQL. (B) Aplicar la versión corregida de `atomic_enrichment_promote` (con `provider_used`, `is_mock_data`, `difficulty_level`) que ya existe en `db/migrations/20260510_pro_schema_sync.sql` pero no se aplicó en Pro. [Ver plan detallado](#fase-113-pro-versionar-rls--sync-rpc-atomic_enrichment_promote). | Depende de Fase 112 |
+| **P0** | **Fase 114 — Security Contract Hardening** | DB + Seguridad | Restringir RPCs `SECURITY DEFINER` (`atomic_enrichment_promote`, `exec_sql`) a `service_role`; limitar `institution_site_profiles` público a columnas mínimas requeridas por el gate. | Depende de Fase 113 |
+| **P0** | **Fase 115 — Authenticated Profile Hardening** | DB + Seguridad | Extender el mismo mínimo de exposición a `authenticated` y asegurar tabla de auditoría `schema_repair_audit`. Previene fuga de configuración de scraping para instituciones futuras. | Depende de Fase 114 |
 | **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
 | **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
 | **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
@@ -3146,15 +3148,21 @@ Los secrets deben configurarse en los 3 environments **antes** de que el código
 | **109** | Orquestador: priorizar discovery_enabled | Código | 10 min | Ninguna |
 | **110** | Integrar DeepSeek V4 Flash (OpenCode Go) | Código + Infra | 20 min | Ninguna |
 | **111** | CI/CD secrets + deploy DeepSeek | GitHub + Docker | 10 min | Fase 110 |
-| **Total** | | | **~130 min** | |
+| **112** | FK `courses_category_id_fkey` en Pro | DB (migration SQL) | 5 min | Ninguna |
+| **113** | Versionar RLS + sync RPC `atomic_enrichment_promote` | DB (migration SQL) | 5 min | Fase 112 |
+| **114** | Hardening de RPCs y perfil público mínimo | DB (migration SQL) | 5 min | Fase 113 |
+| **115** | Hardening de perfil para authenticated + auditoría | DB (migration SQL) | 5 min | Fase 114 |
+| **Total** | | | **~150 min** | |
 
 ### 🎯 Probabilidad de éxito
 
 | Escenario | Probabilidad |
 |-----------|-------------|
-| Sin intervención (solo schedule) | ~16% |
-| Con Fases 104-108 completas | ~85% |
-| Con Fases 104-108 + segunda pasada si faltan URLs | ~95% |
+| Post-Fase 111 (sitio roto por FK) | 0% (0 cursos visibles en frontend) |
+| Con Fase 112 (FK reparado) | ~85% (34 cursos DMC visibles) |
+| Con Fase 112 + Fase 113 (metadata corregido) | ~90% |
+| Con Fases 112-115 (contrato de plataforma asegurado) | ~93% |
+| Con Fases 112-115 + relanzamiento FG2 para cubrir URLs faltantes | ~95% |
 
 ### 🔗 Relación con SDLC
 
@@ -3170,7 +3178,300 @@ feat/fix-sync-bugs ──────→ desarrollo ──→ certificacion ─�
 
 feat/deepseek-opencode-go → desarrollo ──→ certificacion ──→ main
      (Fases 110-111)          (Fase 110)     (Fase 111)       (Fase 111)
+
+feat/pro-fk-rls-fix ──────→ desarrollo ──→ certificacion ──→ main
+     (Fases 112-115)          (Fase 112)     (Fase 113)       (Fases 114-115)
+                                                                   │
+                                                       db-sync-to-pro.yml
+                                                       (aplica migrations)
 ```
+
+---
+
+### Fase 112: Pro — FK `courses_category_id_fkey`
+
+#### Diagnóstico (2026-05-25)
+
+El frontend consulta `categories(name)` como recurso embebido en la query de cursos:
+
+```
+GET /rest/v1/courses?select=...,categories(name),institutions(name,slug)&is_active=eq.true&is_verified=eq.true
+```
+
+PostgREST responde **HTTP 400** con:
+
+```json
+{"code":"PGRST200","message":"Could not find a relationship between 'courses' and 'categories' in the schema cache"}
+```
+
+**Causa**: PostgREST requiere una FK declarada entre `courses.category_id` y `categories.id` para resolver recursos embebidos con la sintaxis `categories(name)`. Free tiene esta FK (`courses_category_id_fkey`), pero Pro NO.
+
+| Constraint | Free | Pro |
+|---|---|---|
+| `courses_institution_id_fkey` | ✅ | ✅ |
+| `courses_category_id_fkey` | ✅ | ❌ **FALTA** |
+
+**Impacto**: **0 cursos visibles** en `https://www.studiamatch.com/` porque TODAS las queries de cursos usan `categories(name)` como recurso embebido. El backend (DB) tiene los datos correctos, pero el frontend no puede obtenerlos.
+
+**Huérfanos**: 12 cursos en Pro tienen `category_id` que apunta a categorías inexistentes (UUID mismatch Free↔Pro). Los cursos DMC NO son huérfanos (0/34), pero la ausencia del FK bloquea la query completa para todas las instituciones.
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260525_fase112_pro_fk_courses_category.sql`
+
+```sql
+-- Fase 112: FK courses_category_id_fkey para PostgREST embedded resources
+-- PostgREST requiere FK declarada para resolver categories(name) en queries embebidas.
+
+-- Paso 1: Reparar category_id huérfanos (apuntan a categorías que no existen en Pro)
+UPDATE public.courses
+SET category_id = NULL
+WHERE category_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM public.categories c WHERE c.id = courses.category_id);
+
+-- Paso 2: Crear el FK constraint
+ALTER TABLE public.courses
+ADD CONSTRAINT courses_category_id_fkey
+FOREIGN KEY (category_id) REFERENCES public.categories(id);
+
+COMMENT ON CONSTRAINT courses_category_id_fkey ON public.courses IS
+'Fase 112: FK requerida por PostgREST para resolver categories(name) como recurso embebido.';
+```
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 112.1 | Crear archivo `db/migrations/20260525_fase112_pro_fk_courses_category.sql` | Código | 2 min |
+| 112.2 | Aplicar migration en Pro (vía `supabase-pro_apply_migration` o Dashboard SQL Editor) | Supabase Pro | 1 min |
+| 112.3 | Verificar FK existe: `SELECT constraint_name FROM information_schema.table_constraints WHERE table_name='courses' AND constraint_type='FOREIGN KEY'` | Pro DB | 1 min |
+| 112.4 | Verificar API pública: `curl "https://xwhtiqmboljkshrtviyw.supabase.co/rest/v1/courses?select=name,categories(name)&is_active=eq.true&limit=1" -H "apikey: <publishable_key>"` → HTTP 200 | Terminal | 1 min |
+| 112.5 | Commit + PR `feat/pro-fk-rls-fix` → `desarrollo` → `certificacion` → `main` | GitHub | 5 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 112.V1 | Query de cursos con `categories(name)` vía API pública | HTTP 200, devuelve cursos con categorías |
+| 112.V2 | `https://www.studiamatch.com/` muestra cursos (>0 resultados) | Contador >0, programas visibles |
+| 112.V3 | Filtrar por DMC en el sitio web | 34 cursos DMC visibles |
+
+---
+
+### Fase 113: Pro — Versionar RLS + sync RPC `atomic_enrichment_promote`
+
+#### Diagnóstico (2026-05-25)
+
+Dos discrepancias Free↔Pro que afectan producción:
+
+**A) RLS `profiles_select_public`** — aplicado manualmente en Pro el 2026-05-25 para restaurar visibilidad del sitio. Necesita ser versionado como migration SQL para que `db-sync-to-pro.yml` lo mantenga en paridad y no se pierda en futuros resets de branch.
+
+**B) RPC `atomic_enrichment_promote` obsoleta en Pro** — La función desplegada en Pro es una versión antigua que:
+- No incluye las columnas `provider_used`, `is_mock_data` ni `difficulty_level` en el INSERT/UPDATE
+- Marca `cleansed_programs.status = 'synced'` en vez de `'enriched'` (el worker usa `pending` → `enriched`)
+- La versión corregida ya existe en `db/migrations/20260510_pro_schema_sync.sql` (líneas 147-218) pero no se aplicó completamente en Pro
+
+**Consecuencia**: Los 34 `enriched_programs` DMC tienen `provider_used='mock'` e `is_mock_data=true` aunque los logs de GitHub muestran que Cloudflare enriqueció ~62% de los registros con éxito. Los datos de enrichment real se perdieron porque la RPC no los persistió.
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260525_fase113_pro_rls_and_rpc_sync.sql`
+
+```sql
+-- Fase 113: Versionar RLS + sync RPC atomic_enrichment_promote
+-- Cierra 2 discrepancias Free↔Pro que afectan producción.
+
+-- ===================================================================
+-- Parte A: RLS policy profiles_select_public (aplicada manualmente 2026-05-25)
+-- ===================================================================
+-- La policy ya existe en Pro (creada manualmente). Esta migración la versiona
+-- para que db-sync-to-pro.yml la mantenga y no se pierda en resets de branch.
+-- Usa DO block con IF NOT EXISTS para ser idempotente.
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename = 'institution_site_profiles'
+          AND policyname = 'profiles_select_public'
+    ) THEN
+        CREATE POLICY profiles_select_public ON public.institution_site_profiles
+        FOR SELECT TO anon
+        USING (true);
+    END IF;
+END $$;
+
+-- ===================================================================
+-- Parte B: atomic_enrichment_promote con provider_used, is_mock_data, difficulty_level
+-- ===================================================================
+-- Reemplaza la versión obsoleta en Pro (sin esas columnas) por la versión
+-- corregida de 20260510_pro_schema_sync.sql.
+
+CREATE OR REPLACE FUNCTION public.atomic_enrichment_promote(
+  p_enriched_data jsonb,
+  p_cleansed_id uuid
+)
+RETURNS SETOF public.enriched_programs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS
+$$
+BEGIN
+    INSERT INTO public.enriched_programs (
+        cleansed_id, institution_id, url, official_name, duration_text,
+        duration_months, total_cost_est, requirements, graduate_profile,
+        curriculum_summary, modality, primary_campus, degree_type,
+        start_date, partnerships, certifications, language, categories,
+        difficulty_level, ai_summary, status, provider_used, is_mock_data
+    )
+    SELECT
+        (item->>'cleansed_id')::UUID,
+        (item->>'institution_id')::UUID,
+        item->>'url',
+        item->>'official_name',
+        item->>'duration_text',
+        COALESCE(NULLIF(item->>'duration_months', '')::NUMERIC, 0)::INT,
+        NULLIF(item->>'total_cost_est', '')::NUMERIC,
+        item->>'requirements',
+        item->>'graduate_profile',
+        COALESCE(NULLIF(item->>'curriculum_summary', ''), '{}')::JSONB,
+        item->>'modality',
+        item->>'primary_campus',
+        item->>'degree_type',
+        item->>'start_date',
+        item->>'partnerships',
+        item->>'certifications',
+        item->>'language',
+        item->>'categories',
+        item->>'difficulty_level',
+        item->>'ai_summary',
+        'pending',
+        item->>'provider_used',
+        (item->>'is_mock_data')::BOOLEAN
+    FROM jsonb_array_elements(p_enriched_data) AS item
+    ON CONFLICT (cleansed_id) DO UPDATE SET
+        official_name = EXCLUDED.official_name,
+        duration_text = EXCLUDED.duration_text,
+        duration_months = COALESCE(NULLIF(EXCLUDED.duration_months, NULL)::NUMERIC, 0)::INT,
+        total_cost_est = EXCLUDED.total_cost_est,
+        requirements = EXCLUDED.requirements,
+        graduate_profile = EXCLUDED.graduate_profile,
+        curriculum_summary = EXCLUDED.curriculum_summary,
+        modality = EXCLUDED.modality,
+        primary_campus = EXCLUDED.primary_campus,
+        degree_type = EXCLUDED.degree_type,
+        start_date = EXCLUDED.start_date,
+        categories = EXCLUDED.categories,
+        difficulty_level = EXCLUDED.difficulty_level,
+        ai_summary = EXCLUDED.ai_summary,
+        provider_used = EXCLUDED.provider_used,
+        is_mock_data = EXCLUDED.is_mock_data,
+        status = 'pending';
+
+    UPDATE public.cleansed_programs
+    SET status = 'enriched'
+    WHERE id = p_cleansed_id AND status = 'pending';
+
+    RETURN QUERY
+    SELECT *
+    FROM public.enriched_programs
+    WHERE cleansed_id = p_cleansed_id;
+END;
+$$;
+```
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 113.1 | Crear archivo `db/migrations/20260525_fase113_pro_rls_and_rpc_sync.sql` | Código | 3 min |
+| 113.2 | Aplicar migration en Pro | Supabase Pro | 1 min |
+| 113.3 | Verificar RPC versión correcta: `SELECT pg_get_functiondef('atomic_enrichment_promote(jsonb,uuid)'::regprocedure)` debe contener `provider_used` y `is_mock_data` | Pro DB | 1 min |
+| 113.4 | Commit + PR junto con Fase 112 (`feat/pro-fk-rls-fix`) | GitHub | Incluido en 112.5 |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 113.V1 | RPC contiene columnas `provider_used`, `is_mock_data`, `difficulty_level` | Columnas presentes en INSERT y ON CONFLICT DO UPDATE |
+| 113.V2 | RPC marca `cleansed_programs.status = 'enriched'` (no `'synced'`) | `WHERE id = p_cleansed_id AND status = 'pending'` |
+| 113.V3 | Próximo FG2 en Pro debe persistir `provider_used` real (no 'mock') | `SELECT provider_used, count(*) FROM enriched_programs WHERE institution_id = '<dmc_pro>' GROUP BY provider_used` → mayoría Cloudflare/DeepSeek |
+
+#### Nota sobre datos existentes
+
+Los 34 `enriched_programs` actuales con `provider_used='mock'` contienen datos de enrichment real de Cloudflare (nombres, descripciones, precios, etc.) — solo la metadata de tracking se perdió. El contenido de los pilares (official_name, duration_text, total_cost_est, curriculum_summary, modality, etc.) sí fue persistido correctamente por la RPC antigua. Para corregir el flag sin re-ejecutar enrichment:
+
+```sql
+-- Opcional: Si se quiere reflejar que los datos no son mock
+-- (solo si se confirma que Cloudflare enriqueció estos registros — ver logs run 26416785227)
+-- UPDATE public.enriched_programs 
+-- SET is_mock_data = false, provider_used = 'Cloudflare'
+-- WHERE institution_id = '<dmc_pro_id>' AND is_mock_data = true;
+```
+
+---
+
+### Fase 114: Security Contract Hardening
+
+#### Diagnóstico
+
+Las Fases 112-113 reparan funcionalidad, pero introducen/actualizan RPCs `SECURITY DEFINER`. Por defecto, una función PostgreSQL puede quedar ejecutable por `PUBLIC` si no se revoca explícitamente. Eso sería crítico para instituciones futuras porque cualquier cliente público podría intentar escribir tablas de pipeline o ejecutar SQL arbitrario si la función está expuesta por PostgREST.
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260525_fase114_security_contract_hardening.sql`
+
+Contratos obligatorios:
+
+- `atomic_enrichment_promote(jsonb, uuid)` ejecutable solo por `service_role`.
+- `exec_sql(text)` ejecutable solo por `service_role`, si existe.
+- `institution_site_profiles` expone para `anon` solo `institution_id` y `production_enabled`, suficientes para que `courses_select_public` evalúe el gate.
+- `profiles_select_public` filtra `production_enabled = true`, no `USING (true)`.
+
+#### Validación
+
+```sql
+select
+  has_column_privilege('anon', 'public.institution_site_profiles', 'institution_id', 'SELECT') as anon_can_select_institution_id,
+  has_column_privilege('anon', 'public.institution_site_profiles', 'production_enabled', 'SELECT') as anon_can_select_production_enabled,
+  has_column_privilege('anon', 'public.institution_site_profiles', 'exclusion_patterns', 'SELECT') as anon_can_select_exclusion_patterns,
+  has_function_privilege('anon', 'public.atomic_enrichment_promote(jsonb, uuid)', 'EXECUTE') as anon_can_exec_atomic,
+  has_function_privilege('service_role', 'public.atomic_enrichment_promote(jsonb, uuid)', 'EXECUTE') as service_can_exec_atomic;
+```
+
+Esperado: mínimos públicos `true`, sensibles públicos `false`, RPC público `false`, RPC service `true`.
+
+---
+
+### Fase 115: Authenticated Profile Hardening
+
+#### Diagnóstico
+
+Aunque `anon` quede restringido, usuarios autenticados también podrían leer configuración sensible si queda una policy histórica `profiles_select_authenticated USING (true)` y privilegios amplios de tabla. Esto no escala para nuevas instituciones porque expone `exclusion_patterns`, `allowed_url_patterns`, selectores de scraping, seeds y circuit-breaker state.
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260525_fase115_authenticated_profile_hardening.sql`
+
+Contratos obligatorios:
+
+- `authenticated` solo puede leer `institution_id` y `production_enabled` de `institution_site_profiles`.
+- `profiles_select_authenticated` también filtra `production_enabled = true`.
+- `schema_repair_audit` existe para registrar reparaciones de schema/data contract y no es legible por `anon` ni `authenticated`.
+
+#### Validación
+
+```sql
+select
+  has_column_privilege('authenticated', 'public.institution_site_profiles', 'institution_id', 'SELECT') as auth_can_select_institution_id,
+  has_column_privilege('authenticated', 'public.institution_site_profiles', 'production_enabled', 'SELECT') as auth_can_select_production_enabled,
+  has_column_privilege('authenticated', 'public.institution_site_profiles', 'exclusion_patterns', 'SELECT') as auth_can_select_exclusion_patterns;
+```
+
+Esperado: `true`, `true`, `false`.
+
 
 
 

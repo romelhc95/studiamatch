@@ -48,6 +48,14 @@ CONFIG_TABLES = {
     "market_salaries",
 }
 
+REQUIRED_MIGRATIONS = {
+    "fase112_pro_fk_courses_category",
+    "fase113_pro_rls_and_rpc_sync",
+    "fase114_security_contract_hardening",
+    "fase115_authenticated_profile_hardening",
+    "fase116_public_grant_defense_in_depth",
+}
+
 OPERATIONAL_TABLES = {
     "staging_raw",
     "cleansed_programs",
@@ -176,6 +184,88 @@ def check_target_columns(db_target: DatabaseClient):
     if errors:
         return "ERROR", errors
     print("  OK: columnas criticas presentes en target")
+    return "OK", []
+
+
+def check_schema_contracts(db_target: DatabaseClient):
+    print("\n[CHECK 3] Schema contracts requeridos por PostgREST/pipeline")
+    errors: list[str] = []
+
+    try:
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        missing_migrations = sorted(REQUIRED_MIGRATIONS - applied)
+        if missing_migrations:
+            errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
+    except Exception as e:
+        errors.append(f"No se pudo verificar supabase_migrations: {e}")
+
+    embedded_url = (
+        f"{db_target.supabase_url}/rest/v1/courses"
+        "?is_active=eq.true&is_verified=eq.true"
+        "&select=id,categories(name),institutions(name,slug)&limit=1"
+    )
+    service_res = requests.get(embedded_url, headers=db_target._get_headers(use_service_role=True), timeout=30)
+    if service_res.status_code != 200:
+        errors.append(
+            "PostgREST embedded query falla con service role. "
+            f"Esto suele indicar FK faltante courses->categories/institutions: {service_res.status_code} {(service_res.text or '')[:200]}"
+        )
+
+    service_has_active_courses = service_res.status_code == 200 and bool(service_res.json())
+    public_res = requests.get(embedded_url, headers=db_target._get_headers(use_service_role=False), timeout=30)
+    if public_res.status_code != 200:
+        errors.append(
+            "PostgREST embedded query falla con publishable key. "
+            f"Esto bloquea el frontend: {public_res.status_code} {(public_res.text or '')[:200]}"
+        )
+    elif service_has_active_courses and not public_res.json():
+        errors.append(
+            "La API publica devuelve 0 cursos aunque existen cursos activos/verificados. "
+            "Revisar RLS de courses/institution_site_profiles y production_enabled."
+        )
+
+    public_profile_safe_url = (
+        f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
+        "?select=institution_id,production_enabled&production_enabled=eq.true&limit=1"
+    )
+    safe_profile_res = requests.get(
+        public_profile_safe_url,
+        headers=db_target._get_headers(use_service_role=False),
+        timeout=30,
+    )
+    if safe_profile_res.status_code != 200:
+        errors.append(
+            "La policy publica minima de institution_site_profiles no permite leer "
+            f"institution_id/production_enabled: {safe_profile_res.status_code} {(safe_profile_res.text or '')[:200]}"
+        )
+
+    public_profile_sensitive_url = (
+        f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
+        "?select=exclusion_patterns&limit=1"
+    )
+    sensitive_profile_res = requests.get(
+        public_profile_sensitive_url,
+        headers=db_target._get_headers(use_service_role=False),
+        timeout=30,
+    )
+    if sensitive_profile_res.status_code == 200:
+        errors.append("institution_site_profiles.exclusion_patterns esta expuesto publicamente")
+
+    rpc_headers = db_target._get_headers(use_service_role=False)
+    rpc_checks = [
+        ("atomic_enrichment_promote", {"p_enriched_data": [], "p_cleansed_id": "00000000-0000-0000-0000-000000000000"}),
+        ("exec_sql", {"sql_text": "select 1"}),
+    ]
+    for function_name, payload in rpc_checks:
+        rpc_url = f"{db_target.supabase_url}/rest/v1/rpc/{function_name}"
+        rpc_res = requests.post(rpc_url, headers=rpc_headers, json=payload, timeout=30)
+        if rpc_res.status_code in (200, 201, 204):
+            errors.append(f"RPC {function_name} es ejecutable con publishable key; debe estar restringida a service_role")
+
+    if errors:
+        return "ERROR", errors
+    print("  OK: schema contracts requeridos presentes")
     return "OK", []
 
 
@@ -358,7 +448,10 @@ def main() -> None:
         load_environment(args.env)
         assert_environment(args.env)
         db_target = DatabaseClient()
-        results = [("target_columns", check_target_columns(db_target))]
+        results = [
+            ("target_columns", check_target_columns(db_target)),
+            ("schema_contracts", check_schema_contracts(db_target)),
+        ]
         has_error = any(status == "ERROR" for _, (status, _) in results)
         print(f"\n{'=' * 60}")
         print("  TARGET CONFIG CHECK REPORT")
@@ -390,6 +483,7 @@ def main() -> None:
     results = [
         ("migrations", compare_migrations(db_free, db_target)),
         ("columns", compare_columns(db_free, db_target)),
+        ("schema_contracts", check_schema_contracts(db_target)),
         ("institutions", compare_institutions(db_free, db_target)),
         ("profiles", compare_profiles(db_free, db_target)),
         ("catalog_values", compare_catalog_values(db_free, db_target)),
