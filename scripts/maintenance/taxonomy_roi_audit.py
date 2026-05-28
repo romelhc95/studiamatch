@@ -1,45 +1,34 @@
 import os
-import requests
-import json
 from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
+from shared.roi_engine import adjust_salary_for_course_type
 
 load_dotenv()
 
 db = get_db_client()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
+
+SENIORITY_COLUMNS = {
+    "Junior": "salary_junior",
+    "Mid": "salary_average",
+    "Senior": "salary_senior",
 }
 
 def run_taxonomy_roi_audit():
     print("🚀 Iniciando Auditoría de Coherencia Taxonómica y Financiera...")
     
     # 1. Obtener datos de referencia (Salarios de Mercado)
-    res_salaries = requests.get(f"{SUPABASE_URL}/rest/v1/market_salaries?select=*", headers=headers)
-    salaries_data = res_salaries.json()
-    
-    if not isinstance(salaries_data, list):
-        print(f"❌ Error al obtener salarios: {json.dumps(salaries_data)}")
-        return
-        
+    salaries_data = db.select_all('market_salaries', columns='*')
     market_map = {s['category_id']: s for s in salaries_data}
-    
+
     # 2. Obtener todos los cursos activos
-    res_courses = requests.get(f"{SUPABASE_URL}/rest/v1/courses?is_active=eq.true&select=id,name,category,category_id,expected_monthly_salary,roi_months,seniority_level,price_pen", headers=headers)
-    courses_data = res_courses.json()
-    
-    if not isinstance(courses_data, list):
-        print(f"❌ Error al obtener cursos: {json.dumps(courses_data)}")
-        return
-        
-    courses = courses_data
+    courses = db.select_all(
+        'courses',
+        filters='is_active=eq.true',
+        columns='id,name,category,category_id,expected_monthly_salary,roi_months,seniority_level,price_pen,course_type',
+    )
     
     issues = []
     
@@ -61,10 +50,13 @@ def run_taxonomy_roi_audit():
         market_data = market_map.get(c['category_id'])
         if market_data:
             seniority = c.get('seniority_level') or 'Mid'
-            expected_salary = market_data.get(f'salary_{seniority.lower()}', market_data['salary_average'])
-            
-            if float(c['expected_monthly_salary'] or 0) != float(expected_salary):
-                error.append(f"Salario inconsistente: Tiene S/ {c['expected_monthly_salary']} pero debería ser S/ {expected_salary} ({seniority})")
+            column = SENIORITY_COLUMNS.get(seniority, 'salary_average')
+            salary_base = market_data.get(column, market_data['salary_average'])
+            expected_salary = adjust_salary_for_course_type(salary_base, c.get('course_type'))
+
+            current_salary = round(float(c['expected_monthly_salary'] or 0), 2)
+            if expected_salary is not None and current_salary != float(expected_salary):
+                error.append(f"Salario inconsistente: Tiene S/ {c['expected_monthly_salary']} pero debería ser S/ {expected_salary} ({seniority} ajustado por tipo)")
 
         # C. Detección de ROI Incoherente
         if c.get('roi_months') and float(c['roi_months']) > 48: # Más de 4 años para recuperar inversión en un curso es alerta
