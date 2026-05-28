@@ -18,6 +18,7 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from shared.roi_engine import compute_roi, duration_months_to_hours, infer_seniority, lookup_market_salary
 
 # Setup logging
 load_dotenv()
@@ -261,6 +262,9 @@ class SyncVectorWorker:
             if mode_normalized == "hibrido":
                 resolved_mode = "Hibrido"
 
+        duration_hours = enriched.get('duration_hours') or duration_months_to_hours(enriched.get('duration_months'))
+        seniority_level = infer_seniority(enriched.get('degree_type'), duration_hours)
+
         course_data = {
             "institution_id": enriched['institution_id'],
             "name": name,
@@ -277,7 +281,7 @@ class SyncVectorWorker:
             "target_audience": enriched.get('graduate_profile'),
             "syllabus": self._curriculum_to_text(enriched.get('curriculum_summary')),
             "certification": "",
-            "seniority_level": "Mid",
+            "seniority_level": seniority_level,
             "course_type": enriched.get('degree_type'),
             "category": main_category,
             "is_active": course_is_active,
@@ -294,6 +298,25 @@ class SyncVectorWorker:
         res = self.db.upsert('courses', course_data, on_conflict="url")
 
         if res:
+            synced_course = res[0] if isinstance(res, list) and res else res
+            if isinstance(synced_course, dict):
+                salary_base = lookup_market_salary(self.db, synced_course.get('category_id'), seniority_level)
+                expected_salary, roi_months = compute_roi(
+                    enriched.get('total_cost_est'),
+                    salary_base,
+                    enriched.get('degree_type'),
+                )
+                roi_payload = {"seniority_level": seniority_level}
+                if expected_salary is not None:
+                    roi_payload["expected_monthly_salary"] = expected_salary
+                    roi_payload["roi_months"] = roi_months
+                course_id = synced_course.get('id')
+                if course_id:
+                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=roi_payload)
+                    if not roi_res or roi_res.get("status") != "success":
+                        logger.error(f"Error updating ROI fields for course {course_id}")
+                        self.update_enriched_status(e_id, "error", error_msg="roi_patch_failed")
+                        return False
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
             return True
