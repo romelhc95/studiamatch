@@ -1,76 +1,72 @@
-﻿import os
-import requests
-from dotenv import load_dotenv
+import re
+import sys
+import argparse
 
-load_dotenv()
+sys.path.insert(0, '/app')
 
-SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+from scripts.shared.db_client import get_db_client
+from scripts.shared.roi_engine import compute_roi, infer_seniority, lookup_market_salary
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "return=minimal"
-}
 
-def fix_taxonomy_roi():
-    print("ðŸ§¹ Iniciando proceso de curaciÃ³n de datos para CertificaciÃ³n...")
-    
-    # 1. Obtener datos de referencia (Salarios de Mercado)
-    res_salaries = requests.get(f"{SUPABASE_URL}/rest/v1/market_salaries?select=*", headers=headers)
-    market_map = {s['category_id']: s for s in res_salaries.json()}
-    
-    # 2. Obtener cursos con inconsistencias
-    res_courses = requests.get(f"{SUPABASE_URL}/rest/v1/courses?is_active=eq.true&select=id,name,category,category_id,expected_monthly_salary,seniority_level,price_pen", headers=headers)
-    courses = res_courses.json()
-    
+def duration_text_to_hours(duration_text):
+    text = str(duration_text or "").lower()
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(horas?|mes(?:es)?|anos?|años?)", text)
+    if not match:
+        return None
+
+    amount = float(match.group(1))
+    unit = match.group(2)
+    if unit.startswith("hora"):
+        return amount
+    if unit.startswith("mes"):
+        return amount * 160
+    return amount * 1920
+
+
+def fix_taxonomy_roi(apply_changes=False):
+    db = get_db_client()
+    courses = db.select_all(
+        "courses",
+        filters="is_active=eq.true",
+        columns="id,name,category,category_id,course_type,duration,price_pen,seniority_level,expected_monthly_salary,roi_months",
+        batch_size=1000,
+    )
+
     fixed_count = 0
-    
-    for c in courses:
-        market_data = market_map.get(c['category_id'])
-        if not market_data:
+    skipped_count = 0
+
+    for course in courses:
+        category_id = course.get("category_id")
+        if not category_id:
+            skipped_count += 1
             continue
-            
-        seniority = c.get('seniority_level', 'Mid')
-        expected_cat_name = market_data['category_name']
-        expected_salary = market_data.get(f'salary_{seniority.lower()}', market_data['salary_average'])
-        
-        needs_fix = False
-        update_payload = {}
 
-        # Validar Nombre de CategorÃ­a
-        if c['category'] != expected_cat_name:
-            update_payload['category'] = expected_cat_name
-            needs_fix = True
-            
-        # Validar Salario
-        if float(c['expected_monthly_salary'] or 0) != float(expected_salary):
-            update_payload['expected_monthly_salary'] = float(expected_salary)
-            needs_fix = True
+        duration_hours = duration_text_to_hours(course.get("duration"))
+        seniority = infer_seniority(course.get("course_type"), duration_hours)
+        salary_base = lookup_market_salary(db, category_id, seniority)
+        expected_salary, roi_months = compute_roi(course.get("price_pen"), salary_base, course.get("course_type"))
 
-        # Si hubo cambios, recalcular ROI
-        if needs_fix:
-            investment = c['price_pen'] or 0
-            # Usamos el nuevo salario para el ROI
-            new_salary = update_payload.get('expected_monthly_salary', c['expected_monthly_salary'])
-            if new_salary and new_salary > 0:
-                update_payload['roi_months'] = round(investment / new_salary, 2)
-            
-            # Aplicar actualizaciÃ³n
-            patch_res = requests.patch(
-                f"{SUPABASE_URL}/rest/v1/courses?id=eq.{c['id']}",
-                json=update_payload,
-                headers=headers
-            )
-            
-            if patch_res.status_code in [200, 201, 204]:
-                fixed_count += 1
-                print(f"âœ… Corregido: {c['name']} -> {expected_cat_name} (Salario: S/ {expected_salary})")
-            else:
-                print(f"âŒ Error corrigiendo {c['name']}: {patch_res.text}")
+        payload = {"seniority_level": seniority}
+        if expected_salary is not None:
+            payload["expected_monthly_salary"] = expected_salary
+            payload["roi_months"] = roi_months
 
-    print(f"\nâœ¨ Proceso de curaciÃ³n finalizado. Registros actualizados: {fixed_count}")
+        if not apply_changes:
+            fixed_count += 1
+            continue
+
+        res = db.patch("courses", filters=f"id=eq.{course['id']}", data=payload)
+        if res and res.get("status") == "success":
+            fixed_count += 1
+        else:
+            skipped_count += 1
+
+    mode = "Updated" if apply_changes else "Would update"
+    print(f"Taxonomy/ROI backfill complete. {mode}: {fixed_count}. Skipped: {skipped_count}.")
+
 
 if __name__ == "__main__":
-    fix_taxonomy_roi()
+    parser = argparse.ArgumentParser(description="Backfill taxonomy and ROI fields for active courses.")
+    parser.add_argument("--apply", action="store_true", help="Persist changes. Without this flag, runs as dry-run.")
+    args = parser.parse_args()
+    fix_taxonomy_roi(apply_changes=args.apply)
