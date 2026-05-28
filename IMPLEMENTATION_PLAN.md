@@ -5,7 +5,7 @@
 > [!IMPORTANT]
 > **Documentación de Referencia (Golden Pipeline)**: El diseño arquitectónico, el flujo ETL de 4 estaciones y el diccionario de datos maestro se rigen estrictamente por lo definido en [docs/architecture/Documento_Detallado_workflow](docs/architecture/Documento_Detallado_workflow). Este documento es la "única Fuente de Verdad" para la lógica de datos.
 >
-> **Aislamiento Total y Paridad Linux**: Queda estrictamente prohibido ejecutar comandos de desarrollo (npm, python, audit) directamente en el host Windows. 
+> **Aislamiento Total y Paridad Linux**: Queda estrictamente prohibido ejecutar comandos de desarrollo (npm, python, audit) directamente en el host Windows.
 > Todo comando **DEBE** ser ejecutado dentro del contenedor `studiamatch-dev` (Debian) para garantizar la paridad del 100% con los servidores de despliegue (Cloudflare/Linux).
 >
 > **Comando Base Mandatorio**:
@@ -29,19 +29,22 @@
 > >
 > > **Consecuencia de no cumplir**: Si Pro se desincroniza de Free (columnas faltantes, perfiles incompletos), el pipeline en producción falla o produce 0 cursos, como ocurrió con DMC (Fase 94). El parity check en CI bloqueará el merge hasta que se corrija.
 
-## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-25 (post-Fase 111)
+## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-26 (post-Fase 116)
 
-- **Fases 104-111 completadas y promovidas a `main`** vía PRs #115-#117 (fix bugs) y #118-#120 (enrichment loop hotfix).
-- **FG2 Run `26416785227` en `main`**: Las 4 estaciones ejecutaron SUCCESS. Pro DB: 34 cursos DMC (todos `is_active=true, is_verified=true`), 29/45 URLs del target `dmc.txt` cubiertas.
-- **Validación Free**: 48 cursos DMC (45 target + 3 duplicates), 100% active+verified, 87% enrichment real (Cloudflare/NVIDIA/GitHub).
-- **Validación Pro**: 34 cursos DMC, 100% active+verified, 100% mock data (`is_mock_data=true` — ver Bug #3 abajo).
-- **Brecha Free ↔ Pro**: 16 URLs del target `dmc.txt` no descubiertas en Pro (variantes estacionales que DMC ya no enlaza desde catálogo activo). Free tiene 48 vs Pro 34 cursos DMC.
-- **Bugs activos en producción (descubiertos 2026-05-25)**:
-  - **Bug #1 — RLS `profiles_select_public` faltante en Pro** (REMEDIADO manualmente 2026-05-25): La tabla `institution_site_profiles` en Pro no tenía política RLS para el rol `anon`. El frontend filtra cursos con `EXISTS (SELECT 1 FROM institution_site_profiles p WHERE p.institution_id = courses.institution_id AND p.production_enabled = true)`. Sin la policy, `anon` no podía leer la tabla → 0 cursos visibles en `https://www.studiamatch.com/` para TODAS las instituciones. **Fix aplicado manualmente**: `CREATE POLICY profiles_select_public ON institution_site_profiles FOR SELECT TO anon USING (true);`. Pendiente versionar como migration SQL.
-  - **Bug #2 — FK `courses_category_id_fkey` faltante en Pro** (ACTIVO — **bloquea el frontend**): Free tiene el FK `courses.category_id → categories.id`. Pro NO lo tiene. El frontend consulta `categories(name)` como recurso embebido en la query de cursos. PostgREST requiere FK declarada para resolver referencias embebidas. Sin el FK, la API retorna **HTTP 400** con error `PGRST200: Could not find a relationship between 'courses' and 'categories'`. Esto afecta a TODAS las consultas de cursos, no solo DMC. Adicionalmente, 12 cursos en Pro tienen `category_id` huérfanos (apuntan a categorías que no existen en Pro por UUID mismatch Free↔Pro). Las categorías DMC no son huérfanas, pero el FK bloquea toda la query igual.
-  - **Bug #3 — Enrichment 100% mock en Pro**: Los 34 `enriched_programs` DMC en Pro tienen `provider_used='mock'`. Los logs de GitHub muestran que Cloudflare sí enriqueció con éxito (~62% de registros), pero la RPC `atomic_enrichment_promote` desplegada en Pro está **obsoleta**: no persiste las columnas `provider_used`, `is_mock_data` ni `difficulty_level` (versión antigua sin esas columnas en INSERT/UPDATE). La migración `20260510_pro_schema_sync.sql` contiene la versión corregida pero no se aplicó completamente en Pro.
-- **Próxima Acción**: Ejecutar Fase 112 (FK `courses_category_id_fkey`) y Fase 113 (versionar migration RLS + sync RPC `atomic_enrichment_promote`) para restaurar visibilidad del frontend y corregir metadata de enrichment.
-- **Proyección multi-institución**: Las Fases 112-115 son contratos de plataforma, no fixes DMC-specific. Toda institución futura debe publicar cursos mediante el mismo modelo: FK declaradas para recursos embebidos (`courses → categories/institutions`), gates públicos mínimos (`institution_id`, `production_enabled`), perfiles sensibles no expuestos, y RPCs de pipeline ejecutables solo por `service_role`.
+- **Fases 104-116 completadas y promovidas a `main`**. Hotfix `check_db_parity.py` (migration name matching) promovido vía PRs #124→#126→#128 (`4a9979b` en main).
+- **Fase 112-116 migrations**: Aplicadas en Free y Pro. FK `courses_category_id_fkey` existe en ambos ambientes. RLS y RPCs endurecidos. Frontend público funcional: 34 cursos DMC visibles en `https://www.studiamatch.com/`, detalle de curso carga correctamente.
+- **`DB Sync to Production`**: El falso negativo de `check_db_parity.py` (migration names sin prefijo) fue corregido. El workflow ahora pasa "Verify target schema".
+- **FG2 Run `26416785227` en `main`**: 34 cursos DMC en Pro (`is_active=true, is_verified=true`), 29/45 URLs del target `dmc.txt` cubiertas.
+- **Bugs activos en producción (descubiertos 2026-05-26)**:
+  - **Bug #4 — Categorización rota (NUEVO — CRÍTICO)**: 66/66 cursos activos en Free están en `category = 'General / Por Clasificar'` con `category_confirmed = false`. Causa raíz: el trigger `tr_auto_assign_category` tiene regex `\\y` con doble escape → keyword matching siempre falla. Además `tgtype=23` no incluye UPDATE → upserts nunca re-categorizan. Consecuencia: `expected_monthly_salary = NULL` y `roi_months = 0` para todos los cursos. El frontend muestra `"—"` en todas las tarjetas de ROI. **Afecta a TODAS las instituciones, no solo DMC**.
+  - **Bug #5 — ROI inexistente (NUEVO — CRÍTICO)**: `sync_vector_worker.py:280` hardcodea `seniority_level: "Mid"`. Nunca consulta `market_salaries`. Nunca calcula `expected_monthly_salary` ni `roi_months`. Incluso si la categorización funcionara (Bug #4), el ROI seguiría siendo 0.
+  - **Bug #6 — Sin guardrail de cobertura (NUEVO)**: No hay alerta cuando cursos caen en "General / Por Clasificar". El pipeline publica silenciosamente sin categoría real.
+  - ~~Bug #1 — RLS `profiles_select_public`~~ → Remediado (ahora versionado en migration Fase 113).
+  - ~~Bug #2 — FK `courses_category_id_fkey`~~ → Remediado (migration Fase 112).
+  - ~~Bug #3 — Enrichment 100% mock~~ → Remediado (RPC corregida en Fase 113; datos históricos permanecen con metadata mock).
+- **Próxima Acción**: Ejecutar Fase 117 (fix trigger categorización) → Fase 118 (refactorización motor ROI) → Fase 119 (catálogo extensible) → Fase 120 (guardrail cobertura). Este pipeline de 4 fases restaura la categorización, habilita el ROI real, y prepara el sistema para recibir nuevas instituciones con dominios no cubiertos (salud, psicología, CAD, SAP).
+- **U. Lima pendiente**: Perfil existe en Free (`pipeline_ready=true`, 102 seed URLs, 18 cursos active+verified) pero en Pro tiene `pipeline_ready=false`. Requiere aplicar migration `20260509_ulima_pipeline_ready.sql` en Pro y activar gates. Se recomienda ejecutar después de las Fases 117-120 para que los nuevos cursos de U. Lima se categoricen y reciban ROI correctamente.
+- **Proyección multi-institución**: Las Fases 117-120 son contratos de plataforma genéricos. Cualquier institución nueva (U. Lima, y futuras) se beneficiará de categorización automática vía trigger + ROI calculado en pipeline. Nuevos dominios (salud, psicología, etc.) requieren solo inserts en 3 tablas (`categories`, `category_rules`, `market_salaries`) sin tocar código.
 
 ## Tareas Pendientes Priorizadas
 
@@ -117,6 +120,10 @@
 | ~~P2~~ | ~~Fase 93~~ | ~~Pipeline~~ | ~~DMC Harvester: Section Keywords + H4 Extractor~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 94~~ | ~~Pipeline~~ | ~~DMC WooCommerce Pillar Enrichment — PR #50 mergeado y promovido a main~~ | ~~Completado~~ |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
+| **P0** | **Fase 117 — Fix trigger categorización `tr_auto_assign_category`** | DB + Pipeline | **BUG DOBLE**: (A) `tgtype=23` (INSERT+DELETE, sin UPDATE) → los upserts del pipeline nunca re-categorizan cursos existentes. (B) Regex `\\y` con doble escape en `fn_auto_assign_category()` → keyword matching siempre falla, 66/66 cursos en "General / Por Clasificar". Ambos bugs silenciosos: el trigger existe pero nunca matchea. [Ver plan detallado](#fase-117-fix-trigger-categorización-tr_auto_assign_category). | Ninguno |
+| **P0** | **Fase 118 — Refactorización del motor de ROI** | Pipeline + DB | **REDISEÑO COMPLETO**: El ROI actual no existe funcionalmente (`expected_monthly_salary=NULL`, `roi_months=0`, `seniority_level` hardcodeado `"Mid"`). Nuevo motor escalable: (A) inferencia de seniority por nombre+tipo+duración en pipeline. (B) lookup de `market_salaries(category_id, seniority_level)`. (C) factor de ajuste por tipo de programa (Curso 0.3×, Diplomado 0.5×, Maestría 1.0×, etc). (D) cálculo de `roi_months = price_pen / salary_efectivo`. Extensible a nuevas categorías sin código. [Ver plan detallado](#fase-118-refactorización-del-motor-de-roi). | Depende de Fase 117 |
+| **P1** | **Fase 119 — Catálogo extensible de categorías + keywords + salarios** | DB | Agregar 4 categorías nuevas (Salud, Psicología, Diseño CAD, SAP/ERP) con sus keywords en `category_rules` y benchmarks en `market_salaries`. Documentar el proceso estándar para que futuras instituciones con dominios no cubiertos (ej: inyectables, AutoCAD, psicología clínica) puedan integrarse creando solo registros en estas 3 tablas, sin tocar código. [Ver plan detallado](#fase-119-catálogo-extensible-de-categorías--keywords--salarios). | Independiente |
+| **P1** | **Fase 120 — Guardrail de cobertura de categorías** | Pipeline + QA | Script `category_coverage_audit.py` que detecta cursos con `category_confirmed=false` post-pipeline y alerta sobre keywords sin regla. Integrar en CI post-FG2. Previene el caso silencioso actual: 66 cursos en "General / Por Clasificar" sin alerta. [Ver plan detallado](#fase-120-guardrail-de-cobertura-de-categorías). | Depende de Fase 117 |
 
 ## Flujo Vigente: Desarrollo → Producción
 
@@ -994,17 +1001,17 @@ Objetivo: Implementar inteligencia de orquestación basada en datos históricos 
 Objetivo: Migrar los filtros laterales a una interfaz de botones superiores integrados en el Hero, simplificando la barra de búsqueda y mejorando el minimalismo.
 
 1. **Refactorización de Interfaz (Hero)**:
-   - [x] Crear fila superior de "Chips de Filtro" (Área, Tipo, Institución, Modalidad). 
+   - [x] Crear fila superior de "Chips de Filtro" (Área, Tipo, Institución, Modalidad).
    - [x] Implementar menús desplegables (Dropdowns) para cada chip.
    - [x] Simplificar la barra de búsqueda principal a: Búsqueda | Precio Máximo | Botón Explorar.
 
 2. **Eliminación de Sidebar**:
-   - [x] Remover el componente `aside` y el botón de activación de filtros laterales. 
-   - [x] Consolidar toda la lógica de filtrado en el componente Hero. 
+   - [x] Remover el componente `aside` y el botón de activación de filtros laterales.
+   - [x] Consolidar toda la lógica de filtrado en el componente Hero.
 
 3. **UX & Estética**:
-   - [x] Asegurar que los dropdowns sean accesibles y tengan un diseño premium (sombras, bordes redondeados). 
-   - [x] Implementar cierre automático de dropdowns al hacer clic fuera o seleccionar una opción. 
+   - [x] Asegurar que los dropdowns sean accesibles y tengan un diseño premium (sombras, bordes redondeados).
+   - [x] Implementar cierre automático de dropdowns al hacer clic fuera o seleccionar una opción.
 
 **Resultado Final:** Interfaz de búsqueda modernizada con mayor espacio para el catálogo y mejores puntos de datos en las tarjetas.
 
@@ -2418,7 +2425,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    on:
      push:
        branches: [main]
-   
+
    jobs:
      detect:
        runs-on: ubuntu-latest
@@ -2435,7 +2442,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
              python3 scripts/maintenance/db_migrate.py --env pro --dry-run > report.txt
              echo "count=$(grep -c 'PENDING' report.txt || echo 0)" >> $GITHUB_OUTPUT
              echo "list=$(grep 'PENDING' report.txt | tr '\n' ',')" >> $GITHUB_OUTPUT
-   
+
      apply:
        needs: detect
        if: needs.detect.outputs.pending_count > 0
@@ -2448,7 +2455,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
            run: python3 scripts/maintenance/db_migrate.py --env pro
          - name: Log applied migrations
            run: echo "Applied: ${{ needs.detect.outputs.pending_list }}"
-   
+
      verify:
        needs: apply
        runs-on: ubuntu-latest
@@ -2458,7 +2465,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
          - run: pip install -r requirements.txt
          - name: Verify schema parity
            run: python3 scripts/maintenance/check_db_parity.py --env pro
-   
+
      defer-fg2:
        needs: verify
        if: success()
@@ -2490,7 +2497,7 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
    ```
    Usage:
      python3 scripts/maintenance/check_db_parity.py --env pro [--strict]
-     
+
    Exit codes:
      0 → OK (sin diferencias)
      1 → Warnings (diferencias menores)
@@ -2537,9 +2544,9 @@ CF → GitHub → Gemini (orden fijo, sin validación previa)
 
 ## Plan de Remediación DMC en Producción (Fases 104-108)
 
-> **Fecha**: 2026-05-25  
-> **Objetivo**: Que los 45 programas de `artifacts/urls_interes/dmc.txt` figuren en https://www.studiamatch.com/  
-> **Estado actual Pro**: 14/45 programas DMC visibles (faltan 31)  
+> **Fecha**: 2026-05-25
+> **Objetivo**: Que los 45 programas de `artifacts/urls_interes/dmc.txt` figuren en https://www.studiamatch.com/
+> **Estado actual Pro**: 14/45 programas DMC visibles (faltan 31)
 > **Causa raíz**: Bug `last_scraped_at` en `sync_vector_worker.py:258` + `exec_sql` inexistente + 25 enriched atrapados en `status="error"`
 
 ---
@@ -2720,8 +2727,8 @@ SELECT count(*) FROM supabase_migrations;
 
 ```sql
 -- Verificar columnas Fase 100
-SELECT column_name FROM information_schema.columns 
-WHERE table_schema = 'public' 
+SELECT column_name FROM information_schema.columns
+WHERE table_schema = 'public'
 AND table_name = 'institution_site_profiles'
 AND column_name IN ('discovery_enabled', 'production_enabled');
 -- Debe devolver 2 filas
@@ -2744,7 +2751,7 @@ DELETE FROM staging_raw WHERE institution_id = 'UUID_DMC';
 #### 107E: Activar gates DMC post-migration
 
 ```sql
-UPDATE institution_site_profiles 
+UPDATE institution_site_profiles
 SET pipeline_ready = true,
     discovery_enabled = true,
     production_enabled = true
@@ -2761,7 +2768,7 @@ SELECT count(*) FROM cleansed_programs WHERE institution_id = 'UUID_DMC';
 SELECT count(*) FROM staging_raw WHERE institution_id = 'UUID_DMC';
 
 -- Debe mostrar true, true, true
-SELECT pipeline_ready, discovery_enabled, production_enabled 
+SELECT pipeline_ready, discovery_enabled, production_enabled
 FROM institution_site_profiles WHERE institution_id = 'UUID_DMC';
 ```
 
@@ -2794,13 +2801,13 @@ gh workflow run "FG2 - StudIAMatch Golden Pipeline" --ref main
 
 ```sql
 -- Cursos DMC activos
-SELECT count(*) FROM courses 
-WHERE institution_id = 'UUID_DMC' 
+SELECT count(*) FROM courses
+WHERE institution_id = 'UUID_DMC'
 AND is_active = true AND is_verified = true;
 -- Meta: ≥ 43
 
 -- Enriched sin errores
-SELECT count(*) FROM enriched_programs 
+SELECT count(*) FROM enriched_programs
 WHERE institution_id = 'UUID_DMC' AND status = 'error';
 -- Meta: 0
 ```
@@ -2854,9 +2861,9 @@ El pipeline de medianoche en `main` (run `26392342954`) corrió exitosamente las
 
 ```python
 # master_orchestrator.py:36-38 — Diseño original Fase 42 (Round-Robin)
-return db.select('institutions', 
-                 columns="id,name,slug,website_url,last_harvest_at", 
-                 order="last_harvest_at.asc.nullsfirst", 
+return db.select('institutions',
+                 columns="id,name,slug,website_url,last_harvest_at",
+                 order="last_harvest_at.asc.nullsfirst",
                  limit=limit)
 ```
 
@@ -2864,8 +2871,8 @@ El Round-Robin de la Fase 42 fue diseñado cuando todas las instituciones estaba
 
 #### Cambio
 
-**Archivo**: `scripts/core/master_orchestrator.py`  
-**Función**: `get_institutions(limit=10)`  
+**Archivo**: `scripts/core/master_orchestrator.py`
+**Función**: `get_institutions(limit=10)`
 **Líneas modificadas**: 32-50
 
 ```python
@@ -3406,7 +3413,7 @@ Los 34 `enriched_programs` actuales con `provider_used='mock'` contienen datos d
 ```sql
 -- Opcional: Si se quiere reflejar que los datos no son mock
 -- (solo si se confirma que Cloudflare enriqueció estos registros — ver logs run 26416785227)
--- UPDATE public.enriched_programs 
+-- UPDATE public.enriched_programs
 -- SET is_mock_data = false, provider_used = 'Cloudflare'
 -- WHERE institution_id = '<dmc_pro_id>' AND is_mock_data = true;
 ```
@@ -3472,8 +3479,524 @@ select
 
 Esperado: `true`, `true`, `false`.
 
+---
 
+### Fase 117: Fix trigger categorización `tr_auto_assign_category`
 
+#### Diagnóstico
 
+La tabla `courses` tiene 66 cursos activos. **100% (66/66) están en `category = 'General / Por Clasificar'` con `category_confirmed = false`**. Esto significa que el pipeline publica cursos sin categoría real, y por tanto `expected_monthly_salary` y `roi_months` nunca se calculan.
 
+Se identificaron **dos bugs simultáneos** en el trigger `tr_auto_assign_category`:
 
+**Bug A — `tgtype` no incluye UPDATE**: El registro interno `pg_trigger.tgtype = 23` (INSERT + DELETE + BEFORE + ROW), pero la definición visible dice `BEFORE INSERT OR UPDATE OF name, description_long`. El bit UPDATE (8) no está presente. Esto significa que los upserts del pipeline (`ON CONFLICT url DO UPDATE`) nunca disparan la re-categorización de cursos existentes.
+
+**Bug B — Regex `\\y` con doble escape**: La función `fn_auto_assign_category()` almacenada en la DB tiene:
+```sql
+WHERE NEW.name ~* ('\\y' || r.keyword || '\\y')
+```
+Dentro del cuerpo dollar-quoted de la función PL/pgSQL, `'\\y'` se interpreta como string literal y se convierte en el patrón regex `\y`. Pero pruebas directas muestran que `'python fundamentals' ~* ('\\y' || 'python' || '\\y')` retorna **false**, mientras que `~* ('\y' || 'python' || '\y')` retorna **true**. La función `20260430_fix_search_path_mutable.sql` introdujo doble escape al migrar de `$$` quoting a `$function$` dollar-quoting, rompiendo el word boundary.
+
+**Validación directa del bug (ejecutado en Free 2026-05-26)**:
+- `'Power BI Nivel 1' ~* ('\y' || 'power bi' || '\y')` → `true` ✓
+- `'Machine Learning Engineering' ~* ('\y' || 'machine learning' || '\y')` → `true` ✓
+- `'Front End Web Professional con Angular e IA' ~* ('\y' || 'angular' || '\y')` → `true` ✓
+- Pero la función almacenada NO matchea ninguno → los 66 cursos quedan en "General"
+
+**Validación del trigger en INSERT (ejecutado 2026-05-26)**:
+```sql
+INSERT INTO courses (name, slug, url, institution_id, is_active, is_verified)
+VALUES ('Python Fundamentals for Data Science', 'test-python-ds', ...)
+RETURNING name, category, category_id, category_confirmed;
+-- Resultado: category = 'General / Por Clasificar', category_confirmed = false
+-- El keyword 'python' existe en category_rules → 'Desarrollo y Web' (priority 10)
+-- Pero el trigger no matcheó → Bug B confirmado
+```
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260526_fase117_fix_category_trigger.sql`
+
+```sql
+BEGIN;
+
+-- 1. Recrear fn_auto_assign_category con regex corregida (\y sin doble escape)
+--    y search_path = public
+CREATE OR REPLACE FUNCTION public.fn_auto_assign_category()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path = public
+AS $$
+DECLARE
+    target_category_id UUID;
+    target_category_name TEXT;
+BEGIN
+    SELECT r.category_id, cat.name
+    INTO target_category_id, target_category_name
+    FROM public.category_rules r
+    JOIN public.categories cat ON cat.id = r.category_id
+    WHERE NEW.name ~* ('\y' || r.keyword || '\y')
+    ORDER BY r.priority DESC
+    LIMIT 1;
+
+    IF target_category_id IS NOT NULL THEN
+        NEW.category_id := target_category_id;
+        NEW.category := target_category_name;
+        NEW.category_confirmed := true;
+    ELSE
+        SELECT id, name INTO target_category_id, target_category_name
+        FROM public.categories WHERE name = 'General / Por Clasificar' LIMIT 1;
+        NEW.category_id := target_category_id;
+        NEW.category := target_category_name;
+        NEW.category_confirmed := false;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+-- 2. Recrear trigger con INSERT + UPDATE (sin DELETE)
+DROP TRIGGER IF EXISTS tr_auto_assign_category ON public.courses;
+CREATE TRIGGER tr_auto_assign_category
+    BEFORE INSERT OR UPDATE OF name ON public.courses
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_auto_assign_category();
+
+-- 3. Backfill: forzar re-categorización de todos los cursos no confirmados
+--    (UPDATE name = name dispara el trigger sin cambiar datos)
+UPDATE public.courses
+SET name = name
+WHERE category_confirmed = false;
+
+-- 4. Verificación
+-- SELECT category, count(*) FROM public.courses
+-- WHERE is_active = true AND is_verified = true
+-- GROUP BY category ORDER BY count(*) DESC;
+
+COMMIT;
+```
+
+**Nota sobre la regex**: Dentro de dollar-quoting `$$...$$`, no hay escape de strings SQL. Por tanto `'\y'` se almacena literalmente como `\y` (un backslash + 'y'). En PL/pgSQL, cuando se evalúa la expresión `'\y' || r.keyword || '\y'`, el string literal `'\y'` en modo `standard_conforming_strings = on` (default PostgreSQL) se interpreta como `\y` — exactamente el word boundary de POSIX regex. **NO usar `\\y`** dentro de dollar-quoting.
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 117.1 | Crear archivo `db/migrations/20260526_fase117_fix_category_trigger.sql` | Código | 5 min |
+| 117.2 | Aplicar migration en Free: `python3 scripts/maintenance/db_migrate.py --env free --only fase117_fix_category_trigger` | Contenedor | 2 min |
+| 117.3 | Verificar backfill: `SELECT category, count(*) FROM courses WHERE is_active=true GROUP BY category` → 0 cursos en "General" | Free DB | 1 min |
+| 117.4 | Ejecutar FG2 en Free para validar que nuevos cursos se categorizan correctamente | Free | 5 min |
+| 117.5 | Commit + PR a `desarrollo` | GitHub | 2 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 117.V1 | `SELECT tgtype FROM pg_trigger WHERE tgname='tr_auto_assign_category'` | `15` (INSERT + UPDATE) o `7` (INSERT + UPDATE sin ROW bit extra). En cualquier caso, debe incluir UPDATE (bit 8). |
+| 117.V2 | Insertar curso `'Curso de Machine Learning con Python'` → verificar categoría | `'Data Science & IA'` (keyword `machine learning` priority 30 match) |
+| 117.V3 | Insertar curso `'Power BI para Principiantes'` → verificar categoría | `'Data Analytics'` (keyword `power bi` priority 20 match) |
+| 117.V4 | Insertar curso `'Curso de Psicología Clínica'` → verificar categoría | `'General / Por Clasificar'` con `category_confirmed=false` (no hay keyword aún — se cubre en Fase 119) |
+| 117.V5 | `SELECT count(*) FROM courses WHERE category_confirmed = false` post-backfill | 0 (o solo cursos de categorías no cubiertas) |
+
+---
+
+### Fase 118: Refactorización del motor de ROI
+
+#### Diagnóstico
+
+El ROI actual no existe funcionalmente. Datos reales en Free (2026-05-26):
+
+| Campo | Estado actual | Causa |
+|---|---|---|
+| `expected_monthly_salary` | **NULL** en 66/66 cursos | El pipeline nunca consulta `market_salaries` |
+| `roi_months` | **0** en 66/66 cursos | Sin salary no se puede calcular |
+| `seniority_level` | **`"Mid"`** en 66/66 cursos | Hardcodeado en `sync_vector_worker.py:280` |
+| `category_id` | **`'General / Por Clasificar'`** en 66/66 cursos | Bug en trigger (Fase 117) |
+| `price_pen` | **NULL** en ~33/66 cursos | El LLM no siempre infiere precio |
+
+El frontend muestra `"—"` en todas las tarjetas de ROI porque `roi_months = 0` se interpreta como "sin dato".
+
+Además, el modelo actual tiene un **defecto de diseño**: incluso si funcionara, asumiría que cualquier curso en la categoría "Data Analytics" habilita al salario Mid de S/ 8,200/mes. Un taller de 20h de Power BI y una maestría de 2 años en Data Science tendrían el mismo salario base, diferenciándose solo por `price_pen`. Esto produce ROIs engañosos (0.04 meses para un taller de S/ 300) que no reflejan la empleabilidad real.
+
+#### Diseño del nuevo motor
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  MOTOR DE ROI (sync_vector_worker)               │
+│                                                                  │
+│  Inputs:                                                         │
+│    name = "Diplomado en Data Analytics"                          │
+│    course_type = "Diplomado"                                     │
+│    duration_hours = 200                                          │
+│    category_id = <uuid de Data Analytics>                        │
+│    price_pen = S/ 3,500                                          │
+│                                                                  │
+│  Paso 1 — Inferir seniority:                                     │
+│    lookup_seniority(name, course_type, duration_hours)           │
+│    → "Mid" (Diplomado > 100h)                                    │
+│                                                                  │
+│  Paso 2 — Lookup salario base:                                   │
+│    market_salaries(category_id, seniority)                       │
+│    → S/ 8,200 (Mid, Data Analytics)                              │
+│                                                                  │
+│  Paso 3 — Factor de tipo de programa:                            │
+│    salary_factor(course_type, duration_hours)                    │
+│    → 0.7 (Diplomado)                                             │
+│                                                                  │
+│  Paso 4 — Calcular salario efectivo y ROI:                       │
+│    salary_efectivo = 8,200 × 0.7 = S/ 5,740                      │
+│    roi_months = 3,500 / 5,740 = 0.6 meses                        │
+│                                                                  │
+│  Paso 5 — Escribir en courses:                                   │
+│    seniority_level = "Mid"                                       │
+│    expected_monthly_salary = 5740.00                             │
+│    roi_months = 0.6                                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Tabla de seniority por tipo + duración
+
+| course_type | Duración | Seniority | Justificación |
+|---|---|---|---|
+| `Doctorado` | cualquier | `Senior` | Credencial académica máxima |
+| `Maestria` | > 500h | `Senior` | Posgrado extenso |
+| `Maestria` | ≤ 500h | `Mid` | Maestría ejecutiva/corta |
+| `Especialización` | > 200h | `Mid` | Especialización profunda |
+| `Especialización` | ≤ 200h | `Junior` | Especialización introductoria |
+| `Diplomado` | > 100h | `Mid` | Diplomado completo |
+| `Diplomado` | ≤ 100h | `Junior` | Diplomado corto |
+| `Certificación` | > 80h | `Mid` | Certificación profesional |
+| `Certificación` | ≤ 80h | `Junior` | Certificación básica |
+| `Curso` | > 60h | `Junior` | Curso extenso |
+| `Curso` | ≤ 60h | `Junior` | Curso corto |
+| `Taller` | cualquier | `Junior` | Introductorio |
+| `Pregrado` | cualquier | `Junior` | Carrera universitaria (entry-level) |
+| *default* | — | `Junior` | Conservador: asumir entry-level |
+
+**Nota sobre `duration_hours`**: Si el LLM no infiere duración numérica, se usa `course_type` como única señal:
+- Sin duración + `Maestria`/`Doctorado` → `Senior`
+- Sin duración + `Diplomado`/`Especialización` → `Mid`
+- Sin duración + resto → `Junior`
+
+#### Tabla de factores de ajuste salarial por tipo de programa
+
+| course_type | Factor | Justificación |
+|---|---|---|
+| `Doctorado` | 1.2× | Credencial máxima, acceso a puestos directivos |
+| `Maestria` | 1.0× | Referencia base del mercado |
+| `Pregrado` | 0.9× | Carrera completa, inserción laboral estándar |
+| `Especialización` | 0.7× | Especialización técnica post-universitaria |
+| `Diplomado` | 0.5× | Formación intermedia |
+| `Certificación` | 0.4× | Certificación de skill específico |
+| `Curso` | 0.3× | Curso de 40-120h, upskilling puntual |
+| `Taller` | 0.15× | Workshop introductorio, 8-30h |
+| *default* | 0.3× | Conservador |
+
+**Fundamento**: Estos factores reflejan que el mercado laboral peruano no remunera igual a alguien que tomó un taller de 20h de Power BI que a alguien con una maestría en Data Science, aunque ambos caigan en la categoría "Data Analytics". El factor ajusta el salario base de `market_salaries` proporcionalmente a la profundidad del programa.
+
+**Ejemplo del impacto**:
+
+| Programa | Cat. | Precio | Tipo | Factor | Salario base (Mid) | Salario efectivo | ROI |
+|---|---|---|---|---|---|---|---|
+| Taller Power BI 20h | Data Analytics | S/ 300 | Taller | 0.15× | S/ 8,200 | S/ 1,230 | 0.2m |
+| Curso Power BI 60h | Data Analytics | S/ 1,200 | Curso | 0.3× | S/ 8,200 | S/ 2,460 | 0.5m |
+| Diplomado Data Analytics 200h | Data Analytics | S/ 3,500 | Diplomado | 0.5× | S/ 8,200 | S/ 4,100 | 0.9m |
+| Maestría Data Science 1500h | Data Science & IA | S/ 25,000 | Maestria | 1.0× | S/ 11,500 | S/ 11,500 | 2.2m |
+
+#### Ubicación en el código
+
+**Archivo a modificar**: `scripts/core/sync_vector_worker.py`
+
+**Nuevas funciones** (a agregar en el worker o en `scripts/shared/roi_engine.py`):
+
+```python
+# scripts/shared/roi_engine.py — Motor de ROI escalable
+
+SENIORITY_RULES = {
+    'Doctorado': {'senior': (0, float('inf'))},
+    'Maestria': {'senior': (500, float('inf')), 'mid': (0, 500)},
+    'Especialización': {'mid': (200, float('inf')), 'junior': (0, 200)},
+    'Diplomado': {'mid': (100, float('inf')), 'junior': (0, 100)},
+    'Certificación': {'mid': (80, float('inf')), 'junior': (0, 80)},
+    'Curso': {'junior': (60, float('inf')), 'junior': (0, 60)},
+    'Taller': {'junior': (0, float('inf'))},
+    'Pregrado': {'junior': (0, float('inf'))},
+}
+
+SALARY_FACTORS = {
+    'Doctorado': 1.2,
+    'Maestria': 1.0,
+    'Pregrado': 0.9,
+    'Especialización': 0.7,
+    'Diplomado': 0.5,
+    'Certificación': 0.4,
+    'Curso': 0.3,
+    'Taller': 0.15,
+}
+
+def infer_seniority(course_type, duration_hours=None):
+    """Infiere seniority basado en tipo de programa + duración."""
+    rules = SENIORITY_RULES.get(course_type, {})
+    for level, (min_h, max_h) in rules.items():
+        if duration_hours is not None:
+            if min_h <= duration_hours <= max_h:
+                return level.capitalize()
+    # Fallback sin duración
+    if course_type in ('Doctorado', 'Maestria'):
+        return 'Senior'
+    if course_type in ('Especialización', 'Diplomado', 'Certificación'):
+        return 'Mid'
+    return 'Junior'
+
+def lookup_market_salary(db, category_id, seniority_level):
+    """Consulta market_salaries por categoria + seniority."""
+    column = f"salary_{seniority_level.lower()}"
+    rows = db.select('market_salaries',
+                     filters=f'category_id=eq.{category_id}',
+                     columns=f'category_name,{column}')
+    if rows and rows[0].get(column):
+        return float(rows[0][column])
+    return None
+
+def compute_roi(price_pen, salary_base, course_type):
+    """Calcula roi_months con factor de ajuste por tipo."""
+    if not price_pen or not salary_base or salary_base <= 0:
+        return None, None
+    factor = SALARY_FACTORS.get(course_type, 0.3)
+    salary_efectivo = salary_base * factor
+    roi = round(price_pen / salary_efectivo, 1)
+    return salary_efectivo, roi
+```
+
+**Integración en `sync_vector_worker.py`** (reemplazar línea 280 y agregar después de línea 269):
+
+```python
+# ANTES (línea 280):
+"seniority_level": "Mid",
+
+# DESPUÉS:
+from scripts.shared.roi_engine import infer_seniority, lookup_market_salary, compute_roi
+
+# ... dentro de sync_to_production(), después de course_data:
+seniority = infer_seniority(enriched.get('degree_type'),
+                            enriched.get('duration_hours'))
+salary_base = lookup_market_salary(self.db, category_id, seniority)
+salary_efectivo, roi = compute_roi(enriched.get('total_cost_est'),
+                                   salary_base,
+                                   enriched.get('degree_type'))
+
+course_data = {
+    ...
+    "seniority_level": seniority,
+    "expected_monthly_salary": salary_efectivo,
+    "roi_months": roi,
+    ...
+}
+```
+
+#### Extensibilidad
+
+El motor es **genérico por diseño**:
+- Nuevas categorías: solo agregar filas en `categories`, `category_rules` y `market_salaries` (sin tocar código).
+- Nuevos tipos de programa: agregar entrada en `SENIORITY_RULES` y `SALARY_FACTORS` en `roi_engine.py` (dict en Python, sin lógica condicional).
+- Ajuste de factores: modificar valores en los dicts, no en lógica de negocio.
+- Nuevos niveles de seniority: extender `market_salaries` con columna adicional (ej: `salary_lead`) y entrada en `SENIORITY_RULES`.
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 118.1 | Crear `scripts/shared/roi_engine.py` con funciones `infer_seniority`, `lookup_market_salary`, `compute_roi` | Código | 15 min |
+| 118.2 | Modificar `sync_vector_worker.py:280` — reemplazar `"Mid"` hardcodeado con llamada a `infer_seniority()` | Código | 5 min |
+| 118.3 | Agregar lookup de `market_salaries` y cálculo de `roi_months` en `sync_vector_worker.py` (posterior a línea 269) | Código | 10 min |
+| 118.4 | Agregar `expected_monthly_salary` y `roi_months` al dict `course_data` en `sync_vector_worker.py` | Código | 3 min |
+| 118.5 | Ejecutar FG2 en Free y validar que los cursos nuevos tengan `roi_months > 0` y `expected_monthly_salary IS NOT NULL` | Free | 10 min |
+| 118.6 | Si los 66 cursos existentes tienen `category_confirmed=false` (pre-Fase 117), ejecutar script de backfill de ROI: `python3 scripts/maintenance/fix_taxonomy_roi.py` | Free | 2 min |
+| 118.7 | Commit + PR a `desarrollo` | GitHub | 2 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 118.V1 | `SELECT seniority_level, count(*) FROM courses WHERE is_active=true GROUP BY 1` | Distribución con Junior, Mid, Senior (no solo Mid) |
+| 118.V2 | `SELECT count(*) FROM courses WHERE expected_monthly_salary IS NOT NULL AND is_active=true` | ~66 (todos los cursos activos) |
+| 118.V3 | `SELECT count(*) FROM courses WHERE roi_months > 0 AND is_active=true` | ~33+ (los que tienen price_pen) |
+| 118.V4 | Curso tipo Taller 20h en Data Analytics con precio S/ 300 → `roi_months` | ~0.2 (razonable: inversión baja, salario ajustado) |
+| 118.V5 | Maestría en Data Science con precio S/ 25,000 → `roi_months` | ~2.2 (razonable: inversión alta, salario alto) |
+| 118.V6 | Curso sin `price_pen` → `roi_months` | NULL/None (sin precio no hay ROI) |
+
+---
+
+### Fase 119: Catálogo extensible de categorías + keywords + salarios
+
+#### Diagnóstico
+
+El sistema actual tiene 17 categorías que cubren dominios tech/negocios. Si mañana ingresa una institución con cursos de:
+- **Psicología Clínica** → sin categoría ni keywords → cae en "General"
+- **Inyectables / Enfermería** → sin categoría → cae en "General"
+- **AutoCAD / Diseño 3D** → `category_rules` no tiene keywords `autocad`, `solidworks`, `revit`
+- **SAP FI / SAP HANA** → `category_rules` no tiene keyword `sap`
+
+Sin categoría → sin `expected_monthly_salary` → sin ROI.
+
+**El sistema debe ser extensible sin tocar código**: nuevas categorías se agregan como registros en 3 tablas (`categories`, `category_rules`, `market_salaries`) vía migrations SQL versionadas. El trigger `fn_auto_assign_category` y `roi_engine.py` las consumen genéricamente.
+
+#### Cambio
+
+**Archivo nuevo**: `db/migrations/20260526_fase119_extensible_categories.sql`
+
+**Nuevas categorías**:
+
+| Categoría | Descripción | Ejemplos de cursos |
+|---|---|---|
+| `Salud y Ciencias Medicas` | Enfermería, farmacia, procedimientos médicos | Inyectables, Primeros Auxilios, Farmacología |
+| `Psicologia y Salud Mental` | Terapia, psicología clínica, consejería | Psicología Clínica, Terapia Cognitivo-Conductual |
+| `Diseno CAD y Manufactura` | Diseño asistido por computadora, fabricación digital | AutoCAD, SolidWorks, Revit, BIM, Diseño 3D |
+| `SAP y ERP Empresarial` | Sistemas de planificación de recursos empresariales | SAP FI, SAP MM, SAP HANA, Oracle ERP |
+
+**Keywords en `category_rules`**:
+
+| Keyword | Categoría | Prioridad |
+|---|---|---|
+| `enfermeria`, `enfermería`, `inyectables`, `farmacia`, `primeros auxilios`, `farmacologia` | Salud y Ciencias Medicas | 20 |
+| `psicologia`, `psicología`, `terapia`, `salud mental`, `clinica`, `consejeria`, `neurociencia` | Psicologia y Salud Mental | 20 |
+| `autocad`, `solidworks`, `revit`, `bim`, `diseño 3d`, `diseno 3d`, `manufactura`, `cnc`, `impresion 3d` | Diseno CAD y Manufactura | 25 |
+| `sap`, `sap fi`, `sap mm`, `sap hana`, `oracle erp`, `erp`, `sap business one` | SAP y ERP Empresarial | 25 |
+
+**Benchmarks salariales en `market_salaries`**:
+
+| Categoría | Junior | Mid | Senior |
+|---|---:|---:|---:|
+| Salud y Ciencias Medicas | S/ 2,500 | S/ 5,500 | S/ 12,000 |
+| Psicologia y Salud Mental | S/ 2,000 | S/ 4,500 | S/ 8,000 |
+| Diseno CAD y Manufactura | S/ 2,200 | S/ 5,000 | S/ 9,000 |
+| SAP y ERP Empresarial | S/ 3,500 | S/ 8,000 | S/ 15,000 |
+
+**Fuentes de los benchmarks**:
+- Salud: Observatorio Laboral MTPE + escalas salariales MINSA
+- Psicología: Ponte en Carrera (egresados psicología)
+- Diseño CAD: Computrabajo / Bumeran (promedio ofertas 2025-2026)
+- SAP: Indeed Perú + Glassdoor (consultores SAP en Lima)
+
+**Proceso estándar para agregar categorías futuras**:
+
+1. Detectar el dominio no cubierto (vía Fase 120 — guardrail)
+2. Definir nombre de categoría en `categories`
+3. Agregar 3-6 keywords representativas en `category_rules` con prioridad 20-25
+4. Investigar salarios Junior/Mid/Senior para la categoría (fuentes: Ponte en Carrera, Indeed, Computrabajo, Bumeran, INEI)
+5. Insertar en `market_salaries`
+6. Crear migration SQL versionada con los 3 INSERTs
+7. Ejecutar backfill: `UPDATE courses SET name = name WHERE category_confirmed = false`
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 119.1 | Crear archivo `db/migrations/20260526_fase119_extensible_categories.sql` | Código | 10 min |
+| 119.2 | Aplicar migration en Free | Contenedor | 2 min |
+| 119.3 | Commit + PR a `desarrollo` | GitHub | 2 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 119.V1 | `SELECT count(*) FROM categories` | 21 (17 originales + 4 nuevas) |
+| 119.V2 | `SELECT count(*) FROM category_rules WHERE keyword IN ('sap','autocad','psicologia','enfermeria')` | ≥ 4 keywords nuevos |
+| 119.V3 | `SELECT count(*) FROM market_salaries` | 21 (17 originales + 4 nuevas) |
+| 119.V4 | Insertar curso `'Curso de AutoCAD 2D y 3D'` → verificar categoría | `'Diseno CAD y Manufactura'` |
+
+---
+
+### Fase 120: Guardrail de cobertura de categorías
+
+#### Diagnóstico
+
+El caso actual es crítico: 66 cursos activos están en "General / Por Clasificar" con `category_confirmed = false` y **nadie lo sabe**. No hay alerta, no hay log, no hay métrica. El pipeline publica los cursos silenciosamente sin categoría real, y el ROI queda en 0.
+
+Se necesita un guardrail que:
+1. Detecte cursos con `category_confirmed = false` post-pipeline
+2. Identifique qué keywords de los nombres de curso NO tienen regla en `category_rules`
+3. Alerte para que se agreguen nuevas categorías/keywords (Fase 119)
+4. Se integre en CI para bloquear deploys si la cobertura de categorías degrada
+
+#### Cambio
+
+**Archivo nuevo**: `scripts/maintenance/category_coverage_audit.py`
+
+```python
+"""
+category_coverage_audit.py — Guardrail de cobertura de categorías.
+
+Detecta cursos activos sin categoría confirmada e identifica keywords
+huérfanas que necesitan reglas en category_rules.
+
+Exit codes:
+  0 = cobertura aceptable (≥80% cursos categorizados)
+  1 = warning (<90% pero ≥80%)
+  2 = error bloqueante (<80% categorizados)
+"""
+
+def audit():
+    db = get_db_client()
+
+    # 1. Cursos sin categoría confirmada
+    uncategorized = db.select('courses',
+        filters='is_active=eq.true&is_verified=eq.true&category_confirmed=eq.false',
+        columns='id,name,category_id')
+
+    # 2. Extraer keywords potenciales de nombres no categorizados
+    # 3. Cruzar con category_rules para identificar huérfanas
+    # 4. Reportar cobertura y sugerir nuevas reglas
+
+    total = db.count('courses', filters='is_active=eq.true&is_verified=eq.true')
+    coverage = (total - len(uncategorized)) / total * 100 if total > 0 else 100
+
+    print(f"Cobertura de categorías: {coverage:.1f}% ({total - len(uncategorized)}/{total})")
+
+    if uncategorized:
+        print(f"\nCursos sin categoría (category_confirmed=false):")
+        for c in uncategorized[:20]:
+            print(f"  - {c['name']}")
+
+    if coverage < 80:
+        sys.exit(2)
+    elif coverage < 90:
+        sys.exit(1)
+    sys.exit(0)
+```
+
+**Integración en CI**: Agregar step en `production_pipeline.yml` post-FG2:
+```yaml
+- name: Category Coverage Audit
+  run: python3 scripts/maintenance/category_coverage_audit.py
+```
+
+**Dashboard de cobertura** (query SQL para monitoreo):
+```sql
+SELECT
+    cat.name AS category,
+    COUNT(*) AS courses,
+    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS pct
+FROM courses c
+JOIN categories cat ON c.category_id = cat.id
+WHERE c.is_active = true AND c.is_verified = true
+GROUP BY cat.name
+ORDER BY courses DESC;
+```
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 120.1 | Crear `scripts/maintenance/category_coverage_audit.py` | Código | 10 min |
+| 120.2 | Agregar step en `production_pipeline.yml` (post-Phase 4) | Código | 3 min |
+| 120.3 | Validar que el script detecta los 66 cursos sin categoría (pre-Fase 117) | Free | 2 min |
+| 120.4 | Commit + PR a `desarrollo` | GitHub | 2 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 120.V1 | Ejecutar `python3 scripts/maintenance/category_coverage_audit.py` pre-Fase 117 | Exit code 2, cobertura 0%, lista los 66 cursos |
+| 120.V2 | Ejecutar post-Fase 117 + 119 | Exit code 0, cobertura ≥ 90% |
+| 120.V3 | Insertar curso con keyword sin regla (ej: `'Taller de Oratoria'`) → re-ejecutar auditoría | Exit code 1, alerta que "oratoria" no tiene regla |
