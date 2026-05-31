@@ -99,8 +99,12 @@ def extract_price(text: str) -> Tuple[Optional[float], str]:
     return None, "consultar"
 
 
-def detect_expired_start_date(text: str) -> Optional[str]:
-    """Fase 73: Busca menciones de fecha de inicio en el texto y verifica si expiraron (>90d)."""
+def detect_expired_start_date(text: str):
+    """Fase 117: Busca menciones de fecha de inicio. Retorna (date_text, error_or_none).
+    - (date_text, None): fecha encontrada y NO expirada → guardar en metadata
+    - (None, error_msg): fecha expirada → descartar
+    - (None, None): no se encontró fecha
+    """
     patterns = [
         r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+([A-Za-záéíóúñ]+\s+\d{4})',
         r'(?:inicio|inicia|comienza|fecha de inicio|start date)[:\s]+(\d{1,2}\s+(?:de\s+)?[A-Za-záéíóúñ]+(?:\s+(?:de\s+)?\d{4})?)',
@@ -108,10 +112,12 @@ def detect_expired_start_date(text: str) -> Optional[str]:
     for pat in patterns:
         match = re.search(pat, text, re.IGNORECASE)
         if match:
-            parsed_date, is_expired = parse_start_date(match.group(1))
+            date_text = match.group(1)
+            parsed_date, is_expired = parse_start_date(date_text)
             if is_expired:
-                return f"expired_start_date:{match.group(1)}"
-    return None
+                return None, f"expired_start_date:{date_text}"
+            return date_text, None
+    return None, None
 
 class CleansingWorker:
     def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
@@ -420,7 +426,10 @@ class CleansingWorker:
             discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context, institution_id=inst_id)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
             if not discard_reason: discard_reason = detect_obsolete_dates(clean_text_context, base_url, final_raw_name)
-            if not discard_reason: discard_reason = detect_expired_start_date(clean_text_context)
+            regex_start_date = None
+            if not discard_reason:
+                regex_start_date, discard_reason_dates = detect_expired_start_date(clean_text_context)
+                discard_reason = discard_reason_dates
             
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
@@ -440,7 +449,8 @@ class CleansingWorker:
                 "effective_url": main_raw.get('effective_url'), "canonical_url": main_raw.get('canonical_url'),
                 "clean_name": clean_name, "clean_description": combined_full_text[:15000],
                 "modality": mode, "location": ", ".join(locations), "base_price": price, "currency": "PEN", "status": "pending",
-                "metadata": {"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members]}
+                "metadata": {"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members],
+                             "regex_price": price, "regex_start_date": regex_start_date}
             })
             for m in members: staging_updates.append({"id": m['id'], "status": "processed"})
             processed_count += len(members)
