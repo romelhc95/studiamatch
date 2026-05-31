@@ -1,10 +1,11 @@
+import os
 import re
 import sys
 from collections import Counter
 
-sys.path.insert(0, '/app')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.shared.db_client import get_db_client
+from shared.db_client import get_db_client
 
 
 STOPWORDS = {
