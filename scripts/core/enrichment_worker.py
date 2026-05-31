@@ -95,6 +95,10 @@ class EnrichmentWorker:
 
     def _call_deepseek(self, prompt):
         if not OPENCODE_API_KEY or OpenAI is None:
+            if OpenAI is None:
+                logger.warning("DeepSeek skip: openai package not installed")
+            else:
+                logger.warning("DeepSeek skip: OPENCODE_API_KEY not set")
             return None
         try:
             client = OpenAI(
@@ -104,16 +108,23 @@ class EnrichmentWorker:
             response = client.chat.completions.create(
                 model="deepseek-v4-flash",
                 messages=[
-                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON."},
+                    {"role": "system", "content": "Eres un analista educativo experto. Responde solo JSON puro sin markdown ni explicaciones."},
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
                 max_tokens=1024,
                 timeout=30,
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            if not content:
+                logger.warning(f"DeepSeek returned empty content (finish_reason={response.choices[0].finish_reason})")
+                return None
+            # Debug: log first 200 chars of response to diagnose JSON extraction failures
+            if not re.search(r'\{', content):
+                logger.warning(f"DeepSeek non-JSON response (len={len(content)}): {content[:300]}")
+            return content
         except Exception as e:
-            logger.warning(f"DeepSeek error: {e}")
+            logger.warning(f"DeepSeek error: {type(e).__name__}: {e}")
             return None
 
     def _call_cloudflare(self, prompt):
