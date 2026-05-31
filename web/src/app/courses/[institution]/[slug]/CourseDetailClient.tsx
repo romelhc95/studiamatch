@@ -70,6 +70,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
+  const [formError, setFormError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
 
   // SOCIAL PROOF STATE
@@ -212,16 +213,18 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!course) return;
+    setFormError(null);
 
-    // VALIDACIÓN DE SEGURIDAD (ECC Phase 4 Audit)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      alert("Por favor, ingrese un correo electrónico válido.");
+    if (!formData.first_name.trim()) {
+      setFormError("Ingresa tu nombre.");
       return;
     }
-
-    if (formData.whatsapp.length < 9) {
-      alert("Por favor, ingrese un número de contacto válido.");
+    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setFormError("Ingresa un correo electrónico válido.");
+      return;
+    }
+    if (formData.whatsapp.replace(/\D/g, '').length < 9) {
+      setFormError("Ingresa un número de contacto válido (mín. 9 dígitos).");
       return;
     }
     
@@ -860,6 +863,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
               {!submitted ? (
                 <form className="space-y-4" onSubmit={handleSubmitLead}>
+                   {formError && (
+                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
+                   )}
                    <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
                       <Input 
