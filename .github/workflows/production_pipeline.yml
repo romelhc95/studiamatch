@@ -49,7 +49,7 @@ jobs:
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           JOB_START_TIME: ${{ env.JOB_START_TIME }}
-        run: python3 scripts/core/master_orchestrator.py --limit 5 --skip-cleansing
+        run: python3 scripts/core/master_orchestrator.py --limit 10 --skip-cleansing
 
   # 🚉 STATION 1.5: High Fidelity Cleansing
   # -------------------------------------------------------------
