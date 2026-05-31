@@ -143,16 +143,75 @@ class UniversalHarvester:
                                        limit=1)
             if profiles and len(profiles) > 0:
                 profile = profiles[0]
-                norm_fields = ['catalog_url_patterns', 'exclusion_patterns',
-                               'allowed_url_patterns', 'seed_urls']
-                for field in norm_fields:
-                    if field in profile:
-                        profile[field] = self._normalize_jsonb_list(profile[field])
-                logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
-                return profile
+                has_site_type = profile.get('site_type')
+                has_discovery = profile.get('discovery_mode')
+                if has_site_type and has_discovery:
+                    norm_fields = ['catalog_url_patterns', 'exclusion_patterns',
+                                   'allowed_url_patterns', 'seed_urls']
+                    for field in norm_fields:
+                        if field in profile:
+                            profile[field] = self._normalize_jsonb_list(profile[field])
+                    logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
+                    return profile
+                logger.info(f"Profile exists but incomplete for {self.institution.get('slug')}, will auto-detect.")
+            return self._auto_detect_profile()
         except Exception as e:
             logger.warning(f"Error loading site profile: {e}")
         return {}
+
+    def _auto_detect_profile(self):
+        """Fase 121: Auto-detecta tipo de sitio cuando no hay perfil configurado."""
+        try:
+            from shared.site_diagnostics import diagnose_site
+        except ImportError:
+            logger.warning("site_diagnostics module not available, skipping auto-detection")
+            return {}
+
+        inst_name = self.institution.get('name', '')
+        inst_slug = self.institution.get('slug', '')
+        website_url = self.institution.get('website_url', '')
+        inst_id = self.institution.get('id')
+
+        if not website_url:
+            logger.warning(f"No website_url for {inst_name}, skipping auto-detection")
+            return {}
+
+        logger.info(f"Auto-detecting profile for {inst_slug} ({inst_name}) from {website_url}")
+        try:
+            diag = diagnose_site(website_url, logger=logger)
+        except Exception as e:
+            logger.warning(f"Auto-diagnosis failed for {inst_slug}: {e}")
+            return {}
+
+        if 'error' in diag:
+            logger.warning(f"Auto-diagnosis error for {inst_slug}: {diag['error']}")
+            return {}
+
+        profile = diag.get('institution_site_profile', {})
+        profile['institution_id'] = inst_id
+        profile['auto_generated'] = True
+        profile['pipeline_ready'] = False
+
+        try:
+            existing = self.db.select_pipeline('institution_site_profiles',
+                                        filters=f'institution_id=eq.{inst_id}',
+                                        limit=1)
+            if existing:
+                self.db.patch('institution_site_profiles',
+                             filters=f'institution_id=eq.{inst_id}',
+                             data=profile)
+                logger.info(f"Updated auto-generated profile for {inst_slug}")
+            else:
+                self.db.insert('institution_site_profiles', profile)
+                logger.info(f"Created auto-generated profile for {inst_slug}")
+        except Exception as e:
+            logger.warning(f"Could not save auto-generated profile for {inst_slug}: {e}")
+
+        confidence = diag.get('_confidence', {})
+        confidence_str = ", ".join(confidence.get('needs_manual_review', []))
+        logger.info(f"Auto-detected: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}, confidence={confidence.get('site_type', '?')}, needs_review: [{confidence_str}]")
+
+        return profile
 
     def _load_exclusions(self):
         try:
