@@ -152,7 +152,7 @@ class EnrichmentWorker:
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
         return text[:max_len]
 
-    def _call_llm_for_pillars(self, name, description, inst_id=None, extracted_sections=None, woocommerce_data=None):
+    def _call_llm_for_pillars(self, name, description, inst_id=None, extracted_sections=None, woocommerce_data=None, regex_data=None):
         # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
         if self._mock_only:
             logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
@@ -177,6 +177,12 @@ class EnrichmentWorker:
                 extra_context += f"\n[Fecha de inicio (data-fecha-inicio)]: {woocommerce_data['start_date']}"
             if woocommerce_data.get('category'):
                 extra_context += f"\n[Categoria WooCommerce]: {woocommerce_data['category']}"
+        # Fase 117: Append regex-extracted data from cleansing as hints for LLM
+        if regex_data:
+            if regex_data.get('price'):
+                extra_context += f"\n[Precio (regex)]: S/ {regex_data['price']}"
+            if regex_data.get('start_date'):
+                extra_context += f"\n[Fecha de inicio (regex)]: {regex_data['start_date']}"
         full_description = (description or "") + extra_context
 
         hints = ""
@@ -249,9 +255,19 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
         sections, woo_data = self._fetch_sr_enrichment_data(staging_id) if staging_id else ({}, {})
+        # Fase 117: Extract regex data from cleansing metadata for hints + fallback
+        cleansing_meta = cleansed.get('metadata', {}) or {}
+        regex_data = {}
+        if cleansing_meta.get('regex_price'):
+            try:
+                regex_data['price'] = float(cleansing_meta['regex_price'])
+            except (ValueError, TypeError):
+                pass
+        if cleansing_meta.get('regex_start_date'):
+            regex_data['start_date'] = str(cleansing_meta['regex_start_date'])
         logger.info(f"--- Procesando: {name} ---")
         try:
-            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections, woocommerce_data=woo_data)
+            enriched, provider_name = self._call_llm_for_pillars(name, desc, inst_id, extracted_sections=sections, woocommerce_data=woo_data, regex_data=regex_data)
             is_mock = provider_name is None
 
             # Validate official_name: fallback to clean_name if LLM returned None, "None", or empty
@@ -300,6 +316,12 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             if woo_data.get('category') and (not enriched.get("categories") or not any(c for c in (enriched.get("categories") or []) if c)):
                 cat_names = {'cursos': 'Curso', 'diplomas': 'Diplomado', 'especializaciones': 'Especialización', 'certificaciones': 'Certificación'}
                 enriched["categories"] = [cat_names.get(woo_data['category'], woo_data['category'])]
+
+            # Fase 117: Fallback a datos extraídos por regex si LLM no encontró
+            if regex_data.get('price') and (enriched.get("total_cost_est") is None or str(enriched.get("total_cost_est")).strip().lower() in ('none', 'null', 'nan', '')):
+                enriched["total_cost_est"] = regex_data['price']
+            if regex_data.get('start_date') and (not enriched.get("start_date") or str(enriched.get("start_date")).strip().lower() in ('none', 'null', 'nan', '') or enriched.get("start_date") == enriched.get("official_name")):
+                enriched["start_date"] = regex_data['start_date']
 
             # Parse total_cost_est: extract number from strings like "S/ 1,500" or "1500 soles"
             cost_raw = enriched.get("total_cost_est")
