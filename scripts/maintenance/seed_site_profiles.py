@@ -161,7 +161,20 @@ PROFILES = [
         "slug": "idat",
         "site_type": "spa_js_heavy",
         "discovery_mode": "sitemap_bfs",
-        "field_defaults": {"mode": "Presencial"},
+        "section_keywords": {
+            "Duración": "duration_text",
+            "Modalidad": "modality",
+            "Horarios": "schedule_info",
+            "Plan de estudios": "curriculum_summary",
+            "Ciclo": "curriculum_summary",
+            "Áreas o lugares de trabajo": "graduate_profile"
+        },
+        "field_defaults": {
+            "mode": "Presencial",
+            "total_cost_est": None,
+            "requirements": None,
+            "price_status": "consultar"
+        },
         "detail_wait_ms": 4000,
         "notes": "IDAT uses heavy JS. 9 seed URLs."
     },

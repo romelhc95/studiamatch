@@ -271,6 +271,7 @@ class SyncVectorWorker:
             "slug": full_slug,
             "url": url,
             "price_pen": enriched.get('total_cost_est'),
+            "price_status": defaults.get('price_status', 'publicado') if not enriched.get('total_cost_est') else 'publicado',
             "mode": resolved_mode,
             "duration": enriched.get('duration_text') or enriched.get('duration'),
             "start_date_text": start_date_text,
