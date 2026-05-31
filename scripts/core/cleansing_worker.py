@@ -259,6 +259,17 @@ class CleansingWorker:
                     name = parts[0]
         return name
 
+    def _extract_h1_name(self, html_content: str) -> str:
+        if not html_content:
+            return ""
+        import re
+        m = re.search(r'<h1[^>]*>(.*?)</h1>', html_content, re.DOTALL | re.IGNORECASE)
+        if not m:
+            return ""
+        h1_text = re.sub(r'<[^>]+>', ' ', m.group(1))
+        h1_text = re.sub(r'\s+', ' ', h1_text).strip()
+        return h1_text
+
     def _get_noise_patterns_for_inst(self, inst_id) -> List[str]:
         """
         Retorna noise patterns de la institución específica.
@@ -419,6 +430,11 @@ class CleansingWorker:
             
             # Use the best name found if main_raw has none
             final_raw_name = best_raw_name or main_raw.get('raw_name', '')
+            # H1 fallback: if raw_name is too generic (short or just institution name), extract from <h1>
+            if final_raw_name and len(final_raw_name.strip()) <= 20:
+                h1_name = self._extract_h1_name(main_raw.get('raw_html', ''))
+                if h1_name and len(h1_name) > len(final_raw_name):
+                    final_raw_name = h1_name
             
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
             
