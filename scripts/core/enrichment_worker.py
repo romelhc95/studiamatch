@@ -167,7 +167,7 @@ class EnrichmentWorker:
         # Fase 77: Early-exit — si todos los providers están degradados, smart mock directo
         if self._mock_only:
             logger.info(f"⏭️ [MOCK ONLY] {name[:60]} — saltando LLM, generando smart mock")
-            return self._generate_smart_mock(name, description), None
+            return self._generate_smart_mock(name, description, inst_id, extracted_sections), None
 
         profile = self._get_profile(inst_id) if inst_id else {}
         section_keywords = profile.get('section_keywords', {})
@@ -441,23 +441,64 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
 
-    def _generate_smart_mock(self, name, description):
-        # Fallback: extract summary from description if available
+    def _generate_smart_mock(self, name, description, inst_id=None, extracted_sections=None):
+        # Use clean_name from cleansing (already cleaned, not generic institution name)
+        official_name = name if name and len(name.strip()) > 3 else "Programa"
         ai_summary = ""
         if description and len(description.strip()) > 20:
             clean_desc = html.unescape(description)
             clean_desc = re.sub(r'<[^>]+>', '', clean_desc)
+            # Remove the "--- URL: ..." suffix added by cleansing
+            clean_desc = re.sub(r'\s*---\s*URL:.*$', '', clean_desc, flags=re.DOTALL)
             clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
-            ai_summary = clean_desc[:300] + "..." if len(clean_desc) > 300 else clean_desc
+            ai_summary = clean_desc[:500] + "..." if len(clean_desc) > 500 else clean_desc
+
+        # Extract duration and modality from sections if available
+        duration_text = "Consultar"
+        modality = "Presencial"
+        curriculum = {}
+
+        if extracted_sections and inst_id:
+            profile = self._get_profile(inst_id)
+            section_keywords = profile.get('section_keywords', {})
+            field_defaults = profile.get('field_defaults', {})
+
+            if field_defaults.get('total_cost_est') is None:
+                field_defaults.pop('total_cost_est', None)
+
+            for section_label, field_name in section_keywords.items():
+                section_content = extracted_sections.get(section_label, '')
+                if not section_content:
+                    continue
+                section_text = re.sub(r'<[^>]+>', ' ', str(section_content))
+                section_text = re.sub(r'\s+', ' ', section_text).strip()
+                if not section_text:
+                    continue
+
+                if field_name == 'duration_text':
+                    duration_text = section_text[:200]
+                elif field_name == 'modality':
+                    modality_lower = section_text.lower()
+                    if 'virtual' in modality_lower or 'remoto' in modality_lower:
+                        modality = 'Virtual'
+                    elif 'presencial' in modality_lower:
+                        modality = 'Presencial'
+                    elif 'híbrido' in modality_lower or 'hibrido' in modality_lower or 'semipresencial' in modality_lower:
+                        modality = 'Híbrido'
+                elif field_name == 'curriculum_summary':
+                    curriculum = {"pilares": [section_text[:300]]}
+                elif field_name == 'schedule_info':
+                    pass
+
         return {
-            "official_name": name,
-            "duration_text": "Consultar",
+            "official_name": official_name,
+            "duration_text": duration_text,
             "duration_months": 0,
             "total_cost_est": None,
             "requirements": [],
             "graduate_profile": "",
-            "curriculum_summary": {},
-            "modality": "Presencial",
+            "curriculum_summary": curriculum,
+            "modality": modality,
             "primary_campus": "",
             "degree_type": "Curso",
             "start_date": None,
