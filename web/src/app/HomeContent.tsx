@@ -260,6 +260,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -337,10 +338,11 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) { alert("Por favor, ingresa un email válido."); return; }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) { alert("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); return; }
-    if (!formData.first_name.trim()) { alert("Por favor, ingresa tu nombre."); return; }
+    if (!emailRegex.test(formData.email)) { setFormError("Por favor, ingresa un email válido."); return; }
+    if (formData.whatsapp.replace(/\D/g, '').length < 9) { setFormError("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); return; }
+    if (!formData.first_name.trim()) { setFormError("Por favor, ingresa tu nombre."); return; }
     setIsSubmitting(true);
     try {
       const leadData = {
@@ -1215,6 +1217,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </div>
               ) : (
                 <form onSubmit={handleSubmitLead} className="space-y-3.5">
+                  {formError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
+                  )}
                   <h3 className="text-xl font-bold mb-2 text-brand-slate tracking-tight leading-tight">
                     {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
                   </h3>
