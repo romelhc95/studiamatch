@@ -1,7 +1,7 @@
 ﻿# 📊 Reporte de Revisión Manual por Institución — StudIAMatch
 
 **Base de datos:** Supabase Pro (`xwhtiqmboljkshrtviyw`)  
-**Fecha de generación:** 31 de mayo de 2026  
+**Fecha de generación:** 31 de mayo de 2026 — Actualizado post-FG2 IDAT  
 **Propósito:** Revisión manual de sitios web institucionales para verificar disponibilidad de información de programas y mejorar la extracción.
 
 ---
@@ -16,14 +16,14 @@
 | `production_enabled = true` | 14 |
 | Cursos publicados (activos + verificados) | **142** (en 8 instituciones) |
 | Cursos inactivos | 44 (en 3 instituciones) |
-| Cursos mock data | 51 de 142 (35.9%) |
+| Cursos mock data | 92 de 142 (65%) |
 | Enriched synced totales | 211 |
 
 ### Distribución de Cursos Publicados
 
 | # | Institución | Publicados | Mock | Pipeline Ready | Prod |
 |---|---|---|---|---|---|
-| 1 | **IDAT** | 63 | 14 (22%) | ✅ | ✅ |
+| 1 | **IDAT** | 63 | 55 (87%) | ✅ | ✅ | ⭐ <small>Perfil actualizado</small> |
 | 2 | **DMC** | 39 | 17 (44%) | ✅ | ✅ |
 | 3 | **Universidad de Lima** | 17 | 6 (35%) | ✅ | ✅ |
 | 4 | **CoderHouse** | 10 | 3 (30%) | ✅ | ✅ |
@@ -80,63 +80,83 @@ Cada pilar tiene un número, nombre, campo en base de datos y tabla donde se alm
 
 ---
 
-### A1. IDAT (`idat`)
+### A1. IDAT (`idat`) ⭐ ACTUALIZADO POST-FG2
 
 | Campo | Valor |
 |---|---|
 | **Website** | [https://www.idat.edu.pe/](https://www.idat.edu.pe/) |
 | **Tipo** | Instituto |
 | **Pipeline ready** | ✅ |
+| **Production enabled** | ✅ |
 | **Site type** | `spa_js_heavy` |
 | **Discovery mode** | `hardcoded_urls` |
 | **Seed URLs** | 0 (vacío) |
 | **Requires stealth** | No |
 | **CF bypass** | No |
 | **Notes** | "IDAT uses heavy JS." |
+| **Exclusiones** | Incluye `https://www.idat.edu.pe/` (homepage) para evitar ruido |
 
-#### Resumen de Pilares en Cursos Publicados (63 total, 14 mock)
+#### Perfil actual (section_keywords + field_defaults)
 
-| P# | Pilar | Campo | Presentes | Ausentes | % Completo |
+| Tipo | Configuración |
+|---|---|
+| `section_keywords` | Duración→duration_text, Modalidad→modality, Horarios→schedule_info, Plan de estudios→curriculum_summary, Ciclo→curriculum_summary, Áreas de trabajo→graduate_profile |
+| `field_defaults` | mode=Presencial, **total_cost_est=null**, **requirements=null**, **price_status=consultar** |
+
+#### Resumen de Pilares en Cursos Publicados (63 total, 55 mock) — POST-FG2
+
+| P# | Pilar | Campo | Presentes | Ausentes | % | vs Antes |
+|---|---|---|---|---|---|---|
+| P4 | Nivel académico | `course_type` | 63 | 0 | ✅ **100%** | +40% |
+| P5 | Modalidad | `mode` | 63 | 0 | ✅ 100% | = |
+| P6 | Duración | `duration` | 63 | 0 | ✅ 100% | +97% |
+| P7 | Costo total | `price_pen` | 0 | 63 | ✅ **correcto** | IDAT no publica |
+| P7b | Price status | `price_status` | 63 consultar | 0 | ✅ **100%** | corregido |
+| P12 | Descripción | `description_long` | 55 | 8 | 🟡 **87.3%** | +64% |
+| P9 | Requisitos | `requirements` | 0 | 63 | ✅ **correcto** | IDAT no publica |
+| P3 | Categoría | `category_id` | 63 | 0 | ✅ 100% | = |
+
+#### Pilares en Enriched (64 synced: 8 Cloudflare + 56 mock) — POST-FG2
+
+| P# | Pilar | Campo | Ausentes | % | vs Antes |
 |---|---|---|---|---|---|
-| P4 | Nivel académico | `course_type` | 38 | 25 | 🟡 60.3% |
-| P5 | Modalidad | `mode` | 63 | 0 | ✅ 100% |
-| P6 | Duración | `duration` (válida) | 2 | 61 | 🔴 3.2% |
-| P7 | Costo total | `price_pen` (>0) | 1 | 62 | 🔴 1.6% |
-| P12 | Descripción | `description_long` | 15 | 48 | 🔴 23.8% |
-| P3 | Categoría | `category_id` | 63 | 0 | ✅ 100% |
+| P4 | Nivel académico | `degree_type` | 0 | ✅ 0% | +40% |
+| P5 | Modalidad | `modality` | 0 | ✅ 0% | = |
+| P6 | Duración | `duration_months` | 63 | 🔴 98.4% | persiste |
+| P7 | Costo total | `total_cost_est` | 64 | ✅ **100% null** | correcto |
+| P8 | Plan de estudios | `curriculum_summary` | 56 | 🔴 87.5% | empeoró* |
+| P9 | Requisitos | `requirements` | 64 | ✅ **100% vacío** | correcto |
 
-#### Pilares en Enriched (63 synced)
-
-| P# | Pilar | Campo | Ausentes | % |
-|---|---|---|---|---|
-| P4 | Nivel académico | `degree_type` | 25 | 🔴 39.7% |
-| P5 | Modalidad | `modality` | 0 | ✅ 0% |
-| P6 | Duración | `duration_months` | 62 | 🔴 98.4% |
-| P7 | Costo total | `total_cost_est` | 62 | 🔴 98.4% |
-| P8 | Plan de estudios | `curriculum_summary` | 14 | 🟡 22.2% |
-| P9 | Requisitos | `requirements` | 62 | 🔴 98.4% |
-| P3 | Categoría | `categories` | 63 | 🔴 100% |
+> \* `curriculum_summary` empeoró porque 56/64 registros usaron mock (Cloudflare falló). Los 8 Cloudflare sí tienen curriculum.
 
 #### Pipeline Status
-- **Staging:** 64 processed, 29 processing, 1 discovered, 1 skipped
+- **Staging:** 64 processed, 0 processing, 0 discovered, 1 skipped
 - **Cleansed:** 64 enriched
-- **Enriched:** 49 Cloudflare synced, 14 mock synced, 1 error
+- **Enriched:** 8 Cloudflare synced, 56 mock synced
+- **Courses:** 63 activos + 1 inactivo (homepage eliminado)
 
-#### Muestra de Cursos (de 63)
-| Curso | URL | Type | Mode | Duration | Price |
-|---|---|---|---|---|---|
-| Administración Bancaria y Financiera | [link](https://www.idat.edu.pe/carreras-profesionales-tecnicas/administracion-bancaria-y-financiera/) | 🔴 | Presencial | 4 años | S/1,500 |
-| Data Analytics I | [link](https://www.idat.edu.pe/cursos-de-formacion-continua/data-analytics-i/) | 🔴 | Presencial | 🔴 | 🔴 |
-| Desarrollo Back-End | [link](https://www.idat.edu.pe/escuela-de-coding/desarrollo-back-end/) | 🔴 | Presencial | 🔴 | 🔴 |
-| Carrera Enfermería Técnica ⚠️mock | [link](https://www.idat.edu.pe/carreras-profesionales-tecnicas/enfermeria-tecnica/) | Curso | Presencial | Consultar | 🔴 |
-| Finanzas y Contabilidad con IA | [link](https://www.idat.edu.pe/programas-especializacion/finanzas-y-contabilidad-con-ia-aplicada/) | Especialización | Presencial | 🔴 | 🔴 |
+#### Muestra de Cursos (post-FG2)
+| Curso | URL | Type | Mode | Duration | Price | Desc |
+|---|---|---|---|---|---|---|
+| Desarrollo Front-End | [link](https://www.idat.edu.pe/escuela-de-coding/desarrollo-front-end/) | Curso | Presencial | Consultar | Consultar | ✅ |
+| Macros y Prog. Visual Basic | [link](https://www.idat.edu.pe/cursos-de-formacion-continua/macros-y-programacion-visual-basic/) | Curso | Presencial | Consultar | Consultar | ✅ |
+| Diseño de Autocad | [link](https://www.idat.edu.pe/cursos-de-formacion-continua/diseno-en-autocad/) | Curso | Presencial | ✅ texto | Consultar | 🔴 |
+| Mecatrónica Industrial | [link](https://www.idat.edu.pe/carreras-profesionales-tecnicas/mecatronica-industrial/) | Curso | Presencial | Consultar | Consultar | ✅ |
+| Adm. Bancaria y Financiera | [link](https://www.idat.edu.pe/carreras-profesionales-tecnicas/administracion-bancaria-y-financiera/) | Curso | Presencial | Consultar | Consultar | ✅ |
 
 #### 🔍 Preguntas para Revisión Manual
-1. ¿El sitio web de IDAT lista precios de cada programa individualmente?
-2. ¿Se puede inferir la duración en meses desde la página de cada programa?
-3. ¿Las páginas de carreras tienen requisitos de admisión explícitos?
+1. ¿El sitio web de IDAT lista precios de cada programa individualmente? → **NO** (confirmado por scraping manual)
+2. ¿Se puede inferir la duración en meses desde la página de cada programa? → **SÍ** (ej: "2 años", "24 horas / 1 mes")
+3. ¿Las páginas de carreras tienen requisitos de admisión explícitos? → **NO**
 4. ¿Existe un catálogo central de cursos cortos con toda la info en una sola página?
-5. ¿Por qué los seed_urls están vacíos? ¿Deberían agregarse seeds específicos para mejorar cobertura?
+5. ¿Por qué los seed_urls están vacíos? ¿Deberían agregarse seeds específicos?
+
+#### ⚠️ Pendientes IDAT
+| Issue | Detalle |
+|---|---|
+| `duration = "Consultar"` | El mock no extrajo duración real del HTML. Los 8 Cloudflare sí la extraen. |
+| 87% mock data | Cloudflare LLM falló (timeout/JSON inválido), DeepSeek sin API key |
+| `course_type = "Curso"` | Las carreras técnicas deberían clasificarse como "Carrera Técnica" |
 
 ---
 
@@ -712,7 +732,7 @@ Para cada institución listada arriba, visita su sitio web y responde:
 | 🔴 Crítica | UTP, UNMSM, UPC | Las URLs discovered no son programas — refinar exclusiones y agregar seed URLs correctos. |
 | 🔴 Crítica | PUCP, SENATI, U. Continental | 44 cursos enriquecidos pero inactivos — investigar por qué sync_vector_worker no los activó. |
 | 🟡 Alta | Certus, Cibertec, Digital House, etc. (12 inst.) | `production_enabled = true` pero cero datos — ¿no se ejecutó el harvester en Pro? |
-| 🟡 Alta | IDAT | 63 cursos pero 98% sin duration ni cost en enriched — mejorar extracción de estos campos. |
+| 🟡 Alta | IDAT | 63 cursos, perfil actualizado con section_keywords + field_defaults. 87% mock data (Cloudflare falló). price_status corregido. |
 | 🟡 Alta | DMC | 44% mock data — mejorar calidad del scraping o prompt del LLM. |
 | 🟢 Media | U. Lima | 159 URLs en "processing" — verificar que el pipeline no esté estancado. |
 | 🟢 Media | CoderHouse | 0% precios — ver si los precios son visibles sin login. |
@@ -721,7 +741,7 @@ Para cada institución listada arriba, visita su sitio web y responde:
 
 ## Notas Finales
 
-- **Datos mock (35.9% del total):** La mayoría provienen de IDAT (14), DMC (17) y U. Lima (6). Esto indica que el LLM (Cloudflare) está fallando o devolviendo mock data cuando la página no tiene suficiente información estructurada. Revisar el prompt y la lógica de fallback.
+- **Datos mock (87% en IDAT post-FG2):** La mayoría de IDAT (55/63) usa mock porque Cloudflare LLM falló (timeout/JSON inválido) al re-ejecutar el enrichment. Los 8 registros Cloudflare exitosos tienen datos correctos. DeepSeek no está disponible (sin API key). Habilitar DeepSeek mejoraría la calidad significativamente.
 - **Cursos enriquecidos pero inactivos:** PUCP (20), SENATI (14), U. Continental (10) tienen enriched synced pero courses is_active=false. Posible bug en `sync_vector_worker.py` o decisión de diseño (¿`production_enabled=false` los bloquea?).
 - **Staging "processing" estancado:** PUCP (416), U. Lima (159), SENATI (169) tienen muchas URLs en estado "processing" — verificar que no haya workers zombie o locks no liberados.
 - **Diferencia Free vs Pro:** En Free, PUCP/U. Lima pueden tener cursos activos. En Pro no. Si se espera paridad, verificar por qué.
