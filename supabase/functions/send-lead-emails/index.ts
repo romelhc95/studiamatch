@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "romelhc95@gmail.com";
+const ADMIN_EMAILS = ADMIN_EMAIL.split(",").map(e => e.trim()).filter(Boolean);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,13 +129,15 @@ Deno.serve(async (req: Request) => {
     );
     results.push({ recipient_type: "user", ...userResult });
 
-    // 2. Admin notification
-    const adminResult = await sendEmail(
-      [ADMIN_EMAIL],
-      `Nuevo lead: ${lead.first_name || ""} ${lead.last_name || ""} — ${courseName}`,
-      adminTemplate(lead, course, institution),
-    );
-    results.push({ recipient_type: "admin", ...adminResult });
+    // 2. Admin notifications (to each admin email)
+    for (const adminEmail of ADMIN_EMAILS) {
+      const adminResult = await sendEmail(
+        [adminEmail],
+        `Nuevo lead: ${lead.first_name || ""} ${lead.last_name || ""} — ${courseName}`,
+        adminTemplate(lead, course, institution),
+      );
+      results.push({ recipient_type: "admin", recipient: adminEmail, ...adminResult });
+    }
 
     // 3. Institution notification (only if contact_email exists)
     if (institutionEmail) {
