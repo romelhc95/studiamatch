@@ -384,7 +384,7 @@ class UniversalHarvester:
                             logger.warning(f"ReDoS-risk allowed pattern rejected: {pat}")
                             continue
                         try:
-                            if self._safe_profile_search(pat, low_url):
+                            if self._safe_profile_search(pat, parsed_path):
                                 return True
                         except re.error:
                             continue
