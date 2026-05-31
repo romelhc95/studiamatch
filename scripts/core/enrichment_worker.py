@@ -204,7 +204,10 @@ class EnrichmentWorker:
         if field_defaults:
             hints += "\nDEFAULTS (usar si no puedes inferir):\n"
             for key, val in field_defaults.items():
-                hints += f"- {key}: {val}\n"
+                if val is None:
+                    hints += f"- {key}: NO INTENTES inferir este campo. Esta institución no publica este dato. Responde null.\n"
+                else:
+                    hints += f"- {key}: {val}\n"
 
         prompt = f"""Extrae 14 pilares de este curso para studiamatch. Responde SOLO JSON puro.
 [SYS] Nombre: {self._sanitize_for_prompt(name, 200)}
