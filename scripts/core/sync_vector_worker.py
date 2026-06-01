@@ -295,6 +295,14 @@ class SyncVectorWorker:
         # Generate Embedding (Placeholder for OpenAI call)
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
+        # Check if course was manually deactivated (don't reactivate)
+        url_encoded = url.replace("'", "''")
+        existing = self.db.select('courses', filters=f"url=eq.{url_encoded}", columns='id,is_active')
+        if existing and len(existing) > 0 and existing[0].get('is_active') == False:
+            logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
+            self.update_enriched_status(e_id, "synced")
+            return True
+
         # Upsert to production courses
         res = self.db.upsert('courses', course_data, on_conflict="url")
 
