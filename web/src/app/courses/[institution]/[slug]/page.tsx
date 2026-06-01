@@ -57,7 +57,7 @@ export async function generateStaticParams() {
       return defaultPath;
     }
 
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)&is_active=eq.true&is_verified=eq.true`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
