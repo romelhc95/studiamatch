@@ -281,6 +281,7 @@ class SyncVectorWorker:
             "objectives": enriched.get('graduate_profile'),
             "target_audience": enriched.get('graduate_profile'),
             "syllabus": self._curriculum_to_text(enriched.get('curriculum_summary')),
+            "brochure_url": enriched.get('brochure_url'),
             "certification": "",
             "seniority_level": seniority_level,
             "course_type": enriched.get('degree_type'),
