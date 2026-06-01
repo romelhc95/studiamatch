@@ -229,9 +229,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             return result, provider_name
         return self._generate_smart_mock(name, description), None
 
-    def _fetch_sr_enrichment_data(self, staging_id):
+    def _fetch_sr_enrichment_data(self, staging_id, inst_id=None):
         """Look up extracted_sections + WooCommerce metadata from staging_raw for richer LLM context.
-        Also extracts duration_text and date range from raw_html for post-processing."""
+        Also extracts duration_text, date range, brochure URL from raw_html."""
         sections = {}
         woo = {}
         try:
@@ -248,27 +248,69 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     woo['start_date'] = meta['woocommerce_start_date']
                 if meta.get('woocommerce_category'):
                     woo['category'] = meta['woocommerce_category']
-            # Extract duration and date range from raw_html for post-LLM fallback
             raw_html = sr[0].get('raw_html', '') if sr else ''
             if raw_html:
                 import re
+                # Duration extraction: multiple patterns
                 dur_match = re.search(r'(\d+)\s*hrs?\.?\s*acad', raw_html, re.IGNORECASE)
+                if not dur_match:
+                    dur_match = re.search(r'Duraci[oó]n[^<]*<[^>]*>\s*(\d+\s*(?:años?|mes(?:es)?|horas?|semanas?))', raw_html, re.IGNORECASE)
+                if not dur_match:
+                    dur_match = re.search(r'<strong>\s*(\d+\s*(?:años?|mes(?:es)?|horas?))\s*</strong>', raw_html, re.IGNORECASE)
                 if dur_match:
-                    woo['duration_text_raw'] = dur_match.group(0)
+                    woo['duration_text_raw'] = dur_match.group(1) if dur_match.lastindex else dur_match.group(0)
                 date_range = re.search(r'Inicio:\s*(\d{2}/\d{2}/\d{4})\s*-\s*Fin:\s*(\d{2}/\d{2}/\d{4})', raw_html)
                 if date_range:
                     woo['date_range_start'] = date_range.group(1)
                     woo['date_range_end'] = date_range.group(2)
+                # Brochure URL extraction
+                brochure_match = re.search(r'href=["\']([^"\']*\.pdf[^"\']*)["\']', raw_html, re.IGNORECASE)
+                if brochure_match:
+                    pdf_url = brochure_match.group(1)
+                    if pdf_url.startswith('/'):
+                        from urllib.parse import urljoin
+                        base = sr[0].get('url', '')
+                        pdf_url = urljoin(base, pdf_url) if base else pdf_url
+                    woo['brochure_url'] = pdf_url
+                # Section extraction fallback: if no extracted_sections, use section_keywords from profile
+                if not sections and inst_id:
+                    profile = self._get_profile(inst_id)
+                    sk = profile.get('section_keywords', {})
+                    if sk and raw_html:
+                        sections = self._extract_sections_from_html(raw_html, sk)
             return sections, woo
         except Exception as e:
             logger.debug(f"Could not fetch SR enrichment data for {staging_id}: {e}")
         return sections, woo
 
+    def _extract_sections_from_html(self, html: str, section_keywords: dict) -> dict:
+        """Extract sections from raw HTML using section_keywords (h2/h3/h4 headings)."""
+        sections = {}
+        if not html or not section_keywords:
+            return sections
+        import re
+        headings = re.finditer(r'<(h[234])[^>]*>(.*?)</\1>', html, re.DOTALL | re.IGNORECASE)
+        for h_match in headings:
+            h_text = re.sub(r'<[^>]+>', '', h_match.group(2)).strip().lower()
+            for keyword, field_name in section_keywords.items():
+                if keyword.lower() in h_text:
+                    start = h_match.end()
+                    next_heading = re.search(r'<(h[234])[^>]*>', html[start:], re.IGNORECASE)
+                    end = start + next_heading.start() if next_heading else min(start + 5000, len(html))
+                    section_html = html[start:end]
+                    key = field_name  # use field_name as key for consistency with harvester
+                    if key not in sections:
+                        sections[key] = section_html
+                    else:
+                        sections[key] += '\n' + section_html
+                    break
+        return sections
+
     def enrich_record(self, cleansed):
         c_id, name, desc = cleansed['id'], cleansed['clean_name'], cleansed['clean_description']
         inst_id = cleansed.get('institution_id')
         staging_id = cleansed.get('staging_id')
-        sections, woo_data = self._fetch_sr_enrichment_data(staging_id) if staging_id else ({}, {})
+        sections, woo_data = self._fetch_sr_enrichment_data(staging_id, inst_id) if staging_id else ({}, {})
         # Fase 117: Extract regex data from cleansing metadata for hints + fallback
         cleansing_meta = cleansed.get('metadata', {}) or {}
         regex_data = {}
@@ -337,6 +379,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             if regex_data.get('start_date') and (not enriched.get("start_date") or str(enriched.get("start_date")).strip().lower() in ('none', 'null', 'nan', '') or enriched.get("start_date") == enriched.get("official_name")):
                 enriched["start_date"] = regex_data['start_date']
 
+            # Extract brochure_url from woo_data if available
+            brochure_url = woo_data.get('brochure_url') if woo_data else None
+
             # Parse total_cost_est: extract number from strings like "S/ 1,500" or "1500 soles"
             cost_raw = enriched.get("total_cost_est")
             if cost_raw is not None and str(cost_raw).strip().lower() not in ('none', 'null', 'nan', ''):
@@ -397,6 +442,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "categories": normalize(enriched.get("categories")),
                 "difficulty_level": enriched.get("difficulty_level"),
                 "ai_summary": enriched.get("ai_summary"),
+                "brochure_url": brochure_url,
                 "status": "pending",
                 "provider_used": provider_name or "mock",
                 "is_mock_data": is_mock
@@ -467,7 +513,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 field_defaults.pop('total_cost_est', None)
 
             for section_label, field_name in section_keywords.items():
-                section_content = extracted_sections.get(section_label, '')
+                section_content = extracted_sections.get(section_label) or extracted_sections.get(field_name, '')
                 if not section_content:
                     continue
                 section_text = re.sub(r'<[^>]+>', ' ', str(section_content))
