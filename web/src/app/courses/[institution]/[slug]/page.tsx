@@ -11,8 +11,7 @@ async function fetchCourseMeta(slug: string) {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-        },
-        next: { revalidate: 3600 }
+        }
       }
     );
     if (!res.ok) return null;
@@ -62,8 +61,7 @@ export async function generateStaticParams() {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-      },
-      next: { revalidate: 3600 }
+      }
     });
 
     if (!response.ok) return defaultPath;
