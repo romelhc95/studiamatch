@@ -251,14 +251,28 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             raw_html = sr[0].get('raw_html', '') if sr else ''
             if raw_html:
                 import re
-                # Duration extraction: multiple patterns
-                dur_match = re.search(r'(\d+)\s*hrs?\.?\s*acad', raw_html, re.IGNORECASE)
-                if not dur_match:
-                    dur_match = re.search(r'Duraci[oó]n[^<]*<[^>]*>\s*(\d+\s*(?:años?|mes(?:es)?|horas?|semanas?))', raw_html, re.IGNORECASE)
-                if not dur_match:
-                    dur_match = re.search(r'<strong>\s*(\d+\s*(?:años?|mes(?:es)?|horas?))\s*</strong>', raw_html, re.IGNORECASE)
+                # Duration extraction: multiple patterns (most specific first)
+                dur_match = None
+                # Pattern 1: explicit horas académicas with optional months
+                dur_match = re.search(r'(\d+)\s*horas?\s*acad[eé]micas?\s*(?:\((\d+)\s*mes)', raw_html, re.IGNORECASE)
                 if dur_match:
-                    woo['duration_text_raw'] = dur_match.group(1) if dur_match.lastindex else dur_match.group(0)
+                    woo['duration_text_raw'] = f"{dur_match.group(1)} horas"
+                    if dur_match.group(2):
+                        woo['duration_text_raw'] += f" ({dur_match.group(2)} mes)"
+                # Pattern 2: duration in card/description format (años/meses)
+                if not dur_match:
+                    dur_match = re.search(r'Duraci[oó]n.*?<strong>\s*(\d+\s*(?:años?|mes(?:es)?|horas?|semanas?|ciclos?))\s*</strong>', raw_html, re.IGNORECASE | re.DOTALL)
+                # Pattern 3: simple horas academicas
+                if not dur_match:
+                    dur_match = re.search(r'(\d+)\s*hrs?\.?\s*acad', raw_html, re.IGNORECASE)
+                # Pattern 4: any strong tag with duration keywords
+                if not dur_match:
+                    dur_match = re.search(r'<strong>\s*(\d+\s*(?:años?|mes(?:es)?|horas?|semanas?|ciclos?))\s*</strong>', raw_html, re.IGNORECASE)
+                # Pattern 5: simple number + time unit near "Duración"
+                if not dur_match:
+                    dur_match = re.search(r'Duraci[oó]n\s*[:\-]?\s*(\d+\s*(?:años?|mes(?:es)?|horas?|semanas?))', raw_html, re.IGNORECASE)
+                if dur_match:
+                    woo['duration_text_raw'] = woo.get('duration_text_raw') or dur_match.group(1) if dur_match.lastindex else dur_match.group(0)
                 date_range = re.search(r'Inicio:\s*(\d{2}/\d{2}/\d{4})\s*-\s*Fin:\s*(\d{2}/\d{2}/\d{4})', raw_html)
                 if date_range:
                     woo['date_range_start'] = date_range.group(1)
@@ -532,7 +546,14 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     elif 'híbrido' in modality_lower or 'hibrido' in modality_lower or 'semipresencial' in modality_lower:
                         modality = 'Híbrido'
                 elif field_name == 'curriculum_summary':
-                    curriculum = {"pilares": [section_text[:300]]}
+                    # Split section into chunks of max 500 chars each for pilares
+                    pilares = []
+                    remaining = section_text
+                    while len(remaining) > 0:
+                        chunk = remaining[:500]
+                        pilares.append(chunk.strip())
+                        remaining = remaining[500:]
+                    curriculum = {"pilares": pilares} if pilares else {}
                 elif field_name == 'schedule_info':
                     pass
 
