@@ -369,6 +369,15 @@ class CleansingWorker:
         if url is None: url = ""
         
         low_url, low_name = url.lower(), name.lower()
+        # Check if URL is the institution's homepage (noise)
+        if institution_id:
+            profile = self._get_profile_for_inst(str(institution_id))
+            website = profile.get('website_url', '')
+            if website:
+                normalized_website = website.rstrip('/').lower()
+                normalized_url = url.rstrip('/').lower()
+                if normalized_url == normalized_website:
+                    return "is_institution_homepage"
         for exc in self.exclusions:
             if isinstance(exc, tuple) and exc[0] == 're':
                 if self._safe_profile_search(exc[1], low_url):
