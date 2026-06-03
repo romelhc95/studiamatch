@@ -243,6 +243,22 @@ class CleansingWorker:
                 return p
         return {}
 
+    def _get_institution_website(self, inst_id) -> str:
+        if not inst_id:
+            return ""
+        if not hasattr(self, '_inst_websites'):
+            self._inst_websites = {}
+        if inst_id not in self._inst_websites:
+            try:
+                inst = self.db.select('institutions', filters=f'id=eq.{inst_id}', columns='website_url')
+                if inst and len(inst) > 0:
+                    self._inst_websites[inst_id] = inst[0].get('website_url', '') or ''
+                else:
+                    self._inst_websites[inst_id] = ''
+            except Exception:
+                self._inst_websites[inst_id] = ''
+        return self._inst_websites.get(inst_id, '')
+
     def _apply_title_cleansing(self, raw_name: str, profile: Dict[str, Any]) -> str:
         if not raw_name:
             return raw_name
@@ -371,8 +387,7 @@ class CleansingWorker:
         low_url, low_name = url.lower(), name.lower()
         # Check if URL is the institution's homepage (noise)
         if institution_id:
-            profile = self._get_profile_for_inst(str(institution_id))
-            website = profile.get('website_url', '')
+            website = self._get_institution_website(str(institution_id))
             if website:
                 normalized_website = website.rstrip('/').lower()
                 normalized_url = url.rstrip('/').lower()
