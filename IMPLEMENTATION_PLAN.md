@@ -124,6 +124,7 @@
 | **P0** | **Fase 118 — Refactorización del motor de ROI** | Pipeline + DB | **REDISEÑO COMPLETO**: El ROI actual no existe funcionalmente (`expected_monthly_salary=NULL`, `roi_months=0`, `seniority_level` hardcodeado `"Mid"`). Nuevo motor escalable: (A) inferencia de seniority por nombre+tipo+duración en pipeline. (B) lookup de `market_salaries(category_id, seniority_level)`. (C) factor de ajuste por tipo de programa (Curso 0.3×, Diplomado 0.5×, Maestría 1.0×, etc). (D) cálculo de `roi_months = price_pen / salary_efectivo`. Extensible a nuevas categorías sin código. [Ver plan detallado](#fase-118-refactorización-del-motor-de-roi). | Depende de Fase 117 |
 | **P1** | **Fase 119 — Catálogo extensible de categorías + keywords + salarios** | DB | Agregar 4 categorías nuevas (Salud, Psicología, Diseño CAD, SAP/ERP) con sus keywords en `category_rules` y benchmarks en `market_salaries`. Documentar el proceso estándar para que futuras instituciones con dominios no cubiertos (ej: inyectables, AutoCAD, psicología clínica) puedan integrarse creando solo registros en estas 3 tablas, sin tocar código. [Ver plan detallado](#fase-119-catálogo-extensible-de-categorías--keywords--salarios). | Independiente |
 | **P1** | **Fase 120 — Guardrail de cobertura de categorías** | Pipeline + QA | Script `category_coverage_audit.py` que detecta cursos con `category_confirmed=false` post-pipeline y alerta sobre keywords sin regla. Integrar en CI post-FG2. Previene el caso silencioso actual: 66 cursos en "General / Por Clasificar" sin alerta. [Ver plan detallado](#fase-120-guardrail-de-cobertura-de-categorías). | Depende de Fase 117 |
+| **P0** | **Fase 121 — Extracción configurable de 14 pilares por institución** | Pipeline + DB | Convertir `institution_site_profiles` en el contrato único para indicar, por institución y segmento de URL, de dónde extraer cada pilar del curso. Agregar configuración JSONB para selectores CSS, etiquetas label→valor, defaults, overrides por segmento (`/carreras-profesionales-tecnicas/`, `/diplomados/`, `/escuela-de-coding/`, etc.), transformaciones, reglas de confianza y fallback LLM. El enrichment debe aplicar selectores sobre `staging_raw.raw_html` y usar `cleansed_programs.clean_text` solo como contexto LLM. [Ver plan detallado](#fase-121-extracción-configurable-de-14-pilares-por-institución). | Depende de Fases 117-120; requiere revisar seguridad por exposición de selectores |
 
 ## Flujo Vigente: Desarrollo → Producción
 
@@ -4000,3 +4001,260 @@ ORDER BY courses DESC;
 | 120.V1 | Ejecutar `python3 scripts/maintenance/category_coverage_audit.py` pre-Fase 117 | Exit code 2, cobertura 0%, lista los 66 cursos |
 | 120.V2 | Ejecutar post-Fase 117 + 119 | Exit code 0, cobertura ≥ 90% |
 | 120.V3 | Insertar curso con keyword sin regla (ej: `'Taller de Oratoria'`) → re-ejecutar auditoría | Exit code 1, alerta que "oratoria" no tiene regla |
+
+---
+
+### Fase 121: Extracción configurable de 14 pilares por institución
+
+#### Diagnóstico
+
+`institution_site_profiles` ya controla discovery, exclusiones, gates, defaults, regex simples y `section_keywords`. Falta un contrato completo para indicar, por institución y por **segmento de URL**, de dónde extraer cada uno de los 14 pilares del curso.
+
+El caso IDAT evidencia dos problemas: la revisión manual identifica patrones repetibles (`h1`, `.field-name-descripcion`, `.accordion-timeline`, `a[download][href$='.pdf']`), pero esos patrones hoy no quedan persistidos como configuración accionable; además, una misma institución puede tener segmentos con estructuras o defaults distintos (`/carreras-para-gente-que-trabaja/`, `/carreras-profesionales-tecnicas/`, `/certificaciones/`, `/cursos-de-formacion-continua/`, `/diplomados/`, `/escuela-de-coding/`, `/programas-especializacion/`).
+
+La limpieza de HTML en `cleansing_worker.py` no debe afectar esta fase: la extracción determinística debe correr contra `staging_raw.raw_html` (HTML original con clases, atributos y DOM), mientras que `cleansed_programs.clean_text` debe usarse como contexto textual para el LLM.
+
+#### Objetivo
+
+Convertir `institution_site_profiles` en la fuente de verdad para extracción por institución y segmento de URL, permitiendo configurar selectores CSS base, patrones label→valor, overrides por segmento, transformaciones, defaults explícitos y fallback al LLM solo para campos inferenciales.
+
+El pipeline debe seguir siendo genérico: ninguna institución debe introducir condicionales tipo `if slug == 'idat'` en `universal_harvester.py`, `cleansing_worker.py`, `enrichment_worker.py` o `sync_vector_worker.py`.
+
+#### Contrato de 14 pilares
+
+| Pilar enrichment | Destino principal | Tipo de extracción esperado |
+|---|---|---|
+| `official_name` | `courses.name` | Selector CSS directo (`h1`) o fallback LLM |
+| `categories` | `courses.category`, `courses.category_id` | LLM + `category_rules`; no selector obligatorio |
+| `degree_type` | `courses.course_type` | LLM o regla por tipo de URL |
+| `modality` | `courses.mode` | Label selector, selector CSS o default |
+| `duration_text` | `courses.duration` | Label selector o selector CSS |
+| `duration_months` | `enriched_programs.duration_months` | Transformación/LLM desde `duration_text` |
+| `total_cost_est` | `courses.price_pen` | Selector CSS, regex o `null` explícito |
+| `start_date` | `courses.start_date_text`, `courses.start_date` | Label selector, regex, LLM + `parse_start_date()` |
+| `schedule_info` | `enriched_programs.schedule_info` | Label selector |
+| `requirements` | `courses.requirements` | Selector CSS, label selector o `null` explícito |
+| `curriculum_summary` | `courses.syllabus` | Selector CSS de acordeón/lista + transform a viñetas |
+| `graduate_profile` | `courses.objectives`, `courses.target_audience` | Selector CSS o LLM |
+| `ai_summary` | `courses.description_long` | Selector CSS para descripción base + síntesis LLM |
+| `brochure_url` | `courses.brochure_url` | Selector CSS de enlace PDF + URL absoluta |
+
+#### Diseño de columnas nuevas
+
+Agregar columnas JSONB a `institution_site_profiles`:
+
+```sql
+ALTER TABLE institution_site_profiles
+ADD COLUMN field_selectors JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN label_selectors JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN url_type_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN extraction_transforms JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN extraction_confidence JSONB NOT NULL DEFAULT '{}'::jsonb;
+```
+
+| Columna | Propósito |
+|---|---|
+| `field_selectors` | Selectores CSS directos por pilar. Ej: `official_name → h1`, `curriculum_summary → .accordion-timeline` |
+| `label_selectors` | Reglas para contenedores donde una etiqueta identifica el campo y otro nodo contiene el valor. Ej: `.field-name-descripcion` con `<p>Duración</p>` |
+| `url_type_rules` | Reglas por patrón de URL, incluyendo defaults y overrides de selectores por segmento. Ej: `/cursos-de-formacion-continua/` implica `degree_type=Curso`, `modality=Presencial` si no hay label |
+| `extraction_transforms` | Transformaciones declarativas por campo. Ej: `href`, `absolute_url`, `accordion_to_bullets`, `normalize_mode` |
+| `extraction_confidence` | Define si un campo pre-extraído es autoritativo, sugerido o solo contexto para LLM |
+
+`field_selectors` y `label_selectors` definen la configuración base de la institución. `url_type_rules` puede sobrescribir, deshabilitar o complementar esas reglas por segmento sin tocar código.
+
+#### Ejemplo de configuración IDAT
+
+```json
+{
+  "field_selectors": {
+    "official_name": {"selector": "h1", "transform": "text", "confidence": "authoritative"},
+    "curriculum_summary": {"selector": ".accordion-timeline", "transform": "accordion_to_bullets", "confidence": "authoritative"},
+    "brochure_url": {"selector": "a[download][href$='.pdf'], a[href*='.pdf']", "attribute": "href", "transform": "absolute_url", "confidence": "authoritative"},
+    "ai_summary_source": {"selector": ".margin-right-content .view-header", "transform": "text", "confidence": "context"}
+  },
+  "label_selectors": {
+    "Duración": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "duration_text", "transform": "text", "confidence": "authoritative"},
+    "Modalidad": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "modality", "transform": "normalize_mode", "fallback": "Presencial", "confidence": "authoritative"},
+    "Horarios": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "schedule_info", "transform": "text", "confidence": "authoritative"}
+  },
+  "url_type_rules": [
+    {
+      "match": "/carreras-para-gente-que-trabaja/",
+      "program_family": "carreras_para_gente_que_trabaja",
+      "defaults": {"degree_type": "Carrera para gente que trabaja", "total_cost_est": null, "requirements": null, "price_status": "consultar"},
+      "label_overrides": {
+        "Modalidad": {"fallback": "Semipresencial"}
+      }
+    },
+    {
+      "match": "/carreras-profesionales-tecnicas/",
+      "program_family": "carreras_profesionales_tecnicas",
+      "defaults": {"degree_type": "Carrera Técnica", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/certificaciones/",
+      "program_family": "certificaciones",
+      "defaults": {"degree_type": "Certificación", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/cursos-de-formacion-continua/",
+      "program_family": "formacion_continua",
+      "defaults": {"degree_type": "Curso", "total_cost_est": null, "requirements": null, "price_status": "consultar", "modality": "Presencial"}
+    },
+    {
+      "match": "/diplomados/",
+      "program_family": "diplomados",
+      "defaults": {"degree_type": "Diplomado", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/escuela-de-coding/",
+      "program_family": "escuela_de_coding",
+      "defaults": {"degree_type": "Curso", "category_hint": "Tecnología", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/programas-especializacion/",
+      "program_family": "programas_especializacion",
+      "defaults": {"degree_type": "Especialización", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    }
+  ],
+  "extraction_transforms": {
+    "duration_months": "derive_from_duration_text",
+    "curriculum_summary": "accordion_to_bullets",
+    "brochure_url": "absolute_url",
+    "modality": "normalize_mode"
+  },
+  "extraction_confidence": {
+    "official_name": "authoritative",
+    "duration_text": "authoritative",
+    "modality": "authoritative_or_default",
+    "curriculum_summary": "authoritative",
+    "brochure_url": "authoritative",
+    "categories": "llm_required",
+    "degree_type": "url_rule_or_llm",
+    "ai_summary": "llm_synthesis"
+  }
+}
+```
+
+#### Jerarquía de resolución por institución y segmento
+
+Cuando FG2 procese una URL, el enrichment debe resolver la configuración en este orden:
+
+1. Identificar institución por `institution_id`.
+2. Cargar configuración base de `institution_site_profiles`.
+3. Detectar segmento usando `url_type_rules.match` sobre la URL.
+4. Aplicar defaults del segmento (`degree_type`, `price_status`, `modality`, etc.).
+5. Aplicar `field_overrides` y `label_overrides` del segmento sobre la configuración base.
+6. Ejecutar extracción determinística sobre `staging_raw.raw_html`.
+7. Aplicar transformaciones permitidas.
+8. Enviar al LLM solo campos faltantes o inferenciales.
+
+La precedencia debe ser:
+
+```text
+Valor extraído por override de segmento
+→ Valor extraído por configuración base de institución
+→ Default explícito por segmento
+→ Default explícito de institución
+→ LLM
+→ null si no hay evidencia confiable
+```
+
+Segmentos IDAT a cubrir inicialmente:
+
+| Segmento URL | Ejemplo | Uso esperado |
+|---|---|---|
+| `/carreras-para-gente-que-trabaja/` | `administracion-de-empresas` | Puede tener modalidad/defaults distintos a carreras técnicas |
+| `/carreras-profesionales-tecnicas/` | `administracion-bancaria-y-financiera` | Carrera técnica, duración usual en años/ciclos |
+| `/certificaciones/` | `seguridad-y-salud-en-el-trabajo` | Certificación, duración/precio pueden usar bloques distintos |
+| `/cursos-de-formacion-continua/` | `administracion-de-base-de-datos`, `data-analytics-i` | Curso, duración en horas y/o meses, modalidad puede no existir |
+| `/diplomados/` | `recursos-humanos` | Diplomado, posible estructura propia para inversión/modalidad |
+| `/escuela-de-coding/` | `curso-de-diseno-ux-ui` | Curso tecnológico, category hint puede ser Tecnología |
+| `/programas-especializacion/` | `finanzas-y-contabilidad-con-ia-aplicada` | Especialización, duración/precio pueden variar |
+
+Si un segmento usa una ubicación distinta para precio, modalidad o duración, no se modifica código: se agrega un `field_overrides` o `label_overrides` dentro de su regla de URL. Ejemplo:
+
+```json
+{
+  "match": "/diplomados/",
+  "field_overrides": {
+    "total_cost_est": {"selector": ".investment-box strong", "transform": "price_to_float"}
+  },
+  "label_overrides": {
+    "Modalidad": {"container": ".program-summary", "value_selector": "strong"}
+  }
+}
+```
+
+#### Flujo técnico propuesto
+
+1. `universal_harvester.py` continúa descubriendo y guardando HTML crudo en `staging_raw.raw_html` sin lógica específica por institución.
+2. `cleansing_worker.py` continúa limpiando ruido, aplicando exclusiones y promoviendo a `cleansed_programs.clean_text`. Esta limpieza no debe eliminar la fuente de verdad para selectores porque `raw_html` permanece en `staging_raw`.
+3. `enrichment_worker.py` obtiene dos fuentes: `staging_raw.raw_html` para extracción determinística y `cleansed_programs.clean_text` para contexto LLM.
+4. `enrichment_worker.py` carga el perfil institucional, detecta el segmento de URL y compone configuración efectiva: base de institución + overrides del segmento + defaults.
+5. `enrichment_worker.py` ejecuta extracción determinística antes del LLM: `_extract_by_field_selectors()`, `_extract_by_label_selectors()`, `_apply_url_type_rules()` y `_apply_extraction_transforms()`.
+6. Los campos extraídos con confianza `authoritative` se pasan al LLM como valores de alta confianza y no deben ser sobrescritos salvo validación fallida.
+7. El LLM completa campos inferenciales: `categories`, `degree_type` cuando no haya regla, `ai_summary`, `graduate_profile` si no hay selector, y normalización semántica cuando aplique.
+8. `apply_validations()` conserva el rol de saneamiento final: nulls, strings `None`, parseo numérico, modalidad válida y duración entera.
+9. `sync_vector_worker.py` continúa siendo el único escritor Golden Path hacia `courses`, convirtiendo `curriculum_summary` a texto plano antes de guardar `syllabus`.
+
+#### Comportamiento esperado con los ejemplos IDAT
+
+| Curso | Campo | Origen configurado | Resultado esperado |
+|---|---|---|---|
+| Administración Bancaria | `official_name` | `h1` | `Administración Bancaria` |
+| Administración Bancaria | `modality` | label `Modalidad` en `.field-name-descripcion` | `Remoto` si el texto contiene `Virtual` |
+| Administración Bancaria | `duration_text` | label `Duración` | `2 años` |
+| Administración Bancaria | `duration_months` | transform/LLM desde duración | `24` |
+| Administración Bancaria | `curriculum_summary` | `.accordion-timeline` | Ciclos 1-6 en viñetas |
+| Administración Bancaria | `brochure_url` | `a[download][href$='.pdf']` | URL absoluta del brochure |
+| Data Analytics | `official_name` | `h1` | `Data Analytics` |
+| Data Analytics | `modality` | default por URL si no existe label | `Presencial` |
+| Data Analytics | `duration_text` | label `Duración` | `24 horas académicas (1 mes aproximadamente)` |
+| Data Analytics | `duration_months` | transform/LLM desde duración | `1` |
+| Data Analytics | `schedule_info` | label `Horarios` | `Inicio: 27 de mayo; Lunes - Miércoles (7:30 p.m - 9:45 p.m)` |
+| Data Analytics | `curriculum_summary` | `.accordion-timeline` | Excel parte 1-3 y Power BI parte 4-6 en viñetas |
+| Data Analytics | `brochure_url` | `a[download][href$='.pdf']` | URL absoluta de `data-analytics-2.pdf` |
+
+#### Guardrails y seguridad
+
+1. Los selectores CSS son configuración interna y no deben exponerse públicamente vía RLS. Revisar políticas de `institution_site_profiles` para que `anon` solo lea columnas mínimas necesarias para frontend.
+2. Validar tamaño máximo de `field_selectors`, `label_selectors` y `url_type_rules` para evitar payloads excesivos.
+3. Rechazar transformaciones no permitidas mediante allowlist. No ejecutar código dinámico desde JSONB.
+4. Proteger regex contra ReDoS: limitar longitud, tiempo de ejecución y patrones anidados peligrosos.
+5. Registrar auditoría cuando una extracción determinística falle y el pipeline recurra al LLM.
+6. Mantener `pipeline_enabled=false` hasta validar selectores en Free para una institución nueva.
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 121.1 | Crear migration para columnas JSONB y comentarios de contrato | `db/migrations/` | 20 min |
+| 121.2 | Agregar validación/schema JSONB para perfiles, incluyendo `field_overrides` y `label_overrides` por segmento | `scripts/maintenance/` | 60 min |
+| 121.3 | Implementar `_extract_by_field_selectors()` | `scripts/core/enrichment_worker.py` | 60 min |
+| 121.4 | Implementar `_extract_by_label_selectors()` | `scripts/core/enrichment_worker.py` | 60 min |
+| 121.5 | Implementar composición de configuración efectiva: base institucional + regla de segmento + overrides | `scripts/core/enrichment_worker.py` | 75 min |
+| 121.6 | Implementar transforms permitidas (`text`, `href`, `absolute_url`, `accordion_to_bullets`, `normalize_mode`, `price_to_float`) | `scripts/core/enrichment_worker.py` / `scripts/shared/utils.py` | 90 min |
+| 121.7 | Inyectar datos pre-extraídos en prompt LLM con niveles de confianza | `scripts/core/enrichment_worker.py` | 45 min |
+| 121.8 | Configurar IDAT en migration versionada usando los ejemplos manuales y los 7 segmentos URL iniciales | `db/migrations/` | 60 min |
+| 121.9 | Agregar tests unitarios de extracción con fixtures HTML IDAT por segmento disponible | `tests/` o `scripts/maintenance/` | 120 min |
+| 121.10 | Ejecutar FG2 en Free para IDAT con gates controlados | Contenedor + Supabase Free | 30 min |
+| 121.11 | Invocar `@security-auditor` y remediar hallazgos | Proceso obligatorio | 30 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 121.V1 | Validar schema JSONB de IDAT | Perfil pasa validación sin claves desconocidas ni transforms no permitidas |
+| 121.V2 | Ejecutar extractor sobre HTML de Administración Bancaria | Extrae nombre, modalidad, duración, malla y brochure sin LLM |
+| 121.V3 | Ejecutar extractor sobre HTML de Data Analytics | Extrae nombre, duración, horarios, malla, brochure y default de modalidad |
+| 121.V4 | Ejecutar extractor con una URL por segmento IDAT disponible | Detecta `program_family`, aplica defaults/overrides correctos y no usa reglas de otro segmento |
+| 121.V5 | Ejecutar enrichment completo | El LLM completa categoría, resumen y nivel académico sin sobrescribir campos autoritativos válidos |
+| 121.V6 | Ejecutar sync | `courses.syllabus` queda como texto con viñetas, no JSON |
+| 121.V7 | Consultar `courses` | `price_pen IS NULL`, `price_status='consultar'`, `requirements IS NULL` cuando la institución no publica esos datos |
+| 121.V8 | Revisar logs | Debe quedar trazabilidad de campos extraídos por selector base, selector override, default de segmento y campos inferidos por LLM |
+| 121.V9 | Security audit | Sin exposición pública de selectores ni ejecución dinámica de transformaciones |
+
+#### Criterio de aceptación
+
+La fase se considera completa cuando una institución pueda documentarse con ejemplos manuales de extracción por segmento de URL y esa información quede persistida en `institution_site_profiles`, versionada en migration SQL, reutilizada por `enrichment_worker.py` y validada en Free sin modificar código por curso individual ni por familia de programas.
