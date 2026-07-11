@@ -1,5 +1,17 @@
 # StudIAMatch — Developer Guide
 
+## Base de Conocimiento Centralizada (`.context/`)
+
+**Antes de cualquier tarea, lee obligatoriamente la base de conocimiento en `.context/`:**
+1. `.context/00_INDICE.md` — Mapa navegable de toda la documentacion
+2. `.context/prompts/system_prompt_base.md` — Reglas de ejecucion y restricciones para IAs
+3. `.context/sistema_db_supabase.md` — Esquema DB, tablas, RLS, funciones
+4. `.context/arquitectura_pipeline.md` — Pipeline ETL, workflows, gating
+5. `.context/estructura_frontend.md` — App Router, rutas, componentes
+6. `.context/estado_del_proyecto.md` — Deuda tecnica, limitaciones, SDLC
+
+Estos archivos son la **fuente de verdad** del proyecto. Cualquier discrepancia entre ellos y el codigo debe reportarse. Las IAs deben consultar el archivo de arquitectura relevante segun el dominio de la tarea antes de escribir codigo.
+
 ## Regla de Ejecución de Fases
 
 **SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
