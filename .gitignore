@@ -18,6 +18,8 @@ venv*/
 ENV/
 env/
 .idea/
+desestimado/
+.desestimado/
 .vscode/
 
 gha-creds-*.json
@@ -48,6 +50,14 @@ export_*.csv
 
 # Tool lockfiles (local development config)
 skills-lock.json
+
+# Obsidian local workspace state
+.obsidian/
+.context/.obsidian/
+
+# Client requirement binaries stay local unless explicitly approved
+requerimientos/**/*.docx
+requerimientos/**/*.pdf
 
 # Temp/debug scripts (never commit)
 check_counts.py
