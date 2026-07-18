@@ -1,8 +1,8 @@
 name: FG3 - Daily Integrity Management
 
 on:
-  schedule:
-    - cron: '0 5 * * *' # ⛔ DESACTIVADO temporalmente hasta redefinir flujo
+  # schedule:
+  #   - cron: '0 5 * * *' # ⛔ DESACTIVADO — Hito 1: cron comentado, solo workflow_dispatch
   workflow_dispatch:      # Manual
 
 concurrency:
