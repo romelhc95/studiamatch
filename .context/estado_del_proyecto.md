@@ -139,6 +139,7 @@ feat/* ──PR──▶ desarrollo ──PR──▶ certificacion ──PR─�
 - **Desarrollo → Certificacion → Produccion**: Solo avanza con aprobacion explicita del usuario
 - **`@security-auditor`**: Obligatorio y automatizado (pre-commit + pre-push + CI + branch protection)
 - **DB-as-Code**: `institutions`, `categories`, `category_rules`, `market_salaries`, `institution_site_profiles` son catalogos migrables. Datos operativos (staging/cleansed/enriched/courses) son por ambiente.
+- **Releases por hito**: cuando `desarrollo` contiene trabajo futuro no liberable, el entregable se congela en `release/hito-N` y solo esa rama se promueve a `certificacion` y `main`. Ver `.context/operaciones/flujo_hitos_release.md` y `.context/decisiones/ADR-001_release_por_hitos.md`.
 
 ## Deuda Tecnica Identificada
 

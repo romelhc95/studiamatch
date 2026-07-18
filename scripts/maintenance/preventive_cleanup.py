@@ -1,4 +1,4 @@
-﻿"""Fase 74: Preventive cleanup — now writes to institution_site_profiles.exclusion_patterns (JSONB)"""
+"""Fase 74: Preventive cleanup — now writes to institution_site_profiles.exclusion_patterns (JSONB)"""
 import os, sys, json, requests
 
 sys.path.insert(0, '/app')

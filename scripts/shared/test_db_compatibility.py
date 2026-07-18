@@ -52,13 +52,13 @@ def test_db_client():
             "website_url": "http://test.com"
         })
         print("OK: Inserción exitosa.")
-        
+
         # Patch test
         db.patch('institutions', filters=f"id=eq.{test_id}", data={"name": "TEST-ADAPTER-PATCHED"})
         print("OK: Patch exitoso.")
-        
-        # Eliminarlo manualmente para limpiar (requiere delete en client si estuviera, 
-        # pero db_client no tiene delete expuesto en la interfaz simplificada, 
+
+        # Eliminarlo manualmente para limpiar (requiere delete en client si estuviera,
+        # pero db_client no tiene delete expuesto en la interfaz simplificada,
         # solo select/insert/patch/upsert. Usaremos execute_sql si es local o lo dejaremos si es API)
         # Nota: PostgREST delete es DELETE request. DBClient no tiene .delete()
         if hasattr(db, 'conn'): # Es Postgres Local
@@ -68,7 +68,7 @@ def test_db_client():
             print("OK: Limpieza post-test (Postgres) exitosa.")
         else:
             print("INFO: Limpieza en API Supabase requiere permiso DELETE (se omite).")
-            
+
     except Exception as e:
         print(f"FAIL: Error en ciclo de vida datos: {e}")
 

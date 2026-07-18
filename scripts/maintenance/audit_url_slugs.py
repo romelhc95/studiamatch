@@ -1,4 +1,4 @@
-﻿import os
+import os
 import requests
 import re
 from dotenv import load_dotenv
@@ -41,12 +41,12 @@ def audit_slugs():
     url = f"{SUPABASE_URL}/rest/v1/courses?select=id,name,slug,url,institutions(slug)"
     response = requests.get(url, headers=headers)
     courses = response.json()
-    
+
     mismatches = []
     for c in courses:
         db_slug = c['slug']
         ui_slug = clean_slug_python(c['slug'], c['url'])
-        
+
         if db_slug != ui_slug:
             mismatches.append({
                 "name": c['name'],
@@ -54,16 +54,16 @@ def audit_slugs():
                 "ui_slug": ui_slug,
                 "institution": c['institutions']['slug'] if c['institutions'] else "unknown"
             })
-            
+
     print(f"Total courses audited: {len(courses)}")
     print(f"Total mismatches found: {len(mismatches)}")
-    
+
     if mismatches:
         print("\nTop 10 Mismatches:")
         for m in mismatches[:10]:
             print(f"- {m['name']} ({m['institution']})")
             print(f"  DB: {m['db_slug']} | UI: {m['ui_slug']}")
-            
+
     return mismatches
 
 if __name__ == "__main__":

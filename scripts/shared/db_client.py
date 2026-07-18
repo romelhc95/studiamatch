@@ -50,13 +50,13 @@ class DatabaseClient:
     Universal Database Client for StudIAMatch.
     Uses Publishable key for frontend reads (respects RLS, public API)
     and Secret key (service_role) for pipeline writes+reads (bypasses RLS).
-    
+
     Key hierarchy:
     - Publishable key (sb_publishable_...): Frontend-facing reads, respects RLS.
       Used by `select()` for public tables (courses with is_active=true).
     - Secret key (sb_secret_...): Server-side pipeline operations, bypasses RLS.
       Used by all writes and by `select_pipeline()` for pipeline table reads.
-    
+
     Legacy anon keys are not used; Supabase recommends Publishable keys as
     the modern replacement.
     """
@@ -94,14 +94,14 @@ class DatabaseClient:
             url = f"{self.supabase_url}/rest/v1/{table}?select=count"
         else:
             url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
-            
+
         if filters:
             url += f"&{filters}"
         if order:
             url += f"&order={order}"
         if limit:
             url += f"&limit={limit}"
-            
+
         res = _request_with_retry(requests.get, url, headers=self._get_headers(use_service_role=use_service_role))
         if res.status_code == 200:
             data = res.json()
@@ -159,7 +159,7 @@ class DatabaseClient:
         Required because pipeline tables (staging_raw, cleansed_programs, enriched_programs,
         institution_site_profiles) have RLS policies that block public access.
         Generic: works for any institution, not DMC-specific.
-        
+
         Raises ValueError if called on a non-pipeline table (defense-in-depth).
         """
         if table not in self.PIPELINE_TABLES:

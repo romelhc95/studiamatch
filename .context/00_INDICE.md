@@ -26,11 +26,17 @@
 ## Estimaciones
 - [[estimaciones/_plantilla_estimacion]]
 
+## Evidencias
+- [[evidencias/_plantilla_informe_cumplimiento]] — Informe de cumplimiento por hito para cliente/Notion
+
 ## Operaciones
 - [[operaciones/flujo_requerimientos]] — Requerimiento → estimacion → aprobacion → tareas → entrega
+- [[operaciones/flujo_hitos_release]] — Ramas release por hito, QA selectivo y promocion controlada
 
 ## Decisiones Arquitectonicas (ADR)
 - [[decisiones/_plantilla_adr]]
+- [[decisiones/ADR-001_release_por_hitos]] — Releases por hito con promocion selectiva
 
 ## Changelog
 - [[changelog/2026-07-05]] — Inicializacion
+- [[changelog/2026-07-12]] — Homologacion Supabase Pro → Free previa a HITO 1

@@ -43,7 +43,7 @@ def upsert_pro(table, data, batch_size=200):
                 else:
                     clean[k] = v
             clean_batch.append(clean)
-        
+
         headers = {**PRO_REST_HEADERS, 'Prefer': 'resolution=merge-duplicates'}
         resp = requests.post(f'{PRO_URL}/rest/v1/{table}', headers=headers, json=clean_batch, timeout=120)
         if resp.status_code in (200, 201):
@@ -62,27 +62,27 @@ def upsert_pro(table, data, batch_size=200):
 
 def main():
     print('=== DATA MIGRATION: Free -> Pro ===')
-    
+
     PRO_TABLES = [
         'ratings', 'reviews', 'enriched_programs', 'cleansed_programs',
         'staging_raw', 'crawler_exclusions', 'courses',
         'category_rules', 'market_salaries', 'categories', 'institutions'
     ]
-    
+
     # Step 1: DELETE all existing Pro data (cascade-safe order)
     print('\n1. DELETE existing Pro data...')
     for table in PRO_TABLES:
         r = run_mgmt_sql(f'DELETE FROM public."{table}" WHERE 1=1;')
         status = 'OK' if r.status_code == 201 else f'FAIL {r.status_code}'
         print(f'  {status}: {table}')
-    
+
     # Step 2: Load from Free and insert into Pro
     ORDER = [
         'institutions', 'categories', 'market_salaries', 'category_rules',
         'courses', 'crawler_exclusions', 'staging_raw',
         'cleansed_programs', 'enriched_programs', 'ratings', 'reviews'
     ]
-    
+
     print('\n2. Migrate data...')
     db = get_db_client()
     total = 0
@@ -100,13 +100,13 @@ def main():
         ok = upsert_pro(table, data)
         total += ok
         print(f'  Migrated: {ok}/{len(data)}')
-    
+
     # Step 3: Re-enable triggers
     print('\n3. Re-enable triggers...')
     run_mgmt_sql('ALTER TABLE courses ENABLE TRIGGER tr_auto_assign_category;')
     run_mgmt_sql('ALTER TABLE enriched_programs ENABLE TRIGGER tr_enriched_programs_updated_at;')
     print('  Triggers re-enabled')
-    
+
     print(f'\n=== Migration complete: {total} total records ===')
 
 if __name__ == '__main__':

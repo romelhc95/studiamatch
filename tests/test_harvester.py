@@ -36,7 +36,7 @@ def test_no_duplicate_courses(api_headers):
     url = f"{SUPABASE_URL}/rest/v1/courses?select=name,institution_id"
     response = requests.get(url, headers=api_headers)
     courses = response.json()
-    
+
     seen = set()
     duplicates = []
     for c in courses:
@@ -44,7 +44,7 @@ def test_no_duplicate_courses(api_headers):
         if key in seen:
             duplicates.append(key)
         seen.add(key)
-    
+
     assert len(duplicates) == 0, f"Found duplicate courses: {duplicates[:5]}"
 
 def test_pilot_institutions_exist(api_headers):
@@ -52,7 +52,7 @@ def test_pilot_institutions_exist(api_headers):
     url = f"{SUPABASE_URL}/rest/v1/institutions?slug=in.(utec,upc,nh-peru)&select=slug"
     response = requests.get(url, headers=api_headers)
     found_slugs = [r['slug'] for r in response.json()]
-    
+
     assert len(found_slugs) >= 1
     assert 'utec' in found_slugs
 

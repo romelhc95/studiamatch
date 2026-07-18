@@ -12,9 +12,9 @@ Transforma datos en insights accionables y narrativas claras que impulsen la tom
 
 Esta skill combina metodología estadística rigurosa con comunicación efectiva de datos. Ayuda a:
 
-1. **Analizar**: Seleccionar y aplicar métodos estadísticos o de ML adecuados  
-2. **Diseñar**: Definir métricas, umbrales y lógica de decisión  
-3. **Comunicar**: Presentar resultados de forma clara y orientada a la acción  
+1. **Analizar**: Seleccionar y aplicar métodos estadísticos o de ML adecuados
+2. **Diseñar**: Definir métricas, umbrales y lógica de decisión
+3. **Comunicar**: Presentar resultados de forma clara y orientada a la acción
 
 El enfoque prioriza la interpretación, el contexto y las limitaciones de los datos.
 

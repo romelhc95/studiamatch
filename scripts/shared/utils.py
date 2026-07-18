@@ -74,7 +74,7 @@ def setup_lima_logging(name: str):
     """Configures a logger with Lima Time formatting and UTF-8 encoding."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    
+
     if not logger.handlers:
         if hasattr(sys.stdout, 'reconfigure'):
             sys.stdout.reconfigure(encoding='utf-8')
@@ -82,7 +82,7 @@ def setup_lima_logging(name: str):
         formatter = LimaFormatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
     return logger
 
 def get_random_user_agent():
@@ -125,7 +125,7 @@ def standardize_mode(mode_str):
     """
     if not mode_str:
         return "Presencial"
-    
+
     m = mode_str.lower()
     # List of keywords for Remoto/Virtual
     if any(k in m for k in ["remoto", "online", "virtual", "a distancia", "distancia", "asincronico", "asincrónico"]):
@@ -163,7 +163,7 @@ def infer_course_type(name):
         return "Taller"
     if any(k in name_upper for k in ["CURSO", "ESPECIALIZACIÓN", "ESPECIALIZACION"]):
         return "Curso"
-    
+
     # Fallback to "Programa" instead of "Otros"
     return "Programa"
 
@@ -174,16 +174,16 @@ def extract_pdf_text_from_url(url):
     """
     if not url:
         return ""
-    
+
     try:
         response = requests.get(url, stream=True, timeout=15)
         response.raise_for_status()
-        
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
             for chunk in response.iter_content(chunk_size=8192):
                 temp_pdf.write(chunk)
             temp_pdf_path = temp_pdf.name
-            
+
         text_content = []
         try:
             with open(temp_pdf_path, 'rb') as file:
@@ -197,7 +197,7 @@ def extract_pdf_text_from_url(url):
                         text_content.append(page_text)
         finally:
             os.remove(temp_pdf_path)
-            
+
         return "\n".join(text_content).strip()
     except Exception as e:
         print(f"Error parseando PDF {url}: {e}")
@@ -225,18 +225,18 @@ def clean_course_name(name):
     """
     if not name:
         return ""
-    
+
     # Remove common redundant titles/modifiers anywhere they look like a prefix (after boundary)
     # This catches "Curso...", "PECB - Curso...", etc.
     keywords = ["Curso", "Programa", "Diplomado", "Especialización", "Especializacion", "Taller", "Seminario", "Oficial", "Internacional"]
     pattern = r'\b(' + '|'.join(keywords) + r')\b\s+(de\s+|en\s+)?'
-    
+
     name = re.sub(pattern, '', name, flags=re.IGNORECASE)
-    
+
     # Cleanup dash garbage: "PECB -  ISO" -> "PECB - ISO"
     name = re.sub(r'\s*-\s*', ' - ', name)
     name = re.sub(r'\s+', ' ', name)
-    
+
     # Final trim
     return name.strip()
 
@@ -248,7 +248,7 @@ def standardize_category(potential_cat, course_name=""):
     Uses an in-memory cache to avoid redundant network calls during mass scraping.
     """
     global _category_rules_cache
-    
+
     text = (potential_cat + " " + course_name).lower()
     url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
     key = (
@@ -303,13 +303,13 @@ def standardize_category(potential_cat, course_name=""):
         return "Redes y Conectividad"
     if any(k in text for k in ["java", "python", "php", "javascript", "react", "desarrollo", "programación", "web", "frontend", "backend", "fullstack", "angular", "vue", "node"]):
         return "Desarrollo y Web"
-    
+
     # 4. Final Fallback
     if potential_cat:
         cat = potential_cat.replace("-", " ").title()
         if cat.lower() not in ["curso", "programa", "especialidad", "taller"]:
             return cat
-    
+
     return "Tecnología"
 
 from urllib.parse import urlparse, urlunparse
@@ -323,23 +323,23 @@ def normalize_url(url):
     """
     if not url:
         return ""
-    
+
     try:
         parsed = urlparse(url)
         # 1. Lowercase scheme and netloc
         scheme = parsed.scheme.lower()
         netloc = parsed.netloc.lower()
-        
+
         # 2. Path normalization: remove trailing slash
         path = parsed.path
         if path.endswith('/') and len(path) > 1:
             path = path[:-1]
-        
+
         # 3. Deduplicate /en/ language prefix (e.g. /en/posgrado/ → /posgrado/)
         import re as _re
         if '/en/' in path:
             path = _re.sub(r'/en/', '/', path)
-        
+
         # 4. Reconstruct without query strings and fragments
         normalized = urlunparse((scheme, netloc, path, '', '', ''))
         return normalized
@@ -351,16 +351,16 @@ def parse_start_date(text):
     """
     Parses a Spanish/English start date string into a datetime.date.
     Returns (date, is_expired) tuple or (None, False) if unparseable.
-    
+
     Handles: "Abril 2026", "15 de mayo", "2026-04-15", "Marzo 2024", "15/05/2026"
     Grace period: 90 days past the start date before marking as expired.
     """
     if not text or str(text).strip().lower() in ('none', 'null', 'nan', ''):
         return None, False
-    
+
     from datetime import date, timedelta
     text = str(text).strip()
-    
+
     # Try ISO format first: 2026-04-15 or 2026/04/15
     iso_match = re.match(r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})', text)
     if iso_match:
@@ -370,7 +370,7 @@ def parse_start_date(text):
             return d, expired
         except ValueError:
             pass
-    
+
     # Try DD/MM/YYYY
     dmy_match = re.match(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', text)
     if dmy_match:
@@ -380,7 +380,7 @@ def parse_start_date(text):
             return d, expired
         except ValueError:
             pass
-    
+
     # Spanish month names
     months = {
         'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
@@ -391,9 +391,9 @@ def parse_start_date(text):
         'may': 5, 'june': 6, 'july': 7, 'august': 8,
         'september': 9, 'october': 10, 'november': 11, 'december': 12,
     }
-    
+
     text_lower = text.lower()
-    
+
     # Pattern: "Mes AAAA" or "Mes de AAAA" e.g. "Abril 2026", "Marzo de 2024"
     month_year = re.match(r'([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})', text_lower)
     if month_year:
@@ -403,7 +403,7 @@ def parse_start_date(text):
             d = date(year_val, months[month_name], 1)
             expired = d < date.today() - timedelta(days=90)
             return d, expired
-    
+
     # Pattern: "DD de Mes" or "DD Mes" e.g. "15 de mayo", "15 mayo"
     # Use current year as default
     day_month = re.match(r'(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)', text_lower)
@@ -420,7 +420,7 @@ def parse_start_date(text):
                 return d, expired
             except ValueError:
                 pass
-    
+
     # Pattern: "DD de Mes de AAAA" e.g. "15 de mayo de 2026"
     full_date = re.match(r'(\d{1,2})\s+(?:de\s+)?([a-záéíóúñ]+)\s+(?:de\s+)?(\d{4})', text_lower)
     if full_date:
@@ -432,7 +432,7 @@ def parse_start_date(text):
                 return d, expired
             except ValueError:
                 pass
-    
+
     return None, False
 
 

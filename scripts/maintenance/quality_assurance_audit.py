@@ -7,8 +7,8 @@ db = get_db_client()
 
 # Definición de los 14 Pilares para Auditoría
 PILLARS = [
-    "name", "mode", "address", "price_pen", "description_long", 
-    "duration", "start_date_text", "target_audience", "syllabus", 
+    "name", "mode", "address", "price_pen", "description_long",
+    "duration", "start_date_text", "target_audience", "syllabus",
     "brochure_url", "objectives", "requirements", "certification", "benefits"
 ]
 
@@ -22,19 +22,19 @@ def run_audit():
         issues = []
         # 1. Check de vacíos
         missing_pillars = [p for p in PILLARS if not course.get(p) or str(course.get(p)).strip() == ""]
-        
+
         # 2. Check de Coherencia (Data demasiado larga)
         desc = course.get("description_long") or course.get("description") or ""
         if len(desc) > 1500:
             issues.append("Resumen Ejecutivo excesivamente largo")
-            
+
         # 3. Check de Alucinación/Falta de Data
         if len(missing_pillars) > 6:
             issues.append(f"Faltan {len(missing_pillars)} pilares críticos")
 
         # 4. Check de Slugs e Institución
         inst_slug = course.get("institutions", {}).get("slug") if course.get("institutions") else "general"
-        
+
         if issues:
             flagged_courses.append({
                 "name": course["name"],

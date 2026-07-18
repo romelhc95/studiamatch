@@ -14,7 +14,7 @@ Cuando el usuario invoque `/skill-health`, usted **DEBE** realizar los siguiente
 
 ### 1. Inicialización de Memoria (Solo en proyectos nuevos)
 - **Verificación**: Compruebe si existe el archivo `IMPLEMENTATION_PLAN.md` en la raíz del espacio de trabajo.
-- **Acción (Si NO existe)**: 
+- **Acción (Si NO existe)**:
   - Realice un análisis de la estructura, archivos y dependencias para entender el propósito del proyecto.
   - **Cree el archivo `IMPLEMENTATION_PLAN.md`** siguiendo el formato detallado en la habilidad `planificador`.
   - Notifique: "🏁 Proyecto nuevo detectado. Memoria técnica inicializada en `IMPLEMENTATION_PLAN.md`."

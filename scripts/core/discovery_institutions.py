@@ -58,15 +58,15 @@ def load_sources():
 
 def run_discovery():
     print("INFO: Iniciando Descubrimiento de Instituciones Nivel 1...")
-    
+
     sources = load_sources()
-    
+
     found = 0
     for inst in sources:
         # 1. Verificar si ya existe por dominio
         domain = inst['url'].replace('https://', '').replace('http://', '').split('/')[0]
         res_check_data = db.select('institutions', filters=f"website_url=ilike.*{domain}*")
-        
+
         if isinstance(res_check_data, list):
             if len(res_check_data) == 0:
                 # 2. Es una institución nueva: Insertar
@@ -77,7 +77,7 @@ def run_discovery():
                     "website_url": inst['url']
                 }
                 res_insert = db.insert('institutions', data)
-                
+
                 if res_insert:
                     print(f"NEW: {inst['name']} añadida al catálogo maestro.")
                     found += 1

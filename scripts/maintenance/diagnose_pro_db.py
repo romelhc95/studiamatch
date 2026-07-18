@@ -13,15 +13,15 @@ print("=" * 60)
 # 1. Verificar si tablas de Fase 100 existen
 print("\n1. Verificando tablas críticas...")
 try:
-    tables = db.select('information_schema.tables', 
+    tables = db.select('information_schema.tables',
                       filters="table_schema=eq.public",
                       columns='table_name')
     table_names = [t['table_name'] for t in tables]
-    
-    critical_tables = ['institutions', 'institution_site_profiles', 'courses', 
+
+    critical_tables = ['institutions', 'institution_site_profiles', 'courses',
                       'staging_raw', 'cleansed_programs', 'enriched_programs',
                       'categories', 'category_rules', 'market_salaries']
-    
+
     for t in critical_tables:
         status = "✅" if t in table_names else "❌"
         print(f"  {status} {t}")
@@ -35,7 +35,7 @@ try:
                     filters="table_schema=eq.public&table_name=eq.institution_site_profiles",
                     columns='column_name')
     col_names = [c['column_name'] for c in cols]
-    
+
     fase100_cols = ['pipeline_ready', 'discovery_enabled', 'production_enabled']
     for c in fase100_cols:
         status = "✅" if c in col_names else "❌"
@@ -57,7 +57,7 @@ except Exception as e:
 # 4. Verificar perfil de DMC
 print("\n4. Verificando perfil de DMC...")
 try:
-    profiles = db.select('institution_site_profiles', 
+    profiles = db.select('institution_site_profiles',
                         filters="institution_id=eq." + (dmc[0]['id'] if dmc else 'none'),
                         columns='pipeline_ready,discovery_enabled,production_enabled')
     if profiles:
@@ -79,7 +79,7 @@ for table in ['staging_raw', 'cleansed_programs', 'enriched_programs', 'courses'
 # 6. Verificar cursos activos de DMC
 print("\n6. Cursos activos/verificados de DMC...")
 try:
-    courses = db.select('courses', 
+    courses = db.select('courses',
                        filters="is_active=eq.true&is_verified=eq.true",
                        columns='id,name,slug,url')
     dmc_courses = [c for c in courses if 'dmc' in (c.get('slug', '') + c.get('url', '')).lower()]

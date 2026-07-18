@@ -283,7 +283,7 @@
 2026-04-16T20:24:30.3914132Z Using cached typing_inspection-0.4.2-py3-none-any.whl (14 kB)
 2026-04-16T20:24:30.3926470Z Using cached tqdm-4.67.3-py3-none-any.whl (78 kB)
 2026-04-16T20:24:30.6515238Z Installing collected packages: asn1crypto, urllib3, uritemplate, typing-extensions, tqdm, soupsieve, six, scramp, python-dotenv, PyPDF2, pyparsing, pycparser, pyasn1, psycopg2-binary, protobuf, idna, greenlet, charset_normalizer, certifi, annotated-types, typing-inspection, requests, python-dateutil, pyee, pydantic-core, pyasn1-modules, proto-plus, httplib2, grpcio, googleapis-common-protos, cffi, beautifulsoup4, pydantic, playwright, pg8000, grpcio-status, cryptography, playwright-stealth, google-auth, google-auth-httplib2, google-api-core, google-api-python-client, google-ai-generativelanguage, google-generativeai
-2026-04-16T20:24:34.7913342Z 
+2026-04-16T20:24:34.7913342Z
 2026-04-16T20:24:34.7940442Z Successfully installed PyPDF2-3.0.1 annotated-types-0.7.0 asn1crypto-1.5.1 beautifulsoup4-4.14.3 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.7 cryptography-46.0.7 google-ai-generativelanguage-0.6.15 google-api-core-2.30.3 google-api-python-client-2.194.0 google-auth-2.49.2 google-auth-httplib2-0.3.1 google-generativeai-0.8.6 googleapis-common-protos-1.74.0 greenlet-3.4.0 grpcio-1.80.0 grpcio-status-1.71.2 httplib2-0.31.2 idna-3.11 pg8000-1.31.5 playwright-1.58.0 playwright-stealth-2.0.3 proto-plus-1.27.2 protobuf-5.29.6 psycopg2-binary-2.9.11 pyasn1-0.6.3 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.13.1 pydantic-core-2.46.1 pyee-13.0.1 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 requests-2.33.1 scramp-1.4.8 six-1.17.0 soupsieve-2.8.3 tqdm-4.67.3 typing-extensions-4.15.0 typing-inspection-0.4.2 uritemplate-4.2.0 urllib3-2.6.3
 2026-04-16T20:24:35.7354937Z Downloading Chrome for Testing 145.0.7632.6 (playwright chromium v1208) from https://cdn.playwright.dev/chrome-for-testing-public/145.0.7632.6/linux64/chrome-linux64.zip
 2026-04-16T20:24:35.8379967Z (node:2129) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
@@ -484,7 +484,7 @@
 2026-04-16T20:33:16.6626529Z 2026-04-16 20:33:16,662 - WARNING - Error crawling http://www.up.edu.pe/carreras-postgrado-idiomas/departamentos-academicos/marketing: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:33:16.6628237Z Call log:
 2026-04-16T20:33:16.6632120Z   - navigating to "http://www.up.edu.pe/carreras-postgrado-idiomas/departamentos-academicos/marketing", waiting until "domcontentloaded"
-2026-04-16T20:33:16.6633985Z 
+2026-04-16T20:33:16.6633985Z
 2026-04-16T20:33:16.6634700Z 2026-04-16 20:33:16,662 - INFO - Crawling depth 2: https://www.up.edu.pe/carreras-postgrado-idiomas/facultades
 2026-04-16T20:33:22.4453151Z 2026-04-16 20:33:22,445 - INFO - Crawling depth 2: https://www.up.edu.pe/carreras-postgrado-idiomas/departamentos-academicos/finanzas
 2026-04-16T20:33:28.1218437Z 2026-04-16 20:33:28,121 - INFO - Crawling depth 2: https://www.up.edu.pe/carreras-postgrado-idiomas/carreras-pregrado/ingenieria-innovacion-diseno/Paginas/acerca.aspx
@@ -498,7 +498,7 @@
 2026-04-16T20:34:39.3245721Z 2026-04-16 20:34:39,324 - WARNING - Error crawling http://www.up.edu.pe/admision/admision-pregrado/pensiones: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:34:39.3247492Z Call log:
 2026-04-16T20:34:39.3248432Z   - navigating to "http://www.up.edu.pe/admision/admision-pregrado/pensiones", waiting until "domcontentloaded"
-2026-04-16T20:34:39.3249350Z 
+2026-04-16T20:34:39.3249350Z
 2026-04-16T20:34:39.3250104Z 2026-04-16 20:34:39,324 - INFO - Crawling depth 2: https://www.up.edu.pe/admision/admision-pregrado/becas-financiamiento
 2026-04-16T20:34:45.4753319Z 2026-04-16 20:34:45,475 - INFO - Crawling depth 2: http://www.up.edu.pe/admision/admision-pregrado/modalidades-de-admision
 2026-04-16T20:34:47.6452374Z 2026-04-16 20:34:47,644 - INFO - Scraping detail: https://www.idat.edu.pe/cursos-de-formacion-continua/sql
@@ -527,12 +527,12 @@
 2026-04-16T20:35:33.4134217Z 2026-04-16 20:35:33,412 - ERROR - Error: Page.goto: net::ERR_SOCKET_NOT_CONNECTED at https://www.senati.edu.pe/especialidades/tecnologias-de-la-informacion/diseno-y-desarrollo-web
 2026-04-16T20:35:33.4135427Z Call log:
 2026-04-16T20:35:33.4198736Z   - navigating to "https://www.senati.edu.pe/especialidades/tecnologias-de-la-informacion/diseno-y-desarrollo-web", waiting until "domcontentloaded"
-2026-04-16T20:35:33.4207421Z 
+2026-04-16T20:35:33.4207421Z
 2026-04-16T20:35:33.4228369Z 2026-04-16 20:35:33,412 - INFO - Scraping SENATI: https://www.senati.edu.pe/especialidades/tecnologias-de-la-informacion/redes-y-seguridad-informatica
 2026-04-16T20:35:33.4459432Z 2026-04-16 20:35:33,444 - ERROR - Error: Page.goto: net::ERR_SOCKET_NOT_CONNECTED at https://www.senati.edu.pe/especialidades/tecnologias-de-la-informacion/redes-y-seguridad-informatica
 2026-04-16T20:35:33.4471079Z Call log:
 2026-04-16T20:35:33.4472642Z   - navigating to "https://www.senati.edu.pe/especialidades/tecnologias-de-la-informacion/redes-y-seguridad-informatica", waiting until "domcontentloaded"
-2026-04-16T20:35:33.4473814Z 
+2026-04-16T20:35:33.4473814Z
 2026-04-16T20:35:34.2978775Z 2026-04-16 20:35:34,296 - INFO - Scraping UPC: https://pregrado.upc.edu.pe/facultad-de-ingenieria/ingenieria-de-sistemas-de-informacion/
 2026-04-16T20:35:39.1758939Z 2026-04-16 20:35:39,175 - ERROR - DB Error UPC: Invalid URL 'None/rest/v1/institutions?slug=eq.upc': No scheme supplied. Perhaps you meant https://None/rest/v1/institutions?slug=eq.upc?
 2026-04-16T20:35:39.1761464Z 2026-04-16 20:35:39,175 - INFO - Scraping UPC: https://pregrado.upc.edu.pe/facultad-de-negocios/administracion-de-empresas/
@@ -569,7 +569,7 @@
 2026-04-16T20:36:30.9775645Z 2026-04-16 20:36:30,976 - WARNING - Error crawling https://unmsm.edu.pe/: Page.goto: net::ERR_CERT_AUTHORITY_INVALID at https://unmsm.edu.pe/
 2026-04-16T20:36:30.9784251Z Call log:
 2026-04-16T20:36:30.9836930Z   - navigating to "https://unmsm.edu.pe/", waiting until "domcontentloaded"
-2026-04-16T20:36:30.9878168Z 
+2026-04-16T20:36:30.9878168Z
 2026-04-16T20:36:30.9895068Z 2026-04-16 20:36:30,976 - INFO - Total discovery found 0 potential course URLs.
 2026-04-16T20:36:30.9913009Z 2026-04-16 20:36:30,976 - INFO - Preparing to scrape 0 out of 0 discovered URLs.
 2026-04-16T20:36:31.0120779Z 2026-04-16 20:36:31,011 - INFO - Harvest complete for UNMSM.
@@ -601,42 +601,42 @@
 2026-04-16T20:38:05.2449213Z 2026-04-16 20:38:05,244 - WARNING - Error crawling https://www.uni.edu.pe/index.php/rss/item/8733-uni-proyecta-excelencia-academica-expocobre-2026-destacada-participacion-estudiantil?tmpl=component&print=1: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:38:05.2451458Z Call log:
 2026-04-16T20:38:05.2453103Z   - navigating to "https://www.uni.edu.pe/index.php/rss/item/8733-uni-proyecta-excelencia-academica-expocobre-2026-destacada-participacion-estudiantil?tmpl=component&print=1", waiting until "domcontentloaded"
-2026-04-16T20:38:05.2454784Z 
+2026-04-16T20:38:05.2454784Z
 2026-04-16T20:38:05.2455979Z 2026-04-16 20:38:05,244 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/rss/item/8726-uni-abre-puertas-estudiantes-intercambio-experiencia-academica-integral?tmpl=component&print=1
 2026-04-16T20:38:35.2466895Z 2026-04-16 20:38:35,246 - WARNING - Error crawling https://www.uni.edu.pe/index.php/rss/item/8726-uni-abre-puertas-estudiantes-intercambio-experiencia-academica-integral?tmpl=component&print=1: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:38:35.2469202Z Call log:
 2026-04-16T20:38:35.2470760Z   - navigating to "https://www.uni.edu.pe/index.php/rss/item/8726-uni-abre-puertas-estudiantes-intercambio-experiencia-academica-integral?tmpl=component&print=1", waiting until "domcontentloaded"
-2026-04-16T20:38:35.2472335Z 
+2026-04-16T20:38:35.2472335Z
 2026-04-16T20:38:35.2474984Z 2026-04-16 20:38:35,246 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8734-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-exponential-matrices-and-their-relationship-to-vandermonde-confluent-matrices-fecha-jueves-16-de-abril
 2026-04-16T20:39:05.2481697Z 2026-04-16 20:39:05,247 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8734-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-exponential-matrices-and-their-relationship-to-vandermonde-confluent-matrices-fecha-jueves-16-de-abril: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:39:05.2485302Z Call log:
 2026-04-16T20:39:05.2488841Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8734-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-exponential-matrices-and-their-relationship-to-vandermonde-confluent-matrices-fecha-jueves-16-de-abril", waiting until "domcontentloaded"
-2026-04-16T20:39:05.2491947Z 
+2026-04-16T20:39:05.2491947Z
 2026-04-16T20:39:05.2493496Z 2026-04-16 20:39:05,247 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8728-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-curso-taller-de-ingles-para-posgrado-en-ingenieria-y-afines-inicio-mayo-2026
 2026-04-16T20:39:35.2493424Z 2026-04-16 20:39:35,248 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8728-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-curso-taller-de-ingles-para-posgrado-en-ingenieria-y-afines-inicio-mayo-2026: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:39:35.2495887Z Call log:
 2026-04-16T20:39:35.2498370Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8728-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-curso-taller-de-ingles-para-posgrado-en-ingenieria-y-afines-inicio-mayo-2026", waiting until "domcontentloaded"
-2026-04-16T20:39:35.2500387Z 
+2026-04-16T20:39:35.2500387Z
 2026-04-16T20:39:35.2502007Z 2026-04-16 20:39:35,249 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8727-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-programa-de-ingles-general-english-for-you-inicio-de-clases-abril-2026
 2026-04-16T20:40:05.2504691Z 2026-04-16 20:40:05,250 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8727-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-programa-de-ingles-general-english-for-you-inicio-de-clases-abril-2026: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:40:05.2507404Z Call log:
 2026-04-16T20:40:05.2509358Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8727-el-centro-de-idiomas-de-la-fim-te-invita-a-formar-parte-del-programa-de-ingles-general-english-for-you-inicio-de-clases-abril-2026", waiting until "domcontentloaded"
-2026-04-16T20:40:05.2511279Z 
+2026-04-16T20:40:05.2511279Z
 2026-04-16T20:40:05.2513217Z 2026-04-16 20:40:05,250 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8724-unidad-de-recursos-humanos-en-el-marco-del-plan-de-bienestar-social-2026-ha-programado-la-campana-de-seguros-de-mapfre-fechas-14-17-20-21-24-27-y-28-de-abril-del-2026
 2026-04-16T20:40:35.2520061Z 2026-04-16 20:40:35,251 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8724-unidad-de-recursos-humanos-en-el-marco-del-plan-de-bienestar-social-2026-ha-programado-la-campana-de-seguros-de-mapfre-fechas-14-17-20-21-24-27-y-28-de-abril-del-2026: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:40:35.2523012Z Call log:
 2026-04-16T20:40:35.2525254Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8724-unidad-de-recursos-humanos-en-el-marco-del-plan-de-bienestar-social-2026-ha-programado-la-campana-de-seguros-de-mapfre-fechas-14-17-20-21-24-27-y-28-de-abril-del-2026", waiting until "domcontentloaded"
-2026-04-16T20:40:35.2527588Z 
+2026-04-16T20:40:35.2527588Z
 2026-04-16T20:40:35.2530126Z 2026-04-16 20:40:35,251 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8715-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-un-vistazo-a-la-geometria-hiperbolica-que-estara-a-cargo-del-mg-hugo-castillo-fecha-09-de-abril
 2026-04-16T20:41:05.2534102Z 2026-04-16 20:41:05,252 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8715-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-un-vistazo-a-la-geometria-hiperbolica-que-estara-a-cargo-del-mg-hugo-castillo-fecha-09-de-abril: Page.goto: Timeout 30000ms exceeded.
 2026-04-16T20:41:05.2537844Z Call log:
 2026-04-16T20:41:05.2540581Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8715-la-facultad-de-ciencias-invita-a-la-comunidad-universitaria-y-al-publico-en-general-a-participar-de-la-conferencia-un-vistazo-a-la-geometria-hiperbolica-que-estara-a-cargo-del-mg-hugo-castillo-fecha-09-de-abril", waiting until "domcontentloaded"
-2026-04-16T20:41:05.2545994Z 
+2026-04-16T20:41:05.2545994Z
 2026-04-16T20:41:05.2548104Z 2026-04-16 20:41:05,252 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8713-la-unidad-de-recursos-humanos-ha-programado-en-el-marco-del-plan-de-bienestar-social-2026-la-7ma-feria-alimenticia-come-rico-come-sano-fechas-08-10-15-17-22-24-y-29-de-abril
 2026-04-16T20:41:19.2384741Z 2026-04-16 20:41:19,236 - WARNING - Error crawling https://www.uni.edu.pe/index.php/cursos/item/8713-la-unidad-de-recursos-humanos-ha-programado-en-el-marco-del-plan-de-bienestar-social-2026-la-7ma-feria-alimenticia-come-rico-come-sano-fechas-08-10-15-17-22-24-y-29-de-abril: Page.goto: net::ERR_CONNECTION_TIMED_OUT at https://www.uni.edu.pe/index.php/cursos/item/8713-la-unidad-de-recursos-humanos-ha-programado-en-el-marco-del-plan-de-bienestar-social-2026-la-7ma-feria-alimenticia-come-rico-come-sano-fechas-08-10-15-17-22-24-y-29-de-abril
 2026-04-16T20:41:19.2399124Z Call log:
 2026-04-16T20:41:19.2464726Z   - navigating to "https://www.uni.edu.pe/index.php/cursos/item/8713-la-unidad-de-recursos-humanos-ha-programado-en-el-marco-del-plan-de-bienestar-social-2026-la-7ma-feria-alimenticia-come-rico-come-sano-fechas-08-10-15-17-22-24-y-29-de-abril", waiting until "domcontentloaded"
-2026-04-16T20:41:19.2522627Z 
+2026-04-16T20:41:19.2522627Z
 2026-04-16T20:41:19.2552336Z 2026-04-16 20:41:19,236 - INFO - Crawling depth 2: https://www.uni.edu.pe/index.php/cursos/item/8710-unidad-de-centro-cultural-de-la-uni-invita-a-los-talleres-de-otono-2026-canto-oratoria-violin-guitarra-charango-inicio-27-de-abril
 2026-04-16T20:41:31.3186970Z 2026-04-16 20:41:31,318 - ERROR - Missing credentials in .env
 2026-04-16T20:41:32.0904530Z 2026-04-16 20:41:32,089 - INFO - Fetching page 1: https://educacioncontinua.pucp.edu.pe/oferta-academica/?jsf=jet-engine&pagenum=1
@@ -754,7 +754,7 @@
 2026-04-16T20:51:31.6942763Z Orchestrating for 1 workers (Limit: 20)...
 2026-04-16T20:51:31.6949303Z Processing 14 active institutions.
 2026-04-16T20:51:31.6951454Z Orchestration plan saved to orchestration_plan.json
-2026-04-16T20:51:31.6951959Z 
+2026-04-16T20:51:31.6951959Z
 2026-04-16T20:51:31.6952222Z Starting task execution...
 2026-04-16T20:51:31.6952992Z [PROCESS] Running harvester for: Universidad de Lima (scripts/core/universal_harvester.py)
 2026-04-16T20:51:31.6956093Z [ERROR] Critical error in Universidad de Lima: Command '['python', 'scripts/core/universal_harvester.py', '{"id": "ccd04100-1bde-427b-b94f-ab24ae233a2a", "name": "Universidad de Lima", "slug": "universidad-de-lima", "website_url": "https://www.ulima.edu.pe/", "location_lat": null, "location_long": null, "address": null, "created_at": "2026-04-14T07:23:43.897391+00:00", "updated_at": "2026-04-14T07:23:43.897391+00:00", "harvester_type": "universal", "harvester_script": "scripts/core/universal_harvester.py"}']' timed out after 299.999977296 seconds

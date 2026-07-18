@@ -20,12 +20,12 @@ for table in tables:
     # Get Free columns from data
     free_data = db.select(table, limit=1)
     free_cols = set(free_data[0].keys()) if free_data else set()
-    
+
     # Get Pro columns from sample
     r = requests.get(PRO_URL + "/rest/v1/" + table + "?limit=1",
                      headers={"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY}, timeout=10)
     pro_cols = set(r.json()[0].keys()) if r.status_code == 200 and r.json() else set()
-    
+
     if not pro_cols:
         # Try schema via mgmt API
         r2 = requests.post(
@@ -34,10 +34,10 @@ for table in tables:
             headers={'Authorization': 'Bearer ' + MGMT_TOKEN, 'Content-Type': 'application/json'}, timeout=10)
         if r2.status_code == 201:
             pro_cols = {row['column_name'] for row in r2.json()}
-    
+
     missing_in_pro = free_cols - pro_cols
     extra_in_pro = pro_cols - free_cols
-    
+
     print(table + ":")
     print("  Free: " + str(len(free_cols)) + " cols, Pro: " + str(len(pro_cols)) + " cols")
     if missing_in_pro:

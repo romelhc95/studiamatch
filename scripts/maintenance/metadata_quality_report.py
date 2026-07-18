@@ -1,4 +1,4 @@
-﻿import os
+import os
 import requests
 from dotenv import load_dotenv
 import json
@@ -21,7 +21,7 @@ headers = {
 def analyze_metadata():
     url = f"{SUPABASE_URL}/rest/v1/courses?select=id,name,url,description_long,target_audience,syllabus,institution_id"
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code != 200:
         print(f"Error fetching data: {response.status_code} {response.text}")
         return
@@ -83,7 +83,7 @@ def analyze_metadata():
     os.makedirs('docs', exist_ok=True)
     with open('docs/metadata_quality_report.md', 'w', encoding='utf-8') as f:
         f.write('\n'.join(report_lines))
-    
+
     print("Report written to docs/metadata_quality_report.md")
 
 if __name__ == "__main__":

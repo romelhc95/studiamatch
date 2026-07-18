@@ -281,7 +281,7 @@
 2026-04-16T20:51:45.2076352Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
 2026-04-16T20:51:45.2134399Z Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
 2026-04-16T20:51:45.3795178Z Installing collected packages: asn1crypto, urllib3, uritemplate, typing-extensions, tqdm, soupsieve, six, scramp, python-dotenv, PyPDF2, pyparsing, pycparser, pyasn1, psycopg2-binary, protobuf, idna, greenlet, charset_normalizer, certifi, annotated-types, typing-inspection, requests, python-dateutil, pyee, pydantic-core, pyasn1-modules, proto-plus, httplib2, grpcio, googleapis-common-protos, cffi, beautifulsoup4, pydantic, playwright, pg8000, grpcio-status, cryptography, playwright-stealth, google-auth, google-auth-httplib2, google-api-core, google-api-python-client, google-ai-generativelanguage, google-generativeai
-2026-04-16T20:51:49.2781734Z 
+2026-04-16T20:51:49.2781734Z
 2026-04-16T20:51:49.2809199Z Successfully installed PyPDF2-3.0.1 annotated-types-0.7.0 asn1crypto-1.5.1 beautifulsoup4-4.14.3 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.7 cryptography-46.0.7 google-ai-generativelanguage-0.6.15 google-api-core-2.30.3 google-api-python-client-2.194.0 google-auth-2.49.2 google-auth-httplib2-0.3.1 google-generativeai-0.8.6 googleapis-common-protos-1.74.0 greenlet-3.4.0 grpcio-1.80.0 grpcio-status-1.71.2 httplib2-0.31.2 idna-3.11 pg8000-1.31.5 playwright-1.58.0 playwright-stealth-2.0.3 proto-plus-1.27.2 protobuf-5.29.6 psycopg2-binary-2.9.11 pyasn1-0.6.3 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.13.1 pydantic-core-2.46.1 pyee-13.0.1 pyparsing-3.3.2 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 requests-2.33.1 scramp-1.4.8 six-1.17.0 soupsieve-2.8.3 tqdm-4.67.3 typing-extensions-4.15.0 typing-inspection-0.4.2 uritemplate-4.2.0 urllib3-2.6.3
 2026-04-16T20:51:49.7493969Z ##[group]Run python scripts/core/llm_enrichment_worker.py --provider auto
 2026-04-16T20:51:49.7494564Z [36;1mpython scripts/core/llm_enrichment_worker.py --provider auto[0m
@@ -344,7 +344,7 @@
 2026-04-16T20:51:51.3198658Z   ⏭️ Saltando: Descripción muy corta (0 chars)
 2026-04-16T20:51:51.3199357Z   ⏭️ Saltando: Descripción muy corta (0 chars)
 2026-04-16T20:51:51.3200089Z   ⏭️ Saltando: Descripción muy corta (0 chars)
-2026-04-16T20:51:51.3200582Z 
+2026-04-16T20:51:51.3200582Z
 2026-04-16T20:51:51.3201214Z [2026-04-16T20:51:51.313317] ✅ Finalizado. Éxitos: 0 | Errores: 0 | Saltados: 42
 2026-04-16T20:51:51.3406975Z Post job cleanup.
 2026-04-16T20:51:51.5048388Z Post job cleanup.

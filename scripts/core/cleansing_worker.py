@@ -41,7 +41,7 @@ def aggressive_html_clean(raw_html: str) -> str:
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["head", "header", "footer", "nav", "aside", "script", "style", "noscript", "iframe", "svg"]):
         tag.decompose()
-    
+
     noise_patterns = re.compile(r'header|footer|nav|menu|topbar|sidebar|social|copyright|breadcrumb|banner', re.I)
     for element in soup.find_all(True, {"class": noise_patterns}): element.decompose()
     for element in soup.find_all(True, {"id": noise_patterns}): element.decompose()
@@ -72,7 +72,7 @@ def is_soft_404(text: str) -> bool:
 def detect_obsolete_dates(text: str, url: str = "", name: str = "") -> Optional[str]:
     today = datetime.now()
     current_year = today.year
-    
+
     # 1. Buscar cualquier año de 4 dígitos (2000-2029) en URL o Nombre
     # Si el año es menor al actual, es obsoleto de inmediato (Hard Exclusion)
     year_match = re.findall(r'\b(20[0-2][0-9])\b', f"{url} {name}")
@@ -80,12 +80,12 @@ def detect_obsolete_dates(text: str, url: str = "", name: str = "") -> Optional[
         for y in year_match:
             if int(y) < current_year:
                 return f"hard_obsolete_year:{y}"
-    
+
     # 2. Buscar menciones de años pasados en el cuerpo del texto con contexto de fechas
     for year in [str(y) for y in range(2000, current_year)]:
         if re.search(r'(?:inicio|clases|admisi[óo]n|fecha|ciclo|semestre|vencimiento).*?\b' + year + r'\b', text, re.IGNORECASE | re.DOTALL):
             return f"obsolete_year_context:{year}"
-            
+
     return None
 
 def extract_price(text: str) -> Tuple[Optional[float], str]:
@@ -383,7 +383,7 @@ class CleansingWorker:
         if name is None: name = ""
         if description is None: description = ""
         if url is None: url = ""
-        
+
         low_url, low_name = url.lower(), name.lower()
         # Check if URL is the institution's homepage (noise)
         if institution_id:
@@ -429,7 +429,7 @@ class CleansingWorker:
         for base_url, members in groups.items():
             combined_html, combined_desc = "", ""
             best_raw_name = None
-            
+
             # Find the best name among siblings
             for m in members:
                 m_url = m['url'].lower()
@@ -445,13 +445,13 @@ class CleansingWorker:
             for m in members:
                 combined_html += f"\n--- URL: {m['url']} ---\n" + (m.get('raw_html') or "")
                 combined_desc += f" {m.get('raw_description') or ''}"
-            
+
             main_raw = members[0]
             for m in members:
                 if normalize_url(m['url']) == normalize_url(base_url):
                     main_raw = m
                     break
-            
+
             # Use the best name found if main_raw has none
             final_raw_name = best_raw_name or main_raw.get('raw_name', '')
             # H1 fallback: if raw_name is too generic (short or just institution name), extract from <h1>
@@ -459,9 +459,9 @@ class CleansingWorker:
                 h1_name = self._extract_h1_name(main_raw.get('raw_html', ''))
                 if h1_name and len(h1_name) > len(final_raw_name):
                     final_raw_name = h1_name
-            
+
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
-            
+
             # Filtros de Calidad y Hubs
             discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context, institution_id=inst_id)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
@@ -470,11 +470,11 @@ class CleansingWorker:
             if not discard_reason:
                 regex_start_date, discard_reason_dates = detect_expired_start_date(clean_text_context)
                 discard_reason = discard_reason_dates
-            
+
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
                 continue
-                
+
             clean_name = clean_course_name(final_raw_name)
             # Fase 62C: Perfil-driven title cleansing (prefix removal, separator splitting)
             profile = self._get_profile_for_inst(inst_id)
@@ -483,7 +483,7 @@ class CleansingWorker:
             mode, locations = standardize_mode(combined_full_text), detect_locations(combined_full_text)
             # Fase 62C: Perfil-driven price extraction with profile regex
             price, p_status = self._extract_price_with_regex(combined_full_text, profile)
-            
+
             cleansed_batch.append({
                 "staging_id": main_raw['id'], "institution_id": inst_id, "url": base_url,
                 "effective_url": main_raw.get('effective_url'), "canonical_url": main_raw.get('canonical_url'),

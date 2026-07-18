@@ -18,7 +18,7 @@ SENIORITY_COLUMNS = {
 
 def run_taxonomy_roi_audit():
     print("🚀 Iniciando Auditoría de Coherencia Taxonómica y Financiera...")
-    
+
     # 1. Obtener datos de referencia (Salarios de Mercado)
     salaries_data = db.select_all('market_salaries', columns='*')
     market_map = {s['category_id']: s for s in salaries_data}
@@ -29,23 +29,23 @@ def run_taxonomy_roi_audit():
         filters='is_active=eq.true',
         columns='id,name,category,category_id,expected_monthly_salary,roi_months,seniority_level,price_pen,course_type',
     )
-    
+
     issues = []
-    
+
     if not courses:
         print("ℹ️ No hay cursos activos para auditar en este momento.")
         return
 
     total_courses = len(courses)
     print(f"📊 Auditando {total_courses} cursos...")
-    
+
     for c in courses:
         error = []
         # A. Validación de Categoría (ID vs Texto)
         expected_cat_name = market_map.get(c['category_id'], {}).get('category_name')
         if expected_cat_name and c['category'] != expected_cat_name:
             error.append(f"Desconexión de nombre: ID pertenece a '{expected_cat_name}' pero texto dice '{c['category']}'")
-            
+
         # B. Validación de Salario vs Mercado
         market_data = market_map.get(c['category_id'])
         if market_data:
@@ -73,7 +73,7 @@ def run_taxonomy_roi_audit():
     # 3. Generar Reporte de Coherencia
     report_path = "docs/qa-engineer/reporte_coherencia_taxonomica_v1.md"
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
-    
+
     with open(report_path, "w", encoding="utf-8") as f:
         f.write("# Auditoría de Coherencia Taxonómica y Financiera\n\n")
         f.write(f"- **Total Cursos Auditados:** {len(courses)}\n")
