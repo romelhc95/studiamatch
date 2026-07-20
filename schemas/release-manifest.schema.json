@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://studiamatch.local/schemas/release-manifest.schema.json",
+  "title": "StudIAMatch release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "state", "revision", "candidate_commit", "previous_manifest", "migrations", "evidence"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "release_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$" },
+    "state": {
+      "enum": [
+        "DRAFT", "DEVELOPER_READY", "QA_VALIDATED", "SECURITY_VALIDATED",
+        "DATABASE_VALIDATED", "PIPELINE_VALIDATED", "WRITERS_PAUSED",
+        "FREE_CANARY_PASSED", "FREE_CERTIFIED", "PRODUCTION_APPROVED",
+        "PRODUCTION_APPLIED", "PRODUCTION_CANARY_PASSED", "PRODUCTION_CERTIFIED",
+        "RESUME_AUTHORIZED", "READY_FOR_HUMAN_DECISION", "RELEASED", "NO_GO"
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 1 },
+    "candidate_commit": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      ]
+    },
+    "previous_manifest": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^\\.context/evidencias/releases/[a-z0-9._-]+/revisions/release-manifest-r[0-9]+\\.json$" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
+      ]
+    },
+    "migrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "transactional", "targets", "postconditions", "rollback"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^db/(migrations|nontransactional)/[A-Za-z0-9_.-]+\\.sql$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "transactional": { "type": "boolean" },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["free", "pro"] }
+          },
+          "postconditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "sql", "expected"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$" },
+                "sql": { "type": "string", "pattern": "^SELECT\\s" },
+                "expected": { "type": ["string", "number", "boolean", "null"] }
+              }
+            }
+          },
+          "rollback": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["strategy", "instructions"],
+            "properties": {
+              "strategy": { "enum": ["forward_fix", "manual"] },
+              "instructions": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^\\.context/evidencias/.+\\.json$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}
