@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://studiamatch.local/schemas/role-evidence.schema.json",
+  "title": "StudIAMatch role evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "release_id", "revision", "candidate_commit", "sequence",
+    "role", "actor", "provenance", "event", "verdict", "checks", "findings", "handoff", "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "release_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "candidate_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "role": {
+      "enum": [
+        "developer", "qa-test-engineer", "security-auditor", "supabase-architect",
+        "pipeline-engineer", "devops-release-manager", "human-approver"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["human", "agent", "ci"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "repository", "run_id", "commit", "workflow", "artifact_name", "artifact_file"],
+      "properties": {
+        "source": { "enum": ["opencode", "github-actions", "github-environment"] },
+        "repository": { "const": "romelhc95/studiamatch" },
+        "run_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9]+$" }
+          ]
+        },
+        "commit": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+          ]
+        },
+        "workflow": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^\\.github/workflows/[A-Za-z0-9_.-]+\\.yml$" }
+          ]
+        },
+        "artifact_name": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" }
+          ]
+        },
+        "artifact_file": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.json$" }
+          ]
+        }
+      }
+    },
+    "event": {
+      "enum": [
+        "DEVELOPER_SUBMIT", "QA_PASS", "SECURITY_PASS", "DATABASE_PASS",
+        "PIPELINE_PASS", "WRITERS_PAUSE", "FREE_CANARY_PASS", "FREE_PASS",
+        "AUTHORIZE_PRODUCTION", "PRODUCTION_APPLY", "PRODUCTION_CANARY_PASS",
+        "PRODUCTION_PASS", "AUTHORIZE_RESUME", "RELEASE_READY", "PROMOTE", "GATE_FAIL"
+      ]
+    },
+    "verdict": { "enum": ["PASS", "NO_GO"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "evidence"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "NOT_APPLICABLE"] },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "summary"],
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to_role", "reason"],
+      "properties": {
+        "to_role": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}
