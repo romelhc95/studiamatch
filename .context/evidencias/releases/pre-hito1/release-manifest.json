@@ -1,0 +1,56 @@
+{
+  "candidate_commit": "763bc37c18ccff106e3f32684d8a428d402ac077",
+  "evidence": [
+    {
+      "path": ".context/evidencias/releases/pre-hito1/developer-submit.json",
+      "sha256": "acb902b51f81c0e5d1ab7acfe0f1e61770aaa6525d7f9b52446db07f5ce01023"
+    }
+  ],
+  "migrations": [
+    {
+      "path": "db/migrations/20260719_canary_fixture_isolation.sql",
+      "postconditions": [
+        {
+          "expected": true,
+          "id": "canary-guards-valid",
+          "sql": "SELECT guards_valid FROM public.verify_release_canary_guards()"
+        }
+      ],
+      "rollback": {
+        "instructions": "Apply a corrective migration that restores canary_runner grants, RLS policies, and scoped RPC definitions, then re-run verify_release_canary_guards().",
+        "strategy": "forward_fix"
+      },
+      "sha256": "27032c9cdc61c2a9d5b572c7a8ea2f6d569c5f9f44cf3de5f1d71480b11b6e47",
+      "targets": [
+        "free",
+        "pro"
+      ],
+      "transactional": true
+    },
+    {
+      "path": "db/migrations/20260719_canary_scoped_atomic_promotions.sql",
+      "postconditions": [
+        {
+          "expected": true,
+          "id": "canary-guards-valid",
+          "sql": "SELECT guards_valid FROM public.verify_release_canary_guards()"
+        }
+      ],
+      "rollback": {
+        "instructions": "Apply a corrective migration that restores canary_runner grants, RLS policies, and scoped RPC definitions, then re-run verify_release_canary_guards().",
+        "strategy": "forward_fix"
+      },
+      "sha256": "b14b2edffa6b741c1b4506f473504fb9a0639c8518c0cd2b06c42dde6a4c0526",
+      "targets": [
+        "free",
+        "pro"
+      ],
+      "transactional": true
+    }
+  ],
+  "previous_manifest": null,
+  "release_id": "pre-hito1-hardening",
+  "revision": 1,
+  "schema_version": 1,
+  "state": "DEVELOPER_READY"
+}
