@@ -1,0 +1,36 @@
+{
+  "actor": {
+    "id": "qa-test-engineer-gpt-5.5-opencode",
+    "kind": "agent"
+  },
+  "candidate_commit": "1979ed53a092e3068642325534ab2b04e1747145",
+  "checks": [
+    {
+      "evidence": "Inspected clean remediation diff: only release manifest/developer evidence metadata changed to candidate_commit 1979ed53a092e3068642325534ab2b04e1747145 and refreshed developer evidence sha256. Verified candidate commit equals HEAD and origin/desarrollo, developer evidence and both migration sha256 values match manifest, required implementation-tests PASS exists, sequence/state derives to DEVELOPER_READY for next QA handoff.",
+      "id": "acceptance-tests",
+      "status": "PASS"
+    }
+  ],
+  "created_at": "2026-07-20T16:10:00Z",
+  "event": "QA_PASS",
+  "findings": [],
+  "handoff": {
+    "reason": "QA acceptance of metadata-only remediation is complete; proceed with independent security audit.",
+    "to_role": "security-auditor"
+  },
+  "provenance": {
+    "artifact_file": null,
+    "artifact_name": null,
+    "commit": null,
+    "repository": "romelhc95/studiamatch",
+    "run_id": null,
+    "source": "opencode",
+    "workflow": null
+  },
+  "release_id": "pre-hito1-hardening",
+  "revision": 1,
+  "role": "qa-test-engineer",
+  "schema_version": 1,
+  "sequence": 2,
+  "verdict": "PASS"
+}

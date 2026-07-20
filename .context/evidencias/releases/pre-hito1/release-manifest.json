@@ -1,9 +1,25 @@
 {
-  "candidate_commit": "763bc37c18ccff106e3f32684d8a428d402ac077",
+  "candidate_commit": "1979ed53a092e3068642325534ab2b04e1747145",
   "evidence": [
     {
       "path": ".context/evidencias/releases/pre-hito1/developer-submit.json",
-      "sha256": "acb902b51f81c0e5d1ab7acfe0f1e61770aaa6525d7f9b52446db07f5ce01023"
+      "sha256": "f3b53abfe68a74d310cc3a14c41319bbb4ebe1822e97534386e2755d0392c103"
+    },
+    {
+      "path": ".context/evidencias/releases/pre-hito1/qa-pass.json",
+      "sha256": "b2f6e48cfc8dd23b184eeb0c7bb49757065f09f23b72a4df220a8d786931c121"
+    },
+    {
+      "path": ".context/evidencias/releases/pre-hito1/security-pass.json",
+      "sha256": "386fb49b49cc1b4854d8349dd9f3396c246ec4eff348b075ea86b3777423efbe"
+    },
+    {
+      "path": ".context/evidencias/releases/pre-hito1/database-pass.json",
+      "sha256": "c28f2ba4471db996637dc4056c100be697efc6e67f1ed26a4dda3f1452981533"
+    },
+    {
+      "path": ".context/evidencias/releases/pre-hito1/pipeline-pass.json",
+      "sha256": "dae8d4f0868144600aa75c7e8bf21d9eac920d5e81aa02ccd280c40a3857ed73"
     }
   ],
   "migrations": [
@@ -52,5 +68,5 @@
   "release_id": "pre-hito1-hardening",
   "revision": 1,
   "schema_version": 1,
-  "state": "DEVELOPER_READY"
+  "state": "PIPELINE_VALIDATED"
 }
