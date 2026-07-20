@@ -1,0 +1,36 @@
+{
+  "actor": {
+    "id": "openai-gpt-5.5-opencode-security-auditor",
+    "kind": "agent"
+  },
+  "candidate_commit": "1979ed53a092e3068642325534ab2b04e1747145",
+  "checks": [
+    {
+      "evidence": "Reviewed remediation diff for pre-hito1-hardening: only .context/evidencias/releases/pre-hito1/developer-submit.json and release-manifest.json metadata changed. candidate_commit updated to 1979ed53a092e3068642325534ab2b04e1747145; manifest evidence sha256 f3b53abfe68a74d310cc3a14c41319bbb4ebe1822e97534386e2755d0392c103 matches developer-submit.json. No credential/secret patterns detected in changed files. Required SECURITY_PASS check id is security-audit.",
+      "id": "security-audit",
+      "status": "PASS"
+    }
+  ],
+  "created_at": "2026-07-20T16:11:00Z",
+  "event": "SECURITY_PASS",
+  "findings": [],
+  "handoff": {
+    "reason": "Security review passed after QA; proceed with DATABASE_PASS/schema and RLS review.",
+    "to_role": "supabase-architect"
+  },
+  "provenance": {
+    "artifact_file": null,
+    "artifact_name": null,
+    "commit": null,
+    "repository": "romelhc95/studiamatch",
+    "run_id": null,
+    "source": "opencode",
+    "workflow": null
+  },
+  "release_id": "pre-hito1-hardening",
+  "revision": 1,
+  "role": "security-auditor",
+  "schema_version": 1,
+  "sequence": 3,
+  "verdict": "PASS"
+}
