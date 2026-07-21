@@ -31,6 +31,10 @@ def test_crear_tarea_groups_tasks_by_requirement(tmp_path, monkeypatch):
     assert ruta.parent == backlog_dir / "req_catalogo_hito_2"
     assert ruta.name == "tarea_001_ajuste_de_catalogo.md"
     assert (ruta.parent / "_index.md").exists()
+    index = (ruta.parent / "_index.md").read_text(encoding="utf-8")
+    assert "## Hitos" in index
+    assert "no satisfacen gates de cierre/release" in index
+    assert "| Hito | Paquete | CAs | Tarea | Ventana | Despliegue |" in index
     contenido = ruta.read_text(encoding="utf-8")
     assert "requerimiento: req_catalogo_hito_2" in contenido
     assert "[[../../estimaciones/est_999]]" in contenido

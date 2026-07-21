@@ -58,6 +58,16 @@ def _ensure_requerimiento_index(req_dir, requerimiento, est_ref_normalizada):
 - **Estimacion de referencia:** [[../../estimaciones/{est_ref_normalizada}]]
 - **Creado:** {hoy}
 
+## Hitos
+Los valores `Por definir` no satisfacen gates de cierre/release; deben reemplazarse por metadata aprobada del requerimiento.
+
+| Hito | Paquete | CAs | Tarea | Ventana | Despliegue |
+|---|---|---|---|---|---|
+| Por definir | Por definir | Por definir | Por definir | Por definir | Por definir |
+
+## Tareas
+- Agregar enlaces a tareas conforme se creen.
+
 ## Reglas
 - Este directorio contiene solo tareas del requerimiento `{requerimiento}`.
 - No mezclar tareas de otros requerimientos.
