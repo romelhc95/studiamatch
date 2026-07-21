@@ -145,9 +145,22 @@ def test_scoped_migration_enforces_atomic_cardinality_and_sync():
     assert migration.count("OWNER TO postgres") == 4
 
 
-def test_database_client_uses_restricted_access_token(monkeypatch):
+def test_database_client_does_not_use_restricted_access_token_outside_canary(monkeypatch):
     monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "publishable")
     monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "restricted-token")
+    monkeypatch.delenv("STUDIAMATCH_CANARY_WORKER", raising=False)
+    monkeypatch.delenv("NEXT_SUPABASE_SECRET_KEY", raising=False)
+
+    headers = DatabaseClient("https://example.supabase.co")._get_headers(use_service_role=True)
+
+    assert headers["apikey"] == "publishable"
+    assert headers["Authorization"] == "Bearer publishable"
+
+
+def test_database_client_uses_restricted_access_token_for_canary_worker(monkeypatch):
+    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "publishable")
+    monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "restricted-token")
+    monkeypatch.setenv("STUDIAMATCH_CANARY_WORKER", "1")
     monkeypatch.delenv("NEXT_SUPABASE_SECRET_KEY", raising=False)
 
     headers = DatabaseClient("https://example.supabase.co")._get_headers(use_service_role=True)

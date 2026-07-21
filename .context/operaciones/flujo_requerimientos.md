@@ -63,6 +63,7 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 - Si toca CI/CD, ramas, Docker, Cloudflare o GitHub Actions, usar `devops-release-manager`.
 - Si toca PostgreSQL, RLS, RPC, PostgREST o migraciones, usar `supabase-architect` y `security-auditor`.
 - Si no existe una skill especializada para el dominio, usar `general` y registrar la sub-especialidad concreta.
+- El dispatcher asistivo vive en `scripts/maintenance/agent_dispatcher.py` y esta documentado en [[agent_dispatcher]]. Sugiere handoffs, pero no reemplaza `release_gate.py` ni autoriza Pro, merge o release.
 
 ## Sub-especialidades técnicas estándar
 
@@ -85,8 +86,10 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 ## Politica de git
 - La estructura documental (`.context`, `requerimientos`, `desestimado`) debe subirse separada de cambios funcionales.
 - Las implementaciones aprobadas se hacen en ramas `feat/*` desde `desarrollo`.
+- Las ramas permanentes son `desarrollo`, `certificacion` y `main`; las demas ramas son temporales y deben cerrarse o eliminarse tras merge, reemplazo o desestimacion documentada.
 - Si `desarrollo` esta divergente frente a remoto, se resuelve la sincronizacion antes de push.
 - No se hace push si hay riesgo de mezclar cambios no revisados o ajenos.
+- Los scripts de prueba de ejecucion unica, diagnostico local o backfill excepcional no se suben a GitHub; se conservan en `desestimado/` o `scripts/local/` si hace falta retenerlos localmente.
 
 ## Checklist antes de iniciar una fase aprobada
 - [ ] Estimacion aprobada y actualizada.

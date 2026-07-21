@@ -156,6 +156,10 @@ def _run_worker(arguments, worker_root, worker_image=None):
     command = [sys.executable, *arguments]
     cwd = worker_root
     cidfile = None
+    env = os.environ.copy()
+    env["STUDIAMATCH_CANARY_WORKER"] = "1"
+    if env.get("NEXT_SUPABASE_ACCESS_TOKEN"):
+        env.pop("NEXT_SUPABASE_SECRET_KEY", None)
     if worker_image:
         descriptor, cidfile_name = tempfile.mkstemp(prefix="studiamatch-canary-", suffix=".cid")
         os.close(descriptor)
@@ -170,6 +174,7 @@ def _run_worker(arguments, worker_root, worker_image=None):
         for name in (
             "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL",
             "NEXT_SUPABASE_PUBLISHABLE_KEY", "NEXT_SUPABASE_ACCESS_TOKEN",
+            "STUDIAMATCH_CANARY_WORKER",
         ):
             command.extend(["--env", name])
         command.extend([worker_image, *arguments])
@@ -178,6 +183,7 @@ def _run_worker(arguments, worker_root, worker_image=None):
         result = subprocess.run(
             command,
             cwd=cwd,
+            env=env,
             text=True,
             capture_output=True,
             timeout=900,
