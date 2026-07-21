@@ -4,6 +4,7 @@ fase: 1
 estado: pendiente
 prioridad: critica
 estimacion_ref: est_001
+requerimiento: req_est_001_sprint_1
 hito: Hito 1
 paquete: Paquete 1 - Orquestacion FG2/FG3, schema base y seguridad
 cas: "CA1, CA2 parcial, CA7 preparacion"
@@ -25,8 +26,9 @@ tags: []
 # Tarea 001: Hito 1 - Orquestacion FG2 FG3 schema base y seguridad
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_001]]
+Estimacion de referencia: [[../../estimaciones/est_001]]
 
+- **Requerimiento:** req_est_001_sprint_1
 - **Hito:** Hito 1
 - **Paquete:** Paquete 1 - Orquestacion FG2/FG3, schema base y seguridad
 - **CAs cubiertos:** CA1, CA2 parcial, CA7 preparacion
