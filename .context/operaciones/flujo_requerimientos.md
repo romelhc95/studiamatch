@@ -63,7 +63,8 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 - Si toca CI/CD, ramas, Docker, Cloudflare o GitHub Actions, usar `devops-release-manager`.
 - Si toca PostgreSQL, RLS, RPC, PostgREST o migraciones, usar `supabase-architect` y `security-auditor`.
 - Si no existe una skill especializada para el dominio, usar `general` y registrar la sub-especialidad concreta.
-- El dispatcher asistivo vive en `scripts/maintenance/agent_dispatcher.py` y esta documentado en [[agent_dispatcher]]. Sugiere handoffs, pero no reemplaza `release_gate.py` ni autoriza Pro, merge o release.
+- El dispatcher asistivo vive en `scripts/maintenance/agent_dispatcher.py` y esta documentado en [[agent_dispatcher]]. En `mode=implementation` define roles de desarrollo solo para la tarea/hito aprobado; en `mode=review` sugiere handoffs SDLC desde `release_gate.py`.
+- Si el dispatcher detecta una tarea pendiente, hito distinto o archivos fuera del alcance declarado, debe devolver `NO_GO` y no se implementa.
 
 ## Sub-especialidades técnicas estándar
 
@@ -94,6 +95,7 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 ## Checklist antes de iniciar una fase aprobada
 - [ ] Estimacion aprobada y actualizada.
 - [ ] Tareas creadas con CAs, fechas y entregables.
+- [ ] `agent_dispatcher.py --mode implementation` ejecutado contra la tarea aprobada y el hito autorizado.
 - [ ] Rama base sincronizada.
 - [ ] Alcance de la fase confirmado por el usuario.
 - [ ] Riesgos de seguridad identificados.
