@@ -17,11 +17,11 @@ def run_script(script_path, args=None):
     cmd = [sys.executable, script_path]
     if args:
         cmd.extend(args)
-    
+
     logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
     result = subprocess.run(cmd, capture_output=False, env=os.environ.copy())
-    
+
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
         return True
@@ -30,23 +30,40 @@ def run_script(script_path, args=None):
         return False
 
 def get_institutions(limit=10):
-    """Fetch institutions to harvest, prioritizing discovery_enabled first, then round-robin."""
+    """Fetch institutions eligible for harvesting. Gates are applied BEFORE limit to avoid wasting slots."""
     try:
         all_insts = db.select('institutions',
                              columns="id,name,slug,website_url,last_harvest_at",
                              order="last_harvest_at.asc.nullsfirst")
 
         profiles = db.select_pipeline('institution_site_profiles',
-                                     columns="institution_id,discovery_enabled")
-        enabled = {p['institution_id']: p.get('discovery_enabled', False)
-                   for p in profiles}
+                                     columns="institution_id,discovery_enabled,pipeline_enabled,pipeline_ready,circuit_open")
 
-        all_insts.sort(key=lambda i: (
-            not enabled.get(i['id'], False),
-            i.get('last_harvest_at') or ''
-        ))
+        gate_map = {}
+        for p in profiles:
+            pid = p['institution_id']
+            gate_map[pid] = {
+                'discovery_enabled': p.get('discovery_enabled', False),
+                'pipeline_enabled': p.get('pipeline_enabled', False),
+                'pipeline_ready': p.get('pipeline_ready', False),
+                'circuit_open': p.get('circuit_open', False),
+            }
 
-        return all_insts[:limit]
+        eligible = []
+        for i in all_insts:
+            gates = gate_map.get(i['id'], {})
+            if not gates.get('discovery_enabled', False):
+                continue
+            if gates.get('circuit_open', False):
+                continue
+            i['_discovery_enabled'] = True
+            i['_pipeline_enabled'] = gates.get('pipeline_enabled', False)
+            i['_pipeline_ready'] = gates.get('pipeline_ready', False)
+            i['_circuit_open'] = False
+            eligible.append(i)
+
+        eligible.sort(key=lambda i: i.get('last_harvest_at') or '')
+        return eligible[:limit]
     except Exception as e:
         logger.error(f"Failed to fetch institutions: {e}")
     return []
@@ -54,11 +71,11 @@ def get_institutions(limit=10):
 def main():
     import argparse
     import time
-    
+
     # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
     env_start = os.getenv("JOB_START_TIME")
     global_start = float(env_start) if env_start else time.time()
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
@@ -70,17 +87,17 @@ def main():
     # 🚉 PHASE 1: Discovery & Harvesting
     logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
     institutions = get_institutions(limit=args.limit)
-    
+
     # Filter out excluded
     institutions = [i for i in institutions if i['slug'] not in excluded_slugs]
-    
+
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
     for inst in institutions:
         inst_id = inst['id']
         inst_name = inst['name']
         last_harvest = inst['last_harvest_at']
-        
+
         # 🛡️ FRESHNESS GUARD: Skip if already dense (>50 urls) and updated in the last 3 days (72h)
         if last_harvest:
             try:
@@ -88,11 +105,11 @@ def main():
                 from datetime import datetime, timezone, timedelta
                 last_dt = datetime.fromisoformat(last_harvest.replace('Z', '+00:00'))
                 now_dt = datetime.now(timezone.utc)
-                
+
                 if (now_dt - last_dt) < timedelta(days=3):
                     # Quick count in staging_raw
                     count = db.count_pipeline('staging_raw', filters=f"institution_id=eq.{inst_id}")
-                    
+
                     if count > 50:
                         logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
                         continue

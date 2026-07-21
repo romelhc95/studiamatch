@@ -1,9 +1,15 @@
 name: FG3 - Daily Integrity Management
 
 on:
-  schedule:
-    - cron: '0 5 * * *' # ⛔ DESACTIVADO temporalmente hasta redefinir flujo
-  workflow_dispatch:      # Manual
+  # schedule:
+  #   - cron: '0 5 * * *' # ⛔ DESACTIVADO — Hito 1: cron comentado, solo workflow_dispatch
+  workflow_dispatch:      # Manual con autorizacion explicita
+    inputs:
+      resume_authorized:
+        description: 'Escribe exactamente true para autorizar FG3 manual en ramas permanentes'
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: studiamatch-fg3-${{ github.ref }}
@@ -12,6 +18,7 @@ concurrency:
 jobs:
   integrity:
     name: "3. Daily Integrity Ping"
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.resume_authorized == true && contains(fromJSON('["main", "certificacion", "desarrollo"]'), github.ref_name) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:

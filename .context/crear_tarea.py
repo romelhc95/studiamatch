@@ -83,6 +83,16 @@ def _lista_markdown(items, fallback="Por definir"):
     return "\n".join(f"- [ ] {item}" for item in items)
 
 
+def _filas_pruebas_ca(cas_valor):
+    cas = [ca.strip() for ca in cas_valor.split(",") if ca.strip()]
+    if not cas or cas == ["Por definir"]:
+        return "| Por definir | Definir antes de ejecutar | Por definir | Por definir | Por definir | Por definir |"
+    return "\n".join(
+        f"| {ca} | Definir antes de ejecutar | Por definir | Por definir | Por definir | Por definir |"
+        for ca in cas
+    )
+
+
 def _valor(valor, fallback="Por definir"):
     return valor if valor else fallback
 
@@ -125,6 +135,7 @@ def crear_tarea(
     criterios_md = _lista_markdown(criterios, "Criterios derivados de la estimacion aprobada")
     archivos_md = "\n".join(f"| `{a}` | Por definir |" for a in archivos) if archivos else "| Por definir | Por definir |"
     dependencias_md = "\n".join(f"- {d}" for d in dependencias) if dependencias else "- Sin dependencias registradas"
+    pruebas_ca_md = _filas_pruebas_ca(cas_valor)
 
     contenido = f"""---
 id: TAREA-{tarea_id}
@@ -181,6 +192,11 @@ Estimacion de referencia: [[../../estimaciones/{est_ref_normalizada}]]
 
 ## Criterios de Aceptacion
 {criterios_md}
+
+## Matriz CA -> pruebas/evidencia
+| CA | Prueba obligatoria | Tipo | Metodo / comando | Resultado esperado | Evidencia requerida |
+|---|---|---|---|---|---|
+{pruebas_ca_md}
 
 ## Archivos afectados
 | Archivo | Tipo de cambio |
