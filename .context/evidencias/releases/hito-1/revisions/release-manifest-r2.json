@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "release_id": "hito-1",
+  "state": "DEVELOPER_READY",
+  "revision": 2,
+  "candidate_commit": null,
+  "previous_manifest": null,
+  "migrations": [
+    {
+      "path": "db/migrations/20260712_hito1_editorial_quality_contract.sql",
+      "sha256": "PLACEHOLDER_WILL_BE_UPDATED_AFTER_STAGE",
+      "transactional": true,
+      "targets": ["free"],
+      "postconditions": [
+        {
+          "id": "courses_columns_exist",
+          "sql": "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='courses' AND column_name='publication_status'",
+          "expected": 1
+        }
+      ],
+      "rollback": {
+        "strategy": "forward_fix",
+        "instructions": "Crear una nueva migracion que revierta o ajuste las columnas si la migracion original introdujo un defecto."
+      }
+    },
+    {
+      "path": "db/migrations/20260721_hito1_rls_reconciliation.sql",
+      "sha256": "PLACEHOLDER_WILL_BE_UPDATED_AFTER_STAGE",
+      "transactional": true,
+      "targets": ["free"],
+      "postconditions": [
+        {
+          "id": "leads_insert_public_has_course_id_check",
+          "sql": "SELECT count(*) FROM pg_policies WHERE tablename='leads' AND policyname='leads_insert_public' AND with_check::text LIKE '%publication_status%'",
+          "expected": 1
+        }
+      ],
+      "rollback": {
+        "strategy": "forward_fix",
+        "instructions": "Si la migracion correctiva introduce un defecto, crear una tercera migracion que corrija el texto de la policy."
+      }
+    }
+  ],
+  "evidence": []
+}

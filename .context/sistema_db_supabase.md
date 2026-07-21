@@ -63,7 +63,7 @@ Mapeo keyword → categoría para trigger de auto-asignación. (5 columnas)
 | `created_at` | `timestamp with time zone` | default `now()` |
 
 #### `public.courses`
-Tabla principal del catálogo de cursos y programas académicos. (39 columnas)
+Tabla principal del catálogo de cursos y programas académicos. (47 columnas)
 
 | Columna                   | Tipo                       | Notas                                                              |
 | :------------------------ | :------------------------- | :----------------------------------------------------------------- |
@@ -94,6 +94,14 @@ Tabla principal del catálogo de cursos y programas académicos. (39 columnas)
 | `brochure_text`           | `text`                     | Texto extraído del brochure                                        |
 | `is_active`               | `boolean`                  | default `true` · Switch de estado lógico                           |
 | `is_verified`             | `boolean`                  | default `false` · Marca de calidad y curación de datos             |
+| `publication_status`      | `text`                     | NOT NULL · default `'borrador'` · Hito 1: estado editorial (`borrador`, `pendiente_revision`, `publicado`, `despublicado`). NO reutiliza estados ETL. |
+| `data_quality_status`     | `text`                     | NOT NULL · default `'pendiente'` · Hito 1: calidad de datos (`pendiente`, `completo`). Consumido por TAREA-002. |
+| `missing_fields`          | `jsonb`                    | NOT NULL · default `'[]'` · Hito 1: array de campos criticos faltantes. Llenado por TAREA-002. |
+| `field_sources`           | `jsonb`                    | NOT NULL · default `'{}'` · Hito 1: objeto con origen de cada campo (`scraping`, `llm`, `manual`). |
+| `manual_updated_at`       | `timestamp with time zone` | Hito 1: timestamp de ultima curacion manual via /admin (TAREA-003). NULL si nunca fue editado manualmente. |
+| `is_sponsored`            | `boolean`                  | NOT NULL · default `false` · Hito 1: flag base para patrocinio. |
+| `sponsorship_priority`    | `integer`                  | NOT NULL · default `0` · Hito 1: prioridad de despliegue para patrocinados. |
+| `sponsorship_label`       | `text`                     | Hito 1: etiqueta visible de patrocinio (max 80 chars). |
 | `start_date`              | `date`                     | Fecha de inicio estructurada (Fase 73)                             |
 | `start_date_text`         | `character varying`        | Texto original de fecha de inicio                                  |
 | `last_scraped_at`         | `timestamp with time zone` | Fecha de la última recolección                                     |
@@ -123,7 +131,7 @@ Datos maestros de salarios de mercado por categoría. (7 columnas)
 ### Social / Leads
 
 #### `public.leads`
-Captura de leads interesados desde el frontend. (15 columnas)
+Captura de leads interesados desde el frontend. (16 columnas)
 
 | Columna | Tipo | Notas |
 | :--- | :--- | :--- |
@@ -141,6 +149,7 @@ Captura de leads interesados desde el frontend. (15 columnas)
 | `modality` | `text` | Modalidad preferida |
 | `description` | `text` | Mensaje adicional o notas de asesoramiento |
 | `is_late_enrollment_request` | `boolean` | default `false` · Solicitud extemporánea |
+| `lead_source_type` | `text` | NOT NULL · default `'organic'` · Hito 1: clasificacion base de lead (`organic`, `sponsored`). Solo clasificacion; sin email/webhook/CRM. |
 | `created_at` | `timestamp with time zone` | default `now()` |
 
 #### `public.ratings`
@@ -398,7 +407,8 @@ Tabla de control para auditorías DDL y migraciones críticas sobre el esquema. 
 
 | Tabla | Rol | Permiso | Condición |
 |---|---|---|---|
-| `leads` | `anon`, `authenticated` | `INSERT` | `true` |
+| `leads` | `anon` | `INSERT` | first_name 1-100 chars, email regex + max 255, whatsapp max 30, `lead_source_type = 'organic'`, `course_id` NULL o curso activo+verificado+publicado+production_enabled |
+| `leads` | `authenticated` | `INSERT` | Ídem que `anon` |
 | `leads` | `service_role` | `ALL` | `true` |
 | `ratings` | `public` | `SELECT`, `INSERT` | INSERT verifica `rating_value 1..5` y nickname no vacío |
 | `reviews` | `public` | `SELECT`, `INSERT` | INSERT verifica contenido y nickname no vacíos |

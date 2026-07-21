@@ -113,6 +113,17 @@ DML_EXCEPTION: db/migrations/20260712_hito1_editorial_quality_contract.sql | APP
 - [x] La tarea tecnica fue actualizada con resultado y evidencia.
 - [x] Hito listo para PR final.
 
+## 9.5 Remediacion Post-Auditoria (TAREA-006 · 2026-07-21)
+
+Hallazgos bloqueantes de la auditoria de cobertura fueron remediados:
+
+| Finding | Accion | Evidencia |
+|---|---|---|
+| RLS leads sin validacion `course_id` | Migracion `20260721_hito1_rls_reconciliation.sql` aplicada en Free. | `pg_policies` verificado: ambas policies contienen `publication_status`. |
+| Sin prueba funcional del orquestador | `tests/test_orchestrator_gates.py`: 5 casos. | pytest 5/5 OK. |
+| Documentacion canonica desactualizada | `sistema_db_supabase.md` y `arquitectura_pipeline.md` actualizados. | Diff versionado. |
+| Tooling de gobernanza no justificado | `validate_hito_close.py` y `test_hito_governance.py` son infraestructura SDLC requerida. | Justificado en changelog. |
+
 ## 10. Version Para Notion / Cliente
 
 ```text

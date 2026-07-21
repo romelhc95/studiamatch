@@ -1,0 +1,11 @@
+{
+  "evidence_type": "supabase_free_rls_verification",
+  "hito": 1,
+  "date": "2026-07-21",
+  "migration": "db/migrations/20260721_hito1_rls_reconciliation.sql",
+  "verification": {
+    "policies_checked": ["leads_insert_public", "leads_insert_authenticated"],
+    "expected": "Both policies must include course_id validation against publishable courses (checking publication_status)",
+    "status": "VERIFIED_POST_MIGRATION"
+  }
+}

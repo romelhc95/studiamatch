@@ -52,7 +52,7 @@ El pipeline StudIAMatch transforma URLs de programas educativos en datos estruct
 
 | Trigger | Detalle |
 |---|---|
-| `schedule` | `0 5 * * *` — Diario a las 5 AM UTC |
+| `schedule` | `0 5 * * *` — Diario a las 5 AM UTC (activo solo en `main`) |
 | `workflow_dispatch` | Manual |
 
 | Job | Worker | Timeout | Dependencia | Necesita Secret Key |
@@ -74,8 +74,8 @@ El pipeline StudIAMatch transforma URLs de programas educativos en datos estruct
 
 | Trigger | Detalle |
 |---|---|
-| `schedule` | `0 5 * * *` (marcado como desactivado, cron sintacticamente presente) |
-| `workflow_dispatch` | Manual |
+| `schedule` | Desactivado (Hito 1). Cron presente pero comentado; solo opera `workflow_dispatch`. |
+| `workflow_dispatch` | Manual — requiere `resume_authorized=true` y rama permanente (`desarrollo`, `certificacion`, `main`). |
 
 Ejecuta `integrity_ping.py`: HEAD-check de URLs activas, deteccion 404, desactivacion tras 3 dias, conteo de salud del catalogo.
 
@@ -83,8 +83,8 @@ Ejecuta `integrity_ping.py`: HEAD-check de URLs activas, deteccion 404, desactiv
 
 | Trigger | Detalle |
 |---|---|
-| `schedule` | `0 0 1 * *` (mensual, marcado como desactivado) |
-| `workflow_dispatch` | Manual |
+| `schedule` | Desactivado (Hito 1). Cron presente pero comentado; solo opera `workflow_dispatch`. |
+| `workflow_dispatch` | Manual — requiere `resume_authorized=true` y rama permanente. |
 
 Ejecuta `discovery_institutions.py`: seeding de instituciones desde `config/institution_sources.json`.
 
@@ -114,7 +114,7 @@ Ejecuta `discovery_institutions.py`: seeding de instituciones desde `config/inst
 
 ### FG2-1: Harvester (`universal_harvester.py` + `master_orchestrator.py`)
 
-**Orquestador**: `master_orchestrator.py` itera sobre instituciones ordenadas por `last_harvest_at`, con freshness guard: skip si catalogo denso fue cosechado hace <3 dias.
+**Orquestador**: `master_orchestrator.py` itera sobre instituciones ordenadas por `last_harvest_at`, con freshness guard: skip si catalogo denso fue cosechado hace <3 dias. Los gates `discovery_enabled=false` y `circuit_open=true` se aplican **antes** de `limit` para no desperdiciar slots en instituciones no procesables.
 
 **Descubrimiento**:
 - `hardcoded_urls`: URLs semilla directas del profile

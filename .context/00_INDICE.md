@@ -27,6 +27,10 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[backlog_tareas/_plantilla_tarea]]
 - [[backlog_tareas/req_est_001_sprint_1/_index]] — Tareas historicas EST-001 / Sprint 1
 
+## Evidencias
+- [[evidencias/hito_1_auditoria_cobertura_20260721]] — Auditoria `NO_GO` y handoff de remediacion de Hito 1
+- `.context/evidencias/hito_1_rls_reconciliation_free_20260721.json` — Verificacion de paridad RLS post-migracion correctiva (JSON, solo referencia)
+
 ## Estimaciones
 - [[estimaciones/_plantilla_estimacion]]
 - [[estimaciones/est_001]] — Sprint 1 aprobado
@@ -45,3 +49,4 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[changelog/2026-07-05]] — Inicializacion
 - [[changelog/2026-07-11]] — Preparacion Sprint 1 / Hito 1
 - [[changelog/2026-07-20]] — Dispatcher de agentes e higiene del repositorio
+- [[changelog/2026-07-21]] — Auditoria y remediacion documental de Hito 1

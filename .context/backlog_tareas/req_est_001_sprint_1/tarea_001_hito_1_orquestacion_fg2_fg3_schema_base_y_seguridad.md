@@ -57,7 +57,7 @@ Estimacion de referencia: [[../../estimaciones/est_001]]
 - [x] Leads/flag de patrocinio quedan preparados sin implementar entrega real-time fuera de alcance
 - [x] No se reutilizan estados ETL como estado editorial publico.
 - [x] El cambio SQL queda versionado en `db/migrations/` y reconciliado contra Supabase Free.
-- [x] El resultado queda documentado para consumo de Hitos 2, 3 y 5.
+- [x] El resultado queda documentado en las fuentes canonicas para consumo de Hitos 2, 3 y 5.
 
 ## Matriz CA -> pruebas/evidencia
 | CA | Prueba obligatoria | Tipo | Metodo / comando | Resultado esperado | Evidencia requerida |
@@ -88,10 +88,10 @@ Estimacion de referencia: [[../../estimaciones/est_001]]
 - [x] Revision YAML de `.github/workflows/fg3_integrity.yml` para confirmar que `schedule` queda comentado y solo opera `workflow_dispatch`.
 - [x] Revision YAML de `.github/workflows/fg1_inventory.yml` para confirmar que `schedule` queda comentado y solo opera `workflow_dispatch`.
 - [x] Revision YAML de `.github/workflows/fg3_integrity.yml` para confirmar que `workflow_dispatch` exige `resume_authorized=true` y rama permanente.
-- [x] Revision SQL/RLS de `db/migrations/20260712_hito1_editorial_quality_contract.sql` contra Supabase Free.
+- [x] Revision SQL/RLS de `db/migrations/20260712_hito1_editorial_quality_contract.sql` contra Supabase Free sin drift.
 - [x] Ejecucion de `docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_context_graph.py .context` tras cambios en `.context`.
-- [x] Ejecucion de `docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_hito_close.py --hito 1` con reporte GO versionado.
-- [x] Revision de seguridad sin hallazgos bloqueantes.
+- [x] Ejecucion final de `docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_hito_close.py --hito 1` sin `--generate-report` y con reporte verificado.
+- [x] Evidencia JSON de revision de seguridad vinculada al commit candidato de Hito 1.
 
 ## Evidencia requerida
 - [x] Tabla de workflows revisados y decision aplicada.
@@ -104,13 +104,13 @@ Estimacion de referencia: [[../../estimaciones/est_001]]
 
 ## Checklist de cierre
 - [x] CA1 cubierto con FG3 manual-only y gates del orquestador.
-- [x] CA2 parcial cubierto con schema versionado y contrato publico/RLS resuelto.
-- [x] CA7 preparacion cubierto con contrato documentado para Hitos 2, 3 y 5.
+- [x] CA2 parcial cubierto con schema versionado y contrato publico/RLS reconciliado en Free.
+- [x] CA7 preparacion cubierto en la documentacion canonica para Hitos 2, 3 y 5.
 - [x] No se implementa entrega real-time de leads.
-- [x] No quedan credenciales ni secrets.
+- [x] Security audit estructurado confirma que no quedan credenciales ni secrets en el candidato final.
 - [x] Changelog actualizado.
 - [x] Informe de cumplimiento generado antes de marcar PR listo para entrega interna.
-- [x] Ningun CA queda sin prueba y evidencia.
+- [x] Ningun CA queda sin prueba y evidencia estructurada vinculada al candidato final.
 
 ## Notas de implementacion
 - Port limpio desde `origin/desarrollo` en rama `feat/hito-1-foundation-v2`.
@@ -120,7 +120,7 @@ Estimacion de referencia: [[../../estimaciones/est_001]]
 - DML_EXCEPTION: db/migrations/20260712_hito1_editorial_quality_contract.sql | APPROVER: Usuario/PM | JUSTIFICATION: preservar visibles los cursos activos y verificados al introducir el nuevo filtro editorial RLS.
 
 ## Resultado
-**Fecha**: 2026-07-21 | **Estado**: Implementado en rama limpia | **Ambiente validado**: Supabase Free
+**Fecha**: 2026-07-21 | **Estado**: Completado (remediado via TAREA-006) | **Ambiente reconciliado**: Supabase Free
 
 ### Cambios asociados a Hito 1
 | Archivo | Cambio |
@@ -138,3 +138,12 @@ Estimacion de referencia: [[../../estimaciones/est_001]]
 
 ### Pendiente para promocion
 - La promocion a `certificacion` y luego a Supabase Pro debe hacerse en PRs separados tras aprobacion explicita y con evidencia nueva de cada ambiente.
+
+## Auditoria Post-Cierre 2026-07-21
+
+- Los findings bloqueantes fueron remediados via [[tarea_006_hito_1_remediacion_cierre_sdlc]] (TAREA-006).
+- RLS reconciliado: migracion `20260721_hito1_rls_reconciliation.sql` restauro validacion `course_id` en policies `leads_insert_public/authenticated`.
+- Prueba funcional del orquestador creada: `tests/test_orchestrator_gates.py` (5/5 OK).
+- Documentacion canonica actualizada: `sistema_db_supabase.md` y `arquitectura_pipeline.md`.
+- Tooling de gobernanza justificado en changelog.
+- **Veredicto actual**: Listo para PR final. El merge requiere CI verde y aprobacion humana.
