@@ -13,6 +13,8 @@
 - [[estado_del_proyecto]] — Deuda tecnica, limitaciones, SDLC, monitoreo
 
 ## Flujo de Trabajo (IA + Humano)
+Prompt obligatorio: [[prompts/system_prompt_base]]
+
 1. Llega requerimiento → IA lee `.context/` completo
 2. IA genera estimacion en `estimaciones/est_XXX.md`
 3. Humano aprueba o rechaza
@@ -27,6 +29,7 @@
 
 ## Estimaciones
 - [[estimaciones/_plantilla_estimacion]]
+- [[estimaciones/est_001]] — Sprint 1 aprobado
 
 ## Operaciones
 - [[operaciones/flujo_requerimientos]] — Requerimiento → estimacion → aprobacion → tareas → entrega
@@ -40,4 +43,5 @@
 
 ## Changelog
 - [[changelog/2026-07-05]] — Inicializacion
+- [[changelog/2026-07-11]] — Preparacion Sprint 1 / Hito 1
 - [[changelog/2026-07-20]] — Dispatcher de agentes e higiene del repositorio

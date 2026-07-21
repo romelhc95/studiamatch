@@ -12,6 +12,14 @@
 
 Estos archivos son la **fuente de verdad** del proyecto. Cualquier discrepancia entre ellos y el codigo debe reportarse. Las IAs deben consultar el archivo de arquitectura relevante segun el dominio de la tarea antes de escribir codigo.
 
+Tras cualquier cambio en `.context`, ejecutar dentro del contenedor:
+
+```bash
+docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_context_graph.py .context
+```
+
+Esta validacion es obligatoria y tambien corre como check bloqueante `Context Graph Check` dentro de `security-audit`.
+
 ## Regla de Ejecución de Fases
 
 **SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
