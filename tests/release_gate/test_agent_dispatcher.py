@@ -135,3 +135,135 @@ def test_changed_files_loader_normalizes_paths(tmp_path):
 def test_changed_files_loader_rejects_non_canonical_paths(path):
     with pytest.raises(agent_dispatcher.DispatcherError, match="Path no canonico"):
         agent_dispatcher._load_changed_files([path], None)
+
+
+def _write_task(path: Path, *, estado="aprobada", hito="Hito 2", skill="pipeline-engineer"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f"""---
+id: TAREA-123
+fase: 02
+estado: {estado}
+hito: {hito}
+skill_principal: {skill}
+skills_apoyo: security-auditor, qa-test-engineer
+gate_obligatorio: security-auditor
+---
+
+# Tarea 123
+
+## Archivos afectados
+| Archivo | Tipo de cambio |
+|---|---|
+| `scripts/core/sync_vector_worker.py` | Modificacion |
+| `tests/release_gate/test_agent_dispatcher.py` | Test |
+""",
+        encoding="utf-8",
+    )
+
+
+def test_implementation_mode_routes_approved_task_to_roles(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task)
+
+    result = agent_dispatcher.dispatch_implementation(
+        task,
+        approved_hito="Hito 2",
+        repo_root=tmp_path,
+        changed_files=["scripts/core/sync_vector_worker.py"],
+    )
+
+    assert result["verdict"] == "PASS"
+    assert result["mode"] == "implementation"
+    assert result["approved_scope"] == "Hito 2"
+    assert result["primary_agent"] == "pipeline-engineer"
+    assert "security-auditor" in result["implementation_roles"]
+    assert "python-py_compile" in result["required_checks"]
+    assert "security-audit" in result["required_checks"]
+
+
+def test_implementation_mode_rejects_unapproved_task(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task, estado="pendiente")
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="Tarea no aprobada"):
+        agent_dispatcher.dispatch_implementation(task, approved_hito="Hito 2", repo_root=tmp_path)
+
+
+def test_implementation_mode_rejects_wrong_hito(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task, hito="Hito 3")
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="Hito no autorizado"):
+        agent_dispatcher.dispatch_implementation(task, approved_hito="Hito 2", repo_root=tmp_path)
+
+
+def test_implementation_mode_rejects_changed_files_outside_task_scope(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task)
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="fuera del alcance aprobado"):
+        agent_dispatcher.dispatch_implementation(
+            task,
+            approved_hito="Hito 2",
+            repo_root=tmp_path,
+            changed_files=["web/src/app/page.tsx"],
+        )
+
+
+def test_implementation_mode_respects_frontend_task_role(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task, skill="frontend-architect")
+
+    result = agent_dispatcher.dispatch_implementation(task, approved_hito="Hito 2", repo_root=tmp_path)
+
+    assert result["primary_agent"] == "frontend-architect"
+    assert "qa-test-engineer" in result["implementation_roles"]
+
+
+def test_implementation_mode_ignores_backticks_outside_affected_files(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task)
+    content = task.read_text(encoding="utf-8")
+    task.write_text(
+        content.replace("# Tarea 123", "# Tarea 123\n\nReferencia no autorizante: `web/src/app/page.tsx`"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="fuera del alcance aprobado"):
+        agent_dispatcher.dispatch_implementation(
+            task,
+            approved_hito="Hito 2",
+            repo_root=tmp_path,
+            changed_files=["web/src/app/page.tsx"],
+        )
+
+
+def test_implementation_mode_normalizes_changed_files_when_used_as_api(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    _write_task(task)
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="Path no canonico"):
+        agent_dispatcher.dispatch_implementation(
+            task,
+            approved_hito="Hito 2",
+            repo_root=tmp_path,
+            changed_files=["scripts/core/../shared/db_client.py"],
+        )
+
+
+def test_implementation_mode_rejects_task_outside_backlog(tmp_path):
+    task = tmp_path / "task.md"
+    _write_task(task)
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="backlog_tareas"):
+        agent_dispatcher.dispatch_implementation(task, approved_hito="Hito 2", repo_root=tmp_path)
+
+
+def test_implementation_mode_wraps_malformed_frontmatter(tmp_path):
+    task = tmp_path / ".context/backlog_tareas/tarea_123.md"
+    task.parent.mkdir(parents=True, exist_ok=True)
+    task.write_text("---\nestado: aprobada\n", encoding="utf-8")
+
+    with pytest.raises(agent_dispatcher.DispatcherError, match="Frontmatter"):
+        agent_dispatcher.dispatch_implementation(task, approved_hito="Hito 2", repo_root=tmp_path)
