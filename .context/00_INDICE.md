@@ -26,6 +26,7 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[backlog_tareas/_README]] — Regla de organizacion por requerimiento
 - [[backlog_tareas/_plantilla_tarea]]
 - [[backlog_tareas/req_est_001_sprint_1/_index]] — Tareas historicas EST-001 / Sprint 1
+- [[backlog_tareas/req_hito_1_rework_20260721/_index]] — Reimplementacion limpia de Hito 1 tras cierre de PRs obsoletos
 
 ## Estimaciones
 - [[estimaciones/_plantilla_estimacion]]
@@ -37,6 +38,7 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[operaciones/politica_higiene_repo]] — Politica de ramas, archivos recurrentes y `desestimado/`
 - [[operaciones/inventario_limpieza_repo_20260720]] — Inventario inicial de ramas y artefactos a revisar
 - [[operaciones/agent_dispatcher]] — Dispatcher asistivo de agentes SDLC
+- [[operaciones/evaluacion_prs_cancelados_hito1_20260721]] — Evaluacion de PRs cerrados y remapeo de Hito 1
 
 ## Decisiones Arquitectonicas (ADR)
 - [[decisiones/_plantilla_adr]]
@@ -45,3 +47,4 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[changelog/2026-07-05]] — Inicializacion
 - [[changelog/2026-07-11]] — Preparacion Sprint 1 / Hito 1
 - [[changelog/2026-07-20]] — Dispatcher de agentes e higiene del repositorio
+- [[changelog/2026-07-21]] — Cierre de PRs obsoletos y remapeo de Hito 1
