@@ -73,6 +73,7 @@ class DatabaseClient:
         )
         self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY")
         self._access_token = os.getenv("NEXT_SUPABASE_ACCESS_TOKEN")
+        self._allow_access_token = os.getenv("STUDIAMATCH_CANARY_WORKER") == "1"
         self.supabase_key = supabase_key if supabase_key is not None else (self._service_key or self._publishable_key)
 
     def _get_headers(self, use_service_role=None):
@@ -86,7 +87,7 @@ class DatabaseClient:
             key = self.supabase_key
         authorization = key
         api_key = key
-        if use_service_role and self._access_token:
+        if use_service_role and self._access_token and self._allow_access_token:
             authorization = self._access_token
             api_key = self._publishable_key or self.supabase_key
         return {
@@ -131,6 +132,26 @@ class DatabaseClient:
             return {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {(res.text or '')[:200]}")
         return {"status": "error"}
+
+    def _insert_returning_api(self, table, data):
+        url = f"{self.supabase_url}/rest/v1/{table}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.post, url, headers=headers, json=data)
+        if res.status_code in [200, 201, 204]:
+            return res.json() if res.content else []
+        print(f"DB_CLIENT_API_ERROR (InsertReturning {table}): {res.status_code} - {(res.text or '')[:200]}")
+        return None
+
+    def _patch_returning_api(self, table, filters, data):
+        url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.patch, url, headers=headers, json=data)
+        if res.status_code in [200, 204]:
+            return res.json() if res.content else []
+        print(f"DB_CLIENT_API_ERROR (PatchReturning {table}): {res.status_code} - {(res.text or '')[:200]}")
+        return None
 
     def _delete_api(self, table, filters):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
@@ -211,6 +232,14 @@ class DatabaseClient:
     def patch(self, table, filters, data):
         """Update records via Supabase REST API."""
         return self._patch_api(table, filters, data)
+
+    def insert_returning(self, table, data):
+        """Insert records and return affected rows via Supabase REST API."""
+        return self._insert_returning_api(table, data)
+
+    def patch_returning(self, table, filters, data):
+        """Update records and return affected rows via Supabase REST API."""
+        return self._patch_returning_api(table, filters, data)
 
     def upsert(self, table, data, on_conflict=None):
         """Upsert records via Supabase REST API."""

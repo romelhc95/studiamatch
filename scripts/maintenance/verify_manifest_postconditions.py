@@ -20,10 +20,19 @@ def validate_query(sql: str) -> None:
         raise RuntimeError("Postcondition debe ser SELECT")
     if ";" in sql or re.search(r"\b(FOR\s+UPDATE|pg_sleep|dblink|lo_import)\b", sql, re.IGNORECASE):
         raise RuntimeError("Postcondition contiene una operacion no permitida")
-    allowed_functions = {"count", "exists", "to_regclass", "coalesce"}
+    normalized_sql = " ".join(sql.split())
+    allowed_functions = {
+        "count",
+        "exists",
+        "to_regclass",
+        "coalesce",
+        "verify_release_canary_guards",
+    }
     called_functions = {name.lower() for name in re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", sql)}
     if called_functions - allowed_functions:
         raise RuntimeError("Postcondition invoca una funcion no permitida")
+    if "verify_release_canary_guards" in called_functions and normalized_sql != "SELECT guards_valid FROM public.verify_release_canary_guards()":
+        raise RuntimeError("Postcondition de guards debe usar la consulta canonica")
 
 
 def main() -> int:

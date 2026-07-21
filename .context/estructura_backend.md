@@ -98,7 +98,7 @@ Extraer, limpiar, enriquecer y publicar datos de programas educativos desde siti
 | FG2-1 Harvester | `scripts/core/universal_harvester.py` | `institutions` + `institution_site_profiles` | `staging_raw` | `master_orchestrator.py` |
 | FG2-1.5 Cleansing | `scripts/core/cleansing_worker.py` | `staging_raw.status=pending` | `cleansed_programs` | GitHub Actions job |
 | FG2-2 Enrichment | `scripts/core/enrichment_worker.py` | `cleansed_programs.status=pending` | `enriched_programs` | GitHub Actions job |
-| FG2-3 Sync | `scripts/core/sync_vector_worker.py` | `enriched_programs.status=pending` | `courses` (upsert) | GitHub Actions job |
+| FG2-3 Sync | `scripts/core/sync_vector_worker.py` | `enriched_programs.status=pending` | `courses` (insert/update protegido por `is_active`) | GitHub Actions job |
 | FG3 Integrity | `scripts/core/integrity_ping.py` | `courses.is_active=true` | `courses` (PATCH) | GitHub Actions job |
 
 ### Modos de Discovery por Institucion
@@ -257,7 +257,7 @@ Definidas en `web/src/lib/supabase.ts` → `COURSE_PUBLIC_FIELDS`. Excluye colum
         │  status=pending
         ▼
 8. Capa 1: sync_vector_worker.py
-   (validacion final, ROI compute, slug generation, upsert)
+   (validacion final, ROI compute, slug generation, insert/update protegido por `is_active`)
         │  name, slug, price_pen, mode, salary, roi_months, etc.
         ▼
 9. courses (Supabase) ← is_active=true, is_verified=true

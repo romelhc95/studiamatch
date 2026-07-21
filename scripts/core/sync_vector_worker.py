@@ -6,7 +6,7 @@ import re
 import requests
 from datetime import datetime, timezone
 from typing import List
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from dotenv import load_dotenv
 
 try:
@@ -320,7 +320,8 @@ class SyncVectorWorker:
         # Generate Embedding (Placeholder for OpenAI call)
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
-        # Upsert to production courses
+        # Preserve curated manual deactivations. Automated sync must not republish
+        # a course intentionally taken offline unless a separate approved action does it.
         if self.canary_mode:
             res = self.db.rpc('atomic_canary_sync', {
                 "p_institution_id": self.institution_id,
@@ -328,7 +329,30 @@ class SyncVectorWorker:
                 "p_course_data": course_data,
             })
         else:
-            res = self.db.upsert('courses', course_data, on_conflict="url")
+            existing_courses = self.db._select_api(
+                'courses',
+                filters=f"url=eq.{quote(str(url), safe='')}",
+                columns="id,is_active",
+                limit=1,
+                use_service_role=True,
+            ) or []
+            if existing_courses and existing_courses[0].get('is_active') is False:
+                logger.info(f"Skipping manually deactivated course: {name}")
+                self.update_enriched_status(e_id, "synced", metadata={"skip_reason": "manual_deactivated"})
+                return True
+            if existing_courses:
+                course_id = existing_courses[0].get('id')
+                res = self.db.patch_returning(
+                    'courses',
+                    filters=f"id=eq.{course_id}&is_active=eq.true",
+                    data=course_data,
+                )
+                if res == []:
+                    logger.info(f"Skipping course deactivated during sync: {name}")
+                    self.update_enriched_status(e_id, "synced", metadata={"skip_reason": "deactivated_during_sync"})
+                    return True
+            else:
+                res = self.db.insert_returning('courses', course_data)
 
         if res:
             synced_course = res[0] if isinstance(res, list) and res else res
@@ -345,7 +369,7 @@ class SyncVectorWorker:
                     roi_payload["roi_months"] = roi_months
                 course_id = synced_course.get('id')
                 if course_id and not self.canary_mode:
-                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=roi_payload)
+                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}&is_active=eq.true", data=roi_payload)
                     if not roi_res or roi_res.get("status") != "success":
                         logger.error(f"Error updating ROI fields for course {course_id}")
                         self.update_enriched_status(e_id, "error", error_msg="roi_patch_failed")
@@ -359,9 +383,12 @@ class SyncVectorWorker:
             self.update_enriched_status(e_id, "error", error_msg="DB Error")
             return False
 
-    def update_enriched_status(self, e_id, status, error_msg=None):
+    def update_enriched_status(self, e_id, status, error_msg=None, metadata=None):
         payload = {"status": status}
-        if error_msg: payload["metadata"] = {"error": error_msg}
+        if metadata:
+            payload["metadata"] = metadata
+        if error_msg:
+            payload["metadata"] = {"error": error_msg}
         self.db.patch('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
 
 if __name__ == "__main__":
