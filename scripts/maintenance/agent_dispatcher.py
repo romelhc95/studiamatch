@@ -166,8 +166,8 @@ def _canonical_task_path(task_path: Path, repo_root: Path) -> Path:
         relative = path.relative_to(root).as_posix()
     except ValueError as exc:
         raise DispatcherError("La tarea debe estar dentro del repositorio") from exc
-    if not re.fullmatch(r"\.context/backlog_tareas/[A-Za-z0-9_.-]+\.md", relative):
-        raise DispatcherError("La tarea debe estar en .context/backlog_tareas/")
+    if not re.fullmatch(r"\.context/backlog_tareas/[A-Za-z0-9_.-]+/tarea_[0-9]{3}_[A-Za-z0-9_.-]+\.md", relative):
+        raise DispatcherError("La tarea debe estar en .context/backlog_tareas/<requerimiento>/")
     return path
 
 

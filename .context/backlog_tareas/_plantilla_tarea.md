@@ -4,6 +4,7 @@ fase: XX
 estado: pendiente
 prioridad: alta
 estimacion_ref: est_XXX
+requerimiento: req_XXX
 hito: Hito X
 paquete: Paquete X
 cas: "CAx, CAy"
@@ -25,8 +26,9 @@ tags: []
 # Tarea XXX: [Titulo descriptivo]
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_XXX]]
+Estimacion de referencia: [[../../estimaciones/est_XXX]]
 
+- **Requerimiento:** req_XXX
 - **Hito:** Hito X
 - **Paquete:** Paquete X
 - **CAs cubiertos:** CAx, CAy

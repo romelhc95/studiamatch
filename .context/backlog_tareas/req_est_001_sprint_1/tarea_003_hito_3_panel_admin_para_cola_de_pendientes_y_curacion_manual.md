@@ -4,6 +4,7 @@ fase: 3
 estado: pendiente
 prioridad: critica
 estimacion_ref: est_001
+requerimiento: req_est_001_sprint_1
 hito: Hito 3
 paquete: Paquete 3 - Panel /admin para cola de pendientes y curacion manual
 cas: "CA4"
@@ -25,8 +26,9 @@ tags: []
 # Tarea 003: Hito 3 - Panel admin para cola de pendientes y curacion manual
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_001]]
+Estimacion de referencia: [[../../estimaciones/est_001]]
 
+- **Requerimiento:** req_est_001_sprint_1
 - **Hito:** Hito 3
 - **Paquete:** Paquete 3 - Panel /admin para cola de pendientes y curacion manual
 - **CAs cubiertos:** CA4

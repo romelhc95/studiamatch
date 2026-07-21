@@ -12,7 +12,7 @@ El dispatcher no decide estado de release. El estado valido sigue saliendo exclu
 ## Entradas
 - Manifest de release.
 - Estado derivado por `release_gate.py`.
-- Tarea aprobada de `.context/backlog_tareas/` cuando se usa `mode=implementation`.
+- Tarea aprobada de `.context/backlog_tareas/<requerimiento>/` cuando se usa `mode=implementation`.
 - Hito aprobado por Usuario/PM cuando se usa `mode=implementation`.
 - Archivos modificados.
 - Dominio principal: frontend, pipeline, Supabase, DevOps, datos, QA o seguridad.
@@ -49,7 +49,7 @@ La salida es JSON y puede ser consumida por el agente gestor. Si `release_gate.p
 ```bash
 PYTHONPATH=/app python3 scripts/maintenance/agent_dispatcher.py \
   --mode implementation \
-  --task .context/backlog_tareas/tarea_123.md \
+  --task .context/backlog_tareas/req_hito_2/tarea_123_catalogo.md \
   --approved-hito "Hito 2" \
   --changed-files changed-files.txt
 ```
@@ -57,6 +57,7 @@ PYTHONPATH=/app python3 scripts/maintenance/agent_dispatcher.py \
 Reglas de `mode=implementation`:
 
 - La tarea debe tener `estado` aprobado (`aprobada`, `aprobado`, `approved` o `en_ejecucion`).
+- La tarea debe estar en `.context/backlog_tareas/<requerimiento>/tarea_NNN_<slug>.md`.
 - El `hito` de la tarea debe coincidir exactamente con `--approved-hito`.
 - Si la tarea declara archivos concretos en `Archivos afectados`, los changed files deben estar dentro de ese alcance.
 - Devuelve `NO_GO` ante tarea pendiente, hito distinto o archivos fuera de alcance.

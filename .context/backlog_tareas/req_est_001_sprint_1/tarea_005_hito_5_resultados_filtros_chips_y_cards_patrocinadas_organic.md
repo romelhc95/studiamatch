@@ -4,6 +4,7 @@ fase: 5
 estado: pendiente
 prioridad: critica
 estimacion_ref: est_001
+requerimiento: req_est_001_sprint_1
 hito: Hito 5
 paquete: Paquete 5 - Resultados filtrados, sidebar, chips y cards patrocinadas/organicas
 cas: "CA8, CA9, CA10, CA11, CA12, CA13 Resultados"
@@ -25,8 +26,9 @@ tags: []
 # Tarea 005: Hito 5 - Resultados filtros chips y cards patrocinadas organicas
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_001]]
+Estimacion de referencia: [[../../estimaciones/est_001]]
 
+- **Requerimiento:** req_est_001_sprint_1
 - **Hito:** Hito 5
 - **Paquete:** Paquete 5 - Resultados filtrados, sidebar, chips y cards patrocinadas/organicas
 - **CAs cubiertos:** CA8, CA9, CA10, CA11, CA12, CA13 Resultados

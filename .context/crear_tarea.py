@@ -1,11 +1,11 @@
 r"""
 Script: crear_tarea.py
-Uso:   python .context/crear_tarea.py --est EST-001 --fase 80 --titulo "Agregar X"
-       python .context/crear_tarea.py --est est_001 --fase 1 --titulo "Paquete 1" --hito "Hito 1" --paquete "Paquete 1" --cas "CA1, CA2" --fecha-inicio 2026-07-11 --fecha-limite 2026-07-25 --despliegue "2026-07-27 09:00 PET" --skill-principal frontend-design --subespecialidad "Frontend Next.js 16" --skill-apoyo security-auditor --entregable "PR a desarrollo" --criterio "Criterio verificable"
+Uso:   python .context/crear_tarea.py --est EST-001 --fase 80 --titulo "Agregar X" --requerimiento req_catalogo
+       python .context/crear_tarea.py --est est_001 --requerimiento req_hito_1 --fase 1 --titulo "Paquete 1" --hito "Hito 1" --paquete "Paquete 1" --cas "CA1, CA2" --fecha-inicio 2026-07-11 --fecha-limite 2026-07-25 --despliegue "2026-07-27 09:00 PET" --skill-principal frontend-design --subespecialidad "Frontend Next.js 16" --skill-apoyo security-auditor --entregable "PR a desarrollo" --criterio "Criterio verificable"
        python .context/crear_tarea.py --listar
        python .context/crear_tarea.py --completar TAREA-003
 
-Crea/actualiza archivos de tarea en .context/backlog_tareas/ siguiendo la plantilla.
+Crea/actualiza archivos de tarea en .context/backlog_tareas/<requerimiento>/ siguiendo la plantilla.
 Ejecutar desde la raiz del repo (C:\Users\Romel\Proyectos\studiamatch).
 """
 import argparse
@@ -20,7 +20,7 @@ PLANTILLA = BACKLOG_DIR / "_plantilla_tarea.md"
 def _siguiente_id():
     """Calcula el siguiente ID de tarea basado en archivos existentes."""
     max_id = 0
-    for f in BACKLOG_DIR.iterdir():
+    for f in BACKLOG_DIR.rglob("tarea_*.md"):
         m = re.match(r"tarea_(\d{3})_.*\.md", f.name)
         if m:
             max_id = max(max_id, int(m.group(1)))
@@ -39,6 +39,34 @@ def _normalizar_est_ref(est_ref):
     return est_ref.strip().lower().replace("-", "_")
 
 
+def _slug_requerimiento(valor):
+    slug = (valor or "").strip().lower().replace("-", "_")
+    slug = re.sub(r"[^a-z0-9_]+", "_", slug)
+    slug = re.sub(r"_+", "_", slug).strip("_")
+    return slug or "req_sin_nombre"
+
+
+def _ensure_requerimiento_index(req_dir, requerimiento, est_ref_normalizada):
+    index = req_dir / "_index.md"
+    if index.exists():
+        return
+    hoy = date.today().isoformat()
+    index.write_text(
+        f"""# Backlog — {requerimiento}
+
+## Contexto
+- **Estimacion de referencia:** [[../../estimaciones/{est_ref_normalizada}]]
+- **Creado:** {hoy}
+
+## Reglas
+- Este directorio contiene solo tareas del requerimiento `{requerimiento}`.
+- No mezclar tareas de otros requerimientos.
+- Las tareas one-shot o descartadas deben documentarse y moverse a `desestimado/` si no son recurrentes.
+""",
+        encoding="utf-8",
+    )
+
+
 def _lista_markdown(items, fallback="Por definir"):
     if not items:
         return f"- [ ] {fallback}"
@@ -53,6 +81,7 @@ def crear_tarea(
     est_ref,
     fase,
     titulo,
+    requerimiento=None,
     prioridad="alta",
     hito=None,
     paquete=None,
@@ -74,9 +103,13 @@ def crear_tarea(
 ):
     tarea_id = _siguiente_id()
     nombre_archivo = f"tarea_{tarea_id}_{_slug_titulo(titulo)}.md"
-    ruta = BACKLOG_DIR / nombre_archivo
     hoy = date.today().isoformat()
     est_ref_normalizada = _normalizar_est_ref(est_ref)
+    req_slug = _slug_requerimiento(requerimiento or est_ref_normalizada)
+    req_dir = BACKLOG_DIR / req_slug
+    req_dir.mkdir(parents=True, exist_ok=True)
+    _ensure_requerimiento_index(req_dir, req_slug, est_ref_normalizada)
+    ruta = req_dir / nombre_archivo
     cas_valor = _valor(cas, "Por definir")
     skills_apoyo_valor = ", ".join(skills_apoyo) if skills_apoyo else "Por definir"
     criterios_md = _lista_markdown(criterios, "Criterios derivados de la estimacion aprobada")
@@ -89,6 +122,7 @@ fase: {fase}
 estado: pendiente
 prioridad: {prioridad}
 estimacion_ref: {est_ref_normalizada}
+requerimiento: {req_slug}
 hito: {_valor(hito)}
 paquete: {_valor(paquete)}
 cas: "{cas_valor}"
@@ -110,8 +144,9 @@ tags: []
 # Tarea {tarea_id}: {titulo}
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/{est_ref_normalizada}]]
+Estimacion de referencia: [[../../estimaciones/{est_ref_normalizada}]]
 
+- **Requerimiento:** {req_slug}
 - **Hito:** {_valor(hito)}
 - **Paquete:** {_valor(paquete)}
 - **CAs cubiertos:** {cas_valor}
@@ -157,32 +192,33 @@ Estimacion de referencia: [[../estimaciones/{est_ref_normalizada}]]
 """
     with open(ruta, "w", encoding="utf-8") as fp:
         fp.write(contenido)
-    print(f"Creada: backlog_tareas/{nombre_archivo}")
-    print(f"  ID: TAREA-{tarea_id} | Fase: {fase} | Est: {est_ref_normalizada}")
+    print(f"Creada: backlog_tareas/{req_slug}/{nombre_archivo}")
+    print(f"  ID: TAREA-{tarea_id} | Fase: {fase} | Est: {est_ref_normalizada} | Req: {req_slug}")
     return ruta
 
 
 def listar_tareas():
     tareas = sorted(
-        [f.name for f in BACKLOG_DIR.iterdir() if f.name.startswith("tarea_") and f.name.endswith(".md")]
+        [f for f in BACKLOG_DIR.rglob("tarea_*.md")]
     )
     if not tareas:
         print("No hay tareas en backlog.")
         return
-    print(f"{'Archivo':<45} {'Estado':<12} {'Fase':<6}")
-    print("-" * 63)
+    print(f"{'Archivo':<70} {'Estado':<12} {'Fase':<6}")
+    print("-" * 88)
     for t in tareas:
-        ruta = BACKLOG_DIR / t
+        ruta = t
         with open(ruta, encoding="utf-8") as fp:
             contenido = fp.read()
         estado = re.search(r"estado:\s*(\w+)", contenido)
         fase = re.search(r"fase:\s*(\w+)", contenido)
-        print(f"{t:<45} {estado.group(1) if estado else '?':<12} {fase.group(1) if fase else '?':<6}")
+        rel = ruta.relative_to(BACKLOG_DIR).as_posix()
+        print(f"{rel:<70} {estado.group(1) if estado else '?':<12} {fase.group(1) if fase else '?':<6}")
 
 
 def completar_tarea(tarea_id):
     tarea_num = tarea_id.replace("TAREA-", "")
-    for f in BACKLOG_DIR.iterdir():
+    for f in BACKLOG_DIR.rglob("tarea_*.md"):
         if f.name.startswith(f"tarea_{tarea_num}_") and f.name.endswith(".md"):
             ruta = f
             with open(ruta, encoding="utf-8") as fp:
@@ -193,7 +229,8 @@ def completar_tarea(tarea_id):
             contenido += f"\n\n## Completada\n- **Fecha**: {hoy}\n- **IA**: [nombre del modelo]"
             with open(ruta, "w", encoding="utf-8") as fp:
                 fp.write(contenido)
-            print(f"Completada: {f.name} -> estado: completada ({hoy})")
+            rel = f.relative_to(BACKLOG_DIR).as_posix()
+            print(f"Completada: {rel} -> estado: completada ({hoy})")
             return
     print(f"No se encontro tarea con ID {tarea_id}")
 
@@ -201,6 +238,7 @@ def completar_tarea(tarea_id):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestion de tareas StudIAMatch")
     parser.add_argument("--est", help="Referencia de estimacion (ej: EST-001)")
+    parser.add_argument("--requerimiento", help="Slug del requerimiento contenedor (ej: req_catalogo_hito_1)")
     parser.add_argument("--fase", help="Numero de fase")
     parser.add_argument("--titulo", help="Titulo descriptivo de la tarea")
     parser.add_argument("--prioridad", default="alta", choices=["baja", "media", "alta", "critica"])
@@ -233,10 +271,11 @@ if __name__ == "__main__":
         completar_tarea(args.completar)
     elif args.est and args.fase and args.titulo:
         crear_tarea(
-            args.est,
-            args.fase,
-            args.titulo,
-            args.prioridad,
+            est_ref=args.est,
+            fase=args.fase,
+            titulo=args.titulo,
+            requerimiento=args.requerimiento,
+            prioridad=args.prioridad,
             hito=args.hito,
             paquete=args.paquete,
             cas=args.cas,
