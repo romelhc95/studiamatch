@@ -24,6 +24,7 @@ Antes de cualquier tarea, DEBES:
 5. **REGISTRA** todo cambio en `.context/changelog/YYYY-MM-DD.md`
 6. **SIGUE** el SDLC: `feat/* → desarrollo → certificacion → main`
 7. **PASA** `@security-auditor` antes de cualquier commit
+8. **VALIDA** el grafo Obsidian tras cada cambio en `.context`: `docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_context_graph.py .context`
 
 ## Flujo de Trabajo Estandar
 ```
@@ -37,6 +38,7 @@ Usuario: "Apruebo EST-NNN"
   → IA crea rama feat/*
   → IA implementa siguiendo criterios de aceptacion
   → IA ejecuta lint + typecheck + python syntax check
+  → Si modifico `.context`, IA ejecuta validate_context_graph.py
   → IA registra en changelog
   → IA crea PR a desarrollo
 ```
