@@ -12,7 +12,7 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 | 3. Estimacion         | `tech-estimator`                     | Requerimiento + referencias + matriz de precios                        | `.context/estimaciones/est_XXX.md`              | Usar `_plantilla_estimacion.md`; no crear tareas todavia.                              |
 | 4. Cotizacion cliente | Usuario/PM                           | `est_XXX.md` aprobado internamente                                     | DOCX/PDF en `requerimientos/YYYYMMDD/`          | El formato comercial debe replicar `EstimacionStudIAMatch_05072026.docx`.              |
 | 5. Aprobacion         | Cliente + Usuario/PM                 | Cotizacion enviada                                                     | Estado aprobado/rechazado en `est_XXX.md`       | Sin aprobacion no hay backlog ni ejecucion.                                            |
-| 6. Creacion de tareas | IA implementadora + skill asignada   | Estimacion aprobada                                                    | Archivos en `.context/backlog_tareas/`          | Una tarea por paquete/hito; incluir CAs, fechas, skill principal, sub-especialidad, revisor y entregable. |
+| 6. Creacion de tareas | IA implementadora + skill asignada   | Estimacion aprobada                                                    | Archivos en `.context/backlog_tareas/<requerimiento>/`          | Una tarea por paquete/hito; incluir CAs, fechas, skill principal, sub-especialidad, revisor y entregable. |
 | 7. Ejecucion          | Skill principal asignada             | Tareas aprobadas por fase                                              | Cambios en rama `feat/*`                        | Solo ejecutar cuando el usuario apruebe la fase correspondiente.                       |
 | 8. Validacion         | Skill principal + `security-auditor` | Cambios implementados                                                  | Evidencia de lint/typecheck/py_compile/security | Todo corre en contenedor `studiamatch-dev`; security-auditor antes de commit/PR.       |
 | 9. Entrega interna    | IA implementadora                    | Cambios validados                                                      | PR a `desarrollo`                               | No mezclar estructura/contexto con implementacion funcional si son alcances distintos. |
@@ -79,6 +79,9 @@ Estandarizar el ciclo desde que el cliente envía un requerimiento hasta la entr
 
 ## Politica de backlog
 - El backlog nace solo desde una estimacion aprobada.
+- Cada requerimiento debe tener su propio directorio canonico: `.context/backlog_tareas/<requerimiento_slug>/`.
+- No se crean tareas directamente en `.context/backlog_tareas/`; la raiz solo contiene `_README.md` y `_plantilla_tarea.md`.
+- Cada directorio de requerimiento debe tener `_index.md` con estimacion, reglas y contexto local.
 - Cada paquete comercial debe mapearse a una o mas tareas tecnicas.
 - La tarea debe ser suficientemente detallada para ejecutarse sin reinterpretar el documento comercial.
 - Cada tarea debe incluir skill principal, sub-especialidad, skills de apoyo y gate obligatorio.

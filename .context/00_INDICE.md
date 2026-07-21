@@ -16,12 +16,14 @@
 1. Llega requerimiento → IA lee `.context/` completo
 2. IA genera estimacion en `estimaciones/est_XXX.md`
 3. Humano aprueba o rechaza
-4. IA crea tarea con `python .context/crear_tarea.py --est EST-XXX --fase NN --titulo "..."`
+4. IA crea tareas por requerimiento con `python .context/crear_tarea.py --est EST-XXX --requerimiento req_XXX --fase NN --titulo "..."`
 5. IA ejecuta siguiendo `prompts/system_prompt_base.md`
 6. IA registra cambios en `changelog/`
 
 ## Backlog de Tareas
+- [[backlog_tareas/_README]] — Regla de organizacion por requerimiento
 - [[backlog_tareas/_plantilla_tarea]]
+- [[backlog_tareas/req_est_001_sprint_1/_index]] — Tareas historicas EST-001 / Sprint 1
 
 ## Estimaciones
 - [[estimaciones/_plantilla_estimacion]]

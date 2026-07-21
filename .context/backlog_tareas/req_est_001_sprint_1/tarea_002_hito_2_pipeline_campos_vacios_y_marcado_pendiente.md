@@ -4,6 +4,7 @@ fase: 2
 estado: pendiente
 prioridad: critica
 estimacion_ref: est_001
+requerimiento: req_est_001_sprint_1
 hito: Hito 2
 paquete: Paquete 2 - Pipeline deteccion de campos vacios y marcado pendiente
 cas: "CA3, CA2 parcial"
@@ -25,8 +26,9 @@ tags: []
 # Tarea 002: Hito 2 - Pipeline campos vacios y marcado pendiente
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_001]]
+Estimacion de referencia: [[../../estimaciones/est_001]]
 
+- **Requerimiento:** req_est_001_sprint_1
 - **Hito:** Hito 2
 - **Paquete:** Paquete 2 - Pipeline deteccion de campos vacios y marcado pendiente
 - **CAs cubiertos:** CA3, CA2 parcial

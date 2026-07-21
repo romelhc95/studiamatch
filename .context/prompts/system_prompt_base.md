@@ -33,7 +33,7 @@ Usuario: "Quiero agregar feature X"
   → IA presenta estimacion al usuario
 
 Usuario: "Apruebo EST-NNN"
-  → IA ejecuta: python .context/crear_tarea.py --est EST-NNN --fase NN --titulo "Feature X"
+  → IA ejecuta: python .context/crear_tarea.py --est EST-NNN --requerimiento req_feature_x --fase NN --titulo "Feature X"
   → IA crea rama feat/*
   → IA implementa siguiendo criterios de aceptacion
   → IA ejecuta lint + typecheck + python syntax check

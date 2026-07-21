@@ -4,6 +4,7 @@ fase: 4
 estado: pendiente
 prioridad: alta
 estimacion_ref: est_001
+requerimiento: req_est_001_sprint_1
 hito: Hito 4
 paquete: Paquetes 4 y 6 - Home MVP + documentacion tecnica
 cas: "CA5, CA6, CA7, CA13 Home"
@@ -25,8 +26,9 @@ tags: []
 # Tarea 004: Hito 4 - Home MVP quick wins visuales y documentacion tecnica
 
 ## Contexto
-Estimacion de referencia: [[../estimaciones/est_001]]
+Estimacion de referencia: [[../../estimaciones/est_001]]
 
+- **Requerimiento:** req_est_001_sprint_1
 - **Hito:** Hito 4
 - **Paquete:** Paquetes 4 y 6 - Home MVP + documentacion tecnica
 - **CAs cubiertos:** CA5, CA6, CA7, CA13 Home
