@@ -28,9 +28,14 @@
 
 ## Operaciones
 - [[operaciones/flujo_requerimientos]] — Requerimiento → estimacion → aprobacion → tareas → entrega
+- [[operaciones/flujo_hitos_release]] — Ramas y ambientes permanentes del SDLC
+- [[operaciones/politica_higiene_repo]] — Politica de ramas, archivos recurrentes y `desestimado/`
+- [[operaciones/inventario_limpieza_repo_20260720]] — Inventario inicial de ramas y artefactos a revisar
+- [[operaciones/agent_dispatcher]] — Dispatcher asistivo de agentes SDLC
 
 ## Decisiones Arquitectonicas (ADR)
 - [[decisiones/_plantilla_adr]]
 
 ## Changelog
 - [[changelog/2026-07-05]] — Inicializacion
+- [[changelog/2026-07-20]] — Dispatcher de agentes e higiene del repositorio

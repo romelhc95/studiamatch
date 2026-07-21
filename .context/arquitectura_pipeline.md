@@ -197,7 +197,7 @@ Ejecuta `discovery_institutions.py`: seeding de instituciones desde `config/inst
    - `infer_seniority(junior/mid/senior)`
    - `lookup_market_salary(category)`
    - `compute_roi(cost, salary)`
-9. Upsert en `courses` por `url`
+9. Escritura en `courses` por `url`: preserva cursos existentes con `is_active=false`, actualiza solo filas activas e inserta si no existe
 10. Marca enriched como `synced` o `error`
 
 **Embeddings**: Stub — la generacion de vectores no esta implementada.
