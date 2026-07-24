@@ -2,7 +2,8 @@
 """Validar que los cursos en Pro coincidan con el artifact dmc.txt."""
 import sys
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import get_environment_credentials
 
 # Leer URLs del artifact
 with open('/app/artifacts/urls_interes/dmc.txt', 'r') as f:
@@ -17,14 +18,15 @@ with open('/app/artifacts/urls_interes/dmc.txt', 'r') as f:
 print(f"URLs de interés en artifact: {len(artifact_urls)}")
 
 # Obtener cursos DMC de Pro
-db = get_db_client()
+PRO = get_environment_credentials('PRO')
+db = DatabaseClient(PRO.url, PRO.secret_key)
 try:
-    courses = db.select('courses', 
+    courses = db.select_service('courses',
                        filters="is_active=eq.true&is_verified=eq.true",
                        columns='id,name,slug,url,institution_id')
     
     # Obtener institution_id de DMC
-    dmc = db.select('institutions', filters="slug=eq.dmc", columns='id')
+    dmc = db.select_service('institutions', filters="slug=eq.dmc", columns='id')
     dmc_id = dmc[0]['id'] if dmc else None
     
     dmc_courses = [c for c in courses if c.get('institution_id') == dmc_id]

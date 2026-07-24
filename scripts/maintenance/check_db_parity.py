@@ -24,7 +24,11 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import DatabaseClient
-from shared.supabase_credentials import get_secret_key
+from shared.supabase_credentials import (
+    get_environment_credentials,
+    get_secret_key,
+    require_distinct_environments,
+)
 
 
 CONFIG_COLUMNS = {
@@ -126,10 +130,7 @@ def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 10
 
 
 def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, Any]]:
-    try:
-        return db.select_pipeline(table, columns=columns, limit=1000) or []
-    except Exception:
-        return db.select(table, columns=columns, limit=1000) or []
+    return db.select_service(table, columns=columns, limit=1000) or []
 
 
 def compare_migrations(db_free: DatabaseClient, db_target: DatabaseClient):
@@ -196,7 +197,7 @@ def check_target_columns(db_target: DatabaseClient):
     return "OK", []
 
 
-def check_schema_contracts(db_target: DatabaseClient):
+def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = True):
     print("\n[CHECK 3] Schema contracts requeridos por PostgREST/pipeline")
     errors: list[str] = []
 
@@ -225,56 +226,79 @@ def check_schema_contracts(db_target: DatabaseClient):
             f"Esto suele indicar FK faltante courses->categories/institutions: {service_res.status_code} {(service_res.text or '')[:200]}"
         )
 
-    service_has_active_courses = service_res.status_code == 200 and bool(service_res.json())
-    public_res = requests.get(embedded_url, headers=db_target._get_headers(use_service_role=False), timeout=30)
-    if public_res.status_code != 200:
-        errors.append(
-            "PostgREST embedded query falla con publishable key. "
-            f"Esto bloquea el frontend: {public_res.status_code} {(public_res.text or '')[:200]}"
+    if check_public:
+        service_has_active_courses = (
+            service_res.status_code == 200 and bool(service_res.json())
         )
-    elif service_has_active_courses and not public_res.json():
-        errors.append(
-            "La API publica devuelve 0 cursos aunque existen cursos activos/verificados. "
-            "Revisar RLS de courses/institution_site_profiles y production_enabled."
+        public_headers = db_target._get_headers(use_service_role=False)
+        public_res = requests.get(
+            embedded_url,
+            headers=public_headers,
+            timeout=30,
         )
+        if public_res.status_code != 200:
+            errors.append(
+                "PostgREST embedded query falla con publishable key. "
+                f"Esto bloquea el frontend: {public_res.status_code} {(public_res.text or '')[:200]}"
+            )
+        elif service_has_active_courses and not public_res.json():
+            errors.append(
+                "La API publica devuelve 0 cursos aunque existen cursos activos/verificados. "
+                "Revisar RLS de courses/institution_site_profiles y production_enabled."
+            )
 
-    public_profile_safe_url = (
-        f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
-        "?select=institution_id,production_enabled&production_enabled=eq.true&limit=1"
-    )
-    safe_profile_res = requests.get(
-        public_profile_safe_url,
-        headers=db_target._get_headers(use_service_role=False),
-        timeout=30,
-    )
-    if safe_profile_res.status_code != 200:
-        errors.append(
-            "La policy publica minima de institution_site_profiles no permite leer "
-            f"institution_id/production_enabled: {safe_profile_res.status_code} {(safe_profile_res.text or '')[:200]}"
+        public_profile_safe_url = (
+            f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
+            "?select=institution_id,production_enabled&production_enabled=eq.true&limit=1"
         )
+        safe_profile_res = requests.get(
+            public_profile_safe_url,
+            headers=public_headers,
+            timeout=30,
+        )
+        if safe_profile_res.status_code != 200:
+            errors.append(
+                "La policy publica minima de institution_site_profiles no permite leer "
+                f"institution_id/production_enabled: {safe_profile_res.status_code} {(safe_profile_res.text or '')[:200]}"
+            )
 
-    public_profile_sensitive_url = (
-        f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
-        "?select=exclusion_patterns&limit=1"
-    )
-    sensitive_profile_res = requests.get(
-        public_profile_sensitive_url,
-        headers=db_target._get_headers(use_service_role=False),
-        timeout=30,
-    )
-    if sensitive_profile_res.status_code == 200:
-        errors.append("institution_site_profiles.exclusion_patterns esta expuesto publicamente")
+        public_profile_sensitive_url = (
+            f"{db_target.supabase_url}/rest/v1/institution_site_profiles"
+            "?select=exclusion_patterns&limit=1"
+        )
+        sensitive_profile_res = requests.get(
+            public_profile_sensitive_url,
+            headers=public_headers,
+            timeout=30,
+        )
+        if sensitive_profile_res.status_code == 200:
+            errors.append(
+                "institution_site_profiles.exclusion_patterns esta expuesto publicamente"
+            )
 
-    rpc_headers = db_target._get_headers(use_service_role=False)
-    rpc_checks = [
-        ("atomic_enrichment_promote", {"p_enriched_data": [], "p_cleansed_id": "00000000-0000-0000-0000-000000000000"}),
-        ("exec_sql", {"sql_text": "select 1"}),
-    ]
-    for function_name, payload in rpc_checks:
-        rpc_url = f"{db_target.supabase_url}/rest/v1/rpc/{function_name}"
-        rpc_res = requests.post(rpc_url, headers=rpc_headers, json=payload, timeout=30)
-        if rpc_res.status_code in (200, 201, 204):
-            errors.append(f"RPC {function_name} es ejecutable con publishable key; debe estar restringida a service_role")
+        rpc_checks = [
+            (
+                "atomic_enrichment_promote",
+                {
+                    "p_enriched_data": [],
+                    "p_cleansed_id": "00000000-0000-0000-0000-000000000000",
+                },
+            ),
+            ("exec_sql", {"sql_text": "select 1"}),
+        ]
+        for function_name, payload in rpc_checks:
+            rpc_url = f"{db_target.supabase_url}/rest/v1/rpc/{function_name}"
+            rpc_res = requests.post(
+                rpc_url,
+                headers=public_headers,
+                json=payload,
+                timeout=30,
+            )
+            if rpc_res.status_code in (200, 201, 204):
+                errors.append(
+                    f"RPC {function_name} es ejecutable con publishable key; "
+                    "debe estar restringida a service_role"
+                )
 
     if errors:
         return "ERROR", errors
@@ -434,8 +458,8 @@ def report_operational_counts(db_free: DatabaseClient, db_target: DatabaseClient
     messages: list[str] = []
     for table in sorted(OPERATIONAL_TABLES):
         try:
-            free_count = db_free.count(table)
-            target_count = db_target.count(table)
+            free_count = db_free.count_service(table)
+            target_count = db_target.count_service(table)
             msg = f"{table}: Free={free_count}, target={target_count}"
             print(f"  INFO: {msg}")
             messages.append(msg)
@@ -479,24 +503,18 @@ def main() -> None:
         print("  OK: schema/configuracion target minima completa")
         sys.exit(0)
 
-    load_environment("free")
-    assert_environment("free")
-    db_free = DatabaseClient()
-    free_url = db_free.supabase_url
-
-    load_environment(args.env)
-    assert_environment(args.env)
-    db_target = DatabaseClient()
-    if args.env == "pro" and db_target.supabase_url == free_url:
-        raise RuntimeError(
-            "Parity check requiere credenciales distintas Free/Pro. "
-            "En GitHub Actions usa --target-only porque un job no puede leer dos environments con los mismos nombres de secrets."
-        )
+    if args.env != "pro":
+        raise RuntimeError("El modo cross-environment requiere --env pro")
+    free = get_environment_credentials("FREE")
+    pro = get_environment_credentials("PRO")
+    require_distinct_environments(free, pro)
+    db_free = DatabaseClient(free.url, free.secret_key)
+    db_target = DatabaseClient(pro.url, pro.secret_key)
 
     results = [
         ("migrations", compare_migrations(db_free, db_target)),
         ("columns", compare_columns(db_free, db_target)),
-        ("schema_contracts", check_schema_contracts(db_target)),
+        ("schema_contracts", check_schema_contracts(db_target, check_public=False)),
         ("institutions", compare_institutions(db_free, db_target)),
         ("profiles", compare_profiles(db_free, db_target)),
         ("catalog_values", compare_catalog_values(db_free, db_target)),

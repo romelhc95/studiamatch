@@ -1,27 +1,28 @@
 """Fase 74: Seed institution_site_profiles in Pro — reads profiles from Free via db_client, upserts to Pro via raw requests"""
-import sys, os, json, requests
+import sys, json, requests
 
 sys.path.insert(0, '/app')
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
+)
 
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = get_secret_key(required=False)
-
-if not PRO_URL or not PRO_KEY:
-    print("ERROR: SUPABASE_PRO_URL and modern secret key required")
-    print("Usage: set SUPABASE_PRO_URL + NEXT_SUPABASE_SECRET_KEY env vars")
-    sys.exit(1)
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
+require_distinct_environments(FREE, PRO)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 
 headers = {
     **build_supabase_headers(PRO_KEY, kind="secret"),
     'Prefer': 'resolution=merge-duplicates',
 }
 
-# Read profiles from Free (via db_client which reads env from .env.local)
-from scripts.shared.db_client import get_db_client
-db = get_db_client()
+# Read profiles from Free using the explicit Free identity.
+db = DatabaseClient(FREE.url, FREE.secret_key)
 
-free_profiles = db.select('institution_site_profiles', columns='*')
+free_profiles = db.select_service('institution_site_profiles', columns='*')
 if not free_profiles:
     print("ERROR: No profiles found in Free DB")
     sys.exit(1)
@@ -41,7 +42,7 @@ for profile in free_profiles:
     iid = profile['institution_id']
 
     # Find matching institution in Free to get slug
-    free_inst = db.select('institutions', filters=f'id=eq.{iid}', columns='slug,name')
+    free_inst = db.select_service('institutions', filters=f'id=eq.{iid}', columns='slug,name')
     if not free_inst:
         print(f"SKIP: institution {iid[:8]}... not found in Free")
         skip += 1

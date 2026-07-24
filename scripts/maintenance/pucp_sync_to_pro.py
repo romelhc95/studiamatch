@@ -1,43 +1,26 @@
-import sys, os, json, requests
+import sys, json, requests
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
-from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
-from dotenv import load_dotenv
-
-db = get_db_client()
-
-PRO_ENV_PATH = '/app/.env.gitprod'
-pro_vars = {}
-if os.path.exists(PRO_ENV_PATH):
-    with open(PRO_ENV_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if '=' in line and not line.startswith('#'):
-                k, v = line.split('=', 1)
-                pro_vars[k.strip()] = v.strip().strip("'\"")
-
-PRO_URL = pro_vars.get('NEXT_PUBLIC_SUPABASE_URL', '')
-PRO_KEY = pro_vars.get('NEXT_SUPABASE_SECRET_KEY', '')
-
-if not PRO_URL or not PRO_KEY:
-    print("ERROR: Pro credentials not found. Check /app/.env.gitprod")
-    sys.exit(1)
-
-PRO_KEY = validate_api_key(
-    PRO_KEY,
-    kind="secret",
-    variable_name="NEXT_SUPABASE_SECRET_KEY",
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
 )
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
+require_distinct_environments(FREE, PRO)
+db = DatabaseClient(FREE.url, FREE.secret_key)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
 
 # Get PUCP from Free
-pucp = db.select('institutions', filters='slug=eq.pucp', limit=1)
+pucp = db.select_service('institutions', filters='slug=eq.pucp', limit=1)
 if not pucp:
     print("ERROR: PUCP not in Free")
     sys.exit(1)
 free_id = pucp[0]['id']
 
-profiles = db.select('institution_site_profiles', filters=f'institution_id=eq.{free_id}', limit=1)
+profiles = db.select_service('institution_site_profiles', filters=f'institution_id=eq.{free_id}', limit=1)
 if not profiles:
     print("ERROR: PUCP profile not in Free")
     sys.exit(1)

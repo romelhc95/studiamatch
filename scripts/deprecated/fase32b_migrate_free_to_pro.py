@@ -1,15 +1,21 @@
 """Fase 32B: Fix courses and crawler_exclusions, complete migration"""
 import os, sys, json, time, requests
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
+)
 
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = get_secret_key(required=False)
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
+require_distinct_environments(FREE, PRO)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
-if not all([MGMT_TOKEN, PRO_URL, PRO_KEY]):
-    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN, SUPABASE_PRO_URL, NEXT_SUPABASE_SECRET_KEY env vars')
+if not MGMT_TOKEN:
+    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN')
 h_mgmt = {"Authorization": "Bearer " + MGMT_TOKEN, "Content-Type": "application/json"}
 h_pro = build_supabase_headers(PRO_KEY, kind="secret")
 
@@ -56,7 +62,7 @@ if constraints:
 # ============================================================
 # STEP 3: Insert courses and crawler_exclusions
 # ============================================================
-db = get_db_client()
+db = DatabaseClient(FREE.url, FREE.secret_key)
 
 def insert_batch(table, data, batch_size=200):
     if not data:
@@ -95,14 +101,14 @@ def insert_batch(table, data, batch_size=200):
 
 # courses
 print("\n=== STEP 3a: Insert courses ===")
-courses = db.select_all('courses')
+courses = db.select_all_service('courses')
 print(f"Free: {len(courses)} courses")
 n = insert_batch('courses', courses)
 print(f"\nDone: {n}/{len(courses)}")
 
 # crawler_exclusions - use upsert to handle duplicates
 print("\n=== STEP 3b: Upsert crawler_exclusions ===")
-exclusions = db.select_all('crawler_exclusions')
+exclusions = db.select_all_service('crawler_exclusions')
 print(f"Free: {len(exclusions)} exclusions")
 ok = 0
 for row in exclusions:
@@ -130,7 +136,7 @@ tables = ['institutions','categories','market_salaries','category_rules',
           'courses','crawler_exclusions','enriched_programs','ratings',
           'reviews','leads']
 for t in tables:
-    fc = db.count(t)
+    fc = db.count_service(t)
     r = requests.get(PRO_URL + f"/rest/v1/{t}?select=count",
                      headers={**h_pro, "Prefer": "count=exact"}, timeout=15)
     cr = r.headers.get("content-range", "?")
