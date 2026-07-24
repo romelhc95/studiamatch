@@ -45,3 +45,4 @@ Prompt obligatorio: [[prompts/system_prompt_base]]
 - [[changelog/2026-07-05]] — Inicializacion
 - [[changelog/2026-07-11]] — Preparacion Sprint 1 / Hito 1
 - [[changelog/2026-07-20]] — Dispatcher de agentes e higiene del repositorio
+- [[changelog/2026-07-23]] — Migracion a API keys Supabase modernas

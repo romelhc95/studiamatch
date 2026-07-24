@@ -81,25 +81,29 @@ El frontend **NO usa `@supabase/supabase-js`**. Todas las llamadas son `fetch()`
 
 ```typescript
 // web/src/lib/supabase.ts — Configuracion centralizada
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ''
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 // Headers estandar
 const headers = {
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+  'apikey': SUPABASE_PUBLISHABLE_KEY
 }
 ```
 
+Las API keys modernas no son JWT. El frontend nunca las envia como
+`Authorization: Bearer`; ese header queda reservado para un access token de
+usuario separado. El build falla cerrado si falta una variable publica o la
+key no usa el prefijo `sb_publishable_`.
+
 **Columnas publicas**: `COURSE_PUBLIC_FIELDS` — lista explicita de columnas de `courses` expuestas al frontend, excluyendo internals (`provider_used`, `is_mock_data`, `last_scraped_at`).
 
-**Lecturas** (anon key, con RLS):
+**Lecturas** (publishable key, con RLS):
 - Home: `courses?is_active=eq.true&is_verified=eq.true&select=...courses,institutions(name,slug),categories(name)` + `institutions`
 - Detalle: `courses?slug=eq.{slug}&select=name,description_long,url,price_pen,mode,course_type,institutions(name)` + `ratings` + `reviews`
 - Comparacion: `courses?id=in.(...)&is_active=eq.true&is_verified=eq.true`
 - Static params: `courses?select=slug,url,institutions(slug)&is_active=eq.true&is_verified=eq.true`
 
-**Escrituras** (anon key, permitidas por RLS):
+**Escrituras** (publishable key, permitidas por RLS):
 - `POST /rest/v1/leads` — captura de leads desde home y detalle
 - `POST /rest/v1/ratings` — calificaciones
 - `POST /rest/v1/reviews` — resenas
@@ -149,6 +153,6 @@ const headers = {
 4. **`typescript.ignoreBuildErrors: true`**: Regresiones de tipo pueden desplegarse sin deteccion en build.
 5. **Duplicacion de logica de fetch**: Home, detalle, comparacion tienen codigo de fetch embebido sin capa de API tipada compartida.
 6. **Client-heavy**: Home y detalle son componentes cliente grandes con localStorage, polling y filtrado client-side.
-7. **Escrituras desde browser**: `leads`, `ratings`, `reviews`, `counter` usan anon key — requieren RLS fuerte para prevenir spam/abuso.
+7. **Escrituras desde browser**: `leads`, `ratings`, `reviews`, `counter` usan publishable key — requieren RLS fuerte para prevenir spam/abuso.
 8. **`parseDurationToMonths`**: Chequea `unit.startsWith('mes')` despues de hacer lowercase, pero `"12 meses"` empieza con digito, no con `"mes"`, retornando 0 incorrectamente.
 9. **Sin `@supabase/supabase-js`**: Fetch manual con raw HTTP — sin tipado automatico, sin manejo de sesiones, sin realtime.

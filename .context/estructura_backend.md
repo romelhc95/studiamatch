@@ -192,7 +192,7 @@ Servir como Backend-for-Frontend: generar paginas estaticas con datos pre-fetche
 ```text
 Server Components (build time / ISR simulada)
   │
-  │  fetch() → PostgREST (anon key)
+  │  fetch() → PostgREST (publishable key)
   │  next: { revalidate: 3600 }
   │
   ├── layout.tsx
@@ -210,7 +210,7 @@ Server Components (build time / ISR simulada)
 
 Client Components (browser)
   │
-  │  fetch() → PostgREST (anon key)
+  │  fetch() → PostgREST (publishable key)
   │  localStorage cache (5min TTL) + polling (5min)
   │
   ├── HomeContent         → busqueda, filtros, paginacion, compare list

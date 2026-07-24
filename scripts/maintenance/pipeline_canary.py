@@ -18,6 +18,11 @@ from urllib.parse import quote, urlparse
 
 import requests
 
+from scripts.shared.supabase_credentials import (
+    SupabaseCredentialError,
+    build_supabase_headers,
+)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT_REFS = {"free": "aqrldlmlszjtgpqiegaa", "pro": "xwhtiqmboljkshrtviyw"}
@@ -38,16 +43,12 @@ class CanaryError(RuntimeError):
 class StrictRest:
     def __init__(self, url, secret_key, publishable_key):
         self.url = url.rstrip("/")
-        self.secret_headers = {
-            "apikey": secret_key,
-            "Authorization": f"Bearer {secret_key}",
-            "Content-Type": "application/json",
-        }
-        self.public_headers = {
-            "apikey": publishable_key,
-            "Authorization": f"Bearer {publishable_key}",
-            "Content-Type": "application/json",
-        }
+        self._publishable_key = publishable_key
+        self.secret_headers = build_supabase_headers(secret_key, kind="secret")
+        self.public_headers = build_supabase_headers(
+            publishable_key,
+            kind="publishable",
+        )
 
     def _request(
         self, method, table, query="", payload=None, public=False,
@@ -55,8 +56,11 @@ class StrictRest:
     ):
         headers = dict(self.public_headers if public else self.secret_headers)
         if access_token:
-            headers = dict(self.public_headers)
-            headers["Authorization"] = f"Bearer {access_token}"
+            headers = build_supabase_headers(
+                self._publishable_key,
+                kind="publishable",
+                access_token=access_token,
+            )
         if method in {"POST", "PATCH", "DELETE"}:
             headers["Prefer"] = "return=representation"
         response = None
@@ -348,7 +352,11 @@ def main() -> int:
     staging_id = str(uuid.uuid4())
     slug = f"zz-studiamatch-canary-{args.env}-{args.run_id}"
     fixture_url = f"https://canary.invalid/{args.env}/{args.run_id}/programa-control/"
-    api = StrictRest(url, secret_key, publishable_key)
+    try:
+        api = StrictRest(url, secret_key, publishable_key)
+    except SupabaseCredentialError as exc:
+        print(f"NO_GO: invalid modern Supabase API key configuration: {exc}", file=sys.stderr)
+        return 1
     if args.cleanup_manifest:
         try:
             run_manifest = json.loads(args.cleanup_manifest.read_text(encoding="utf-8"))

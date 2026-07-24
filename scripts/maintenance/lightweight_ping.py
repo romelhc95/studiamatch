@@ -3,6 +3,7 @@ import requests
 import asyncio
 import logging
 from dotenv import load_dotenv
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -11,13 +12,13 @@ logger = logging.getLogger(__name__)
 # Cargar variables de entorno
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SECRET_KEY = get_secret_key(required=False)
 
-HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
-}
+HEADERS = (
+    build_supabase_headers(SUPABASE_SECRET_KEY, kind="secret")
+    if SUPABASE_SECRET_KEY
+    else {}
+)
 
 def check_course_url(url: str) -> bool:
     """
@@ -49,7 +50,7 @@ def check_course_url(url: str) -> bool:
 def run_ping():
     logger.info("Iniciando Lightweight Ping de Cursos Activos...")
     
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    if not SUPABASE_URL or not SUPABASE_SECRET_KEY:
         logger.error("Credenciales de Supabase no encontradas.")
         return
         

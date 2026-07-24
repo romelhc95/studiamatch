@@ -123,7 +123,7 @@ StudIAMatch es una plataforma serverless de comparacion de programas educativos 
 10. **FG1/FG3 con cron sintacticamente presente pero comentados como desactivados**: Riesgo de activacion accidental si se modifica el YAML sin quitar el comentario.
 11. **`notify_new_lead()` hardcodea URL de Edge Function de Pro**: Logica de entorno especifica en schema SQL.
 12. **`ratings`/`reviews` sin FK a `courses`**: Integridad referencial debil.
-13. **Escrituras desde browser con anon key**: `leads`, `ratings`, `reviews`, `counter` — requieren rate limiting que depende exclusivamente de RLS.
+13. **Escrituras desde browser con publishable key**: `leads`, `ratings`, `reviews`, `counter` — requieren rate limiting que depende exclusivamente de RLS.
 14. **`batch_enrich_courses.py` es bypass del golden pipeline**: Solo debe usarse como remediacion, pero no tiene enforcement mecanico.
 
 ## Flujo de Cambios (SDLC)

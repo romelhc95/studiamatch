@@ -3,17 +3,19 @@ import requests
 import json
 from dotenv import load_dotenv
 from urllib.parse import quote
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_PUBLISHABLE_KEY = get_publishable_key()
 BASE_URL = "http://localhost:3000"
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}"
-}
+headers = build_supabase_headers(
+    SUPABASE_PUBLISHABLE_KEY,
+    kind="publishable",
+    content_type=False,
+)
 
 def clean_slug(slug_or_url, url=None):
     if url:

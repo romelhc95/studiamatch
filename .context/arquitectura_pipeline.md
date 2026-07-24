@@ -243,6 +243,11 @@ Cliente REST/PostgREST singleton para todos los scripts Python.
 - **Publishable key** (`sb_publishable_*`): Lecturas publicas con RLS
 - **Secret key** (`sb_secret_*`): Escrituras + lecturas de tablas pipeline (bypass RLS)
 
+Ambas API keys modernas se envian exclusivamente mediante el header `apikey`.
+`Authorization: Bearer` se usa solo con un access token separado. Los
+consumidores fallan cerrado si falta la key o si no usa el prefijo moderno
+correspondiente.
+
 **Tablas pipeline protegidas**: `staging_raw`, `cleansed_programs`, `enriched_programs`, `institution_site_profiles` → usan `select_pipeline()` / `select_all_pipeline()` que requieren secret key.
 
 **API methods**: `select`, `insert`, `upsert`, `patch`, `delete`, `rpc`, `count`, `select_all` (paginacion 1000 registros).

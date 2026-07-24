@@ -306,11 +306,11 @@ def derive_state(manifest: dict[str, Any], root: Path) -> tuple[str, list[dict[s
     return state, evidence_docs
 
 
-def verify_github_provenance(evidence_docs: list[dict[str, Any]], token: str) -> None:
-    if not token:
+def verify_github_provenance(evidence_docs: list[dict[str, Any]], github_token: str) -> None:
+    if not github_token:
         raise GateError("GITHUB_TOKEN es obligatorio para verificar provenance")
     headers = {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }

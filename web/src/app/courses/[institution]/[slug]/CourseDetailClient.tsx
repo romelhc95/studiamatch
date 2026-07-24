@@ -11,7 +11,7 @@ import {
   Star, MessageSquare, User, Award, Sprout
 } from "lucide-react";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface Rating {
@@ -135,14 +135,13 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     console.log("🚀 Iniciando envío de reseña...", { rating: newRating, nickname: userNickname });
     
     try {
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
         throw new Error("Configuración de Supabase incompleta. Verifique las variables de entorno.");
       }
 
       const headers = {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
         'Prefer': 'return=minimal'
       };
 
@@ -190,8 +189,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       // Refresh social proof
       console.log("🔄 Actualizando lista de reseñas...");
       const safeId = encodeURIComponent(course.id);
-      const rRes = await fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
-      const rvRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } });
+      const rRes = await fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
+      const rvRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
       
       if (rRes.ok && rvRes.ok) {
         const rData = await rRes.json();
@@ -250,8 +249,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(leadData)
@@ -273,7 +271,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         setLoading(true);
         setErrorInfo(null);
         
-        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
           throw new Error("Configuración de Supabase faltante.");
         }
 
@@ -288,7 +286,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`;
         
         const response = await fetch(url, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
         });
         
         if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
@@ -302,7 +300,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           // Intentamos buscar por coincidencia en la URL (muy robusto si el slug se extrajo de ahí)
           const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
           const urlRes = await fetch(urlMatch, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
           });
           
           if (urlRes.ok) {
@@ -317,7 +315,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             try {
               const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
               const likeRes = await fetch(likeUrl, {
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
               });
               
               if (likeRes.ok) {
@@ -362,9 +360,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   useEffect(() => {
     if (course) {
       const fetchSocialProofAndRelated = async () => {
-        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
         
-        const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+        const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
         const safeId = encodeURIComponent(course.id);
         const safeCatId = course.category_id ? encodeURIComponent(course.category_id) : null;
         
@@ -411,7 +409,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
           body: JSON.stringify({ p_course_id: course.id })
         });
       } catch (e) { console.warn("increment_view_count failed:", e); }

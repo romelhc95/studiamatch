@@ -146,30 +146,30 @@ def test_scoped_migration_enforces_atomic_cardinality_and_sync():
 
 
 def test_database_client_does_not_use_restricted_access_token_outside_canary(monkeypatch):
-    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "publishable")
+    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_x")
+    monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "sb_secret_x")
     monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "restricted-token")
     monkeypatch.delenv("STUDIAMATCH_CANARY_WORKER", raising=False)
-    monkeypatch.delenv("NEXT_SUPABASE_SECRET_KEY", raising=False)
 
     headers = DatabaseClient("https://example.supabase.co")._get_headers(use_service_role=True)
 
-    assert headers["apikey"] == "publishable"
-    assert headers["Authorization"] == "Bearer publishable"
+    assert headers["apikey"] == "sb_secret_x"
+    assert "Authorization" not in headers
 
 
 def test_database_client_uses_restricted_access_token_for_canary_worker(monkeypatch):
-    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "publishable")
+    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_x")
     monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "restricted-token")
     monkeypatch.setenv("STUDIAMATCH_CANARY_WORKER", "1")
     monkeypatch.delenv("NEXT_SUPABASE_SECRET_KEY", raising=False)
 
     headers = DatabaseClient("https://example.supabase.co")._get_headers(use_service_role=True)
 
-    assert headers["apikey"] == "publishable"
+    assert headers["apikey"] == "sb_publishable_x"
     assert headers["Authorization"] == "Bearer restricted-token"
 
 
-def test_strict_rest_uses_access_token_only_as_bearer(monkeypatch):
+def test_strict_rest_uses_access_token_only_for_authorization(monkeypatch):
     captured = {}
 
     class Response:
@@ -185,10 +185,14 @@ def test_strict_rest_uses_access_token_only_as_bearer(monkeypatch):
         return Response()
 
     monkeypatch.setattr(pipeline_canary.requests, "request", fake_request)
-    api = pipeline_canary.StrictRest("https://example.supabase.co", "secret", "publishable")
+    api = pipeline_canary.StrictRest(
+        "https://example.supabase.co",
+        "sb_secret_x",
+        "sb_publishable_x",
+    )
 
     assert api.rpc_with_access_token("verify_canary_runner_identity", "restricted-token") == []
-    assert captured["apikey"] == "publishable"
+    assert captured["apikey"] == "sb_publishable_x"
     assert captured["Authorization"] == "Bearer restricted-token"
 
 

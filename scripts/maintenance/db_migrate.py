@@ -35,6 +35,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
+from shared.supabase_credentials import get_secret_key
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -127,6 +128,7 @@ def assert_environment(target):
         missing.append("SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL")
     if missing:
         raise RuntimeError(f"Faltan credenciales para {target}: {', '.join(missing)}")
+    get_secret_key()
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "")
     expected_host = f"{EXPECTED_PROJECT_REFS[target]}.supabase.co"
     if urlparse(url).hostname != expected_host:

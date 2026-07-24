@@ -1,21 +1,25 @@
 // Centralized Supabase Configuration
 // All frontend components should import from here.
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
+const publishablePrefix = 'sb_publishable_';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || !process.env.NODE_ENV;
-  
-  if (process.env.NODE_ENV === 'production' && !isBuildTime) {
-    console.error("Missing Supabase environment variables. Check SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_SUPABASE_PUBLISHABLE_KEY.");
-  } else {
-    console.warn("Supabase environment variables are missing. Defaulting to empty strings.");
-  }
+if (!supabaseUrl) {
+  throw new Error('Missing required environment variable NEXT_PUBLIC_SUPABASE_URL.');
 }
 
-export const SUPABASE_URL = supabaseUrl || '';
-export const SUPABASE_ANON_KEY = supabaseAnonKey || '';
+if (!publishableKey) {
+  throw new Error('Missing required environment variable NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
+}
+
+if (!publishableKey.startsWith(publishablePrefix) || publishableKey.length <= publishablePrefix.length) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be a modern publishable key.');
+}
+
+// Configuration errors stop module loading without logging credential values.
+export const SUPABASE_URL = supabaseUrl;
+export const SUPABASE_PUBLISHABLE_KEY = publishableKey;
 
 // Fase 80A: Columnas públicas de courses — explícitas, sin internals (provider_used, is_mock_data, last_scraped_at, etc.)
 export const COURSE_PUBLIC_FIELDS = 'id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,brochure_url,start_date,created_at,updated_at,view_count,comparison_count';

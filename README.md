@@ -35,7 +35,7 @@ El sistema opera mediante un flujo de datos atómico y resiliente, diseñado par
     ```
 3.  **Variables de Entorno** (`.env.local`):
     - `NEXT_PUBLIC_SUPABASE_URL`
-    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (debe comenzar con `sb_publishable_`; el frontend la envía solo en el header `apikey`)
     - `CLOUDFLARE_API_TOKEN` (para el Golden Pipeline)
 4.  **Ejecutar Desarrollo**:
     ```bash

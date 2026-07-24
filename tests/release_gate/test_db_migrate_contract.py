@@ -46,7 +46,7 @@ def test_manifest_package_preserves_order_and_checksum(tmp_path):
 
 
 def test_environment_must_match_authorized_project_ref(monkeypatch):
-    monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "test-only")
+    monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "sb_secret_x")
     monkeypatch.setenv("SUPABASE_URL", "https://wrong.supabase.co")
     with pytest.raises(RuntimeError, match="project ref autorizado"):
         db_migrate.assert_environment("pro")

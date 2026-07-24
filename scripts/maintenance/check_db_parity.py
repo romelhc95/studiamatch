@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import DatabaseClient
+from shared.supabase_credentials import get_secret_key
 
 
 CONFIG_COLUMNS = {
@@ -105,6 +106,7 @@ def assert_environment(target: str) -> None:
         missing.append("SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL")
     if missing:
         raise RuntimeError(f"Faltan credenciales para {target}: {', '.join(missing)}")
+    get_secret_key()
 
 
 def try_rpc(db: DatabaseClient, sql: str) -> list[dict[str, Any]] | None:

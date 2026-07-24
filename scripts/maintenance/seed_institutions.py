@@ -1,8 +1,9 @@
 import os, sys, json, re, requests
 sys.path.insert(0, '/app')
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-secret = os.environ.get('NEXT_SUPABASE_SECRET_KEY', '') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+secret = get_secret_key(required=False)
 if not url or not secret:
     sys.exit('ERROR: Set NEXT_PUBLIC_SUPABASE_URL and NEXT_SUPABASE_SECRET_KEY')
 
@@ -19,7 +20,7 @@ def get_type(name):
 
 rows = [{'name': s['name'], 'slug': make_slug(s['name']), 'website_url': s['url'], 'type': get_type(s['name']), 'status': 'Activa', 'region': 'Lima'} for s in sources]
 
-h = {'apikey': secret, 'Authorization': f'Bearer {secret}', 'Content-Type': 'application/json'}
+h = build_supabase_headers(secret, kind="secret")
 inserted = 0
 for row in rows:
     r = requests.post(f'{url}/rest/v1/institutions', headers={**h, 'Prefer': 'resolution=merge-duplicates'}, json=[row], timeout=30)
