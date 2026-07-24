@@ -1,25 +1,5 @@
 # StudIAMatch — Developer Guide
 
-## Base de Conocimiento Centralizada (`.context/`)
-
-**Antes de cualquier tarea, lee obligatoriamente la base de conocimiento en `.context/`:**
-1. `.context/00_INDICE.md` — Mapa navegable de toda la documentacion
-2. `.context/prompts/system_prompt_base.md` — Reglas de ejecucion y restricciones para IAs
-3. `.context/sistema_db_supabase.md` — Esquema DB, tablas, RLS, funciones
-4. `.context/arquitectura_pipeline.md` — Pipeline ETL, workflows, gating
-5. `.context/estructura_frontend.md` — App Router, rutas, componentes
-6. `.context/estado_del_proyecto.md` — Deuda tecnica, limitaciones, SDLC
-
-Estos archivos son la **fuente de verdad** del proyecto. Cualquier discrepancia entre ellos y el codigo debe reportarse. Las IAs deben consultar el archivo de arquitectura relevante segun el dominio de la tarea antes de escribir codigo.
-
-Tras cualquier cambio en `.context`, ejecutar dentro del contenedor:
-
-```bash
-docker exec -w /app studiamatch-dev python3 scripts/maintenance/validate_context_graph.py .context
-```
-
-Esta validacion es obligatoria y tambien corre como check bloqueante `Context Graph Check` dentro de `security-audit`.
-
 ## Regla de Ejecución de Fases
 
 **SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
@@ -385,3 +365,9 @@ scripts/
 - **Backend**: Supabase (PostgreSQL 15 + pgvector + PostgREST).
 - **CI/CD**: 3 pipelines en `.github/workflows/`: `production_pipeline.yml` (FG2 semanal), `fg1_inventory.yml` (mensual), `fg3_integrity.yml` (diario).
 - **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`.
+
+### Contrato de autenticación HTTP
+- Las API keys Supabase modernas deben comenzar con `sb_publishable_` o `sb_secret_`; una key ausente o con otro formato detiene la operación.
+- Las API keys Supabase se envían exclusivamente en `apikey`; nunca se reutilizan como `Authorization: Bearer`.
+- `Authorization: Bearer` queda reservado a los tokens existentes de Supabase Management API, Cloudflare y Resend, inventariados por path, identidad, proveedor y variable de origen en `tests/test_supabase_credentials_contract.py`; la Supabase Data API no usa Bearer en esta rama.
+- Los scripts excepcionales que operen Free y Pro en una misma ejecución deben exigir pares explícitos `FREE_SUPABASE_URL` + `FREE_NEXT_SUPABASE_SECRET_KEY` y `PRO_SUPABASE_URL` + `PRO_NEXT_SUPABASE_SECRET_KEY`, y rechazar URLs o keys reutilizadas.

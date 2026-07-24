@@ -8,9 +8,8 @@ from scripts.shared.supabase_credentials import (
     get_environment_credentials,
     require_distinct_environments,
 )
-
-FREE = get_environment_credentials("FREE")
-PRO = get_environment_credentials("PRO")
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
 require_distinct_environments(FREE, PRO)
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")

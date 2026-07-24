@@ -1,4 +1,4 @@
-"""Seed Pro profiles from an explicit, isolated Free identity."""
+"""Fase 74: Seed institution_site_profiles in Pro — reads profiles from Free via db_client, upserts to Pro via raw requests"""
 import sys, json, requests
 
 sys.path.insert(0, '/app')
@@ -9,8 +9,8 @@ from scripts.shared.supabase_credentials import (
     require_distinct_environments,
 )
 
-FREE = get_environment_credentials("FREE")
-PRO = get_environment_credentials("PRO")
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
 require_distinct_environments(FREE, PRO)
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 
@@ -19,7 +19,7 @@ headers = {
     'Prefer': 'resolution=merge-duplicates',
 }
 
-# Read profiles from Free through an isolated explicit client.
+# Read profiles from Free using the explicit Free identity.
 db = DatabaseClient(FREE.url, FREE.secret_key)
 
 free_profiles = db.select_service('institution_site_profiles', columns='*')

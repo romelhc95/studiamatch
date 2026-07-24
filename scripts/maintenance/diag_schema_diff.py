@@ -8,8 +8,8 @@ from scripts.shared.supabase_credentials import (
     require_distinct_environments,
 )
 
-FREE = get_environment_credentials("FREE")
-PRO = get_environment_credentials("PRO")
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
 require_distinct_environments(FREE, PRO)
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')

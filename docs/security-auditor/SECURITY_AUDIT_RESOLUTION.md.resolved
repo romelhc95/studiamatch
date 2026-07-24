@@ -1,0 +1,32 @@
+# Reporte de Resolución de Seguridad: StudIAMatch (v1.0)
+
+**Fecha**: 2026-04-12  
+**Estatus Final**: 🔒 **PROTEGIDO / CERTIFICADO PARA PRODUCCIÓN**
+
+---
+
+## 1. Acciones Realizadas (Remediación)
+
+### 🔴 Hallazgo Crítico: Permisos de Escritura Públicos (CERRADO)
+- **Acción**: Se ejecutó un script SQL para eliminar las políticas `INSERT` y `UPDATE` de las tablas `courses` e `institutions` para el rol `anon`.
+- **Resultado**: Ahora el catálogo es estrictamente de solo lectura para el público. Los cambios solo pueden realizarse vía `service_role` (backend protegido).
+
+### 🟠 Hallazgo Alto/Medio: Vulnerabilidades DoS y Cookies (CERRADO)
+- **Acción**: Ejecución de `npm audit fix --force`.
+- **Versión Final**: `next@16.2.3` (+parche DoS) y actualización de `hono`.
+- **Resultado**: El escaneo final de NPM reporta **0 vulnerabilidades**.
+
+### 🟢 Hallazgo Bajo: Validación de Clientes (CERRADO)
+- **Acción**: Implementada lógica de validación con Regex para emails y control de longitud para WhatsApp en `CourseDetailClient.tsx`.
+- **Resultado**: Se eliminan registros de leads con datos basura o mal formateados antes de tocar la base de datos.
+
+---
+
+## 2. Recomendaciones de Post-Lanzamiento
+A medida que escalamos a 100+ instituciones, se recomienda:
+1.  **Rotación de Llaves**: Rotar la `SUPABASE_DB_PASSWORD` ya que estuvo expuesta en logs locales previos.
+2.  **Rate Limiting**: Implementar limitación de tasa específica para el endpoint de `/leads` para prevenir spam.
+3.  **Monitor de Inyecciones**: Revisar semanalmente los logs de Supabase para detectar intentos de acceso denegados por RLS.
+
+---
+**Firmado**: Orquestador de Seguridad ECC.

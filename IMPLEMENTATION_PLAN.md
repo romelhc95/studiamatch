@@ -1,9 +1,4 @@
-> [!CAUTION]
-> **DOCUMENTO DEPRECADO (JUNIO 2026)**
-> Este plan de implementación ha sido descentralizado en la bóveda de Obsidian dentro de `.context/`.
-> Para el estado actual ver `estado_del_proyecto.md` y para el backlog ver `backlog_tareas/`.
-
-# Plan de Implementación: StudIAMatch - Tech Education Intelligence
+﻿# Plan de Implementación: StudIAMatch - Tech Education Intelligence
 
 ## Premisas Obligatorias de Ingeniería (Nivel 0)
 
@@ -34,46 +29,29 @@
 > >
 > > **Consecuencia de no cumplir**: Si Pro se desincroniza de Free (columnas faltantes, perfiles incompletos), el pipeline en producción falla o produce 0 cursos, como ocurrió con DMC (Fase 94). El parity check en CI bloqueará el merge hasta que se corrija.
 
-## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-06-04 (post-Fase 121)
+## Estado Actual del Proyecto (WORKING-CONTEXT) — Auditado 2026-05-26 (post-Fase 116)
 
-- **Fases 104-121 implementadas en repo y con estado efectivo parcialmente validado en Free/Pro**. Fases 112-116 siguen aplicadas en ambos ambientes; Edge Function `send-lead-emails` está activa en Free y Pro.
-- **Categorización y ROI restaurados operativamente**: `tr_auto_assign_category` existe en Free/Pro y dispara `INSERT OR UPDATE`; `sync_vector_worker.py` usa `roi_engine.py` para inferir seniority, consultar `market_salaries` y calcular `expected_monthly_salary`/`roi_months`.
-- **Validación DB 2026-06-04**: Free tiene 66 cursos active+verified, 65 categorizados, 1 en `General / Por Clasificar`, 66 con salario esperado y 33 con ROI > 0. Pro tiene 170 cursos active+verified, 163 categorizados, 7 en `General / Por Clasificar`, 169 con salario esperado y 41 con ROI > 0.
-- **Catálogo extensible vigente**: existen las categorías Salud, Psicología, Diseño CAD y SAP/ERP en Free/Pro; `market_salaries` tiene 21 filas en ambos ambientes.
-- **Guardrails vigentes**: `scripts/maintenance/category_coverage_audit.py` existe y está integrado en `production_pipeline.yml`; `taxonomy_roi_audit.py` también corre en la fase final de QA.
-- **U. Lima activada**: `universidad-de-lima` tiene `pipeline_ready=true`, `discovery_enabled=true`, `pipeline_enabled=true`, `production_enabled=true` y 101 seed URLs en Free y Pro.
-- **Pendientes reales detectados**: la cobertura de categorías aún no es 100% en Pro (7 cursos en General); confirmar rate limiting anti-spam real a nivel backend/DB para leads; revisar si `studiamatch-institutions` debe agregar diff explícito contra perfil existente; decidir si se versionará una futura Fase 121 real para columnas/consumo de CSS selectors (`field_selectors`, `label_selectors`, etc.) o si seguirán siendo solo preview local.
-
-### Ajuste Propuesto: Vista General de Programa Enriquecida desde Pilares
-
-**Estado auditado 2026-06-04: mayormente implementado.** El detalle público de `studiamatch.com` sí consume campos derivados del contrato FG2 (`description_long`, `objectives`, `target_audience`, `requirements`, `syllabus`, `certification`, `benefits`) y la pestaña `GENERAL` ya muestra Visión del Programa, Qué Aprenderás y Temario Detallado cuando existen datos. La herramienta local está ubicada en `C:\Users\Romel\Proyectos\studiamatch-institutions` y contiene preview tipo StudIAMatch, simulación FG2 local, evidencias por pilar, propuesta determinística si falla el LLM, alerta de curso modelo duplicado, almacenamiento local de simulaciones, editor de `institution_site_profiles`, export JSON/Markdown/SQL y guardado controlado en Supabase con `pipeline_ready=false`. Auditoría adicional: el schema principal actual no contiene columnas `field_selectors`, `label_selectors`, `url_type_rules`, `extraction_transforms` ni `extraction_confidence`, y FG2 no consume esos campos; la herramienta fue alineada para exportar/guardar solo campos activos del perfil (`section_keywords`, `field_defaults`, patrones, regexes, discovery, anti-bot) y mantener los CSS selectors como insumo de preview local/reporte.
-
-La herramienta local `studiamatch-institutions` debe previsualizar el detalle público de `studiamatch.com` antes de guardar configuración curada. La vista `General` del curso debe alinearse con los pilares y con el contrato FG2, sin publicar cursos finales directamente.
-
-Secciones esperadas en la vista pública/previsualización, tanto para `studiamatch` como para `studiamatch-institutions`:
-
-- **Visión del programa**: texto generado por IA con evidencia desde pilares de categoría, requisitos, URL/slug y descripción (`P3`, `P9`, `P10`, `P11`, `P12`). Mostrar solo si hay información suficiente.
-- **Qué aprenderás**: texto generado por IA respondiendo qué aprenderá el estudiante, con evidencia desde `P3`, `P10` y `P11`. Mostrar solo si hay información suficiente.
-- **Dirigido a**: extraído de `P12`. Mostrar solo si `P12` contiene audiencia o descripción dirigida suficiente.
-- **Temario Detallado**: mostrar ordenadamente y extraído del pilar de temario/URL fuente (`P10` según contrato de vista; `curriculum_summary`/`syllabus` en schema operativo). Si la web original tiene viñetas, conservar esas viñetas.
-- **Al Finalizar**: extraído de `P13`. Mostrar qué entregará la institución al finalizar el programa/curso/etc. solo si hay evidencia suficiente.
-
-Requisitos de la herramienta de curación:
-
-- Mientras el modelo analiza, mostrar estado explícito y porcentaje estimado para evitar confusión con “sin resultados”.
-- Si el LLM falla o tarda, generar una propuesta parcial determinística con evidencias del HTML para que la preview no quede vacía.
-- Si la institución ya tiene `institution_site_profiles`, mostrar perfil existente, propuesta nueva y diff antes de guardar.
-- Si se ingresa el mismo curso modelo dos veces, alertar duplicado por URL/slug y permitir comparar evidencia, no duplicar configuración silenciosamente.
-- El guardado debe persistir configuración curada de institución/perfil y evidencia de curso modelo como insumo de auditoría; FG2 sigue siendo responsable de generar cursos operativos.
-
-Brecha pendiente: no se observó un diff explícito entre perfil existente y perfil propuesto antes de guardar. Existe carga de instituciones existentes y un endpoint `get-site-profile`, pero no se encontró uso UI de ese endpoint para comparar perfil actual vs propuesta. También queda pendiente decidir si se agregará una Fase 121 DB-as-Code para soportar selectores CSS como columnas reales y adaptar `universal_harvester.py`/`cleansing_worker.py`, o si la herramienta mantendrá esos selectores solo para simulación local.
+- **Fases 104-116 completadas y promovidas a `main`**. Hotfix `check_db_parity.py` (migration name matching) promovido vía PRs #124→#126→#128 (`4a9979b` en main).
+- **Fase 112-116 migrations**: Aplicadas en Free y Pro. FK `courses_category_id_fkey` existe en ambos ambientes. RLS y RPCs endurecidos. Frontend público funcional: 34 cursos DMC visibles en `https://www.studiamatch.com/`, detalle de curso carga correctamente.
+- **`DB Sync to Production`**: El falso negativo de `check_db_parity.py` (migration names sin prefijo) fue corregido. El workflow ahora pasa "Verify target schema".
+- **FG2 Run `26416785227` en `main`**: 34 cursos DMC en Pro (`is_active=true, is_verified=true`), 29/45 URLs del target `dmc.txt` cubiertas.
+- **Bugs activos en producción (descubiertos 2026-05-26)**:
+  - **Bug #4 — Categorización rota (NUEVO — CRÍTICO)**: 66/66 cursos activos en Free están en `category = 'General / Por Clasificar'` con `category_confirmed = false`. Causa raíz: el trigger `tr_auto_assign_category` tiene regex `\\y` con doble escape → keyword matching siempre falla. Además `tgtype=23` no incluye UPDATE → upserts nunca re-categorizan. Consecuencia: `expected_monthly_salary = NULL` y `roi_months = 0` para todos los cursos. El frontend muestra `"—"` en todas las tarjetas de ROI. **Afecta a TODAS las instituciones, no solo DMC**.
+  - **Bug #5 — ROI inexistente (NUEVO — CRÍTICO)**: `sync_vector_worker.py:280` hardcodea `seniority_level: "Mid"`. Nunca consulta `market_salaries`. Nunca calcula `expected_monthly_salary` ni `roi_months`. Incluso si la categorización funcionara (Bug #4), el ROI seguiría siendo 0.
+  - **Bug #6 — Sin guardrail de cobertura (NUEVO)**: No hay alerta cuando cursos caen en "General / Por Clasificar". El pipeline publica silenciosamente sin categoría real.
+  - ~~Bug #1 — RLS `profiles_select_public`~~ → Remediado (ahora versionado en migration Fase 113).
+  - ~~Bug #2 — FK `courses_category_id_fkey`~~ → Remediado (migration Fase 112).
+  - ~~Bug #3 — Enrichment 100% mock~~ → Remediado (RPC corregida en Fase 113; datos históricos permanecen con metadata mock).
+- **Próxima Acción**: Ejecutar Fase 117 (fix trigger categorización) → Fase 118 (refactorización motor ROI) → Fase 119 (catálogo extensible) → Fase 120 (guardrail cobertura). Este pipeline de 4 fases restaura la categorización, habilita el ROI real, y prepara el sistema para recibir nuevas instituciones con dominios no cubiertos (salud, psicología, CAD, SAP).
+- **U. Lima pendiente**: Perfil existe en Free (`pipeline_ready=true`, 102 seed URLs, 18 cursos active+verified) pero en Pro tiene `pipeline_ready=false`. Requiere aplicar migration `20260509_ulima_pipeline_ready.sql` en Pro y activar gates. Se recomienda ejecutar después de las Fases 117-120 para que los nuevos cursos de U. Lima se categoricen y reciban ROI correctamente.
+- **Proyección multi-institución**: Las Fases 117-120 son contratos de plataforma genéricos. Cualquier institución nueva (U. Lima, y futuras) se beneficiará de categorización automática vía trigger + ROI calculado en pipeline. Nuevos dominios (salud, psicología, etc.) requieren solo inserts en 3 tablas (`categories`, `category_rules`, `market_salaries`) sin tocar código.
 
 ## Tareas Pendientes Priorizadas
 
 > Orden de ejecución recomendado. Aplica a **todas las ramas** (`desarrollo`, `certificacion`, `main`). Las fases 62-64 son secuenciales (cada una depende de la anterior).
 
 | Prioridad | Tarea | Tipo | Descripción | Bloqueantes |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | ~~P0~~ | ~~Fase 76 — Hotfix Pipeline FG2~~ | ~~Pipeline~~ | ~~7 bugs corregidos: stealth_async, JSONB guardrails, discovery_mode, DNSResolutionError, error_message cleansing+enrichment~~ | ~~Completado (PR #29)~~ |
 | ~~P0~~ | ~~Fase 66 — Aplicar migration SQL~~ | ~~Dashboard~~ | ~~Ejecutar `20260501_fix_cleansing_loop.sql` en Supabase Dashboard (Free + Pro)~~ | ~~Completado~~ |
 | ~~P0~~ | ~~R7 — GitHub Secrets + Cloudflare deploy~~ | ~~Infra~~ | ~~Configurar secrets y env vars~~ | ~~Completado — pipeline ejecutando en producción~~ |
@@ -97,22 +75,22 @@ Brecha pendiente: no se observó un diff explícito entre perfil existente y per
 | ~~P0~~ | ~~Fase 101 — Hardening temporal desde `artifacts/urls_interes/<slug>.txt`~~ | ~~Pipeline + Proceso~~ | ~~Estandarizado el uso del `.txt` como insumo temporal de análisis para derivar `allowed_url_patterns`, `exclusion_patterns`, `seed_urls` y demás configuración persistente.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 102 — Promoción diferida a Pro (sin FG2 inmediato)~~ | ~~Infra + Workflows~~ | ~~`db-sync-to-pro.yml` ya no dispara FG2 inmediato; `production_pipeline.yml` queda por schedule diario o `workflow_dispatch`.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 103 — Parity check orientado a configuración, no a datos ETL~~ | ~~Infra~~ | ~~`check_db_parity.py` compara migrations, columnas criticas, `institutions` y perfiles por slug; conteos ETL/courses son informativos.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 104 — Fix 2 Bugs en `sync_vector_worker.py`~~ | ~~Pipeline~~ | ~~`last_scraped_at` usa ISO datetime y `curriculum_summary` se convierte a texto plano para `syllabus`.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 105 — Promoción a certificación~~ | ~~Infra~~ | ~~Promovida en el flujo documentado post-Fase 116.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 106 — Promoción a main + db-sync~~ | ~~Infra~~ | ~~Promovida a `main`; `DB Sync to Production` ya pasa schema verification.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 107 — Infra Pro: `exec_sql` + limpieza tablas DMC + activar gates~~ | ~~Infra + DB~~ | ~~`exec_sql` existe/restringido y gates operativos post-Fase 116.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 108 — Ejecución FG2 en Pro + validación cobertura~~ | ~~Pipeline + QA~~ | ~~Pro publica cursos y FG2/QA corren; cobertura categórica aún requiere monitoreo continuo.~~ | ~~Completado operativo~~ |
-| ~~P0~~ | ~~Fase 109 — Orquestador: priorizar instituciones con discovery_enabled=true~~ | ~~Pipeline~~ | ~~`master_orchestrator.py:get_institutions()` ordena `discovery_enabled=true` primero y luego `last_harvest_at`.~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 110 — Integrar DeepSeek V4 Flash via OpenCode Go API~~ | ~~Pipeline + Infra~~ | ~~`enrichment_worker.py` usa DeepSeek como provider primario vía `OPENCODE_API_KEY`; `openai==1.82.1` está en `requirements.txt`.~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 111 — CI/CD + Secrets para DeepSeek~~ | ~~Infra~~ | ~~`production_pipeline.yml` inyecta `OPENCODE_API_KEY`; security-audit detecta patrones OpenCode.~~ | ~~Completado; validar secret en cada environment~~ |
-| ~~P0~~ | ~~Fase 112 — Pro: FK `courses_category_id_fkey`~~ | ~~DB + Infra~~ | ~~FK aplicada y frontend carga detalle con `categories(name)`.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 113 — Pro: Versionar RLS + sync RPC `atomic_enrichment_promote`~~ | ~~DB + Infra~~ | ~~RLS/RPC versionados y endurecidos.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 114 — Security Contract Hardening~~ | ~~DB + Seguridad~~ | ~~RPCs y grants públicos endurecidos.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 115 — Authenticated Profile Hardening~~ | ~~DB + Seguridad~~ | ~~Exposición de perfiles autenticados reducida.~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 67A — Setup Resend + Edge Function~~ | ~~Email~~ | ~~Resend validado: dominio, `RESEND_API_KEY`, `ADMIN_EMAIL` y entregabilidad real completados; actualmente envía correos.~~ | ~~Completado~~ |
-| ~~P2~~ | ~~Fase 67B — Database Trigger + pg_net~~ | ~~Email~~ | ~~`email_log`, `contact_email`, `notify_new_lead()` y `trg_notify_new_lead` existen en Free/Pro.~~ | ~~Completado~~ |
-| **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Formulario exige email y muestra confirmación post-submit; pendiente confirmar rate limiting anti-spam real a nivel backend/DB. | Depende de política anti-spam |
-| ~~P2~~ | ~~Fase 67D — Email Templates~~ | ~~Email~~ | ~~Edge Function contiene templates HTML para usuario, admin e institución.~~ | ~~Completado~~ |
+| **P0** | **Fase 104 — Fix 2 Bugs en `sync_vector_worker.py`** | Pipeline | **BUG #1 (`last_scraped_at`)**: `sync_vector_worker.py:258` envía `"now()"` como string literal a `timestamptz` → PostgREST rechaza. Fix: `datetime.utcnow().isoformat()`. **BUG #2 (`chk_syllabus_is_text` — RAÍZ DMC)**: `sync_vector_worker.py:252` envía `json.dumps(curriculum_summary)` al campo `syllabus` → produce `{"pilares": [...]}` que viola CHECK constraint `syllabus !~ '^\s*[{[]'` → error `23514`. Fix: convertir `curriculum_summary` JSONB a texto plano (extraer `pilares`, bullet points). [Ver plan detallado](#fase-104-fix-2-bugs-en-sync_vector_workerpy). | Ninguno |
+| **P0** | **Fase 105 — Promoción a certificación** | Infra | PR `desarrollo` → `certificacion`. Validar CI verde. Merge. | Depende de Fase 104 |
+| **P0** | **Fase 106 — Promoción a main + db-sync** | Infra | PR `certificacion` → `main`. Merge dispara `db-sync-to-pro.yml`. **FALLARÁ si `exec_sql` no existe en Pro** → continuar con Fase 107. [Ver plan detallado abajo](#fase-106-promoción-a-main--db-sync). | Depende de Fase 105 |
+| **P0** | **Fase 107 — Infra Pro: `exec_sql` + limpieza tablas DMC + activar gates** | Infra + DB | **Manual (Supabase Dashboard Pro)**. 3 pasos: (A) Crear función `exec_sql` en Pro. (B) Si db-sync falló, re-ejecutar. (C) Limpiar tablas operativas DMC (courses, enriched, cleansed, staging). (D) Activar gates: `discovery_enabled=true`, `production_enabled=true`. [Ver plan detallado abajo](#fase-107-infra-pro-exec_sql--limpieza-tablas-dmc--activar-gates). | Depende de Fase 106 |
+| **P0** | **Fase 108 — Ejecución FG2 en Pro + validación cobertura** | Pipeline + QA | Ejecutar pipeline manual en `main` (o esperar schedule 05:00 UTC). Validar: (A) Monitorear fases sin "DB Error". (B) Verificar `courses` con ≥ 45 programas DMC. (C) Validar https://www.studiamatch.com/ muestra los 45. (D) Comparar cobertura contra `artifacts/urls_interes/dmc.txt`. [Ver plan detallado abajo](#fase-108-ejecución-fg2-en-pro--validación-cobertura). | Depende de Fase 107 |
+| **P0** | **Fase 109 — Orquestador: priorizar instituciones con discovery_enabled=true** | Pipeline | **BUG**: `get_institutions()` ordena solo por `last_harvest_at ASC` y trunca a `--limit 5`. Cuando 10/12 instituciones tienen `discovery_enabled=false` y la única habilitada está en posición #9, el pipeline no procesa ninguna. **Fix**: ordenar poniendo `discovery_enabled=true` primero, luego por `last_harvest_at ASC`. [Ver plan detallado abajo](#fase-109-orquestador-priorizar-instituciones-con-discovery_enabledtrue). | Ninguno |
+| **P1** | **Fase 110 — Integrar DeepSeek V4 Flash via OpenCode Go API** | Pipeline + Infra | Reemplazar el modelo gratuito Cloudflare `llama-3.1-8b-instruct` como provider primario de enrichment por `deepseek-v4-flash` via API OpenAI-compatible de OpenCode Go (suscripción activa). Cloudflare se mantiene como fallback automático. Agregar dependencia `openai` a `requirements.txt`. [Ver plan detallado](#fase-110-integrar-deepseek-v4-flash-via-opencode-go-api). | Ninguno |
+| **P1** | **Fase 111 — CI/CD + Secrets para DeepSeek** | Infra | Agregar `OPENCODE_API_KEY` a GitHub Secrets (3 environments), actualizar `production_pipeline.yml` Phase 2 con la nueva variable de entorno, agregar patrón de detección al security-audit. Rebuild del contenedor Docker. [Ver plan detallado](#fase-111-cicd--secrets-para-deepseek). | Depende de Fase 110 |
+| **P0** | **Fase 112 — Pro: FK `courses_category_id_fkey`** | DB + Infra | **BUG CRÍTICO**: PostgREST retorna HTTP 400 porque `courses` no tiene FK a `categories` en Pro. El frontend consulta `categories(name)` como recurso embebido → sin FK, la query falla para TODOS los cursos. Free sí tiene el FK. [Ver plan detallado](#fase-112-pro-fk-courses_category_id_fkey). | Ninguno |
+| **P0** | **Fase 113 — Pro: Versionar RLS + sync RPC `atomic_enrichment_promote`** | DB + Infra | (A) Versionar la policy `profiles_select_public` aplicada manualmente como migration SQL. (B) Aplicar la versión corregida de `atomic_enrichment_promote` (con `provider_used`, `is_mock_data`, `difficulty_level`) que ya existe en `db/migrations/20260510_pro_schema_sync.sql` pero no se aplicó en Pro. [Ver plan detallado](#fase-113-pro-versionar-rls--sync-rpc-atomic_enrichment_promote). | Depende de Fase 112 |
+| **P0** | **Fase 114 — Security Contract Hardening** | DB + Seguridad | Restringir RPCs `SECURITY DEFINER` (`atomic_enrichment_promote`, `exec_sql`) a `service_role`; limitar `institution_site_profiles` público a columnas mínimas requeridas por el gate. | Depende de Fase 113 |
+| **P0** | **Fase 115 — Authenticated Profile Hardening** | DB + Seguridad | Extender el mismo mínimo de exposición a `authenticated` y asegurar tabla de auditoría `schema_repair_audit`. Previene fuga de configuración de scraping para instituciones futuras. | Depende de Fase 114 |
+| **P2** | **Fase 67A — Setup Resend + Edge Function** | Email | Crear cuenta Resend, verificar dominio, crear Edge Function `send-lead-emails`, agregar `contact_email` a instituciones, configurar secrets. | Independiente |
+| **P2** | **Fase 67B — Database Trigger + pg_net** | Email | Crear trigger `AFTER INSERT ON leads` + `pg_net.http_post()` → Edge Function. Tabla `email_log`. | Depende de 67A |
+| **P2** | **Fase 67C — Frontend UX Confirmación** | Frontend | Toast/banner post-lead, email requerido, rate limiting anti-spam. | Depende de 67B |
+| **P2** | **Fase 67D — Email Templates** | Email | 3 templates HTML responsivos con branding StudIAMatch. | Depende de 67A |
 | ~~P1~~ | ~~Fase 71 — Sincronización Pro→Free + Pipeline Producción~~ | ~~Infraestructura~~ | ~~Sincronizar 12 cursos + 6,498 staging_raw de Pro→Free (slug mapping por UUIDs diferentes), fix FG3 `ModuleNotFoundError`, script `sync_pro_to_free.py` operacional. Pipeline FG2 en Pro pendiente de ejecutar por workflow_dispatch.~~ | ~~Completado — commit `775507f`~~ |
 | ~~P1~~ | ~~Fase 75 — Exclusion Gate (Reabierta)~~ | ~~Pipeline~~ | ~~**Bug**: `get_pending_cleansed()` no filtraba por `pipeline_ready` a nivel DB → fetch de registros de instituciones no listas. Fix: filtro `institution_id=in.(ready_ids)` en query a cleansed_programs. Loop-level check ya existía como defensa.~~ | ~~Completado~~ |
 | ~~P1~~ | ~~Fase 74 — Migración Pro + Eliminación Definitiva CE~~ | ~~Infraestructura~~ | ~~Pro DB seeded (11 perfiles), 14 scripts deprecated, DROP TABLE `crawler_exclusions` (ambos ambientes), docs/DDL actualizados, security audit remediado.~~ | ~~Completado — Free y Pro DROPPED~~ |
@@ -142,10 +120,11 @@ Brecha pendiente: no se observó un diff explícito entre perfil existente y per
 | ~~P2~~ | ~~Fase 93~~ | ~~Pipeline~~ | ~~DMC Harvester: Section Keywords + H4 Extractor~~ | ~~Completado~~ |
 | ~~P2~~ | ~~Fase 94~~ | ~~Pipeline~~ | ~~DMC WooCommerce Pillar Enrichment — PR #50 mergeado y promovido a main~~ | ~~Completado~~ |
 | **P4** | **Fase 38 — Proxies residenciales** | Escalabilidad | Pool de proxies rotativos para escalamiento masivo. Postpuesto hasta que se necesite >50k registros. | No bloqueante |
-| ~~P0~~ | ~~Fase 117 — Fix trigger categorización `tr_auto_assign_category`~~ | ~~DB + Pipeline~~ | ~~Trigger y función corregidos; validado `INSERT OR UPDATE` en Free/Pro.~~ | ~~Completado~~ |
-| ~~P0~~ | ~~Fase 118 — Refactorización del motor de ROI~~ | ~~Pipeline + DB~~ | ~~`roi_engine.py` + `sync_vector_worker.py` calculan seniority, salario esperado y ROI.~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 119 — Catálogo extensible de categorías + keywords + salarios~~ | ~~DB~~ | ~~Categorías Salud, Psicología, Diseño CAD y SAP/ERP existen en Free/Pro; `market_salaries` = 21.~~ | ~~Completado~~ |
-| ~~P1~~ | ~~Fase 120 — Guardrail de cobertura de categorías~~ | ~~Pipeline + QA~~ | ~~`category_coverage_audit.py` existe y corre en `production_pipeline.yml`.~~ | ~~Completado; monitorear 7 cursos General en Pro~~ |
+| **P0** | **Fase 117 — Fix trigger categorización `tr_auto_assign_category`** | DB + Pipeline | **BUG DOBLE**: (A) `tgtype=23` (INSERT+DELETE, sin UPDATE) → los upserts del pipeline nunca re-categorizan cursos existentes. (B) Regex `\\y` con doble escape en `fn_auto_assign_category()` → keyword matching siempre falla, 66/66 cursos en "General / Por Clasificar". Ambos bugs silenciosos: el trigger existe pero nunca matchea. [Ver plan detallado](#fase-117-fix-trigger-categorización-tr_auto_assign_category). | Ninguno |
+| **P0** | **Fase 118 — Refactorización del motor de ROI** | Pipeline + DB | **REDISEÑO COMPLETO**: El ROI actual no existe funcionalmente (`expected_monthly_salary=NULL`, `roi_months=0`, `seniority_level` hardcodeado `"Mid"`). Nuevo motor escalable: (A) inferencia de seniority por nombre+tipo+duración en pipeline. (B) lookup de `market_salaries(category_id, seniority_level)`. (C) factor de ajuste por tipo de programa (Curso 0.3×, Diplomado 0.5×, Maestría 1.0×, etc). (D) cálculo de `roi_months = price_pen / salary_efectivo`. Extensible a nuevas categorías sin código. [Ver plan detallado](#fase-118-refactorización-del-motor-de-roi). | Depende de Fase 117 |
+| **P1** | **Fase 119 — Catálogo extensible de categorías + keywords + salarios** | DB | Agregar 4 categorías nuevas (Salud, Psicología, Diseño CAD, SAP/ERP) con sus keywords en `category_rules` y benchmarks en `market_salaries`. Documentar el proceso estándar para que futuras instituciones con dominios no cubiertos (ej: inyectables, AutoCAD, psicología clínica) puedan integrarse creando solo registros en estas 3 tablas, sin tocar código. [Ver plan detallado](#fase-119-catálogo-extensible-de-categorías--keywords--salarios). | Independiente |
+| **P1** | **Fase 120 — Guardrail de cobertura de categorías** | Pipeline + QA | Script `category_coverage_audit.py` que detecta cursos con `category_confirmed=false` post-pipeline y alerta sobre keywords sin regla. Integrar en CI post-FG2. Previene el caso silencioso actual: 66 cursos en "General / Por Clasificar" sin alerta. [Ver plan detallado](#fase-120-guardrail-de-cobertura-de-categorías). | Depende de Fase 117 |
+| **P0** | **Fase 121 — Extracción configurable de 14 pilares por institución** | Pipeline + DB | Convertir `institution_site_profiles` en el contrato único para indicar, por institución y segmento de URL, de dónde extraer cada pilar del curso. Agregar configuración JSONB para selectores CSS, etiquetas label→valor, defaults, overrides por segmento (`/carreras-profesionales-tecnicas/`, `/diplomados/`, `/escuela-de-coding/`, etc.), transformaciones, reglas de confianza y fallback LLM. El enrichment debe aplicar selectores sobre `staging_raw.raw_html` y usar `cleansed_programs.clean_text` solo como contexto LLM. [Ver plan detallado](#fase-121-extracción-configurable-de-14-pilares-por-institución). | Depende de Fases 117-120; requiere revisar seguridad por exposición de selectores |
 
 ## Flujo Vigente: Desarrollo → Producción
 
@@ -3505,8 +3484,6 @@ Esperado: `true`, `true`, `false`.
 
 ### Fase 117: Fix trigger categorización `tr_auto_assign_category`
 
-> **Estado auditado 2026-06-04**: completado en código y efectivo en Free/Pro. La migration versionada `db/migrations/20260526_fase117_fix_category_trigger.sql` existe; el trigger actual reporta `tgtype=23`, que en PostgreSQL incluye `INSERT` (bit 4), `UPDATE` (bit 16), `BEFORE` y `ROW`. Validación DB: Free 65/66 active+verified categorizados; Pro 163/170 active+verified categorizados. El diagnóstico siguiente queda como antecedente histórico del bug descubierto el 2026-05-26.
-
 #### Diagnóstico
 
 La tabla `courses` tiene 66 cursos activos. **100% (66/66) están en `category = 'General / Por Clasificar'` con `category_confirmed = false`**. Esto significa que el pipeline publica cursos sin categoría real, y por tanto `expected_monthly_salary` y `roi_months` nunca se calculan.
@@ -3625,8 +3602,6 @@ COMMIT;
 ---
 
 ### Fase 118: Refactorización del motor de ROI
-
-> **Estado auditado 2026-06-04**: completado en código y con datos efectivos. `scripts/shared/roi_engine.py` implementa inferencia de seniority, lookup salarial y cálculo de ROI; `scripts/core/sync_vector_worker.py` lo invoca después del upsert a `courses`. Validación DB: Free 66/66 active+verified con `expected_monthly_salary`, 33 con `roi_months > 0`; Pro 169/170 con `expected_monthly_salary`, 41 con `roi_months > 0`. El diagnóstico siguiente queda como antecedente histórico.
 
 #### Diagnóstico
 
@@ -3855,75 +3830,7 @@ El motor es **genérico por diseño**:
 
 ### Fase 119: Catálogo extensible de categorías + keywords + salarios
 
-> **Estado auditado 2026-06-04**: completado en repo y efectivo en Free/Pro. Las categorías `Salud y Ciencias Medicas`, `Psicologia y Salud Mental`, `Diseno CAD y Manufactura` y `SAP y ERP Empresarial` existen en ambos ambientes; `market_salaries` reporta 21 filas. El diagnóstico siguiente queda como antecedente y proceso estándar para futuras categorías.
-
 #### Diagnóstico
-
-El sistema actual tiene 17 categorías que cubren dominios tech/negocios. Si mañana ingresa una institución con cursos de:
-- **Psicología Clínica** → sin categoría ni keywords → cae en "General"
-- **Inyectables / Enfermería** → sin categoría → cae en "General"
-- **AutoCAD / Diseño 3D** → `category_rules` no tiene keywords `autocad`, `solidworks`, `revit`
-- **SAP FI / SAP HANA** → `category_rules` no tiene keyword `sap`
-
-Sin categoría → sin `expected_monthly_salary` → sin ROI.
-
-**El sistema debe ser extensible sin tocar código**: nuevas categorías se agregan como registros en 3 tablas (`categories`, `category_rules`, `market_salaries`) vía migrations SQL versionadas. El trigger `fn_auto_assign_category` y `roi_engine.py` las consumen genéricamente.
-
-#### Cambio
-
-**Archivo nuevo**: `db/migrations/20260526_fase119_extensible_categories.sql`
-
-**Nuevas categorías**:
-
-| Categoría | Descripción | Ejemplos de cursos |
-|---|---|---|
-| `Salud y Ciencias Medicas` | Enfermería, farmacia, procedimientos médicos | Inyectables, Primeros Auxilios, Farmacología |
-| `Psicologia y Salud Mental` | Terapia, psicología clínica, consejería | Psicología Clínica, Terapia Cognitivo-Conductual |
-| `Diseno CAD y Manufactura` | Diseño asistido por computadora, fabricación digital | AutoCAD, SolidWorks, Revit, BIM, Diseño 3D |
-| `SAP y ERP Empresarial` | Sistemas de planificación de recursos empresariales | SAP FI, SAP MM, SAP HANA, Oracle ERP |
-
-**Keywords en `category_rules`**:
-
-| Keyword | Categoría | Prioridad |
-|---|---|---|
-| `enfermeria`, `enfermería`, `inyectables`, `farmacia`, `primeros auxilios`, `farmacologia` | Salud y Ciencias Medicas | 20 |
-| `psicologia`, `psicología`, `terapia`, `salud mental`, `clinica`, `consejeria`, `neurociencia` | Psicologia y Salud Mental | 20 |
-| `autocad`, `solidworks`, `revit`, `bim`, `diseño 3d`, `diseno 3d`, `manufactura`, `cnc`, `impresion 3d` | Diseno CAD y Manufactura | 25 |
-| `sap`, `sap fi`, `sap mm`, `sap hana`, `oracle erp`, `erp`, `sap business one` | SAP y ERP Empresarial | 25 |
-
-**Benchmarks salariales en `market_salaries`**:
-
-| Categoría | Junior | Mid | Senior |
-|---|---:|---:|---:|
-| Salud y Ciencias Medicas | S/ 2,500 | S/ 5,500 | S/ 12,000 |
-| Psicologia y Salud Mental | S/ 2,000 | S/ 4,500 | S/ 8,000 |
-| Diseno CAD y Manufactura | S/ 2,200 | S/ 5,000 | S/ 9,000 |
-| SAP y ERP Empresarial | S/ 3,500 | S/ 8,000 | S/ 15,000 |
-
-**Fuentes de los benchmarks**:
-- Salud: Observatorio Laboral MTPE + escalas salariales MINSA
-- Psicología: Ponte en Carrera (egresados psicología)
-- Diseño CAD: Computrabajo / Bumeran (promedio ofertas 2025-2026)
-- SAP: Indeed Perú + Glassdoor (consultores SAP en Lima)
-
-**Proceso estándar para agregar categorías futuras**:
-
-1. Detectar el dominio no cubierto (vía Fase 120 — guardrail)
-2. Definir nombre de categoría en `categories`
-3. Agregar 3-6 keywords representativas en `category_rules` con prioridad 20-25
-4. Investigar salarios Junior/Mid/Senior para la categoría (fuentes: Ponte en Carrera, Indeed, Computrabajo, Bumeran, INEI)
-5. Insertar en `market_salaries`
-6. Crear migration SQL versionada con los 3 INSERTs
-7. Ejecutar backfill: `UPDATE courses SET name = name WHERE category_confirmed = false`
-
-#### Tareas
-
-| Paso | Acción | Dónde | Duración |
-|------|--------|-------|----------|
-| 119.1 | Crear archivo `db/migrations/20260526_fase119_extensible_categories.sql` | Código | 10 min |
-| 119.2 | Aplicar migration en Free | Contenedor | 2 min |
-| 119.3 | Commit + PR a `desarrollo` | GitHub | 2 min |
-
 
 El sistema actual tiene 17 categorías que cubren dominios tech/negocios. Si mañana ingresa una institución con cursos de:
 - **Psicología Clínica** → sin categoría ni keywords → cae en "General"
@@ -4001,29 +3908,7 @@ Sin categoría → sin `expected_monthly_salary` → sin ROI.
 
 ---
 
-### Fase 121: Alineación de Contexto de Base de Datos para Obsidian
-
-> **Estado**: [x] Completado. Se ha alineado la documentación `sistema_db_supabase.md` con el estado real de producción (Supabase Pro) descargado directamente desde PostgREST OpenAPI spec.
-
-#### Tareas
-
-| Paso | Acción | Dónde | Duración | Estado |
-|------|--------|-------|----------|---|
-| 121.1 | Validar esquema real de Supabase Pro y actualizar `sistema_db_supabase.md` | Documentación | 15 min | [x] Completado |
-| 121.2 | Validar discrepancias de campos de tablas | Documentación | 5 min | [x] Completado |
-
-#### Validación
-
-| Paso | Acción | Resultado esperado | Estado |
-|------|--------|-------------------|---|
-| 121.V1 | Comparar conteo de columnas contra OpenAPI spec | 100% de coincidencia en las 14 tablas | [x] Completado |
-
-
----
-
 ### Fase 120: Guardrail de cobertura de categorías
-
-> **Estado auditado 2026-06-04**: completado en repo y operativo en CI. `scripts/maintenance/category_coverage_audit.py` existe y `production_pipeline.yml` lo ejecuta en la fase final de QA. Estado efectivo: Free 65/66 categorizados; Pro 163/170 categorizados. La brecha actual es de monitoreo/remediación de keywords para los 7 cursos restantes en General en Pro, no ausencia del guardrail.
 
 #### Diagnóstico
 
@@ -4116,3 +4001,260 @@ ORDER BY courses DESC;
 | 120.V1 | Ejecutar `python3 scripts/maintenance/category_coverage_audit.py` pre-Fase 117 | Exit code 2, cobertura 0%, lista los 66 cursos |
 | 120.V2 | Ejecutar post-Fase 117 + 119 | Exit code 0, cobertura ≥ 90% |
 | 120.V3 | Insertar curso con keyword sin regla (ej: `'Taller de Oratoria'`) → re-ejecutar auditoría | Exit code 1, alerta que "oratoria" no tiene regla |
+
+---
+
+### Fase 121: Extracción configurable de 14 pilares por institución
+
+#### Diagnóstico
+
+`institution_site_profiles` ya controla discovery, exclusiones, gates, defaults, regex simples y `section_keywords`. Falta un contrato completo para indicar, por institución y por **segmento de URL**, de dónde extraer cada uno de los 14 pilares del curso.
+
+El caso IDAT evidencia dos problemas: la revisión manual identifica patrones repetibles (`h1`, `.field-name-descripcion`, `.accordion-timeline`, `a[download][href$='.pdf']`), pero esos patrones hoy no quedan persistidos como configuración accionable; además, una misma institución puede tener segmentos con estructuras o defaults distintos (`/carreras-para-gente-que-trabaja/`, `/carreras-profesionales-tecnicas/`, `/certificaciones/`, `/cursos-de-formacion-continua/`, `/diplomados/`, `/escuela-de-coding/`, `/programas-especializacion/`).
+
+La limpieza de HTML en `cleansing_worker.py` no debe afectar esta fase: la extracción determinística debe correr contra `staging_raw.raw_html` (HTML original con clases, atributos y DOM), mientras que `cleansed_programs.clean_text` debe usarse como contexto textual para el LLM.
+
+#### Objetivo
+
+Convertir `institution_site_profiles` en la fuente de verdad para extracción por institución y segmento de URL, permitiendo configurar selectores CSS base, patrones label→valor, overrides por segmento, transformaciones, defaults explícitos y fallback al LLM solo para campos inferenciales.
+
+El pipeline debe seguir siendo genérico: ninguna institución debe introducir condicionales tipo `if slug == 'idat'` en `universal_harvester.py`, `cleansing_worker.py`, `enrichment_worker.py` o `sync_vector_worker.py`.
+
+#### Contrato de 14 pilares
+
+| Pilar enrichment | Destino principal | Tipo de extracción esperado |
+|---|---|---|
+| `official_name` | `courses.name` | Selector CSS directo (`h1`) o fallback LLM |
+| `categories` | `courses.category`, `courses.category_id` | LLM + `category_rules`; no selector obligatorio |
+| `degree_type` | `courses.course_type` | LLM o regla por tipo de URL |
+| `modality` | `courses.mode` | Label selector, selector CSS o default |
+| `duration_text` | `courses.duration` | Label selector o selector CSS |
+| `duration_months` | `enriched_programs.duration_months` | Transformación/LLM desde `duration_text` |
+| `total_cost_est` | `courses.price_pen` | Selector CSS, regex o `null` explícito |
+| `start_date` | `courses.start_date_text`, `courses.start_date` | Label selector, regex, LLM + `parse_start_date()` |
+| `schedule_info` | `enriched_programs.schedule_info` | Label selector |
+| `requirements` | `courses.requirements` | Selector CSS, label selector o `null` explícito |
+| `curriculum_summary` | `courses.syllabus` | Selector CSS de acordeón/lista + transform a viñetas |
+| `graduate_profile` | `courses.objectives`, `courses.target_audience` | Selector CSS o LLM |
+| `ai_summary` | `courses.description_long` | Selector CSS para descripción base + síntesis LLM |
+| `brochure_url` | `courses.brochure_url` | Selector CSS de enlace PDF + URL absoluta |
+
+#### Diseño de columnas nuevas
+
+Agregar columnas JSONB a `institution_site_profiles`:
+
+```sql
+ALTER TABLE institution_site_profiles
+ADD COLUMN field_selectors JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN label_selectors JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN url_type_rules JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN extraction_transforms JSONB NOT NULL DEFAULT '{}'::jsonb,
+ADD COLUMN extraction_confidence JSONB NOT NULL DEFAULT '{}'::jsonb;
+```
+
+| Columna | Propósito |
+|---|---|
+| `field_selectors` | Selectores CSS directos por pilar. Ej: `official_name → h1`, `curriculum_summary → .accordion-timeline` |
+| `label_selectors` | Reglas para contenedores donde una etiqueta identifica el campo y otro nodo contiene el valor. Ej: `.field-name-descripcion` con `<p>Duración</p>` |
+| `url_type_rules` | Reglas por patrón de URL, incluyendo defaults y overrides de selectores por segmento. Ej: `/cursos-de-formacion-continua/` implica `degree_type=Curso`, `modality=Presencial` si no hay label |
+| `extraction_transforms` | Transformaciones declarativas por campo. Ej: `href`, `absolute_url`, `accordion_to_bullets`, `normalize_mode` |
+| `extraction_confidence` | Define si un campo pre-extraído es autoritativo, sugerido o solo contexto para LLM |
+
+`field_selectors` y `label_selectors` definen la configuración base de la institución. `url_type_rules` puede sobrescribir, deshabilitar o complementar esas reglas por segmento sin tocar código.
+
+#### Ejemplo de configuración IDAT
+
+```json
+{
+  "field_selectors": {
+    "official_name": {"selector": "h1", "transform": "text", "confidence": "authoritative"},
+    "curriculum_summary": {"selector": ".accordion-timeline", "transform": "accordion_to_bullets", "confidence": "authoritative"},
+    "brochure_url": {"selector": "a[download][href$='.pdf'], a[href*='.pdf']", "attribute": "href", "transform": "absolute_url", "confidence": "authoritative"},
+    "ai_summary_source": {"selector": ".margin-right-content .view-header", "transform": "text", "confidence": "context"}
+  },
+  "label_selectors": {
+    "Duración": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "duration_text", "transform": "text", "confidence": "authoritative"},
+    "Modalidad": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "modality", "transform": "normalize_mode", "fallback": "Presencial", "confidence": "authoritative"},
+    "Horarios": {"container": ".field-name-descripcion", "value_selector": "strong", "field": "schedule_info", "transform": "text", "confidence": "authoritative"}
+  },
+  "url_type_rules": [
+    {
+      "match": "/carreras-para-gente-que-trabaja/",
+      "program_family": "carreras_para_gente_que_trabaja",
+      "defaults": {"degree_type": "Carrera para gente que trabaja", "total_cost_est": null, "requirements": null, "price_status": "consultar"},
+      "label_overrides": {
+        "Modalidad": {"fallback": "Semipresencial"}
+      }
+    },
+    {
+      "match": "/carreras-profesionales-tecnicas/",
+      "program_family": "carreras_profesionales_tecnicas",
+      "defaults": {"degree_type": "Carrera Técnica", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/certificaciones/",
+      "program_family": "certificaciones",
+      "defaults": {"degree_type": "Certificación", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/cursos-de-formacion-continua/",
+      "program_family": "formacion_continua",
+      "defaults": {"degree_type": "Curso", "total_cost_est": null, "requirements": null, "price_status": "consultar", "modality": "Presencial"}
+    },
+    {
+      "match": "/diplomados/",
+      "program_family": "diplomados",
+      "defaults": {"degree_type": "Diplomado", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/escuela-de-coding/",
+      "program_family": "escuela_de_coding",
+      "defaults": {"degree_type": "Curso", "category_hint": "Tecnología", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    },
+    {
+      "match": "/programas-especializacion/",
+      "program_family": "programas_especializacion",
+      "defaults": {"degree_type": "Especialización", "total_cost_est": null, "requirements": null, "price_status": "consultar"}
+    }
+  ],
+  "extraction_transforms": {
+    "duration_months": "derive_from_duration_text",
+    "curriculum_summary": "accordion_to_bullets",
+    "brochure_url": "absolute_url",
+    "modality": "normalize_mode"
+  },
+  "extraction_confidence": {
+    "official_name": "authoritative",
+    "duration_text": "authoritative",
+    "modality": "authoritative_or_default",
+    "curriculum_summary": "authoritative",
+    "brochure_url": "authoritative",
+    "categories": "llm_required",
+    "degree_type": "url_rule_or_llm",
+    "ai_summary": "llm_synthesis"
+  }
+}
+```
+
+#### Jerarquía de resolución por institución y segmento
+
+Cuando FG2 procese una URL, el enrichment debe resolver la configuración en este orden:
+
+1. Identificar institución por `institution_id`.
+2. Cargar configuración base de `institution_site_profiles`.
+3. Detectar segmento usando `url_type_rules.match` sobre la URL.
+4. Aplicar defaults del segmento (`degree_type`, `price_status`, `modality`, etc.).
+5. Aplicar `field_overrides` y `label_overrides` del segmento sobre la configuración base.
+6. Ejecutar extracción determinística sobre `staging_raw.raw_html`.
+7. Aplicar transformaciones permitidas.
+8. Enviar al LLM solo campos faltantes o inferenciales.
+
+La precedencia debe ser:
+
+```text
+Valor extraído por override de segmento
+→ Valor extraído por configuración base de institución
+→ Default explícito por segmento
+→ Default explícito de institución
+→ LLM
+→ null si no hay evidencia confiable
+```
+
+Segmentos IDAT a cubrir inicialmente:
+
+| Segmento URL | Ejemplo | Uso esperado |
+|---|---|---|
+| `/carreras-para-gente-que-trabaja/` | `administracion-de-empresas` | Puede tener modalidad/defaults distintos a carreras técnicas |
+| `/carreras-profesionales-tecnicas/` | `administracion-bancaria-y-financiera` | Carrera técnica, duración usual en años/ciclos |
+| `/certificaciones/` | `seguridad-y-salud-en-el-trabajo` | Certificación, duración/precio pueden usar bloques distintos |
+| `/cursos-de-formacion-continua/` | `administracion-de-base-de-datos`, `data-analytics-i` | Curso, duración en horas y/o meses, modalidad puede no existir |
+| `/diplomados/` | `recursos-humanos` | Diplomado, posible estructura propia para inversión/modalidad |
+| `/escuela-de-coding/` | `curso-de-diseno-ux-ui` | Curso tecnológico, category hint puede ser Tecnología |
+| `/programas-especializacion/` | `finanzas-y-contabilidad-con-ia-aplicada` | Especialización, duración/precio pueden variar |
+
+Si un segmento usa una ubicación distinta para precio, modalidad o duración, no se modifica código: se agrega un `field_overrides` o `label_overrides` dentro de su regla de URL. Ejemplo:
+
+```json
+{
+  "match": "/diplomados/",
+  "field_overrides": {
+    "total_cost_est": {"selector": ".investment-box strong", "transform": "price_to_float"}
+  },
+  "label_overrides": {
+    "Modalidad": {"container": ".program-summary", "value_selector": "strong"}
+  }
+}
+```
+
+#### Flujo técnico propuesto
+
+1. `universal_harvester.py` continúa descubriendo y guardando HTML crudo en `staging_raw.raw_html` sin lógica específica por institución.
+2. `cleansing_worker.py` continúa limpiando ruido, aplicando exclusiones y promoviendo a `cleansed_programs.clean_text`. Esta limpieza no debe eliminar la fuente de verdad para selectores porque `raw_html` permanece en `staging_raw`.
+3. `enrichment_worker.py` obtiene dos fuentes: `staging_raw.raw_html` para extracción determinística y `cleansed_programs.clean_text` para contexto LLM.
+4. `enrichment_worker.py` carga el perfil institucional, detecta el segmento de URL y compone configuración efectiva: base de institución + overrides del segmento + defaults.
+5. `enrichment_worker.py` ejecuta extracción determinística antes del LLM: `_extract_by_field_selectors()`, `_extract_by_label_selectors()`, `_apply_url_type_rules()` y `_apply_extraction_transforms()`.
+6. Los campos extraídos con confianza `authoritative` se pasan al LLM como valores de alta confianza y no deben ser sobrescritos salvo validación fallida.
+7. El LLM completa campos inferenciales: `categories`, `degree_type` cuando no haya regla, `ai_summary`, `graduate_profile` si no hay selector, y normalización semántica cuando aplique.
+8. `apply_validations()` conserva el rol de saneamiento final: nulls, strings `None`, parseo numérico, modalidad válida y duración entera.
+9. `sync_vector_worker.py` continúa siendo el único escritor Golden Path hacia `courses`, convirtiendo `curriculum_summary` a texto plano antes de guardar `syllabus`.
+
+#### Comportamiento esperado con los ejemplos IDAT
+
+| Curso | Campo | Origen configurado | Resultado esperado |
+|---|---|---|---|
+| Administración Bancaria | `official_name` | `h1` | `Administración Bancaria` |
+| Administración Bancaria | `modality` | label `Modalidad` en `.field-name-descripcion` | `Remoto` si el texto contiene `Virtual` |
+| Administración Bancaria | `duration_text` | label `Duración` | `2 años` |
+| Administración Bancaria | `duration_months` | transform/LLM desde duración | `24` |
+| Administración Bancaria | `curriculum_summary` | `.accordion-timeline` | Ciclos 1-6 en viñetas |
+| Administración Bancaria | `brochure_url` | `a[download][href$='.pdf']` | URL absoluta del brochure |
+| Data Analytics | `official_name` | `h1` | `Data Analytics` |
+| Data Analytics | `modality` | default por URL si no existe label | `Presencial` |
+| Data Analytics | `duration_text` | label `Duración` | `24 horas académicas (1 mes aproximadamente)` |
+| Data Analytics | `duration_months` | transform/LLM desde duración | `1` |
+| Data Analytics | `schedule_info` | label `Horarios` | `Inicio: 27 de mayo; Lunes - Miércoles (7:30 p.m - 9:45 p.m)` |
+| Data Analytics | `curriculum_summary` | `.accordion-timeline` | Excel parte 1-3 y Power BI parte 4-6 en viñetas |
+| Data Analytics | `brochure_url` | `a[download][href$='.pdf']` | URL absoluta de `data-analytics-2.pdf` |
+
+#### Guardrails y seguridad
+
+1. Los selectores CSS son configuración interna y no deben exponerse públicamente vía RLS. Revisar políticas de `institution_site_profiles` para que `anon` solo lea columnas mínimas necesarias para frontend.
+2. Validar tamaño máximo de `field_selectors`, `label_selectors` y `url_type_rules` para evitar payloads excesivos.
+3. Rechazar transformaciones no permitidas mediante allowlist. No ejecutar código dinámico desde JSONB.
+4. Proteger regex contra ReDoS: limitar longitud, tiempo de ejecución y patrones anidados peligrosos.
+5. Registrar auditoría cuando una extracción determinística falle y el pipeline recurra al LLM.
+6. Mantener `pipeline_enabled=false` hasta validar selectores en Free para una institución nueva.
+
+#### Tareas
+
+| Paso | Acción | Dónde | Duración |
+|------|--------|-------|----------|
+| 121.1 | Crear migration para columnas JSONB y comentarios de contrato | `db/migrations/` | 20 min |
+| 121.2 | Agregar validación/schema JSONB para perfiles, incluyendo `field_overrides` y `label_overrides` por segmento | `scripts/maintenance/` | 60 min |
+| 121.3 | Implementar `_extract_by_field_selectors()` | `scripts/core/enrichment_worker.py` | 60 min |
+| 121.4 | Implementar `_extract_by_label_selectors()` | `scripts/core/enrichment_worker.py` | 60 min |
+| 121.5 | Implementar composición de configuración efectiva: base institucional + regla de segmento + overrides | `scripts/core/enrichment_worker.py` | 75 min |
+| 121.6 | Implementar transforms permitidas (`text`, `href`, `absolute_url`, `accordion_to_bullets`, `normalize_mode`, `price_to_float`) | `scripts/core/enrichment_worker.py` / `scripts/shared/utils.py` | 90 min |
+| 121.7 | Inyectar datos pre-extraídos en prompt LLM con niveles de confianza | `scripts/core/enrichment_worker.py` | 45 min |
+| 121.8 | Configurar IDAT en migration versionada usando los ejemplos manuales y los 7 segmentos URL iniciales | `db/migrations/` | 60 min |
+| 121.9 | Agregar tests unitarios de extracción con fixtures HTML IDAT por segmento disponible | `tests/` o `scripts/maintenance/` | 120 min |
+| 121.10 | Ejecutar FG2 en Free para IDAT con gates controlados | Contenedor + Supabase Free | 30 min |
+| 121.11 | Invocar `@security-auditor` y remediar hallazgos | Proceso obligatorio | 30 min |
+
+#### Validación
+
+| Paso | Acción | Resultado esperado |
+|------|--------|-------------------|
+| 121.V1 | Validar schema JSONB de IDAT | Perfil pasa validación sin claves desconocidas ni transforms no permitidas |
+| 121.V2 | Ejecutar extractor sobre HTML de Administración Bancaria | Extrae nombre, modalidad, duración, malla y brochure sin LLM |
+| 121.V3 | Ejecutar extractor sobre HTML de Data Analytics | Extrae nombre, duración, horarios, malla, brochure y default de modalidad |
+| 121.V4 | Ejecutar extractor con una URL por segmento IDAT disponible | Detecta `program_family`, aplica defaults/overrides correctos y no usa reglas de otro segmento |
+| 121.V5 | Ejecutar enrichment completo | El LLM completa categoría, resumen y nivel académico sin sobrescribir campos autoritativos válidos |
+| 121.V6 | Ejecutar sync | `courses.syllabus` queda como texto con viñetas, no JSON |
+| 121.V7 | Consultar `courses` | `price_pen IS NULL`, `price_status='consultar'`, `requirements IS NULL` cuando la institución no publica esos datos |
+| 121.V8 | Revisar logs | Debe quedar trazabilidad de campos extraídos por selector base, selector override, default de segmento y campos inferidos por LLM |
+| 121.V9 | Security audit | Sin exposición pública de selectores ni ejecución dinámica de transformaciones |
+
+#### Criterio de aceptación
+
+La fase se considera completa cuando una institución pueda documentarse con ejemplos manuales de extracción por segmento de URL y esa información quede persistida en `institution_site_profiles`, versionada en migration SQL, reutilizada por `enrichment_worker.py` y validada en Free sin modificar código por curso individual ni por familia de programas.

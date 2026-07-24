@@ -75,10 +75,6 @@ export default function CompareContent() {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-          throw new Error("Supabase configuration is missing or invalid");
-        }
-
         const queryIds = ids.join(',');
         const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`, {
           headers: {

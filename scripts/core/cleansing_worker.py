@@ -41,7 +41,7 @@ def aggressive_html_clean(raw_html: str) -> str:
     soup = BeautifulSoup(raw_html, "html.parser")
     for tag in soup(["head", "header", "footer", "nav", "aside", "script", "style", "noscript", "iframe", "svg"]):
         tag.decompose()
-
+    
     noise_patterns = re.compile(r'header|footer|nav|menu|topbar|sidebar|social|copyright|breadcrumb|banner', re.I)
     for element in soup.find_all(True, {"class": noise_patterns}): element.decompose()
     for element in soup.find_all(True, {"id": noise_patterns}): element.decompose()
@@ -72,7 +72,7 @@ def is_soft_404(text: str) -> bool:
 def detect_obsolete_dates(text: str, url: str = "", name: str = "") -> Optional[str]:
     today = datetime.now()
     current_year = today.year
-
+    
     # 1. Buscar cualquier año de 4 dígitos (2000-2029) en URL o Nombre
     # Si el año es menor al actual, es obsoleto de inmediato (Hard Exclusion)
     year_match = re.findall(r'\b(20[0-2][0-9])\b', f"{url} {name}")
@@ -80,12 +80,12 @@ def detect_obsolete_dates(text: str, url: str = "", name: str = "") -> Optional[
         for y in year_match:
             if int(y) < current_year:
                 return f"hard_obsolete_year:{y}"
-
+    
     # 2. Buscar menciones de años pasados en el cuerpo del texto con contexto de fechas
     for year in [str(y) for y in range(2000, current_year)]:
         if re.search(r'(?:inicio|clases|admisi[óo]n|fecha|ciclo|semestre|vencimiento).*?\b' + year + r'\b', text, re.IGNORECASE | re.DOTALL):
             return f"obsolete_year_context:{year}"
-
+            
     return None
 
 def extract_price(text: str) -> Tuple[Optional[float], str]:
@@ -120,15 +120,8 @@ def detect_expired_start_date(text: str):
     return None, None
 
 class CleansingWorker:
-    def __init__(
-        self,
-        db_client: Optional[DatabaseClient] = None,
-        institution_id: Optional[str] = None,
-        require_atomic_rpc: bool = False,
-    ) -> None:
+    def __init__(self, db_client: Optional[DatabaseClient] = None) -> None:
         self.db = db_client or get_db_client()
-        self.institution_id = str(institution_id) if institution_id else None
-        self.require_atomic_rpc = require_atomic_rpc
         self.profiles = self._load_profiles()
         self.exclusions = self._load_exclusions()
         # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
@@ -209,14 +202,8 @@ class CleansingWorker:
 
     def _load_profiles(self) -> List[Dict[str, Any]]:
         try:
-            filters = f"institution_id=eq.{self.institution_id}" if self.institution_id else None
-            profiles = self.db.select_pipeline('institution_site_profiles', filters=filters) or []
-            if self.institution_id and len(profiles) != 1:
-                raise RuntimeError("Canary institution profile is missing or ambiguous")
-            return profiles
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
-            if self.institution_id:
-                raise
             logger.warning(f"Error loading site profiles: {e}")
             return []
 
@@ -366,14 +353,8 @@ class CleansingWorker:
             try:
                 # Try atomic lock via RPC first (PG17-safe, UPDATE+RETURNING atomico)
                 if not rpc_fallback:
-                    lock_rpc = 'lock_staging_records_scoped' if self.require_atomic_rpc else 'lock_staging_records'
-                    locked = self.db.rpc(lock_rpc, {"inst_id": self.institution_id, "batch_size": batch_size})
+                    locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
                     if locked and len(locked) > 0:
-                        if self.institution_id and any(
-                            str(record.get('institution_id')) != self.institution_id
-                            for record in locked if isinstance(record, dict)
-                        ):
-                            raise RuntimeError("lock_staging_records returned an out-of-scope institution")
                         rpc_failures = 0
                         current_ids = {r['id'] for r in locked if isinstance(r, dict)}
                         if current_ids.issubset(seen_ids):
@@ -387,29 +368,22 @@ class CleansingWorker:
                     if locked is not None:
                         break
                     rpc_failures += 1
-                    if self.require_atomic_rpc:
-                        raise RuntimeError("lock_staging_records failed in require-atomic-rpc mode")
                     if rpc_failures >= 3:
                         logger.warning(f"RPC lock_staging_records failed {rpc_failures} consecutive times. Switching to fallback-only mode.")
                         rpc_fallback = True
                 # Fallback: simple select (no lock)
-                filters = "status=eq.pending"
-                if self.institution_id:
-                    filters += f"&institution_id=eq.{self.institution_id}"
-                batch = self.db.select_pipeline('staging_raw', filters=filters, limit=batch_size)
+                batch = self.db.select_pipeline('staging_raw', filters="status=eq.pending", limit=batch_size)
                 if not batch: break
                 for record in batch: yield record
             except Exception as e:
                 logger.error(f"Error streaming pending staging: {e}")
-                if self.require_atomic_rpc:
-                    raise
                 break
 
     def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "", institution_id: str = "") -> Optional[str]:
         if name is None: name = ""
         if description is None: description = ""
         if url is None: url = ""
-
+        
         low_url, low_name = url.lower(), name.lower()
         # Check if URL is the institution's homepage (noise)
         if institution_id:
@@ -455,7 +429,7 @@ class CleansingWorker:
         for base_url, members in groups.items():
             combined_html, combined_desc = "", ""
             best_raw_name = None
-
+            
             # Find the best name among siblings
             for m in members:
                 m_url = m['url'].lower()
@@ -471,13 +445,13 @@ class CleansingWorker:
             for m in members:
                 combined_html += f"\n--- URL: {m['url']} ---\n" + (m.get('raw_html') or "")
                 combined_desc += f" {m.get('raw_description') or ''}"
-
+            
             main_raw = members[0]
             for m in members:
                 if normalize_url(m['url']) == normalize_url(base_url):
                     main_raw = m
                     break
-
+            
             # Use the best name found if main_raw has none
             final_raw_name = best_raw_name or main_raw.get('raw_name', '')
             # H1 fallback: if raw_name is too generic (short or just institution name), extract from <h1>
@@ -485,9 +459,9 @@ class CleansingWorker:
                 h1_name = self._extract_h1_name(main_raw.get('raw_html', ''))
                 if h1_name and len(h1_name) > len(final_raw_name):
                     final_raw_name = h1_name
-
+            
             inst_id, clean_text_context = main_raw['institution_id'], aggressive_html_clean(combined_html)
-
+            
             # Filtros de Calidad y Hubs
             discard_reason = self.is_invalid_course(final_raw_name, combined_desc, base_url, clean_text_context, institution_id=inst_id)
             if not discard_reason and self.is_hub_page(base_url): discard_reason = "is_hub_page"
@@ -496,11 +470,11 @@ class CleansingWorker:
             if not discard_reason:
                 regex_start_date, discard_reason_dates = detect_expired_start_date(clean_text_context)
                 discard_reason = discard_reason_dates
-
+            
             if discard_reason:
                 for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
                 continue
-
+                
             clean_name = clean_course_name(final_raw_name)
             # Fase 62C: Perfil-driven title cleansing (prefix removal, separator splitting)
             profile = self._get_profile_for_inst(inst_id)
@@ -509,7 +483,7 @@ class CleansingWorker:
             mode, locations = standardize_mode(combined_full_text), detect_locations(combined_full_text)
             # Fase 62C: Perfil-driven price extraction with profile regex
             price, p_status = self._extract_price_with_regex(combined_full_text, profile)
-
+            
             cleansed_batch.append({
                 "staging_id": main_raw['id'], "institution_id": inst_id, "url": base_url,
                 "effective_url": main_raw.get('effective_url'), "canonical_url": main_raw.get('canonical_url'),
@@ -525,19 +499,13 @@ class CleansingWorker:
             try:
                 # Try atomic RPC promotion first
                 staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']
-                rpc_name = 'atomic_cleansing_promote_scoped' if self.require_atomic_rpc else 'atomic_cleansing_promote'
-                rpc_payload = {
+                rpc_result = self.db.rpc('atomic_cleansing_promote', {
                     "p_staging_ids": staging_ids,
-                    "p_cleansed_data": cleansed_batch,
-                }
-                if self.require_atomic_rpc:
-                    rpc_payload["p_institution_id"] = self.institution_id
-                rpc_result = self.db.rpc(rpc_name, rpc_payload)
+                    "p_cleansed_data": cleansed_batch
+                })
                 if rpc_result:
                     logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
                 else:
-                    if self.require_atomic_rpc:
-                        raise RuntimeError("atomic_cleansing_promote failed in require-atomic-rpc mode")
                     # Fallback: traditional upsert + patch
                     self.db.upsert('cleansed_programs', cleansed_batch, on_conflict="url")
                     logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
@@ -548,8 +516,6 @@ class CleansingWorker:
                             logger.warning(f"Failed to update staging_raw status for {update['id']}: {e}")
             except Exception as e:
                 logger.error(f"Failed bulk upsert: {e}")
-                if self.require_atomic_rpc:
-                    raise
         else:
             # No cleansed batch, just update staging_raw statuses
             for update in staging_updates:
@@ -560,35 +526,21 @@ class CleansingWorker:
         return processed_count
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run cleansing worker")
-    parser.add_argument("--institution-id")
-    parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--require-atomic-rpc", action="store_true")
-    args = parser.parse_args()
-    worker = CleansingWorker(
-        institution_id=args.institution_id,
-        require_atomic_rpc=args.require_atomic_rpc,
-    )
+    worker = CleansingWorker()
     guard = TimeGuard(max_seconds=3500, logger=logger)
     logger.info("--- Starting Station 1.5: High Fidelity Smart Sync ---")
     total_processed, batch_accumulator = 0, []
-    stream_batch_size = min(200, args.limit) if args.limit else 200
-    process_batch_size = min(100, args.limit) if args.limit else 100
-    for record in worker.stream_pending_staging(batch_size=stream_batch_size):
-        if args.limit is not None and total_processed >= args.limit:
-            break
+    for record in worker.stream_pending_staging(batch_size=200):
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
         # Fase 100: saltar registros de instituciones sin pipeline habilitado
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:
-            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_gate=false'})
+            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_enabled=false'})
             continue
         batch_accumulator.append(record)
-        if len(batch_accumulator) >= process_batch_size:
+        if len(batch_accumulator) >= 100:
             total_processed += worker.process_batch(batch_accumulator)
             batch_accumulator = []
             guard.tick(every=10)
