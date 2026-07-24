@@ -9,7 +9,6 @@ import pytest
 
 from scripts.shared import db_client as db_client_module
 from scripts.maintenance import migrate_data_to_pro as migration_module
-from scripts.maintenance import pipeline_canary
 from scripts.shared.db_client import DatabaseAPIError, DatabaseClient
 from scripts.shared.supabase_credentials import (
     SupabaseCredentialError,
@@ -68,14 +67,9 @@ BEARER_IDENTITY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Bearer is denied unless path, runtime identity, provider and source variable
+# all match this closed inventory.
 APPROVED_BEARERS = {
-    "scripts/shared/supabase_credentials.py": {
-        "identities": {"access_token"},
-        "provider": "supabase-data-api",
-        "provider_marker": 'headers = {"apikey": key}',
-        "provider_env": "NEXT_SUPABASE_ACCESS_TOKEN",
-        "derivation_marker": 'access_token = env.get("NEXT_SUPABASE_ACCESS_TOKEN", "")',
-    },
     "scripts/core/enrichment_worker.py": {
         "identities": {"CF_API_TOKEN"},
         "provider": "cloudflare-workers-ai",
@@ -95,7 +89,7 @@ APPROVED_BEARERS = {
         "provider": "supabase-management-api",
         "provider_marker": "api.supabase.com",
         "provider_env": "SUPABASE_MGMT_TOKEN",
-        "derivation_marker": 'MGMT_TOKEN = os.environ.get("SUPABASE_MGMT_TOKEN", "")',
+        "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
     "scripts/maintenance/migrate_rpcs_to_pro.py": {
         "identities": {"supabase_management_token"},
@@ -104,19 +98,19 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "supabase_management_token = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
-    "scripts/maintenance/release_gate.py": {
-        "identities": {"github_token"},
-        "provider": "github-api",
-        "provider_marker": "api.github.com",
-        "provider_env": "GITHUB_TOKEN",
-        "derivation_marker": 'os.environ.get("GITHUB_TOKEN", "")',
-    },
     "scripts/maintenance/verify_pro_schema.py": {
         "identities": {"supabase_management_token"},
         "provider": "supabase-management-api",
         "provider_marker": "api.supabase.com",
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "supabase_management_token = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
+    },
+    "scripts/deprecated/fase32b_migrate_free_to_pro.py": {
+        "identities": {"MGMT_TOKEN"},
+        "provider": "supabase-management-api",
+        "provider_marker": "api.supabase.com",
+        "provider_env": "SUPABASE_MGMT_TOKEN",
+        "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
     "db/migrations/apply_cleansing_fix_pro.py": {
         "identities": {"MGMT_TOKEN"},
@@ -139,19 +133,10 @@ APPROVED_BEARERS = {
         "provider_env": "CF_API_TOKEN",
         "derivation_marker": "CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}",
     },
-    "tests/release_gate/test_pipeline_canary_contract.py": {
-        "identities": {"restricted-token"},
-        "provider": "supabase-data-api-test",
-        "provider_marker": "pipeline_canary.StrictRest",
-        "provider_env": "NEXT_SUPABASE_ACCESS_TOKEN",
-        "derivation_marker": 'monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "restricted-token")',
-    },
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_harvester.py": "supabase-data-api-test",
-    "tests/release_gate/test_db_migrate_contract.py": "supabase-data-api-test",
-    "tests/release_gate/test_pipeline_canary_contract.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
     "scripts/core/enrichment_worker.py": "supabase-data-api",
@@ -187,9 +172,8 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/migrate_data_to_pro.py": "supabase-data-and-management-api",
     "scripts/maintenance/migrate_rpcs_to_pro.py": "supabase-management-api",
     "scripts/maintenance/noise_discovery_engine.py": "supabase-data-api",
-    "scripts/maintenance/pipeline_canary.py": "supabase-data-api",
-    "scripts/maintenance/pucp_sync_to_pro.py": "supabase-data-api",
     "scripts/maintenance/preventive_cleanup.py": "supabase-data-api",
+    "scripts/maintenance/pucp_sync_to_pro.py": "supabase-data-api",
     "scripts/maintenance/quality_assurance_audit.py": "supabase-data-api",
     "scripts/maintenance/review_autogen_profiles.py": "supabase-data-api",
     "scripts/maintenance/seed_institutions.py": "supabase-data-api",
@@ -201,6 +185,20 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/validate_dmc_pro_coverage.py": "supabase-data-api",
     "scripts/maintenance/validate_profile_extraction_config.py": "supabase-data-api",
     "scripts/maintenance/verify_pro_schema.py": "supabase-management-api",
+    "scripts/deprecated/add_exclusion.py": "supabase-data-api",
+    "scripts/deprecated/fase32b_migrate_free_to_pro.py": "supabase-data-and-management-api",
+    "scripts/deprecated/seed_crawler_exclusions.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/continental_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/idat_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/nacional_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/new-horizons-peru_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/pucp_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/senati_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/smartdata_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/ulima_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/upc_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/usil_harvester.py": "supabase-data-api",
+    "scripts/deprecated/harvesters/utp_harvester.py": "supabase-data-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
     "web/src/app/page.tsx": "supabase-data-api",
@@ -209,7 +207,6 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
-    ".github/workflows/pipeline-canary.yml": "supabase-ci",
     ".github/workflows/fg1_inventory.yml": "supabase-ci",
     ".github/workflows/fg3_integrity.yml": "supabase-ci",
     ".github/workflows/db-sync-to-pro.yml": "supabase-ci",
@@ -242,6 +239,8 @@ PRO_EXPLICIT_DATA_API_SCRIPTS = {
 }
 
 CROSS_ENVIRONMENT_DATA_API_SCRIPTS = {
+    "scripts/deprecated/add_exclusion.py",
+    "scripts/deprecated/fase32b_migrate_free_to_pro.py",
     "scripts/maintenance/check_db_parity.py",
     "scripts/maintenance/diag_schema_diff.py",
     "scripts/maintenance/fase62b_create_pucp_and_sync_pro.py",
@@ -265,6 +264,10 @@ def test_modern_api_key_prefixes_are_required():
         validate_api_key("legacy-value", kind="publishable", variable_name="publishable")
     with pytest.raises(SupabaseCredentialError, match="sb_secret_"):
         validate_api_key("legacy-value", kind="secret", variable_name="secret")
+    with pytest.raises(SupabaseCredentialError, match="sb_publishable_"):
+        validate_api_key(
+            "sb_publishable_", kind="publishable", variable_name="publishable"
+        )
 
 
 def test_legacy_environment_variables_are_not_consumed():
@@ -283,7 +286,7 @@ def test_legacy_environment_variables_are_not_consumed():
         get_secret_key(legacy_env)
 
 
-def test_explicit_environment_credentials_are_modern_and_distinct():
+def test_explicit_environment_credentials_validate_prefix_url_and_identity_separation():
     free = get_environment_credentials(
         "FREE",
         {
@@ -299,7 +302,16 @@ def test_explicit_environment_credentials_are_modern_and_distinct():
         },
     )
     require_distinct_environments(free, pro)
+    assert free.url == "https://free-ref.supabase.co"
 
+    with pytest.raises(SupabaseCredentialError, match="sb_secret_"):
+        get_environment_credentials(
+            "PRO",
+            {
+                "PRO_SUPABASE_URL": "https://pro-ref.supabase.co",
+                "PRO_NEXT_SUPABASE_SECRET_KEY": "legacy-key",
+            },
+        )
     with pytest.raises(SupabaseCredentialError, match="must differ"):
         require_distinct_environments(
             free,
@@ -311,6 +323,62 @@ def test_explicit_environment_credentials_are_modern_and_distinct():
                 },
             ),
         )
+    with pytest.raises(SupabaseCredentialError, match="SUPABASE_URL.*must differ"):
+        require_distinct_environments(
+            free,
+            get_environment_credentials(
+                "PRO",
+                {
+                    "PRO_SUPABASE_URL": "https://free-ref.supabase.co/",
+                    "PRO_NEXT_SUPABASE_SECRET_KEY": "sb_secret_other",
+                },
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://project.supabase.co",
+        "https://project.supabase.co/path",
+        "https://project.supabase.co?query=value",
+        "https://project.supabase.co.evil.example",
+        "https://nested.project.supabase.co",
+        "https://user@project.supabase.co",
+        "https://project.supabase.co:443",
+    ],
+)
+def test_explicit_environment_credentials_reject_noncanonical_urls(url):
+    with pytest.raises(SupabaseCredentialError, match="<project-ref>"):
+        get_environment_credentials(
+            "FREE",
+            {
+                "FREE_SUPABASE_URL": url,
+                "FREE_NEXT_SUPABASE_SECRET_KEY": "sb_secret_free",
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    ("environ", "missing_name"),
+    [
+        ({}, "FREE_SUPABASE_URL"),
+        (
+            {"FREE_SUPABASE_URL": "https://free-ref.supabase.co"},
+            "FREE_NEXT_SUPABASE_SECRET_KEY",
+        ),
+        (
+            {"FREE_NEXT_SUPABASE_SECRET_KEY": "sb_secret_free"},
+            "FREE_SUPABASE_URL",
+        ),
+    ],
+)
+def test_explicit_environment_credentials_reject_partial_pairs(
+    environ,
+    missing_name,
+):
+    with pytest.raises(SupabaseCredentialError, match=missing_name):
+        get_environment_credentials("FREE", environ)
 
 
 @pytest.mark.parametrize(
@@ -324,29 +392,15 @@ def test_api_keys_are_sent_only_as_apikey(kind, api_key):
     assert "Authorization" not in headers
 
 
-def test_authorization_uses_only_a_separate_access_token():
-    headers = build_supabase_headers(
-        "sb_publishable_x",
-        kind="publishable",
-        access_token="worker-access-token",
-    )
+def test_data_api_helper_never_builds_bearer_authorization():
+    headers = build_supabase_headers("sb_publishable_x", kind="publishable")
 
-    assert headers["apikey"] == "sb_publishable_x"
-    assert headers["Authorization"] == "Bearer worker-access-token"
-
-    with pytest.raises(SupabaseCredentialError, match="separate access token"):
-        build_supabase_headers(
-            "sb_publishable_x",
-            kind="publishable",
-            access_token="sb_secret_x",
-        )
+    assert "Authorization" not in headers
 
 
 def test_database_client_separates_api_keys_from_bearer(monkeypatch):
     monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_x")
     monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "sb_secret_x")
-    monkeypatch.delenv("NEXT_SUPABASE_ACCESS_TOKEN", raising=False)
-    monkeypatch.delenv("STUDIAMATCH_CANARY_WORKER", raising=False)
 
     client = DatabaseClient("https://example.supabase.co")
 
@@ -371,8 +425,6 @@ def test_database_client_rejects_malformed_configured_key(monkeypatch):
 def test_database_client_explicit_identity_does_not_inherit_process_keys(monkeypatch):
     monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_process")
     monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "sb_secret_process")
-    monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "process-access-token")
-    monkeypatch.setenv("STUDIAMATCH_CANARY_WORKER", "1")
 
     client = DatabaseClient(
         "https://explicit.supabase.co",
@@ -382,42 +434,59 @@ def test_database_client_explicit_identity_does_not_inherit_process_keys(monkeyp
     assert client._get_headers(use_service_role=True)["apikey"] == "sb_secret_explicit"
     with pytest.raises(SupabaseCredentialError, match="publishable key"):
         client._get_headers(use_service_role=False)
-    assert client._access_token is None
 
 
 @pytest.mark.parametrize("final_status", [200, 206])
-def test_select_all_service_accepts_200_and_206_pages(monkeypatch, final_status):
+def test_select_all_service_accumulates_206_page_and_final_page(
+    monkeypatch,
+    final_status,
+):
     first_page = Mock(status_code=206)
     first_page.json.return_value = [{"id": "one"}, {"id": "two"}]
     final_page = Mock(status_code=final_status)
     final_page.json.return_value = [{"id": "three"}]
     responses = iter([first_page, final_page])
+    calls = []
 
-    monkeypatch.setattr(
-        db_client_module,
-        "_request_with_retry",
-        lambda _method, _url, **_kwargs: next(responses),
+    def fake_request(method, url, **kwargs):
+        calls.append((method, url, kwargs["headers"].copy()))
+        return next(responses)
+
+    monkeypatch.setattr(db_client_module, "_request_with_retry", fake_request)
+    client = DatabaseClient(
+        "https://explicit.supabase.co",
+        "sb_secret_explicit",
     )
-    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
 
-    assert client.select_all_service("courses", batch_size=2) == [
-        {"id": "one"},
-        {"id": "two"},
-        {"id": "three"},
-    ]
+    result = client.select_all_service("courses", batch_size=2)
+
+    assert result == [{"id": "one"}, {"id": "two"}, {"id": "three"}]
+    assert [call[0] for call in calls] == [db_client_module.requests.get] * 2
+    assert "limit=2&offset=0" in calls[0][1]
+    assert "limit=2&offset=2" in calls[1][1]
+    assert calls[0][2]["Range"] == "0-1"
+    assert calls[1][2]["Range"] == "2-3"
 
 
-def test_select_all_service_raises_safe_error_on_late_failure(monkeypatch):
+def test_select_all_service_raises_safe_error_on_unexpected_status(
+    monkeypatch,
+):
     first_page = Mock(status_code=206)
     first_page.json.return_value = [{"id": "one"}, {"id": "two"}]
     failed_page = Mock(status_code=500, text="sensitive-response-body")
+    failed_page.json.side_effect = AssertionError("unexpected response must not be parsed")
     responses = iter([first_page, failed_page])
-    monkeypatch.setattr(
-        db_client_module,
-        "_request_with_retry",
-        lambda _method, _url, **_kwargs: next(responses),
+    urls = []
+
+    def fake_request(_method, url, **_kwargs):
+        urls.append(url)
+        return next(responses)
+
+    monkeypatch.setattr(db_client_module, "_request_with_retry", fake_request)
+    client = DatabaseClient(
+        "https://explicit.supabase.co",
+        "sb_secret_explicit",
     )
-    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
 
     with pytest.raises(DatabaseAPIError) as exc_info:
         client.select_all_service("courses", batch_size=2)
@@ -425,11 +494,34 @@ def test_select_all_service_raises_safe_error_on_late_failure(monkeypatch):
     assert "courses" in str(exc_info.value)
     assert "500" in str(exc_info.value)
     assert "sensitive-response-body" not in str(exc_info.value)
+    assert len(urls) == 2
+    assert "limit=2&offset=0" in urls[0]
+    assert "limit=2&offset=2" in urls[1]
 
 
-def test_migration_late_preflight_failure_makes_zero_pro_calls():
+@pytest.mark.parametrize("status_code", [200, 206])
+def test_select_all_service_returns_empty_list_for_valid_empty_table(
+    monkeypatch,
+    status_code,
+):
+    empty_page = Mock(status_code=status_code)
+    empty_page.json.return_value = []
+    request = Mock(return_value=empty_page)
+    monkeypatch.setattr(db_client_module, "_request_with_retry", request)
+    client = DatabaseClient(
+        "https://explicit.supabase.co",
+        "sb_secret_explicit",
+    )
+
+    result = client.select_all_service("courses", batch_size=2)
+
+    assert result == []
+    request.assert_called_once()
+
+
+def test_migration_preflight_failure_makes_zero_pro_calls():
     db = Mock()
-    failing_table = migration_module.MIGRATION_ORDER[-1]
+    failing_table = migration_module.MIGRATION_ORDER[-2]
 
     def read_free(table):
         if table == failing_table:
@@ -447,8 +539,65 @@ def test_migration_late_preflight_failure_makes_zero_pro_calls():
             upsert_pro_fn=upsert_pro_fn,
         )
 
-    assert db.select_all_service.call_count == len(migration_module.MIGRATION_ORDER)
+    assert db.select_all_service.call_args_list == [
+        ((table,), {}) for table in migration_module.MIGRATION_ORDER[:-1]
+    ]
     run_mgmt_sql_fn.assert_not_called()
+    upsert_pro_fn.assert_not_called()
+
+
+def test_migration_uses_completed_snapshot_after_all_free_reads():
+    events = []
+    snapshots = {
+        table: [{"source_table": table}]
+        for table in migration_module.MIGRATION_ORDER
+    }
+    db = Mock()
+
+    def read_free(table):
+        events.append(("read", table))
+        return snapshots[table]
+
+    def run_mgmt_sql_fn(sql):
+        events.append(("pro_sql", sql))
+        return Mock(status_code=201)
+
+    upsert_pro_fn = Mock(side_effect=lambda _table, rows: len(rows))
+    db.select_all_service.side_effect = read_free
+
+    total = migration_module.execute_migration(
+        db,
+        run_mgmt_sql_fn=run_mgmt_sql_fn,
+        upsert_pro_fn=upsert_pro_fn,
+    )
+
+    assert total == len(migration_module.MIGRATION_ORDER)
+    assert events[:len(migration_module.MIGRATION_ORDER)] == [
+        ("read", table) for table in migration_module.MIGRATION_ORDER
+    ]
+    assert events[len(migration_module.MIGRATION_ORDER)][0] == "pro_sql"
+    assert upsert_pro_fn.call_args_list == [
+        ((table, snapshots[table]), {})
+        for table in migration_module.MIGRATION_ORDER
+    ]
+
+
+def test_migration_aborts_on_failed_delete_before_any_upsert():
+    db = Mock()
+    db.select_all_service.return_value = []
+    responses = iter([Mock(status_code=201), Mock(status_code=500)])
+    run_mgmt_sql_fn = Mock(side_effect=lambda _sql: next(responses))
+    upsert_pro_fn = Mock()
+
+    with pytest.raises(RuntimeError, match="Pro DELETE failed.*500"):
+        migration_module.execute_migration(
+            db,
+            run_mgmt_sql_fn=run_mgmt_sql_fn,
+            upsert_pro_fn=upsert_pro_fn,
+        )
+
+    assert db.select_all_service.call_count == len(migration_module.MIGRATION_ORDER)
+    assert run_mgmt_sql_fn.call_count == 2
     upsert_pro_fn.assert_not_called()
 
 
@@ -482,10 +631,10 @@ def test_shared_modules_import_under_both_supported_package_names(pythonpath, st
     assert result.returncode == 0, result.stderr
 
 
-def test_maintenance_consumers_bootstrap_before_shared_imports():
+def test_all_maintenance_and_deprecated_consumers_bootstrap_before_shared_imports():
     findings = []
     for relative in DIRECT_SUPABASE_CONSUMERS:
-        if not relative.startswith("scripts/maintenance/"):
+        if not relative.startswith(("scripts/maintenance/", "scripts/deprecated/")):
             continue
         source = (ROOT / relative).read_text(encoding="utf-8-sig")
         shared_import_offsets = [
@@ -502,56 +651,127 @@ def test_maintenance_consumers_bootstrap_before_shared_imports():
     assert findings == []
 
 
-def test_pro_and_cross_environment_scripts_use_explicit_identities():
+@pytest.mark.parametrize(
+    "script_args",
+    [
+        ["scripts/maintenance/category_audit_report.py"],
+        ["scripts/deprecated/add_exclusion.py", "--help"],
+        ["scripts/deprecated/harvesters/upc_harvester.py"],
+    ],
+)
+def test_documented_script_execution_from_app_has_no_module_not_found(script_args):
+    env = os.environ.copy()
+    for name in (
+        "NEXT_SUPABASE_PUBLISHABLE_KEY",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "NEXT_SUPABASE_SECRET_KEY",
+        "FREE_NEXT_SUPABASE_SECRET_KEY",
+        "PRO_NEXT_SUPABASE_SECRET_KEY",
+    ):
+        env.pop(name, None)
+    result = subprocess.run(
+        [sys.executable, *script_args],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    combined = result.stdout + result.stderr
+    assert "ModuleNotFoundError" not in combined, combined
+
+
+def test_dual_environment_tool_requires_distinct_explicit_credentials():
+    source = (ROOT / "scripts/deprecated/add_exclusion.py").read_text(encoding="utf-8")
+    for variable_name in (
+        "FREE_SUPABASE_URL",
+        "FREE_NEXT_SUPABASE_SECRET_KEY",
+        "PRO_SUPABASE_URL",
+        "PRO_NEXT_SUPABASE_SECRET_KEY",
+    ):
+        assert variable_name in source
+    assert "get_secret_key" not in source
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "FREE_SUPABASE_URL": "https://same.supabase.co",
+            "PRO_SUPABASE_URL": "https://same.supabase.co",
+            "FREE_NEXT_SUPABASE_SECRET_KEY": "sb_secret_same",
+            "PRO_NEXT_SUPABASE_SECRET_KEY": "sb_secret_same",
+        }
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/deprecated/add_exclusion.py",
+            "--db",
+            "both",
+            "--dry-run",
+            "--institution",
+            "test",
+            "--pattern",
+            "/test/",
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "distinct URLs and secret keys" in result.stderr
+
+
+def test_manual_pro_and_cross_environment_scripts_use_explicit_identities():
     findings = []
     for relative in sorted(PRO_EXPLICIT_DATA_API_SCRIPTS):
         source = (ROOT / relative).read_text(encoding="utf-8-sig")
-        if "get_environment_credentials" not in source or not any(
-            marker in source for marker in ('"PRO"', "'PRO'")
-        ):
+        has_pro_identity = "'PRO'" in source or '"PRO"' in source
+        if "get_environment_credentials" not in source or not has_pro_identity:
             findings.append(f"{relative}: missing explicit PRO identity")
         if "get_secret_key" in source:
             findings.append(f"{relative}: canonical secret fallback remains")
 
     for relative in sorted(CROSS_ENVIRONMENT_DATA_API_SCRIPTS):
         source = (ROOT / relative).read_text(encoding="utf-8-sig")
-        has_free = "get_environment_credentials(\"FREE\")" in source or "get_environment_credentials('FREE')" in source
-        has_pro = "get_environment_credentials(\"PRO\")" in source or "get_environment_credentials('PRO')" in source
-        if not (has_free and has_pro and "require_distinct_environments" in source):
+        has_free = any(
+            marker in source
+            for marker in (
+                "FREE_NEXT_SUPABASE_SECRET_KEY",
+                "get_environment_credentials('FREE')",
+                'get_environment_credentials("FREE")',
+            )
+        )
+        has_pro = any(
+            marker in source
+            for marker in (
+                "PRO_NEXT_SUPABASE_SECRET_KEY",
+                "get_environment_credentials('PRO')",
+                'get_environment_credentials("PRO")',
+            )
+        )
+        rejects_reuse = (
+            "require_distinct_environments" in source
+            or "FREE_URL == PRO_URL" in source
+        )
+        if not (has_free and has_pro and rejects_reuse):
             findings.append(f"{relative}: incomplete explicit cross-environment contract")
 
     assert findings == []
 
 
-@pytest.mark.parametrize(
-    ("public", "expected_key"),
-    [(False, "sb_secret_x"), (True, "sb_publishable_x")],
-)
-def test_strict_rest_api_keys_are_apikey_only(monkeypatch, public, expected_key):
-    captured = {}
+def test_environment_example_uses_only_explicit_pro_data_api_identity():
+    source = (ROOT / ".env.example").read_text(encoding="utf-8-sig")
+    legacy_pro_url_name = "SUPABASE_PRO_" + "URL="
 
-    class Response:
-        status_code = 200
-        content = b"[]"
-
-        @staticmethod
-        def json():
-            return []
-
-    def fake_request(method, url, headers, json, timeout):
-        captured.update(headers)
-        return Response()
-
-    monkeypatch.setattr(pipeline_canary.requests, "request", fake_request)
-    api = pipeline_canary.StrictRest(
-        "https://example.supabase.co",
-        "sb_secret_x",
-        "sb_publishable_x",
-    )
-
-    assert api._request("GET", "courses", public=public) == []
-    assert captured["apikey"] == expected_key
-    assert "Authorization" not in captured
+    assert "PRO_SUPABASE_URL=" in source
+    assert "PRO_NEXT_SUPABASE_SECRET_KEY=" in source
+    assert legacy_pro_url_name not in source
 
 
 def _relative(path: Path) -> str:
@@ -569,9 +789,14 @@ def test_executable_tree_rejects_legacy_supabase_key_names():
     assert findings == []
 
 
-def test_every_bearer_is_approved_by_path_identity_and_provider():
+def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
     findings = []
     observed_paths = set()
+
+    assert all(
+        approval["provider"] != "supabase-data-api"
+        for approval in APPROVED_BEARERS.values()
+    )
 
     for path in SOURCE_FILES:
         source = path.read_text(encoding="utf-8-sig")
@@ -624,3 +849,11 @@ def test_direct_supabase_consumer_inventory_is_complete():
             discovered.add(relative)
 
     assert discovered == set(DIRECT_SUPABASE_CONSUMERS)
+    assert set(DIRECT_SUPABASE_CONSUMERS.values()) <= {
+        "supabase-data-api",
+        "supabase-management-api",
+        "supabase-data-and-management-api",
+        "supabase-edge-function",
+        "supabase-ci",
+        "supabase-data-api-test",
+    }

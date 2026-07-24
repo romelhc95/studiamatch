@@ -6,10 +6,9 @@ from scripts.shared.supabase_credentials import (
     get_environment_credentials,
     require_distinct_environments,
 )
-
 # ── Connect to Free DB ──
-FREE = get_environment_credentials("FREE")
-PRO = get_environment_credentials("PRO")
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
 require_distinct_environments(FREE, PRO)
 db = DatabaseClient(FREE.url, FREE.secret_key)
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
@@ -84,9 +83,9 @@ else:
 # 3. Sync all profiles to Pro
 # ──────────────────────────────────────────────
 
-if has_pro:
-    free_profiles = db.select_all('institution_site_profiles')
-    free_insts = db.select_all('institutions')
+def sync_profiles_to_pro():
+    free_profiles = db.select_all_service('institution_site_profiles')
+    free_insts = db.select_all_service('institutions')
     free_inst_map = {str(i['id']): i for i in free_insts}
     print(f"\n--- Syncing {len(free_profiles)} profiles to Pro ---")
 
@@ -159,4 +158,5 @@ if has_pro:
 
     print(f"\n✅ Pro sync complete: {synced}/{len(free_profiles)} profiles synced")
 
+sync_profiles_to_pro()
 print("\n🎉 Done")

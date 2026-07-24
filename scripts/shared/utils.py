@@ -141,10 +141,10 @@ import tempfile
 import PyPDF2
 import os
 
-try:
-    from .supabase_credentials import build_supabase_headers, get_publishable_key
-except ImportError:  # Support imports as shared.utils with /app/scripts on PYTHONPATH.
-    from shared.supabase_credentials import build_supabase_headers, get_publishable_key
+from .supabase_credentials import (
+    build_supabase_headers,
+    get_publishable_key,
+)
 
 def infer_course_type(name):
     """

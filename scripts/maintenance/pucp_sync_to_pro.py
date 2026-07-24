@@ -6,9 +6,8 @@ from scripts.shared.supabase_credentials import (
     get_environment_credentials,
     require_distinct_environments,
 )
-
-FREE = get_environment_credentials("FREE")
-PRO = get_environment_credentials("PRO")
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
 require_distinct_environments(FREE, PRO)
 db = DatabaseClient(FREE.url, FREE.secret_key)
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key

@@ -6,28 +6,15 @@ from dotenv import load_dotenv
 import re
 import urllib.parse
 
-try:
-    from .supabase_credentials import (
-        PUBLISHABLE_KEY_PREFIX,
-        SECRET_KEY_PREFIX,
-        SupabaseCredentialError,
-        build_supabase_headers,
-        get_access_token,
-        get_publishable_key,
-        get_secret_key,
-        validate_api_key,
-    )
-except ImportError:  # Support imports as shared.db_client with /app/scripts on PYTHONPATH.
-    from shared.supabase_credentials import (
-        PUBLISHABLE_KEY_PREFIX,
-        SECRET_KEY_PREFIX,
-        SupabaseCredentialError,
-        build_supabase_headers,
-        get_access_token,
-        get_publishable_key,
-        get_secret_key,
-        validate_api_key,
-    )
+from .supabase_credentials import (
+    PUBLISHABLE_KEY_PREFIX,
+    SECRET_KEY_PREFIX,
+    SupabaseCredentialError,
+    build_supabase_headers,
+    get_publishable_key,
+    get_secret_key,
+    validate_api_key,
+)
 
 DNS_RETRY_DELAYS = [5, 10, 20]
 DNS_RETRY_MAX = 3
@@ -35,6 +22,7 @@ DNS_RETRY_MAX = 3
 
 class DatabaseAPIError(RuntimeError):
     """Raised when the Data API returns an unexpected response."""
+
 
 def _request_with_retry(method, url, **kwargs):
     """
@@ -77,13 +65,13 @@ class DatabaseClient:
     Universal Database Client for StudIAMatch.
     Uses Publishable key for frontend reads (respects RLS, public API)
     and Secret key (service_role) for pipeline writes+reads (bypasses RLS).
-
+    
     Key hierarchy:
     - Publishable key (sb_publishable_...): Frontend-facing reads, respects RLS.
       Used by `select()` for public tables (courses with is_active=true).
     - Secret key (sb_secret_...): Server-side pipeline operations, bypasses RLS.
       Used by all writes and by `select_pipeline()` for pipeline table reads.
-
+    
     Legacy anon keys are not used; Supabase recommends Publishable keys as
     the modern replacement.
     """
@@ -92,25 +80,16 @@ class DatabaseClient:
         'institution_site_profiles',
     ])
 
-    def __init__(
-        self,
-        supabase_url=None,
-        supabase_key=None,
-        *,
-        access_token=None,
-        allow_access_token=False,
-    ):
+    def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
         if supabase_key is None:
             self._publishable_key = get_publishable_key(required=False)
             self._service_key = get_secret_key(required=False)
-            self._access_token = get_access_token(required=False)
-            self._allow_access_token = os.getenv("STUDIAMATCH_CANARY_WORKER") == "1"
         else:
+            # An explicitly injected identity must not inherit a key from a
+            # different environment through the process-level configuration.
             self._publishable_key = None
             self._service_key = None
-            self._access_token = access_token.strip() if isinstance(access_token, str) else None
-            self._allow_access_token = bool(allow_access_token)
             if not isinstance(supabase_key, str):
                 raise SupabaseCredentialError(
                     "supabase_key must be a modern Supabase API key string"
@@ -134,26 +113,16 @@ class DatabaseClient:
         self.supabase_key = self._service_key or self._publishable_key
 
     def _get_headers(self, use_service_role=None):
-        if use_service_role and self._access_token and self._allow_access_token:
-            if not self._publishable_key:
-                raise SupabaseCredentialError(
-                    "Canary access-token requests require a publishable API key"
-                )
-            return build_supabase_headers(
-                self._publishable_key,
-                kind="publishable",
-                access_token=self._access_token,
-            )
         if use_service_role is True:
             if not self._service_key:
                 raise SupabaseCredentialError(
-                    "Service operations require NEXT_SUPABASE_SECRET_KEY"
+                    "Service operations require a configured Supabase secret key"
                 )
             return build_supabase_headers(self._service_key, kind="secret")
         if use_service_role is False:
             if not self._publishable_key:
                 raise SupabaseCredentialError(
-                    "Public operations require a Supabase publishable key"
+                    "Public operations require a configured Supabase publishable key"
                 )
             return build_supabase_headers(self._publishable_key, kind="publishable")
         if self._service_key:
@@ -167,14 +136,14 @@ class DatabaseClient:
             url = f"{self.supabase_url}/rest/v1/{table}?select=count"
         else:
             url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
-
+            
         if filters:
             url += f"&{filters}"
         if order:
             url += f"&order={order}"
         if limit:
             url += f"&limit={limit}"
-
+            
         res = _request_with_retry(requests.get, url, headers=self._get_headers(use_service_role=use_service_role))
         if res.status_code == 200:
             data = res.json()
@@ -198,26 +167,6 @@ class DatabaseClient:
             return {"status": "success"}
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {(res.text or '')[:200]}")
         return {"status": "error"}
-
-    def _insert_returning_api(self, table, data):
-        url = f"{self.supabase_url}/rest/v1/{table}"
-        headers = self._get_headers(use_service_role=True)
-        headers["Prefer"] = "return=representation"
-        res = _request_with_retry(requests.post, url, headers=headers, json=data)
-        if res.status_code in [200, 201, 204]:
-            return res.json() if res.content else []
-        print(f"DB_CLIENT_API_ERROR (InsertReturning {table}): {res.status_code} - {(res.text or '')[:200]}")
-        return None
-
-    def _patch_returning_api(self, table, filters, data):
-        url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        headers = self._get_headers(use_service_role=True)
-        headers["Prefer"] = "return=representation"
-        res = _request_with_retry(requests.patch, url, headers=headers, json=data)
-        if res.status_code in [200, 204]:
-            return res.json() if res.content else []
-        print(f"DB_CLIENT_API_ERROR (PatchReturning {table}): {res.status_code} - {(res.text or '')[:200]}")
-        return None
 
     def _delete_api(self, table, filters):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
@@ -246,13 +195,17 @@ class DatabaseClient:
         """Select records with Publishable key (respects RLS). For public tables only."""
         return self._select_api(table, filters, columns, limit, order, use_service_role=False)
 
+    def select_service(self, table, filters=None, columns="*", limit=None, order=None):
+        """Select with the configured secret key for explicit backend tooling."""
+        return self._select_api(table, filters, columns, limit, order, use_service_role=True)
+
     def select_pipeline(self, table, filters=None, columns="*", limit=None, order=None):
         """
         Select records with Secret key (bypasses RLS). For pipeline tables only.
         Required because pipeline tables (staging_raw, cleansed_programs, enriched_programs,
         institution_site_profiles) have RLS policies that block public access.
         Generic: works for any institution, not DMC-specific.
-
+        
         Raises ValueError if called on a non-pipeline table (defense-in-depth).
         """
         if table not in self.PIPELINE_TABLES:
@@ -260,10 +213,6 @@ class DatabaseClient:
                 f"select_pipeline() called on non-pipeline table '{table}'. "
                 f"Allowed: {sorted(self.PIPELINE_TABLES)}"
             )
-        return self._select_api(table, filters, columns, limit, order, use_service_role=True)
-
-    def select_service(self, table, filters=None, columns="*", limit=None, order=None):
-        """Select any table with the explicitly configured secret identity."""
         return self._select_api(table, filters, columns, limit, order, use_service_role=True)
 
     def count_pipeline(self, table, filters=None):
@@ -303,14 +252,6 @@ class DatabaseClient:
         """Update records via Supabase REST API."""
         return self._patch_api(table, filters, data)
 
-    def insert_returning(self, table, data):
-        """Insert records and return affected rows via Supabase REST API."""
-        return self._insert_returning_api(table, data)
-
-    def patch_returning(self, table, filters, data):
-        """Update records and return affected rows via Supabase REST API."""
-        return self._patch_returning_api(table, filters, data)
-
     def upsert(self, table, data, on_conflict=None):
         """Upsert records via Supabase REST API."""
         return self._upsert_api(table, data, on_conflict)
@@ -348,7 +289,7 @@ class DatabaseClient:
         return all_results
 
     def select_all_service(self, table, filters=None, columns="*", batch_size=1000, order=None):
-        """Paginated privileged read that fails closed on any API or shape error."""
+        """Paginated select with the configured secret key for backend tooling."""
         all_results = []
         offset = 0
         while True:
@@ -365,18 +306,10 @@ class DatabaseClient:
             res = _request_with_retry(requests.get, url, headers=headers)
             if res.status_code not in (200, 206):
                 raise DatabaseAPIError(
-                    f"Privileged select failed for {table}: HTTP {res.status_code}"
+                    f"SelectAllService failed for {table}: "
+                    f"unexpected HTTP status {res.status_code}"
                 )
-            try:
-                batch = res.json()
-            except (TypeError, ValueError) as exc:
-                raise DatabaseAPIError(
-                    f"Privileged select returned invalid JSON for {table}"
-                ) from exc
-            if not isinstance(batch, list):
-                raise DatabaseAPIError(
-                    f"Privileged select returned an invalid shape for {table}"
-                )
+            batch = res.json()
             if not batch:
                 break
             all_results.extend(batch)
@@ -445,24 +378,21 @@ class DatabaseClient:
         return 0
 
     def count_service(self, table, filters=None):
-        """Return an exact count with the explicitly configured secret identity."""
+        """Return an exact count using the configured secret key."""
         url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
         if filters:
             url += f"&{filters}"
         headers = self._get_headers(use_service_role=True)
         headers["Prefer"] = "count=exact"
         res = _request_with_retry(requests.get, url, headers=headers)
-        if res.status_code not in (200, 206):
-            raise DatabaseAPIError(
-                f"Privileged count failed for {table}: HTTP {res.status_code}"
-            )
-        content_range = res.headers.get("Content-Range", "")
-        if "/" in content_range:
-            try:
-                return int(content_range.rsplit("/", 1)[1])
-            except ValueError:
-                pass
-        raise DatabaseAPIError(f"Privileged count returned invalid metadata for {table}")
+        if res.status_code in (200, 206):
+            content_range = res.headers.get("Content-Range", "")
+            if "/" in content_range:
+                try:
+                    return int(content_range.split("/", 1)[1])
+                except ValueError:
+                    pass
+        return 0
 
     def delete(self, table, filters):
         """Delete records via Supabase REST API."""

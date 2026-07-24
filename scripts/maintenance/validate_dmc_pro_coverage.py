@@ -18,7 +18,7 @@ with open('/app/artifacts/urls_interes/dmc.txt', 'r') as f:
 print(f"URLs de interés en artifact: {len(artifact_urls)}")
 
 # Obtener cursos DMC de Pro
-PRO = get_environment_credentials("PRO")
+PRO = get_environment_credentials('PRO')
 db = DatabaseClient(PRO.url, PRO.secret_key)
 try:
     courses = db.select_service('courses',

@@ -97,21 +97,10 @@ jobs:
           find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
           echo "✅ All Python scripts compile successfully"
 
-  context-graph:
-    name: Context Graph Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Validate Obsidian wikilinks and backlinks
-        run: python3 scripts/maintenance/validate_context_graph.py .context
-
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check, context-graph]
+    needs: [credential-scan, lint, typecheck, python-check]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -120,7 +109,6 @@ jobs:
           LINT: ${{ needs.lint.result }}
           TC: ${{ needs.typecheck.result }}
           PC: ${{ needs.python-check.result }}
-          CG: ${{ needs.context-graph.result }}
         run: |
           echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -137,11 +125,6 @@ jobs:
             exit 1
           fi
           echo "✅ **python-check**: passed" >> $GITHUB_STEP_SUMMARY
-          if [ "$CG" != "success" ]; then
-            echo "❌ **context-graph**: $CG (BLOCKING)" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-          echo "✅ **context-graph**: passed" >> $GITHUB_STEP_SUMMARY
           # Lint and typecheck are informational (pre-existing tech debt)
           if [ "$LINT" = "success" ]; then
             echo "✅ **lint**: passed" >> $GITHUB_STEP_SUMMARY

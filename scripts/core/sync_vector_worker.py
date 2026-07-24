@@ -6,7 +6,7 @@ import re
 import requests
 from datetime import datetime, timezone
 from typing import List
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 try:
@@ -30,10 +30,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 # Supabase credentials are now handled by db_client
 
 class SyncVectorWorker:
-    def __init__(self, institution_id=None, canary_mode=False):
+    def __init__(self):
         self.db = get_db_client()
-        self.institution_id = str(institution_id) if institution_id else None
-        self.canary_mode = canary_mode
         self.profiles = self._load_profiles()
         # Fase 100: pipeline_enabled supersedes pipeline_ready, with temporary fallback.
         self.ready_inst_ids = {
@@ -55,14 +53,8 @@ class SyncVectorWorker:
 
     def _load_profiles(self):
         try:
-            filters = f"institution_id=eq.{self.institution_id}" if self.institution_id else None
-            profiles = self.db.select_pipeline('institution_site_profiles', filters=filters) or []
-            if self.institution_id and len(profiles) != 1:
-                raise RuntimeError("Canary institution profile is missing or ambiguous")
-            return profiles
+            return self.db.select_pipeline('institution_site_profiles') or []
         except Exception as e:
-            if self.institution_id:
-                raise
             logger.warning(f"Error loading site profiles: {e}")
             return []
 
@@ -154,20 +146,9 @@ class SyncVectorWorker:
     def get_pending_enriched(self, limit=500):
         if not self.ready_inst_ids:
             return []
-        if self.institution_id:
-            if self.institution_id not in self.ready_inst_ids:
-                raise RuntimeError("Canary institution is not pipeline-enabled")
-            filters = f"status=eq.pending&institution_id=eq.{self.institution_id}"
-        else:
-            inst_ids = ",".join(sorted(self.ready_inst_ids))
-            filters = f"status=eq.pending&institution_id=in.({inst_ids})"
-        rows = self.db.select_pipeline('enriched_programs', filters=filters, limit=limit)
-        if self.canary_mode and any(
-            str(record.get('institution_id')) != self.institution_id
-            for record in (rows or []) if isinstance(record, dict)
-        ):
-            raise RuntimeError("Scoped sync query returned an out-of-scope institution")
-        return rows
+        inst_ids = ",".join(sorted(self.ready_inst_ids))
+        filters = f"status=eq.pending&institution_id=in.({inst_ids})"
+        return self.db.select_pipeline('enriched_programs', filters=filters, limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
@@ -177,8 +158,8 @@ class SyncVectorWorker:
         # Fase 100: skip si la institucion no tiene pipeline habilitado
         inst_id = enriched.get('institution_id')
         if inst_id and str(inst_id) not in self.ready_inst_ids:
-            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_gate=false")
-            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_gate=false")
+            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_enabled=false")
+            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_enabled=false")
             return False
 
         # Fase 75: Post-sync noise validation (per-institution, no global)
@@ -228,11 +209,11 @@ class SyncVectorWorker:
                 logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
 
         location = enriched.get('location', 'Nacional')
-
+        
         # Add location if specific
         if location and location not in ["Nacional", "Nacional/No especificado"]:
             base_slug = f"{base_slug}-{slugify(location)}"
-
+        
         # Add a short unique identifier from the original ID to guarantee uniqueness
         # while keeping the URL readable
         short_id = str(e_id).split('-')[0]
@@ -251,7 +232,7 @@ class SyncVectorWorker:
         # Fase 73: Parse start_date and determine expiration
         start_date_text = enriched.get('start_date')
         parsed_date, is_expired = parse_start_date(start_date_text)
-
+        
         # Determine is_active: False if expired (90d grace already in parse_start_date)
         course_is_active = not is_expired
         if is_expired:
@@ -259,13 +240,7 @@ class SyncVectorWorker:
 
         # Fase 63: Load profile defaults for this institution
         profile = self._get_profile(enriched.get('institution_id'))
-        if not profile:
-            logger.error(f"Missing site profile for institution {inst_id}")
-            self.update_enriched_status(e_id, "error", error_msg="missing_site_profile")
-            return False
-        production_enabled = self._gate_enabled(profile, 'production_enabled')
-        if self.canary_mode and production_enabled:
-            raise RuntimeError("Canary mode requires production_enabled=false")
+        production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else True
         course_is_active = course_is_active and production_enabled
         if not production_enabled:
             logger.info(f"🚧 [NOT PUBLIC] {name} — production_enabled=false, syncing inactive")
@@ -306,6 +281,7 @@ class SyncVectorWorker:
             "objectives": enriched.get('graduate_profile'),
             "target_audience": enriched.get('graduate_profile'),
             "syllabus": self._curriculum_to_text(enriched.get('curriculum_summary')),
+            "brochure_url": enriched.get('brochure_url'),
             "certification": "",
             "seniority_level": seniority_level,
             "course_type": enriched.get('degree_type'),
@@ -320,39 +296,16 @@ class SyncVectorWorker:
         # Generate Embedding (Placeholder for OpenAI call)
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
-        # Preserve curated manual deactivations. Automated sync must not republish
-        # a course intentionally taken offline unless a separate approved action does it.
-        if self.canary_mode:
-            res = self.db.rpc('atomic_canary_sync', {
-                "p_institution_id": self.institution_id,
-                "p_enriched_id": str(e_id),
-                "p_course_data": course_data,
-            })
-        else:
-            existing_courses = self.db._select_api(
-                'courses',
-                filters=f"url=eq.{quote(str(url), safe='')}",
-                columns="id,is_active",
-                limit=1,
-                use_service_role=True,
-            ) or []
-            if existing_courses and existing_courses[0].get('is_active') is False:
-                logger.info(f"Skipping manually deactivated course: {name}")
-                self.update_enriched_status(e_id, "synced", metadata={"skip_reason": "manual_deactivated"})
-                return True
-            if existing_courses:
-                course_id = existing_courses[0].get('id')
-                res = self.db.patch_returning(
-                    'courses',
-                    filters=f"id=eq.{course_id}&is_active=eq.true",
-                    data=course_data,
-                )
-                if res == []:
-                    logger.info(f"Skipping course deactivated during sync: {name}")
-                    self.update_enriched_status(e_id, "synced", metadata={"skip_reason": "deactivated_during_sync"})
-                    return True
-            else:
-                res = self.db.insert_returning('courses', course_data)
+        # Check if course was manually deactivated (don't reactivate)
+        url_encoded = url.replace("'", "''")
+        existing = self.db.select('courses', filters=f"url=eq.{url_encoded}", columns='id,is_active')
+        if existing and len(existing) > 0 and existing[0].get('is_active') == False:
+            logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
+            self.update_enriched_status(e_id, "synced")
+            return True
+
+        # Upsert to production courses
+        res = self.db.upsert('courses', course_data, on_conflict="url")
 
         if res:
             synced_course = res[0] if isinstance(res, list) and res else res
@@ -368,43 +321,29 @@ class SyncVectorWorker:
                     roi_payload["expected_monthly_salary"] = expected_salary
                     roi_payload["roi_months"] = roi_months
                 course_id = synced_course.get('id')
-                if course_id and not self.canary_mode:
-                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}&is_active=eq.true", data=roi_payload)
+                if course_id:
+                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=roi_payload)
                     if not roi_res or roi_res.get("status") != "success":
                         logger.error(f"Error updating ROI fields for course {course_id}")
                         self.update_enriched_status(e_id, "error", error_msg="roi_patch_failed")
                         return False
             logger.info(f"Successfully synced to production courses: {name}")
-            if not self.canary_mode:
-                self.update_enriched_status(e_id, "synced")
+            self.update_enriched_status(e_id, "synced")
             return True
         else:
             logger.error(f"Error syncing to production")
             self.update_enriched_status(e_id, "error", error_msg="DB Error")
             return False
 
-    def update_enriched_status(self, e_id, status, error_msg=None, metadata=None):
+    def update_enriched_status(self, e_id, status, error_msg=None):
         payload = {"status": status}
-        if metadata:
-            payload["metadata"] = metadata
-        if error_msg:
-            payload["metadata"] = {"error": error_msg}
+        if error_msg: payload["metadata"] = {"error": error_msg}
         self.db.patch('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run sync vector worker")
-    parser.add_argument("--institution-id")
-    parser.add_argument("--limit", type=int, default=500)
-    parser.add_argument("--canary-mode", action="store_true")
-    args = parser.parse_args()
-    worker = SyncVectorWorker(
-        institution_id=args.institution_id,
-        canary_mode=args.canary_mode,
-    )
+    worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched(limit=args.limit)
+    pending = worker.get_pending_enriched()
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     for record in pending:
@@ -415,5 +354,3 @@ if __name__ == "__main__":
             synced += 1
         guard.tick(every=50)
     logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Time: {guard.elapsed_hours:.2f}h")
-    if args.canary_mode and (len(pending) != 1 or synced != 1):
-        raise SystemExit(1)
