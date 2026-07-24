@@ -1,10 +1,13 @@
-import os, requests
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+import os, sys, requests
 
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = get_secret_key(required=False)
-if not all([PRO_URL, PRO_KEY]):
-    raise SystemExit('ERROR: Set SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_environment_credentials
+
+PRO = get_environment_credentials("PRO")
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 h = build_supabase_headers(PRO_KEY, kind="secret")
 
 tables = ["courses","institutions","categories","category_rules","market_salaries",

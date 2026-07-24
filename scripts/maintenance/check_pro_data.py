@@ -5,13 +5,14 @@ import urllib.request
 import os
 import sys
 
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-PRO_URL = os.environ.get("SUPABASE_PRO_URL", "")
-SECRET_KEY = get_secret_key(required=False)
-if not PRO_URL or not SECRET_KEY:
-    print("ERROR: Set SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY environment variables")
-    sys.exit(1)
+from scripts.shared.supabase_credentials import build_supabase_headers, get_environment_credentials
+
+PRO = get_environment_credentials("PRO")
+PRO_URL, SECRET_KEY = PRO.url, PRO.secret_key
 
 def req(path):
     url = f"{PRO_URL}/rest/v1/{path}"

@@ -18,13 +18,16 @@ from urllib.parse import quote, urlparse
 
 import requests
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.shared.supabase_credentials import (
     SupabaseCredentialError,
     build_supabase_headers,
 )
 
 
-ROOT = Path(__file__).resolve().parents[2]
 PROJECT_REFS = {"free": "aqrldlmlszjtgpqiegaa", "pro": "xwhtiqmboljkshrtviyw"}
 FINGERPRINT_COLUMNS = {
     "institutions": "*",

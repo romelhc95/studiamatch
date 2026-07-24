@@ -1,15 +1,23 @@
 from pathlib import Path
+import os
 import re
+import subprocess
+import sys
+from unittest.mock import Mock
 
 import pytest
 
-from scripts.shared.db_client import DatabaseClient
+from scripts.shared import db_client as db_client_module
+from scripts.maintenance import migrate_data_to_pro as migration_module
 from scripts.maintenance import pipeline_canary
+from scripts.shared.db_client import DatabaseAPIError, DatabaseClient
 from scripts.shared.supabase_credentials import (
     SupabaseCredentialError,
     build_supabase_headers,
+    get_environment_credentials,
     get_publishable_key,
     get_secret_key,
+    require_distinct_environments,
     validate_api_key,
 )
 
@@ -87,7 +95,7 @@ APPROVED_BEARERS = {
         "provider": "supabase-management-api",
         "provider_marker": "api.supabase.com",
         "provider_env": "SUPABASE_MGMT_TOKEN",
-        "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
+        "derivation_marker": 'MGMT_TOKEN = os.environ.get("SUPABASE_MGMT_TOKEN", "")',
     },
     "scripts/maintenance/migrate_rpcs_to_pro.py": {
         "identities": {"supabase_management_token"},
@@ -141,29 +149,57 @@ APPROVED_BEARERS = {
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
+    "tests/test_harvester.py": "supabase-data-api-test",
+    "tests/release_gate/test_db_migrate_contract.py": "supabase-data-api-test",
+    "tests/release_gate/test_pipeline_canary_contract.py": "supabase-data-api-test",
+    "scripts/core/cleansing_worker.py": "supabase-data-api",
+    "scripts/core/discovery_institutions.py": "supabase-data-api",
+    "scripts/core/enrichment_worker.py": "supabase-data-api",
+    "scripts/core/integrity_ping.py": "supabase-data-api",
+    "scripts/core/master_orchestrator.py": "supabase-data-api",
+    "scripts/core/sync_vector_worker.py": "supabase-data-api",
+    "scripts/core/universal_harvester.py": "supabase-data-api",
     "scripts/shared/supabase_credentials.py": "supabase-data-api",
     "scripts/shared/db_client.py": "supabase-data-api",
+    "scripts/shared/test_db_compatibility.py": "supabase-data-api",
     "scripts/shared/utils.py": "supabase-data-api",
+    "scripts/maintenance/apply_noise_exclusions.py": "supabase-data-api",
     "scripts/maintenance/audit_url_slugs.py": "supabase-data-api",
+    "scripts/maintenance/batch_enrich_courses.py": "supabase-data-api",
     "scripts/maintenance/category_audit_report.py": "supabase-data-api",
+    "scripts/maintenance/category_coverage_audit.py": "supabase-data-api",
     "scripts/maintenance/check_db_parity.py": "supabase-data-api",
     "scripts/maintenance/check_pro_data.py": "supabase-data-api",
     "scripts/maintenance/db_migrate.py": "supabase-data-api",
     "scripts/maintenance/dedup_integrity_audit.py": "supabase-data-api",
     "scripts/maintenance/diag_pro.py": "supabase-data-api",
     "scripts/maintenance/diag_schema_diff.py": "supabase-data-and-management-api",
+    "scripts/maintenance/diagnose_pro_db.py": "supabase-data-api",
+    "scripts/maintenance/fase62_update_profiles.py": "supabase-data-api",
     "scripts/maintenance/fase62b_create_pucp_and_sync_pro.py": "supabase-data-api",
     "scripts/maintenance/fase74_seed_pro.py": "supabase-data-api",
+    "scripts/maintenance/fix_taxonomy_roi.py": "supabase-data-api",
+    "scripts/maintenance/force_harvest_up.py": "supabase-data-api",
+    "scripts/maintenance/generate_sitemap.py": "supabase-data-api",
     "scripts/maintenance/lightweight_ping.py": "supabase-data-api",
+    "scripts/maintenance/merge_exclusions_to_profiles.py": "supabase-data-api",
     "scripts/maintenance/metadata_quality_report.py": "supabase-data-api",
     "scripts/maintenance/migrate_data_to_pro.py": "supabase-data-and-management-api",
     "scripts/maintenance/migrate_rpcs_to_pro.py": "supabase-management-api",
+    "scripts/maintenance/noise_discovery_engine.py": "supabase-data-api",
     "scripts/maintenance/pipeline_canary.py": "supabase-data-api",
     "scripts/maintenance/pucp_sync_to_pro.py": "supabase-data-api",
+    "scripts/maintenance/preventive_cleanup.py": "supabase-data-api",
+    "scripts/maintenance/quality_assurance_audit.py": "supabase-data-api",
+    "scripts/maintenance/review_autogen_profiles.py": "supabase-data-api",
     "scripts/maintenance/seed_institutions.py": "supabase-data-api",
     "scripts/maintenance/seed_pro_profiles.py": "supabase-data-api",
+    "scripts/maintenance/seed_site_profiles.py": "supabase-data-api",
     "scripts/maintenance/sync_pro_to_free.py": "supabase-data-api",
+    "scripts/maintenance/taxonomy_roi_audit.py": "supabase-data-api",
     "scripts/maintenance/test_inst_insert.py": "supabase-data-api",
+    "scripts/maintenance/validate_dmc_pro_coverage.py": "supabase-data-api",
+    "scripts/maintenance/validate_profile_extraction_config.py": "supabase-data-api",
     "scripts/maintenance/verify_pro_schema.py": "supabase-management-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
@@ -188,10 +224,33 @@ SUPABASE_CONSUMER_MARKERS = (
     "get_secret_key",
     "validate_api_key",
     "build_supabase_headers",
+    "get_db_client",
+    "DatabaseClient",
+    "shared.db_client",
+    "/rest/v1",
     '"apikey"',
     "'apikey'",
     "api.supabase.com",
 )
+
+PRO_EXPLICIT_DATA_API_SCRIPTS = {
+    "scripts/maintenance/check_pro_data.py",
+    "scripts/maintenance/diag_pro.py",
+    "scripts/maintenance/diagnose_pro_db.py",
+    "scripts/maintenance/fase74_seed_pro.py",
+    "scripts/maintenance/validate_dmc_pro_coverage.py",
+}
+
+CROSS_ENVIRONMENT_DATA_API_SCRIPTS = {
+    "scripts/maintenance/check_db_parity.py",
+    "scripts/maintenance/diag_schema_diff.py",
+    "scripts/maintenance/fase62b_create_pucp_and_sync_pro.py",
+    "scripts/maintenance/migrate_data_to_pro.py",
+    "scripts/maintenance/pucp_sync_to_pro.py",
+    "scripts/maintenance/seed_pro_profiles.py",
+    "scripts/maintenance/sync_pro_to_free.py",
+    "scripts/maintenance/test_inst_insert.py",
+}
 
 
 def test_modern_api_key_prefixes_are_required():
@@ -222,6 +281,36 @@ def test_legacy_environment_variables_are_not_consumed():
         get_publishable_key(legacy_env)
     with pytest.raises(SupabaseCredentialError, match="NEXT_SUPABASE_SECRET_KEY"):
         get_secret_key(legacy_env)
+
+
+def test_explicit_environment_credentials_are_modern_and_distinct():
+    free = get_environment_credentials(
+        "FREE",
+        {
+            "FREE_SUPABASE_URL": "https://free-ref.supabase.co",
+            "FREE_NEXT_SUPABASE_SECRET_KEY": "sb_secret_free",
+        },
+    )
+    pro = get_environment_credentials(
+        "PRO",
+        {
+            "PRO_SUPABASE_URL": "https://pro-ref.supabase.co",
+            "PRO_NEXT_SUPABASE_SECRET_KEY": "sb_secret_pro",
+        },
+    )
+    require_distinct_environments(free, pro)
+
+    with pytest.raises(SupabaseCredentialError, match="must differ"):
+        require_distinct_environments(
+            free,
+            get_environment_credentials(
+                "PRO",
+                {
+                    "PRO_SUPABASE_URL": "https://pro-ref.supabase.co",
+                    "PRO_NEXT_SUPABASE_SECRET_KEY": "sb_secret_free",
+                },
+            ),
+        )
 
 
 @pytest.mark.parametrize(
@@ -277,6 +366,161 @@ def test_database_client_rejects_malformed_configured_key(monkeypatch):
 
     with pytest.raises(SupabaseCredentialError, match="sb_publishable_"):
         DatabaseClient("https://example.supabase.co")
+
+
+def test_database_client_explicit_identity_does_not_inherit_process_keys(monkeypatch):
+    monkeypatch.setenv("NEXT_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_process")
+    monkeypatch.setenv("NEXT_SUPABASE_SECRET_KEY", "sb_secret_process")
+    monkeypatch.setenv("NEXT_SUPABASE_ACCESS_TOKEN", "process-access-token")
+    monkeypatch.setenv("STUDIAMATCH_CANARY_WORKER", "1")
+
+    client = DatabaseClient(
+        "https://explicit.supabase.co",
+        "sb_secret_explicit",
+    )
+
+    assert client._get_headers(use_service_role=True)["apikey"] == "sb_secret_explicit"
+    with pytest.raises(SupabaseCredentialError, match="publishable key"):
+        client._get_headers(use_service_role=False)
+    assert client._access_token is None
+
+
+@pytest.mark.parametrize("final_status", [200, 206])
+def test_select_all_service_accepts_200_and_206_pages(monkeypatch, final_status):
+    first_page = Mock(status_code=206)
+    first_page.json.return_value = [{"id": "one"}, {"id": "two"}]
+    final_page = Mock(status_code=final_status)
+    final_page.json.return_value = [{"id": "three"}]
+    responses = iter([first_page, final_page])
+
+    monkeypatch.setattr(
+        db_client_module,
+        "_request_with_retry",
+        lambda _method, _url, **_kwargs: next(responses),
+    )
+    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
+
+    assert client.select_all_service("courses", batch_size=2) == [
+        {"id": "one"},
+        {"id": "two"},
+        {"id": "three"},
+    ]
+
+
+def test_select_all_service_raises_safe_error_on_late_failure(monkeypatch):
+    first_page = Mock(status_code=206)
+    first_page.json.return_value = [{"id": "one"}, {"id": "two"}]
+    failed_page = Mock(status_code=500, text="sensitive-response-body")
+    responses = iter([first_page, failed_page])
+    monkeypatch.setattr(
+        db_client_module,
+        "_request_with_retry",
+        lambda _method, _url, **_kwargs: next(responses),
+    )
+    client = DatabaseClient("https://explicit.supabase.co", "sb_secret_explicit")
+
+    with pytest.raises(DatabaseAPIError) as exc_info:
+        client.select_all_service("courses", batch_size=2)
+
+    assert "courses" in str(exc_info.value)
+    assert "500" in str(exc_info.value)
+    assert "sensitive-response-body" not in str(exc_info.value)
+
+
+def test_migration_late_preflight_failure_makes_zero_pro_calls():
+    db = Mock()
+    failing_table = migration_module.MIGRATION_ORDER[-1]
+
+    def read_free(table):
+        if table == failing_table:
+            raise DatabaseAPIError("safe Free read failure")
+        return [{"source_table": table}]
+
+    db.select_all_service.side_effect = read_free
+    run_mgmt_sql_fn = Mock()
+    upsert_pro_fn = Mock()
+
+    with pytest.raises(DatabaseAPIError, match="safe Free read failure"):
+        migration_module.execute_migration(
+            db,
+            run_mgmt_sql_fn=run_mgmt_sql_fn,
+            upsert_pro_fn=upsert_pro_fn,
+        )
+
+    assert db.select_all_service.call_count == len(migration_module.MIGRATION_ORDER)
+    run_mgmt_sql_fn.assert_not_called()
+    upsert_pro_fn.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("pythonpath", "statement"),
+    [
+        (
+            ROOT / "scripts",
+            "import shared.db_client; import shared.utils; import shared.supabase_credentials",
+        ),
+        (
+            ROOT,
+            "import scripts.shared.db_client; import scripts.shared.utils; "
+            "import scripts.shared.supabase_credentials",
+        ),
+    ],
+)
+def test_shared_modules_import_under_both_supported_package_names(pythonpath, statement):
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(pythonpath)
+    result = subprocess.run(
+        [sys.executable, "-c", statement],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_maintenance_consumers_bootstrap_before_shared_imports():
+    findings = []
+    for relative in DIRECT_SUPABASE_CONSUMERS:
+        if not relative.startswith("scripts/maintenance/"):
+            continue
+        source = (ROOT / relative).read_text(encoding="utf-8-sig")
+        shared_import_offsets = [
+            offset
+            for marker in ("from shared.", "from scripts.shared.")
+            if (offset := source.find(marker)) >= 0
+        ]
+        if not shared_import_offsets:
+            continue
+        prefix = source[:min(shared_import_offsets)]
+        if not any(marker in prefix for marker in ("sys.path.insert", "sys.path.append")):
+            findings.append(f"{relative}: shared import precedes project path bootstrap")
+
+    assert findings == []
+
+
+def test_pro_and_cross_environment_scripts_use_explicit_identities():
+    findings = []
+    for relative in sorted(PRO_EXPLICIT_DATA_API_SCRIPTS):
+        source = (ROOT / relative).read_text(encoding="utf-8-sig")
+        if "get_environment_credentials" not in source or not any(
+            marker in source for marker in ('"PRO"', "'PRO'")
+        ):
+            findings.append(f"{relative}: missing explicit PRO identity")
+        if "get_secret_key" in source:
+            findings.append(f"{relative}: canonical secret fallback remains")
+
+    for relative in sorted(CROSS_ENVIRONMENT_DATA_API_SCRIPTS):
+        source = (ROOT / relative).read_text(encoding="utf-8-sig")
+        has_free = "get_environment_credentials(\"FREE\")" in source or "get_environment_credentials('FREE')" in source
+        has_pro = "get_environment_credentials(\"PRO\")" in source or "get_environment_credentials('PRO')" in source
+        if not (has_free and has_pro and "require_distinct_environments" in source):
+            findings.append(f"{relative}: incomplete explicit cross-environment contract")
+
+    assert findings == []
 
 
 @pytest.mark.parametrize(
@@ -373,8 +617,6 @@ def test_direct_supabase_consumer_inventory_is_complete():
 
     for path in SOURCE_FILES:
         relative = _relative(path)
-        if relative.startswith("tests/"):
-            continue
         source = path.read_text(encoding="utf-8-sig")
         if relative.startswith("supabase/functions/") or any(
             marker in source for marker in SUPABASE_CONSUMER_MARKERS

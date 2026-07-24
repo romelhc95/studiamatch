@@ -1,16 +1,20 @@
-import os, sys, json, requests
+import sys, json, requests
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
+)
 
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = get_secret_key(required=False)
-if not all([PRO_URL, PRO_KEY]):
-    sys.exit('ERROR: Set SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars')
+FREE = get_environment_credentials("FREE")
+PRO = get_environment_credentials("PRO")
+require_distinct_environments(FREE, PRO)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 h = build_supabase_headers(PRO_KEY, kind="secret")
 
-db = get_db_client()
-insts = db.select_all('institutions')
+db = DatabaseClient(FREE.url, FREE.secret_key)
+insts = db.select_all_service('institutions')
 print("Free institutions:", len(insts))
 
 # Test: insert 1 institution

@@ -24,7 +24,11 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import DatabaseClient
-from shared.supabase_credentials import get_secret_key
+from shared.supabase_credentials import (
+    get_environment_credentials,
+    get_secret_key,
+    require_distinct_environments,
+)
 
 
 CONFIG_COLUMNS = {
@@ -126,10 +130,7 @@ def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 10
 
 
 def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, Any]]:
-    try:
-        return db.select_pipeline(table, columns=columns, limit=1000) or []
-    except Exception:
-        return db.select(table, columns=columns, limit=1000) or []
+    return db.select_service(table, columns=columns, limit=1000) or []
 
 
 def compare_migrations(db_free: DatabaseClient, db_target: DatabaseClient):
@@ -479,19 +480,13 @@ def main() -> None:
         print("  OK: schema/configuracion target minima completa")
         sys.exit(0)
 
-    load_environment("free")
-    assert_environment("free")
-    db_free = DatabaseClient()
-    free_url = db_free.supabase_url
-
-    load_environment(args.env)
-    assert_environment(args.env)
-    db_target = DatabaseClient()
-    if args.env == "pro" and db_target.supabase_url == free_url:
-        raise RuntimeError(
-            "Parity check requiere credenciales distintas Free/Pro. "
-            "En GitHub Actions usa --target-only porque un job no puede leer dos environments con los mismos nombres de secrets."
-        )
+    if args.env != "pro":
+        raise RuntimeError("El modo cross-environment requiere --env pro")
+    free = get_environment_credentials("FREE")
+    pro = get_environment_credentials("PRO")
+    require_distinct_environments(free, pro)
+    db_free = DatabaseClient(free.url, free.secret_key)
+    db_target = DatabaseClient(pro.url, pro.secret_key)
 
     results = [
         ("migrations", compare_migrations(db_free, db_target)),

@@ -1,57 +1,21 @@
-"""Fase 71: Sincronizar Pro → Free — migración de datos del pipeline con mapeo de UUIDs
-   Las credenciales se leen de variables de entorno (NUNCA hardcodear).
-   Pro: SUPABASE_URL + NEXT_SUPABASE_SECRET_KEY desde .env.gitprod (AGENTS.md §102-107)
-   Free: db_client.py lee de .env.local"""
-import sys, os, json, requests, argparse
+"""Fase 71: Sincronizar Pro → Free con identidades explícitas y distintas."""
+import sys, json, requests, argparse
 
 sys.path.insert(0, '/app')
-from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
-
-
-def _read_env_file(filepath, var_name, default=''):
-    """Lee una variable de un archivo .env sin contaminar os.environ."""
-    if not os.path.exists(filepath):
-        return os.environ.get(var_name, default)
-    with open(filepath, encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith('#') or '=' not in line:
-                continue
-            k, _, v = line.partition('=')
-            if k.strip() == var_name:
-                return v.strip().strip('"').strip("'")
-    return os.environ.get(var_name, default)
-
-
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_gitprod = os.path.join(root_dir, '.env.gitprod')
-
-PRO_URL = _read_env_file(env_gitprod, 'SUPABASE_URL', '')
-PRO_KEY = _read_env_file(env_gitprod, 'NEXT_SUPABASE_SECRET_KEY', '')
-
-if not PRO_URL or not PRO_KEY:
-    print("ERROR: Credenciales Pro no encontradas.")
-    print("Opción 1: Tener .env.gitprod (gitignored) en la raíz del proyecto con:")
-    print("  SUPABASE_URL='https://xxx.supabase.co'")
-    print("  NEXT_SUPABASE_SECRET_KEY='sb_secret_xxx'")
-    print("Opción 2: Exportar variables antes de ejecutar:")
-    print("  export SUPABASE_URL='https://xxx.supabase.co'")
-    print("  export NEXT_SUPABASE_SECRET_KEY='sb_secret_xxx'")
-    sys.exit(1)
-
-# Remove Pro vars from env so db_client can load Free creds from .env.local
-for _v in ('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_SUPABASE_SECRET_KEY', 'NEXT_SUPABASE_PUBLISHABLE_KEY'):
-    os.environ.pop(_v, None)
-
-PRO_KEY = validate_api_key(
-    PRO_KEY,
-    kind="secret",
-    variable_name="NEXT_SUPABASE_SECRET_KEY",
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
 )
+
+FREE = get_environment_credentials("FREE")
+PRO = get_environment_credentials("PRO")
+require_distinct_environments(FREE, PRO)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
 
-from scripts.shared.db_client import get_db_client
-db = get_db_client()
+db = DatabaseClient(FREE.url, FREE.secret_key)
 
 PAGE_SIZE = 1000
 BATCH_SIZE = 200
@@ -116,7 +80,7 @@ def count_free(table):
                 if "/" in cr:
                     return int(cr.split("/")[-1])
             return '?'
-        return db.count(table)
+        return db.count_service(table)
     except Exception:
         return '?'
 
@@ -170,7 +134,7 @@ def main():
 
     # ============ Phase 1: Build UUID maps ============
     print("=== 1. Construyendo mapas de UUIDs ===")
-    free_insts = db.select('institutions', columns='id,slug')
+    free_insts = db.select_service('institutions', columns='id,slug')
     pro_insts = _paginate_get(f"{PRO_URL}/rest/v1/institutions?select=id,slug")
     if not pro_insts:
         print("ERROR: No institutions found in Pro (¿SUPABASE_URL correcta?)")
@@ -181,7 +145,7 @@ def main():
     inst_uuid_map = _pro_to_free_map(pro_insts, free_inst_by_slug, 'slug')
     print(f"  Institution UUID mapping: {len(inst_uuid_map)}/{len(pro_insts)} matched")
 
-    free_cats = db.select('categories', columns='id,name')
+    free_cats = db.select_service('categories', columns='id,name')
     pro_cats = _paginate_get(f"{PRO_URL}/rest/v1/categories?select=id,name")
     if free_cats:
         free_cat_by_name = _build_uuid_map(free_cats, 'name')

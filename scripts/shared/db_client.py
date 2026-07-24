@@ -6,19 +6,35 @@ from dotenv import load_dotenv
 import re
 import urllib.parse
 
-from scripts.shared.supabase_credentials import (
-    PUBLISHABLE_KEY_PREFIX,
-    SECRET_KEY_PREFIX,
-    SupabaseCredentialError,
-    build_supabase_headers,
-    get_access_token,
-    get_publishable_key,
-    get_secret_key,
-    validate_api_key,
-)
+try:
+    from .supabase_credentials import (
+        PUBLISHABLE_KEY_PREFIX,
+        SECRET_KEY_PREFIX,
+        SupabaseCredentialError,
+        build_supabase_headers,
+        get_access_token,
+        get_publishable_key,
+        get_secret_key,
+        validate_api_key,
+    )
+except ImportError:  # Support imports as shared.db_client with /app/scripts on PYTHONPATH.
+    from shared.supabase_credentials import (
+        PUBLISHABLE_KEY_PREFIX,
+        SECRET_KEY_PREFIX,
+        SupabaseCredentialError,
+        build_supabase_headers,
+        get_access_token,
+        get_publishable_key,
+        get_secret_key,
+        validate_api_key,
+    )
 
 DNS_RETRY_DELAYS = [5, 10, 20]
 DNS_RETRY_MAX = 3
+
+
+class DatabaseAPIError(RuntimeError):
+    """Raised when the Data API returns an unexpected response."""
 
 def _request_with_retry(method, url, **kwargs):
     """
@@ -76,13 +92,29 @@ class DatabaseClient:
         'institution_site_profiles',
     ])
 
-    def __init__(self, supabase_url=None, supabase_key=None):
+    def __init__(
+        self,
+        supabase_url=None,
+        supabase_key=None,
+        *,
+        access_token=None,
+        allow_access_token=False,
+    ):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self._publishable_key = get_publishable_key(required=False)
-        self._service_key = get_secret_key(required=False)
-        self._access_token = get_access_token(required=False)
-        self._allow_access_token = os.getenv("STUDIAMATCH_CANARY_WORKER") == "1"
-        if supabase_key is not None:
+        if supabase_key is None:
+            self._publishable_key = get_publishable_key(required=False)
+            self._service_key = get_secret_key(required=False)
+            self._access_token = get_access_token(required=False)
+            self._allow_access_token = os.getenv("STUDIAMATCH_CANARY_WORKER") == "1"
+        else:
+            self._publishable_key = None
+            self._service_key = None
+            self._access_token = access_token.strip() if isinstance(access_token, str) else None
+            self._allow_access_token = bool(allow_access_token)
+            if not isinstance(supabase_key, str):
+                raise SupabaseCredentialError(
+                    "supabase_key must be a modern Supabase API key string"
+                )
             if supabase_key.startswith(PUBLISHABLE_KEY_PREFIX):
                 self._publishable_key = validate_api_key(
                     supabase_key,
@@ -230,6 +262,10 @@ class DatabaseClient:
             )
         return self._select_api(table, filters, columns, limit, order, use_service_role=True)
 
+    def select_service(self, table, filters=None, columns="*", limit=None, order=None):
+        """Select any table with the explicitly configured secret identity."""
+        return self._select_api(table, filters, columns, limit, order, use_service_role=True)
+
     def count_pipeline(self, table, filters=None):
         """
         Returns exact count of rows for pipeline tables using Secret key (bypasses RLS).
@@ -311,6 +347,44 @@ class DatabaseClient:
                 break
         return all_results
 
+    def select_all_service(self, table, filters=None, columns="*", batch_size=1000, order=None):
+        """Paginated privileged read that fails closed on any API or shape error."""
+        all_results = []
+        offset = 0
+        while True:
+            limit = min(batch_size, 1000)
+            url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
+            if filters:
+                url += f"&{filters}"
+            if order:
+                url += f"&order={order}"
+            url += f"&limit={limit}&offset={offset}"
+            headers = self._get_headers(use_service_role=True)
+            headers["Range"] = f"{offset}-{offset + limit - 1}"
+            headers["Prefer"] = "count=exact"
+            res = _request_with_retry(requests.get, url, headers=headers)
+            if res.status_code not in (200, 206):
+                raise DatabaseAPIError(
+                    f"Privileged select failed for {table}: HTTP {res.status_code}"
+                )
+            try:
+                batch = res.json()
+            except (TypeError, ValueError) as exc:
+                raise DatabaseAPIError(
+                    f"Privileged select returned invalid JSON for {table}"
+                ) from exc
+            if not isinstance(batch, list):
+                raise DatabaseAPIError(
+                    f"Privileged select returned an invalid shape for {table}"
+                )
+            if not batch:
+                break
+            all_results.extend(batch)
+            offset += len(batch)
+            if len(batch) < limit:
+                break
+        return all_results
+
     def select_all_pipeline(self, table, filters=None, columns="*", batch_size=1000, order=None):
         """
         Paginated select with Secret key (bypasses RLS). For pipeline tables only.
@@ -369,6 +443,26 @@ class DatabaseClient:
                     except ValueError:
                         pass
         return 0
+
+    def count_service(self, table, filters=None):
+        """Return an exact count with the explicitly configured secret identity."""
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code not in (200, 206):
+            raise DatabaseAPIError(
+                f"Privileged count failed for {table}: HTTP {res.status_code}"
+            )
+        content_range = res.headers.get("Content-Range", "")
+        if "/" in content_range:
+            try:
+                return int(content_range.rsplit("/", 1)[1])
+            except ValueError:
+                pass
+        raise DatabaseAPIError(f"Privileged count returned invalid metadata for {table}")
 
     def delete(self, table, filters):
         """Delete records via Supabase REST API."""

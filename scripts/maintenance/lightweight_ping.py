@@ -1,8 +1,15 @@
 import os
+import sys
 import requests
 import asyncio
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 # Configurar logging

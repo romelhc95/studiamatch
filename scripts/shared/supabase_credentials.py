@@ -8,7 +8,10 @@ worker access token.
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
+from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 PUBLISHABLE_KEY_PREFIX = "sb_publishable_"
@@ -17,6 +20,15 @@ SECRET_KEY_PREFIX = "sb_secret_"
 
 class SupabaseCredentialError(RuntimeError):
     """Raised when Supabase credentials are absent or use an unsafe shape."""
+
+
+@dataclass(frozen=True)
+class SupabaseEnvironmentCredentials:
+    """Explicit URL and secret-key identity for one Supabase environment."""
+
+    identity: str
+    url: str
+    secret_key: str
 
 
 def validate_api_key(value: str, *, kind: str, variable_name: str) -> str:
@@ -82,6 +94,63 @@ def get_secret_key(
             "Missing required environment variable: NEXT_SUPABASE_SECRET_KEY"
         )
     return None
+
+
+def get_environment_credentials(
+    identity: str,
+    environ: Mapping[str, str] | None = None,
+) -> SupabaseEnvironmentCredentials:
+    """Load and validate one explicit FREE_* or PRO_* credential pair."""
+    normalized_identity = identity.strip().upper()
+    if normalized_identity not in {"FREE", "PRO"}:
+        raise ValueError(f"Unsupported Supabase environment identity: {identity}")
+
+    env = os.environ if environ is None else environ
+    url_name = f"{normalized_identity}_SUPABASE_URL"
+    key_name = f"{normalized_identity}_NEXT_SUPABASE_SECRET_KEY"
+    url = env.get(url_name, "").strip()
+    if not url:
+        raise SupabaseCredentialError(f"Missing required environment variable: {url_name}")
+
+    parsed = urlparse(url)
+    valid_host = bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*\.supabase\.co", parsed.netloc))
+    if (
+        parsed.scheme != "https"
+        or not valid_host
+        or parsed.path not in {"", "/"}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise SupabaseCredentialError(
+            f"{url_name} must be an https://<project-ref>.supabase.co URL"
+        )
+
+    secret_key = validate_api_key(
+        env.get(key_name, ""),
+        kind="secret",
+        variable_name=key_name,
+    )
+    return SupabaseEnvironmentCredentials(
+        identity=normalized_identity,
+        url=f"https://{parsed.netloc}",
+        secret_key=secret_key,
+    )
+
+
+def require_distinct_environments(
+    free: SupabaseEnvironmentCredentials,
+    pro: SupabaseEnvironmentCredentials,
+) -> None:
+    """Reject cross-environment work when either identity is reused."""
+    if free.identity != "FREE" or pro.identity != "PRO":
+        raise SupabaseCredentialError("Cross-environment checks require FREE and PRO identities")
+    if free.url == pro.url:
+        raise SupabaseCredentialError("FREE_SUPABASE_URL and PRO_SUPABASE_URL must differ")
+    if free.secret_key == pro.secret_key:
+        raise SupabaseCredentialError(
+            "FREE_NEXT_SUPABASE_SECRET_KEY and PRO_NEXT_SUPABASE_SECRET_KEY must differ"
+        )
 
 
 def get_access_token(

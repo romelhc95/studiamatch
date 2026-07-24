@@ -1,17 +1,23 @@
 """Diagnose schema differences between Free and Pro for all tables"""
 import os, sys, requests, json
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
-from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
+)
 
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = get_secret_key(required=False)
+FREE = get_environment_credentials("FREE")
+PRO = get_environment_credentials("PRO")
+require_distinct_environments(FREE, PRO)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
 PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
-if not all([PRO_URL, PRO_KEY, MGMT_TOKEN]):
-    sys.exit('ERROR: Set SUPABASE_PRO_URL, NEXT_SUPABASE_SECRET_KEY, SUPABASE_MGMT_TOKEN env vars')
+if not MGMT_TOKEN:
+    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN')
 
-db = get_db_client()
+db = DatabaseClient(FREE.url, FREE.secret_key)
 
 tables = ['institutions', 'courses', 'categories', 'crawler_exclusions',
           'staging_raw', 'cleansed_programs', 'enriched_programs',
@@ -19,7 +25,7 @@ tables = ['institutions', 'courses', 'categories', 'crawler_exclusions',
 
 for table in tables:
     # Get Free columns from data
-    free_data = db.select(table, limit=1)
+    free_data = db.select_service(table, limit=1)
     free_cols = set(free_data[0].keys()) if free_data else set()
     
     # Get Pro columns from sample
