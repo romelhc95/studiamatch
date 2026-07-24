@@ -1,16 +1,15 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY, cleanSlug, type Course } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, cleanSlug, type Course } from "@/lib/supabase";
 import type { Metadata } from "next";
 import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
 async function fetchCourseMeta(slug: string) {
   try {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/courses?select=name,description_long,url,price_pen,mode,course_type,institutions(name)&slug=eq.${encodeURIComponent(slug)}&is_active=eq.true&is_verified=eq.true&limit=1`,
       {
         headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          'apikey': SUPABASE_PUBLISHABLE_KEY
         }
       }
     );
@@ -52,15 +51,14 @@ export async function generateStaticParams() {
   const defaultPath = [{ institution: 'pucp', slug: 'estudios-generales' }];
 
   try {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       console.warn("No environment variables found for static generation. Using defaults.");
       return defaultPath;
     }
 
     const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
       headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        'apikey': SUPABASE_PUBLISHABLE_KEY
       }
     });
 

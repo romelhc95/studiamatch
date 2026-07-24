@@ -2,13 +2,14 @@
 import os, sys, requests, json
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+PRO_KEY = get_secret_key(required=False)
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
 PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
 if not all([PRO_URL, PRO_KEY, MGMT_TOKEN]):
-    sys.exit('ERROR: Set SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_MGMT_TOKEN env vars')
+    sys.exit('ERROR: Set SUPABASE_PRO_URL, NEXT_SUPABASE_SECRET_KEY, SUPABASE_MGMT_TOKEN env vars')
 
 db = get_db_client()
 
@@ -23,7 +24,7 @@ for table in tables:
     
     # Get Pro columns from sample
     r = requests.get(PRO_URL + "/rest/v1/" + table + "?limit=1",
-                     headers={"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY}, timeout=10)
+                     headers=build_supabase_headers(PRO_KEY, kind="secret", content_type=False), timeout=10)
     pro_cols = set(r.json()[0].keys()) if r.status_code == 200 and r.json() else set()
     
     if not pro_cols:

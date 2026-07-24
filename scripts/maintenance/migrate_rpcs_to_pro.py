@@ -1,10 +1,10 @@
 import os, requests, json, sys
 
-token = os.environ.get('SUPABASE_MGMT_TOKEN', '')
+supabase_management_token = os.environ.get('SUPABASE_MGMT_TOKEN', '')
 PRO_PROJECT_REF = os.environ.get('SUPABASE_PRO_PROJECT_REF', '')
 url = f'https://api.supabase.com/v1/projects/{PRO_PROJECT_REF}/database/query'
-headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
-if not all([token, PRO_PROJECT_REF]):
+headers = {'Authorization': f'Bearer {supabase_management_token}', 'Content-Type': 'application/json'}
+if not all([supabase_management_token, PRO_PROJECT_REF]):
     sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN and SUPABASE_PRO_PROJECT_REF env vars')
 
 with open('/app/db/migrations/20260501_production_full_replace.sql', 'r') as f:

@@ -1,10 +1,16 @@
-import os, requests
+import os, sys, requests
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+PRO_KEY = get_secret_key(required=False)
 if not all([PRO_URL, PRO_KEY]):
-    raise SystemExit('ERROR: Set SUPABASE_PRO_URL and SUPABASE_SERVICE_ROLE_KEY env vars')
-h = {"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY, "Content-Type": "application/json"}
+    raise SystemExit('ERROR: Set SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars')
+h = build_supabase_headers(PRO_KEY, kind="secret")
 
 tables = ["courses","institutions","categories","category_rules","market_salaries",
           "crawler_exclusions","staging_raw","cleansed_programs","enriched_programs",

@@ -1,15 +1,16 @@
 """Fase 74: Seed institution_site_profiles in Pro (merge CE + full seed)"""
 import sys, os, json
 
+sys.path.insert(0, '/app')
+from scripts.shared.supabase_credentials import get_secret_key
+
 SUPABASE_PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-SUPABASE_PRO_PUBLISHABLE = os.environ.get('SUPABASE_PRO_PUBLISHABLE_KEY', '')
-SUPABASE_PRO_SECRET = os.environ.get('NEXT_SUPABASE_SECRET_KEY', os.environ.get('SUPABASE_SERVICE_ROLE_KEY', ''))
+SUPABASE_PRO_SECRET = get_secret_key(required=False)
 
 if not SUPABASE_PRO_URL or not SUPABASE_PRO_SECRET:
     print("ERROR: SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars required")
     sys.exit(1)
 
-sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
 from scripts.shared.utils import setup_lima_logging
 

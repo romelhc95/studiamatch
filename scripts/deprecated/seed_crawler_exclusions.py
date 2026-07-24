@@ -1,5 +1,6 @@
 import os, sys, json, requests, warnings
 sys.path.insert(0, '/app')
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 warnings.warn(
     "DEPRECATED (Fase 61): seed_crawler_exclusions.py is deprecated. "
@@ -9,11 +10,11 @@ warnings.warn(
 )
 
 url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-secret = os.environ.get('NEXT_SUPABASE_SECRET_KEY', '') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+secret = get_secret_key(required=False)
 if not url or not secret:
     sys.exit('ERROR: Set NEXT_PUBLIC_SUPABASE_URL and NEXT_SUPABASE_SECRET_KEY')
 
-h = {'apikey': secret, 'Authorization': f'Bearer {secret}', 'Content-Type': 'application/json'}
+h = build_supabase_headers(secret, kind="secret")
 
 r = requests.get(f'{url}/rest/v1/institutions?select=id,name,slug', headers=h, timeout=15)
 if r.status_code != 200:

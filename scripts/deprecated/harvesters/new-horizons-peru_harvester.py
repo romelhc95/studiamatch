@@ -8,9 +8,15 @@ from dotenv import load_dotenv
 import sys
 import re
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
+
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.utils import infer_course_type, extract_pdf_text_from_url, clean_course_name, standardize_category
+from scripts.shared.utils import infer_course_type, extract_pdf_text_from_url, clean_course_name, standardize_category
 
 # Setup logging
 logging.basicConfig(
@@ -23,16 +29,14 @@ load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_PUBLISHABLE_KEY = get_publishable_key()
 
 class NewHorizonsHarvester:
     def __init__(self):
         self.institution_slug = "new-horizons-peru"
         self.api_url = f"{SUPABASE_URL}/rest/v1"
         self.headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json",
+            **build_supabase_headers(SUPABASE_PUBLISHABLE_KEY, kind="publishable"),
             "Prefer": "return=representation"
         }
 
@@ -253,7 +257,7 @@ class NewHorizonsHarvester:
             logger.error(f"Processing error for {item['name']}: {e}")
 
 async def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
         logger.error("Missing credentials in .env")
         return
 

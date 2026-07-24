@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, type Course, type Institution } from "@/lib/supabase";
 import HomeContent from "./HomeContent";
 
 export const metadata: Metadata = {
@@ -19,11 +19,10 @@ export const metadata: Metadata = {
 
 async function fetchCourses(): Promise<Course[]> {
   try {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return [];
 
     const headers = {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      'apikey': SUPABASE_PUBLISHABLE_KEY
     };
 
     const [cRes, iRes] = await Promise.all([

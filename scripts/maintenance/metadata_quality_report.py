@@ -1,22 +1,25 @@
 ﻿import os
+import sys
 import requests
 from dotenv import load_dotenv
 import json
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_PUBLISHABLE_KEY = get_publishable_key(required=False)
 
-if not SUPABASE_URL or not SUPABASE_KEY:
+if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
     print("Error: Missing Supabase credentials in .env")
     exit(1)
 
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
-}
+headers = build_supabase_headers(SUPABASE_PUBLISHABLE_KEY, kind="publishable")
 
 def analyze_metadata():
     url = f"{SUPABASE_URL}/rest/v1/courses?select=id,name,url,description_long,target_audience,syllabus,institution_id"

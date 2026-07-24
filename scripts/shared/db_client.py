@@ -6,6 +6,16 @@ from dotenv import load_dotenv
 import re
 import urllib.parse
 
+from .supabase_credentials import (
+    PUBLISHABLE_KEY_PREFIX,
+    SECRET_KEY_PREFIX,
+    SupabaseCredentialError,
+    build_supabase_headers,
+    get_publishable_key,
+    get_secret_key,
+    validate_api_key,
+)
+
 DNS_RETRY_DELAYS = [5, 10, 20]
 DNS_RETRY_MAX = 3
 
@@ -67,27 +77,49 @@ class DatabaseClient:
 
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self._publishable_key = (
-            os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY")
-            or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
-        )
-        self._service_key = os.getenv("NEXT_SUPABASE_SECRET_KEY")
-        self.supabase_key = supabase_key if supabase_key is not None else (self._service_key or self._publishable_key)
+        self._publishable_key = get_publishable_key(required=False)
+        self._service_key = get_secret_key(required=False)
+        if supabase_key is not None:
+            if not isinstance(supabase_key, str):
+                raise SupabaseCredentialError(
+                    "supabase_key must be a modern Supabase API key string"
+                )
+            if supabase_key.startswith(PUBLISHABLE_KEY_PREFIX):
+                self._publishable_key = validate_api_key(
+                    supabase_key,
+                    kind="publishable",
+                    variable_name="supabase_key",
+                )
+            elif supabase_key.startswith(SECRET_KEY_PREFIX):
+                self._service_key = validate_api_key(
+                    supabase_key,
+                    kind="secret",
+                    variable_name="supabase_key",
+                )
+            else:
+                raise SupabaseCredentialError(
+                    "supabase_key must use a modern Supabase API key prefix"
+                )
+        self.supabase_key = self._service_key or self._publishable_key
 
     def _get_headers(self, use_service_role=None):
-        if use_service_role is None:
-            key = self.supabase_key
-        elif use_service_role and self._service_key:
-            key = self._service_key
-        elif not use_service_role and self._publishable_key:
-            key = self._publishable_key
-        else:
-            key = self.supabase_key
-        return {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        }
+        if use_service_role is True:
+            if not self._service_key:
+                raise SupabaseCredentialError(
+                    "Service operations require NEXT_SUPABASE_SECRET_KEY"
+                )
+            return build_supabase_headers(self._service_key, kind="secret")
+        if use_service_role is False:
+            if not self._publishable_key:
+                raise SupabaseCredentialError(
+                    "Public operations require a Supabase publishable key"
+                )
+            return build_supabase_headers(self._publishable_key, kind="publishable")
+        if self._service_key:
+            return build_supabase_headers(self._service_key, kind="secret")
+        if self._publishable_key:
+            return build_supabase_headers(self._publishable_key, kind="publishable")
+        raise SupabaseCredentialError("No modern Supabase API key is configured")
 
     def _select_api(self, table, filters, columns, limit, order, use_service_role=False):
         if columns == "count":

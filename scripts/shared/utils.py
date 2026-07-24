@@ -141,6 +141,11 @@ import tempfile
 import PyPDF2
 import os
 
+from .supabase_credentials import (
+    build_supabase_headers,
+    get_publishable_key,
+)
+
 def infer_course_type(name):
     """
     Infers the educational type based on the course name.
@@ -251,10 +256,7 @@ def standardize_category(potential_cat, course_name=""):
     
     text = (potential_cat + " " + course_name).lower()
     url = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    key = (
-        os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY")
-        or os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
-    )
+    key = get_publishable_key(required=False)
 
     # 1. Initialize Cache if empty
     if _category_rules_cache is None:
@@ -262,7 +264,11 @@ def standardize_category(potential_cat, course_name=""):
         if url and key:
             try:
                 # Fetch rules ordered by priority from the dynamic engine
-                headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+                headers = build_supabase_headers(
+                    key,
+                    kind="publishable",
+                    content_type=False,
+                )
                 # We fetch from the 'category_rules' table and join with 'categories'
                 api_url = f"{url}/rest/v1/category_rules?select=keyword,priority,categories(name)&order=priority.desc"
                 res = requests.get(api_url, headers=headers, timeout=10)

@@ -1,8 +1,15 @@
 ﻿import os
+import sys
 import requests
 from collections import Counter
 import re
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
 
 # Intentar cargar .env si dotenv estÃ¡ instalado
 try:
@@ -15,17 +22,13 @@ except ImportError:
 
 def get_general_courses():
     url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-    key = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    key = get_publishable_key(required=False)
     
     if not url or not key:
-        print("Error: NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY son requeridos.")
+        print("Error: NEXT_PUBLIC_SUPABASE_URL y una publishable key moderna son requeridos.")
         return []
 
-    headers = {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json"
-    }
+    headers = build_supabase_headers(key, kind="publishable")
     
     # 1. Intentar obtener el ID de la categorÃ­a 'General / Por Clasificar'
     cat_api_url = f"{url}/rest/v1/categories?name=eq.General%20/%20Por%20Clasificar&select=id"

@@ -2,20 +2,19 @@
 import sys, os, json, requests
 
 sys.path.insert(0, '/app')
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', os.environ.get('NEXT_SUPABASE_SECRET_KEY', ''))
+PRO_KEY = get_secret_key(required=False)
 
 if not PRO_URL or not PRO_KEY:
-    print("ERROR: SUPABASE_PRO_URL and service_role/secret key required")
+    print("ERROR: SUPABASE_PRO_URL and modern secret key required")
     print("Usage: set SUPABASE_PRO_URL + NEXT_SUPABASE_SECRET_KEY env vars")
     sys.exit(1)
 
 headers = {
-    'apikey': PRO_KEY,
-    'Authorization': f'Bearer {PRO_KEY}',
-    'Content-Type': 'application/json',
-    'Prefer': 'resolution=merge-duplicates'
+    **build_supabase_headers(PRO_KEY, kind="secret"),
+    'Prefer': 'resolution=merge-duplicates',
 }
 
 # Read profiles from Free (via db_client which reads env from .env.local)
