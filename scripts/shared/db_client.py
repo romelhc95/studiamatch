@@ -19,6 +19,11 @@ from .supabase_credentials import (
 DNS_RETRY_DELAYS = [5, 10, 20]
 DNS_RETRY_MAX = 3
 
+
+class DatabaseAPIError(RuntimeError):
+    """Raised when the Data API returns an unexpected response."""
+
+
 def _request_with_retry(method, url, **kwargs):
     """
     Executes an HTTP request with exponential backoff retry for DNS/connection errors.
@@ -77,9 +82,14 @@ class DatabaseClient:
 
     def __init__(self, supabase_url=None, supabase_key=None):
         self.supabase_url = supabase_url if supabase_url is not None else (os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL"))
-        self._publishable_key = get_publishable_key(required=False)
-        self._service_key = get_secret_key(required=False)
-        if supabase_key is not None:
+        if supabase_key is None:
+            self._publishable_key = get_publishable_key(required=False)
+            self._service_key = get_secret_key(required=False)
+        else:
+            # An explicitly injected identity must not inherit a key from a
+            # different environment through the process-level configuration.
+            self._publishable_key = None
+            self._service_key = None
             if not isinstance(supabase_key, str):
                 raise SupabaseCredentialError(
                     "supabase_key must be a modern Supabase API key string"
@@ -106,13 +116,13 @@ class DatabaseClient:
         if use_service_role is True:
             if not self._service_key:
                 raise SupabaseCredentialError(
-                    "Service operations require NEXT_SUPABASE_SECRET_KEY"
+                    "Service operations require a configured Supabase secret key"
                 )
             return build_supabase_headers(self._service_key, kind="secret")
         if use_service_role is False:
             if not self._publishable_key:
                 raise SupabaseCredentialError(
-                    "Public operations require a Supabase publishable key"
+                    "Public operations require a configured Supabase publishable key"
                 )
             return build_supabase_headers(self._publishable_key, kind="publishable")
         if self._service_key:
@@ -184,6 +194,10 @@ class DatabaseClient:
     def select(self, table, filters=None, columns="*", limit=None, order=None):
         """Select records with Publishable key (respects RLS). For public tables only."""
         return self._select_api(table, filters, columns, limit, order, use_service_role=False)
+
+    def select_service(self, table, filters=None, columns="*", limit=None, order=None):
+        """Select with the configured secret key for explicit backend tooling."""
+        return self._select_api(table, filters, columns, limit, order, use_service_role=True)
 
     def select_pipeline(self, table, filters=None, columns="*", limit=None, order=None):
         """
@@ -274,6 +288,36 @@ class DatabaseClient:
                 break
         return all_results
 
+    def select_all_service(self, table, filters=None, columns="*", batch_size=1000, order=None):
+        """Paginated select with the configured secret key for backend tooling."""
+        all_results = []
+        offset = 0
+        while True:
+            limit = min(batch_size, 1000)
+            url = f"{self.supabase_url}/rest/v1/{table}?select={columns}"
+            if filters:
+                url += f"&{filters}"
+            if order:
+                url += f"&order={order}"
+            url += f"&limit={limit}&offset={offset}"
+            headers = self._get_headers(use_service_role=True)
+            headers["Range"] = f"{offset}-{offset + limit - 1}"
+            headers["Prefer"] = "count=exact"
+            res = _request_with_retry(requests.get, url, headers=headers)
+            if res.status_code not in (200, 206):
+                raise DatabaseAPIError(
+                    f"SelectAllService failed for {table}: "
+                    f"unexpected HTTP status {res.status_code}"
+                )
+            batch = res.json()
+            if not batch:
+                break
+            all_results.extend(batch)
+            offset += len(batch)
+            if len(batch) < limit:
+                break
+        return all_results
+
     def select_all_pipeline(self, table, filters=None, columns="*", batch_size=1000, order=None):
         """
         Paginated select with Secret key (bypasses RLS). For pipeline tables only.
@@ -331,6 +375,23 @@ class DatabaseClient:
                         return int(parts[1])
                     except ValueError:
                         pass
+        return 0
+
+    def count_service(self, table, filters=None):
+        """Return an exact count using the configured secret key."""
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code in (200, 206):
+            content_range = res.headers.get("Content-Range", "")
+            if "/" in content_range:
+                try:
+                    return int(content_range.split("/", 1)[1])
+                except ValueError:
+                    pass
         return 0
 
     def delete(self, table, filters):

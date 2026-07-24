@@ -1,37 +1,33 @@
 """Fase 74: Seed institution_site_profiles in Pro (merge CE + full seed)"""
-import sys, os, json
+import sys, json
 
 sys.path.insert(0, '/app')
-from scripts.shared.supabase_credentials import get_secret_key
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import get_environment_credentials
 
-SUPABASE_PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-SUPABASE_PRO_SECRET = get_secret_key(required=False)
+PRO = get_environment_credentials('PRO')
+PRO_URL, PRO_SECRET = PRO.url, PRO.secret_key
 
-if not SUPABASE_PRO_URL or not SUPABASE_PRO_SECRET:
-    print("ERROR: SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars required")
-    sys.exit(1)
-
-from scripts.shared.db_client import get_db_client
 from scripts.shared.utils import setup_lima_logging
 
 logger = setup_lima_logging('fase74_seed_pro')
-db = get_db_client()
+db = DatabaseClient(PRO_URL, PRO_SECRET)
 
 # ============================================================
 # PART 1: Merge CE -> SP (same logic as merge_exclusions_to_profiles.py)
 # ============================================================
 logger.info("=== Part 1: Merge CE -> SP ===")
 
-institutions = db.select('institutions', columns='id,slug,name')
+institutions = db.select_service('institutions', columns='id,slug,name')
 if not institutions:
     logger.error("No institutions found in Pro")
     sys.exit(1)
 
 inst_map = {i['id']: i for i in institutions}
-profiles = db.select('institution_site_profiles', columns='institution_id,exclusion_patterns,site_type,discovery_mode')
+profiles = db.select_service('institution_site_profiles', columns='institution_id,exclusion_patterns,site_type,discovery_mode')
 profile_map = {p['institution_id']: p for p in profiles} if profiles else {}
 
-ce_rows = db.select('crawler_exclusions', filters='is_active=eq.true', columns='institution_id,pattern')
+ce_rows = db.select_service('crawler_exclusions', filters='is_active=eq.true', columns='institution_id,pattern')
 ce_by_inst = {}
 if ce_rows:
     for r in ce_rows:
@@ -189,7 +185,7 @@ for slug, rich in RICH_PROFILES.items():
     iid = inst['id']
 
     # Read current profile (preserve exclusions from Part 1)
-    current = db.select('institution_site_profiles', filters=f'institution_id=eq.{iid}', columns='*', limit=1)
+    current = db.select_service('institution_site_profiles', filters=f'institution_id=eq.{iid}', columns='*', limit=1)
     if not current:
         logger.warning(f"  SKIP: {slug} no profile found (should have been created in Part 1)")
         continue

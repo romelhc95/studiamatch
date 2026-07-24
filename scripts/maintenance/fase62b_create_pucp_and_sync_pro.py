@@ -1,39 +1,19 @@
-import sys, os, json, requests
+import sys, json, requests
 sys.path.insert(0, '/app')
-from scripts.shared.db_client import get_db_client
-from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
-from dotenv import load_dotenv
-
+from scripts.shared.db_client import DatabaseClient
+from scripts.shared.supabase_credentials import (
+    build_supabase_headers,
+    get_environment_credentials,
+    require_distinct_environments,
+)
 # ── Connect to Free DB ──
-db = get_db_client()
-
-# ── Read Pro credentials ──
-PRO_ENV_PATH = '/app/.env.gitprod'
-pro_vars = {}
-if os.path.exists(PRO_ENV_PATH):
-    with open(PRO_ENV_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if '=' in line and not line.startswith('#'):
-                k, v = line.split('=', 1)
-                pro_vars[k.strip()] = v.strip().strip("'\"")
-
-PRO_URL = pro_vars.get('NEXT_PUBLIC_SUPABASE_URL', '') or pro_vars.get('SUPABASE_URL', '')
-PRO_KEY = pro_vars.get('NEXT_SUPABASE_SECRET_KEY', '')
-
-has_pro = bool(PRO_URL and PRO_KEY)
-if has_pro:
-    PRO_KEY = validate_api_key(
-        PRO_KEY,
-        kind="secret",
-        variable_name="NEXT_SUPABASE_SECRET_KEY",
-    )
-    PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
-    print(f"✅ Pro connection: {PRO_URL[:40]}...")
-else:
-    print("ERROR: Pro credentials not found in /app/.env.gitprod")
-    print("   Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_SUPABASE_SECRET_KEY are set")
-    sys.exit(1)
+FREE = get_environment_credentials('FREE')
+PRO = get_environment_credentials('PRO')
+require_distinct_environments(FREE, PRO)
+db = DatabaseClient(FREE.url, FREE.secret_key)
+PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
+PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
+print(f"✅ Pro connection: {PRO_URL[:40]}...")
 
 # ──────────────────────────────────────────────
 # 1. Create PUCP institution in Free
@@ -47,7 +27,7 @@ pucp_inst_data = {
     "type": "Univ",
 }
 
-existing = db.select('institutions', filters='slug=eq.pucp', limit=1)
+existing = db.select_service('institutions', filters='slug=eq.pucp', limit=1)
 if existing:
     pucp_id = existing[0]['id']
     print(f"ℹ️ PUCP already exists in Free: id={pucp_id}")
@@ -59,7 +39,7 @@ else:
         pucp_id = result.get('id')
     else:
         # Fallback: query by slug
-        existing2 = db.select('institutions', filters='slug=eq.pucp', limit=1)
+        existing2 = db.select_service('institutions', filters='slug=eq.pucp', limit=1)
         pucp_id = existing2[0]['id'] if existing2 else None
     print(f"✅ PUCP created in Free: id={pucp_id}")
 
@@ -67,7 +47,7 @@ else:
 # 2. Create/update PUCP profile in Free
 # ──────────────────────────────────────────────
 
-profiles = db.select('institution_site_profiles', filters=f'institution_id=eq.{pucp_id}', limit=1)
+profiles = db.select_service('institution_site_profiles', filters=f'institution_id=eq.{pucp_id}', limit=1)
 pucp_profile_data = {
     "site_type": "spa_js_heavy",
     "discovery_mode": "paginated_catalog",
@@ -103,9 +83,9 @@ else:
 # 3. Sync all profiles to Pro
 # ──────────────────────────────────────────────
 
-if has_pro:
-    free_profiles = db.select_all('institution_site_profiles')
-    free_insts = db.select_all('institutions')
+def sync_profiles_to_pro():
+    free_profiles = db.select_all_service('institution_site_profiles')
+    free_insts = db.select_all_service('institutions')
     free_inst_map = {str(i['id']): i for i in free_insts}
     print(f"\n--- Syncing {len(free_profiles)} profiles to Pro ---")
 
@@ -178,4 +158,5 @@ if has_pro:
 
     print(f"\n✅ Pro sync complete: {synced}/{len(free_profiles)} profiles synced")
 
+sync_profiles_to_pro()
 print("\n🎉 Done")
