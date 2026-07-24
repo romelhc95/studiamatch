@@ -34,9 +34,11 @@ El sistema opera mediante un flujo de datos atómico y resiliente, diseñado par
     npm install
     ```
 3.  **Variables de Entorno** (`.env.local`):
-    - `NEXT_PUBLIC_SUPABASE_URL`
-    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (debe comenzar con `sb_publishable_`; el frontend la envía solo en el header `apikey`)
-    - `CLOUDFLARE_API_TOKEN` (para el Golden Pipeline)
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (debe comenzar con `sb_publishable_`)
+     - `CF_API_TOKEN` (para el Golden Pipeline)
+
+    Las dos variables de Supabase son obligatorias: el frontend aborta la carga y el build si faltan o si la publishable key no tiene el prefijo esperado. Las solicitudes a la Data API envían la publishable key únicamente mediante el header `apikey`, sin header `Authorization`.
 4.  **Ejecutar Desarrollo**:
     ```bash
     npm run dev

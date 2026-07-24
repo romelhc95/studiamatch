@@ -1,15 +1,17 @@
 """Fase 74: Seed institution_site_profiles in Pro (merge CE + full seed)"""
-import sys, os, json
+import sys, json
 
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import DatabaseClient
 from scripts.shared.supabase_credentials import get_environment_credentials
 
-PRO = get_environment_credentials("PRO")
+PRO = get_environment_credentials('PRO')
+PRO_URL, PRO_SECRET = PRO.url, PRO.secret_key
+
 from scripts.shared.utils import setup_lima_logging
 
 logger = setup_lima_logging('fase74_seed_pro')
-db = DatabaseClient(PRO.url, PRO.secret_key)
+db = DatabaseClient(PRO_URL, PRO_SECRET)
 
 # ============================================================
 # PART 1: Merge CE -> SP (same logic as merge_exclusions_to_profiles.py)

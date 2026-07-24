@@ -1,8 +1,7 @@
 """Supabase API-key loading and HTTP header contracts.
 
 Modern publishable and secret keys identify the calling application and must be
-sent through ``apikey``. ``Authorization`` is reserved for a separate user or
-worker access token.
+sent through ``apikey``. This module never constructs authorization tokens.
 """
 
 from __future__ import annotations
@@ -44,7 +43,9 @@ def validate_api_key(value: str, *, kind: str, variable_name: str) -> str:
 
     key = value.strip() if isinstance(value, str) else ""
     if not key:
-        raise SupabaseCredentialError(f"Missing required environment variable: {variable_name}")
+        raise SupabaseCredentialError(
+            f"Missing required environment variable: {variable_name}"
+        )
     if not key.startswith(expected_prefix) or len(key) == len(expected_prefix):
         raise SupabaseCredentialError(
             f"{variable_name} must use the {expected_prefix} prefix"
@@ -100,7 +101,7 @@ def get_environment_credentials(
     identity: str,
     environ: Mapping[str, str] | None = None,
 ) -> SupabaseEnvironmentCredentials:
-    """Load and validate one explicit FREE_* or PRO_* credential pair."""
+    """Load an explicit FREE_* or PRO_* URL/secret pair and validate both."""
     normalized_identity = identity.strip().upper()
     if normalized_identity not in {"FREE", "PRO"}:
         raise ValueError(f"Unsupported Supabase environment identity: {identity}")
@@ -113,7 +114,9 @@ def get_environment_credentials(
         raise SupabaseCredentialError(f"Missing required environment variable: {url_name}")
 
     parsed = urlparse(url)
-    valid_host = bool(re.fullmatch(r"[a-z0-9][a-z0-9-]*\.supabase\.co", parsed.netloc))
+    valid_host = bool(
+        re.fullmatch(r"[a-z0-9][a-z0-9-]*\.supabase\.co", parsed.netloc)
+    )
     if (
         parsed.scheme != "https"
         or not valid_host
@@ -142,7 +145,7 @@ def require_distinct_environments(
     free: SupabaseEnvironmentCredentials,
     pro: SupabaseEnvironmentCredentials,
 ) -> None:
-    """Reject cross-environment work when either identity is reused."""
+    """Reject cross-environment execution when URL or secret identity is reused."""
     if free.identity != "FREE" or pro.identity != "PRO":
         raise SupabaseCredentialError("Cross-environment checks require FREE and PRO identities")
     if free.url == pro.url:
@@ -153,44 +156,15 @@ def require_distinct_environments(
         )
 
 
-def get_access_token(
-    environ: Mapping[str, str] | None = None,
-    *,
-    required: bool = False,
-) -> str | None:
-    """Load a separate authorization token and reject API keys in its place."""
-    env = os.environ if environ is None else environ
-    access_token = env.get("NEXT_SUPABASE_ACCESS_TOKEN", "").strip()
-    if not access_token:
-        if required:
-            raise SupabaseCredentialError(
-                "Missing required environment variable: NEXT_SUPABASE_ACCESS_TOKEN"
-            )
-        return None
-    if access_token.startswith((PUBLISHABLE_KEY_PREFIX, SECRET_KEY_PREFIX)):
-        raise SupabaseCredentialError(
-            "NEXT_SUPABASE_ACCESS_TOKEN must be an access token, not an API key"
-        )
-    return access_token
-
-
 def build_supabase_headers(
     api_key: str,
     *,
     kind: str,
-    access_token: str | None = None,
     content_type: bool = True,
 ) -> dict[str, str]:
-    """Build headers with API keys only in ``apikey``."""
+    """Build Data API headers with API keys only in ``apikey``."""
     key = validate_api_key(api_key, kind=kind, variable_name=f"Supabase {kind} key")
     headers = {"apikey": key}
-    if access_token:
-        access_token = access_token.strip()
-        if access_token.startswith((PUBLISHABLE_KEY_PREFIX, SECRET_KEY_PREFIX)):
-            raise SupabaseCredentialError(
-                "Authorization requires a separate access token"
-            )
-        headers["Authorization"] = f"Bearer {access_token}"
     if content_type:
         headers["Content-Type"] = "application/json"
     return headers

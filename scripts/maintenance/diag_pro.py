@@ -6,7 +6,7 @@ if PROJECT_ROOT not in sys.path:
 
 from scripts.shared.supabase_credentials import build_supabase_headers, get_environment_credentials
 
-PRO = get_environment_credentials("PRO")
+PRO = get_environment_credentials('PRO')
 PRO_URL, PRO_KEY = PRO.url, PRO.secret_key
 h = build_supabase_headers(PRO_KEY, kind="secret")
 

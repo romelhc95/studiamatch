@@ -5,7 +5,7 @@ sys.path.insert(0, '/app')
 from scripts.shared.db_client import DatabaseClient
 from scripts.shared.supabase_credentials import get_environment_credentials
 
-PRO = get_environment_credentials("PRO")
+PRO = get_environment_credentials('PRO')
 db = DatabaseClient(PRO.url, PRO.secret_key)
 
 print("=" * 60)

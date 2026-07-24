@@ -2,24 +2,21 @@
 // All frontend components should import from here.
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
-const publishablePrefix = 'sb_publishable_';
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
 if (!supabaseUrl) {
-  throw new Error('Missing required environment variable NEXT_PUBLIC_SUPABASE_URL.');
+  throw new Error("Missing required environment variable NEXT_PUBLIC_SUPABASE_URL.");
 }
 
-if (!publishableKey) {
-  throw new Error('Missing required environment variable NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
+if (
+  !supabasePublishableKey?.startsWith("sb_publishable_") ||
+  supabasePublishableKey.length <= "sb_publishable_".length
+) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must start with sb_publishable_.");
 }
 
-if (!publishableKey.startsWith(publishablePrefix) || publishableKey.length <= publishablePrefix.length) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be a modern publishable key.');
-}
-
-// Configuration errors stop module loading without logging credential values.
 export const SUPABASE_URL = supabaseUrl;
-export const SUPABASE_PUBLISHABLE_KEY = publishableKey;
+export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey;
 
 // Fase 80A: Columnas públicas de courses — explícitas, sin internals (provider_used, is_mock_data, last_scraped_at, etc.)
 export const COURSE_PUBLIC_FIELDS = 'id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,brochure_url,start_date,created_at,updated_at,view_count,comparison_count';
