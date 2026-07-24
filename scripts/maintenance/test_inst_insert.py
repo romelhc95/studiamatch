@@ -1,12 +1,13 @@
 import os, sys, json, requests
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+PRO_KEY = get_secret_key(required=False)
 if not all([PRO_URL, PRO_KEY]):
-    sys.exit('ERROR: Set SUPABASE_PRO_URL and SUPABASE_SERVICE_ROLE_KEY env vars')
-h = {"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY, "Content-Type": "application/json"}
+    sys.exit('ERROR: Set SUPABASE_PRO_URL and NEXT_SUPABASE_SECRET_KEY env vars')
+h = build_supabase_headers(PRO_KEY, kind="secret")
 
 db = get_db_client()
 insts = db.select_all('institutions')

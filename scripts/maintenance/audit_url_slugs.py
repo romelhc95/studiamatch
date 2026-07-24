@@ -1,12 +1,19 @@
 ﻿import os
+import sys
 import requests
 import re
 from dotenv import load_dotenv
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_PUBLISHABLE_KEY = get_publishable_key()
 
 def clean_slug_python(slug_or_url, url=None):
     if url:
@@ -34,10 +41,11 @@ def clean_slug_python(slug_or_url, url=None):
     return res.strip('-')
 
 def audit_slugs():
-    headers = {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': f'Bearer {SUPABASE_ANON_KEY}'
-    }
+    headers = build_supabase_headers(
+        SUPABASE_PUBLISHABLE_KEY,
+        kind="publishable",
+        content_type=False,
+    )
     url = f"{SUPABASE_URL}/rest/v1/courses?select=id,name,slug,url,institutions(slug)"
     response = requests.get(url, headers=headers)
     courses = response.json()

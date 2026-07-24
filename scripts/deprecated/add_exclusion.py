@@ -14,21 +14,44 @@ import argparse
 import requests
 from dotenv import load_dotenv
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
+
 load_dotenv()
 
-FREE_URL = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-FREE_KEY = os.environ.get('NEXT_SUPABASE_SECRET_KEY', '') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
-PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+FREE_URL = os.environ.get('FREE_SUPABASE_URL', '').strip()
+PRO_URL = os.environ.get('PRO_SUPABASE_URL', '').strip()
+FREE_KEY_VALUE = os.environ.get('FREE_NEXT_SUPABASE_SECRET_KEY', '')
+PRO_KEY_VALUE = os.environ.get('PRO_NEXT_SUPABASE_SECRET_KEY', '')
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
 PRO_REF = os.environ.get('SUPABASE_PRO_PROJECT_REF', '')
+
+FREE_KEY = (
+    validate_api_key(
+        FREE_KEY_VALUE,
+        kind='secret',
+        variable_name='FREE_NEXT_SUPABASE_SECRET_KEY',
+    )
+    if FREE_KEY_VALUE
+    else None
+)
+PRO_KEY = (
+    validate_api_key(
+        PRO_KEY_VALUE,
+        kind='secret',
+        variable_name='PRO_NEXT_SUPABASE_SECRET_KEY',
+    )
+    if PRO_KEY_VALUE
+    else None
+)
 
 
 def _headers(key):
     return {
-        'apikey': key,
-        'Authorization': f'Bearer {key}',
-        'Content-Type': 'application/json',
+        **build_supabase_headers(key, kind="secret"),
         'Prefer': 'return=representation',
     }
 
@@ -139,6 +162,16 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Preview without making changes')
     parser.add_argument('--cleanup', action='store_true', help='Also delete matching staging_raw records')
     args = parser.parse_args()
+
+    required = []
+    if args.db in ('both', 'free') and (not FREE_URL or not FREE_KEY):
+        required.append('FREE_SUPABASE_URL + FREE_NEXT_SUPABASE_SECRET_KEY')
+    if args.db in ('both', 'pro') and (not PRO_URL or not PRO_KEY):
+        required.append('PRO_SUPABASE_URL + PRO_NEXT_SUPABASE_SECRET_KEY')
+    if required:
+        parser.error('Missing explicit credentials: ' + '; '.join(required))
+    if args.db == 'both' and (FREE_URL == PRO_URL or FREE_KEY == PRO_KEY):
+        parser.error('Free and Pro must use distinct URLs and secret keys')
 
     if args.dry_run:
         print('>>> DRY-RUN MODE (no changes) <<<')

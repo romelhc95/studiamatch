@@ -2,20 +2,26 @@ import pytest
 import requests
 import os
 from dotenv import load_dotenv
+from scripts.shared.supabase_credentials import build_supabase_headers, get_publishable_key
 
 # Load environment variables
 load_dotenv()
 
 SUPABASE_URL = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("NEXT_SUPABASE_PUBLISHABLE_KEY") or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+SUPABASE_PUBLISHABLE_KEY = get_publishable_key(required=False)
 
 @pytest.fixture(scope="module")
 def api_headers():
     """Fixture to provide API headers."""
-    return {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': f'Bearer {SUPABASE_ANON_KEY}'
-    }
+    if os.getenv("RUN_SUPABASE_INTEGRATION_TESTS") != "1":
+        pytest.skip("Set RUN_SUPABASE_INTEGRATION_TESTS=1 to run live API tests")
+    if not SUPABASE_URL or not SUPABASE_PUBLISHABLE_KEY:
+        pytest.skip("Supabase integration credentials are not configured")
+    return build_supabase_headers(
+        SUPABASE_PUBLISHABLE_KEY,
+        kind="publishable",
+        content_type=False,
+    )
 
 def test_no_null_prices(api_headers):
     """Verify that no courses have null prices (must have status or numeric price)."""

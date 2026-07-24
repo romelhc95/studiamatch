@@ -1,6 +1,7 @@
 import sys, os, json, requests
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
+from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
 from dotenv import load_dotenv
 
 # ── Connect to Free DB ──
@@ -22,7 +23,12 @@ PRO_KEY = pro_vars.get('NEXT_SUPABASE_SECRET_KEY', '')
 
 has_pro = bool(PRO_URL and PRO_KEY)
 if has_pro:
-    PRO_HEADERS = {'apikey': PRO_KEY, 'Authorization': f'Bearer {PRO_KEY}', 'Content-Type': 'application/json'}
+    PRO_KEY = validate_api_key(
+        PRO_KEY,
+        kind="secret",
+        variable_name="NEXT_SUPABASE_SECRET_KEY",
+    )
+    PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
     print(f"✅ Pro connection: {PRO_URL[:40]}...")
 else:
     print("ERROR: Pro credentials not found in /app/.env.gitprod")

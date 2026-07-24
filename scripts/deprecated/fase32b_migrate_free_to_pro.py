@@ -2,15 +2,16 @@
 import os, sys, json, time, requests
 sys.path.insert(0, '/app')
 from scripts.shared.db_client import get_db_client
+from scripts.shared.supabase_credentials import build_supabase_headers, get_secret_key
 
 MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')
 PRO_URL = os.environ.get('SUPABASE_PRO_URL', '')
-PRO_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+PRO_KEY = get_secret_key(required=False)
 PRO_PROJECT_REF = PRO_URL.replace('https://', '').replace('.supabase.co', '') if PRO_URL else ''
 if not all([MGMT_TOKEN, PRO_URL, PRO_KEY]):
-    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN, SUPABASE_PRO_URL, SUPABASE_SERVICE_ROLE_KEY env vars')
+    sys.exit('ERROR: Set SUPABASE_MGMT_TOKEN, SUPABASE_PRO_URL, NEXT_SUPABASE_SECRET_KEY env vars')
 h_mgmt = {"Authorization": "Bearer " + MGMT_TOKEN, "Content-Type": "application/json"}
-h_pro = {"apikey": PRO_KEY, "Authorization": "Bearer " + PRO_KEY, "Content-Type": "application/json"}
+h_pro = build_supabase_headers(PRO_KEY, kind="secret")
 
 def mgmt(sql):
     r = requests.post(f'https://api.supabase.com/v1/projects/{PRO_PROJECT_REF}/database/query',

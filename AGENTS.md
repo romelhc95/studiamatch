@@ -17,7 +17,8 @@ Reglas adicionales (además de la detección automática):
 2. Verificar que `.env*` esté en `.gitignore` (ya cubierto por `.env*` y `*.env`)
 3. Los scripts que necesiten credenciales Pro deben leerlas de variables de entorno:
    - `NEXT_PUBLIC_SUPABASE_URL` — URL del proyecto Supabase Free/Pro
-   - `NEXT_SUPABASE_PUBLISHABLE_KEY` — Publishable key (segura en frontend con RLS)
+   - `NEXT_SUPABASE_PUBLISHABLE_KEY` — Publishable key para scripts/backend
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — Publishable key para frontend static export
    - `NEXT_SUPABASE_SECRET_KEY` — Secret key (solo backend/CI)
 4. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
 5. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente Y rota la credencial expuesta
@@ -91,7 +92,8 @@ El archivo `.env.local` o `.env.gitdesa` (gitignored) contiene:
 | Variable | Uso | Quién la necesita |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Free (`aqrldlmlszjtgpqiegaa`) | Frontend + db_client.py |
-| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key pública para static export | Frontend |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Scripts + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
@@ -106,7 +108,8 @@ El archivo `.env.gitprod` (gitignored) contiene:
 | Variable | Uso | Quién la necesita |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Pro (`xwhtiqmboljkshrtviyw`) | Frontend + db_client.py |
-| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key pública para static export | Frontend |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Scripts + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
@@ -268,7 +271,7 @@ db.count('courses', filters='is_active=eq.true')
 - **Sí** usa `json.dumps()` para campos de tipo TEXT/JSONB que guardas vía `db.insert()` o `db.upsert()` (ej: `curriculum_summary`, `requirements`).
 - Los filtros usan sintaxis PostgREST: `is_active=eq.true`, `name=is.null`, `status=in.(synced,pending)`.
 - **Límite**: 1000 registros por query sin paginación (usa `db.select_all()` si necesitas más).
-- **RLS**: El anon key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita `publishable_key` o `secret_key`.
+- **RLS**: La publishable key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita la secret key.
 - **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` fue eliminada (DROP TABLE en ambos ambientes, Free y Pro).
 
 ### Frontend: Next.js
@@ -319,11 +322,11 @@ Harvester       Cleansing              Enrichment           Sync Vector
 
 2. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
 
-2. **El anon key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar `publishable_key` o `secret_key`. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
+2. **La publishable key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar la secret key. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
 
 3. **`batch_enrich_courses.py`** (scripts/maintenance/): Bypass del pipeline. Lee HTML de `staging_raw` y escribe directo a `courses`. Útil para corregir datos puntuales sin pasar por las 4 estaciones.
 
-4. **Migraciones SQL**: Se ejecutan manualmente en Supabase Dashboard > SQL Editor. Los archivos en `db/migrations/` son la fuente de verdad. El contenedor no puede ejecutarlas (anon key sin permisos DDL).
+4. **Migraciones SQL**: Se ejecutan manualmente en Supabase Dashboard > SQL Editor. Los archivos en `db/migrations/` son la fuente de verdad. El contenedor no puede ejecutarlas (publishable key sin permisos DDL).
 
 5. **Time Guard**: `universal_harvester.py` tiene un límite de ejecución de 20400s (5h 40m) — 20 min antes del timeout de GitHub Actions (6h). Hace shutdown elegante.
 
@@ -341,7 +344,7 @@ Harvester       Cleansing              Enrichment           Sync Vector
 | `query returned more than one row` (P0003) | `INTO` scalar recibe múltiples filas de `ON CONFLICT DO UPDATE` | Usar `RETURN QUERY` en vez de `RETURNING * INTO` (fix: migration `20260429_fix_p0003_duplicate_rows.sql`) |
 | `invalid input syntax for type integer: "3.5"` | LLM devuelve decimal para campo INT | Sanitizar con `int(float(val))`; SQL: `::NUMERIC` → `::INT` |
 | Playwright descarga PDFs | El harvester no filtra extensiones de archivo | `NON_HTML_EXTENSIONS` en `_is_valid_crawl_url()` bloquea `.pdf`, `.xlsx`, etc. |
-| PATCH en `enriched_programs` retorna success sin modificar datos | RLS bloquea escritura con anon key | Usar `publishable_key` o `secret_key` o ejecutar SQL en Supabase Dashboard |
+| PATCH en `enriched_programs` retorna success sin modificar datos | RLS bloquea escritura con publishable key | Usar secret key o ejecutar SQL en Supabase Dashboard |
 | `db_client print` en cada import | `db_client.py` imprime "DB_CLIENT: Loading env..." al importarse | Comportamiento esperado, no es error |
 
 ## Estructura de Scripts
@@ -361,4 +364,10 @@ scripts/
 - **Frontend**: Cloudflare Pages con GitHub Actions. Static export (`next build` → `out/`). Rama `main` → `studiamatch.com`, `desarrollo` → `studiamatch.pages.dev`.
 - **Backend**: Supabase (PostgreSQL 15 + pgvector + PostgREST).
 - **CI/CD**: 3 pipelines en `.github/workflows/`: `production_pipeline.yml` (FG2 semanal), `fg1_inventory.yml` (mensual), `fg3_integrity.yml` (diario).
-- **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`.
+- **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`.
+
+### Contrato de autenticación HTTP
+- Las API keys Supabase modernas deben comenzar con `sb_publishable_` o `sb_secret_`; una key ausente o con otro formato detiene la operación.
+- Las API keys Supabase se envían exclusivamente en `apikey`; nunca se reutilizan como `Authorization: Bearer`.
+- `Authorization: Bearer` queda reservado a los tokens existentes de Supabase Management API, Cloudflare y Resend, inventariados por path, identidad, proveedor y variable de origen en `tests/test_supabase_credentials_contract.py`; la Supabase Data API no usa Bearer en esta rama.
+- Los scripts excepcionales que operen Free y Pro en una misma ejecución deben exigir pares explícitos `FREE_SUPABASE_URL` + `FREE_NEXT_SUPABASE_SECRET_KEY` y `PRO_SUPABASE_URL` + `PRO_NEXT_SUPABASE_SECRET_KEY`, y rechazar URLs o keys reutilizadas.

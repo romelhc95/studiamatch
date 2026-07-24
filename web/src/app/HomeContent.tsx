@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
 
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
@@ -265,7 +265,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const fetchData = useCallback(async () => {
     try {
-      const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+      const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
       const [cRes, iRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
         fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
@@ -363,8 +363,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(leadData)

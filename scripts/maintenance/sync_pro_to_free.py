@@ -5,6 +5,7 @@
 import sys, os, json, requests, argparse
 
 sys.path.insert(0, '/app')
+from scripts.shared.supabase_credentials import build_supabase_headers, validate_api_key
 
 
 def _read_env_file(filepath, var_name, default=''):
@@ -42,11 +43,12 @@ if not PRO_URL or not PRO_KEY:
 for _v in ('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_SUPABASE_SECRET_KEY', 'NEXT_SUPABASE_PUBLISHABLE_KEY'):
     os.environ.pop(_v, None)
 
-PRO_HEADERS = {
-    'apikey': PRO_KEY,
-    'Authorization': f'Bearer {PRO_KEY}',
-    'Content-Type': 'application/json',
-}
+PRO_KEY = validate_api_key(
+    PRO_KEY,
+    kind="secret",
+    variable_name="NEXT_SUPABASE_SECRET_KEY",
+)
+PRO_HEADERS = build_supabase_headers(PRO_KEY, kind="secret")
 
 from scripts.shared.db_client import get_db_client
 db = get_db_client()
