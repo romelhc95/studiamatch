@@ -17,20 +17,17 @@ import json
 import os
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
-from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.db_client import DatabaseClient
-from shared.supabase_credentials import (
-    get_environment_credentials,
-    get_secret_key,
-    require_distinct_environments,
-)
 from maintenance.migration_manifest import canonical_sql_sha256, load_manifest
+
+if TYPE_CHECKING:
+    from shared.db_client import DatabaseClient
 
 
 CONFIG_COLUMNS = {
@@ -92,6 +89,16 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 F8_MANIFEST = Path(ROOT_DIR) / "db" / "manifests" / "fase08_candidate.json"
 
 
+@dataclass(frozen=True)
+class LedgerPage:
+    """One exact-count page returned by the ledger transport adapter."""
+
+    rows: list[dict[str, Any]]
+    total: int
+    start: int | None
+    end: int | None
+
+
 def migration_is_applied(applied: set[str], required_name: str) -> bool:
     """Accept exact migration names or versioned filenames like 20260525_<name>."""
     versioned_pattern = re.compile(rf"^\d{{8,14}}_{re.escape(required_name)}$")
@@ -99,6 +106,8 @@ def migration_is_applied(applied: set[str], required_name: str) -> bool:
 
 
 def load_environment(target: str) -> None:
+    from dotenv import load_dotenv
+
     env_file = ".env.gitprod" if target == "pro" else ".env.local"
     load_dotenv(os.path.join(ROOT_DIR, env_file), override=True)
 
@@ -124,6 +133,8 @@ def load_environment(target: str) -> None:
 
 
 def assert_environment(target: str) -> None:
+    from shared.supabase_credentials import get_secret_key
+
     required = ["NEXT_SUPABASE_SECRET_KEY"]
     missing = [name for name in required if not os.environ.get(name)]
     if not (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")):
@@ -141,12 +152,162 @@ def try_rpc(db: DatabaseClient, sql: str) -> list[dict[str, Any]] | None:
         return None
 
 
-def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 1000):
-    url = f"{db.supabase_url}/rest/v1/{table}?select={columns}&limit={limit}"
-    res = requests.get(url, headers=db._get_headers(use_service_role=True), timeout=30)
-    if res.status_code == 200:
-        return res.json()
-    raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
+def service_select(
+    db: DatabaseClient,
+    table: str,
+    columns: str,
+    limit: int = 1000,
+    *,
+    offset: int = 0,
+    order: str | None = None,
+    exact_count: bool = False,
+) -> list[dict[str, Any]] | LedgerPage:
+    """Perform one privileged REST page and fail closed on transport/JSON errors."""
+
+    url = f"{db.supabase_url}/rest/v1/{table}?select={columns}"
+    if order:
+        url += f"&order={order}"
+    url += f"&limit={limit}&offset={offset}"
+    headers = db._get_headers(use_service_role=True)
+    if exact_count:
+        headers = dict(headers)
+        headers["Prefer"] = "count=exact"
+        headers["Range"] = f"{offset}-{offset + limit - 1}"
+    try:
+        res = requests.get(url, headers=headers, timeout=30)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"REST select transport failed for {table}.{columns}") from exc
+    if res.status_code not in (200, 206):
+        raise RuntimeError(
+            f"REST select failed for {table}.{columns}: HTTP {res.status_code}"
+        )
+    try:
+        rows = res.json()
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"REST select returned invalid JSON for {table}.{columns}"
+        ) from exc
+    if not isinstance(rows, list):
+        raise RuntimeError(
+            f"REST select returned a non-list for {table}.{columns}"
+        )
+    if not exact_count:
+        return rows
+
+    content_range = res.headers.get("Content-Range", "")
+    match = re.fullmatch(r"(?:(\*)|(\d+)-(\d+))/(\d+)", content_range)
+    if match is None:
+        raise RuntimeError(
+            f"REST select missing exact Content-Range for {table}.{columns}"
+        )
+    start = int(match.group(2)) if match.group(2) is not None else None
+    end = int(match.group(3)) if match.group(3) is not None else None
+    return LedgerPage(
+        rows=rows,
+        total=int(match.group(4)),
+        start=start,
+        end=end,
+    )
+
+
+def read_paginated_migration_ledger(
+    fetch_page: Callable[[int, int], LedgerPage],
+    *,
+    page_size: int = 1000,
+) -> dict[str, str]:
+    """Read and validate a complete ledger through an injected page function.
+
+    The helper has no environment or transport dependency. ``fetch_page`` receives
+    ``(limit, offset)`` and must provide an exact total on every page.
+    """
+
+    if isinstance(page_size, bool) or not isinstance(page_size, int) or page_size < 1:
+        raise ValueError("ledger page_size must be a positive integer")
+
+    ledger: dict[str, str] = {}
+    offset = 0
+    expected_total: int | None = None
+    first_page = True
+    while first_page or (expected_total is not None and offset < expected_total):
+        first_page = False
+        try:
+            page = fetch_page(page_size, offset)
+        except Exception as exc:
+            raise RuntimeError(f"ledger page read failed at offset {offset}") from exc
+        if not isinstance(page, LedgerPage):
+            raise RuntimeError("ledger page has an invalid representation")
+        if (
+            isinstance(page.total, bool)
+            or not isinstance(page.total, int)
+            or page.total < 0
+        ):
+            raise RuntimeError("ledger page has an invalid total")
+        if not isinstance(page.rows, list):
+            raise RuntimeError("ledger page rows are not a list")
+        if expected_total is None:
+            expected_total = page.total
+        elif page.total != expected_total:
+            raise RuntimeError("ledger total changed during pagination")
+        if expected_total < offset:
+            raise RuntimeError("ledger page offset exceeds the exact total")
+
+        expected_size = min(page_size, expected_total - offset)
+        if len(page.rows) != expected_size:
+            raise RuntimeError(
+                f"ledger page is incomplete at offset {offset}"
+            )
+        if page.rows:
+            if page.start != offset or page.end != offset + len(page.rows) - 1:
+                raise RuntimeError(
+                    f"ledger page boundaries are invalid at offset {offset}"
+                )
+        elif page.start is not None or page.end is not None:
+            raise RuntimeError("empty ledger page contains unexpected boundaries")
+        for row in page.rows:
+            if not isinstance(row, dict):
+                raise RuntimeError("ledger contains a malformed row")
+            name = row.get("name")
+            statements = row.get("statements")
+            if (
+                not isinstance(name, str)
+                or not name
+                or name != name.strip()
+            ):
+                raise RuntimeError("ledger contains an invalid migration name")
+            if not isinstance(statements, str):
+                raise RuntimeError(
+                    f"ledger contains invalid statements for {name}"
+                )
+            if name in ledger:
+                raise RuntimeError(f"ledger contains duplicate migration name {name}")
+            ledger[name] = statements
+        offset += len(page.rows)
+
+    if expected_total is None or offset != expected_total:
+        raise RuntimeError("ledger pagination did not reach its exact total")
+    return ledger
+
+
+def read_migration_ledger(
+    db: DatabaseClient, *, page_size: int = 1000
+) -> dict[str, str]:
+    """Adapt ``service_select`` to the pure exact-count ledger reader."""
+
+    def fetch_page(limit: int, offset: int) -> LedgerPage:
+        page = service_select(
+            db,
+            "supabase_migrations",
+            "name,statements",
+            limit,
+            offset=offset,
+            order="name.asc",
+            exact_count=True,
+        )
+        if not isinstance(page, LedgerPage):
+            raise RuntimeError("ledger transport omitted exact page metadata")
+        return page
+
+    return read_paginated_migration_ledger(fetch_page, page_size=page_size)
 
 
 def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, Any]]:
@@ -156,28 +317,14 @@ def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, 
 def compare_migrations(db_free: DatabaseClient, db_target: DatabaseClient):
     print("\n[CHECK 1] Package contractual aplicado")
     try:
-        free = service_select(
-            db_free, "supabase_migrations", "name,statements"
-        ) or []
-        target = service_select(
-            db_target, "supabase_migrations", "name,statements"
-        ) or []
+        free_ledger = read_migration_ledger(db_free)
+        target_ledger = read_migration_ledger(db_target)
         package = load_manifest(
             F8_MANIFEST, "pro", required_status="free_certified"
         )
     except Exception as e:
         return "ERROR", [f"No se pudo validar el package contractual: {e}"]
 
-    free_ledger = {
-        row.get("name"): row.get("statements")
-        for row in free
-        if row.get("name")
-    }
-    target_ledger = {
-        row.get("name"): row.get("statements")
-        for row in target
-        if row.get("name")
-    }
     errors = []
     for migration in package:
         marker = f"sha256:{canonical_sql_sha256(migration)}"
@@ -244,10 +391,8 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
     errors: list[str] = []
 
     try:
-        target_migrations = service_select(
-            db_target, "supabase_migrations", "name,statements"
-        ) or []
-        applied = {row.get("name") for row in target_migrations if row.get("name")}
+        ledger = read_migration_ledger(db_target)
+        applied = set(ledger)
         missing_migrations = sorted(
             required_name
             for required_name in REQUIRED_MIGRATIONS
@@ -256,11 +401,6 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
         if missing_migrations:
             errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
 
-        ledger = {
-            row.get("name"): row.get("statements")
-            for row in target_migrations
-            if row.get("name")
-        }
         for migration in load_manifest(
             F8_MANIFEST, "pro", required_status="free_certified"
         ):
@@ -573,6 +713,12 @@ def report_operational_counts(db_free: DatabaseClient, db_target: DatabaseClient
 
 
 def main() -> None:
+    from shared.db_client import DatabaseClient
+    from shared.supabase_credentials import (
+        get_environment_credentials,
+        require_distinct_environments,
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", choices=["free", "pro"], default="pro")
     parser.add_argument("--strict", action="store_true")

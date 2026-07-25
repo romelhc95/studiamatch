@@ -31,8 +31,6 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
-from shared.supabase_credentials import get_secret_key
 from maintenance.migration_manifest import (
     ManifestError,
     canonical_sql_sha256,
@@ -86,6 +84,8 @@ def load_environment(target):
 
 
 def assert_environment(target):
+    from shared.supabase_credentials import get_secret_key
+
     required = ["NEXT_SUPABASE_SECRET_KEY"]
     missing = [name for name in required if not os.environ.get(name)]
     if not (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")):
@@ -277,7 +277,9 @@ def validate_manifest_ledger_state(db, migration_files, applied):
     return pending
 
 
-def build_manifest_package_sql(migration_files, *, version=None):
+def build_manifest_package_sql(
+    migration_files, *, version=None, expected_prefix=None
+):
     """Build one transaction-scoped payload for a pending manifest suffix."""
 
     if not migration_files:
@@ -288,6 +290,12 @@ def build_manifest_package_sql(migration_files, *, version=None):
         f"LOCK TABLE public.{SUPABASE_MIGRATIONS_TABLE} "
         "IN SHARE ROW EXCLUSIVE MODE;"
     ]
+    for name, marker in sorted((expected_prefix or {}).items()):
+        preflight_checks.append(
+            "NOT EXISTS (SELECT 1 FROM public."
+            f"{SUPABASE_MIGRATIONS_TABLE} WHERE name = {_sql_literal(name)} "
+            f"AND statements = {_sql_literal(marker)})"
+        )
     for filepath in migration_files:
         name = extract_name(filepath)
         marker = f"sha256:{_file_sha256(filepath)}"
@@ -310,23 +318,34 @@ def build_manifest_package_sql(migration_files, *, version=None):
             [
                 "\n-- manifest-entry\n",
                 sql,
-                _verification_sql(name),
-                _registration_sql(filepath, version, allow_existing=False),
             ]
+        )
+    package_parts.append("\n-- final-package-postconditions\n")
+    for filepath in migration_files:
+        package_parts.append(_verification_sql(extract_name(filepath)))
+    package_parts.append("\n-- manifest-ledger-registration\n")
+    for filepath in migration_files:
+        package_parts.append(
+            _registration_sql(filepath, version, allow_existing=False)
         )
     package_parts.append("\nNOTIFY pgrst, 'reload schema';")
     return "".join(package_parts)
 
 
-def apply_manifest_package(db, migration_files):
+def apply_manifest_package(db, migration_files, *, expected_prefix=None):
     """Apply all pending manifest entries in one privileged exec_sql call."""
 
-    sql = build_manifest_package_sql(migration_files)
+    sql = build_manifest_package_sql(
+        migration_files, expected_prefix=expected_prefix
+    )
     result = _exec_sql_with_retry(db, sql)
     if result is None:
         return False
 
     ledger = get_applied_migrations(db)
+    for name, marker in (expected_prefix or {}).items():
+        if ledger.get(name) != marker:
+            raise RuntimeError(f"El prefijo aplicado cambio durante el package: {name}")
     for filepath in migration_files:
         name = extract_name(filepath)
         expected_marker = f"sha256:{_file_sha256(filepath)}"
@@ -444,6 +463,8 @@ def main():
 
     load_environment(args.env)
     assert_environment(args.env)
+    from shared.db_client import get_db_client
+
     db = get_db_client()
 
     applied = get_applied_migrations(db)
@@ -484,7 +505,14 @@ def main():
 
     if args.manifest:
         print("  ⏳ Aplicando package manifest atomico...")
-        if apply_manifest_package(db, pending):
+        expected_prefix = {
+            extract_name(filepath): applied[extract_name(filepath)]
+            for filepath in migration_files
+            if extract_name(filepath) in applied
+        }
+        if apply_manifest_package(
+            db, pending, expected_prefix=expected_prefix
+        ):
             success_count = len(pending)
         else:
             fail_count = len(pending)

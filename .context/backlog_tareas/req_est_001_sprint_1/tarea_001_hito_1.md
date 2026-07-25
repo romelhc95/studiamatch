@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-09` definida y pendiente de nueva autorizacion tras merge |
+| Fase vigente | `FASE-09` en `HUMAN_GATE` |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -31,7 +31,7 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
 | `H1-CA1` | Workflows automaticos y gates | Contrato F7 | PR #226, CI y validacion post-merge | Completed |
-| `H1-CA2P` | Schema/RLS | Verificadores F6/F7/F8 + PostgreSQL 17 | PR #228 y validacion post-merge; package bloqueado hasta Free | In Progress |
+| `H1-CA2P` | Schema/RLS | Verificadores F6/F7/F8 + PostgreSQL 17 | Candidate F9 local; package F8 bloqueado hasta Free | In Progress |
 | `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
 El detalle contractual de los tres criterios permanece en [REQ-EST-001](./_index.md), [HITO-001](../../hitos/hito_001.md) y [EST-001](../../estimaciones/est_001.md); esta tabla no agrega criterios.
@@ -47,6 +47,8 @@ El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaci
 F8 agrego una closure forward-only y certificacion local reproducible documentadas en [Certificacion local Hito 1 F8](../../operaciones/certificacion_hito1_f8.md). PR #228 fue fusionado y validado post-merge. El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
 
 F9 se limita a [precertificacion local H1-CA2P](../../operaciones/precertificacion_hito1_f9.md): package real en PostgreSQL efimero, rollback, replay del contrato F8, ledger paginado y reconciliacion de nomenclatura fail-fast. No completa este criterio ni autoriza acceso remoto.
+
+El candidate F9 implementado conserva byte-identicos el manifest y las migrations F8, no cambia status/targets y queda pendiente de CI, review, merge y replay post-merge.
 
 ## Allowlist De Implementacion
 
