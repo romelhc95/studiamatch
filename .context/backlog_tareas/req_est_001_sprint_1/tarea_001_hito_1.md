@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-06` en `HUMAN_GATE` por forward-fix de portabilidad LF/CRLF |
+| Fase vigente | `FASE-07` pendiente de autorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -42,7 +42,7 @@ El baseline de workflows debe contrastarse con `H1-CA1`; los comentarios no sust
 
 Los nombres, adopcion Free/Pro y postcondiciones exactas se fijan en [Sistema DB](../../sistema_db_supabase.md) y [Matriz DB](../../operaciones/matriz_adopcion_db.md). No se editan ledgers historicos.
 
-El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaciones/reconciliacion_db_as_code_f6.md). PR #223 incorporo el package a `desarrollo`; su forward-fix de checksum sigue en gate humano. La existencia del candidate no prueba adopcion remota ni completa `H1-CA2P` antes de certificacion.
+El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaciones/reconciliacion_db_as_code_f6.md). PR #223 incorporo el package a `desarrollo` y PR #224 cerro su portabilidad LF/CRLF. La existencia del candidate no prueba adopcion remota ni completa `H1-CA2P` antes de certificacion.
 
 ## Allowlist De Implementacion
 

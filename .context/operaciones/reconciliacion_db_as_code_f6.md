@@ -45,11 +45,11 @@ La migration editorial agrega defaults seguros, pero los cursos existentes solo 
 
 ## Estado de adopcion
 
-- Candidate Git: PR #223 aprobado y fusionado en `desarrollo`; forward-fix de portabilidad pendiente de CI, review y merge.
-- Validacion: 74 pruebas deterministas, incluida regresion LF/CRLF desde Docker sobre Windows; Context Graph y sintaxis Python en PASS.
+- Candidate Git: PR #223 y forward-fix PR #224 aprobados y fusionados en `desarrollo` mediante merge commits.
+- Validacion post-merge: `desarrollo@e00052a`, tree exacto del forward-fix, 74 pruebas deterministas incluida regresion LF/CRLF desde Docker sobre Windows; Context Graph y sintaxis Python en PASS.
 - Supabase Free: sin DDL/DML de F6 aplicado por esta fase.
 - Supabase Pro: sin DDL/DML de F6 aplicado por esta fase.
-- Siguiente gate: aprobar y fusionar el forward-fix, validar `desarrollo` y cerrar F6. El package sigue bloqueado para Free y Pro.
-- F7 no comienza hasta cerrar F6 y recibir una autorizacion humana nueva; F7 debe certificar los prerequisitos antes de cualquier aplicacion en Free.
+- Estado F6: `COMPLETED`. El package sigue bloqueado para Free y Pro como `reconciled_not_certified`.
+- Siguiente gate: autorizacion humana nueva para F7. F7 debe certificar los prerequisitos antes de cualquier aplicacion en Free.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) y [Release minimo](./flujo_release_minimo.md).
