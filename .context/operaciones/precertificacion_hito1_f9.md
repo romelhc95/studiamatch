@@ -42,7 +42,7 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 - Existe solo en `tests/sql/fase09_exec_sql_fixture.sql` y solo dentro de la DB efimera `studiamatch_f9`.
 - Firma: `public.exec_sql(sql_text text) RETURNS jsonb`, `SECURITY DEFINER`, owner `postgres`, `search_path=''`.
 - Revoca `PUBLIC`, `anon` y `authenticated`; concede execute solo al `service_role` sintetico.
-- No aparece en migrations, manifests, snapshots ni codigo productivo.
+- F9 no agrega ni modifica una definicion productiva. La migration legacy `20260510_pro_schema_sync.sql`, fuera del package F8, permanece inventariada e inmutable; el test distingue esa definicion conocida del fixture.
 - `run_fase09_postgres.sh` registra un trap que elimina el fixture aun ante fallo; `run_fase09_local.ps1` destruye contenedor/red en `finally`. Se verifica que el diff no agregue otra definicion `exec_sql`.
 
 ## Aislamiento Mecanico
@@ -53,7 +53,7 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 - `check_db_parity.py` no se ejecuta como CLI. Sus pruebas reemplazan transporte y socket para fallar ante cualquier egress DB/API/provider inesperado.
 - `TEST_DATABASE_URL` acepta solo esquema `postgresql`, usuario `postgres`, puerto `5432`, DB `studiamatch_f9` y host `127.0.0.1`, `localhost` o `studiamatch-f9-postgres`; rechaza query params, dominios Supabase y cualquier otro host.
 - Fixtures usan UUID deterministas, dominios reservados y provenance sintetica; nunca Free, Pro, backups, exports o artifacts ignorados.
-- GitHub Actions automatico de PR/push esta permitido solo como gate de codigo: el job F9 no declara `environment`, no consume secrets y usa PostgreSQL 17 efimero. `workflow_dispatch` y workflows de aplicacion permanecen prohibidos.
+- GitHub Actions automatico de PR/push esta permitido solo como gate de codigo: el job F9 no declara `environment`, no consume secrets, bloquea conexiones externas nuevas con `iptables`/`ip6tables` y usa PostgreSQL 17 en loopback. `workflow_dispatch` y workflows de aplicacion permanecen prohibidos.
 - El bootstrap puede consultar registries de paquetes e imagenes sin credenciales del proyecto. La evidencia comienza despues; usa dependencias instaladas y `docker run --pull=never`, y prohibe egress DB/API/provider mediante los guards anteriores.
 - Evidencia solo pass/fail, checksums y conteos agregados; sin filas, URLs reales, project refs, payloads ni identificadores operativos.
 
@@ -90,7 +90,7 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 - Context Graph: `docker exec -w /app studiamatch-dev env -i HOME=/tmp PATH=/usr/local/bin:/usr/bin:/bin PYTHONPATH=/app python3 scripts/maintenance/validate_context_graph.py`.
 - Frontend lint: `docker exec -w /app/web studiamatch-dev env -i HOME=/tmp CI=true PATH=/usr/local/bin:/usr/bin:/bin npm run lint`.
 - Frontend typecheck: `docker exec -w /app/web studiamatch-dev env -i HOME=/tmp CI=true PATH=/usr/local/bin:/usr/bin:/bin ./node_modules/.bin/tsc --noEmit --incremental false`.
-- Frontend build: `docker exec -w /app/web studiamatch-dev env -i HOME=/tmp CI=true PATH=/usr/local/bin:/usr/bin:/bin NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_test npm run build`.
+- Frontend build: `docker exec -w /app/web studiamatch-dev env -i HOME=/tmp CI=true PATH=/usr/local/bin:/usr/bin:/bin NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:9 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_test npm run build`. Esta compatibilidad frontend no constituye evidencia de aislamiento F9; la evidencia aislada es el wrapper local y el job F9.
 - No se permiten diffs en `web/`; lint debe conservar cero errores y no superar los 10 warnings registrados en F8.
 - CI: job `fase09-pre-free` y check agregado `security-audit` en PASS, sin environments/secrets.
 - Reviews: auditorias `security-auditor` y `qa-test-engineer` en GO; review/aprobacion por `romelhc95-approver`; merge por merge commit y replay post-merge.
@@ -105,6 +105,20 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 5. Manifest F8 permanece byte-identico, `reconciled_not_certified`, con `blocked_targets: ["free", "pro"]` y H-00 excluido.
 6. Auditorias independientes, CI, review, merge de implementacion y validacion post-merge pasan.
 7. Evidencia explicita: acceso remoto `0`, DDL/DML remoto `0`, backfill ejecutado `0`.
+
+## Evidencia Candidate
+
+- Rama: `feat/fase09-pre-free`.
+- Package F8: cuatro entradas y checksums byte-identicos; status `reconciled_not_certified`; Free/Pro bloqueados.
+- PostgreSQL 17 efimero: commit atomico, cuatro marcadores exactos, segunda planificacion sin SQL y rollback total por fault injection en PASS.
+- Ledger: 1001 filas sinteticas y negativos de transporte, representacion, JSON, pagina incompleta y duplicados en PASS.
+- Enrichment: un intento por ID, duplicados omitidos, excepcion fail-fast y conteo solo exitoso en PASS.
+- Suite contractual F6/F7/F8/F9 y credenciales: 146 pruebas en PASS; un warning de deprecacion preexistente.
+- Python compile: PASS. Context Graph: PASS con 27 archivos y 201 enlaces.
+- Frontend sin diff: lint con cero errores/10 warnings preexistentes, typecheck y build estatico en PASS.
+- Auditorias finales de seguridad y QA: GO, sin bloqueadores.
+- Acceso Free/Pro: `0`; DDL/DML remoto: `0`; backfill: `0`; secrets/environments: `0`.
+- Resultados completos, commit/tree, auditorias, CI y post-merge se agregan durante los gates restantes.
 
 ## Cierre Post-Merge
 

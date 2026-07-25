@@ -5,7 +5,10 @@ This directory reserves the operational plan for a future editorial backfill. It
 ## Authorization boundary
 
 - The backfill requires separate, explicit human authorization.
-- Schema and RLS migrations must be certified in Free before any backfill is considered.
+- A reviewed backfill plan does not authorize schema application or backfill execution.
+- Schema and RLS application in Free requires its own phase and approval.
+- Schema and RLS migrations must be certified in Free before backfill execution is considered.
+- Backfill execution and final Free certification are separate gates and approvals.
 - The operation runs Free-first and remains within the selected environment.
 - H-00 is excluded. Production is never mixed with H-00 or with Free operational data.
 

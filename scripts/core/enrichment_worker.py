@@ -914,12 +914,17 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         }
 
 
-def process_enrichment_records(worker, records):
-    """Return only the count of records whose enrichment was persisted."""
+def process_enrichment_records(worker, records, attempted_ids=None):
+    """Attempt each record ID once per session and count proven persistence."""
+    if attempted_ids is None:
+        attempted_ids = set()
     successful = 0
     for record in records:
+        record_id = record.get('id') if isinstance(record, dict) else None
+        if record_id in attempted_ids:
+            continue
+        attempted_ids.add(record_id)
         if worker.enrich_record(record) is not True:
-            record_id = record.get('id') if isinstance(record, dict) else None
             raise RuntimeError(f"Enrichment persistence was not proven for {record_id}")
         successful += 1
     return successful
@@ -941,10 +946,8 @@ if __name__ == "__main__":
 
     total_processed = 0
     batch_size = 10
-    # Fase 89: Pipeline Loop Guard — tracking de IDs intentados para evitar loops infinitos
+    # Fase 89: Pipeline Loop Guard — un intento por ID durante la sesion.
     attempted_ids: set = set()
-    attempted_counts: dict = {}  # contador de reintentos por registro (hasta max_attempts)
-    max_attempts = 3  # máximo de intentos por registro por sesión
 
     logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
 
@@ -961,17 +964,13 @@ if __name__ == "__main__":
             logger.info("✅ No hay más registros pendientes por enriquecer.")
             break
 
-        # Fase 89: Filtrar registros ya intentados o que excedieron max_attempts
+        # Fase 89: Filtrar registros ya intentados durante esta sesion.
         new_records = []
         for r in records:
             if not isinstance(r, dict):
                 continue
             rid = r.get('id')
             if not rid:
-                continue
-            current_attempts = attempted_counts.get(rid, 0)
-            if current_attempts >= max_attempts:
-                logger.warning(f"⏩ SKIP registro {rid}: excedió max_attempts={max_attempts}")
                 continue
             if rid in attempted_ids:
                 continue
@@ -1006,10 +1005,7 @@ if __name__ == "__main__":
                     if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():
                         logger.warning("🚨 Todos los providers degradados dinámicamente. Restantes a smart mock.")
                         worker._mock_only = True
-                    # Fase 89: Marcar intento antes de procesar (evita loop infinito)
-                    attempted_ids.add(rid)
-                    attempted_counts[rid] = attempted_counts.get(rid, 0) + 1
-                    total_processed += process_enrichment_records(worker, [r])
+                    total_processed += process_enrichment_records(worker, [r], attempted_ids)
                     guard.tick(every=50)
                     time.sleep(1.5)
 
