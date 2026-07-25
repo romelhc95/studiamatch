@@ -375,7 +375,7 @@ F10 solo completa la primera preparacion local de la antigua F9. No completa cer
 - Descriptor v2: payload F8 exacto, estado inicial `reconciled_not_certified`, schema apply Free/Pro bloqueado y cero attestations.
 - Canonicalizacion, maquina de estados, attestations, bindings, fingerprint y modos: pruebas sinteticas PASS.
 - Wrapper local con red Docker interna, `env -i` y restauracion `finally`: PASS.
-- Suite F6-F10 y credenciales: 252 pruebas PASS; un warning de deprecacion heredado.
+- Suite F6-F10 y credenciales: 253 pruebas PASS; un warning de deprecacion heredado.
 - Free/Pro, DDL/DML/RPC/parity remoto, backfill, secrets y status transitions: `0`.
 - Context Graph: PASS con 28 archivos/208 enlaces. Wrapper self-test de fallos: PASS.
 - Git local prueba commit/tree/ancestry y que el commit documental contiene descriptor e inventory exactos; autenticidad GitHub permanece bloqueada para F12.

@@ -445,16 +445,6 @@ jobs:
           fi
 
           if [ "$ipv4_available" -eq 1 ]; then
-            if sudo iptables -w 10 -C OUTPUT -j FASE10_EGRESS >/dev/null 2>&1; then
-              echo "FASE10_EGRESS jump remains in iptables OUTPUT"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv4 jump absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
             if sudo iptables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
               echo "FASE10_EGRESS chain remains in iptables"
               cleanup_failed=1
@@ -467,16 +457,6 @@ jobs:
             fi
           fi
           if [ "$ipv6_available" -eq 1 ]; then
-            if sudo ip6tables -w 10 -C OUTPUT -j FASE10_EGRESS >/dev/null 2>&1; then
-              echo "FASE10_EGRESS jump remains in ip6tables OUTPUT"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv6 jump absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
             if sudo ip6tables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
               echo "FASE10_EGRESS chain remains in ip6tables"
               cleanup_failed=1

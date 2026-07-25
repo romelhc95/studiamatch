@@ -1380,3 +1380,19 @@ def test_source_artifacts_remain_exact_and_descriptor_has_no_attestations():
     attestation_dir = ROOT / "db/attestations/hito1"
     if attestation_dir.exists():
         assert list(attestation_dir.glob("*.json")) == []
+
+
+def test_fase10_ci_cleanup_does_not_query_a_deleted_chain_target():
+    workflow = (ROOT / ".github/workflows/security-audit.yml").read_text(
+        encoding="utf-8"
+    )
+    job = workflow.split("  fase10-promotion-contract:", 1)[1].split(
+        "  security-audit:", 1
+    )[0]
+
+    assert job.count("iptables -w 10 -C OUTPUT -j FASE10_EGRESS") == 1
+    assert job.count("ip6tables -w 10 -C OUTPUT -j FASE10_EGRESS") == 1
+    assert "iptables -w 10 -X FASE10_EGRESS" in job
+    assert "ip6tables -w 10 -X FASE10_EGRESS" in job
+    assert "Unable to verify IPv4 chain absence" in job
+    assert "Unable to verify IPv6 chain absence" in job
