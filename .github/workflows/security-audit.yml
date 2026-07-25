@@ -252,9 +252,22 @@ jobs:
       - name: Install test dependencies
         run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
       - name: Block external egress for FASE-09 evidence
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          sudo iptables -I OUTPUT 1 ! -o lo -m conntrack --ctstate NEW -j REJECT
-          sudo ip6tables -I OUTPUT 1 ! -o lo -m conntrack --ctstate NEW -j REJECT
+          POSTGRES_IP=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$POSTGRES_CONTAINER")
+          test -n "$POSTGRES_IP"
+          sudo iptables -N FASE09_EGRESS
+          sudo iptables -A FASE09_EGRESS -o lo -j RETURN
+          sudo iptables -A FASE09_EGRESS -p tcp -d "$POSTGRES_IP" --dport 5432 -j RETURN
+          sudo iptables -A FASE09_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+          sudo iptables -A FASE09_EGRESS -j REJECT
+          sudo iptables -I OUTPUT 1 -j FASE09_EGRESS
+          sudo ip6tables -N FASE09_EGRESS
+          sudo ip6tables -A FASE09_EGRESS -o lo -j RETURN
+          sudo ip6tables -A FASE09_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+          sudo ip6tables -A FASE09_EGRESS -j REJECT
+          sudo ip6tables -I OUTPUT 1 -j FASE09_EGRESS
       - name: Validate FASE-09 Python contracts
         run: >-
           env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
@@ -264,6 +277,15 @@ jobs:
           env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
           TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studiamatch_f9
           bash tests/sql/run_fase09_postgres.sh
+      - name: Restore runner network
+        if: always()
+        run: |
+          sudo iptables -D OUTPUT -j FASE09_EGRESS || true
+          sudo iptables -F FASE09_EGRESS || true
+          sudo iptables -X FASE09_EGRESS || true
+          sudo ip6tables -D OUTPUT -j FASE09_EGRESS || true
+          sudo ip6tables -F FASE09_EGRESS || true
+          sudo ip6tables -X FASE09_EGRESS || true
 
   security-audit:
     name: security-audit

@@ -446,8 +446,13 @@ def test_fase09_ci_is_blocking_secretless_and_egress_restricted():
     assert "name: FASE-09 Pre-Free Local Contract" in job
     assert "environment:" not in job
     assert "secrets." not in job
-    assert "iptables -I OUTPUT 1 ! -o lo" in job
-    assert "ip6tables -I OUTPUT 1 ! -o lo" in job
+    assert "POSTGRES_CONTAINER: ${{ job.services.postgres.id }}" in job
+    assert "-d \"$POSTGRES_IP\" --dport 5432 -j RETURN" in job
+    assert "iptables -I OUTPUT 1 -j FASE09_EGRESS" in job
+    assert "ip6tables -I OUTPUT 1 -j FASE09_EGRESS" in job
+    assert "name: Restore runner network" in job
+    assert "if: always()" in job
+    assert "iptables -D OUTPUT -j FASE09_EGRESS" in job
     assert "tests/test_fase09_db.py tests/test_fase09_workers.py" in job
     assert "bash tests/sql/run_fase09_postgres.sh" in job
     assert "fase09-pre-free" in workflow.split("needs:", 1)[-1]
