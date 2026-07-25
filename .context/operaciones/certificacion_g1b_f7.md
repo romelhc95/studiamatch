@@ -1,6 +1,6 @@
 # Certificacion G1b F7
 
-Esta nota registra el candidate Git de `FASE-07`. No afirma adopcion remota ni autoriza aplicar migrations. El package permanece `reconciled_not_certified` hasta certificar tambien backfill editorial y postcondiciones Free.
+Esta nota registra el cierre Git de `FASE-07`. No afirma adopcion remota ni autoriza aplicar migrations. El package permanece `reconciled_not_certified` hasta certificar tambien backfill editorial y postcondiciones Free.
 
 ## Matriz de postcondiciones
 
@@ -30,10 +30,12 @@ Esta nota registra el candidate Git de `FASE-07`. No afirma adopcion remota ni a
 ## Gates restantes
 
 - Validacion local: 97 pruebas, Context Graph, Python, lint, typecheck y build estatico en PASS; auditoria independiente final en GO.
+- Validacion post-merge: PR #226 fusionado; `desarrollo@982d879` conserva el tree exacto y repite 97 pruebas y Context Graph en PASS.
+- Gate humano: el usuario ratifico `romelhc95` como owner y `romelhc95-approver` como reviewer/aprobador para el cierre F7.
 - Supabase Free y Pro: ninguna migration F6/F7 aplicada por esta fase.
 - Los negativos por rol y postcondiciones remotas se ejecutan solo cuando una fase posterior autorice Free.
 - El backfill editorial sigue separado y sin SQL ejecutable en este candidate.
 - `H-00`, `H-08`, `H-09` y los redisenos definitivos H-04/H-07 permanecen fuera de alcance.
-- F7 no se cierra antes de CI, review y merge humanos.
+- Estado F7: `COMPLETED`. F8 requiere una autorizacion humana nueva.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Reconciliacion F6](./reconciliacion_db_as_code_f6.md) y [Matriz DB](./matriz_adopcion_db.md).

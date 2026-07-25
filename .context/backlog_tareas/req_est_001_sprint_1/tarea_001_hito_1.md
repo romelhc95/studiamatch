@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-07` en `HUMAN_GATE` |
+| Fase vigente | `FASE-08` pendiente de autorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -30,7 +30,7 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
-| `H1-CA1` | Workflows automaticos y gates | Contrato F7 | 97 pruebas y auditoria GO; pendiente CI | In Progress |
+| `H1-CA1` | Workflows automaticos y gates | Contrato F7 | PR #226, CI y validacion post-merge | Completed |
 | `H1-CA2P` | Schema/RLS | Verificadores F6/F7 | Candidate validado; package bloqueado hasta Free | In Progress |
 | `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
