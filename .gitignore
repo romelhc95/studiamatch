@@ -56,4 +56,8 @@ scripts/temp/
 scripts/maintenance/export_50k_final.py
 scripts/maintenance/export_50k_prod.py
 scripts/maintenance/test_select.py
+.context/.obsidian/
+.context/attachments/private/
+.context/artifacts/private/
+.context/requerimientos/30062026/
 
