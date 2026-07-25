@@ -2,8 +2,8 @@
 db_migrate.py — Aplicador universal de migrations SQL para StudIAMatch.
 
 Uso:
-  python3 scripts/maintenance/db_migrate.py --env free [--dry-run]
-  python3 scripts/maintenance/db_migrate.py --env pro  [--dry-run]
+  python3 scripts/maintenance/db_migrate.py --env free --manifest <path> [--dry-run]
+  python3 scripts/maintenance/db_migrate.py --env pro --manifest <path> [--dry-run]
 
 Flujo:
   1. Lee archivos db/migrations/*.sql ordenados por nombre
@@ -26,12 +26,15 @@ import re
 import argparse
 import time
 import requests
+import hashlib
 from datetime import datetime
 from dotenv import load_dotenv
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
 from shared.supabase_credentials import get_secret_key
+from maintenance.migration_manifest import ManifestError, load_manifest
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -41,6 +44,10 @@ MIGRATIONS_DIR = os.path.join(
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
+FASE06_POSTCONDITIONS = {
+    "20260724_fase06_g1b_reconciliation": "public.verify_fase06_g1b_reconciliation()",
+    "20260724_fase06_hito1_editorial_contract": "public.verify_fase06_hito1_contract()",
+}
 
 
 def load_environment(target):
@@ -79,27 +86,75 @@ def assert_environment(target):
 
 
 def get_applied_migrations(db):
-    """Retorna set de nombres de migrations ya aplicadas via PostgREST service key."""
-    try:
-        result = db._select_api(
-            SUPABASE_MIGRATIONS_TABLE,
-            filters=None,
-            columns="name",
-            limit=1000,
-            order=None,
-            use_service_role=True,
+    """Return the complete auxiliary ledger and fail closed on API errors."""
+    rows = []
+    offset = 0
+    page_size = 1000
+    while True:
+        url = (
+            f"{db.supabase_url}/rest/v1/{SUPABASE_MIGRATIONS_TABLE}"
+            f"?select=name,statements&order=name.asc&limit={page_size}&offset={offset}"
         )
-        if result and isinstance(result, list):
-            return {row.get("name") for row in result if row.get("name")}
-    except Exception as e:
-        print(f"  ⚠️  No se pudo leer supabase_migrations: {e}")
-    return set()
+        try:
+            response = requests.get(
+                url,
+                headers=db._get_headers(use_service_role=True),
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            raise RuntimeError(f"No se pudo leer supabase_migrations: {exc}") from exc
+        if response.status_code not in (200, 206):
+            raise RuntimeError(
+                "No se pudo leer supabase_migrations: "
+                f"HTTP {response.status_code}"
+            )
+        try:
+            page = response.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                "supabase_migrations no devolvio JSON valido"
+            ) from exc
+        if not isinstance(page, list):
+            raise RuntimeError("supabase_migrations no devolvio una lista valida")
+        rows.extend(page)
+        if len(page) < page_size:
+            break
+        offset += len(page)
+
+    ledger = {}
+    for row in rows:
+        name = row.get("name") if isinstance(row, dict) else None
+        statements = row.get("statements") if isinstance(row, dict) else None
+        if not isinstance(name, str) or not name:
+            raise RuntimeError("supabase_migrations contiene una fila invalida")
+        if name in ledger:
+            raise RuntimeError(f"supabase_migrations duplica el nombre {name}")
+        ledger[name] = statements if isinstance(statements, str) else ""
+    return ledger
 
 
 def extract_name(filepath):
     """Extrae nombre de migration del path: 20260510_descripcion"""
     basename = os.path.basename(filepath)
     return os.path.splitext(basename)[0]
+
+
+def select_legacy_migrations(only=None):
+    """Resolve non-F6 migrations while keeping F6 behind its manifest."""
+    migration_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
+    wanted = set(only or [])
+    if wanted:
+        migration_files = [f for f in migration_files if extract_name(f) in wanted]
+        found = {extract_name(f) for f in migration_files}
+        missing = sorted(wanted - found)
+        if missing:
+            raise ValueError(f"Migrations solicitadas no existen: {missing}")
+    if any(
+        extract_name(path).casefold().startswith("20260724_fase06_")
+        for path in migration_files
+    ):
+        raise ManifestError("Las migrations FASE-06 requieren --manifest")
+    return migration_files
 
 
 def _exec_sql_with_retry(db, sql, max_retries=2):
@@ -124,31 +179,30 @@ def _exec_sql_with_retry(db, sql, max_retries=2):
 
 def _ensure_migration_table(db):
     """Crea supabase_migrations si no existe usando exec_sql."""
+    last_error = None
     for attempt in range(2):
         try:
             db.rpc_raise("exec_sql", {
                 "sql_text": f"CREATE TABLE IF NOT EXISTS public.{SUPABASE_MIGRATIONS_TABLE} (version BIGINT NOT NULL, name TEXT PRIMARY KEY, statements TEXT DEFAULT '', applied_at TIMESTAMPTZ DEFAULT now());"
             })
             return
-        except Exception:
+        except Exception as e:
+            last_error = e
             if attempt == 0:
                 time.sleep(3)
+    raise RuntimeError("No se pudo asegurar supabase_migrations") from last_error
 
 
-def _try_register_migration(db, name):
-    """Registra migration como aplicada en supabase_migrations.
-    Si PostgREST falla, se reporta y la siguiente corrida la volvera a listar."""
-    now = datetime.utcnow().isoformat()
-    try:
-        _ensure_migration_table(db)
-        try:
-            db.insert(SUPABASE_MIGRATIONS_TABLE, [{
-                "version": 0, "name": name, "statements": "", "applied_at": now
-            }])
-        except Exception as e:
-            print(f"  ⚠️  No se pudo registrar migration {name}: {e}")
-    except Exception as e:
-        print(f"  ⚠️  No se pudo asegurar supabase_migrations: {e}")
+def _sql_literal(value):
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _file_sha256(filepath):
+    digest = hashlib.sha256()
+    with open(filepath, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def apply_migration(db, filepath, dry_run=False):
@@ -168,11 +222,33 @@ def apply_migration(db, filepath, dry_run=False):
 
     print(f"  ⏳ {name} — aplicando...")
 
-    result = _exec_sql_with_retry(db, sql)
+    _ensure_migration_table(db)
+    version = int(datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    checksum_marker = f"sha256:{_file_sha256(filepath)}"
+    verifier = FASE06_POSTCONDITIONS.get(name)
+    if name.casefold().startswith("20260724_fase06_") and verifier is None:
+        raise RuntimeError(f"Falta verificador transaccional para {name}")
+    verification = ""
+    if verifier:
+        verification = (
+            "\nDO $fase06_verify$ BEGIN "
+            f"IF NOT {verifier} THEN "
+            f"RAISE EXCEPTION {_sql_literal(f'Postcondicion fallida: {name}')}; "
+            "END IF; END; $fase06_verify$;"
+        )
+    registration = (
+        f"\nINSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} "
+        "(version, name, statements, applied_at) VALUES ("
+        f"{version}, {_sql_literal(name)}, {_sql_literal(checksum_marker)}, "
+        "pg_catalog.now()) "
+        "ON CONFLICT (name) DO NOTHING;"
+    )
+    result = _exec_sql_with_retry(db, sql + verification + registration)
     if result is None:
         return False
 
-    _try_register_migration(db, name)
+    if get_applied_migrations(db).get(name) != checksum_marker:
+        raise RuntimeError(f"La migration {name} no quedo registrada")
 
     try:
         db.rpc("exec_sql", {"sql_text": "NOTIFY pgrst, 'reload schema';"})
@@ -190,7 +266,16 @@ def main():
                         help="Solo listar migrations pendientes sin ejecutar")
     parser.add_argument("--only", action="append", default=[],
                         help="Aplicar/listar solo migrations cuyo nombre coincida exactamente. Repetible.")
+    parser.add_argument(
+        "--manifest",
+        help="Manifest cerrado con paths y checksums de migrations autorizadas.",
+    )
     args = parser.parse_args()
+
+    if args.env == "pro" and not args.manifest:
+        parser.error("--manifest es obligatorio para Pro")
+    if args.manifest and args.only:
+        parser.error("--manifest y --only no se pueden combinar")
 
     print(f"\n{'='*60}")
     print(f"  db_migrate.py — Environment: {args.env.upper()}")
@@ -198,15 +283,30 @@ def main():
         print(f"  Modo: DRY-RUN (solo diagnóstico)")
     print(f"{'='*60}\n")
 
-    migration_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
-    if args.only:
-        wanted = set(args.only)
-        migration_files = [f for f in migration_files if extract_name(f) in wanted]
-        found = {extract_name(f) for f in migration_files}
-        missing = sorted(wanted - found)
-        if missing:
-            print(f"  🛑 Migrations solicitadas no existen: {missing}")
+    if args.manifest:
+        try:
+            migration_files = [
+                str(path)
+                for path in load_manifest(
+                    Path(args.manifest),
+                    args.env,
+                    required_status=(
+                        "free_certified" if args.env == "pro" else "ready_for_free"
+                    ),
+                )
+            ]
+        except ManifestError as exc:
+            print(f"  🛑 Manifest invalido: {exc}")
+            sys.exit(2)
+    else:
+        try:
+            migration_files = select_legacy_migrations(args.only)
+        except ValueError as exc:
+            print(f"  🛑 {exc}")
             sys.exit(1)
+        except ManifestError as exc:
+            print(f"  🛑 {exc}")
+            sys.exit(2)
     if not migration_files:
         print("  No se encontraron archivos SQL en db/migrations/")
         sys.exit(0)
@@ -225,7 +325,12 @@ def main():
     pending = []
     for f in migration_files:
         name = extract_name(f)
-        if name not in applied:
+        if name in applied and args.manifest:
+            expected_marker = f"sha256:{_file_sha256(f)}"
+            if applied[name] != expected_marker:
+                print(f"  🛑 Ledger/checksum mismatch para {name}")
+                sys.exit(2)
+        elif name not in applied:
             pending.append(f)
 
     if not pending:

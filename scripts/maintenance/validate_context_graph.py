@@ -33,6 +33,7 @@ REQUIRED = (
     "operaciones/flujo_requerimientos.md",
     "operaciones/flujo_release_minimo.md",
     "operaciones/matriz_adopcion_db.md",
+    "operaciones/reconciliacion_db_as_code_f6.md",
     "changelog/_plantilla_changelog.md",
     "changelog/2026-07-24.md",
     "changelog/2026-07-25.md",

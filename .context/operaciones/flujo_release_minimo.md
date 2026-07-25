@@ -15,7 +15,7 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 7. Congelar un candidate inmutable y respaldarlo remotamente.
 8. Ejecutar H-00 solo en Free, con autorizacion separada, counts-only y verificacion independiente.
 9. Promover por PR `feat/* -> desarrollo -> certificacion`; cada paso requiere review y CI.
-10. Aplicar en Pro solo migrations enumeradas, nunca H-00, tras aprobacion Production y pausa de writers.
+10. Aplicar en Pro solo un manifest `free_certified`, nunca H-00, mediante workflow manual fijado a un commit inmutable, tras aprobacion Production y pausa de writers.
 11. Ejecutar canary Pro, negativos anon/authenticated, positivo service role y smoke productivo.
 12. Reanudar writers y promover a `main` solo con aprobacion humana; observar antes del cierre.
 

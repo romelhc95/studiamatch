@@ -43,7 +43,20 @@ CONFIG_COLUMNS = {
         "pipeline_enabled",
         "production_enabled",
     },
-    "courses": {"start_date"},
+    "courses": {
+        "start_date",
+        "publication_status",
+        "data_quality_status",
+        "missing_fields",
+        "field_sources",
+        "manual_updated_at",
+        "is_sponsored",
+        "sponsorship_priority",
+        "sponsorship_label",
+    },
+    "leads": {"lead_source_type"},
+    "ratings": {"moderation_status", "moderated_at"},
+    "reviews": {"moderation_status", "moderated_at"},
 }
 
 CONFIG_TABLES = {
@@ -60,6 +73,8 @@ REQUIRED_MIGRATIONS = {
     "fase114_security_contract_hardening",
     "fase115_authenticated_profile_hardening",
     "fase116_public_grant_defense_in_depth",
+    "20260724_fase06_g1b_reconciliation",
+    "20260724_fase06_hito1_editorial_contract",
 }
 
 OPERATIONAL_TABLES = {
@@ -213,6 +228,17 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
             errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
     except Exception as e:
         errors.append(f"No se pudo verificar supabase_migrations: {e}")
+
+    for verifier in (
+        "verify_fase06_g1b_reconciliation",
+        "verify_fase06_hito1_contract",
+    ):
+        try:
+            result = db_target.rpc_raise(verifier, {})
+            if result is not True:
+                errors.append(f"El verificador {verifier} no retorno true")
+        except Exception as e:
+            errors.append(f"No se pudo ejecutar {verifier}: {e}")
 
     embedded_url = (
         f"{db_target.supabase_url}/rest/v1/courses"
