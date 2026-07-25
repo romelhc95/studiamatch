@@ -39,10 +39,13 @@ Esta nota registra el candidate Git de `FASE-08`. No afirma adopcion remota, no 
 
 ## Gates restantes
 
-- CI, review y merge humanos del candidate F8.
+- PR #228 recibio CI verde, aprobacion y merge humano mediante merge commit.
+- `desarrollo@dbda29e` conserva el tree exacto del candidate; 121 pruebas, Python compile, Context Graph y PostgreSQL 17 repiten PASS post-merge.
+- Estado F8: `COMPLETED` como certificacion local, sin afirmar adopcion remota.
 - Free-first en una fase y autorizacion separadas, con preflight, writers pausados y evidencia counts-only.
 - Backfill editorial acotado y certificado antes de publicar filas existentes.
 - Pro permanece prohibido hasta obtener un manifest `free_certified` y aprobacion Production.
 - `TASK-H1-001` y `H1-CA2P` permanecen `IN_PROGRESS`.
+- F9 no es ejecutable hasta que su alcance y gates queden definidos en el Context Graph.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](./matriz_adopcion_db.md), [Reconciliacion F6](./reconciliacion_db_as_code_f6.md) y [Release minimo](./flujo_release_minimo.md).
