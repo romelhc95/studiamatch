@@ -30,10 +30,11 @@ El manifest cerrado `db/manifests/fase06_promotable.json` enumera exactamente:
 
 1. `db/migrations/20260724_fase06_g1b_reconciliation.sql`.
 2. `db/migrations/20260724_fase06_hito1_editorial_contract.sql`.
+3. `db/migrations/20260725_fase07_g1b_closure.sql`.
 
-Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto sobre la representacion canonica LF del SQL. El validador del manifest y el marcador de ledger normalizan exclusivamente CRLF a LF antes del hash, por lo que un bind mount desde Windows conserva la misma identidad que CI Linux sin aceptar drift de contenido. El status inicial es `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. F7 debe certificar compatibilidad frontend y cambiarlo a `ready_for_free`; F9 debe demostrar backfill y postcondiciones antes de `free_certified`. Pro rechaza cualquier status anterior.
+Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto sobre la representacion canonica LF del SQL. El validador del manifest y el marcador de ledger normalizan exclusivamente CRLF a LF antes del hash, por lo que un bind mount desde Windows conserva la misma identidad que CI Linux sin aceptar drift de contenido. El status permanece `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. F7 certifica compatibilidad G1b en Git, pero una fase posterior debe certificar backfill y postcondiciones Free antes de cambiar status. Pro rechaza cualquier status anterior a `free_certified`.
 
-El workflow Production es manual, exige commit inmutable y aprobacion explicita, y nunca se dispara por push. El guard rechaza `H-00`, fuentes `historical_free_only`, `source_unavailable` o `superseded`, stems ajenos a F6, paths fuera de migrations, checksum drift y DML ejecutado durante instalacion.
+El workflow Production es manual, exige commit inmutable y aprobacion explicita, y nunca se dispara por push. El guard rechaza `H-00`, fuentes `historical_free_only`, `source_unavailable` o `superseded`, stems ajenos al package F6/F7, paths fuera de migrations, checksum drift y DML ejecutado durante instalacion.
 
 Canary no aparece en el manifest porque sus postcondiciones ya se observaron en ambos ambientes y no existe atribucion de ledger suficiente para replay. Los ledgers permanecen append-only.
 

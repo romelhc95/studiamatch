@@ -47,10 +47,12 @@ MIGRATIONS_DIR = os.path.join(
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
-FASE06_POSTCONDITIONS = {
+PACKAGE_POSTCONDITIONS = {
     "20260724_fase06_g1b_reconciliation": "public.verify_fase06_g1b_reconciliation()",
     "20260724_fase06_hito1_editorial_contract": "public.verify_fase06_hito1_contract()",
+    "20260725_fase07_g1b_closure": "public.verify_fase07_g1b_closure()",
 }
+MANIFEST_ONLY_PREFIXES = ("20260724_fase06_", "20260725_fase07_")
 
 
 def load_environment(target):
@@ -153,10 +155,10 @@ def select_legacy_migrations(only=None):
         if missing:
             raise ValueError(f"Migrations solicitadas no existen: {missing}")
     if any(
-        extract_name(path).casefold().startswith("20260724_fase06_")
+        extract_name(path).casefold().startswith(MANIFEST_ONLY_PREFIXES)
         for path in migration_files
     ):
-        raise ManifestError("Las migrations FASE-06 requieren --manifest")
+        raise ManifestError("Las migrations FASE-06/07 requieren --manifest")
     return migration_files
 
 
@@ -204,6 +206,15 @@ def _file_sha256(filepath):
     return canonical_sql_sha256(Path(filepath))
 
 
+def verify_applied_postcondition(db, migration_name):
+    verifier = PACKAGE_POSTCONDITIONS.get(migration_name)
+    if verifier is None:
+        raise RuntimeError(f"Falta verificador para {migration_name}")
+    rpc_name = verifier.removeprefix("public.").removesuffix("()")
+    if db.rpc_raise(rpc_name, {}) is not True:
+        raise RuntimeError(f"Postcondicion fallida: {migration_name}")
+
+
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
@@ -224,8 +235,8 @@ def apply_migration(db, filepath, dry_run=False):
     _ensure_migration_table(db)
     version = int(datetime.utcnow().strftime("%Y%m%d%H%M%S"))
     checksum_marker = f"sha256:{_file_sha256(filepath)}"
-    verifier = FASE06_POSTCONDITIONS.get(name)
-    if name.casefold().startswith("20260724_fase06_") and verifier is None:
+    verifier = PACKAGE_POSTCONDITIONS.get(name)
+    if name.casefold().startswith(MANIFEST_ONLY_PREFIXES) and verifier is None:
         raise RuntimeError(f"Falta verificador transaccional para {name}")
     verification = ""
     if verifier:
@@ -290,7 +301,9 @@ def main():
                     Path(args.manifest),
                     args.env,
                     required_status=(
-                        "free_certified" if args.env == "pro" else "ready_for_free"
+                        "free_certified"
+                        if args.env == "pro"
+                        else ("ready_for_free", "free_certified")
                     ),
                 )
             ]
@@ -328,6 +341,11 @@ def main():
             expected_marker = f"sha256:{_file_sha256(f)}"
             if applied[name] != expected_marker:
                 print(f"  🛑 Ledger/checksum mismatch para {name}")
+                sys.exit(2)
+            try:
+                verify_applied_postcondition(db, name)
+            except RuntimeError as exc:
+                print(f"  🛑 {exc}")
                 sys.exit(2)
         elif name not in applied:
             pending.append(f)

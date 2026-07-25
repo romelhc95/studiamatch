@@ -6,7 +6,7 @@ import re
 import requests
 from datetime import datetime, timezone
 from typing import List
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 from dotenv import load_dotenv
 
 try:
@@ -53,10 +53,10 @@ class SyncVectorWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select_pipeline('institution_site_profiles') or []
+            return self.db.select_pipeline_raise('institution_site_profiles') or []
         except Exception as e:
-            logger.warning(f"Error loading site profiles: {e}")
-            return []
+            logger.error(f"Error loading site profiles: {e}")
+            raise
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
@@ -144,11 +144,8 @@ class SyncVectorWorker:
         return str(curriculum_summary).strip() or None
 
     def get_pending_enriched(self, limit=500):
-        if not self.ready_inst_ids:
-            return []
-        inst_ids = ",".join(sorted(self.ready_inst_ids))
-        filters = f"status=eq.pending&institution_id=in.({inst_ids})"
-        return self.db.select_pipeline('enriched_programs', filters=filters, limit=limit)
+        filters = "status=eq.pending"
+        return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit)
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
@@ -158,8 +155,13 @@ class SyncVectorWorker:
         # Fase 100: skip si la institucion no tiene pipeline habilitado
         inst_id = enriched.get('institution_id')
         if inst_id and str(inst_id) not in self.ready_inst_ids:
-            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_enabled=false")
-            self.update_enriched_status(e_id, "skipped", error_msg="pipeline_enabled=false")
+            logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_gate=false")
+            self.update_enriched_status(
+                e_id,
+                "skipped",
+                error_msg="pipeline_gate=false",
+                existing_metadata=enriched.get('metadata'),
+            )
             return False
 
         # Fase 75: Post-sync noise validation (per-institution, no global)
@@ -174,7 +176,12 @@ class SyncVectorWorker:
                     pat_label = pat
                 if matched:
                     logger.warning(f"⏭️ SKIP enriched {e_id}: noise pattern '{pat_label}' matched on '{raw_name}'")
-                    self.update_enriched_status(e_id, "error", error_msg=f"noise_pattern:{pat_label}")
+                    self.update_enriched_status(
+                        e_id,
+                        "error",
+                        error_msg=f"noise_pattern:{pat_label}",
+                        existing_metadata=enriched.get('metadata'),
+                    )
                     return False
             except re.error:
                 continue
@@ -182,7 +189,12 @@ class SyncVectorWorker:
         # Validate name: reject None, "None", empty, or too-short names
         if not raw_name or str(raw_name).strip().lower() in ('none', 'null', 'nan', '') or len(str(raw_name).strip()) < 3:
             logger.warning(f"Skipping record {e_id}: invalid official_name '{raw_name}'")
-            self.update_enriched_status(e_id, "error", error_msg="invalid_name")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="invalid_name",
+                existing_metadata=enriched.get('metadata'),
+            )
             return False
 
         name = str(raw_name).strip()
@@ -240,7 +252,7 @@ class SyncVectorWorker:
 
         # Fase 63: Load profile defaults for this institution
         profile = self._get_profile(enriched.get('institution_id'))
-        production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else True
+        production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else False
         course_is_active = course_is_active and production_enabled
         if not production_enabled:
             logger.info(f"🚧 [NOT PUBLIC] {name} — production_enabled=false, syncing inactive")
@@ -297,11 +309,25 @@ class SyncVectorWorker:
         # course_data["embedding"] = self._generate_embedding(course_data["description_long"])
 
         # Check if course was manually deactivated (don't reactivate)
-        url_encoded = url.replace("'", "''")
-        existing = self.db.select('courses', filters=f"url=eq.{url_encoded}", columns='id,is_active')
-        if existing and len(existing) > 0 and existing[0].get('is_active') == False:
+        url_encoded = quote(str(url), safe='')
+        existing = self.db.select_service_raise(
+            'courses',
+            filters=f"url=eq.{url_encoded}",
+            columns='id,is_active,publication_status,manual_updated_at',
+        )
+        existing_course = existing[0] if existing else {}
+        manually_disabled = (
+            existing_course.get('publication_status') == 'despublicado'
+            or (
+                existing_course.get('is_active') is False
+                and existing_course.get('manual_updated_at') is not None
+            )
+        )
+        if manually_disabled:
             logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
-            self.update_enriched_status(e_id, "synced")
+            self.update_enriched_status(
+                e_id, "synced", existing_metadata=enriched.get('metadata')
+            )
             return True
 
         # Upsert to production courses
@@ -325,20 +351,35 @@ class SyncVectorWorker:
                     roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=roi_payload)
                     if not roi_res or roi_res.get("status") != "success":
                         logger.error(f"Error updating ROI fields for course {course_id}")
-                        self.update_enriched_status(e_id, "error", error_msg="roi_patch_failed")
+                        self.update_enriched_status(
+                            e_id,
+                            "error",
+                            error_msg="roi_patch_failed",
+                            existing_metadata=enriched.get('metadata'),
+                        )
                         return False
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
             return True
         else:
             logger.error(f"Error syncing to production")
-            self.update_enriched_status(e_id, "error", error_msg="DB Error")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="DB Error",
+                existing_metadata=enriched.get('metadata'),
+            )
             return False
 
-    def update_enriched_status(self, e_id, status, error_msg=None):
+    def update_enriched_status(
+        self, e_id, status, error_msg=None, existing_metadata=None
+    ):
         payload = {"status": status}
-        if error_msg: payload["metadata"] = {"error": error_msg}
-        self.db.patch('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
+        if error_msg:
+            metadata = dict(existing_metadata or {})
+            metadata["error"] = error_msg
+            payload["metadata"] = metadata
+        self.db.patch_raise('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
 
 if __name__ == "__main__":
     worker = SyncVectorWorker()

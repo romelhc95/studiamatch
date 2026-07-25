@@ -26,7 +26,7 @@ El orden real de providers es DeepSeek mediante OpenCode, Cloudflare Workers AI 
 - `exclusion_patterns`: exclusiones por institucion, incluyendo regex controladas.
 - Validaciones de ruido adicionales operan en cleansing, enrichment y sync.
 
-Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only y las estaciones posteriores omiten la institucion. El Hito 1 debe revisar que el orquestador aplique gates antes del `limit`, no solo priorizacion.
+Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only y las estaciones posteriores materializan `skipped` con razon canonica `pipeline_gate=false`. Perfiles y colas se leen fail-closed. El orquestador aplica perfil, `discovery_enabled`, exclusiones, circuit breaker y freshness antes del `limit`; lecturas no demostrables, fallos parciales o timeout global producen salida no cero sin descartar trabajo ya persistido.
 
 ## Workflows Vigentes
 
@@ -34,9 +34,9 @@ Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only y 
 |---|---|
 | FG1 inventory | `schedule` mensual y `workflow_dispatch` |
 | FG2 Golden Pipeline | `schedule` diario y `workflow_dispatch` |
-| FG3 integrity | `schedule` diario y `workflow_dispatch` |
+| FG3 integrity | `schedule` diario posterior a FG2 y `workflow_dispatch` |
 
-Los comentarios que dicen "desactivado" no desactivan un bloque `schedule`. La modalidad aprobada por [Hito 1](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) es cadencia automatica con gates, circuit breakers y controles de ambiente; cualquier ajuste debe preservar esos controles.
+FG2 y FG3 comparten grupo de concurrencia y no se cancelan entre si; FG3 queda en cola si FG2 sigue activo. Los tres workflows rechazan refs que no sean ramas permanentes antes de acceder a environments. La modalidad aprobada por [Hito 1](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) es cadencia automatica con gates, circuit breakers y controles de ambiente.
 
 ## Limites
 

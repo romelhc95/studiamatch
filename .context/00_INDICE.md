@@ -17,6 +17,7 @@
 - [Estimacion EST-001](estimaciones/est_001.md)
 - [Matriz de adopcion DB](operaciones/matriz_adopcion_db.md)
 - [Reconciliacion DB-as-Code F6](operaciones/reconciliacion_db_as_code_f6.md)
+- [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo

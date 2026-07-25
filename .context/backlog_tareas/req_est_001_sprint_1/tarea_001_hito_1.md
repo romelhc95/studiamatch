@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-07` pendiente de autorizacion |
+| Fase vigente | `FASE-07` en `HUMAN_GATE` |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -30,8 +30,8 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
-| `H1-CA1` | Workflows automaticos y gates | ID de prueba | Vacio hasta ejecucion | Planned |
-| `H1-CA2P` | Schema/RLS | ID de prueba | Vacio hasta ejecucion | Planned |
+| `H1-CA1` | Workflows automaticos y gates | Contrato F7 | 97 pruebas y auditoria GO; pendiente CI | In Progress |
+| `H1-CA2P` | Schema/RLS | Verificadores F6/F7 | Candidate validado; package bloqueado hasta Free | In Progress |
 | `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
 El detalle contractual de los tres criterios permanece en [REQ-EST-001](./_index.md), [HITO-001](../../hitos/hito_001.md) y [EST-001](../../estimaciones/est_001.md); esta tabla no agrega criterios.
@@ -47,10 +47,16 @@ El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaci
 ## Allowlist De Implementacion
 
 - `scripts/core/master_orchestrator.py`.
-- Workflows FG1 y FG3; FG2 solo para revision de compatibilidad contractual.
+- `scripts/core/cleansing_worker.py`, `enrichment_worker.py` y `sync_vector_worker.py` para compatibilidad G1b minima.
+- Frontend de detalle, comparador, catalogo y selector publico para retirar superficies G1b revocadas.
+- Workflows FG1 y FG3; FG2 solo para revision contractual y el guard de refs aprobado explicitamente.
+- Workflow de seguridad para convertir pruebas y build F7 en gates bloqueantes.
+- `scripts/shared/db_client.py` y `check_db_parity.py` solo para lecturas fail-closed y revalidacion F7.
 - Migrations forward-only nuevas para el contrato editorial, calidad y RLS.
 - Tests de governance, gates del orquestador y RLS.
 - Documentos canonicos enlazados desde [el indice](../../00_INDICE.md).
+
+La ampliacion minima de allowlist anterior fue aprobada explicitamente al iniciar F7. El guard FG2 se aprobo despues como remediacion de seguridad acotada. No autoriza redisenos fuera de estas superficies.
 
 ## Exclusiones
 

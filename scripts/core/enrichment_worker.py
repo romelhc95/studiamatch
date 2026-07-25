@@ -60,10 +60,10 @@ class EnrichmentWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select_pipeline('institution_site_profiles') or []
+            return self.db.select_pipeline_raise('institution_site_profiles') or []
         except Exception as e:
-            logger.warning(f"Error loading site profiles: {e}")
-            return []
+            logger.error(f"Error loading site profiles: {e}")
+            raise
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
@@ -78,18 +78,15 @@ class EnrichmentWorker:
         return bool(profile.get('pipeline_ready'))
 
     def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline habilitado."""
+        """Obtiene pendientes; el loop materializa skips para gates deshabilitados."""
         try:
-            # Fase 100: filtrar solo instituciones con pipeline_enabled=true
-            if not self.ready_inst_ids:
-                return []
-            inst_ids = ",".join(sorted(self.ready_inst_ids))
-            filters = f"status=eq.pending&institution_id=in.({inst_ids})"
-            res = self.db.select_pipeline('cleansed_programs', filters=filters, limit=limit)
+            filters = "status=eq.pending"
+            res = self.db.select_pipeline_raise('cleansed_programs', filters=filters, limit=limit)
             if res and len(res) > 0:
                 return res
         except Exception as e:
-            logger.warning(f"Error obteniendo cleansed_programs: {e}")
+            logger.error(f"Error obteniendo cleansed_programs: {e}")
+            raise
 
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
@@ -553,7 +550,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         pre_extracted = {}
         extraction_trace = []
         try:
-            sr = self.db.select_pipeline('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata,raw_html,url')
+            sr = self.db.select_pipeline_raise('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata,raw_html,url')
             if sr and sr[0].get('metadata'):
                 meta = sr[0]['metadata']
                 if isinstance(meta, str):
@@ -983,8 +980,10 @@ if __name__ == "__main__":
                     # Fase 100: saltar institucion sin pipeline habilitado
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
-                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_enabled=false")
-                        worker.db.patch('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped'})
+                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_gate=false")
+                        metadata = dict(r.get('metadata') or {})
+                        metadata['skip_reason'] = 'pipeline_gate=false'
+                        worker.db.patch_raise('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped', 'metadata': metadata})
                         continue
                     # Fase 77: Early-exit dinámico
                     if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():

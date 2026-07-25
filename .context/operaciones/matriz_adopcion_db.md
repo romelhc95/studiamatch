@@ -1,6 +1,6 @@
 # Matriz de adopcion DB
 
-Nota canonica para decisiones de adopcion Supabase en F5/F6. Separa ledger, postcondicion y fuente. El estado observado que la sustenta vive en el [snapshot canonico del sistema DB](../sistema_db_supabase.md); esta matriz no compite con ese snapshot.
+Nota canonica para decisiones de adopcion Supabase desde F5. Separa ledger, postcondicion y fuente. El estado observado que la sustenta vive en el [snapshot canonico del sistema DB](../sistema_db_supabase.md); esta matriz no compite con ese snapshot.
 
 Enlaces canonicos: [Indice](../00_INDICE.md) | [Sistema DB](../sistema_db_supabase.md) | [Arquitectura pipeline](../arquitectura_pipeline.md) | [Estado del proyecto](../estado_del_proyecto.md) | [Tarea Hito 1](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./flujo_release_minimo.md)
 
@@ -32,8 +32,8 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
 | Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Historica exacta no demostrada; candidate F6 nuevo | `ledger_applied` y `source_unavailable` | Certificar candidate forward-only; backfill separado |
 | Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Candidate F6 nuevo, aun no aplicado | `source_unavailable` | Promover solo package certificado y sin H-00 |
-| G1b promocionable | Free | Evidencia identificable | Efectiva | Consolidado preservado y candidate F6 nuevo | `ledger_applied` y `source_unavailable` | Certificar reconciliacion sin replay |
-| G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Candidate F6 nuevo, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
+| G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
+| G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
 | H00 | Free | Evidencia historica | No se inspeccionaron datos operativos | No requerida para promocion | `historical_free_only` | Conservar solo como historia |
 | H00 | Pro | Ausente | No aplicable | No aplicable | `historical_free_only` | Exclusion mecanica obligatoria |
 | Efectos sin fuente canonica | Free/Pro | Sin atribucion inequivoca | Observados | Fuente activa no identificada | `observed_effective_unledgered` | Inventariar y versionar sin copiar filas |
@@ -48,7 +48,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 
 Los detalles tecnicos sensibles para operar esta reconciliacion permanecen en un artifact privado local excluido de Git. Esta matriz no publica identificadores de proyecto, endpoints, hashes, conteos, findings explotables ni URLs especificas de remediation.
 
-El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./reconciliacion_db_as_code_f6.md).
+El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./reconciliacion_db_as_code_f6.md); su compatibilidad G1b se mapea en [Certificacion F7](./certificacion_g1b_f7.md).
 
 ## Guardrails forward-only F6
 

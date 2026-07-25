@@ -136,6 +136,7 @@ APPROVED_BEARERS = {
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
+    ".github/workflows/security-audit.yml": "supabase-ci",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",

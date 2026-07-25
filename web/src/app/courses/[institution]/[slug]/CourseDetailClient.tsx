@@ -77,11 +77,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
-  const [newRating, setNewRating] = useState(5);
-  const [newReview, setNewReview] = useState("");
-  const [userNickname, setUserNickname] = useState("");
-  const [isSocialSubmitting, setIsSocialSubmitting] = useState(false);
-  const [socialSuccess, setSocialSuccess] = useState(false);
   const [compareList, setCompareList] = useState<Array<{ id: string; name: string }>>([]);
   const [compareInit, setCompareInit] = useState(false);
 
@@ -117,97 +112,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-
-  const handleSubmitSocial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!userNickname.trim()) {
-      alert("Por favor, ingresa tu nombre o apodo.");
-      return;
-    }
-    if (!newReview.trim()) {
-      alert("Por favor, escribe un comentario sobre tu experiencia.");
-      return;
-    }
-    if (!course) return;
-
-    setIsSocialSubmitting(true);
-    console.log("🚀 Iniciando envío de reseña...", { rating: newRating, nickname: userNickname });
-    
-    try {
-      if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-        throw new Error("Configuración de Supabase incompleta. Verifique las variables de entorno.");
-      }
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Prefer': 'return=minimal'
-      };
-
-      console.log("📡 Enviando calificación a:", `${SUPABASE_URL}/rest/v1/ratings`);
-      // Insert Rating
-      const ratingResponse = await fetch(`${SUPABASE_URL}/rest/v1/ratings`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          course_id: course.id,
-          rating_value: newRating,
-          user_nickname: userNickname.trim()
-        })
-      });
-
-      if (!ratingResponse.ok) {
-        const errorData = await ratingResponse.json().catch(() => ({}));
-        console.error("❌ Error en Rating:", errorData);
-        throw new Error(`Error al guardar la calificación: ${ratingResponse.statusText}`);
-      }
-
-      console.log("📡 Enviando reseña a:", `${SUPABASE_URL}/rest/v1/reviews`);
-      // Insert Review
-      const reviewResponse = await fetch(`${SUPABASE_URL}/rest/v1/reviews`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          course_id: course.id,
-          content: newReview.trim(),
-          user_nickname: userNickname.trim()
-        })
-      });
-
-      if (!reviewResponse.ok) {
-        const errorData = await reviewResponse.json().catch(() => ({}));
-        console.error("❌ Error en Review:", errorData);
-        throw new Error("Error al guardar la reseña.");
-      }
-
-      console.log("✅ Reseña publicada con éxito.");
-      setSocialSuccess(true);
-      setNewReview("");
-      setUserNickname("");
-      
-      // Refresh social proof
-      console.log("🔄 Actualizando lista de reseñas...");
-      const safeId = encodeURIComponent(course.id);
-      const rRes = await fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
-      const rvRes = await fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY } });
-      
-      if (rRes.ok && rvRes.ok) {
-        const rData = await rRes.json();
-        const rvData = await rvRes.json();
-        if (Array.isArray(rData)) setRatings(rData);
-        if (Array.isArray(rvData)) setReviews(rvData);
-      }
-
-      setTimeout(() => setSocialSuccess(false), 3000);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("🔴 Error crítico al enviar social proof:", error);
-      alert(error?.message || "Ocurrió un error al enviar tu reseña.");
-    } finally {
-      setIsSocialSubmitting(false);
-    }
-  };
 
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -369,8 +273,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         try {
           // Intentar fetch paralelo de ratings, reviews y cursos relacionados
           const promises = [
-            fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=*`, { headers }),
-            fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=*&order=created_at.desc`, { headers })
+            fetch(`${SUPABASE_URL}/rest/v1/ratings?course_id=eq.${safeId}&select=id,course_id,rating_value,user_nickname,created_at`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/reviews?course_id=eq.${safeId}&select=id,course_id,content,user_nickname,created_at&order=created_at.desc`, { headers })
           ];
 
           if (safeCatId) {
@@ -401,21 +305,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       fetchSocialProofAndRelated();
     }
   }, [course]);
-
-  // Fase 82A: Increment view counter on mount
-  useEffect(() => {
-    if (!course?.id) return;
-    const increment = async () => {
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-          body: JSON.stringify({ p_course_id: course.id })
-        });
-      } catch (e) { console.warn("increment_view_count failed:", e); }
-    };
-    increment();
-  }, [course?.id]);
 
   if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
@@ -769,51 +658,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                           </div>
                         ) : (
                           <div className="bg-slate-50 dark:bg-white/5 p-8 rounded-[2.5rem] border border-dashed border-slate-300 text-center">
-                            <p className="text-slate-500 font-bold italic">Aún no hay calificaciones. ¡Sé el primero!</p>
+                            <p className="text-slate-500 font-bold italic">Aún no hay calificaciones publicadas.</p>
                           </div>
                         )}
-                        
-                        <Card className="p-8 rounded-[2.5rem] border-brand-gray/50 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden relative">
-                          <div className="relative z-10">
-                            <h4 className="text-lg font-bold mb-4">Deja tu opinión</h4>
-                            <form onSubmit={handleSubmitSocial} className="space-y-4">
-                              <div className="flex gap-2 mb-4">
-                                {[1,2,3,4,5].map(star => (
-                                  <button 
-                                    type="button" 
-                                    key={star} 
-                                    onClick={() => setNewRating(star)}
-                                    className="transition-transform hover:scale-125"
-                                  >
-                                    <Star className={cn("h-6 w-6", star <= newRating ? "fill-amber-400 text-amber-400" : "text-slate-300")} />
-                                  </button>
-                                ))}
-                              </div>
-                              <Input 
-                                placeholder="Tu Apodo/Nombre" 
-                                required 
-                                className="h-12 rounded-2xl bg-slate-50 dark:bg-zinc-800 border-0 font-bold" 
-                                value={userNickname}
-                                onChange={(e) => setUserNickname(e.target.value)}
-                              />
-                              <textarea 
-                                placeholder="Comparte tu experiencia con este programa..." 
-                                required
-                                className="w-full h-32 rounded-3xl bg-slate-50 dark:bg-zinc-800 border-0 p-6 font-bold text-sm focus:ring-4 focus:ring-brand-blue/10 resize-none transition-all"
-                                value={newReview}
-                                onChange={(e) => setNewReview(e.target.value)}
-                              />
-                              <Button 
-                                type="submit"
-                                disabled={isSocialSubmitting}
-                                className="w-full h-14 bg-brand-slate text-white dark:bg-brand-mint dark:text-brand-slate font-black rounded-2xl border-0"
-                              >
-                                {isSocialSubmitting ? "ENVIANDO..." : "PUBLICAR RESEÑA"}
-                              </Button>
-                              {socialSuccess && <p className="text-center text-emerald-500 font-bold text-xs animate-bounce mt-2">¡Gracias por tu aporte!</p>}
-                            </form>
-                          </div>
-                        </Card>
                       </div>
 
                       <div className="space-y-6">
