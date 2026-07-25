@@ -20,6 +20,7 @@
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
 - [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
 - [Precertificacion local Hito 1 F9](operaciones/precertificacion_hito1_f9.md)
+- [Contrato de promocion Hito 1 F10](operaciones/promocion_hito1_f10.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo

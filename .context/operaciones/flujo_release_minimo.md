@@ -36,11 +36,20 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 ## Separacion De Precertificacion Y Free
 
 - F9 produce solo evidencia local/offline y conserva `reconciled_not_certified` con Free/Pro bloqueados.
-- `ready_for_free` solo puede decidirse en una fase remota posterior que identifique ambiente, package, commit, operacion y ventana.
+- F11 obtiene evidencia remota Free read-only; solo F12 local/documental puede decidir `ready_for_free` al validar esa evidencia, package, commit, plan y aprobacion.
 - Plan de backfill, aplicacion de schema en Free, ejecucion de backfill y certificacion Free son gates distintos; ningun resultado local los sustituye.
-- El orden operativo entre schema/RLS y backfill debe resolverse canonicamente antes de cualquier transicion de status.
+- El orden obligatorio es readiness -> schema/RLS -> backfill -> certificacion final; F10 debe codificarlo mecanicamente antes de cualquier transicion de status.
 - `free_certified` exige postcondiciones Free, RLS por rol, ledger/checksums, PostgREST, advisors y backfill separado certificado.
 - Pro permanece bloqueado hasta otro gate Production independiente.
+
+## Maquina De Promocion Hito 1
+
+- F10 define localmente `reconciled_not_certified -> ready_for_free -> free_schema_certified -> free_backfill_certified -> free_certified`.
+- Cada transicion requiere attestation inmutable y aprobacion propia; no hay saltos ni continuidad automatica.
+- F11 queda reservada para preflight Free read-only y no cambia status por si sola.
+- F12 acepta localmente la evidencia F11 y crea T01; no conecta ni aplica schema.
+- Aplicacion schema/RLS, backfill y certificacion final Free pertenecen a fases y autorizaciones distintas.
+- Un fallo pre-commit revierte package y ledger en la transaccion. Un fallo post-commit mantiene writers pausados y detiene toda mutacion. Forward-fix o restauracion requieren un incidente documentado, identidad Free revalidada, owner de recuperacion, backup attestado y una autorizacion de emergencia exacta separada; esta regla no autoriza ninguna de esas operaciones. No se improvisan down migrations.
 
 ## Politica De Resguardo
 
