@@ -31,7 +31,7 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 
 ## Schedules
 
-FG1 y FG3 tienen cron YAML activo en el baseline actual. El requisito Hito 1 busca manual-only con autorizacion explicita; hasta implementar y revisar ese cambio no se debe documentar como estado vigente. Ver [Pipeline](../arquitectura_pipeline.md).
+FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que toda ejecucion automatica respete gates, circuit breakers, controles de ambiente y las stop conditions de este flujo. Ver [Pipeline](../arquitectura_pipeline.md).
 
 ## Politica De Resguardo
 
