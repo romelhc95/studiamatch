@@ -33,6 +33,15 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 
 FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que toda ejecucion automatica respete gates, circuit breakers, controles de ambiente y las stop conditions de este flujo. Ver [Pipeline](../arquitectura_pipeline.md).
 
+## Separacion De Precertificacion Y Free
+
+- F9 produce solo evidencia local/offline y conserva `reconciled_not_certified` con Free/Pro bloqueados.
+- `ready_for_free` solo puede decidirse en una fase remota posterior que identifique ambiente, package, commit, operacion y ventana.
+- Plan de backfill, aplicacion de schema en Free, ejecucion de backfill y certificacion Free son gates distintos; ningun resultado local los sustituye.
+- El orden operativo entre schema/RLS y backfill debe resolverse canonicamente antes de cualquier transicion de status.
+- `free_certified` exige postcondiciones Free, RLS por rol, ledger/checksums, PostgREST, advisors y backfill separado certificado.
+- Pro permanece bloqueado hasta otro gate Production independiente.
+
 ## Politica De Resguardo
 
 Los respaldos preservados se conservan fuera del repositorio, sin mover, editar o compactar hasta desplegar Hito 1 y completar observacion. Sus rutas locales no se versionan.

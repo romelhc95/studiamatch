@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-08` cerrada; fase posterior pendiente de definicion canonica |
+| Fase vigente | `FASE-09` definida y pendiente de nueva autorizacion tras merge |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -46,6 +46,8 @@ El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaci
 
 F8 agrego una closure forward-only y certificacion local reproducible documentadas en [Certificacion local Hito 1 F8](../../operaciones/certificacion_hito1_f8.md). PR #228 fue fusionado y validado post-merge. El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
 
+F9 se limita a [precertificacion local H1-CA2P](../../operaciones/precertificacion_hito1_f9.md): package real en PostgreSQL efimero, rollback, replay del contrato F8, ledger paginado y reconciliacion de nomenclatura fail-fast. No completa este criterio ni autoriza acceso remoto.
+
 ## Allowlist De Implementacion
 
 - `scripts/core/master_orchestrator.py`.
@@ -59,6 +61,8 @@ F8 agrego una closure forward-only y certificacion local reproducible documentad
 - Documentos canonicos enlazados desde [el indice](../../00_INDICE.md).
 
 La ampliacion minima de allowlist anterior fue aprobada explicitamente al iniciar F7. El guard FG2 se aprobo despues como remediacion de seguridad acotada. No autoriza redisenos fuera de estas superficies.
+
+La allowlist ejecutable de F9 vive exclusivamente en [Precertificacion F9](../../operaciones/precertificacion_hito1_f9.md#allowlist-f9) y reemplaza esta allowlist historica para esa fase.
 
 ## Exclusiones
 
