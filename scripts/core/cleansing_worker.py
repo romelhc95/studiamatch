@@ -202,10 +202,10 @@ class CleansingWorker:
 
     def _load_profiles(self) -> List[Dict[str, Any]]:
         try:
-            return self.db.select_pipeline('institution_site_profiles') or []
+            return self.db.select_pipeline_raise('institution_site_profiles') or []
         except Exception as e:
-            logger.warning(f"Error loading site profiles: {e}")
-            return []
+            logger.error(f"Error loading site profiles: {e}")
+            raise
 
     @staticmethod
     def _gate_enabled(profile: Dict[str, Any], gate_name: str) -> bool:
@@ -372,12 +372,12 @@ class CleansingWorker:
                         logger.warning(f"RPC lock_staging_records failed {rpc_failures} consecutive times. Switching to fallback-only mode.")
                         rpc_fallback = True
                 # Fallback: simple select (no lock)
-                batch = self.db.select_pipeline('staging_raw', filters="status=eq.pending", limit=batch_size)
+                batch = self.db.select_pipeline_raise('staging_raw', filters="status=eq.pending", limit=batch_size)
                 if not batch: break
                 for record in batch: yield record
             except Exception as e:
                 logger.error(f"Error streaming pending staging: {e}")
-                break
+                raise
 
     def is_invalid_course(self, name: str, description: str, url: str, clean_text: str = "", institution_id: str = "") -> Optional[str]:
         if name is None: name = ""
@@ -537,7 +537,7 @@ if __name__ == "__main__":
         # Fase 100: saltar registros de instituciones sin pipeline habilitado
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:
-            worker.db.patch('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_enabled=false'})
+            worker.db.patch_raise('staging_raw', filters=f"id=eq.{record['id']}", data={'status': 'skipped', 'processing_error': 'pipeline_gate=false'})
             continue
         batch_accumulator.append(record)
         if len(batch_accumulator) >= 100:

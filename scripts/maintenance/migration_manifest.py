@@ -19,7 +19,8 @@ ALLOWED_STATUSES = {
     "ready_for_free",
     "free_certified",
 }
-F6_STEM_PREFIX = "20260724_fase06_"
+PACKAGE_STEM_PREFIXES = ("20260724_fase06_", "20260725_fase07_")
+EXPECTED_COMPONENT_ORDER = ["g1b", "hito1", "g1b_closure"]
 FORBIDDEN_DML_RE = re.compile(
     r"(?im)^\s*(insert\s+into|update\s+[^\s]+\s+set|delete\s+from|"
     r"merge\s+into|truncate(?:\s+table)?|copy\s+|call\s+)"
@@ -96,7 +97,7 @@ def load_manifest(
     target: str,
     *,
     root: Path = ROOT,
-    required_status: str | None = None,
+    required_status: str | tuple[str, ...] | None = None,
 ) -> list[Path]:
     """Return checksum-verified migration paths for one target."""
 
@@ -112,10 +113,15 @@ def load_manifest(
     status = manifest.get("status")
     if status not in ALLOWED_STATUSES:
         raise ManifestError("unsupported migration package status")
-    if required_status is not None and status != required_status:
-        raise ManifestError(
-            f"migration package status is {status}; required {required_status}"
+    if required_status is not None:
+        required_statuses = (
+            (required_status,) if isinstance(required_status, str) else required_status
         )
+        if status not in required_statuses:
+            expected = " or ".join(required_statuses)
+            raise ManifestError(
+                f"migration package status is {status}; required {expected}"
+            )
     if manifest.get("excluded") != {
         "H-00": "historical_free_only",
         "canary": "observed_effective_unledgered",
@@ -140,6 +146,7 @@ def load_manifest(
     ids: set[str] = set()
     components: set[str] = set()
     component_counts: dict[str, int] = {}
+    component_order: list[str] = []
 
     for entry in entries:
         if not isinstance(entry, dict):
@@ -187,14 +194,15 @@ def load_manifest(
             raise ManifestError("migration path must be a regular SQL file")
         if not candidate.is_file():
             raise ManifestError(f"migration file is missing: {relative}")
-        if not candidate.stem.casefold().startswith(F6_STEM_PREFIX):
-            raise ManifestError("historical or non-F6 migration stem is forbidden")
+        if not candidate.stem.casefold().startswith(PACKAGE_STEM_PREFIXES):
+            raise ManifestError("historical or non-package migration stem is forbidden")
 
         stem = candidate.stem.casefold()
         if stem in stems or entry_id in ids:
             raise ManifestError("duplicate migration stem or ID")
         stems.add(stem)
         ids.add(entry_id)
+        component_order.append(component)
 
         if canonical_sql_sha256(candidate) != expected_hash:
             raise ManifestError(f"migration checksum mismatch: {relative}")
@@ -212,8 +220,11 @@ def load_manifest(
     if not resolved:
         raise ManifestError(f"manifest has no migrations for target {target}")
     if target in ALLOWED_TARGETS and (
-        components != {"g1b", "hito1"}
-        or component_counts != {"g1b": 1, "hito1": 1}
+        component_order != EXPECTED_COMPONENT_ORDER
+        or components != set(EXPECTED_COMPONENT_ORDER)
+        or component_counts != {"g1b": 1, "hito1": 1, "g1b_closure": 1}
     ):
-        raise ManifestError("FASE-06 package must contain g1b and hito1 exactly")
+        raise ManifestError(
+            "migration package must contain g1b, hito1 and g1b_closure exactly"
+        )
     return resolved

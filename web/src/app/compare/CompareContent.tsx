@@ -104,14 +104,6 @@ export default function CompareContent() {
 
         setCourses(enriched);
 
-        // Fase 82A: Increment comparison_count for each loaded course
-        enriched.forEach((c: Course) => {
-          fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-            body: JSON.stringify({ p_course_id: c.id })
-          }).catch((e) => console.warn("increment_view_count failed:", e));
-        });
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
       } finally {

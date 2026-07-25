@@ -14,6 +14,7 @@ jobs:
   # -------------------------------------------------------------
   phase_1_harvesting:
     name: "1. Massive Harvesting"
+    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
     runs-on: ubuntu-latest
     timeout-minutes: 350
     environment:

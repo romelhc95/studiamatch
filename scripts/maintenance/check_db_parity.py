@@ -75,6 +75,7 @@ REQUIRED_MIGRATIONS = {
     "fase116_public_grant_defense_in_depth",
     "20260724_fase06_g1b_reconciliation",
     "20260724_fase06_hito1_editorial_contract",
+    "20260725_fase07_g1b_closure",
 }
 
 OPERATIONAL_TABLES = {
@@ -232,6 +233,7 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
     for verifier in (
         "verify_fase06_g1b_reconciliation",
         "verify_fase06_hito1_contract",
+        "verify_fase07_g1b_closure",
     ):
         try:
             result = db_target.rpc_raise(verifier, {})
@@ -302,6 +304,37 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 "institution_site_profiles.exclusion_patterns esta expuesto publicamente"
             )
 
+        social_public_fields = {
+            "ratings": "id,course_id,rating_value,user_nickname,created_at",
+            "reviews": "id,course_id,content,user_nickname,created_at",
+        }
+        for table, columns in social_public_fields.items():
+            social_url = (
+                f"{db_target.supabase_url}/rest/v1/{table}"
+                f"?select={columns}&limit=1"
+            )
+            social_res = requests.get(
+                social_url, headers=public_headers, timeout=30
+            )
+            if social_res.status_code != 200:
+                errors.append(
+                    f"Lectura publica minima de {table} fallo: "
+                    f"HTTP {social_res.status_code}"
+                )
+
+            private_url = (
+                f"{db_target.supabase_url}/rest/v1/{table}"
+                "?select=moderation_status&limit=1"
+            )
+            private_res = requests.get(
+                private_url, headers=public_headers, timeout=30
+            )
+            if private_res.status_code not in (401, 403):
+                errors.append(
+                    f"{table}.moderation_status no produjo una denegacion explicita: "
+                    f"HTTP {private_res.status_code}"
+                )
+
         rpc_checks = [
             (
                 "atomic_enrichment_promote",
@@ -320,10 +353,10 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 json=payload,
                 timeout=30,
             )
-            if rpc_res.status_code in (200, 201, 204):
+            if rpc_res.status_code not in (401, 403, 404):
                 errors.append(
-                    f"RPC {function_name} es ejecutable con publishable key; "
-                    "debe estar restringida a service_role"
+                    f"RPC {function_name} no produjo una denegacion explicita: "
+                    f"HTTP {rpc_res.status_code}"
                 )
 
     if errors:

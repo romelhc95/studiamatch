@@ -77,11 +77,15 @@ def test_real_manifest_is_exact_forward_only_package():
     pro_paths = load_manifest(MANIFEST, "pro")
 
     assert free_paths == pro_paths
-    assert {path.name for path in pro_paths} == {
+    assert [path.name for path in pro_paths] == [
         "20260724_fase06_g1b_reconciliation.sql",
         "20260724_fase06_hito1_editorial_contract.sql",
-    }
-    assert all(path.stem.startswith("20260724_fase06_") for path in pro_paths)
+        "20260725_fase07_g1b_closure.sql",
+    ]
+    assert all(
+        path.stem.startswith(("20260724_fase06_", "20260725_fase07_"))
+        for path in pro_paths
+    )
     with pytest.raises(ManifestError, match="required ready_for_free"):
         load_manifest(MANIFEST, "free", required_status="ready_for_free")
     with pytest.raises(ManifestError, match="required free_certified"):
@@ -199,7 +203,14 @@ def test_manifest_and_ledger_checksum_are_stable_across_lf_and_crlf(tmp_path: Pa
         component="hito1",
         targets=["free"],
     )
-    entries = [g1b, hito1]
+    closure = _entry(
+        tmp_path,
+        name="20260725_fase07_g1b_closure_test.sql",
+        component="g1b_closure",
+        targets=["free"],
+    )
+    closure["id"] = "F7-G1B-CLOSURE"
+    entries = [g1b, hito1, closure]
 
     for entry in entries:
         path = tmp_path / entry["path"]
@@ -379,7 +390,7 @@ def test_free_glob_path_rejects_fase06_without_manifest():
     )
 
     assert result.returncode == 2
-    assert "FASE-06 requieren --manifest" in result.stdout
+    assert "FASE-06/07 requieren --manifest" in result.stdout
 
 
 def test_free_only_can_select_a_non_fase06_migration():

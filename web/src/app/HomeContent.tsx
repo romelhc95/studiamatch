@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
 
+const ALLOWED_SORTS = new Set(['price', 'roi', 'recent', 'asc', 'desc']);
+
 export default function HomeContent({ initialCourses = [] }: { initialCourses: Course[] }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -32,7 +34,10 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('area') || "Todos");
   const [selectedType, setSelectedType] = useState<string>(searchParams.get('tipo') || "Todos");
-  const [sortOrder, setSortOrder] = useState<string | null>(searchParams.get('sort') || null);
+  const requestedSort = searchParams.get('sort');
+  const [sortOrder, setSortOrder] = useState<string | null>(
+    requestedSort && ALLOWED_SORTS.has(requestedSort) ? requestedSort : null
+  );
   const [careerGoal, setCareerGoal] = useState<string | null>(null);
   const [durationFilter, setDurationFilter] = useState<string | null>(searchParams.get('duration') || null);
   const [priceRange, setPriceRange] = useState<string | null>(searchParams.get('priceRange') || null);
@@ -450,9 +455,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     });
 
     if (sortOrder) {
-      if (sortOrder === 'popular') {
-        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
-      } else if (sortOrder === 'price') {
+      if (sortOrder === 'price') {
         filtered.sort((a, b) => {
           const hasPriceA = a.price_pen !== null && a.price_pen !== undefined && a.price_pen > 0;
           const hasPriceB = b.price_pen !== null && b.price_pen !== undefined && b.price_pen > 0;
@@ -824,7 +827,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
               <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest hidden sm:inline">Ordenar:</span>
               {[
-                { id: 'popular', label: 'Populares', icon: TrendingUp },
                 { id: 'recent', label: 'Recientes', icon: Clock },
               ].map((qs) => (
                 <button
@@ -841,7 +843,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   {qs.label}
                 </button>
               ))}
-              {!['popular', 'recent'].includes(sortOrder || '') && sortOrder && (
+              {sortOrder !== 'recent' && sortOrder && (
                 <button
                   onClick={() => setSortOrder(null)}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border bg-brand-mint/15 border-brand-mint/30 text-brand-mint transition-all"
@@ -978,9 +980,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                             {badge.label}
                           </span>
                         ))}
-                        {(course.view_count ?? 0) > 0 && (
-                          <span className="text-[10px] text-slate-300 tabular-nums">· {course.view_count} visitas</span>
-                        )}
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-50">
