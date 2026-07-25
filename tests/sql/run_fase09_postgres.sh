@@ -122,7 +122,7 @@ for variable_name in $(compgen -e); do
 done
 dsn_valid=1
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="${FASE09_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 MANIFEST="$ROOT/db/manifests/fase08_candidate.json"
 BASELINE="$ROOT/tests/sql/fase08_minimal_baseline.sql"
 FIXTURE="$ROOT/tests/sql/fase09_exec_sql_fixture.sql"

@@ -423,6 +423,13 @@ def test_local_wrapper_is_docker_only_with_unconditional_cleanup():
     assert '"network", "connect"' in wrapper
     assert '"env", "-i"' in wrapper
     assert "TEST_DATABASE_URL=$TestDatabaseUrl" in wrapper
+    assert "FASE09_ROOT=/app" in wrapper
+    assert "tr -d ''\\r''" in wrapper
+    assert "mktemp -d /tmp/fase09-runner.XXXXXX" in wrapper
+    assert "chmod 700" in wrapper
+    assert "rm -rf --" in wrapper
+    assert "> \"$normalized\" && bash \"$normalized\"" in wrapper
+    assert "/tmp/fase09-postgres-runner.sh" not in wrapper
     assert "finally" in wrapper
     assert '"network", "disconnect", "--force"' in wrapper
     assert "originalNetworks" in wrapper

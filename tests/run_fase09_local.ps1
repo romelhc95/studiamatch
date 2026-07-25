@@ -120,7 +120,9 @@ try {
         "PATH=/tmp/f9qa/bin:/usr/local/bin:/usr/bin:/bin",
         "PYTHONPATH=/app",
         "TEST_DATABASE_URL=$TestDatabaseUrl",
-        "bash", "tests/sql/run_fase09_postgres.sh"
+        "FASE09_ROOT=/app",
+        "bash", "-c",
+        'set -euo pipefail; temp_dir=$(mktemp -d /tmp/fase09-runner.XXXXXX); chmod 700 "$temp_dir"; normalized="$temp_dir/run.sh"; trap ''rm -rf -- "$temp_dir"'' EXIT; tr -d ''\r'' < tests/sql/run_fase09_postgres.sh > "$normalized" && bash "$normalized"'
     )
     $succeeded = $true
 }
