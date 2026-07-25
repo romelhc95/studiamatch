@@ -120,6 +120,16 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 - Acceso Free/Pro: `0`; DDL/DML remoto: `0`; backfill: `0`; secrets/environments: `0`.
 - Resultados completos, commit/tree, auditorias, CI y post-merge se agregan durante los gates restantes.
 
+## Evidencia Post-Merge
+
+- PR #231: CI verde, aprobacion y merge humano mediante merge commit.
+- Replay inicial detecto CRLF Windows; PR #232 recibio CI verde, aprobacion y merge humano mediante merge commit.
+- `desarrollo@96e78b5` conserva el tree exacto de la remediacion `5140806`.
+- Suite contractual post-merge: 146 pruebas PASS; PostgreSQL 17 aislado PASS; Context Graph PASS con 27 archivos/201 enlaces.
+- F8 sigue byte-identico, `reconciled_not_certified` y bloqueado para Free/Pro.
+- Acceso Free/Pro `0`; DDL/DML/RPC/parity remoto `0`; backfill `0`; secrets/environments `0`.
+- Estado F9: `COMPLETED` solo tras fusionar el PR documental de cierre.
+
 ## Cierre Post-Merge
 
 1. El PR de implementacion F9 deja la fase en `HUMAN_GATE`; su merge no marca `COMPLETED`.
