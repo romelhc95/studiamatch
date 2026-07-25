@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-08` en `HUMAN_GATE` |
+| Fase vigente | `FASE-08` cerrada; fase posterior pendiente de definicion canonica |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -31,7 +31,7 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
 | `H1-CA1` | Workflows automaticos y gates | Contrato F7 | PR #226, CI y validacion post-merge | Completed |
-| `H1-CA2P` | Schema/RLS | Verificadores F6/F7/F8 + PostgreSQL 17 | Candidate funcional local; package bloqueado hasta Free | In Progress |
+| `H1-CA2P` | Schema/RLS | Verificadores F6/F7/F8 + PostgreSQL 17 | PR #228 y validacion post-merge; package bloqueado hasta Free | In Progress |
 | `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
 El detalle contractual de los tres criterios permanece en [REQ-EST-001](./_index.md), [HITO-001](../../hitos/hito_001.md) y [EST-001](../../estimaciones/est_001.md); esta tabla no agrega criterios.
@@ -44,7 +44,7 @@ Los nombres, adopcion Free/Pro y postcondiciones exactas se fijan en [Sistema DB
 
 El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaciones/reconciliacion_db_as_code_f6.md). PR #223 incorporo el package a `desarrollo` y PR #224 cerro su portabilidad LF/CRLF. La existencia del candidate no prueba adopcion remota ni completa `H1-CA2P` antes de certificacion.
 
-F8 agrega una closure forward-only y certificacion local reproducible documentadas en [Certificacion local Hito 1 F8](../../operaciones/certificacion_hito1_f8.md). El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
+F8 agrego una closure forward-only y certificacion local reproducible documentadas en [Certificacion local Hito 1 F8](../../operaciones/certificacion_hito1_f8.md). PR #228 fue fusionado y validado post-merge. El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
 
 ## Allowlist De Implementacion
 
