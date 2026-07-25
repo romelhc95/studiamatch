@@ -36,7 +36,7 @@ Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only y 
 | FG2 Golden Pipeline | `schedule` diario y `workflow_dispatch` |
 | FG3 integrity | `schedule` diario y `workflow_dispatch` |
 
-Los comentarios que dicen "desactivado" no desactivan un bloque `schedule`. FG1 y FG3 manual-only son un requisito objetivo del [Hito 1](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), todavia por implementar o revisar, no un hecho actual.
+Los comentarios que dicen "desactivado" no desactivan un bloque `schedule`. La modalidad aprobada por [Hito 1](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) es cadencia automatica con gates, circuit breakers y controles de ambiente; cualquier ajuste debe preservar esos controles.
 
 ## Limites
 

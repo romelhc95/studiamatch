@@ -21,18 +21,21 @@ REQUIRED = (
     "estado_del_proyecto.md",
     "backlog_tareas/_README.md",
     "backlog_tareas/_plantilla_tarea.md",
+    "backlog_tareas/intake/INTAKE-002.md",
     "backlog_tareas/req_est_001_sprint_1/_index.md",
     "backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
     "hitos/hito_001.md",
     "decisiones/_index.md",
     "decisiones/_plantilla_adr.md",
     "decisiones/ADR-0001_autoridad_fuentes_context_graph.md",
+    "decisiones/ADR-0002_ciclo_requerimientos_privados.md",
     "estimaciones/est_001.md",
     "operaciones/flujo_requerimientos.md",
     "operaciones/flujo_release_minimo.md",
     "operaciones/matriz_adopcion_db.md",
     "changelog/_plantilla_changelog.md",
     "changelog/2026-07-24.md",
+    "changelog/2026-07-25.md",
 )
 
 WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\[\]\n]+)\]\]")

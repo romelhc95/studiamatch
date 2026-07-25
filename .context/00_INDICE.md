@@ -23,14 +23,17 @@
 - [HITO-001](hitos/hito_001.md)
 - [Backlog REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
+- [INTAKE-002 pendiente de estimacion](backlog_tareas/intake/INTAKE-002.md)
 - [Plantilla de tarea](backlog_tareas/_plantilla_tarea.md)
 
 ## Decisiones E Historial
 
 - [Indice de decisiones](decisiones/_index.md)
 - [ADR-0001](decisiones/ADR-0001_autoridad_fuentes_context_graph.md)
+- [ADR-0002](decisiones/ADR-0002_ciclo_requerimientos_privados.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
+- [Changelog 2026-07-25](changelog/2026-07-25.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad

@@ -6,6 +6,7 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 
 | Tipo | ID canonico | Proposito | Nota canonica |
 |---|---|---|---|
+| Intake | `INTAKE-*` | Registrar una solicitud privada pendiente de sanitizacion, estimacion y aprobacion. | Nota propia bajo `backlog_tareas/intake/` |
 | Requerimiento | `REQ-EST-001` | Fijar el alcance aprobado y sus criterios sanitizados. | [REQ-EST-001](./req_est_001_sprint_1/_index.md) |
 | Hito | `HITO-001` | Agrupar el alcance de Hito 1 sin mantener estado vivo. | [HITO-001](../hitos/hito_001.md) |
 | Fase | `FASE-NN` | Identificar una etapa autorizable y su estado vigente. | [Estado del proyecto](../estado_del_proyecto.md) |
@@ -24,3 +25,4 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 - Los indices y los hitos enlazan alcance, pero no replican estados.
 - Una tarea no crea criterios que no existan en el requerimiento aceptado.
 - `TASK-H1-001` es la tarea principal de `HITO-001` y no tiene subtareas.
+- Un intake no crea alcance, hito, tarea ni esfuerzo. Solo avanza con estimacion detallada, aprobacion humana y requerimiento sanitizado; los originales y terminos comerciales permanecen privados.

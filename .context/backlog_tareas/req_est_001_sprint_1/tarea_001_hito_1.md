@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-05` |
+| Fase vigente | `FASE-06` pendiente de autorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -30,15 +30,15 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
-| `H1-CA1` | Workflows y gates | ID de prueba | Vacio hasta ejecucion | Planned |
+| `H1-CA1` | Workflows automaticos y gates | ID de prueba | Vacio hasta ejecucion | Planned |
 | `H1-CA2P` | Schema/RLS | ID de prueba | Vacio hasta ejecucion | Planned |
-| `H1-CA7P` | Contrato documentado | Context Graph | PR/CI vigente | In progress |
+| `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
 El detalle contractual de los tres criterios permanece en [REQ-EST-001](./_index.md), [HITO-001](../../hitos/hito_001.md) y [EST-001](../../estimaciones/est_001.md); esta tabla no agrega criterios.
 
 ## Contexto Verificable
 
-El baseline de workflows debe contrastarse con `H1-CA1`; los comentarios no sustituyen la configuracion ejecutable. Manual-only permanece como objetivo contractual sujeto a confirmacion.
+El baseline de workflows debe contrastarse con `H1-CA1`; los comentarios no sustituyen la configuracion ejecutable. La modalidad aprobada es cadencia automatica con gates, circuit breakers y controles de ambiente.
 
 Los nombres, adopcion Free/Pro y postcondiciones exactas se fijan en [Sistema DB](../../sistema_db_supabase.md) y [Matriz DB](../../operaciones/matriz_adopcion_db.md). No se editan ledgers historicos.
 
@@ -72,7 +72,7 @@ H-00 no forma parte del paquete promocionable. Es DML Free-only, con autorizacio
 1. Cambios clasificados y limitados a la allowlist.
 2. Migrations nuevas, forward-only e idempotentes.
 3. Tests de gates, governance y RLS verdes en el entorno autorizado.
-4. FG1/FG3 reflejan la decision manual-only sin cron activo, si queda aprobada.
+4. FG1/FG3 conservan o ajustan su cadencia automatica sin omitir gates, circuit breakers ni controles de ambiente.
 5. FG2 conserva credenciales fuera del repositorio y respeta gates.
 6. Frontend pasa lint, typecheck y build estatico segun el gate acordado.
 7. Candidate inmutable, Context Graph PASS y aprobacion humana antes de promocion.

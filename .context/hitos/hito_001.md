@@ -4,7 +4,7 @@
 
 ## Alcance
 
-- `H1-CA1`: orquestacion FG2/FG3, schedules y gates aplicables.
+- `H1-CA1`: orquestacion automatica FG2/FG3, schedules y gates aplicables.
 - `H1-CA2P`: soporte parcial de schema editorial, calidad y seguridad base.
 - `H1-CA7P`: preparacion documental para tablas, campos, RLS, pipeline y decisiones operativas.
 
