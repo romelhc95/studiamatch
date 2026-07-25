@@ -24,18 +24,34 @@ import json
 import glob
 import re
 import argparse
+import importlib
 import time
-import requests
 from datetime import datetime
-from dotenv import load_dotenv
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from maintenance.migration_manifest import (
     ManifestError,
     canonical_sql_sha256,
+    derive_effective_state,
     load_manifest,
+    load_promotion_contract,
+    schema_apply_is_blocked,
 )
+
+
+class _LazyRequests:
+    """Keep remote transport absent from local-contract imports."""
+
+    _module = None
+
+    def __getattr__(self, name):
+        if self._module is None:
+            self._module = importlib.import_module("requests")
+        return getattr(self._module, name)
+
+
+requests = _LazyRequests()
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -59,6 +75,8 @@ MANIFEST_ONLY_PREFIXES = (
 
 
 def load_environment(target):
+    from dotenv import load_dotenv
+
     env_file = ".env.gitprod" if target == "pro" else ".env.local"
     load_dotenv(os.path.join(ROOT_DIR, env_file), override=True)
 
@@ -394,7 +412,7 @@ def apply_migration(db, filepath, dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Aplicador de migrations SQL")
-    parser.add_argument("--env", choices=["free", "pro"], default="free",
+    parser.add_argument("--env", choices=["free", "pro"], action="append",
                         help="Ambiente target: free (desarrollo) o pro (producción)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Consultar el ledger y listar migrations pendientes sin ejecutar")
@@ -409,8 +427,57 @@ def main():
         "--manifest",
         help="Manifest cerrado con paths y checksums de migrations autorizadas.",
     )
+    parser.add_argument(
+        "--promotion-contract",
+        action="append",
+        help="Descriptor F10 local; solo se admite con --validate-only.",
+    )
+    parser.add_argument("--all", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
+    environment_flags = args.env or []
+    promotion_contract_flags = args.promotion_contract or []
+    if promotion_contract_flags:
+        if len(environment_flags) != 1 or environment_flags[0] != "free":
+            parser.error(
+                "--promotion-contract requiere exactamente un --env free"
+            )
+        if len(promotion_contract_flags) != 1:
+            parser.error("--promotion-contract debe declararse exactamente una vez")
+        args.env = environment_flags[0]
+        args.promotion_contract = promotion_contract_flags[0]
+        if not args.validate_only:
+            parser.error("--promotion-contract requiere --validate-only")
+        if args.dry_run or args.manifest or args.only or args.all:
+            parser.error(
+                "--promotion-contract no se combina con --dry-run, --manifest, "
+                "--only o --all"
+            )
+        try:
+            descriptor = load_promotion_contract(Path(args.promotion_contract))
+            state = derive_effective_state(descriptor, [])
+            free_blocked = schema_apply_is_blocked(descriptor, state, "free")
+            pro_blocked = schema_apply_is_blocked(descriptor, state, "pro")
+            if state != "reconciled_not_certified" or not (
+                free_blocked and pro_blocked
+            ):
+                raise ManifestError("initial promotion state is not fail-closed")
+        except ManifestError:
+            print("PROMOTION_CONTRACT status=FAIL")
+            sys.exit(2)
+        print(
+            "PROMOTION_CONTRACT status=PASS "
+            f"state={state} attestations=0 "
+            "schema_apply_free=BLOCKED schema_apply_pro=BLOCKED"
+        )
+        sys.exit(0)
+
+    if len(environment_flags) > 1:
+        parser.error("--env no puede repetirse")
+    args.env = environment_flags[0] if environment_flags else "free"
+    args.promotion_contract = None
+    if args.all:
+        parser.error("--all no esta soportado")
     if args.env == "pro" and not args.manifest:
         parser.error("--manifest es obligatorio para Pro")
     if args.manifest and args.only:

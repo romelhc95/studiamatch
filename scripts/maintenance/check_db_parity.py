@@ -13,21 +13,89 @@ This script blocks on schema/configuration drift, not on ETL row counts.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable
-
-import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from maintenance.migration_manifest import canonical_sql_sha256, load_manifest
 
 if TYPE_CHECKING:
     from shared.db_client import DatabaseClient
+
+
+class _LazyRequests:
+    """Do not import a network client while pure F10 helpers are imported."""
+
+    _module = None
+
+    def __getattr__(self, name: str) -> Any:
+        if self._module is None:
+            self._module = importlib.import_module("requests")
+        return getattr(self._module, name)
+
+
+requests = _LazyRequests()
+
+
+@dataclass(frozen=True)
+class PromotionOperationMode:
+    """Pure classification; it does not grant or execute a capability."""
+
+    name: str
+    capability: str
+    remote: bool
+    executable_in_f10: bool
+
+
+PROMOTION_OPERATION_MODES = MappingProxyType({
+    "local_contract": PromotionOperationMode(
+        "local_contract", "LOCAL_PROMOTION_CONTRACT", False, True
+    ),
+    "free_readiness": PromotionOperationMode(
+        "free_readiness", "REMOTE_READ_FREE", True, False
+    ),
+    "free_schema_acceptance": PromotionOperationMode(
+        "free_schema_acceptance", "ACCEPT_FREE_SCHEMA", True, False
+    ),
+    "free_backfill_acceptance": PromotionOperationMode(
+        "free_backfill_acceptance", "ACCEPT_FREE_BACKFILL", True, False
+    ),
+    "free_final_certification": PromotionOperationMode(
+        "free_final_certification", "ACCEPT_FREE_FINAL", True, False
+    ),
+    "pro_parity": PromotionOperationMode(
+        "pro_parity", "PRO_PARITY", True, False
+    ),
+})
+_PROMOTION_OPERATION_MODES_SNAPSHOT = PROMOTION_OPERATION_MODES
+
+
+def select_promotion_operation_mode(name: str) -> PromotionOperationMode:
+    """Return an exact mode or fail before any environment/transport access."""
+
+    try:
+        mode = _PROMOTION_OPERATION_MODES_SNAPSHOT[name]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"unsupported promotion operation mode: {name!r}") from exc
+    if not mode.executable_in_f10:
+        raise RuntimeError(f"promotion operation mode is blocked in F10: {name}")
+    return mode
+
+
+def classify_promotion_operation_mode(name: str) -> PromotionOperationMode:
+    """Describe local and reserved remote modes without executing either."""
+
+    try:
+        return _PROMOTION_OPERATION_MODES_SNAPSHOT[name]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"unsupported promotion operation mode: {name!r}") from exc
 
 
 CONFIG_COLUMNS = {

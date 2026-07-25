@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-10` definida y pendiente de nueva autorizacion tras merge |
+| Fase vigente | `FASE-10` en `HUMAN_GATE` |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -51,6 +51,8 @@ F9 se limita a [precertificacion local H1-CA2P](../../operaciones/precertificaci
 El candidate F9 conserva byte-identicos el manifest y las migrations F8. PR #231 y la remediacion CRLF #232 fueron fusionados y validados post-merge; status/targets no cambian.
 
 F10 se limita al [contrato local de promocion](../../operaciones/promocion_hito1_f10.md): reemplaza prerrequisitos universales por evidencia por transicion y crea un descriptor sucesor bloqueado. F11 queda reservada para preflight Free read-only y F12 para aceptar esa evidencia/crear T01 bajo otro gate. F10 no modifica el candidate F8, no cambia status y no accede a ambientes remotos.
+
+El candidate F10 implementado conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. La ruta operacional permanece en cero attestations/status transitions hasta F12. Queda pendiente de auditorias, CI, review, merge, replay y cierre documental.
 
 ## Allowlist De Implementacion
 
