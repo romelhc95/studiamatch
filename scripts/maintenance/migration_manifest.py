@@ -39,12 +39,10 @@ class ManifestError(RuntimeError):
     """Raised when a migration package is not safe to execute."""
 
 
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def canonical_sql_sha256(path: Path) -> str:
+    """Hash SQL with CRLF normalized to the repository's canonical LF form."""
+
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _without_comments_and_strings(sql: str) -> str:
@@ -198,7 +196,7 @@ def load_manifest(
         stems.add(stem)
         ids.add(entry_id)
 
-        if _sha256(candidate) != expected_hash:
+        if canonical_sql_sha256(candidate) != expected_hash:
             raise ManifestError(f"migration checksum mismatch: {relative}")
         sql = candidate.read_text(encoding="utf-8")
         if not re.search(r"(?im)^\s*set\s+search_path\s*=\s*''\s*;", sql):
