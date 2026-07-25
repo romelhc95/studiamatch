@@ -330,6 +330,18 @@ class SyncVectorWorker:
             )
             return True
 
+        if (
+            enriched.get('is_mock_data') is True
+            and existing_course.get('publication_status') == 'publicado'
+        ):
+            logger.info(
+                f"⏭️ [SKIP] {name} — mock enrichment cannot overwrite a published course"
+            )
+            self.update_enriched_status(
+                e_id, "synced", existing_metadata=enriched.get('metadata')
+            )
+            return True
+
         # Upsert to production courses
         res = self.db.upsert('courses', course_data, on_conflict="url")
 

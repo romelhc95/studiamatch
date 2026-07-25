@@ -496,33 +496,44 @@ class CleansingWorker:
             processed_count += len(members)
 
         if cleansed_batch:
-            try:
-                # Try atomic RPC promotion first
-                staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']
-                rpc_result = self.db.rpc('atomic_cleansing_promote', {
-                    "p_staging_ids": staging_ids,
-                    "p_cleansed_data": cleansed_batch
-                })
-                if rpc_result:
-                    logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
-                else:
-                    # Fallback: traditional upsert + patch
-                    self.db.upsert('cleansed_programs', cleansed_batch, on_conflict="url")
-                    logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
-                    for update in staging_updates:
-                        try:
-                            self.db.patch('staging_raw', filters=f"id=eq.{update['id']}", data={"status": update['status'], "metadata": update.get('metadata', {})})
-                        except Exception as e:
-                            logger.warning(f"Failed to update staging_raw status for {update['id']}: {e}")
-            except Exception as e:
-                logger.error(f"Failed bulk upsert: {e}")
+            # Try atomic RPC promotion first. RPC errors must not trigger the
+            # non-atomic fallback because the server-side outcome is unknown.
+            staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']
+            rpc_result = self.db.rpc_raise('atomic_cleansing_promote', {
+                "p_staging_ids": staging_ids,
+                "p_cleansed_data": cleansed_batch
+            })
+            if rpc_result:
+                # The RPC promotes processed rows atomically. Discarded rows
+                # are outside its input and still need a proven status write.
+                for update in staging_updates:
+                    if update['status'] != 'processed':
+                        self.db.patch_raise(
+                            'staging_raw',
+                            filters=f"id=eq.{update['id']}",
+                            data={"status": update['status'], "metadata": update.get('metadata', {})},
+                        )
+                logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
+            else:
+                # A falsey normal RPC result permits the idempotent fallback.
+                upsert_result = self.db.upsert('cleansed_programs', cleansed_batch, on_conflict="url")
+                if not upsert_result:
+                    raise RuntimeError("Fallback upsert failed for cleansed_programs")
+                for update in staging_updates:
+                    self.db.patch_raise(
+                        'staging_raw',
+                        filters=f"id=eq.{update['id']}",
+                        data={"status": update['status'], "metadata": update.get('metadata', {})},
+                    )
+                logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
         else:
             # No cleansed batch, just update staging_raw statuses
             for update in staging_updates:
-                try:
-                    self.db.patch('staging_raw', filters=f"id=eq.{update['id']}", data={"status": update['status'], "metadata": update.get('metadata', {})})
-                except Exception as e:
-                    logger.warning(f"Failed to update staging_raw status for {update['id']}: {e}")
+                self.db.patch_raise(
+                    'staging_raw',
+                    filters=f"id=eq.{update['id']}",
+                    data={"status": update['status'], "metadata": update.get('metadata', {})},
+                )
         return processed_count
 
 if __name__ == "__main__":

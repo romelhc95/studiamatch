@@ -19,8 +19,51 @@ ALLOWED_STATUSES = {
     "ready_for_free",
     "free_certified",
 }
-PACKAGE_STEM_PREFIXES = ("20260724_fase06_", "20260725_fase07_")
-EXPECTED_COMPONENT_ORDER = ["g1b", "hito1", "g1b_closure"]
+PACKAGE_STEM_PREFIXES = (
+    "20260724_fase06_",
+    "20260725_fase07_",
+    "20260725_fase08_",
+)
+MIGRATION_FILENAME_RE = re.compile(r"^[0-9]{8}_[a-z0-9_]+\.sql$")
+MANIFEST_CONTRACTS = {
+    (1, "FASE-06", "F6-DB-AS-CODE-20260724"): {
+        "component_order": ["g1b", "hito1", "g1b_closure"],
+        "component_counts": {"g1b": 1, "hito1": 1, "g1b_closure": 1},
+        "stem_prefixes": ("20260724_fase06_", "20260725_fase07_"),
+        "component_prefixes": {
+            "g1b": "20260724_fase06_",
+            "hito1": "20260724_fase06_",
+            "g1b_closure": "20260725_fase07_",
+        },
+        "blocked_targets_by_status": None,
+    },
+    (1, "FASE-08", "F8-HITO1-FUNCTIONAL-20260725"): {
+        "component_order": [
+            "g1b",
+            "hito1",
+            "g1b_closure",
+            "hito1_functional_closure",
+        ],
+        "component_counts": {
+            "g1b": 1,
+            "hito1": 1,
+            "g1b_closure": 1,
+            "hito1_functional_closure": 1,
+        },
+        "stem_prefixes": PACKAGE_STEM_PREFIXES,
+        "component_prefixes": {
+            "g1b": "20260724_fase06_",
+            "hito1": "20260724_fase06_",
+            "g1b_closure": "20260725_fase07_",
+            "hito1_functional_closure": "20260725_fase08_",
+        },
+        "blocked_targets_by_status": {
+            "reconciled_not_certified": ["free", "pro"],
+            "ready_for_free": ["pro"],
+            "free_certified": [],
+        },
+    },
+}
 FORBIDDEN_DML_RE = re.compile(
     r"(?im)^\s*(insert\s+into|update\s+[^\s]+\s+set|delete\s+from|"
     r"merge\s+into|truncate(?:\s+table)?|copy\s+|call\s+)"
@@ -106,10 +149,14 @@ def load_manifest(
         raise ManifestError(f"unsupported migration target: {target}")
 
     manifest = _read_json(Path(manifest_path))
-    if manifest.get("schema_version") != 1 or manifest.get("phase") != "FASE-06":
+    contract_key = (
+        manifest.get("schema_version"),
+        manifest.get("phase"),
+        manifest.get("package_id"),
+    )
+    contract = MANIFEST_CONTRACTS.get(contract_key)
+    if contract is None:
         raise ManifestError("unsupported migration manifest contract")
-    if manifest.get("package_id") != "F6-DB-AS-CODE-20260724":
-        raise ManifestError("unexpected FASE-06 package ID")
     status = manifest.get("status")
     if status not in ALLOWED_STATUSES:
         raise ManifestError("unsupported migration package status")
@@ -128,6 +175,18 @@ def load_manifest(
         "historical_snapshots": "superseded",
     }:
         raise ManifestError("FASE-06 exclusions are incomplete")
+    blocked_targets_by_status = contract["blocked_targets_by_status"]
+    if blocked_targets_by_status is None:
+        if manifest.get("blocked_targets") is not None:
+            raise ManifestError("migration package target blocks are unsupported")
+    else:
+        expected_blocks = blocked_targets_by_status[status]
+        if manifest.get("blocked_targets") != expected_blocks:
+            raise ManifestError(
+                "migration package target blocks do not match its status"
+            )
+        if required_status is not None and target in expected_blocks:
+            raise ManifestError(f"migration target {target} remains blocked")
     prerequisites = manifest.get("prerequisites")
     if not isinstance(prerequisites, list) or set(prerequisites) != {
         "g1b_frontend_compatible",
@@ -194,8 +253,15 @@ def load_manifest(
             raise ManifestError("migration path must be a regular SQL file")
         if not candidate.is_file():
             raise ManifestError(f"migration file is missing: {relative}")
-        if not candidate.stem.casefold().startswith(PACKAGE_STEM_PREFIXES):
+        if not MIGRATION_FILENAME_RE.fullmatch(candidate.name):
+            raise ManifestError("migration filename contains unsafe characters")
+        if not candidate.stem.casefold().startswith(contract["stem_prefixes"]):
             raise ManifestError("historical or non-package migration stem is forbidden")
+        component_prefix = contract["component_prefixes"].get(component)
+        if component_prefix is None or not candidate.stem.casefold().startswith(
+            component_prefix
+        ):
+            raise ManifestError("migration component uses the wrong phase prefix")
 
         stem = candidate.stem.casefold()
         if stem in stems or entry_id in ids:
@@ -219,12 +285,13 @@ def load_manifest(
 
     if not resolved:
         raise ManifestError(f"manifest has no migrations for target {target}")
+    expected_order = contract["component_order"]
     if target in ALLOWED_TARGETS and (
-        component_order != EXPECTED_COMPONENT_ORDER
-        or components != set(EXPECTED_COMPONENT_ORDER)
-        or component_counts != {"g1b": 1, "hito1": 1, "g1b_closure": 1}
+        component_order != expected_order
+        or components != set(expected_order)
+        or component_counts != contract["component_counts"]
     ):
         raise ManifestError(
-            "migration package must contain g1b, hito1 and g1b_closure exactly"
+            "migration package must contain its components exactly and in order"
         )
     return resolved

@@ -4,16 +4,16 @@ db_migrate.py — Aplicador universal de migrations SQL para StudIAMatch.
 Uso:
   python3 scripts/maintenance/db_migrate.py --env free --manifest <path> [--dry-run]
   python3 scripts/maintenance/db_migrate.py --env pro --manifest <path> [--dry-run]
+  python3 scripts/maintenance/db_migrate.py --env free --manifest <path> --validate-only
 
-Flujo:
-  1. Lee archivos db/migrations/*.sql ordenados por nombre
-  2. Consulta supabase_migrations para saber cuáles ya están aplicadas
-  3. Para cada archivo NO aplicado:
-     a. Lee contenido SQL
-     b. Ejecuta via RPC exec_sql()
-     c. Si éxito → registra en supabase_migrations
-     d. Si falla → aborta (no aplicar parcial)
-  4. Reporta resumen
+Flujo manifest:
+  1. Valida paths, orden, checksums, status y SQL local.
+  2. Consulta el ledger y acepta solo un prefijo continuo ya aplicado.
+  3. Envía todo el sufijo pendiente, sus verificadores y registros de ledger
+     en una única llamada privilegiada a exec_sql().
+  4. Si cualquier postcondición falla, la transacción completa se revierte.
+
+El modo legacy conserva aplicación por archivo para migrations no empaquetadas.
 
 Requisito: La BD debe tener el RPC exec_sql(text) creado (Fase 95).
 """
@@ -51,8 +51,13 @@ PACKAGE_POSTCONDITIONS = {
     "20260724_fase06_g1b_reconciliation": "public.verify_fase06_g1b_reconciliation()",
     "20260724_fase06_hito1_editorial_contract": "public.verify_fase06_hito1_contract()",
     "20260725_fase07_g1b_closure": "public.verify_fase07_g1b_closure()",
+    "20260725_fase08_hito1_functional_closure": "public.verify_fase08_hito1_contract()",
 }
-MANIFEST_ONLY_PREFIXES = ("20260724_fase06_", "20260725_fase07_")
+MANIFEST_ONLY_PREFIXES = (
+    "20260724_fase06_",
+    "20260725_fase07_",
+    "20260725_fase08_",
+)
 
 
 def load_environment(target):
@@ -158,7 +163,9 @@ def select_legacy_migrations(only=None):
         extract_name(path).casefold().startswith(MANIFEST_ONLY_PREFIXES)
         for path in migration_files
     ):
-        raise ManifestError("Las migrations FASE-06/07 requieren --manifest")
+        raise ManifestError(
+            "Las migrations FASE-06/07 requieren --manifest; FASE-08 tambien"
+        )
     return migration_files
 
 
@@ -215,6 +222,120 @@ def verify_applied_postcondition(db, migration_name):
         raise RuntimeError(f"Postcondicion fallida: {migration_name}")
 
 
+def _verification_sql(name):
+    verifier = PACKAGE_POSTCONDITIONS.get(name)
+    if name.casefold().startswith(MANIFEST_ONLY_PREFIXES) and verifier is None:
+        raise RuntimeError(f"Falta verificador transaccional para {name}")
+    if verifier is None:
+        return ""
+    return (
+        "\nDO $manifest_verify$ BEGIN "
+        f"IF NOT {verifier} THEN "
+        f"RAISE EXCEPTION {_sql_literal(f'Postcondicion fallida: {name}')}; "
+        "END IF; END; $manifest_verify$;"
+    )
+
+
+def _registration_sql(filepath, version, *, allow_existing=True):
+    name = extract_name(filepath)
+    checksum_marker = f"sha256:{_file_sha256(filepath)}"
+    return (
+        f"\nINSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} "
+        "(version, name, statements, applied_at) VALUES ("
+        f"{version}, {_sql_literal(name)}, {_sql_literal(checksum_marker)}, "
+        "pg_catalog.now())"
+        + (" ON CONFLICT (name) DO NOTHING" if allow_existing else "")
+        + ";"
+    )
+
+
+def validate_manifest_ledger_state(db, migration_files, applied):
+    """Return a pending suffix and reject gaps or checksum drift.
+
+    A previously applied contiguous prefix is expected when a newer manifest
+    overlays an immutable package. Any applied entry after a missing entry is
+    an unexpected partial package and is rejected.
+    """
+
+    seen_missing = False
+    pending = []
+    for filepath in migration_files:
+        name = extract_name(filepath)
+        if name not in applied:
+            seen_missing = True
+            pending.append(filepath)
+            continue
+        if seen_missing:
+            raise RuntimeError(
+                "Estado parcial inesperado: el ledger no contiene un prefijo "
+                f"continuo del manifest ({name})"
+            )
+        expected_marker = f"sha256:{_file_sha256(filepath)}"
+        if applied[name] != expected_marker:
+            raise RuntimeError(f"Ledger/checksum mismatch para {name}")
+        verify_applied_postcondition(db, name)
+    return pending
+
+
+def build_manifest_package_sql(migration_files, *, version=None):
+    """Build one transaction-scoped payload for a pending manifest suffix."""
+
+    if not migration_files:
+        raise ValueError("El package manifest no puede estar vacio")
+    version = version or int(datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    preflight_checks = []
+    package_parts = [
+        f"LOCK TABLE public.{SUPABASE_MIGRATIONS_TABLE} "
+        "IN SHARE ROW EXCLUSIVE MODE;"
+    ]
+    for filepath in migration_files:
+        name = extract_name(filepath)
+        marker = f"sha256:{_file_sha256(filepath)}"
+        preflight_checks.append(
+            "EXISTS (SELECT 1 FROM public."
+            f"{SUPABASE_MIGRATIONS_TABLE} WHERE name = {_sql_literal(name)})"
+        )
+    package_parts.append(
+        "\nDO $manifest_preflight$ BEGIN IF "
+        + " OR ".join(preflight_checks)
+        + " THEN RAISE EXCEPTION 'Manifest entries changed after planning'; "
+        "END IF; END; $manifest_preflight$;"
+    )
+    for filepath in migration_files:
+        name = extract_name(filepath)
+        sql = Path(filepath).read_text(encoding="utf-8")
+        if not sql.strip():
+            raise RuntimeError(f"La migration {name} esta vacia")
+        package_parts.extend(
+            [
+                "\n-- manifest-entry\n",
+                sql,
+                _verification_sql(name),
+                _registration_sql(filepath, version, allow_existing=False),
+            ]
+        )
+    package_parts.append("\nNOTIFY pgrst, 'reload schema';")
+    return "".join(package_parts)
+
+
+def apply_manifest_package(db, migration_files):
+    """Apply all pending manifest entries in one privileged exec_sql call."""
+
+    sql = build_manifest_package_sql(migration_files)
+    result = _exec_sql_with_retry(db, sql)
+    if result is None:
+        return False
+
+    ledger = get_applied_migrations(db)
+    for filepath in migration_files:
+        name = extract_name(filepath)
+        expected_marker = f"sha256:{_file_sha256(filepath)}"
+        if ledger.get(name) != expected_marker:
+            raise RuntimeError(f"La migration {name} no quedo registrada")
+
+    return True
+
+
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
@@ -235,24 +356,8 @@ def apply_migration(db, filepath, dry_run=False):
     _ensure_migration_table(db)
     version = int(datetime.utcnow().strftime("%Y%m%d%H%M%S"))
     checksum_marker = f"sha256:{_file_sha256(filepath)}"
-    verifier = PACKAGE_POSTCONDITIONS.get(name)
-    if name.casefold().startswith(MANIFEST_ONLY_PREFIXES) and verifier is None:
-        raise RuntimeError(f"Falta verificador transaccional para {name}")
-    verification = ""
-    if verifier:
-        verification = (
-            "\nDO $fase06_verify$ BEGIN "
-            f"IF NOT {verifier} THEN "
-            f"RAISE EXCEPTION {_sql_literal(f'Postcondicion fallida: {name}')}; "
-            "END IF; END; $fase06_verify$;"
-        )
-    registration = (
-        f"\nINSERT INTO public.{SUPABASE_MIGRATIONS_TABLE} "
-        "(version, name, statements, applied_at) VALUES ("
-        f"{version}, {_sql_literal(name)}, {_sql_literal(checksum_marker)}, "
-        "pg_catalog.now()) "
-        "ON CONFLICT (name) DO NOTHING;"
-    )
+    verification = _verification_sql(name)
+    registration = _registration_sql(filepath, version)
     result = _exec_sql_with_retry(db, sql + verification + registration)
     if result is None:
         return False
@@ -273,7 +378,12 @@ def main():
     parser.add_argument("--env", choices=["free", "pro"], default="free",
                         help="Ambiente target: free (desarrollo) o pro (producción)")
     parser.add_argument("--dry-run", action="store_true",
-                        help="Solo listar migrations pendientes sin ejecutar")
+                        help="Consultar el ledger y listar migrations pendientes sin ejecutar")
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validar paths, checksums y SQL localmente; no accede a ningun remoto",
+    )
     parser.add_argument("--only", action="append", default=[],
                         help="Aplicar/listar solo migrations cuyo nombre coincida exactamente. Repetible.")
     parser.add_argument(
@@ -293,6 +403,7 @@ def main():
         print(f"  Modo: DRY-RUN (solo diagnóstico)")
     print(f"{'='*60}\n")
 
+    offline_only = args.validate_only
     if args.manifest:
         try:
             migration_files = [
@@ -300,9 +411,8 @@ def main():
                 for path in load_manifest(
                     Path(args.manifest),
                     args.env,
-                    required_status=(
-                        "free_certified"
-                        if args.env == "pro"
+                    required_status=None if offline_only else (
+                        "free_certified" if args.env == "pro"
                         else ("ready_for_free", "free_certified")
                     ),
                 )
@@ -326,6 +436,12 @@ def main():
     print(f"  Archivos encontrados: {len(migration_files)}")
     print()
 
+    if offline_only:
+        for filepath in migration_files:
+            print(f"  ✅ {extract_name(filepath)} — validada localmente")
+        print("\n  Aplicadas: 0 (validacion local; sin acceso remoto)\n")
+        sys.exit(0)
+
     load_environment(args.env)
     assert_environment(args.env)
     db = get_db_client()
@@ -334,21 +450,20 @@ def main():
     print(f"  Migrations ya aplicadas: {len(applied)}")
     print()
 
-    pending = []
-    for f in migration_files:
-        name = extract_name(f)
-        if name in applied and args.manifest:
-            expected_marker = f"sha256:{_file_sha256(f)}"
-            if applied[name] != expected_marker:
-                print(f"  🛑 Ledger/checksum mismatch para {name}")
-                sys.exit(2)
-            try:
-                verify_applied_postcondition(db, name)
-            except RuntimeError as exc:
-                print(f"  🛑 {exc}")
-                sys.exit(2)
-        elif name not in applied:
-            pending.append(f)
+    if args.manifest:
+        try:
+            pending = validate_manifest_ledger_state(
+                db, migration_files, applied
+            )
+        except RuntimeError as exc:
+            print(f"  🛑 {exc}")
+            sys.exit(2)
+    else:
+        pending = [
+            filepath
+            for filepath in migration_files
+            if extract_name(filepath) not in applied
+        ]
 
     if not pending:
         print("  ✅ No hay migrations pendientes. Todo al día.")
@@ -357,16 +472,30 @@ def main():
     print(f"  Migrations pendientes: {len(pending)}")
     print()
 
+    if args.dry_run:
+        for filepath in pending:
+            print(f"  ⏳ {extract_name(filepath)} — PENDIENTE (dry-run, no se ejecuta)")
+        print(f"\n  Pendientes listadas: {len(pending)}/{len(pending)}")
+        print("  Aplicadas:           0 (dry-run)\n")
+        sys.exit(0)
+
     success_count = 0
     fail_count = 0
 
-    for f in pending:
-        ok = apply_migration(db, f, dry_run=args.dry_run)
-        if ok:
-            success_count += 1
+    if args.manifest:
+        print("  ⏳ Aplicando package manifest atomico...")
+        if apply_manifest_package(db, pending):
+            success_count = len(pending)
         else:
-            fail_count += 1
-            if not args.dry_run:
+            fail_count = len(pending)
+            print("\n  🛑 Error aplicando package manifest. Abortando.")
+    else:
+        for f in pending:
+            ok = apply_migration(db, f)
+            if ok:
+                success_count += 1
+            else:
+                fail_count += 1
                 print(f"\n  🛑 Error aplicando {extract_name(f)}. Abortando.")
                 break
 

@@ -765,6 +765,12 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 except (ValueError, TypeError):
                     duration_months_val = 0
 
+            metadata = {}
+            if woo_data.get('extraction_trace'):
+                metadata['extraction_trace'] = woo_data['extraction_trace']
+            if pre_extracted.get('program_family'):
+                metadata['program_family'] = pre_extracted.get('program_family')
+
             save_data = {
                 "cleansed_id": c_id,
                 "institution_id": cleansed['institution_id'],
@@ -786,53 +792,53 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "brochure_url": brochure_url,
                 "status": "pending",
                 "provider_used": provider_name or "mock",
-                "is_mock_data": is_mock
+                "is_mock_data": is_mock,
+                "metadata": metadata,
             }
 
             # 🛡️ Guardar en enriched_programs con toda la metadata de 14 pilares
-            try:
-                # Try atomic RPC promotion first
-                metadata = {}
-                if woo_data.get('extraction_trace'):
-                    metadata['extraction_trace'] = woo_data['extraction_trace']
-                if pre_extracted.get('program_family'):
-                    metadata['program_family'] = pre_extracted.get('program_family')
-                rpc_data = [{
-                    "cleansed_id": str(c_id),
-                    "institution_id": str(cleansed['institution_id']),
-                    "url": cleansed['url'],
-                    "official_name": save_data.get("official_name"),
-                    "duration_text": save_data.get("duration_text"),
-                    "duration_months": save_data.get("duration_months"),
-                    "total_cost_est": save_data.get("total_cost_est"),
-                    "requirements": save_data.get("requirements"),
-                    "graduate_profile": save_data.get("graduate_profile"),
-                    "curriculum_summary": save_data.get("curriculum_summary"),
-                    "modality": save_data.get("modality"),
-                    "primary_campus": save_data.get("primary_campus"),
-                    "degree_type": save_data.get("degree_type"),
-                    "start_date": save_data.get("start_date"),
-                    "categories": save_data.get("categories"),
-                    "difficulty_level": save_data.get("difficulty_level"),
-                    "ai_summary": save_data.get("ai_summary"),
-                    "provider_used": save_data.get("provider_used", "mock"),
-                    "is_mock_data": save_data.get("is_mock_data", True),
-                    "metadata": metadata or None
-                }]
-                rpc_result = self.db.rpc('atomic_enrichment_promote', {
-                    "p_enriched_data": rpc_data,
-                    "p_cleansed_id": str(c_id)
-                })
-                if rpc_result:
-                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}&status=eq.pending", data={"status": "enriched"})
-                else:
-                    # Fallback: traditional upsert (uses cleansed_id unique constraint) + patch
-                    self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
-                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": "enriched"})
-            except Exception as e:
-                logger.warning(f"No se pudo guardar en enriched_programs ({e}). El registro quedará pendiente para reintento.")
+            rpc_data = [{
+                "cleansed_id": str(c_id),
+                "institution_id": str(cleansed['institution_id']),
+                "url": cleansed['url'],
+                "official_name": save_data.get("official_name"),
+                "duration_text": save_data.get("duration_text"),
+                "duration_months": save_data.get("duration_months"),
+                "total_cost_est": save_data.get("total_cost_est"),
+                "requirements": save_data.get("requirements"),
+                "graduate_profile": save_data.get("graduate_profile"),
+                "curriculum_summary": save_data.get("curriculum_summary"),
+                "modality": save_data.get("modality"),
+                "primary_campus": save_data.get("primary_campus"),
+                "degree_type": save_data.get("degree_type"),
+                "start_date": save_data.get("start_date"),
+                "categories": save_data.get("categories"),
+                "difficulty_level": save_data.get("difficulty_level"),
+                "ai_summary": save_data.get("ai_summary"),
+                "brochure_url": save_data.get("brochure_url"),
+                "provider_used": save_data.get("provider_used", "mock"),
+                "is_mock_data": save_data.get("is_mock_data", True),
+                "metadata": save_data.get("metadata"),
+            }]
+            # RPC errors fail closed. Only a falsey normal response permits the
+            # idempotent upsert fallback.
+            rpc_result = self.db.rpc_raise('atomic_enrichment_promote', {
+                "p_enriched_data": rpc_data,
+                "p_cleansed_id": str(c_id)
+            })
+            if not rpc_result:
+                upsert_result = self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
+                if not upsert_result:
+                    raise RuntimeError("Fallback upsert failed for enriched_programs")
+                self.db.patch_raise(
+                    'cleansed_programs',
+                    filters=f"id=eq.{c_id}",
+                    data={"status": "enriched"},
+                )
+            return True
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
+            raise
 
     def _generate_smart_mock(self, name, description, inst_id=None, extracted_sections=None):
         # Use clean_name from cleansing (already cleaned, not generic institution name)
@@ -906,6 +912,17 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             "difficulty_level": "",
             "ai_summary": ai_summary,
         }
+
+
+def process_enrichment_records(worker, records):
+    """Return only the count of records whose enrichment was persisted."""
+    successful = 0
+    for record in records:
+        if worker.enrich_record(record) is not True:
+            record_id = record.get('id') if isinstance(record, dict) else None
+            raise RuntimeError(f"Enrichment persistence was not proven for {record_id}")
+        successful += 1
+    return successful
 
 if __name__ == "__main__":
     import argparse
@@ -992,11 +1009,7 @@ if __name__ == "__main__":
                     # Fase 89: Marcar intento antes de procesar (evita loop infinito)
                     attempted_ids.add(rid)
                     attempted_counts[rid] = attempted_counts.get(rid, 0) + 1
-                    try:
-                        worker.enrich_record(r)
-                    except Exception as e:
-                        logger.error(f"Error inesperado en enrich_record {rid}: {e}")
-                    total_processed += 1
+                    total_processed += process_enrichment_records(worker, [r])
                     guard.tick(every=50)
                     time.sleep(1.5)
 

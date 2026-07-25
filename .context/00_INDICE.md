@@ -18,6 +18,7 @@
 - [Matriz de adopcion DB](operaciones/matriz_adopcion_db.md)
 - [Reconciliacion DB-as-Code F6](operaciones/reconciliacion_db_as_code_f6.md)
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
+- [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
