@@ -23,7 +23,7 @@ jobs:
         run: |
           FOUND=0
           PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
-          find . -type f \
+          if ! find . -type f \
             ! -path './.git/*' \
             ! -path '*/node_modules/*' \
             ! -path '*/.next/*' \
@@ -34,9 +34,26 @@ jobs:
             ! -name '*.woff*' ! -name '*.ttf' ! -name '*.eot' \
             ! -name '*.mp4' ! -name '*.mov' ! -name '*.avi' \
             ! -name '*.pdf' ! -name '*.zip' ! -name '*.tar.gz' \
-            -exec grep -nE "$PATTERNS" {} + 2>/dev/null | head -50 | tee -a credential_findings.txt
-          if [ -s credential_findings.txt ]; then
+            -print0 > credential_files.list; then
+            echo "Credential scan failed while enumerating files"
+            exit 1
+          fi
+          while IFS= read -r -d '' file; do
+            if grep -IqE "$PATTERNS" "$file"; then
+              printf '%s\0' "$file" >> credential_findings.list
+            else
+              status=$?
+              if [ "$status" -gt 1 ]; then
+                echo "::error file=${file#./}::Credential scan failed while reading file"
+                exit 1
+              fi
+            fi
+          done < credential_files.list
+          if [ -s credential_findings.list ]; then
             echo "❌ CREDENTIAL SCAN FAILED: Hardcoded credentials detected!"
+            while IFS= read -r -d '' file; do
+              echo "::error file=${file#./}::Potential hardcoded credential detected (content redacted)"
+            done < credential_findings.list
             exit 1
           fi
           echo "✅ Credential scan passed"
@@ -97,10 +114,21 @@ jobs:
           find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
           echo "✅ All Python scripts compile successfully"
 
+  context-graph:
+    name: Context Graph
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate canonical context graph
+        run: python3 scripts/maintenance/validate_context_graph.py
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check]
+    needs: [credential-scan, lint, typecheck, python-check, context-graph]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -109,6 +137,7 @@ jobs:
           LINT: ${{ needs.lint.result }}
           TC: ${{ needs.typecheck.result }}
           PC: ${{ needs.python-check.result }}
+          CG: ${{ needs.context-graph.result }}
         run: |
           echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -125,6 +154,11 @@ jobs:
             exit 1
           fi
           echo "✅ **python-check**: passed" >> $GITHUB_STEP_SUMMARY
+          if [ "$CG" != "success" ]; then
+            echo "❌ **context-graph**: $CG (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ **context-graph**: passed" >> $GITHUB_STEP_SUMMARY
           # Lint and typecheck are informational (pre-existing tech debt)
           if [ "$LINT" = "success" ]; then
             echo "✅ **lint**: passed" >> $GITHUB_STEP_SUMMARY
@@ -141,4 +175,4 @@ jobs:
             echo "⚠️ **typecheck**: $TC" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Security audit PASSED** — credential scan and Python check clean. Lint/typecheck issues are tracked separately." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Security audit PASSED** — credential scan, Python check and Context Graph clean. Lint/typecheck issues are tracked separately." >> $GITHUB_STEP_SUMMARY
