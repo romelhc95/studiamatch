@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  MIGRATION_MANIFEST: db/manifests/fase08_candidate.json
+
 concurrency:
   group: studiamatch-db-sync-${{ github.ref }}
   cancel-in-progress: false
@@ -58,7 +61,7 @@ jobs:
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest db/manifests/fase06_promotable.json > report.txt
+          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST" > report.txt
           count=$(grep -c "PENDIENTE" report.txt || true)
           echo "count=$count" >> $GITHUB_OUTPUT
           cat report.txt
@@ -90,7 +93,7 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
           NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-        run: python3 scripts/maintenance/db_migrate.py --env pro --manifest db/manifests/fase06_promotable.json
+        run: python3 scripts/maintenance/db_migrate.py --env pro --manifest "$MIGRATION_MANIFEST"
 
   verify:
     name: "Verify target schema"

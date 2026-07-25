@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -29,6 +30,7 @@ from shared.supabase_credentials import (
     get_secret_key,
     require_distinct_environments,
 )
+from maintenance.migration_manifest import canonical_sql_sha256, load_manifest
 
 
 CONFIG_COLUMNS = {
@@ -76,6 +78,7 @@ REQUIRED_MIGRATIONS = {
     "20260724_fase06_g1b_reconciliation",
     "20260724_fase06_hito1_editorial_contract",
     "20260725_fase07_g1b_closure",
+    "20260725_fase08_hito1_functional_closure",
 }
 
 OPERATIONAL_TABLES = {
@@ -86,6 +89,7 @@ OPERATIONAL_TABLES = {
 }
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+F8_MANIFEST = Path(ROOT_DIR) / "db" / "manifests" / "fase08_candidate.json"
 
 
 def migration_is_applied(applied: set[str], required_name: str) -> bool:
@@ -150,24 +154,46 @@ def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, 
 
 
 def compare_migrations(db_free: DatabaseClient, db_target: DatabaseClient):
-    print("\n[CHECK 1] Migraciones aplicadas")
+    print("\n[CHECK 1] Package contractual aplicado")
     try:
-        free = service_select(db_free, "supabase_migrations", "name") or []
-        target = service_select(db_target, "supabase_migrations", "name") or []
+        free = service_select(
+            db_free, "supabase_migrations", "name,statements"
+        ) or []
+        target = service_select(
+            db_target, "supabase_migrations", "name,statements"
+        ) or []
+        package = load_manifest(
+            F8_MANIFEST, "pro", required_status="free_certified"
+        )
     except Exception as e:
-        return "WARN", [f"No se pudo leer supabase_migrations: {e}"]
+        return "ERROR", [f"No se pudo validar el package contractual: {e}"]
 
-    free_set = {r["name"] for r in free if r.get("name")}
-    target_set = {r["name"] for r in target if r.get("name")}
-    only_free = sorted(free_set - target_set)
-    only_target = sorted(target_set - free_set)
+    free_ledger = {
+        row.get("name"): row.get("statements")
+        for row in free
+        if row.get("name")
+    }
+    target_ledger = {
+        row.get("name"): row.get("statements")
+        for row in target
+        if row.get("name")
+    }
+    errors = []
+    for migration in package:
+        marker = f"sha256:{canonical_sql_sha256(migration)}"
+        for environment, ledger in (
+            ("Free", free_ledger),
+            ("target", target_ledger),
+        ):
+            if ledger.get(migration.stem) != marker:
+                errors.append(
+                    f"{environment}: ledger/checksum invalido para {migration.stem}"
+                )
 
-    if only_free:
-        return "ERROR", [f"Migraciones en Free pero NO en target: {only_free}"]
-    if only_target:
-        return "WARN", [f"Migraciones en target pero NO en Free: {only_target}"]
+    if errors:
+        return "ERROR", errors
 
-    print(f"  OK: {len(free_set)} migraciones en ambos ambientes")
+    print(f"  OK: {len(package)} migrations contractuales con checksum exacto")
     return "OK", []
 
 
@@ -218,7 +244,9 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
     errors: list[str] = []
 
     try:
-        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        target_migrations = service_select(
+            db_target, "supabase_migrations", "name,statements"
+        ) or []
         applied = {row.get("name") for row in target_migrations if row.get("name")}
         missing_migrations = sorted(
             required_name
@@ -227,6 +255,20 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
         )
         if missing_migrations:
             errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
+
+        ledger = {
+            row.get("name"): row.get("statements")
+            for row in target_migrations
+            if row.get("name")
+        }
+        for migration in load_manifest(
+            F8_MANIFEST, "pro", required_status="free_certified"
+        ):
+            expected_marker = f"sha256:{canonical_sql_sha256(migration)}"
+            if ledger.get(migration.stem) != expected_marker:
+                errors.append(
+                    f"Ledger/checksum contractual invalido: {migration.stem}"
+                )
     except Exception as e:
         errors.append(f"No se pudo verificar supabase_migrations: {e}")
 
@@ -234,6 +276,7 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
         "verify_fase06_g1b_reconciliation",
         "verify_fase06_hito1_contract",
         "verify_fase07_g1b_closure",
+        "verify_fase08_hito1_contract",
     ):
         try:
             result = db_target.rpc_raise(verifier, {})

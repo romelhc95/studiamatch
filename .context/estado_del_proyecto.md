@@ -16,7 +16,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `FASE-05` | Obsidian minimo | `COMPLETED` | Gobierno documental, PR #221 y `SRC-REQ-001` reconciliada. |
 | `FASE-06` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
 | `FASE-07` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
-| `FASE-08` | Hito 1 funcional | `PENDING` | Siguiente fase autorizable; no incluye aplicacion DB remota. |
+| `FASE-08` | Hito 1 funcional | `HUMAN_GATE` | Candidate local implementado; pendiente CI, review y merge. Sin aplicacion DB remota. |
 | `FASE-09` a `FASE-11` | Fases posteriores | `PENDING` | Permanecen fuera de la ejecucion vigente. |
 
 ## Tarea Activa
@@ -24,11 +24,11 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Fase autorizada: ninguna; F7 esta cerrada.
-- Siguiente fase autorizable: `FASE-08`, solo con autorizacion humana explicita.
+- Fase autorizada: ninguna; F8 espera revision humana.
+- Siguiente fase autorizable: ninguna hasta cerrar F8.
 
 ## Alcance Inmediato
 
-`FASE-07` produjo compatibilidad frontend G1b, writers alineados con `pipeline_gate=false`, gates fail-closed, gobierno FG1/FG2/FG3 y una migration closure forward-only. PR #226 recibio CI verde y aprobacion del reviewer; el usuario ratifico expresamente el gate `romelhc95` owner / `romelhc95-approver` reviewer. `desarrollo@982d879` conserva el tree exacto y repite 97 pruebas en Docker. F7 queda cerrada sin aplicar DDL/DML en Free o Pro; el package conserva status `reconciled_not_certified`. `H1-CA1` y `H1-CA7P` estan completados; `H1-CA2P` sigue en progreso y F8 requiere una autorizacion nueva.
+`FASE-08` fue autorizada y produjo un candidate funcional local con verifier fuerte, PostgreSQL 17 efimero, persistencia fail-closed y un manifest F8 cerrado. La evidencia vive en [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md). No se aplico DDL/DML en Free o Pro y el package conserva status `reconciled_not_certified`. `H1-CA1` y `H1-CA7P` estan completados; `H1-CA2P` y `TASK-H1-001` siguen en progreso hasta certificacion Free posterior.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).

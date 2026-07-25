@@ -362,10 +362,11 @@ def test_pro_workflow_uses_manifest_for_detect_and_apply():
     workflow = (ROOT / ".github" / "workflows" / "db-sync-to-pro.yml").read_text(
         encoding="utf-8"
     )
-    command = "--env pro --manifest db/manifests/fase06_promotable.json"
+    command = '--env pro --manifest "$MIGRATION_MANIFEST"'
     normalized = workflow.replace("--dry-run ", "")
 
     assert normalized.count(command) == 2
+    assert "MIGRATION_MANIFEST: db/manifests/fase08_candidate.json" in workflow
     assert "push:" not in workflow
     assert "candidate_sha:" in workflow
     assert "apply_authorized:" in workflow
