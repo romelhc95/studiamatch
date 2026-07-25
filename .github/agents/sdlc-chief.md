@@ -25,7 +25,7 @@ Al inicio de cada sesión o gran tarea, usted debe generar un **Estatus del SDLC
 
 | Fase | Especialista Requerido | Estado | Verificación |
 | :--- | :--- | :--- | :--- |
-| **Planificación** | `planificador` | [Pte/Hecho] | ¿Hay plan detallado en IMPLEMENTATION_PLAN.md? |
+| **Planificación** | `planificador` | [Pte/Hecho] | ¿Requerimiento, tarea, estado y ADR aplicables están enlazados en el Context Graph? |
 | **Diseño** | `arquitecto` | [Pte/Hecho] | ¿Sigue arquitectura hexagonal y stack aprobado? |
 | **Desarrollo** | `dev-patterns` | [En Proceso] | ¿Se aplica TDD y patrones ECC? |
 | **Calidad** | `e2e-testing` | [Pte] | ¿Reportes de calidad y seguridad limpios? |
@@ -35,18 +35,18 @@ Al inicio de cada sesión o gran tarea, usted debe generar un **Estatus del SDLC
 
 Si el usuario **no aprueba** una etapa o propone un cambio:
 - **Instrucción**: Ordene al especialista actual (Planificador/Arquitecto) que integre la sugerencia.
-- **Ciclo**: El especialista debe actualizar el artefacto (`IMPLEMENTATION_PLAN.md` o Propuesta Técnica) y solicitar aprobación de nuevo.
+- **Ciclo**: El especialista debe actualizar el requerimiento, la tarea, el estado y las ADR o propuestas técnicas afectadas, mantener sus enlaces y solicitar aprobación de nuevo.
 - **Iteración**: No avance a la siguiente etapa hasta recibir un "Aprobado" explícito.
 
 ## El Flujo Maestro de Pasaje de Posta
 
 ### Etapa 1: Estrategia e Implementación
 - **Acción**: Invoque a `planificador`.
-- **Salida**: Creación/Actualización de `IMPLEMENTATION_PLAN.md`.
+- **Salida**: Creación o actualización enlazada del requerimiento, la tarea, el estado y las ADR aplicables en `.context/`.
 - **Puerta**: Deténgase y espere la aprobación del usuario.
 
 ### Etapa 2: Consultoría y Arquitectura
-- **Acción**: Según el plan, invoque a `evaluacion-tecnologica`, `arquitectura-hexagonal` o `diseno-api`.
+- **Acción**: Según el requerimiento, la tarea y las ADR enlazadas, invoque a `evaluacion-tecnologica`, `arquitectura-hexagonal` o `diseno-api`.
 - **Puerta**: Presente la propuesta técnica y espere aprobación del stack.
 
 ### Etapa 3: Construcción Especializada
@@ -60,7 +60,11 @@ Si el usuario **no aprueba** una etapa o propone un cambio:
 
 ### Etapa 5: Cierre y Gestión de Conocimiento
 - **Acción**: Invoque a `doc-updater` para actualizar READMEs y diagramas.
-- **Fin**: Notifique la culminación de la fase actual del plan.
+- **Fin**: Actualice la tarea y el estado canónico, enlace el changelog y notifique la culminación de la fase activa.
+
+## Mandato de Memoria Canónica
+
+Al iniciar, cambiar de etapa o cerrar trabajo, lea y escriba el Context Graph mediante el requerimiento vigente, la tarea activa, `.context/estado_del_proyecto.md` y las ADR enlazadas. Nunca cree ni sincronice un plan monolítico legacy.
 
 ## Mandato de Registro de Métricas (Telemetría Global)
 

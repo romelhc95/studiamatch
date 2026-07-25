@@ -1,6 +1,8 @@
-# Global SDLC Workflow - StudIAMatch (Detailed)
+# [LEGACY] Global SDLC Workflow - StudIAMatch (Detailed)
 
-This document visualizes the complete engineering workflow and data lifecycle of **StudIAMatch**, orchestrated by **@sdlc-chief** and architected by **@architect-hexagonal**.
+> **Clasificación:** vista histórica legacy y no autoritativa. Se conserva para contexto, pero no define el estado, el alcance, los proveedores ni las cadencias actuales. La autoridad operativa es el Context Graph: [estado del proyecto](../../.context/estado_del_proyecto.md), requerimiento y tarea allí enlazados, más las ADR aplicables. Ante cualquier discrepancia prevalecen esas notas canónicas.
+
+This document visualizes a historical engineering workflow and data lifecycle of **StudIAMatch**, orchestrated by **@sdlc-chief** and architected by **@architect-hexagonal**.
 
 ## Technical Workflow Diagram
 
@@ -11,8 +13,8 @@ flowchart TD
     
     subgraph Planning ["Fase 1: Planificación (Estrategia)"]
         direction TB
-        Planner["@planner"] --> PlanDoc[/IMPLEMENTATION_PLAN.md/]
-        PlanDoc --> Research["@researcher"]
+        Planner["@planner"] --> ContextGraph["Context Graph: requerimiento → tarea → estado → ADR"]
+        ContextGraph --> Research["@researcher"]
     end
 
     Planning --> Gate1{User Approval}
