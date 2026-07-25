@@ -31,7 +31,7 @@ El manifest cerrado `db/manifests/fase06_promotable.json` enumera exactamente:
 1. `db/migrations/20260724_fase06_g1b_reconciliation.sql`.
 2. `db/migrations/20260724_fase06_hito1_editorial_contract.sql`.
 
-Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto. El status inicial es `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. F7 debe certificar compatibilidad frontend y cambiarlo a `ready_for_free`; F9 debe demostrar backfill y postcondiciones antes de `free_certified`. Pro rechaza cualquier status anterior.
+Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto sobre la representacion canonica LF del SQL. El validador del manifest y el marcador de ledger normalizan exclusivamente CRLF a LF antes del hash, por lo que un bind mount desde Windows conserva la misma identidad que CI Linux sin aceptar drift de contenido. El status inicial es `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. F7 debe certificar compatibilidad frontend y cambiarlo a `ready_for_free`; F9 debe demostrar backfill y postcondiciones antes de `free_certified`. Pro rechaza cualquier status anterior.
 
 El workflow Production es manual, exige commit inmutable y aprobacion explicita, y nunca se dispara por push. El guard rechaza `H-00`, fuentes `historical_free_only`, `source_unavailable` o `superseded`, stems ajenos a F6, paths fuera de migrations, checksum drift y DML ejecutado durante instalacion.
 
@@ -45,11 +45,11 @@ La migration editorial agrega defaults seguros, pero los cursos existentes solo 
 
 ## Estado de adopcion
 
-- Candidate Git: validado localmente, pendiente de CI, review y merge a `desarrollo`.
-- Validacion: 73 pruebas deterministas, Context Graph y sintaxis Python en PASS; auditoria de seguridad independiente en GO.
+- Candidate Git: PR #223 aprobado y fusionado en `desarrollo`; forward-fix de portabilidad pendiente de CI, review y merge.
+- Validacion: 74 pruebas deterministas, incluida regresion LF/CRLF desde Docker sobre Windows; Context Graph y sintaxis Python en PASS.
 - Supabase Free: sin DDL/DML de F6 aplicado por esta fase.
 - Supabase Pro: sin DDL/DML de F6 aplicado por esta fase.
-- Siguiente gate DB: autorizacion explicita para aplicar el package exacto en Free despues del merge.
-- F7 no comienza hasta cerrar F6 y recibir una autorizacion humana nueva.
+- Siguiente gate: aprobar y fusionar el forward-fix, validar `desarrollo` y cerrar F6. El package sigue bloqueado para Free y Pro.
+- F7 no comienza hasta cerrar F6 y recibir una autorizacion humana nueva; F7 debe certificar los prerequisitos antes de cualquier aplicacion en Free.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) y [Release minimo](./flujo_release_minimo.md).

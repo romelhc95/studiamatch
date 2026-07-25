@@ -11,6 +11,7 @@ import pytest
 from scripts.maintenance import db_migrate
 from scripts.maintenance.migration_manifest import (
     ManifestError,
+    canonical_sql_sha256,
     load_manifest,
     validate_promotable_sql,
 )
@@ -65,7 +66,7 @@ def _entry(
         "id": f"F6-{component.upper()}-FORWARD",
         "component": component,
         "path": path.relative_to(tmp_path).as_posix(),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "sha256": canonical_sql_sha256(path),
         "provenance": "new_forward_only",
         "targets": targets or ["free"],
     }
@@ -184,6 +185,31 @@ def test_manifest_rejects_checksum_drift(tmp_path: Path):
 
     with pytest.raises(ManifestError, match="checksum mismatch"):
         load_manifest(_write_manifest(tmp_path, [entry]), "free", root=tmp_path)
+
+
+def test_manifest_and_ledger_checksum_are_stable_across_lf_and_crlf(tmp_path: Path):
+    g1b = _entry(
+        tmp_path,
+        name="20260724_fase06_g1b_test.sql",
+        targets=["free"],
+    )
+    hito1 = _entry(
+        tmp_path,
+        name="20260724_fase06_hito1_test.sql",
+        component="hito1",
+        targets=["free"],
+    )
+    entries = [g1b, hito1]
+
+    for entry in entries:
+        path = tmp_path / entry["path"]
+        path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+        assert canonical_sql_sha256(path) == entry["sha256"]
+        assert db_migrate._file_sha256(path) == entry["sha256"]
+
+    assert load_manifest(
+        _write_manifest(tmp_path, entries), "free", root=tmp_path
+    ) == [tmp_path / entry["path"] for entry in entries]
 
 
 @pytest.mark.parametrize(

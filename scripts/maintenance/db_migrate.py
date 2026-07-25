@@ -26,7 +26,6 @@ import re
 import argparse
 import time
 import requests
-import hashlib
 from datetime import datetime
 from dotenv import load_dotenv
 from pathlib import Path
@@ -34,7 +33,11 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client, _request_with_retry, DNS_RETRY_DELAYS
 from shared.supabase_credentials import get_secret_key
-from maintenance.migration_manifest import ManifestError, load_manifest
+from maintenance.migration_manifest import (
+    ManifestError,
+    canonical_sql_sha256,
+    load_manifest,
+)
 
 
 MIGRATIONS_DIR = os.path.join(
@@ -198,11 +201,7 @@ def _sql_literal(value):
 
 
 def _file_sha256(filepath):
-    digest = hashlib.sha256()
-    with open(filepath, "rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return canonical_sql_sha256(Path(filepath))
 
 
 def apply_migration(db, filepath, dry_run=False):
