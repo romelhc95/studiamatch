@@ -30,10 +30,10 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Fuente historica completa no demostrada | `ledger_applied` y `source_unavailable` | Recuperar checksum o sustituir forward-only |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Fuente promocionable no demostrada | `source_unavailable` | Reconciliar por postcondicion; backfill separado |
-| G1b promocionable | Free | Evidencia identificable | Efectiva | Fuente historica completa no demostrada | `ledger_applied` y `source_unavailable` | Consolidar contrato promocionable sin replay |
-| G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Fuente promocionable no demostrada | `source_unavailable` | Crear reemplazo forward-only por postcondicion |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Historica exacta no demostrada; candidate F6 nuevo | `ledger_applied` y `source_unavailable` | Certificar candidate forward-only; backfill separado |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Candidate F6 nuevo, aun no aplicado | `source_unavailable` | Promover solo package certificado y sin H-00 |
+| G1b promocionable | Free | Evidencia identificable | Efectiva | Consolidado preservado y candidate F6 nuevo | `ledger_applied` y `source_unavailable` | Certificar reconciliacion sin replay |
+| G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Candidate F6 nuevo, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
 | H00 | Free | Evidencia historica | No se inspeccionaron datos operativos | No requerida para promocion | `historical_free_only` | Conservar solo como historia |
 | H00 | Pro | Ausente | No aplicable | No aplicable | `historical_free_only` | Exclusion mecanica obligatoria |
 | Efectos sin fuente canonica | Free/Pro | Sin atribucion inequivoca | Observados | Fuente activa no identificada | `observed_effective_unledgered` | Inventariar y versionar sin copiar filas |
@@ -47,6 +47,8 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 4. Compatibilidad de pipeline, release y frontend.
 
 Los detalles tecnicos sensibles para operar esta reconciliacion permanecen en un artifact privado local excluido de Git. Esta matriz no publica identificadores de proyecto, endpoints, hashes, conteos, findings explotables ni URLs especificas de remediation.
+
+El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./reconciliacion_db_as_code_f6.md).
 
 ## Guardrails forward-only F6
 

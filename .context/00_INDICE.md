@@ -16,6 +16,7 @@
 - [Estructura frontend](estructura_frontend.md)
 - [Estimacion EST-001](estimaciones/est_001.md)
 - [Matriz de adopcion DB](operaciones/matriz_adopcion_db.md)
+- [Reconciliacion DB-as-Code F6](operaciones/reconciliacion_db_as_code_f6.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo

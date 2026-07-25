@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "phase": "FASE-06",
+  "package_id": "F6-DB-AS-CODE-20260724",
+  "status": "reconciled_not_certified",
+  "prerequisites": [
+    "g1b_frontend_compatible",
+    "editorial_backfill_certified",
+    "free_postconditions_certified"
+  ],
+  "entries": [
+    {
+      "id": "F6-G1B-FORWARD",
+      "component": "g1b",
+      "path": "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+      "sha256": "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F6-HITO1-FORWARD",
+      "component": "hito1",
+      "path": "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+      "sha256": "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    }
+  ],
+  "excluded": {
+    "H-00": "historical_free_only",
+    "canary": "observed_effective_unledgered",
+    "historical_snapshots": "superseded"
+  }
+}

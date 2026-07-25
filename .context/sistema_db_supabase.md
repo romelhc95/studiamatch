@@ -1,6 +1,6 @@
 # Sistema DB Supabase
 
-Snapshot canonico observado para F5. Resume el estado aplicado de Supabase sin publicar identificadores de proyecto, endpoints, credenciales, hashes, conteos de ledger ni detalles de findings. Las decisiones de adopcion se toman exclusivamente en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
+Snapshot canonico observado para F6. Resume el estado aplicado de Supabase sin publicar identificadores de proyecto, endpoints, credenciales, hashes, conteos de ledger ni detalles de findings. Las decisiones de adopcion se toman exclusivamente en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
 
 Enlaces canonicos: [Indice](./00_INDICE.md) | [Arquitectura pipeline](./arquitectura_pipeline.md) | [Estado del proyecto](./estado_del_proyecto.md) | [Tarea Hito 1](./backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./operaciones/flujo_release_minimo.md) | [Matriz DB](./operaciones/matriz_adopcion_db.md)
 
@@ -42,10 +42,10 @@ Regla inmutable:
 Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 
 - `[REMOTE Free]` Se observaron efectos del contrato Hito 1 y del hardening G1b.
-- `[REMOTE Pro]` La adopcion equivalente no esta demostrada y debe resolverse en F6 por postcondicion.
-- `[GIT/DERIVED]` La fuente historica completa no esta demostrada en el arbol actual; la promocion no se reconstruye por nombres o conteos de ledger.
+- `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
+- `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - H00 es `historical_free_only` y queda excluido de Pro.
-- Los objetos, diferencias y postcondiciones exactas permanecen en el artifact privado ignorado hasta que F6 produzca una fuente publica forward-only.
+- Los objetos y diferencias sensibles permanecen en el artifact privado ignorado. El contrato publicable F6 vive en la [reconciliacion DB-as-Code](./operaciones/reconciliacion_db_as_code_f6.md).
 
 ## Ledgers y fuentes
 
@@ -58,7 +58,7 @@ Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 
 ## Caveats de seguridad publicables
 
-`[REMOTE]` Existen hallazgos de seguridad y hardening pendientes que condicionan F6. La documentacion publica no enumera clases explotables, objetos, identidades ni rutas de remediation.
+`[REMOTE]` Existen hallazgos de seguridad y hardening pendientes que condicionan la certificacion Free. La documentacion publica no enumera clases explotables, objetos ni identidades.
 
 Los detalles tecnicos se conservan solo en el artifact privado local ignorado. Ninguna credencial, secreto, PII ni fila operativa se registra alli.
 
