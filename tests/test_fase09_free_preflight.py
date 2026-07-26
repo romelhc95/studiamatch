@@ -896,6 +896,7 @@ def test_ci_uses_network_namespace_none_boundary_and_preserves_cleanup():
     assert "environment:" not in job
     assert "secrets." not in job
     assert "services:" not in job
+    assert "fetch-depth: 0" in job
     assert job.index("Install test dependencies") < job.index("Block all egress")
     assert job.count("sudo unshare --net") >= 3
     assert job.count("ip link set lo down") >= 3
