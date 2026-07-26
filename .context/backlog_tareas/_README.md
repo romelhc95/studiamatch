@@ -9,7 +9,9 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 | Intake | `INTAKE-*` | Registrar una solicitud privada pendiente de sanitizacion, estimacion y aprobacion. | Nota propia bajo `backlog_tareas/intake/` |
 | Requerimiento | `REQ-EST-001` | Fijar el alcance aprobado y sus criterios sanitizados. | [REQ-EST-001](./req_est_001_sprint_1/_index.md) |
 | Hito | `HITO-001` | Agrupar el alcance de Hito 1 sin mantener estado vivo. | [HITO-001](../hitos/hito_001.md) |
-| Fase | `FASE-NN` | Identificar una etapa autorizable y su estado vigente. | [Estado del proyecto](../estado_del_proyecto.md) |
+| Macrofase | `FNN` | Conservar una etapa F0-F11 del plan `main -> Hito 1`; agrupa resultados, no autoriza por si sola. | [Estado del proyecto](../estado_del_proyecto.md) |
+| Subfase | `FNN.n` | Identificar una unidad ejecutable con alcance, allowlist, gates y autorizacion exactos. | Nota operativa enlazada desde [Estado](../estado_del_proyecto.md) |
+| Alias historico | `FASE-NN` | Preservar identidad de artifacts/PR cerrados sin determinar la macrofase vigente. | Nota de evidencia correspondiente |
 | Tarea | `TASK-H1-001` | Ejecutar y mantener el estado del paquete principal de Hito 1. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md) |
 | Criterio | `H1-CA1` | Trazar la orquestacion aceptada dentro de `HITO-001`. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md#criterios-y-entregables) |
 | Criterio parcial | `H1-CA2P` | Trazar el schema y seguridad base aceptados. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md#criterios-y-entregables) |
@@ -21,6 +23,7 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 ## Reglas
 
 - El estado vivo del proyecto y las fases reside solo en [Estado del proyecto](../estado_del_proyecto.md).
+- Solo una subfase decimal definida y activa autoriza ejecucion; una macrofase o alias historico no agrega permisos.
 - El estado vivo de una tarea y sus criterios reside solo en su nota canonica.
 - Los indices y los hitos enlazan alcance, pero no replican estados.
 - Una tarea no crea criterios que no existan en el requerimiento aceptado.

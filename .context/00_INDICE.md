@@ -19,8 +19,9 @@
 - [Reconciliacion DB-as-Code F6](operaciones/reconciliacion_db_as_code_f6.md)
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
 - [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
-- [Precertificacion local Hito 1 F9](operaciones/precertificacion_hito1_f9.md)
-- [Contrato de promocion Hito 1 F10](operaciones/promocion_hito1_f10.md)
+- [Certificacion Hito 1 - macrofase F9](operaciones/certificacion_hito1_f9.md)
+- [Evidencia historica F9.1 - package FASE-09](operaciones/precertificacion_hito1_f9.md)
+- [Evidencia historica F9.2 - package FASE-10](operaciones/promocion_hito1_f10.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
@@ -36,6 +37,7 @@
 - [Indice de decisiones](decisiones/_index.md)
 - [ADR-0001](decisiones/ADR-0001_autoridad_fuentes_context_graph.md)
 - [ADR-0002](decisiones/ADR-0002_ciclo_requerimientos_privados.md)
+- [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
@@ -51,6 +53,7 @@
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
 | Estado de tareas | [Nota canonica TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | La tarea es la unica autoridad de su avance y criterios. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; los IDs decimales son subfases ejecutables; aliases historicos no autorizan trabajo nuevo. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | [Changelog no autoritativo](changelog/2026-07-24.md) | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |

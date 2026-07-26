@@ -6,7 +6,8 @@
 | Estado | `PENDING` |
 | Requerimiento | `REQ-<ID>` |
 | Hito | `HITO-<ID>` |
-| Fase vigente | `FASE-NN` |
+| Macrofase vigente | `FNN` |
+| Subfase ejecutable | `FNN.n` o ninguna |
 | Criterios | |
 
 ## Objetivo

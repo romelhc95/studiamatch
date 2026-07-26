@@ -46,6 +46,6 @@ Esta nota registra el candidate Git de `FASE-08`. No afirma adopcion remota, no 
 - Backfill editorial acotado y certificado antes de publicar filas existentes.
 - Pro permanece prohibido hasta obtener un manifest `free_certified` y aprobacion Production.
 - `TASK-H1-001` y `H1-CA2P` permanecen `IN_PROGRESS`.
-- F9 no es ejecutable hasta que su alcance y gates queden definidos en el Context Graph.
+- Gate historico al cerrar F8: el package despues llamado `FASE-09`, ahora F9.1, no era ejecutable hasta definir su alcance. Estado vigente: F9.1/F9.2 cerradas y macrofase F9 en progreso.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](./matriz_adopcion_db.md), [Reconciliacion F6](./reconciliacion_db_as_code_f6.md) y [Release minimo](./flujo_release_minimo.md).

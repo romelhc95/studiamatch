@@ -32,7 +32,7 @@ El manifest cerrado `db/manifests/fase06_promotable.json` enumera exactamente:
 2. `db/migrations/20260724_fase06_hito1_editorial_contract.sql`.
 3. `db/migrations/20260725_fase07_g1b_closure.sql`.
 
-Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto sobre la representacion canonica LF del SQL. El validador del manifest y el marcador de ledger normalizan exclusivamente CRLF a LF antes del hash, por lo que un bind mount desde Windows conserva la misma identidad que CI Linux sin aceptar drift de contenido. El status permanece `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. Los prerrequisitos universales de este manifest v1 se conservan como evidencia historica, pero no gobiernan la promocion futura; F10 define requisitos separados por transicion. Pro rechaza cualquier status anterior a `free_certified`.
+Cada entrada exige provenance `new_forward_only`, target explicito y SHA-256 exacto sobre la representacion canonica LF del SQL. El validador del manifest y el marcador de ledger normalizan exclusivamente CRLF a LF antes del hash, por lo que un bind mount desde Windows conserva la misma identidad que CI Linux sin aceptar drift de contenido. El status permanece `reconciled_not_certified`: el runner rechaza aplicarlo tanto en Free como en Pro. Los prerrequisitos universales de este manifest v1 se conservan como evidencia historica, pero no gobiernan la promocion futura; el package historico `FASE-10`/F9.2 define requisitos separados por transicion. Pro rechaza cualquier status anterior a `free_certified`.
 
 El workflow Production es manual, exige commit inmutable y aprobacion explicita, y nunca se dispara por push. El guard rechaza `H-00`, fuentes `historical_free_only`, `source_unavailable` o `superseded`, stems ajenos al package F6/F7, paths fuera de migrations, checksum drift y DML ejecutado durante instalacion.
 
@@ -51,6 +51,6 @@ La migration editorial agrega defaults seguros. Schema/RLS debe aplicarse y cert
 - Supabase Free: sin DDL/DML de F6 aplicado por esta fase.
 - Supabase Pro: sin DDL/DML de F6 aplicado por esta fase.
 - Estado F6: `COMPLETED`. El package sigue bloqueado para Free y Pro como `reconciled_not_certified`.
-- Gate historico al cerrar F6: F7. Estado vigente: F7-F9 estan cerradas y F10 define el contrato local de promocion antes de cualquier preflight Free.
+- Gate historico al cerrar F6: F7. Estado vigente: F7/F8 y las subfases F9.1/F9.2 estan cerradas; la macrofase F9 sigue en progreso antes de cualquier promocion Free.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) y [Release minimo](./flujo_release_minimo.md).
