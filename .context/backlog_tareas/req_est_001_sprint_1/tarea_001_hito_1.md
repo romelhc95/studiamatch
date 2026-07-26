@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; definicion local `F9.3` en `HUMAN_GATE` |
+| Fase vigente | Macrofase `F9` en progreso; candidate local `F9.3` verificado y pendiente de cierre |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -53,6 +53,8 @@ F9.1 conserva byte-identicos el manifest y las migrations F8. PR #231 y la remed
 El package historico `FASE-10`, ahora mapeado a F9.2, se limita al [contrato local de promocion](../../operaciones/promocion_hito1_f10.md): reemplaza prerrequisitos universales por evidencia por transicion y crea un descriptor sucesor bloqueado. No modifica el candidate F8, no cambia status y no accede a ambientes remotos.
 
 F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; la ruta operacional permanece en cero attestations/status transitions hasta F9.5. F9.1/F9.2 no completan la [macrofase F9](../../operaciones/certificacion_hito1_f9.md) ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
+
+F9.3 fue autorizada mediante la frase decimal exacta y produjo un candidate exclusivamente local: descriptor inmutable, catalogos read-only cerrados, target binding no reversible, schemas neutrales para F9.4, runner sin transportes y job CI sin secrets. La validacion candidate paso 55 pruebas focused, 253 de regresion, 22 checks sinteticos, Context Graph y auditorias security/QA. No hubo acceso Free/Pro ni cambio de estado; F9.3 permanece en progreso hasta CI/review/merge, replay post-merge y cierre documental. F9.4 no esta autorizada.
 
 ## Allowlist De Implementacion
 
