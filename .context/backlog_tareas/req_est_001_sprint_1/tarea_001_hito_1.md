@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.3 local completada y F9.4 pendiente/no autorizada |
+| Fase vigente | Macrofase `F9` en progreso; F9.4 definida como `DEFINED_BLOCKED` y no autorizada |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -55,6 +55,8 @@ El package historico `FASE-10`, ahora mapeado a F9.2, se limita al [contrato loc
 F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; la ruta operacional permanece en cero attestations/status transitions hasta F9.5. F9.1/F9.2 no completan la [macrofase F9](../../operaciones/certificacion_hito1_f9.md) ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
 
 F9.3 fue autorizada mediante la frase decimal exacta y congelo un contrato exclusivamente local: descriptor inmutable, catalogos read-only cerrados, target binding no reversible, schemas neutrales para F9.4, runner sin transportes y job CI sin secrets. PR #238 fue aprobado y fusionado; el replay detecto una incompatibilidad del fixture con CRLF del bind mount Windows, remediada y fusionada mediante PR #239. `desarrollo@4e77fe0` repitio desde un checkout Linux limpio dentro de Docker 55 pruebas focused, 253 de regresion, 22 checks sinteticos, Python compile y Context Graph en PASS. No hubo acceso Free/Pro ni cambio de estado. F9.3 queda completada al fusionar su cierre documental; F9.4 no esta autorizada.
+
+La [definicion F9.4](../../operaciones/preflight_free_f9_4.md) preserva F9.3 byte-identical y separa adapter local de ejecucion remota one-shot. Queda `DEFINED_BLOCKED` por PostgREST, identidad SQL, advisor bridge, completitud ACL y binding cross-plane/single-use. No se implemento ni ejecuto transporte, no se creo T01 y `H1-CA2P` permanece `IN_PROGRESS`.
 
 ## Allowlist De Implementacion
 

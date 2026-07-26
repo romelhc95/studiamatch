@@ -22,6 +22,7 @@
 - [Certificacion Hito 1 - macrofase F9](operaciones/certificacion_hito1_f9.md)
 - [Evidencia historica F9.1 - package FASE-09](operaciones/precertificacion_hito1_f9.md)
 - [Evidencia historica F9.2 - package FASE-10](operaciones/promocion_hito1_f10.md)
+- [Definicion F9.4 - preflight Free read-only](operaciones/preflight_free_f9_4.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
@@ -41,6 +42,7 @@
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
+- [Changelog 2026-07-26](changelog/2026-07-26.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad

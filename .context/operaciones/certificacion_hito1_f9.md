@@ -12,6 +12,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Attestations: cero.
 - Subfase autorizada: ninguna; la autorizacion consumida de F9.3 no incluye F9.4 ni operaciones remotas.
 - Ultima subfase cerrada: F9.3 local mediante PR #238, remediacion #239 y replay post-merge Docker.
+- Siguiente subfase: F9.4 definida como `DEFINED_BLOCKED`; no autorizable mientras existan blockers.
 
 ## Subfases
 
@@ -20,7 +21,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.1` | Precertificacion local/offline | `COMPLETED` | Alias historico `FASE-09`; PR #231/#232 y cierre #233 |
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
-| `F9.4` | Ejecucion remota Free estrictamente read-only | `PENDING` | Reservada; usa unicamente el contrato F9.3 aprobado |
+| `F9.4` | Ejecucion remota Free estrictamente read-only | `PENDING` | [Definida y bloqueada](./preflight_free_f9_4.md); usa unicamente F9.3 byte-identical |
 | `F9.5` | Aceptacion local de readiness y T01 | `PENDING` | Reservada; no conecta ni aplica schema |
 | `F9.6` | Backup aprobado, pausa aprobada, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
 | `F9.7` | H-00 Free-only counts-only | `PENDING` | Reservada; DML y aprobacion separadas |
@@ -28,7 +29,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
 
-Las reservas F9.4-F9.10 no son definiciones ejecutables. Cada una requiere alcance, allowlist, stop conditions, PR aprobado y autorizacion exacta propios.
+F9.4 tiene definicion documental propia, pero no es ejecutable mientras permanezca `DEFINED_BLOCKED`. Las reservas F9.5-F9.10 no son definiciones ejecutables. Cada subfase requiere alcance, allowlist, stop conditions, PR aprobado y autorizacion exacta propios.
 
 ## Identidades Historicas
 
@@ -90,9 +91,9 @@ Todo path no enumerado queda excluido. F9.3 no modifica manifests/migrations F6-
 - Acceso Free/Pro, Supabase MCP, secrets, `.env*`, DDL/DML/RPC, attestations y transiciones de estado: cero.
 - El PR documental que contiene esta evidencia completa F9.3 al fusionarse. No define, autoriza ni ejecuta F9.4.
 
-## Requisitos Reservados De F9.4
+## Definicion Vigente De F9.4
 
-F9.4 sera la primera subfase con capability `REMOTE_READ_FREE`. Su definicion debera enumerar un adapter de transporte nuevo, minimo y separado que consuma sin modificar el descriptor, catalogo, evidencia y validadores congelados en F9.3; no se habilita un modo remoto dentro del runner local. F9.4 revalida identidad antes de conectar y produce `FREE_PREFLIGHT_PASS` o `FREE_PREFLIGHT_FAIL`. Nunca crea T01, cambia status o desbloquea schema apply. Sus lecturas cubriran ledger paginado, schema/constraints/indices, RLS/policies/ACL/owners/security mode/search path, contrato `exec_sql` sin invocarlo, PostgREST, advisors y factibilidad no ejecutada de backup, writer pause y rollback.
+La [definicion F9.4](./preflight_free_f9_4.md) congela capability `REMOTE_READ_FREE`, adapter separado, target binding previo a red, lecturas exactas, evidencia y stop conditions. Preserva byte-identicos descriptor, catalogos, traces/evidence schemas y validators F9.3. Registra cinco blockers: PostgREST, identidad SQL, advisor bridge, completitud ACL y binding cross-plane/single-use; no autoriza implementacion ni acceso remoto. F9.4 nunca crea T01, cambia status o desbloquea schema apply.
 
 ## Preservacion De La Secuencia Original F9
 
