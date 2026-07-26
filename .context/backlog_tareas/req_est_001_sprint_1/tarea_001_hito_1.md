@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | `FASE-10` en `HUMAN_GATE` |
+| Fase vigente | `FASE-10` cerrada; F11 pendiente de definicion canonica |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -31,7 +31,7 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 | Criterio | Entregable | Verificacion | Evidencia | Estado |
 |---|---|---|---|---|
 | `H1-CA1` | Workflows automaticos y gates | Contrato F7 | PR #226, CI y validacion post-merge | Completed |
-| `H1-CA2P` | Schema/RLS | Verificadores F6/F7/F8 + PostgreSQL 17 | PR #231/#232 y replay post-merge; package bloqueado hasta Free | In Progress |
+| `H1-CA2P` | Schema/RLS | Verificadores F6-F10 + PostgreSQL 17 | PR #235 y replay post-merge; package bloqueado hasta Free | In Progress |
 | `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
 
 El detalle contractual de los tres criterios permanece en [REQ-EST-001](./_index.md), [HITO-001](../../hitos/hito_001.md) y [EST-001](../../estimaciones/est_001.md); esta tabla no agrega criterios.
@@ -52,7 +52,7 @@ El candidate F9 conserva byte-identicos el manifest y las migrations F8. PR #231
 
 F10 se limita al [contrato local de promocion](../../operaciones/promocion_hito1_f10.md): reemplaza prerrequisitos universales por evidencia por transicion y crea un descriptor sucesor bloqueado. F11 queda reservada para preflight Free read-only y F12 para aceptar esa evidencia/crear T01 bajo otro gate. F10 no modifica el candidate F8, no cambia status y no accede a ambientes remotos.
 
-El candidate F10 implementado conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. La ruta operacional permanece en cero attestations/status transitions hasta F12. Queda pendiente de auditorias, CI, review, merge, replay y cierre documental.
+El candidate F10 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; la ruta operacional permanece en cero attestations/status transitions hasta F12. F10 queda cerrada, pero no completa `H1-CA2P` ni autoriza F11/F12.
 
 ## Allowlist De Implementacion
 
