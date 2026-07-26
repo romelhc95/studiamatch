@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.4 documental completada y F9.5 preflight dirigido pendiente/no autorizado |
+| Fase vigente | Macrofase `F9` en progreso; contrato F9.5 remediado y repeticion read-only pendiente de reautorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -63,13 +63,17 @@ F9.4 adopta [PLAN-H1-SIMPLIFICADO-001](../../operaciones/plan_simplificado_hito1
 La definicion cerrada de herramientas, candidate, evidencia y stop conditions vive en [Preflight Free F9.5](../../operaciones/preflight_free_f9_5.md).
 
 - Identidad: F9.5 `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `PENDING`; subfase autorizada: ninguna.
-- Resultado: `FREE_PREFLIGHT_PASS` o `FREE_PREFLIGHT_FAIL`; T01 solo puede aceptarse localmente despues de PASS y evidencia revisada.
+- Estado: `PENDING_REAUTHORIZATION`; autorizacion vigente: ninguna. La remediacion local/documental se consume con el merge de esta reconciliacion.
+- Resultado remoto: el `FREE_PREFLIGHT_FAIL` anterior se preserva historicamente; T01 no fue creada ni aceptada.
 - Target: Free unicamente. Pro, DDL, DML, migrations, H-00, backfill, pausa/reanudacion de writers, dispatch y produccion quedan prohibidos.
 
 F9.5 inspecciona solo las cuatro migrations exactas del package F8; columnas, constraints e indices afectados; policies y ACL de `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; owner, `search_path`, modo y grants de RPC afectadas; conflictos previos a indices/foreign keys; identidad inequivoca de Free; factibilidad de backup y pausa de writers sin ejecutarlos; y existencia counts-only de las filas H-00 esperadas, sin mostrar PII.
 
 F9.5 usa exclusivamente la allowlist project-scoped y evidencia sanitizada de su definicion. No implementa adapter, OpenAPI root, advisor bridge, cross-plane binding, nonce one-shot, inventarios globales ni frameworks nuevos de attestations. Cualquier necesidad de escritura, privilegio adicional, dato raw, acceso Pro o cambio de alcance detiene la subfase.
+
+El intento autorizado del `2026-07-26` verifico localmente 4/4 checksums de blobs Git del package F8 y se detuvo bajo el contrato previo porque no existia el predicado H-00 privado aprobado. No abrio sesion Free, no invoco tools Supabase, no emitio SQL y no inspecciono datos o catalogos; esa evidencia permanece intacta.
+
+La remediacion local posterior reconcilia artifacts H-00 recuperados y adopta exclusivamente una cohorte completa derivada en DB con cutoff `2026-07-19T00:00:00Z`, sin UUID ni identidad individual. PASS exige solo cuatro conteos exactos: 3 leads totales, 3 pre-cutoff, 0 post-cutoff y 0 `email_log`. Cualquier otro shape o valor falla cerrado. Esta decision no acredita los conteos actuales de Free; tras el merge documental, repetir F9.5 requiere otra autorizacion exacta. F9.6 permanece bloqueada.
 
 ## Allowlist De Implementacion
 
