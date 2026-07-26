@@ -379,6 +379,19 @@ F10 solo completa la primera preparacion local de la antigua F9. No completa cer
 - Free/Pro, DDL/DML/RPC/parity remoto, backfill, secrets y status transitions: `0`.
 - Context Graph: PASS con 28 archivos/208 enlaces. Wrapper self-test de fallos: PASS.
 - Git local prueba commit/tree/ancestry y que el commit documental contiene descriptor e inventory exactos; autenticidad GitHub permanece bloqueada para F12.
-- CI, auditorias, commit/tree y replay post-merge se agregan durante los gates restantes.
+- CI, auditorias, commit/tree y replay post-merge quedaron registrados en la evidencia de cierre.
+
+## Evidencia Post-Merge
+
+- PR #235: `security-audit` y todos sus jobs bloqueantes en PASS; aprobacion de `romelhc95-approver` y merge humano mediante merge commit.
+- `desarrollo@d67fa31` tiene padres `a65f921`/`ffbd272` y tree `861aaa1c`, identico al head aprobado `ffbd272`.
+- Replay F10 post-merge: self-test PASS, wrapper aislado PASS y suite contractual de 253 pruebas PASS con un warning heredado.
+- Replay F9 PostgreSQL 17 PASS; Python compile PASS; Context Graph PASS con 28 archivos/208 enlaces.
+- Frontend: lint con 0 errores/10 warnings heredados, typecheck PASS y build estatico PASS con valores publicos sinteticos.
+- La restauracion post-replay no dejo redes F9/F10 ni contenedores PostgreSQL temporales.
+- Auditorias del candidate previas a PR #235: security/QA GO sin hallazgos; scans pre-commit y pre-push PASS. Credential Scan y `security-audit` del PR tambien quedaron en PASS.
+- F8 permanece byte-identico, `reconciled_not_certified` y bloqueado para Free/Pro; attestations/status transitions `0`.
+- Acceso Free/Pro `0`; DDL/DML/RPC/parity remoto `0`; backfill `0`; secrets/environments `0`.
+- Estado F10 propuesto por este cierre: `COMPLETED`; solo se vuelve canonico al fusionar el PR documental `docs/close-fase10`. F11/F12 conservan gates independientes.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [F9](./precertificacion_hito1_f9.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).
