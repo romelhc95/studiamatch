@@ -9,9 +9,9 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Estado del package: `reconciled_not_certified`.
 - Free y Pro: schema apply bloqueado.
-- Subfase autorizada: ninguna; la autorizacion read-only del tercer intento F9.5 fue consumida.
+- Subfase autorizada: ninguna; la autorizacion local de remediacion v2 no concede acceso remoto.
 - Ultima subfase cerrada: F9.4 local/documental mediante el PR que adopta el plan simplificado.
-- Siguiente accion: definir y aprobar una remediacion forward-only del drift de policies antes de repetir F9.5; F9.6 permanece bloqueada.
+- Siguiente accion: repetir F9.5 read-only contra el overlay v2 despues de su merge y una autorizacion nueva; F9.6 permanece bloqueada.
 
 ## Subfases
 
@@ -21,7 +21,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
-| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `BLOCKED` | Tercer `FREE_PREFLIGHT_FAIL`: inventario de policies no compatible con el overlay cerrado |
+| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `BLOCKED` | Overlay v2 local de seis entradas; requiere repeticion read-only y PASS consolidado |
 | `F9.6` | Backup H-00 y remediacion Free-only counts-only | `PENDING` | Reservada; backup y DML con aprobacion propia; nunca Pro |
 | `F9.7` | Backup/pausa aprobados, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
@@ -43,6 +43,8 @@ La postcondicion sucesora cierra owner, lenguaje, volatilidad, modo, `search_pat
 El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 no promociona este overlay; F9.7 debera versionar otro schema v2. El overlay sigue `reconciled_not_certified`, Free/Pro bloqueados y T01 ausente.
 
 El tercer intento sincronizo `desarrollo@2e5be1719dffc8a867f4c40e4e8081b51ef56fb7`, confirmo binding Free, prefijo ledger `0/5` sin colision, `13/13` columnas, `11/11` constraints, `9/9` indices, RLS `6/6` y seguridad de roles `3/3`. El inventario de policies no puede converger al contrato cerrado con el overlay exacto y su verifier rechaza el drift persistente. El resultado es `FREE_PREFLIGHT_FAIL` y se detuvo antes de ACL, RPC, conflictos, H-00, backup o writers. T01 no fue preparada y F9.6 sigue bloqueada; el detalle permanece solo en evidencia privada ignorada.
+
+La remediacion v2 parte de `desarrollo@1428d310747969af6818ece10cb1a31613f8069a`, preserva byte-identicos los cinco SQL y manifests anteriores y agrega una sexta migration bajo un manifest nuevo bloqueado. Versiona exactamente las tres policies SELECT del runner canary y `profiles_service_role`, redefine los verificadores al inventario cerrado de 21 y fija role posture, ownership y grants exactos. PostgreSQL 17 cubre `0/6`, `3/6`, `4/6`, `5/6`, `6/6`, replay, rollback en package completo y suffix, y drift desconocido. El preflight futuro acumula mismatches tecnicos hasta un unico resultado, pero mantiene stop inmediato para target ambiguo, PII, tool prohibida o escritura.
 
 ## Identidades Historicas
 

@@ -69,6 +69,9 @@ PACKAGE_POSTCONDITIONS = {
     "20260726_fase09_5_rls_canary_reconciliation": (
         "public.verify_fase09_5_rls_canary_reconciliation()"
     ),
+    "20260726_fase09_5_policy_inventory_reconciliation": (
+        "public.verify_fase09_5_policy_inventory_reconciliation()"
+    ),
 }
 MANIFEST_ONLY_PREFIXES = (
     "20260724_fase06_",
@@ -89,6 +92,12 @@ F9_5_OVERLAY_HASHES = (
     "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
     "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
     "4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01",
+)
+F9_5_V2_OVERLAY_STEMS = F9_5_OVERLAY_STEMS + (
+    "20260726_fase09_5_policy_inventory_reconciliation",
+)
+F9_5_V2_OVERLAY_HASHES = F9_5_OVERLAY_HASHES + (
+    "76a7c06bcf1b46a513801d0b1843ac081948a34f552e0371136c6ac2ac097822",
 )
 
 
@@ -320,10 +329,20 @@ def validate_manifest_ledger_state(db, migration_files, applied):
         and tuple(_file_sha256(path) for path in migration_files)
         == F9_5_OVERLAY_HASHES
     )
+    v2_overlay_hashes_match = (
+        stems == F9_5_V2_OVERLAY_STEMS
+        and tuple(_file_sha256(path) for path in migration_files)
+        == F9_5_V2_OVERLAY_HASHES
+    )
     if overlay_hashes_match and len(applied_prefix) not in {0, 3, 4, 5}:
         raise RuntimeError(
             "Estado parcial inesperado: el overlay F9.5 solo acepta "
             "limites completos de 0, 3, 4 o 5 entradas"
+        )
+    if v2_overlay_hashes_match and len(applied_prefix) not in {0, 3, 4, 5, 6}:
+        raise RuntimeError(
+            "Estado parcial inesperado: el overlay F9.5 v2 solo acepta "
+            "limites completos de 0, 3, 4, 5 o 6 entradas"
         )
     defer_f8_prefix = (
         overlay_hashes_match
@@ -332,7 +351,18 @@ def validate_manifest_ledger_state(db, migration_files, applied):
         and tuple(applied[name] for name in applied_prefix)
         == tuple(f"sha256:{value}" for value in F9_5_OVERLAY_HASHES[:4])
     )
-    if not defer_f8_prefix:
+    defer_v2_predecessor = (
+        v2_overlay_hashes_match
+        and len(applied_prefix) in {4, 5}
+        and tuple(applied_prefix) == F9_5_V2_OVERLAY_STEMS[:len(applied_prefix)]
+        and pending_stems == F9_5_V2_OVERLAY_STEMS[len(applied_prefix):]
+        and tuple(applied[name] for name in applied_prefix)
+        == tuple(
+            f"sha256:{value}"
+            for value in F9_5_V2_OVERLAY_HASHES[:len(applied_prefix)]
+        )
+    )
+    if not defer_f8_prefix and not defer_v2_predecessor:
         for name in applied_prefix:
             verify_applied_postcondition(db, name)
     return pending

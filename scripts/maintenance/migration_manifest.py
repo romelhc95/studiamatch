@@ -55,6 +55,13 @@ F9_5_SUCCESSOR_PATH = (
 F9_5_MANIFEST_SHA256 = (
     "27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353"
 )
+F9_5_V2_PACKAGE_ID = "F9.5-POLICY-INVENTORY-RECONCILIATION-V2-20260726"
+F9_5_V2_SUCCESSOR_PATH = (
+    "db/migrations/20260726_fase09_5_policy_inventory_reconciliation.sql"
+)
+F9_5_V2_MANIFEST_SHA256 = (
+    "575f2e21f747b6445911a050c9951ad93372bcb616282b275838ea21e7cf5795"
+)
 MIGRATION_FILENAME_RE = re.compile(r"^[0-9]{8}_[a-z0-9_]+\.sql$")
 _MANIFEST_CONTRACTS = {
     (1, "FASE-06", "F6-DB-AS-CODE-20260724"): {
@@ -161,6 +168,82 @@ _MANIFEST_CONTRACTS = {
                 "F9.5-RLS-CANARY-RECONCILIATION", "rls_canary_reconciliation",
                 "db/migrations/20260726_fase09_5_rls_canary_reconciliation.sql",
                 "4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01",
+                "new_forward_only", ("free", "pro"),
+            ),
+        ),
+    },
+    (1, "FASE-09.5", "F9.5-POLICY-INVENTORY-RECONCILIATION-V2-20260726"): {
+        "component_order": [
+            "g1b",
+            "hito1",
+            "g1b_closure",
+            "hito1_functional_closure",
+            "rls_canary_reconciliation",
+            "policy_inventory_reconciliation",
+        ],
+        "component_counts": {
+            "g1b": 1,
+            "hito1": 1,
+            "g1b_closure": 1,
+            "hito1_functional_closure": 1,
+            "rls_canary_reconciliation": 1,
+            "policy_inventory_reconciliation": 1,
+        },
+        "stem_prefixes": F9_5_PACKAGE_STEM_PREFIXES,
+        "component_prefixes": {
+            "g1b": "20260724_fase06_",
+            "hito1": "20260724_fase06_",
+            "g1b_closure": "20260725_fase07_",
+            "hito1_functional_closure": "20260725_fase08_",
+            "rls_canary_reconciliation": "20260726_fase09_5_",
+            "policy_inventory_reconciliation": "20260726_fase09_5_",
+        },
+        "blocked_targets_by_status": {
+            "reconciled_not_certified": ["free", "pro"],
+            "ready_for_free": ["pro"],
+            "free_certified": [],
+        },
+        "excluded": {
+            "H-00": "historical_free_only",
+            "canary_operational_data": "observed_effective_unledgered",
+            "historical_snapshots": "superseded",
+        },
+        "exact_entries": (
+            (
+                "F6-G1B-FORWARD", "g1b",
+                "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+                "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+                "new_forward_only", ("free", "pro"),
+            ),
+            (
+                "F6-HITO1-FORWARD", "hito1",
+                "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+                "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+                "new_forward_only", ("free", "pro"),
+            ),
+            (
+                "F7-G1B-CLOSURE", "g1b_closure",
+                "db/migrations/20260725_fase07_g1b_closure.sql",
+                "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
+                "new_forward_only", ("free", "pro"),
+            ),
+            (
+                "F8-HITO1-FUNCTIONAL-CLOSURE", "hito1_functional_closure",
+                "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+                "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
+                "new_forward_only", ("free", "pro"),
+            ),
+            (
+                "F9.5-RLS-CANARY-RECONCILIATION", "rls_canary_reconciliation",
+                "db/migrations/20260726_fase09_5_rls_canary_reconciliation.sql",
+                "4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01",
+                "new_forward_only", ("free", "pro"),
+            ),
+            (
+                "F9.5-POLICY-INVENTORY-RECONCILIATION-V2",
+                "policy_inventory_reconciliation",
+                "db/migrations/20260726_fase09_5_policy_inventory_reconciliation.sql",
+                "76a7c06bcf1b46a513801d0b1843ac081948a34f552e0371136c6ac2ac097822",
                 "new_forward_only", ("free", "pro"),
             ),
         ),
@@ -1571,11 +1654,21 @@ def load_manifest(
 
     manifest = _read_json(Path(manifest_path))
     entries = manifest.get("entries")
+    has_f9_5_v2_successor = isinstance(entries, list) and any(
+        isinstance(entry, dict) and entry.get("path") == F9_5_V2_SUCCESSOR_PATH
+        for entry in entries
+    )
     has_f9_5_successor = isinstance(entries, list) and any(
         isinstance(entry, dict) and entry.get("path") == F9_5_SUCCESSOR_PATH
         for entry in entries
     )
-    if manifest.get("package_id") == F9_5_PACKAGE_ID or has_f9_5_successor:
+    if manifest.get("package_id") == F9_5_V2_PACKAGE_ID or has_f9_5_v2_successor:
+        expected_manifest_hash = F9_5_V2_MANIFEST_SHA256
+    elif manifest.get("package_id") == F9_5_PACKAGE_ID or has_f9_5_successor:
+        expected_manifest_hash = F9_5_MANIFEST_SHA256
+    else:
+        expected_manifest_hash = None
+    if expected_manifest_hash is not None:
         canonical_manifest = json.dumps(
             manifest,
             ensure_ascii=True,
@@ -1584,7 +1677,7 @@ def load_manifest(
         ).encode("utf-8")
         if not hmac.compare_digest(
             hashlib.sha256(canonical_manifest).hexdigest(),
-            F9_5_MANIFEST_SHA256,
+            expected_manifest_hash,
         ):
             raise ManifestError(
                 "F9.5 migration manifest does not match exact contract"

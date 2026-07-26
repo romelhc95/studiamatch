@@ -616,9 +616,10 @@ jobs:
           fi
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 300s \
-            python3 -m pytest -q -p no:cacheprovider tests/test_fase09_5_rls.py
+             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
+             PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 300s \
+             python3 -m pytest -q -p no:cacheprovider \
+             tests/test_fase09_5_rls.py tests/test_fase09_5_rls_v2.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \

@@ -340,10 +340,13 @@ def test_successor_and_historical_fixture_are_forward_only_and_synthetic():
         encoding="utf-8"
     )
     assert "validate_manifest_ledger_state(Adapter(), paths, applied)" in runner
-    assert 'plan_manifest "$((5 - prefix_size))" "$package_wrapper"' in runner
-    assert 'plan_manifest 5 "$package_wrapper"' in runner
+    assert 'plan_manifest "$((6 - prefix_size))" "$package_wrapper"' in runner
+    assert 'plan_manifest 6 "$package_wrapper"' in runner
     assert runner.count("plan_manifest 0") == 2
     assert "fase09_5_historical_baseline_test.sql" in runner
+    assert "fase09_5_observed_policy_fixture.sql" in runner
+    assert "CHECK_SQL" in runner
+    assert "aggregate preflight query mismatch" in runner
 
 
 def test_security_audit_requires_secretless_egress_restricted_f9_5_job():
@@ -362,6 +365,7 @@ def test_security_audit_requires_secretless_egress_restricted_f9_5_job():
     assert "{{.HostConfig.NetworkMode}}" in job
     assert "postgres-socket" in job
     assert "tests/test_fase09_5_rls.py" in job
+    assert "tests/test_fase09_5_rls_v2.py" in job
     assert "bash tests/sql/run_fase09_5_postgres.sh" in job
     assert "FASE095_EGRESS" in job
     assert "-o lo -j RETURN" in job
