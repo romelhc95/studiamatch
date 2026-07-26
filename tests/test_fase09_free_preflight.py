@@ -896,7 +896,7 @@ assert run_synthetic_self_test(c)[0] > 0
 
 def test_ci_uses_network_namespace_none_boundary_and_preserves_cleanup():
     workflow = (ROOT / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
-    job = workflow.split("  fase09-free-preflight-contract:", 1)[1].split("  fase10-promotion-contract:", 1)[0]
+    job = workflow.split("  fase09-free-preflight-contract:", 1)[1].split("  fase09-5-rls:", 1)[0]
     assert "environment:" not in job
     assert "secrets." not in job
     assert "services:" not in job

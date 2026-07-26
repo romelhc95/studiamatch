@@ -53,7 +53,7 @@ Ningun gate interno, manifest, attestation, adapter o framework de pruebas crea 
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Preflight Free read-only | Identidad, ledger, compatibilidad DB, H-00, backup y writers; sin adapter nuevo; T01 solo tras PASS y aceptacion local |
 | `F9.6` | Remediacion H-00 | Aprobar respaldo H-00 y eliminar exactamente la PII confirmada en Free, sin tocar Pro |
-| `F9.7` | Schema/RLS Free | Aplicar el package F6-F8 exacto, sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free | Versionar un descriptor de promocion nuevo ligado al overlay sucesor exacto de cinco migrations y aplicarlo, sin H-00 ni backfill; el descriptor F10/F9.2 historico no autoriza esta ejecucion |
 | `F9.8` | Aprobar backfill editorial | Cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Aplicacion separada, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
@@ -70,9 +70,9 @@ Cada subfase decimal conserva autorizacion exacta, allowlist, stop conditions, r
 
 F9.4 no implementa el borrador staged. Reconcilia y deja definido para F9.5 un preflight dirigido que inspecciona unicamente:
 
-- Las cuatro migrations exactas del package F8.
+- El overlay vigente de cinco migrations: las cuatro entradas F8 byte-identicas mas la reconciliacion RLS canary forward-only.
 - Columnas, constraints e indices afectados.
-- Policies y ACL de `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`.
+- Policies y ACL de `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`.
 - Owner, `search_path`, modo y grants de las RPC afectadas.
 - Conflictos de datos previos a indices y foreign keys.
 - Identidad inequivoca del ambiente Free.
