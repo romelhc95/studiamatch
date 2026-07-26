@@ -1,0 +1,119 @@
+{
+  "schema_version": 2,
+  "phase": "FASE-10",
+  "package_id": "F10-HITO1-PROMOTION-CONTRACT-20260725",
+  "capability_class": "LOCAL_PROMOTION_CONTRACT",
+  "approval_policy": {
+    "owner": "romelhc95",
+    "reviewer": "romelhc95-approver",
+    "self_approval": false
+  },
+  "source_manifest": {
+    "path": "db/manifests/fase08_candidate.json",
+    "package_id": "F8-HITO1-FUNCTIONAL-20260725",
+    "canonical_json_sha256": "db1c61e9baf8d3927669bf33c5a8f4a708c11d87b81a41c9454dd91b63ebe4cb"
+  },
+  "initial_state": "reconciled_not_certified",
+  "state_order": [
+    "reconciled_not_certified",
+    "ready_for_free",
+    "free_schema_certified",
+    "free_backfill_certified",
+    "free_certified"
+  ],
+  "states": {
+    "reconciled_not_certified": {
+      "schema_apply_blocked_targets": ["free", "pro"],
+      "next_capabilities": ["REMOTE_READ_FREE", "ACCEPT_FREE_READINESS"]
+    },
+    "ready_for_free": {
+      "schema_apply_blocked_targets": ["pro"],
+      "next_capabilities": ["APPLY_SCHEMA_FREE"]
+    },
+    "free_schema_certified": {
+      "schema_apply_blocked_targets": ["free", "pro"],
+      "next_capabilities": ["BACKFILL_FREE"]
+    },
+    "free_backfill_certified": {
+      "schema_apply_blocked_targets": ["free", "pro"],
+      "next_capabilities": ["CERTIFY_FREE_READ_ONLY"]
+    },
+    "free_certified": {
+      "schema_apply_blocked_targets": ["free"],
+      "next_capabilities": ["PROMOTE_PRO"]
+    }
+  },
+  "payload_entries": [
+    {
+      "id": "F6-G1B-FORWARD",
+      "component": "g1b",
+      "path": "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+      "sha256": "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F6-HITO1-FORWARD",
+      "component": "hito1",
+      "path": "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+      "sha256": "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F7-G1B-CLOSURE",
+      "component": "g1b_closure",
+      "path": "db/migrations/20260725_fase07_g1b_closure.sql",
+      "sha256": "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F8-HITO1-FUNCTIONAL-CLOSURE",
+      "component": "hito1_functional_closure",
+      "path": "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+      "sha256": "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "T01_FREE_READINESS",
+      "from": "reconciled_not_certified",
+      "to": "ready_for_free",
+      "target": "free",
+      "acceptance_capability": "ACCEPT_FREE_READINESS",
+      "evidence_types": ["f9_completion", "free_preflight", "free_application_plan_approval"]
+    },
+    {
+      "id": "T02_FREE_SCHEMA",
+      "from": "ready_for_free",
+      "to": "free_schema_certified",
+      "target": "free",
+      "acceptance_capability": "ACCEPT_FREE_SCHEMA",
+      "evidence_types": ["free_schema_application_approval", "free_backup_restore", "free_writers_pause", "free_schema_postconditions", "free_advisors"]
+    },
+    {
+      "id": "T03_FREE_BACKFILL",
+      "from": "free_schema_certified",
+      "to": "free_backfill_certified",
+      "target": "free",
+      "acceptance_capability": "ACCEPT_FREE_BACKFILL",
+      "evidence_types": ["free_backfill_plan_approval", "free_backfill_execution_approval", "free_backfill_result"]
+    },
+    {
+      "id": "T04_FREE_FINAL",
+      "from": "free_backfill_certified",
+      "to": "free_certified",
+      "target": "free",
+      "acceptance_capability": "ACCEPT_FREE_FINAL",
+      "evidence_types": ["free_final_certification_approval", "free_final_readonly", "free_advisors", "free_backfill_idempotency"]
+    }
+  ],
+  "excluded": {
+    "H-00": "historical_free_only",
+    "canary": "observed_effective_unledgered",
+    "historical_snapshots": "superseded"
+  }
+}

@@ -182,6 +182,8 @@ No se permiten saltos, transiciones automaticas, rollback de status ni reutiliza
 
 F10 define el contrato, pero no produce attestations remotas ni ejecuta transiciones. Cada fase futura crea un archivo nuevo bajo `db/attestations/hito1/`; nunca edita descriptor o attestations anteriores.
 
+En F10, `validate_attestation_inventory_structure` verifica sobre repositorios Git/fixtures sinteticos la estructura T01-T04, inventory completo, fingerprint, bytes versionados, commit/tree y ancestry, pero retorna `None`: no concede estado ni capability. Solo los tests calculan el estado esperado desde el descriptor congelado. La API operacional publica acepta cero attestations y falla cerrado ante cualquier inventory no vacio. F12 debera verificar autenticidad del review GitHub y habilitar una ruta operacional nueva; campos `approval` auto-declarados nunca bastan para cambiar estado.
+
 Campos obligatorios y unicos de cada attestation:
 
 ```json
@@ -354,5 +356,29 @@ F11 se reserva exclusivamente para `REMOTE_READ_FREE`: preflight Free read-only,
 F12 se reserva para `ACCEPT_FREE_READINESS`: fase local/documental separada que valida la evidencia F11, aprobacion del plan y bindings, y solo entonces crea T01. F12 no conecta, no aplica schema ni ejecuta backfill. Tanto F11 como F12 requieren definicion, PR y autorizacion independientes.
 
 Aplicacion schema/RLS, backfill y certificacion final Free quedan en fases posteriores separadas. Pro conserva un gate Production independiente.
+
+## Trazabilidad Con El Plan Temporal
+
+`TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` permanece congelado como roadmap historico hasta completar su cierre original; no autoriza ejecucion ni se elimina en F10.
+
+| Plan temporal | Descomposicion canonica | Estado tras candidate F10 |
+|---|---|---|
+| F9 Certificacion Hito 1 Free | F10 contrato local; F11 preflight; F12 aceptacion T01; fases separadas de schema, backfill y certificacion final | Pendiente |
+| F10 Produccion | Fases posteriores a `free_certified` para Pro, canary, `main`, smoke y observacion | Pendiente |
+| F11 Cierre | Cierre final tras produccion observada, migracion completa a `.context` y PR de retiro del plan temporal | Pendiente |
+
+F10 solo completa la primera preparacion local de la antigua F9. No completa certificacion Free, produccion ni cierre temporal.
+
+## Evidencia Candidate F10
+
+- Rama: `feat/fase10-promotion-contract`.
+- Descriptor v2: payload F8 exacto, estado inicial `reconciled_not_certified`, schema apply Free/Pro bloqueado y cero attestations.
+- Canonicalizacion, maquina de estados, attestations, bindings, fingerprint y modos: pruebas sinteticas PASS.
+- Wrapper local con red Docker interna, `env -i` y restauracion `finally`: PASS.
+- Suite F6-F10 y credenciales: 253 pruebas PASS; un warning de deprecacion heredado.
+- Free/Pro, DDL/DML/RPC/parity remoto, backfill, secrets y status transitions: `0`.
+- Context Graph: PASS con 28 archivos/208 enlaces. Wrapper self-test de fallos: PASS.
+- Git local prueba commit/tree/ancestry y que el commit documental contiene descriptor e inventory exactos; autenticidad GitHub permanece bloqueada para F12.
+- CI, auditorias, commit/tree y replay post-merge se agregan durante los gates restantes.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [F9](./precertificacion_hito1_f9.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).

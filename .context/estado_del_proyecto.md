@@ -18,7 +18,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `FASE-07` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
 | `FASE-08` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
 | `FASE-09` | Precertificacion local H1-CA2P | `COMPLETED` | PR #231 y remediacion #232 fusionados; replay local Windows/Linux validado post-merge. F8 permanece bloqueado e inmutable. |
-| `FASE-10` | Contrato local de promocion H1-CA2P | `PENDING` | Alcance local/offline definido; requiere merge de esta definicion y nueva autorizacion exacta. |
+| `FASE-10` | Contrato local de promocion H1-CA2P | `HUMAN_GATE` | Candidate local implementado; pendiente CI, review y merge. Sin acceso remoto ni cambio de status. |
 | `FASE-11` | Preflight Free read-only | `PENDING` | Capacidad reservada; requiere definicion posterior independiente. |
 | `FASE-12` | Aceptacion local de readiness Free | `PENDING` | Capacidad reservada para validar evidencia F11 y crear T01; requiere definicion independiente. |
 
@@ -27,11 +27,11 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Fase autorizada: ninguna; F9 esta cerrada.
-- Siguiente fase autorizable: `FASE-10` solo despues de fusionar esta definicion y emitir una nueva autorizacion exacta.
+- Fase autorizada: ninguna; F10 espera revision humana.
+- Siguiente fase autorizable: ninguna hasta cerrar F10 mediante replay y PR documental.
 
 ## Alcance Inmediato
 
-`FASE-09` quedo cerrada en `desarrollo@b9053ab`. El siguiente bloqueo es el ciclo de promocion entre schema, postcondiciones Free y backfill. [F10](operaciones/promocion_hito1_f10.md) queda definida para repararlo solo en Git/local, sin acceso Free/Pro ni cambio de status. `H1-CA2P` y `TASK-H1-001` siguen en progreso.
+`FASE-10` fue autorizada despues del merge de su definicion. El candidate local agrega descriptor v2 inmutable, requisitos por transicion, attestations fail-closed, canonicalizacion y aislamiento sin egress. F8 permanece byte-identico y bloqueado; no hubo acceso Free/Pro ni cambio de status. La trazabilidad conserva pendientes las antiguas F9-F11 del plan temporal. `H1-CA2P` y `TASK-H1-001` siguen en progreso.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).
