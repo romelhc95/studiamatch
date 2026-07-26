@@ -29,6 +29,10 @@ No existen otros criterios aprobados para `HITO-001`. La complejidad y la estima
 
 No existen subtareas para este paquete. El estado vigente se consulta exclusivamente en [Estado del proyecto](../../estado_del_proyecto.md) y [TASK-H1-001](tarea_001_hito_1.md).
 
+## Backlog Diferido
+
+- [Hallazgos F9.5 sin implementacion](backlog_f9_5_known_findings.md): registro `DEFERRED_NO_IMPLEMENTATION`; no crea subtareas ni autorizaciones.
+
 ## Dependencias Canonicas
 
 - [Estimacion EST-001](../../estimaciones/est_001.md)

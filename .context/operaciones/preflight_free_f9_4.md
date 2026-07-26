@@ -6,7 +6,7 @@
 - Estado final: `SUPERSEDED_NON_AUTHORIZABLE`.
 - Sustitucion: [PLAN-H1-SIMPLIFICADO-001](./plan_simplificado_hito1.md) y [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md).
 - Nueva identidad F9.4: reconciliacion contractual exclusivamente local y documental.
-- Siguiente subfase: F9.5 preflight Free read-only dirigido, pendiente y no autorizada.
+- Siguiente subfase al cierre de F9.4: F9.5 preflight Free read-only dirigido, entonces pendiente y no autorizada. El estado vigente posterior se consulta en [Estado del proyecto](../estado_del_proyecto.md).
 
 La definicion anterior proponia un adapter remoto, OpenAPI, advisors, binding cross-plane, nonce one-shot, attestations y cinco blockers. Ese diseno queda fuera del critical path contractual y no puede implementarse ni ejecutarse con ninguna autorizacion F9.4 presente o futura.
 
