@@ -10,8 +10,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Estado del package: `reconciled_not_certified`.
 - Free y Pro: schema apply bloqueado.
 - Attestations: cero.
-- Subfase autorizada: ninguna.
-- Candidate de definicion: F9.3 local en `HUMAN_GATE`; se vuelve autoritativa al fusionar este PR.
+- Subfase autorizada: F9.3 local unicamente; no incluye F9.4 ni operaciones remotas.
+- Candidate de implementacion: F9.3 local verificado, pendiente de CI/review/merge y replay post-merge.
 
 ## Subfases
 
@@ -19,7 +19,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 |---|---|---|---|
 | `F9.1` | Precertificacion local/offline | `COMPLETED` | Alias historico `FASE-09`; PR #231/#232 y cierre #233 |
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
-| `F9.3` | Freeze local del contrato de preflight | `HUMAN_GATE` | Sin red/secrets; definicion abajo |
+| `F9.3` | Freeze local del contrato de preflight | `IN_PROGRESS` | Candidate sin red/secrets verificado; cierre pendiente |
 | `F9.4` | Ejecucion remota Free estrictamente read-only | `PENDING` | Reservada; usa unicamente el contrato F9.3 aprobado |
 | `F9.5` | Aceptacion local de readiness y T01 | `PENDING` | Reservada; no conecta ni aplica schema |
 | `F9.6` | Backup aprobado, pausa aprobada, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
@@ -75,6 +75,17 @@ Todo path no enumerado queda excluido. F9.3 no modifica manifests/migrations F6-
 3. La implementacion F9.3 no puede conectar; solo congela consultas, evidencia, target binding y enforcement con pruebas sinteticas.
 4. El candidate F9.3 debe recibir auditorias, CI, review, merge, replay post-merge y PR documental de cierre.
 5. F9.4 no puede definirse ni autorizarse hasta cerrar F9.3. Debe conservar byte-identicos descriptor, catalogo de consultas, schema de evidencia y validadores; solo puede agregar un adapter de transporte minimo bajo allowlist/review propios.
+
+### Evidencia Candidate F9.3
+
+- Autorizacion exacta recibida: `Ejecuta las tareas pendientes de la Fase F9.3`.
+- Descriptor/runner local: `LOCAL_VALID`, con `git_proof=EXTERNAL_REQUIRED`; no afirma readiness ni produce PASS/FAIL remoto.
+- Suite focused: 55 pruebas PASS. Regresion F6-F10/credenciales: 253 pruebas PASS y un warning heredado de PyPDF2; total scoped 308.
+- Replay sintetico determinista: 22 checks PASS. `py_compile`, `git diff --check` y Context Graph 30 archivos/232 enlaces: PASS.
+- SHA-256 fijado del runner: `543cff44e46f84326ae774009a58ccf4fb7d0525ff0797cd5cca561706e45a00`.
+- Auditorias finales security y QA: GO, cero hallazgos bloqueantes. Los gaps de transporte, target identity artifact, produccion de traces/evidencia y ejecucion efectiva de `unshare --net` pertenecen a F9.4/CI.
+- Acceso Free/Pro, Supabase MCP, secrets, `.env*`, DDL/DML/RPC, attestations y transiciones de estado: cero.
+- Esta evidencia es candidate local. No completa F9.3 hasta CI, review, merge, replay post-merge y PR documental de cierre.
 
 ## Requisitos Reservados De F9.4
 

@@ -287,6 +287,203 @@ jobs:
           sudo ip6tables -F FASE09_EGRESS || true
           sudo ip6tables -X FASE09_EGRESS || true
 
+  fase09-free-preflight-contract:
+    name: F9.3 Free Preflight Local Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install test dependencies
+        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
+      - name: Prepare F9.3 firewall cleanup state
+        run: |
+          state_dir=$(mktemp -d "$RUNNER_TEMP/fase093-firewall.XXXXXXXX")
+          chmod 700 "$state_dir"
+          echo "FASE093_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
+      - name: Block all egress for F9.3 local validation
+        run: |
+          test -d "$FASE093_FIREWALL_STATE"
+          sudo iptables -w 10 -L OUTPUT >/dev/null
+          sudo ip6tables -w 10 -L OUTPUT >/dev/null
+          if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+            echo "FASE093_EGRESS IPv4 chain already exists"
+            exit 1
+          else
+            rc=$?
+            if [ "$rc" -ne 1 ]; then
+              echo "Unable to verify IPv4 chain absence (rc=$rc)"
+              exit 1
+            fi
+          fi
+          if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+            echo "FASE093_EGRESS IPv6 chain already exists"
+            exit 1
+          else
+            rc=$?
+            if [ "$rc" -ne 1 ]; then
+              echo "Unable to verify IPv6 chain absence (rc=$rc)"
+              exit 1
+            fi
+          fi
+          : > "$FASE093_FIREWALL_STATE/ipv4-owned"
+          sudo iptables -w 10 -N FASE093_EGRESS
+          sudo iptables -w 10 -A FASE093_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+          sudo iptables -w 10 -A FASE093_EGRESS -j REJECT
+          sudo iptables -w 10 -I OUTPUT 1 -j FASE093_EGRESS
+          : > "$FASE093_FIREWALL_STATE/ipv6-owned"
+          sudo ip6tables -w 10 -N FASE093_EGRESS
+          sudo ip6tables -w 10 -A FASE093_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+          sudo ip6tables -w 10 -A FASE093_EGRESS -j REJECT
+          sudo ip6tables -w 10 -I OUTPUT 1 -j FASE093_EGRESS
+      - name: Validate F9.3 focused contract tests
+        run: |
+          sudo unshare --net -- bash -c '
+            set -euo pipefail
+            ip link set lo down
+            test "$(ip -o link show up | wc -l)" -eq 0
+            cd "$1"
+            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 300s python3 -m pytest -q -p no:cacheprovider tests/test_fase09_free_preflight.py
+          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
+      - name: Validate F9.3 immutable descriptor
+        run: |
+          sudo unshare --net -- bash -c '
+            set -euo pipefail
+            ip link set lo down
+            test "$(ip -o link show up | wc -l)" -eq 0
+            cd "$1"
+            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 60s python3 scripts/maintenance/free_preflight.py --contract db/manifests/f9_3_free_preflight_contract.json --validate-only
+          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
+      - name: Replay F9.3 synthetic fail-closed contract
+        run: |
+          sudo unshare --net -- bash -c '
+            set -euo pipefail
+            ip link set lo down
+            test "$(ip -o link show up | wc -l)" -eq 0
+            cd "$1"
+            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 60s python3 scripts/maintenance/free_preflight.py --contract db/manifests/f9_3_free_preflight_contract.json --synthetic-self-test
+          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
+      - name: Restore runner network
+        if: always()
+        run: |
+          cleanup_failed=0
+          state_dir="${FASE093_FIREWALL_STATE:-}"
+          ipv4_available=1
+          ipv6_available=1
+
+          if ! sudo iptables -w 10 -L OUTPUT >/dev/null; then
+            echo "Unable to access IPv4 firewall for cleanup"
+            cleanup_failed=1
+            ipv4_available=0
+          fi
+          if ! sudo ip6tables -w 10 -L OUTPUT >/dev/null; then
+            echo "Unable to access IPv6 firewall for cleanup"
+            cleanup_failed=1
+            ipv6_available=0
+          fi
+
+          if [ "$ipv4_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv4-owned" ]; then
+            while true; do
+              if sudo iptables -w 10 -C OUTPUT -j FASE093_EGRESS >/dev/null 2>&1; then
+                if ! sudo iptables -w 10 -D OUTPUT -j FASE093_EGRESS; then
+                  cleanup_failed=1
+                  break
+                fi
+              else
+                rc=$?
+                if [ "$rc" -eq 1 ]; then
+                  break
+                fi
+                echo "IPv4 jump check failed during cleanup (rc=$rc)"
+                cleanup_failed=1
+                break
+              fi
+            done
+            if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+              if ! sudo iptables -w 10 -F FASE093_EGRESS; then
+                cleanup_failed=1
+              fi
+              if ! sudo iptables -w 10 -X FASE093_EGRESS; then
+                cleanup_failed=1
+              fi
+            else
+              rc=$?
+              if [ "$rc" -ne 1 ]; then
+                echo "IPv4 chain check failed during cleanup (rc=$rc)"
+                cleanup_failed=1
+              fi
+            fi
+          fi
+          if [ "$ipv6_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv6-owned" ]; then
+            while true; do
+              if sudo ip6tables -w 10 -C OUTPUT -j FASE093_EGRESS >/dev/null 2>&1; then
+                if ! sudo ip6tables -w 10 -D OUTPUT -j FASE093_EGRESS; then
+                  cleanup_failed=1
+                  break
+                fi
+              else
+                rc=$?
+                if [ "$rc" -eq 1 ]; then
+                  break
+                fi
+                echo "IPv6 jump check failed during cleanup (rc=$rc)"
+                cleanup_failed=1
+                break
+              fi
+            done
+            if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+              if ! sudo ip6tables -w 10 -F FASE093_EGRESS; then
+                cleanup_failed=1
+              fi
+              if ! sudo ip6tables -w 10 -X FASE093_EGRESS; then
+                cleanup_failed=1
+              fi
+            else
+              rc=$?
+              if [ "$rc" -ne 1 ]; then
+                echo "IPv6 chain check failed during cleanup (rc=$rc)"
+                cleanup_failed=1
+              fi
+            fi
+          fi
+
+          if [ "$ipv4_available" -eq 1 ]; then
+            if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+              echo "FASE093_EGRESS chain remains in iptables"
+              cleanup_failed=1
+            else
+              rc=$?
+              if [ "$rc" -ne 1 ]; then
+                echo "Unable to verify IPv4 chain absence (rc=$rc)"
+                cleanup_failed=1
+              fi
+            fi
+          fi
+          if [ "$ipv6_available" -eq 1 ]; then
+            if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
+              echo "FASE093_EGRESS chain remains in ip6tables"
+              cleanup_failed=1
+            else
+              rc=$?
+              if [ "$rc" -ne 1 ]; then
+                echo "Unable to verify IPv6 chain absence (rc=$rc)"
+                cleanup_failed=1
+              fi
+            fi
+          fi
+          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
+            if ! rm -rf -- "$state_dir"; then
+              cleanup_failed=1
+            fi
+          fi
+          exit "$cleanup_failed"
+
   fase10-promotion-contract:
     name: FASE-10 Local Promotion Contract
     runs-on: ubuntu-latest
@@ -478,7 +675,7 @@ jobs:
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase10-promotion-contract]
+    needs: [credential-scan, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase10-promotion-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -493,6 +690,7 @@ jobs:
           F7: ${{ needs.fase07-g1b.result }}
           F8: ${{ needs.fase08-hito1.result }}
           F9: ${{ needs.fase09-pre-free.result }}
+          F93: ${{ needs.fase09-free-preflight-contract.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
           echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
@@ -535,6 +733,11 @@ jobs:
             exit 1
           fi
           echo "✅ **fase09-pre-free**: passed" >> $GITHUB_STEP_SUMMARY
+          if [ "$F93" != "success" ]; then
+            echo "❌ **fase09-free-preflight-contract**: $F93 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "✅ **fase09-free-preflight-contract**: passed" >> $GITHUB_STEP_SUMMARY
           if [ "$F10" != "success" ]; then
             echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
             exit 1
@@ -556,4 +759,4 @@ jobs:
           fi
           echo "✅ **frontend-build**: passed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F10, credential, Python, Context Graph and frontend gates are green." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F10, credential, Python, Context Graph and frontend gates are green." >> $GITHUB_STEP_SUMMARY
