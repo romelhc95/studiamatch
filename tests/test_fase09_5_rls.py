@@ -381,7 +381,9 @@ def test_security_audit_requires_secretless_egress_restricted_f9_5_job():
     assert "test ! -r /var/run/docker.sock" in job
     assert "test ! -w /var/run/docker.sock" in job
     assert 'chmod -R o+rX "$GITHUB_WORKSPACE"' in job
-    assert 'chmod o+x "$(dirname "$GITHUB_WORKSPACE")"' in job
+    assert 'workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"' in job
+    assert 'while [ "$workspace_ancestor" != "/" ]; do' in job
+    assert 'chmod o+x "$workspace_ancestor"' in job
     assert 'test -r "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"' in job
     assert 'test ! -w "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"' in job
     assert 'sudo rm -rf -- "$state_dir"' in job
