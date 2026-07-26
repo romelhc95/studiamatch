@@ -2,6 +2,8 @@
 
 > **Identidad historica:** `FASE-10`, `F10-HITO1-PROMOTION-CONTRACT-20260725`, `fase10-*` y la frase de autorizacion de esta nota identifican exclusivamente el package local cerrado por PR #235/#236. [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md) lo mapea a F9.2; no es la macrofase F10 Produccion.
 
+> **Ruta futura sustituida:** las referencias de este artifact historico a F9.4 `REMOTE_READ_FREE` y F9.5 `ACCEPT_FREE_READINESS` fueron sustituidas por [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md). No definen ni autorizan las subfases vigentes.
+
 Esta nota define el alcance ejecutable de `FASE-10` bajo `H1-CA2P`. F10 repara exclusivamente el contrato local de promocion del package F8. No autoriza conexiones a Free/Pro, credenciales, parity remoto, workflows de aplicacion, cambios de status, DDL/DML/RPC, backups, pausa de writers ni backfill.
 
 Registro historico no reutilizable: la ejecucion original requirio la frase `Ejecuta las tareas pendientes de la Fase 10` despues de fusionar su definicion. Esa frase no autoriza la macrofase F10 Produccion ni ninguna subfase vigente.
@@ -353,6 +355,8 @@ Negativos obligatorios:
 
 ## Reservas Reconciliadas
 
+Esta seccion conserva la decision historica de F9.2. [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md) sustituyo despues la identidad de F9.4/F9.5 y el momento de retiro del plan temporal; las frases siguientes no son autorizables.
+
 La reserva no ejecutada antes denominada F11 se sustituye por F9.4 `REMOTE_READ_FREE`: preflight Free read-only, target univoco, ledger completo, baseline, constraints, RLS/ACL, contrato `exec_sql` sin invocarlo, PostgREST, advisors, factibilidad de backup/writer pause/rollback y evidencia counts-only. F9.3 congela primero el contrato local. F9.4 produce `FREE_PREFLIGHT_PASS/FAIL`, pero no crea T01 ni cambia estado.
 
 La reserva no ejecutada antes denominada F12 se sustituye por F9.5 `ACCEPT_FREE_READINESS`: subfase local/documental separada que valida la evidencia F9.4, aprobacion del plan y bindings, y solo entonces crea T01. F9.5 no conecta, no aplica schema ni ejecuta backfill. F9.3/F9.4/F9.5 requieren definicion, PR y autorizacion independientes.
@@ -361,13 +365,13 @@ Aplicacion schema/RLS, backfill y certificacion final Free quedan en fases poste
 
 ## Trazabilidad Con El Plan Temporal
 
-`TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` permanece congelado como roadmap historico hasta completar su cierre original; no autoriza ejecucion ni se elimina en F10.
+La trazabilidad del antecedente temporal fue preservada y el archivo retirado durante F9.4 conforme a ADR-0004. No autoriza ejecucion.
 
 | Plan temporal | Descomposicion canonica restaurada | Estado tras F9.2 |
 |---|---|---|
-| F9 Certificacion Hito 1 Free | F9.1 precertificacion; F9.2 maquina; F9.3 contrato preflight; F9.4 lectura; F9.5 T01; F9.6-F9.10 schema, H-00, backfill y certificacion | En progreso |
+| F9 Certificacion Hito 1 Free | F9.1-F9.3 historia local; F9.4 reconciliacion; F9.5 preflight/T01; F9.6 H-00; F9.7-F9.10 schema, backfill y certificacion | En progreso |
 | F10 Produccion | Pro, canary, `main`, smoke y observacion despues de `free_certified` | Pendiente |
-| F11 Cierre | Cierre final tras produccion observada, migracion completa a `.context` y PR de retiro del plan temporal | Pendiente |
+| F11 Cierre | Cierre final tras produccion observada y limpieza autorizada | Pendiente |
 
 El package historico F10/F9.2 solo completa preparacion local dentro de la macrofase F9. No completa certificacion Free, produccion ni cierre temporal.
 

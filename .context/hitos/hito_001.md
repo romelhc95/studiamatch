@@ -12,7 +12,7 @@ No se agregan criterios ni se modifica el contrato, el esfuerzo o el alcance de 
 
 ## Trazabilidad
 
-- Requerimiento y esfuerzo: [EST-001](../estimaciones/est_001.md)
+- Complejidad y estimacion tecnica original: [EST-001](../estimaciones/est_001.md)
 - Backlog: [REQ-EST-001 Sprint 1](../backlog_tareas/req_est_001_sprint_1/_index.md)
 - Tarea principal: [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - Estado vigente: [Estado del proyecto](../estado_del_proyecto.md)

@@ -18,7 +18,7 @@ El proyecto recibe solicitudes nuevas de forma recurrente. Los originales pueden
 ## Aplicacion A SRC-REQ-001
 
 - `H1-CA1` adopta cadencia automatica con gates y controles.
-- `EST-001` conserva complejidad Alta y 72h.
+- `EST-001` conserva complejidad Alta y una estimacion tecnica original de 72h; no representa por si sola el saldo real ni una obligacion contractual.
 - La intencion sin destino actual se registra como [INTAKE-002](../backlog_tareas/intake/INTAKE-002.md) para estimacion futura separada.
 
 ## Consecuencias
