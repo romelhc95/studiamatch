@@ -4,10 +4,10 @@
 
 - Subfase: `F9.5`.
 - Capability: `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `DEFINED_PENDING_REAUTHORIZATION`.
+- Estado: `BLOCKED_AFTER_FAIL`.
 - Target: Free unicamente.
-- Autorizacion vigente: ninguna; la autorizacion de remediacion local/documental se consume exclusivamente con el merge de esta reconciliacion y no autoriza acceso remoto.
-- Resultado remoto vigente: pendiente de repeticion; el `FREE_PREFLIGHT_FAIL` anterior permanece como evidencia historica y no certifica Free.
+- Autorizacion vigente: ninguna; la autorizacion read-only recibida el `2026-07-26` se consumio con el segundo intento.
+- Resultado remoto vigente: `FREE_PREFLIGHT_FAIL` por incompatibilidad RLS previa a H-00; no certifica Free.
 
 Esta nota y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) definen el siguiente trabajo autorizable. No heredan el adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md).
 
@@ -85,9 +85,27 @@ La evidencia detallada se conserva exclusivamente en el artifact privado ignorad
 - No se accedio a Free/Pro, no se cargaron secrets y no se ejecuto SQL, DDL, DML, migration, H-00, backup, pausa de writers o backfill.
 - La remediacion solo queda vigente despues de CI, review y merge del PR documental.
 
+## Segundo Intento Read-Only 2026-07-26
+
+- Binding project-scoped Free: PASS.
+- Candidate local y checksums: 4/4 conformes.
+- Entradas exactas del package en los ledgers dirigidos: 0/4, sin colision.
+- Columnas: 13/13 compatibles.
+- Constraints: 11/11 compatibles.
+- Indices: 9/9 compatibles.
+- RLS habilitado: 5/5 tablas.
+- Policies esperadas: 7/7 presentes, 6/7 compatibles.
+- Policies publicas adicionales: 3.
+- Policies `service_role`: 4/4 compatibles.
+- Resultado: `FREE_PREFLIGHT_FAIL`.
+
+El package recrearia la policy esperada incompatible, pero no elimina las tres policies publicas adicionales. Su verificador F8 rechaza ese estado, de modo que el candidate exacto no puede satisfacer su propia postcondicion. La ejecucion se detuvo antes de inspeccionar ACL, RPC, conflictos de datos, H-00, backup o writers. No se creo T01 y F9.6 permanece bloqueada.
+
+Repetir F9.5 exige definir, aprobar y fusionar una remediacion forward-only del drift RLS sin editar las cuatro migrations ni los ledgers, y despues recibir otra autorizacion decimal exacta.
+
 ## Autorizacion Exacta
 
-Solo despues del merge de la remediacion documental puede volver a solicitarse:
+Solo despues del merge de una remediacion forward-only aprobada para el drift RLS puede volver a solicitarse:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.5

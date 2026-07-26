@@ -9,9 +9,9 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Estado del package: `reconciled_not_certified`.
 - Free y Pro: schema apply bloqueado.
-- Subfase autorizada: ninguna; la autorizacion de remediacion local/documental F9.5 se consume exclusivamente con el merge de esta reconciliacion y no autoriza red.
+- Subfase autorizada: ninguna; la autorizacion read-only F9.5 del `2026-07-26` se consumio con `FREE_PREFLIGHT_FAIL`.
 - Ultima subfase cerrada: F9.4 local/documental mediante el PR que adopta el plan simplificado.
-- Siguiente accion: volver a autorizar F9.5 `REMOTE_READ_FREE_DIRECTED` bajo el contrato DB-only counts-only; F9.6 permanece bloqueada.
+- Siguiente accion: definir y aprobar una remediacion forward-only del drift RLS; F9.6 permanece bloqueada.
 
 ## Subfases
 
@@ -21,7 +21,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
-| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `PENDING` | FAIL historico preservado; contrato H-00 `3/3/0/0` remediado localmente, pendiente de reautorizacion |
+| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `BLOCKED` | `FREE_PREFLIGHT_FAIL` por 3 policies publicas adicionales; H-00 no consultado y T01 no creada |
 | `F9.6` | Backup H-00 y remediacion Free-only counts-only | `PENDING` | Reservada; backup y DML con aprobacion propia; nunca Pro |
 | `F9.7` | Backup/pausa aprobados, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
@@ -33,6 +33,8 @@ La [definicion remota F9.4 anterior](./preflight_free_f9_4.md) es historica y no
 El intento F9.5 del `2026-07-26` confirmo localmente el package F8 y sus cuatro checksums, pero fallo cerrado antes de abrir Free porque faltaba el predicado H-00 privado exigido entonces. No se invocaron tools Supabase, no hubo SQL ni se inspeccionaron ledger, catalogos, datos, backup o writers; el FAIL permanece como evidencia historica.
 
 La remediacion local autorizada reconcilia la evidencia H-00 recuperada sin copiar codigo ni SQL. Sustituye el requisito de manifest/UUID por la cohorte completa derivada en DB con cutoff `2026-07-19T00:00:00Z`; PASS requiere exactamente 3 leads totales, 3 pre-cutoff, 0 post-cutoff y 0 `email_log`, sin identidad individual. La decision no observa Free ni crea T01. Tras el merge documental se requiere otra autorizacion F9.5 read-only.
+
+El segundo intento F9.5 read-only verifico binding Free, candidate, ledger, columnas, constraints e indices, y encontro drift RLS que el package exacto no elimina: 7/7 policies esperadas presentes, 6/7 compatibles y 3 policies publicas adicionales. El verificador F8 rechaza ese estado. La ejecucion fallo cerrado antes de ACL, RPC, conflictos, H-00, backup o writers; T01 no existe y F9.6 sigue bloqueada.
 
 ## Identidades Historicas
 

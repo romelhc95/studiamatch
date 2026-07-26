@@ -17,7 +17,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F6` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
 | `F7` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
 | `F8` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | F9.1-F9.4 completadas; F9.5 preserva su FAIL historico y reconcilia localmente el contrato H-00 counts-only. Free sigue `reconciled_not_certified`. |
+| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | F9.5 termino `FREE_PREFLIGHT_FAIL` por drift RLS antes de H-00. Free sigue `reconciled_not_certified`. |
 | `F10` | Pro y produccion | `PENDING` | Bloqueada hasta que F9 termine en `free_certified`; incluye canary, `main`, smoke y observacion. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; consolida evidencia final y limpieza autorizada. |
 
@@ -29,7 +29,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.2` | `COMPLETED` | Contrato local de promocion; alias historico `FASE-10`, PR #235/#236 |
 | `F9.3` | `COMPLETED` | Freeze local; PR #238, remediacion CRLF #239 y replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | `COMPLETED` | Reconciliacion contractual local; plan simplificado adoptado, definicion remota sustituida y antecedente temporal retirado |
-| `F9.5` | `PENDING` | [Preflight Free dirigido](operaciones/preflight_free_f9_5.md); contrato DB-only `3/3/0/0` remediado localmente, pendiente de nueva autorizacion exacta read-only |
+| `F9.5` | `BLOCKED` | [Preflight Free dirigido](operaciones/preflight_free_f9_5.md); 3 policies publicas adicionales impiden la postcondicion F8; H-00 no consultado |
 | `F9.6` a `F9.10` | `PENDING` | H-00, schema/T02, plan/ejecucion backfill/T03 y certificacion/T04; gates separados |
 
 ## Tarea Activa
@@ -37,11 +37,11 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase autorizada: ninguna. La autorizacion de remediacion local/documental F9.5 se consume exclusivamente con el merge de esta reconciliacion y no autoriza red.
-- Siguiente accion: solicitar otra autorizacion decimal exacta para repetir F9.5 read-only con el contrato DB-only counts-only. F9.6 permanece bloqueada.
+- Subfase autorizada: ninguna. La autorizacion read-only F9.5 del `2026-07-26` se consumio con `FREE_PREFLIGHT_FAIL`.
+- Siguiente accion: definir y aprobar una remediacion forward-only del drift RLS sin mutar migrations o ledgers. Solo despues de su merge puede repetirse F9.5; F9.6 permanece bloqueada.
 
 ## Alcance Inmediato
 
-La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). Los packages historicos `FASE-09` y `FASE-10` se preservan como F9.1/F9.2 sin renombrar artifacts. F8 permanece byte-identico, `reconciled_not_certified`, con Free/Pro bloqueados. `H1-CA2P` y `TASK-H1-001` siguen en progreso. F9.4 reconcilio el contrato, marco la [definicion remota anterior](operaciones/preflight_free_f9_4.md) como no autorizable y preservo la informacion vigente del antecedente antes de retirarlo. F9.5 conserva el `FREE_PREFLIGHT_FAIL` previo y sustituye localmente el requisito de identidad privada por la cohorte completa DB-only con cutoff aprobado y PASS `3/3/0/0`; no hubo acceso remoto ni se creo T01. F10 Produccion y F11 Cierre permanecen pendientes.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). Los packages historicos `FASE-09` y `FASE-10` se preservan como F9.1/F9.2 sin renombrar artifacts. F8 permanece byte-identico, `reconciled_not_certified`, con Free/Pro bloqueados. `H1-CA2P` y `TASK-H1-001` siguen en progreso. El segundo intento F9.5 verifico binding Free, package, ledger, columnas, constraints e indices, y fallo cerrado al detectar drift RLS que el package exacto no elimina. No se consulto H-00, no se creo T01 y no hubo escritura remota. F10 Produccion y F11 Cierre permanecen pendientes.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).
