@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.5 bloqueada por drift RLS detectado antes de H-00 |
+| Fase vigente | Macrofase `F9` en progreso; remediacion RLS local validada y repeticion F9.5 read-only pendiente de reautorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -63,11 +63,11 @@ F9.4 adopta [PLAN-H1-SIMPLIFICADO-001](../../operaciones/plan_simplificado_hito1
 La definicion cerrada de herramientas, candidate, evidencia y stop conditions vive en [Preflight Free F9.5](../../operaciones/preflight_free_f9_5.md).
 
 - Identidad: F9.5 `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `BLOCKED_AFTER_FAIL`; autorizacion vigente: ninguna.
-- Resultado remoto: `FREE_PREFLIGHT_FAIL` por incompatibilidad RLS; T01 no fue creada ni aceptada.
+- Estado: `PENDING_REAUTHORIZATION`; autorizacion vigente: ninguna. La remediacion local forward-only se consume con el merge de esta reconciliacion.
+- Resultado remoto: los `FREE_PREFLIGHT_FAIL` previos permanecen historicos; T01 no fue creada ni aceptada.
 - Target: Free unicamente. Pro, DDL, DML, migrations, H-00, backfill, pausa/reanudacion de writers, dispatch y produccion quedan prohibidos.
 
-F9.5 inspecciona solo las cuatro migrations exactas del package F8; columnas, constraints e indices afectados; policies y ACL de `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; owner, `search_path`, modo y grants de RPC afectadas; conflictos previos a indices/foreign keys; identidad inequivoca de Free; factibilidad de backup y pausa de writers sin ejecutarlos; y existencia counts-only de las filas H-00 esperadas, sin mostrar PII.
+F9.5 inspecciona las cinco migrations exactas del overlay sucesor: el prefijo byte-identico F8 mas la reconciliacion RLS canary. Revisa columnas, constraints e indices afectados; policies y ACL de `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; owner, `search_path`, modo y grants de RPC; conflictos previos; identidad inequivoca de Free; factibilidad de backup/writers sin ejecutarlos; y H-00 counts-only sin mostrar PII.
 
 F9.5 usa exclusivamente la allowlist project-scoped y evidencia sanitizada de su definicion. No implementa adapter, OpenAPI root, advisor bridge, cross-plane binding, nonce one-shot, inventarios globales ni frameworks nuevos de attestations. Cualquier necesidad de escritura, privilegio adicional, dato raw, acceso Pro o cambio de alcance detiene la subfase.
 
@@ -77,7 +77,9 @@ La remediacion local posterior reconcilia artifacts H-00 recuperados y adopta ex
 
 El segundo intento read-only verifico binding Free, 4/4 checksums locales, ausencia de las cuatro entradas exactas sin colision, 13/13 columnas, 11/11 constraints y 9/9 indices compatibles. La inspeccion RLS encontro 5/5 tablas protegidas, 7/7 policies esperadas presentes, 6/7 compatibles, 3 policies publicas adicionales y 4/4 policies `service_role` compatibles. Como el package no elimina las tres adicionales y el verificador F8 las rechaza, la ejecucion termino `FREE_PREFLIGHT_FAIL` antes de ACL, RPC, conflictos de datos, H-00, backup o writers.
 
-Se requiere una remediacion forward-only aprobada del drift RLS, sin mutar las cuatro migrations ni los ledgers, antes de otra autorizacion exacta F9.5. F9.6 permanece bloqueada.
+La remediacion forward-only crea `20260726_fase09_5_rls_canary_reconciliation.sql` y `fase09_5_rls_candidate.json`. Versiona los tres guards restrictivos canary, unifica profiles, restringe `institutions` a `id/name/slug`, fija owner `postgres`, rechaza bypass publico, exige `service_role BYPASSRLS`, cierra ACL/policies incluido `PUBLIC` y agrega una postcondicion sucesora con metadata cerrada. El manifest completo queda ligado por digest, conserva exactamente las cuatro entradas F8 y permanece bloqueado para ambos targets.
+
+Las pruebas reproducen explicitamente una reconstruccion sintetica del baseline historico Free con efectos F8 presentes, ledger vacio y drift RLS previo. El planner real converge atomically en PostgreSQL 17 desde 0/5, 3/5 y 4/5; valida `INSERT` publico de leads limitado a las columnas de formulario, RLS por rol, membresias privilegiadas negativas, aislamiento canary separado por URL, profile e institucion, ACL y metadata exactas, rechazo de drift desconocido, rollback, replay y ledger de cinco entradas. El job CI exige PostgreSQL sin red y una prueba incremental del rechazo de egress IPv4 del proceso, bajo reglas IPv4/IPv6. El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest completo del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 permanece historico; F9.7 debera crear otro descriptor schema v2 para este overlay. La remediacion no accede a ambientes remotos, no crea T01 y no autoriza F9.6. Tras su merge, repetir F9.5 requiere otra autorizacion exacta.
 
 ## Allowlist De Implementacion
 

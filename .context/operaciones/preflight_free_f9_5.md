@@ -4,21 +4,21 @@
 
 - Subfase: `F9.5`.
 - Capability: `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `BLOCKED_AFTER_FAIL`.
+- Estado: `DEFINED_PENDING_REAUTHORIZATION`.
 - Target: Free unicamente.
-- Autorizacion vigente: ninguna; la autorizacion read-only recibida el `2026-07-26` se consumio con el segundo intento.
-- Resultado remoto vigente: `FREE_PREFLIGHT_FAIL` por incompatibilidad RLS previa a H-00; no certifica Free.
+- Autorizacion vigente: ninguna; la autorizacion de remediacion local forward-only se consume exclusivamente con el merge de esta reconciliacion y no autoriza acceso remoto.
+- Resultado remoto vigente: pendiente de repeticion contra el overlay sucesor; los dos `FREE_PREFLIGHT_FAIL` anteriores permanecen como evidencia historica y no certifican Free.
 
 Esta nota y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) definen el siguiente trabajo autorizable. No heredan el adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md).
 
 ## Candidate Cerrado
 
-F9.5 contrasta exclusivamente `F8-HITO1-FUNCTIONAL-20260725` y sus cuatro migrations enumeradas en `db/manifests/fase08_candidate.json`. No edita migrations, manifest, ledger ni codigo.
+Las cuatro migrations y el manifest `F8-HITO1-FUNCTIONAL-20260725` permanecen byte-identicos como prefijo historico. F9.5 contrasta ahora exclusivamente el overlay `F9.5-RLS-CANARY-RECONCILIATION-20260726`, con esas cuatro entradas mas `20260726_fase09_5_rls_canary_reconciliation`, enumeradas en `db/manifests/fase09_5_rls_candidate.json`. Ambos targets permanecen bloqueados.
 
 Objetos dirigidos:
 
-- Tablas: `courses`, `leads`, `email_log`, `ratings`, `reviews`, `institution_site_profiles` y las tablas intermedias afectadas por el package. `email_log` se limita al conteo H-00.
-- Catalogos: columnas, constraints, indices, RLS, policies, ACL, owners y RPC afectadas por las cuatro migrations.
+- Tablas: `institutions`, `courses`, `leads`, `email_log`, `ratings`, `reviews`, `institution_site_profiles` y las tablas intermedias afectadas por el package. `email_log` se limita al conteo H-00.
+- Catalogos: columnas, constraints, indices, RLS, policies, ACL, owners y RPC afectadas por las cinco migrations.
 - Datos: solo conteos agregados para conflictos previos a constraints/indices y H-00; ninguna fila o valor PII.
 
 ## Allowlist De Herramientas
@@ -34,9 +34,9 @@ Solo se permiten tools project-scoped del servidor `supabase-free`:
 ## Checklist Dirigido
 
 1. Verificar sesion Free y package local exacto.
-2. Comparar ledger completo con los cuatro nombres/checksums esperados.
+2. Proyectar el ledger completo sobre los cinco nombres/checksums esperados y aceptar solo un prefijo continuo exacto, preservando historia ajena no colisionante.
 3. Inspeccionar solo columnas, constraints e indices afectados.
-4. Inspeccionar RLS, policies y ACL por rol en `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; `email_log` se limita al conteo H-00.
+4. Inspeccionar RLS, policies y ACL por rol en `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; `email_log` se limita al conteo H-00.
 5. Inspeccionar owner, modo, `search_path` y grants de RPC modificadas por el package, sin invocarlas ni leer bodies.
 6. Obtener solo conteos de conflictos que bloquearian constraints, foreign keys o indices.
 7. Confirmar factibilidad de backup y pausa de writers como gates pendientes, sin ejecutar acciones.
@@ -101,11 +101,29 @@ La evidencia detallada se conserva exclusivamente en el artifact privado ignorad
 
 El package recrearia la policy esperada incompatible, pero no elimina las tres policies publicas adicionales. Su verificador F8 rechaza ese estado, de modo que el candidate exacto no puede satisfacer su propia postcondicion. La ejecucion se detuvo antes de inspeccionar ACL, RPC, conflictos de datos, H-00, backup o writers. No se creo T01 y F9.6 permanece bloqueada.
 
-Repetir F9.5 exige definir, aprobar y fusionar una remediacion forward-only del drift RLS sin editar las cuatro migrations ni los ledgers, y despues recibir otra autorizacion decimal exacta.
+Este resultado permanece historico. La remediacion forward-only local descrita abajo resuelve el drift sin editar las cuatro migrations ni los ledgers; repetir F9.5 requiere su merge y otra autorizacion decimal exacta.
+
+## Remediacion Forward-Only Local 2026-07-26
+
+- Migration sucesora: `20260726_fase09_5_rls_canary_reconciliation.sql`, checksum canonico `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01`.
+- Manifest overlay: `F9.5-RLS-CANARY-RECONCILIATION-20260726`, cinco entradas, digest canonico completo `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`, `reconciled_not_certified`, Free/Pro bloqueados.
+- Binding del manifest: el objeto JSON completo, claves unicas, status, bloqueos, exclusiones, entradas y checksums estan ligados por digest canonico; una copia promocionable o un package sustituto falla cerrado.
+- Inmutabilidad: cuatro migrations F6-F8 y `fase08_candidate.json` conservaron sus hashes LF exactos.
+- Guards versionados: policies restrictivas canary exactas y transitivas de `institutions`, `institution_site_profiles` y `courses`.
+- Profiles: `profiles_select_public` cubre exactamente `anon` y `authenticated` antes de retirar `profiles_select_authenticated`.
+- Verificadores: F8 conserva todos sus checks, exige owner `postgres` y RLS en las seis tablas, roles publicos sin superuser/BYPASS ni membresias privilegiadas, y `service_role` con BYPASSRLS pero sin superuser ni membresias privilegiadas adicionales. Cierra columnas publicas de `institutions`, ACL incluido `PUBLIC`, volatilidad del RPC mutante e inventarios totales de policies; F9.5 encadena la postcondicion y verifica su propia metadata.
+- Leads: `anon` y `authenticated` reciben `INSERT` solo sobre `first_name`, `last_name`, `email`, `whatsapp`, `source_page`, `type`, `course_id`, `area_interest`, `budget`, `modality`, `description` e `is_late_enrollment_request`. `id`, `status`, timestamps, `lead_source_type` y cualquier otra columna administrada permanecen denegados.
+- Planner: el planner de `db_migrate.py` consulta el ledger PostgreSQL real y valida end-to-end 0/5, 3/5 y 4/5 antes de construir cada suffix aprobado; gaps, checksum drift, replay 5/5 y rollback tambien fallan o convergen segun contrato.
+- PostgreSQL 17: una reconstruccion sintetica del baseline observado prueba efectos representativos F8 presentes, ledger vacio y drift RLS historico antes del overlay. Luego valida RLS por rol, membresias privilegiadas negativas, aislamiento canary separado por URL, profile e institucion, rollback atomico, replay semantico y segundo plan en cero.
+- CI: el contrato exige PostgreSQL 17 con `--network none` y socket Unix, y comprueba ese modo antes de ejecutar. El proceso de pruebas corre sin secrets ni acceso al socket Docker, sin capabilities y con `no-new-privs`; reglas IPv4/IPv6 cierran OUTPUT y un intento IPv4 externo debe incrementar su contador `REJECT` dedicado.
+- Promocion futura: el descriptor F10/F9.2 de cuatro entradas permanece historico e inmutable. F9.7 debera versionar otro descriptor schema v2 ligado al overlay de cinco entradas; ningun artifact actual autoriza aplicarlo.
+- Acceso Free/Pro, secrets, SQL remoto, DDL/DML remoto, migrations remotas, H-00, backup, writers, backfill y produccion: ninguno.
+
+La remediacion queda vigente con CI, revision independiente y merge. No crea T01, no cambia `reconciled_not_certified` y no autoriza F9.6.
 
 ## Autorizacion Exacta
 
-Solo despues del merge de una remediacion forward-only aprobada para el drift RLS puede volver a solicitarse:
+Solo despues del merge de esta remediacion forward-only puede volver a solicitarse:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.5

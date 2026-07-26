@@ -9,9 +9,9 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Estado del package: `reconciled_not_certified`.
 - Free y Pro: schema apply bloqueado.
-- Subfase autorizada: ninguna; la autorizacion read-only F9.5 del `2026-07-26` se consumio con `FREE_PREFLIGHT_FAIL`.
+- Subfase autorizada: ninguna; la remediacion local forward-only F9.5 se consume con el merge de esta reconciliacion y no autoriza red.
 - Ultima subfase cerrada: F9.4 local/documental mediante el PR que adopta el plan simplificado.
-- Siguiente accion: definir y aprobar una remediacion forward-only del drift RLS; F9.6 permanece bloqueada.
+- Siguiente accion: volver a autorizar F9.5 `REMOTE_READ_FREE_DIRECTED` contra el overlay de cinco entradas; F9.6 permanece bloqueada.
 
 ## Subfases
 
@@ -21,7 +21,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
-| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `BLOCKED` | `FREE_PREFLIGHT_FAIL` por 3 policies publicas adicionales; H-00 no consultado y T01 no creada |
+| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `PENDING` | FAIL historico preservado; overlay RLS de cinco entradas localmente validado, pendiente de reautorizacion |
 | `F9.6` | Backup H-00 y remediacion Free-only counts-only | `PENDING` | Reservada; backup y DML con aprobacion propia; nunca Pro |
 | `F9.7` | Backup/pausa aprobados, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
@@ -35,6 +35,12 @@ El intento F9.5 del `2026-07-26` confirmo localmente el package F8 y sus cuatro 
 La remediacion local autorizada reconcilia la evidencia H-00 recuperada sin copiar codigo ni SQL. Sustituye el requisito de manifest/UUID por la cohorte completa derivada en DB con cutoff `2026-07-19T00:00:00Z`; PASS requiere exactamente 3 leads totales, 3 pre-cutoff, 0 post-cutoff y 0 `email_log`, sin identidad individual. La decision no observa Free ni crea T01. Tras el merge documental se requiere otra autorizacion F9.5 read-only.
 
 El segundo intento F9.5 read-only verifico binding Free, candidate, ledger, columnas, constraints e indices, y encontro drift RLS que el package exacto no elimina: 7/7 policies esperadas presentes, 6/7 compatibles y 3 policies publicas adicionales. El verificador F8 rechaza ese estado. La ejecucion fallo cerrado antes de ACL, RPC, conflictos, H-00, backup o writers; T01 no existe y F9.6 sigue bloqueada.
+
+La remediacion local forward-only mantiene byte-identicos manifest/migrations F8 y agrega una quinta migration bajo un overlay nuevo ligado por digest completo. Versiona guards canary transitivos, restringe `institutions` a `id/name/slug`, limita `INSERT` de leads a las doce columnas enviadas por los formularios y excluye campos administrados, normaliza ACL de tabla y columna, fija owner `postgres`, rechaza superuser/BYPASS/membresias privilegiadas en roles publicos y `service_role`, exige `service_role BYPASSRLS` y cierra totalmente policies/ACL incluido `PUBLIC`.
+
+La postcondicion sucesora cierra owner, lenguaje, volatilidad, modo, `search_path` y ACL propios. PostgreSQL 17 demostro una reconstruccion sintetica del baseline Free observado y convergencia del planner real desde 0/5, 3/5 y 4/5, aislamiento canary separado por URL, profile e institucion, rechazo de drift, rollback atomico y replay. El job CI exige PostgreSQL `--network none` y una prueba incremental del rechazo de egress IPv4 del proceso bajo reglas IPv4/IPv6.
+
+El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 no promociona este overlay; F9.7 debera versionar otro schema v2. El overlay sigue `reconciled_not_certified`, Free/Pro bloqueados y T01 ausente.
 
 ## Identidades Historicas
 

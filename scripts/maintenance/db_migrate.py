@@ -66,11 +66,29 @@ PACKAGE_POSTCONDITIONS = {
     "20260724_fase06_hito1_editorial_contract": "public.verify_fase06_hito1_contract()",
     "20260725_fase07_g1b_closure": "public.verify_fase07_g1b_closure()",
     "20260725_fase08_hito1_functional_closure": "public.verify_fase08_hito1_contract()",
+    "20260726_fase09_5_rls_canary_reconciliation": (
+        "public.verify_fase09_5_rls_canary_reconciliation()"
+    ),
 }
 MANIFEST_ONLY_PREFIXES = (
     "20260724_fase06_",
     "20260725_fase07_",
     "20260725_fase08_",
+    "20260726_fase09_5_",
+)
+F9_5_OVERLAY_STEMS = (
+    "20260724_fase06_g1b_reconciliation",
+    "20260724_fase06_hito1_editorial_contract",
+    "20260725_fase07_g1b_closure",
+    "20260725_fase08_hito1_functional_closure",
+    "20260726_fase09_5_rls_canary_reconciliation",
+)
+F9_5_OVERLAY_HASHES = (
+    "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+    "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+    "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
+    "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
+    "4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01",
 )
 
 
@@ -182,7 +200,8 @@ def select_legacy_migrations(only=None):
         for path in migration_files
     ):
         raise ManifestError(
-            "Las migrations FASE-06/07 requieren --manifest; FASE-08 tambien"
+            "Las migrations FASE-06/07 requieren --manifest; "
+            "FASE-08/09.5 tambien"
         )
     return migration_files
 
@@ -277,6 +296,7 @@ def validate_manifest_ledger_state(db, migration_files, applied):
 
     seen_missing = False
     pending = []
+    applied_prefix = []
     for filepath in migration_files:
         name = extract_name(filepath)
         if name not in applied:
@@ -291,7 +311,30 @@ def validate_manifest_ledger_state(db, migration_files, applied):
         expected_marker = f"sha256:{_file_sha256(filepath)}"
         if applied[name] != expected_marker:
             raise RuntimeError(f"Ledger/checksum mismatch para {name}")
-        verify_applied_postcondition(db, name)
+        applied_prefix.append(name)
+
+    stems = tuple(extract_name(path) for path in migration_files)
+    pending_stems = tuple(extract_name(path) for path in pending)
+    overlay_hashes_match = (
+        stems == F9_5_OVERLAY_STEMS
+        and tuple(_file_sha256(path) for path in migration_files)
+        == F9_5_OVERLAY_HASHES
+    )
+    if overlay_hashes_match and len(applied_prefix) not in {0, 3, 4, 5}:
+        raise RuntimeError(
+            "Estado parcial inesperado: el overlay F9.5 solo acepta "
+            "limites completos de 0, 3, 4 o 5 entradas"
+        )
+    defer_f8_prefix = (
+        overlay_hashes_match
+        and tuple(applied_prefix) == F9_5_OVERLAY_STEMS[:4]
+        and pending_stems == F9_5_OVERLAY_STEMS[4:]
+        and tuple(applied[name] for name in applied_prefix)
+        == tuple(f"sha256:{value}" for value in F9_5_OVERLAY_HASHES[:4])
+    )
+    if not defer_f8_prefix:
+        for name in applied_prefix:
+            verify_applied_postcondition(db, name)
     return pending
 
 
