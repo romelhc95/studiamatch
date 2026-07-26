@@ -4,10 +4,10 @@
 
 - Subfase: `F9.5`.
 - Capability: `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `DEFINED_PENDING_REAUTHORIZATION`.
+- Estado: `FREE_PREFLIGHT_FAIL`.
 - Target: Free unicamente.
-- Autorizacion vigente: ninguna; la autorizacion de remediacion local forward-only se consume exclusivamente con el merge de esta reconciliacion y no autoriza acceso remoto.
-- Resultado remoto vigente: pendiente de repeticion contra el overlay sucesor; los dos `FREE_PREFLIGHT_FAIL` anteriores permanecen como evidencia historica y no certifican Free.
+- Autorizacion vigente: ninguna; la autorizacion read-only del tercer intento fue consumida.
+- Resultado remoto vigente: `FREE_PREFLIGHT_FAIL` contra el overlay sucesor; los tres FAIL permanecen como evidencia historica y no certifican Free.
 
 Esta nota y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) definen el siguiente trabajo autorizable. No heredan el adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md).
 
@@ -121,9 +121,24 @@ Este resultado permanece historico. La remediacion forward-only local descrita a
 
 La remediacion queda vigente con CI, revision independiente y merge. No crea T01, no cambia `reconciled_not_certified` y no autoriza F9.6.
 
+## Tercer Intento Read-Only 2026-07-26
+
+- Commit sincronizado: `2e5be1719dffc8a867f4c40e4e8081b51ef56fb7`.
+- Binding project-scoped Free: PASS; el identificador no se registro.
+- Overlay: `F9.5-RLS-CANARY-RECONCILIATION-20260726`, cinco entradas, package y digest local conformes.
+- Ledger dirigido: prefijo `0/5`, sin colision de nombres.
+- Columnas: `13/13` compatibles.
+- Constraints: `11/11` compatibles.
+- Indices: `9/9` compatibles.
+- RLS: `6/6` tablas dirigidas habilitadas; seguridad de roles `3/3` compatible.
+- Inventario de policies: FAIL; el overlay exacto no converge al inventario cerrado.
+- Resultado: `FREE_PREFLIGHT_FAIL`.
+
+Las cinco migrations no retiran todo el drift observado y `verify_fase08_hito1_contract()` rechaza cualquier policy fuera de su inventario cerrado. La ejecucion se detuvo antes de ACL, RPC, conflictos de datos, H-00, backup o writers. No se preparo T01 y F9.6 permanece bloqueada. No hubo acceso Pro, DDL, DML, aplicacion de migrations, H-00, backup, pausa de writers ni backfill. El detalle permanece solo en evidencia privada ignorada.
+
 ## Autorizacion Exacta
 
-Solo despues del merge de esta remediacion forward-only puede volver a solicitarse:
+Solo despues de una nueva remediacion forward-only, CI, review y merge puede volver a solicitarse:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.5
