@@ -141,7 +141,7 @@ def _actual_git_proof(contract: dict, tmp_path: Path) -> tuple[dict, Path]:
     for relative in contract["implementation_binding"]["candidate_git_required_paths"]:
         destination = candidate / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes((ROOT / relative).read_bytes())
+        destination.write_bytes(free_preflight._lf((ROOT / relative).read_bytes()))
     _git(candidate, "init", "--quiet")
     _git(candidate, "add", "--all")
     _git(
@@ -377,6 +377,10 @@ def test_actual_git_gate_verifies_commit_tree_modes_and_blob_ids(contract: dict,
     assert validated.source_commit_sha == contract["source_binding"]["commit_sha"]
     assert validated.source_tree_sha == contract["source_binding"]["tree_sha"]
     assert re.fullmatch(r"[0-9a-f]{64}", validated.proof_sha256)
+
+    checkout_path = candidate / CONTRACT_PATH
+    checkout_path.write_bytes(checkout_path.read_bytes().replace(b"\n", b"\r\n"))
+    assert validate_git_binding(contract, proof, root=candidate) == validated
 
     wrong_tree = copy.deepcopy(proof)
     wrong_tree["source"]["tree_sha"] = "0" * 40
