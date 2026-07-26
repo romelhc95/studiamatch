@@ -2,7 +2,7 @@
 
 ## Regla de Ejecución de Fases y Tareas
 
-La fase y las tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la tarea activa enlazada desde ese estado. **SOLO ejecuta esas tareas cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. `XX` debe corresponder a la fase canónica que agrupa la tarea enlazada. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL ni ninguna acción destructiva sin esa autorización explícita. El requerimiento, la tarea y la fase pueden analizarse, diagnosticarse y documentarse libremente; la ejecución conserva siempre este gate humano exacto. Ningún documento legacy sustituye al Context Graph ni concede autorización.
+La macrofase, la subfase y las tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la tarea activa enlazada desde ese estado. **SOLO ejecuta esas tareas cuando el usuario lo apruebe explicitamente diciendo "Ejecuta las tareas pendientes de la Fase FNN.n"**. `FNN.n` debe coincidir exactamente con la subfase decimal activa. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior a la definicion fusionada no autoriza ejecucion. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL ni acciones destructivas sin ese gate. El requerimiento, la tarea y la fase pueden analizarse, diagnosticarse y documentarse libremente. Ningun documento legacy sustituye al Context Graph ni concede autorizacion. Ver [ADR-0003](.context/decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -168,7 +168,7 @@ PR abierto → corre automáticamente: credential-scan + lint + typecheck + pyth
 ### Flujo completo obligatorio (NO es opcional)
 
 ```
-Usuario: "Ejecuta las tareas pendientes de la Fase XX" para la fase/tarea activa enlazada desde el Context Graph
+Usuario: "Ejecuta las tareas pendientes de la Fase FNN.n" para la subfase decimal activa enlazada desde el Context Graph
   → AI ejecuta cambios de código
   → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
   → Si hay hallazgos → AI remedia automáticamente

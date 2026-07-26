@@ -11,13 +11,16 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 3. Implementar migrations forward-only y cambios minimos de codigo.
 4. Validar en contenedor: pruebas Python, lint, typecheck y build aplicables.
 5. Ejecutar auditoria de secretos sobre el diff; no registrar valores.
-6. Aplicar y certificar primero en Supabase Free con postcondiciones y RLS.
-7. Congelar un candidate inmutable y respaldarlo remotamente.
-8. Ejecutar H-00 solo en Free, con autorizacion separada, counts-only y verificacion independiente.
-9. Promover por PR `feat/* -> desarrollo -> certificacion`; cada paso requiere review y CI.
-10. Aplicar en Pro solo un manifest `free_certified`, nunca H-00, mediante workflow manual fijado a un commit inmutable, tras aprobacion Production y pausa de writers.
-11. Ejecutar canary Pro, negativos anon/authenticated, positivo service role y smoke productivo.
-12. Reanudar writers y promover a `main` solo con aprobacion humana; observar antes del cierre.
+6. Congelar un candidate inmutable con package, checksum, commit y tree verificables.
+7. Completar preflight Free y aprobar/atestiguar backup-restauracion antes de cualquier mutacion remota.
+8. Aplicar y certificar primero en Supabase Free con postcondiciones y RLS, bajo aprobacion de migration y pausa de writers separadas.
+9. Ejecutar H-00 solo en Free, con autorizacion DML separada, counts-only y verificacion independiente.
+10. Aprobar el plan y despues ejecutar/certificar el backfill Free bajo gates separados.
+11. Promover por PR `feat/* -> desarrollo -> certificacion`; cada merge requiere review humano y CI.
+12. Ejecutar en Free ACL por rol, smoke FG2 sin fallback, canary del package exacto, cleanup idempotente y QA independiente; aceptar T04 solo con aprobacion final y alcanzar `free_certified`/`FREE_CERTIFIED`.
+13. Aplicar en Pro solo un manifest `free_certified`, nunca H-00, mediante workflow manual fijado a un commit inmutable, tras aprobacion Production y pausa de writers.
+14. Ejecutar canary Pro, negativos anon/authenticated, positivo service role y smoke productivo.
+15. Reanudar writers y promover a `main` solo con aprobacion humana; observar antes del cierre.
 
 ## Stop Conditions
 
@@ -33,22 +36,24 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 
 FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que toda ejecucion automatica respete gates, circuit breakers, controles de ambiente y las stop conditions de este flujo. Ver [Pipeline](../arquitectura_pipeline.md).
 
-## Separacion De Precertificacion Y Free
+## Separacion Dentro De La Macrofase F9
 
-- F9 produce solo evidencia local/offline y conserva `reconciled_not_certified` con Free/Pro bloqueados.
-- F11 obtiene evidencia remota Free read-only; solo F12 local/documental puede decidir `ready_for_free` al validar esa evidencia, package, commit, plan y aprobacion.
-- Plan de backfill, aplicacion de schema en Free, ejecucion de backfill y certificacion Free son gates distintos; ningun resultado local los sustituye.
-- El orden obligatorio es readiness -> schema/RLS -> backfill -> certificacion final; F10 debe codificarlo mecanicamente antes de cualquier transicion de status.
+- F9.1 produce solo evidencia local/offline y conserva `reconciled_not_certified` con Free/Pro bloqueados; su identidad historica es `FASE-09`.
+- F9.2 codifica localmente la maquina de promocion; su descriptor e identidad historica permanecen `FASE-10`.
+- F9.3 congela localmente el contrato sin red; F9.4 obtiene evidencia remota Free read-only; solo F9.5 local/documental puede decidir `ready_for_free` al validar esa evidencia, package, commit, plan y aprobacion.
+- Plan de backfill, aplicacion de schema en Free, H-00, ejecucion de backfill y certificacion Free son subfases/gates distintos; ningun resultado local los sustituye.
+- El orden obligatorio es readiness -> schema/RLS -> backfill -> certificacion final y esta codificado mecanicamente antes de cualquier transicion de status.
 - `free_certified` exige postcondiciones Free, RLS por rol, ledger/checksums, PostgREST, advisors y backfill separado certificado.
-- Pro permanece bloqueado hasta otro gate Production independiente.
+- La macrofase F10 Produccion permanece bloqueada hasta cerrar F9 en `free_certified`.
 
 ## Maquina De Promocion Hito 1
 
-- F10 define localmente `reconciled_not_certified -> ready_for_free -> free_schema_certified -> free_backfill_certified -> free_certified`.
+- El package historico `FASE-10`/F9.2 define localmente `reconciled_not_certified -> ready_for_free -> free_schema_certified -> free_backfill_certified -> free_certified`.
 - Cada transicion requiere attestation inmutable y aprobacion propia; no hay saltos ni continuidad automatica.
-- F11 queda reservada para preflight Free read-only y no cambia status por si sola.
-- F12 acepta localmente la evidencia F11 y crea T01; no conecta ni aplica schema.
-- Aplicacion schema/RLS, backfill y certificacion final Free pertenecen a fases y autorizaciones distintas.
+- F9.3 congela el contrato local y no conecta; F9.4 ejecuta preflight Free read-only y no cambia status por si sola.
+- F9.5 acepta localmente la evidencia F9.4 y crea T01; no conecta ni aplica schema.
+- F9.6-F9.10 separan backup/schema/RLS, H-00, plan/ejecucion de backfill y certificacion final Free con autorizaciones distintas.
+- F10 se limita a Pro/produccion y F11 al cierre final segun [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
 - Un fallo pre-commit revierte package y ledger en la transaccion. Un fallo post-commit mantiene writers pausados y detiene toda mutacion. Forward-fix o restauracion requieren un incidente documentado, identidad Free revalidada, owner de recuperacion, backup attestado y una autorizacion de emergencia exacta separada; esta regla no autoriza ninguna de esas operaciones. No se improvisan down migrations.
 
 ## Politica De Resguardo

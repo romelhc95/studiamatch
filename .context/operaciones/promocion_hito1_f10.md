@@ -1,8 +1,10 @@
 # Contrato De Promocion Hito 1 F10
 
+> **Identidad historica:** `FASE-10`, `F10-HITO1-PROMOTION-CONTRACT-20260725`, `fase10-*` y la frase de autorizacion de esta nota identifican exclusivamente el package local cerrado por PR #235/#236. [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md) lo mapea a F9.2; no es la macrofase F10 Produccion.
+
 Esta nota define el alcance ejecutable de `FASE-10` bajo `H1-CA2P`. F10 repara exclusivamente el contrato local de promocion del package F8. No autoriza conexiones a Free/Pro, credenciales, parity remoto, workflows de aplicacion, cambios de status, DDL/DML/RPC, backups, pausa de writers ni backfill.
 
-La ejecucion requiere que esta definicion sea aprobada y fusionada, seguida por una nueva frase exacta `Ejecuta las tareas pendientes de la Fase 10` sobre el Context Graph vigente.
+Registro historico no reutilizable: la ejecucion original requirio la frase `Ejecuta las tareas pendientes de la Fase 10` despues de fusionar su definicion. Esa frase no autoriza la macrofase F10 Produccion ni ninguna subfase vigente.
 
 ## Bloqueo Que Resuelve
 
@@ -143,7 +145,7 @@ Campos top-level obligatorios y unicos; cualquier campo extra se rechaza:
 }
 ```
 
-`payload_entries` copia los objetos F8 completos sin el array legacy `prerequisites`; F10 sustituye ese array por requisitos de transicion. `schema_apply_blocked_targets` gobierna exclusivamente aplicacion/replay del payload DDL, no backfill ni inspeccion read-only. `next_capabilities` es una secuencia ordenada; en estado inicial exige primero F11 `REMOTE_READ_FREE` y despues F12 `ACCEPT_FREE_READINESS`. El descriptor no autoriza capabilities; solo identifica cuales fases separadas pueden definirse.
+`payload_entries` copia los objetos F8 completos sin el array legacy `prerequisites`; el package historico F10/F9.2 sustituye ese array por requisitos de transicion. `schema_apply_blocked_targets` gobierna exclusivamente aplicacion/replay del payload DDL, no backfill ni inspeccion read-only. `next_capabilities` es una secuencia ordenada; en estado inicial exige primero F9.4 `REMOTE_READ_FREE` y despues F9.5 `ACCEPT_FREE_READINESS`; F9.3 congela previamente el contrato local. El descriptor no autoriza capabilities; solo identifica cuales subfases separadas pueden definirse.
 
 Objetos `transitions` exactos:
 
@@ -182,7 +184,7 @@ No se permiten saltos, transiciones automaticas, rollback de status ni reutiliza
 
 F10 define el contrato, pero no produce attestations remotas ni ejecuta transiciones. Cada fase futura crea un archivo nuevo bajo `db/attestations/hito1/`; nunca edita descriptor o attestations anteriores.
 
-En F10, `validate_attestation_inventory_structure` verifica sobre repositorios Git/fixtures sinteticos la estructura T01-T04, inventory completo, fingerprint, bytes versionados, commit/tree y ancestry, pero retorna `None`: no concede estado ni capability. Solo los tests calculan el estado esperado desde el descriptor congelado. La API operacional publica acepta cero attestations y falla cerrado ante cualquier inventory no vacio. F12 debera verificar autenticidad del review GitHub y habilitar una ruta operacional nueva; campos `approval` auto-declarados nunca bastan para cambiar estado.
+En el package historico F10/F9.2, `validate_attestation_inventory_structure` verifica sobre repositorios Git/fixtures sinteticos la estructura T01-T04, inventory completo, fingerprint, bytes versionados, commit/tree y ancestry, pero retorna `None`: no concede estado ni capability. Solo los tests calculan el estado esperado desde el descriptor congelado. La API operacional publica acepta cero attestations y falla cerrado ante cualquier inventory no vacio. F9.5 debera verificar autenticidad del review GitHub y habilitar una ruta operacional nueva; campos `approval` auto-declarados nunca bastan para cambiar estado.
 
 Campos obligatorios y unicos de cada attestation:
 
@@ -276,7 +278,7 @@ Todo path no enumerado queda fuera. En particular se excluyen migrations nuevas,
 1. El PR de definicion F10 fue aprobado y fusionado con CI verde.
 2. Nueva autorizacion humana exacta para F10 despues de ese merge.
 3. Rama limpia desde `desarrollo@b9053ab` o descendiente canonico verificado.
-4. F9 esta `COMPLETED`; `TASK-H1-001` y `H1-CA2P` siguen `IN_PROGRESS`.
+4. El package historico `FASE-09`/F9.1 esta `COMPLETED`; `TASK-H1-001` y `H1-CA2P` siguen `IN_PROGRESS`.
 5. Manifest F8 y cuatro migrations byte-identicos; status `reconciled_not_certified`; Free/Pro bloqueados.
 6. Entorno sanitizado y transporte remoto mecanicamente prohibido.
 
@@ -336,7 +338,7 @@ Negativos obligatorios:
 2. Tras merge se actualiza `desarrollo`, se verifica tree exacto y se repiten todos los comandos F10.
 3. Se crea `docs/close-fase10`, limitado a esta nota, `estado_del_proyecto.md`, `TASK-H1-001` y changelog.
 4. El PR de cierre exige Context Graph, `security-audit`, auditorias GO, review de `romelhc95-approver` y merge commit.
-5. F10 pasa a `COMPLETED` solo al fusionar el PR de cierre. F11 conserva definicion/autorizacion independientes.
+5. El package historico F10/F9.2 pasa a `COMPLETED` solo al fusionar el PR de cierre. F9.3 y cada subfase posterior conservan definicion/autorizacion independientes.
 
 ## Estados Permitidos En F10
 
@@ -349,11 +351,11 @@ Negativos obligatorios:
 | Descriptor F10 | Nuevo, bloqueado y `reconciled_not_certified` |
 | Adopcion remota | Sin cambios |
 
-## F11 Reservada
+## Reservas Reconciliadas
 
-F11 se reserva exclusivamente para `REMOTE_READ_FREE`: preflight Free read-only, target univoco, ledger completo, baseline, constraints, RLS/ACL, contrato `exec_sql` sin invocarlo, PostgREST, advisors, factibilidad de backup/writer pause/rollback y evidencia counts-only. F11 produce `FREE_PREFLIGHT_PASS/FAIL`, pero no crea T01 ni cambia estado.
+La reserva no ejecutada antes denominada F11 se sustituye por F9.4 `REMOTE_READ_FREE`: preflight Free read-only, target univoco, ledger completo, baseline, constraints, RLS/ACL, contrato `exec_sql` sin invocarlo, PostgREST, advisors, factibilidad de backup/writer pause/rollback y evidencia counts-only. F9.3 congela primero el contrato local. F9.4 produce `FREE_PREFLIGHT_PASS/FAIL`, pero no crea T01 ni cambia estado.
 
-F12 se reserva para `ACCEPT_FREE_READINESS`: fase local/documental separada que valida la evidencia F11, aprobacion del plan y bindings, y solo entonces crea T01. F12 no conecta, no aplica schema ni ejecuta backfill. Tanto F11 como F12 requieren definicion, PR y autorizacion independientes.
+La reserva no ejecutada antes denominada F12 se sustituye por F9.5 `ACCEPT_FREE_READINESS`: subfase local/documental separada que valida la evidencia F9.4, aprobacion del plan y bindings, y solo entonces crea T01. F9.5 no conecta, no aplica schema ni ejecuta backfill. F9.3/F9.4/F9.5 requieren definicion, PR y autorizacion independientes.
 
 Aplicacion schema/RLS, backfill y certificacion final Free quedan en fases posteriores separadas. Pro conserva un gate Production independiente.
 
@@ -361,13 +363,13 @@ Aplicacion schema/RLS, backfill y certificacion final Free quedan en fases poste
 
 `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` permanece congelado como roadmap historico hasta completar su cierre original; no autoriza ejecucion ni se elimina en F10.
 
-| Plan temporal | Descomposicion canonica | Estado tras candidate F10 |
+| Plan temporal | Descomposicion canonica restaurada | Estado tras F9.2 |
 |---|---|---|
-| F9 Certificacion Hito 1 Free | F10 contrato local; F11 preflight; F12 aceptacion T01; fases separadas de schema, backfill y certificacion final | Pendiente |
-| F10 Produccion | Fases posteriores a `free_certified` para Pro, canary, `main`, smoke y observacion | Pendiente |
+| F9 Certificacion Hito 1 Free | F9.1 precertificacion; F9.2 maquina; F9.3 contrato preflight; F9.4 lectura; F9.5 T01; F9.6-F9.10 schema, H-00, backfill y certificacion | En progreso |
+| F10 Produccion | Pro, canary, `main`, smoke y observacion despues de `free_certified` | Pendiente |
 | F11 Cierre | Cierre final tras produccion observada, migracion completa a `.context` y PR de retiro del plan temporal | Pendiente |
 
-F10 solo completa la primera preparacion local de la antigua F9. No completa certificacion Free, produccion ni cierre temporal.
+El package historico F10/F9.2 solo completa preparacion local dentro de la macrofase F9. No completa certificacion Free, produccion ni cierre temporal.
 
 ## Evidencia Candidate F10
 
@@ -378,7 +380,7 @@ F10 solo completa la primera preparacion local de la antigua F9. No completa cer
 - Suite F6-F10 y credenciales: 253 pruebas PASS; un warning de deprecacion heredado.
 - Free/Pro, DDL/DML/RPC/parity remoto, backfill, secrets y status transitions: `0`.
 - Context Graph: PASS con 28 archivos/208 enlaces. Wrapper self-test de fallos: PASS.
-- Git local prueba commit/tree/ancestry y que el commit documental contiene descriptor e inventory exactos; autenticidad GitHub permanece bloqueada para F12.
+- Git local prueba commit/tree/ancestry y que el commit documental contiene descriptor e inventory exactos; autenticidad GitHub permanece bloqueada para F9.5.
 - CI, auditorias, commit/tree y replay post-merge quedaron registrados en la evidencia de cierre.
 
 ## Evidencia Post-Merge
@@ -392,6 +394,6 @@ F10 solo completa la primera preparacion local de la antigua F9. No completa cer
 - Auditorias del candidate previas a PR #235: security/QA GO sin hallazgos; scans pre-commit y pre-push PASS. Credential Scan y `security-audit` del PR tambien quedaron en PASS.
 - F8 permanece byte-identico, `reconciled_not_certified` y bloqueado para Free/Pro; attestations/status transitions `0`.
 - Acceso Free/Pro `0`; DDL/DML/RPC/parity remoto `0`; backfill `0`; secrets/environments `0`.
-- Estado F10 propuesto por este cierre: `COMPLETED`; solo se vuelve canonico al fusionar el PR documental `docs/close-fase10`. F11/F12 conservan gates independientes.
+- Estado del package historico F10/F9.2: `COMPLETED`. La macrofase F9 sigue `IN_PROGRESS`; F9.3-F9.5 conservan gates independientes y F10 Produccion permanece pendiente.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [F9](./precertificacion_hito1_f9.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).

@@ -1,8 +1,10 @@
 # Precertificacion Local Hito 1 F9
 
+> **Identidad historica:** `FASE-09`, `F9`, `fase09-*` y la frase de autorizacion de esta nota identifican exclusivamente el package local implementado/remediado por PR #231/#232 y cerrado por PR #233. [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md) lo mapea a F9.1. No significa que la macrofase F9 este completa y no autoriza trabajo futuro.
+
 Esta nota define el alcance ejecutable de `FASE-09` bajo `H1-CA2P`. F9 es exclusivamente local y offline respecto de bases, APIs y providers: no autoriza leer o mutar Supabase Free/Pro, cargar credenciales, ejecutar parity remoto, despachar workflows manuales, pausar writers remotos, crear respaldos remotos ni ejecutar backfill.
 
-La autorizacion emitida antes de que esta definicion sea fusionada no se reutiliza retroactivamente. La ejecucion requiere una nueva frase exacta `Ejecuta las tareas pendientes de la Fase 09` sobre `desarrollo` con esta nota vigente.
+Registro historico no reutilizable: la ejecucion original requirio la frase `Ejecuta las tareas pendientes de la Fase 09` despues de fusionar su definicion. Esa frase no autoriza ninguna subfase vigente.
 
 ## Objetivo
 
@@ -128,7 +130,7 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 - Suite contractual post-merge: 146 pruebas PASS; PostgreSQL 17 aislado PASS; Context Graph PASS con 27 archivos/201 enlaces.
 - F8 sigue byte-identico, `reconciled_not_certified` y bloqueado para Free/Pro.
 - Acceso Free/Pro `0`; DDL/DML/RPC/parity remoto `0`; backfill `0`; secrets/environments `0`.
-- Estado F9: `COMPLETED` solo tras fusionar el PR documental de cierre.
+- Estado del package historico `FASE-09`/F9.1: `COMPLETED` solo tras fusionar el PR documental de cierre #233.
 
 ## Cierre Post-Merge
 
@@ -149,8 +151,8 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 | Targets | Free y Pro permanecen bloqueados |
 | Adopcion remota | Sin cambios |
 
-## Fase Remota Posterior
+## Subfase Remota Posterior
 
-Otra fase canonica y otra autorizacion deberan identificar ambiente Free, package, commit inmutable, operacion y ventana. Esa fase resolvera primero la secuencia entre schema/RLS y backfill; definira preflight, backup, pausa de writers, rollback y evidencia counts-only. Aplicacion de schema y ejecucion de backfill requieren aprobaciones separadas. Pro permanece prohibido hasta un candidate `free_certified` y un gate Production independiente.
+F9.3 congela localmente consultas, target binding y evidencia sin conectar. F9.4 y otra autorizacion deberan identificar ambiente Free, package, commit inmutable, operacion y ventana para ejecutar solo preflight read-only; backup, pausa de writers, aplicacion de schema, H-00 y backfill conservan gates posteriores separados. Pro permanece prohibido hasta cerrar la macrofase F9 con un candidate `free_certified` y abrir F10 Produccion.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Certificacion F8](./certificacion_hito1_f8.md), [Matriz DB](./matriz_adopcion_db.md) y [Release minimo](./flujo_release_minimo.md).

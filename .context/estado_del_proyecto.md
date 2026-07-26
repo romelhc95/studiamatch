@@ -8,30 +8,38 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 
 | ID | Fase | Estado | Resultado vigente |
 |---|---|---|---|
-| `FASE-00` | Preservacion | `COMPLETED` | Preservacion verificada. |
-| `FASE-01` | Main a certificacion | `COMPLETED` | Convergencia verificada. |
-| `FASE-02` | Certificacion a desarrollo | `COMPLETED` | Convergencia verificada. |
-| `FASE-03` | Higiene remota | `COMPLETED` | Higiene terminada. |
-| `FASE-04` | Bootstrap local | `COMPLETED` | Entorno local verificado. |
-| `FASE-05` | Obsidian minimo | `COMPLETED` | Gobierno documental, PR #221 y `SRC-REQ-001` reconciliada. |
-| `FASE-06` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
-| `FASE-07` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
-| `FASE-08` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
-| `FASE-09` | Precertificacion local H1-CA2P | `COMPLETED` | PR #231 y remediacion #232 fusionados; replay local Windows/Linux validado post-merge. F8 permanece bloqueado e inmutable. |
-| `FASE-10` | Contrato local de promocion H1-CA2P | `COMPLETED` | PR #235 fusionado; contrato local, aislamiento y replay post-merge validados. Sin acceso remoto ni cambio de status. |
-| `FASE-11` | Preflight Free read-only | `PENDING` | Capacidad reservada; requiere definicion posterior independiente. |
-| `FASE-12` | Aceptacion local de readiness Free | `PENDING` | Capacidad reservada para validar evidencia F11 y crear T01; requiere definicion independiente. |
+| `F0` | Preservacion | `COMPLETED` | Preservacion verificada. |
+| `F1` | Main a certificacion | `COMPLETED` | Convergencia verificada. |
+| `F2` | Certificacion a desarrollo | `COMPLETED` | Convergencia verificada. |
+| `F3` | Higiene remota | `COMPLETED` | Higiene terminada. |
+| `F4` | Bootstrap local | `COMPLETED` | Entorno local verificado. |
+| `F5` | Obsidian minimo | `COMPLETED` | Gobierno documental, PR #221 y `SRC-REQ-001` reconciliada. |
+| `F6` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
+| `F7` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
+| `F8` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
+| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | F9.1/F9.2 locales completadas; Free sigue `reconciled_not_certified`. F9.3 local es el siguiente gate. |
+| `F10` | Pro y produccion | `PENDING` | Bloqueada hasta que F9 termine en `free_certified`; incluye canary, `main`, smoke y observacion. |
+| `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; retira el plan temporal mediante PR. |
+
+## Subfases F9
+
+| ID | Estado | Identidad vigente |
+|---|---|---|
+| `F9.1` | `COMPLETED` | Precertificacion local; alias historico `FASE-09`, PR #231/#232 y cierre #233 |
+| `F9.2` | `COMPLETED` | Contrato local de promocion; alias historico `FASE-10`, PR #235/#236 |
+| `F9.3` | `HUMAN_GATE` | Freeze local del contrato de preflight; esta definicion debe fusionarse antes de una autorizacion exacta |
+| `F9.4` a `F9.10` | `PENDING` | Lectura Free, T01, schema/T02, H-00, plan/ejecucion backfill/T03 y certificacion/T04; solo reservas |
 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Fase autorizada: ninguna; F10 esta cerrada.
-- Siguiente fase autorizable: ninguna hasta definir canonicamente el alcance ejecutable de F11.
+- Subfase autorizada: ninguna; la frase macro F9 recibida solo autoriza reconciliar la planificacion, no codigo ni operaciones remotas.
+- Siguiente subfase autorizable: `F9.3` local unicamente despues de fusionar esta definicion y emitir `Ejecuta las tareas pendientes de la Fase F9.3`.
 
 ## Alcance Inmediato
 
-`FASE-10` agrego descriptor v2 inmutable, requisitos por transicion, attestations fail-closed, canonicalizacion y aislamiento sin egress. PR #235 recibio CI verde, aprobacion independiente y merge humano. `desarrollo@d67fa31` conserva el tree exacto `861aaa1c` del candidate y repitio F10/F9, compile, Context Graph y gates frontend en PASS. F8 permanece byte-identico y bloqueado; acceso Free/Pro, mutacion remota y cambios de status fueron `0`. La trazabilidad conserva pendientes las antiguas F9-F11 del plan temporal. `H1-CA2P` y `TASK-H1-001` siguen en progreso; F11 requiere definicion y autorizacion independientes.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) restaura el plan inicial. Los packages historicos `FASE-09` y `FASE-10` se preservan como F9.1/F9.2 completadas, sin renombrar artifacts. F8 permanece byte-identico, `reconciled_not_certified`, con Free/Pro bloqueados y cero attestations. `H1-CA2P` y `TASK-H1-001` siguen en progreso. F9.3 solo congela localmente el contrato read-only; F9.4 sera la primera lectura Free bajo otro gate. F10 Produccion y F11 Cierre permanecen pendientes.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).

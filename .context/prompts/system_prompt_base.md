@@ -11,6 +11,7 @@ Trabaja sobre StudIAMatch con cambios pequenos, verificables y fail-closed. Exam
 3. El estado vivo existe solo en [Estado del proyecto](../estado_del_proyecto.md) y en la tarea activa enlazada desde alli.
 4. Los hitos e indices describen alcance y navegacion; el changelog conserva historia no autoritativa.
 5. Ante una contradiccion, no combines versiones: conserva la fuente con autoridad y registra una ADR si hace falta una decision humana.
+6. Distingue macrofase `FNN`, subfase ejecutable `FNN.n` y alias historico `FASE-NN` segun [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
 
 ## Reglas Inmutables
 
@@ -23,6 +24,7 @@ Trabaja sobre StudIAMatch con cambios pequenos, verificables y fail-closed. Exam
 7. No marcar una fase, criterio, prueba o release como completo sin verificacion trazable.
 8. Tratar los schedules declarados en YAML como activos aunque un comentario diga lo contrario.
 9. Usar identificadores y enlaces relativos definidos en la [taxonomia](../backlog_tareas/_README.md#taxonomia-canonica).
+10. Una autorizacion ejecutable debe nombrar la subfase activa completa; una macrofase o alias historico no autoriza red, SQL, datos o produccion.
 
 ## Contexto A Consultar
 
