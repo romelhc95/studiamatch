@@ -20,8 +20,12 @@
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
 - [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
 - [Certificacion Hito 1 - macrofase F9](operaciones/certificacion_hito1_f9.md)
+- [Plan simplificado de Hito 1 - vigente](operaciones/plan_simplificado_hito1.md)
+- [Preservacion y retiro del plan temporal F9.4](operaciones/preservacion_plan_temporal_f9_4.md)
 - [Evidencia historica F9.1 - package FASE-09](operaciones/precertificacion_hito1_f9.md)
 - [Evidencia historica F9.2 - package FASE-10](operaciones/promocion_hito1_f10.md)
+- [Definicion remota F9.4 sustituida y no autorizable](operaciones/preflight_free_f9_4.md)
+- [Preflight Free dirigido F9.5 - pendiente](operaciones/preflight_free_f9_5.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
@@ -38,9 +42,11 @@
 - [ADR-0001](decisiones/ADR-0001_autoridad_fuentes_context_graph.md)
 - [ADR-0002](decisiones/ADR-0002_ciclo_requerimientos_privados.md)
 - [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md)
+- [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
+- [Changelog 2026-07-26](changelog/2026-07-26.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad
@@ -53,12 +59,12 @@
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
 | Estado de tareas | [Nota canonica TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | La tarea es la unica autoridad de su avance y criterios. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
-| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; los IDs decimales son subfases ejecutables; aliases historicos no autorizan trabajo nuevo. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0004 sustituye la identidad F9.4/F9.5; aliases historicos no autorizan trabajo nuevo. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | [Changelog no autoritativo](changelog/2026-07-24.md) | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |
 
-[EST-001](estimaciones/est_001.md) fija solo complejidad Alta y 72h pendientes; no es autoridad para alcance ni estado vivo.
+[EST-001](estimaciones/est_001.md) fija solo complejidad Alta y una estimacion tecnica original de 72h; no acredita saldo real ni es autoridad para alcance o estado vivo.
 
 ## Reglas Minimas
 

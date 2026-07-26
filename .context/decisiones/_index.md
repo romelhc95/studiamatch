@@ -7,5 +7,6 @@ Las ADR registran decisiones humanas durables. No sustituyen el contrato, el est
 | `ADR-0001` | Autoridad de fuentes del Context Graph | `ACCEPTED` | [ADR-0001](./ADR-0001_autoridad_fuentes_context_graph.md) |
 | `ADR-0002` | Ciclo recurrente de requerimientos privados | `ACCEPTED` | [ADR-0002](./ADR-0002_ciclo_requerimientos_privados.md) |
 | `ADR-0003` | Macrofases, subfases y aliases historicos | `ACCEPTED` | [ADR-0003](./ADR-0003_taxonomia_macrofases_subfases.md) |
+| `ADR-0004` | Simplificacion contractual de Hito 1 | `ACCEPTED` | [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) |
 
 Usar la [plantilla ADR](./_plantilla_adr.md) para decisiones nuevas y enlazarlas desde este indice.

@@ -153,6 +153,6 @@ Todo path no enumerado queda fuera de F9. En particular, `.github/workflows/db-s
 
 ## Subfase Remota Posterior
 
-F9.3 congela localmente consultas, target binding y evidencia sin conectar. F9.4 y otra autorizacion deberan identificar ambiente Free, package, commit inmutable, operacion y ventana para ejecutar solo preflight read-only; backup, pausa de writers, aplicacion de schema, H-00 y backfill conservan gates posteriores separados. Pro permanece prohibido hasta cerrar la macrofase F9 con un candidate `free_certified` y abrir F10 Produccion.
+La ruta prevista al cerrar F9.1 asignaba a F9.3 un contrato local y a una F9.4 posterior el preflight remoto; ADR-0004 sustituyo despues esa identidad sin reescribir esta evidencia. Backup, pausa de writers, aplicacion de schema, H-00 y backfill conservan gates posteriores separados. Pro permanece prohibido hasta cerrar la macrofase F9 con un candidate `free_certified` y abrir F10 Produccion.
 
 Ver [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Certificacion F8](./certificacion_hito1_f8.md), [Matriz DB](./matriz_adopcion_db.md) y [Release minimo](./flujo_release_minimo.md).

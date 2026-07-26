@@ -7,6 +7,8 @@
 | Decision humana | Restaurar explicitamente el plan temporal inicial `main -> Hito 1` |
 | Contexto relacionado | [Estado vigente](../estado_del_proyecto.md), [Certificacion macro F9](../operaciones/certificacion_hito1_f9.md) |
 
+Vigencia parcial: [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) sustituye el momento de retiro del plan temporal y la identidad de F9.4/F9.5. Las identidades historicas y la taxonomia F0-F11 de esta ADR permanecen vigentes.
+
 ## Contexto
 
 El plan temporal inicial fijo macrofases F0-F11: F9 certifica Hito 1 en Free, F10 promueve a Pro/produccion y F11 cierra el ciclo. Durante la preparacion Free se usaron `FASE-09` y `FASE-10` para dos packages locales. Esa numeracion historica colisiono con las macrofases originales y presento incorrectamente F11/F12 como nuevas fases principales.
