@@ -594,6 +594,7 @@ jobs:
           test "$reject_after" -gt "$reject_before"
       - name: Validate F9.5 Python and PostgreSQL contracts without secrets
         run: |
+          sudo chmod o+x "$(dirname "$GITHUB_WORKSPACE")"
           sudo chmod -R o+rX "$GITHUB_WORKSPACE"
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
