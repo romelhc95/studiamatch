@@ -6,19 +6,19 @@
 - Capability: `REMOTE_READ_FREE_DIRECTED`.
 - Estado: `FREE_PREFLIGHT_FAIL`.
 - Target: Free unicamente.
-- Autorizacion vigente: ninguna; la autorizacion read-only del tercer intento fue consumida.
+- Autorizacion vigente: ninguna; la autorizacion local de remediacion v2 no autoriza otra lectura remota.
 - Resultado remoto vigente: `FREE_PREFLIGHT_FAIL` contra el overlay sucesor; los tres FAIL permanecen como evidencia historica y no certifican Free.
 
 Esta nota y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) definen el siguiente trabajo autorizable. No heredan el adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md).
 
 ## Candidate Cerrado
 
-Las cuatro migrations y el manifest `F8-HITO1-FUNCTIONAL-20260725` permanecen byte-identicos como prefijo historico. F9.5 contrasta ahora exclusivamente el overlay `F9.5-RLS-CANARY-RECONCILIATION-20260726`, con esas cuatro entradas mas `20260726_fase09_5_rls_canary_reconciliation`, enumeradas en `db/manifests/fase09_5_rls_candidate.json`. Ambos targets permanecen bloqueados.
+Las cuatro migrations y el manifest `F8-HITO1-FUNCTIONAL-20260725`, junto con la quinta migration y `fase09_5_rls_candidate.json`, permanecen byte-identicos como historia. La siguiente repeticion F9.5 contrasta exclusivamente `F9.5-POLICY-INVENTORY-RECONCILIATION-V2-20260726`, con esas cinco entradas mas `20260726_fase09_5_policy_inventory_reconciliation`, enumeradas en `db/manifests/fase09_5_rls_candidate_v2.json`. Ambos targets permanecen bloqueados.
 
 Objetos dirigidos:
 
 - Tablas: `institutions`, `courses`, `leads`, `email_log`, `ratings`, `reviews`, `institution_site_profiles` y las tablas intermedias afectadas por el package. `email_log` se limita al conteo H-00.
-- Catalogos: columnas, constraints, indices, RLS, policies, ACL, owners y RPC afectadas por las cinco migrations.
+- Catalogos: columnas, constraints, indices, RLS, policies, ACL, owners y RPC afectadas por las seis migrations.
 - Datos: solo conteos agregados para conflictos previos a constraints/indices y H-00; ninguna fila o valor PII.
 
 ## Allowlist De Herramientas
@@ -34,7 +34,7 @@ Solo se permiten tools project-scoped del servidor `supabase-free`:
 ## Checklist Dirigido
 
 1. Verificar sesion Free y package local exacto.
-2. Proyectar el ledger completo sobre los cinco nombres/checksums esperados y aceptar solo un prefijo continuo exacto, preservando historia ajena no colisionante.
+2. Proyectar el ledger completo sobre los seis nombres/checksums esperados y aceptar solo un prefijo continuo exacto, preservando historia ajena no colisionante.
 3. Inspeccionar solo columnas, constraints e indices afectados.
 4. Inspeccionar RLS, policies y ACL por rol en `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; `email_log` se limita al conteo H-00.
 5. Inspeccionar owner, modo, `search_path` y grants de RPC modificadas por el package, sin invocarlas ni leer bodies.
@@ -61,7 +61,7 @@ DB-only significa que la base deriva la cohorte desde el cutoff sin identidades 
 
 La evidencia privada se mantiene bajo `.context/artifacts/private/f9_5/` y no se versiona. El cierre publico solo puede registrar commit, tree, package, los cuatro conteos H-00, checks y resultado. Nunca publica project URL/ref, SQL response raw, filas, UUIDs, PII, policies completas, DSN, keys o findings explotables.
 
-Se detiene antes de continuar ante target ambiguo, package/checksum distinto, tool no permitida, SQL no read-only, cutoff H-00 distinto, selector que no sea la cohorte completa DB-only, identidad individual, shape distinto de los cuatro conteos autorizados, resultado raw que no pueda sanitizarse, conteos H-00 distintos de `3/3/0/0`, conflicto de datos, backup/writer gate no demostrable o cualquier necesidad de Pro/escritura.
+Target ambiguo, PII o identidad individual, tool no permitida o cualquier escritura detienen inmediatamente la ejecucion. Los mismatches tecnicos restantes, incluidos package/checksum, ledger, catalogos, ACL, RPC, conflictos, H-00, backup y writers, se registran de forma sanitizada y no impiden completar los demas checks read-only seguros. La ejecucion emite exactamente un resultado consolidado `FREE_PREFLIGHT_PASS` o `FREE_PREFLIGHT_FAIL`; nunca emite resultados intermedios ni respuestas raw.
 
 `FREE_PREFLIGHT_PASS` permite revisar localmente T01; no crea por si solo T01, no cambia status, no autoriza F9.6 y no desbloquea schema. `FREE_PREFLIGHT_FAIL` mantiene todo bloqueado y requiere remediacion/otra autorizacion.
 
@@ -136,10 +136,29 @@ La remediacion queda vigente con CI, revision independiente y merge. No crea T01
 
 Las cinco migrations no retiran todo el drift observado y `verify_fase08_hito1_contract()` rechaza cualquier policy fuera de su inventario cerrado. La ejecucion se detuvo antes de ACL, RPC, conflictos de datos, H-00, backup o writers. No se preparo T01 y F9.6 permanece bloqueada. No hubo acceso Pro, DDL, DML, aplicacion de migrations, H-00, backup, pausa de writers ni backfill. El detalle permanece solo en evidencia privada ignorada.
 
+## Remediacion Forward-Only V2 Local 2026-07-26
+
+- Baseline: `desarrollo@1428d310747969af6818ece10cb1a31613f8069a`.
+- Inmutabilidad: las cuatro migrations F8, la quinta migration F9.5 y sus manifests historicos permanecen byte-identicos.
+- Sexta migration: `20260726_fase09_5_policy_inventory_reconciliation.sql`, checksum canonico `76a7c06bcf1b46a513801d0b1843ac081948a34f552e0371136c6ac2ac097822`.
+- Overlay v2: `F9.5-POLICY-INVENTORY-RECONCILIATION-V2-20260726`, seis entradas, digest canonico `575f2e21f747b6445911a050c9951ad93372bcb616282b275838ea21e7cf5795`, `reconciled_not_certified`, Free/Pro bloqueados.
+- Inventario: exactamente 21 policies; versiona las tres policies SELECT historicas del runner canary y `profiles_service_role`, con roles, comandos, modo, predicados, owner de tablas, postura del rol y grants cerrados.
+- Verificadores: F8 y F9.5 aceptan solo el inventario final de 21; cualquier policy, grant, owner, rol o metadata distinta falla cerrado. La postcondicion v2 encadena ambos contratos y cierra su propia metadata/ACL.
+- Planner: acepta exclusivamente prefijos exactos `0/6`, `3/6`, `4/6`, `5/6` y `6/6`; los dos prefijos predecesores incompatibles solo difieren postcondiciones cuando el suffix v2 exacto esta pendiente.
+- PostgreSQL 17: reconstruye el baseline observado, prueba convergencia desde todos los prefijos aceptados, replay, rollback atomico desde `0/6` y `5/6`, y rechazo de drift desconocido.
+- Preflight: las consultas cerradas devuelven exclusivamente conteos y digests agregados; incluyen roles/memberships, ACL de schema/tablas/columnas/funciones y firmas/grants RPC. El reducer deriva PASS/FAIL contra conteos y digests esperados, liga el target a un digest privado y obtiene los cuatro conteos H-00 en una sola consulta. Los mismatches tecnicos se agregan hasta un unico resultado; target ambiguo, PII, tool prohibida o escritura siguen siendo stop inmediato.
+- No hubo acceso Free/Pro, secrets, SQL remoto, DDL/DML remoto, aplicacion de migrations, H-00, backup, writers, backfill ni F9.6.
+
 ## Autorizacion Exacta
 
-Solo despues de una nueva remediacion forward-only, CI, review y merge puede volver a solicitarse:
+Solo despues de CI, review, merge y validacion post-merge de la remediacion v2 puede solicitarse exactamente:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.5
+
+Alcance exclusivo: repetir el preflight Free dirigido read-only sobre el overlay `F9.5-POLICY-INVENTORY-RECONCILIATION-V2-20260726` de seis entradas.
+
+Completa todos los checks read-only seguros y emite un unico resultado consolidado. Target ambiguo, PII, herramienta prohibida o escritura son stop inmediato.
+
+No autoriza acceso Pro, secrets, DDL/DML remoto, aplicacion de migrations, H-00, backup, writers, backfill ni F9.6.
 ```

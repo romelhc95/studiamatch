@@ -19,7 +19,7 @@ SELECT pg_temp.assert_true(
 
 SELECT pg_temp.assert_true(
     (
-        SELECT pg_catalog.count(*) = 5
+        SELECT pg_catalog.count(*) = 6
            AND pg_catalog.count(DISTINCT version) = 1
            AND pg_catalog.count(*) FILTER (
                WHERE name = '20260724_fase06_g1b_reconciliation'
@@ -39,20 +39,28 @@ SELECT pg_temp.assert_true(
            ) = 1
            AND pg_catalog.count(*) FILTER (
                WHERE name = '20260726_fase09_5_rls_canary_reconciliation'
-                   AND statements = 'sha256:4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01'
+                    AND statements = 'sha256:4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01'
+           ) = 1
+           AND pg_catalog.count(*) FILTER (
+               WHERE name = '20260726_fase09_5_policy_inventory_reconciliation'
+                  AND statements = 'sha256:76a7c06bcf1b46a513801d0b1843ac081948a34f552e0371136c6ac2ac097822'
            ) = 1
         FROM public.supabase_migrations
     ),
-    'exact five-entry ledger'
+    'exact six-entry ledger'
 );
 
 SET ROLE service_role;
 SELECT public.verify_fase08_hito1_contract() AS fase08_verifier \gset
 SELECT public.verify_fase09_5_rls_canary_reconciliation() AS fase095_verifier \gset
+SELECT public.verify_fase09_5_policy_inventory_reconciliation()
+AS fase095_v2_verifier \gset
 RESET ROLE;
 SELECT pg_temp.assert_true(
-    :'fase08_verifier'::boolean AND :'fase095_verifier'::boolean,
-    'F8 and F9.5 verifiers converge'
+    :'fase08_verifier'::boolean
+    AND :'fase095_verifier'::boolean
+    AND :'fase095_v2_verifier'::boolean,
+    'F8 and both F9.5 verifiers converge'
 );
 
 SELECT pg_temp.assert_true(
@@ -104,9 +112,164 @@ SELECT pg_temp.assert_true(
         JOIN pg_catalog.pg_language AS language_record
           ON language_record.oid = procedure_record.prolang
         WHERE procedure_record.oid =
-            'public.verify_fase09_5_rls_canary_reconciliation()'::regprocedure
+            'public.verify_fase09_5_policy_inventory_reconciliation()'::regprocedure
     ),
-    'successor verifier owner mode path and ACL'
+    'v2 verifier owner mode path and ACL'
+);
+
+SELECT pg_temp.assert_true(
+    NOT EXISTS (
+        WITH expected(table_name, policy_name) AS (
+            VALUES
+                ('courses', 'courses_select_public'),
+                ('courses', 'courses_select_authenticated'),
+                ('courses', 'courses_exclude_release_canary'),
+                ('courses', 'courses_canary_runner_select'),
+                ('courses', 'courses_service_role'),
+                ('leads', 'leads_insert_public'),
+                ('leads', 'leads_insert_authenticated'),
+                ('leads', 'leads_service_role'),
+                ('ratings', 'ratings_select_public'),
+                ('ratings', 'ratings_service_role'),
+                ('reviews', 'reviews_select_public'),
+                ('reviews', 'reviews_service_role'),
+                ('institution_site_profiles', 'profiles_select_public'),
+                ('institution_site_profiles', 'profiles_exclude_release_canary'),
+                ('institution_site_profiles', 'profiles_canary_runner_select'),
+                ('institution_site_profiles', 'profiles_service_role'),
+                ('institutions', 'institutions_select_public'),
+                ('institutions', 'institutions_select_authenticated'),
+                ('institutions', 'institutions_exclude_release_canary'),
+                ('institutions', 'institutions_canary_runner_select'),
+                ('institutions', 'institutions_service_role')
+        ), actual AS (
+            SELECT policy.tablename, policy.policyname
+            FROM pg_catalog.pg_policies AS policy
+            WHERE policy.schemaname = 'public'
+              AND policy.tablename IN (
+                  'courses', 'leads', 'ratings', 'reviews',
+                  'institution_site_profiles', 'institutions'
+              )
+        ), difference AS (
+            (SELECT * FROM expected EXCEPT ALL SELECT * FROM actual)
+            UNION ALL
+            (SELECT * FROM actual EXCEPT ALL SELECT * FROM expected)
+        )
+        SELECT 1 FROM difference
+    ) AND (
+        SELECT pg_catalog.count(*) = 21
+        FROM pg_catalog.pg_policies AS policy
+        WHERE policy.schemaname = 'public'
+          AND policy.tablename IN (
+              'courses', 'leads', 'ratings', 'reviews',
+              'institution_site_profiles', 'institutions'
+          )
+    ),
+    'closed inventory contains exactly 21 named policies'
+);
+
+SELECT pg_temp.assert_true(
+    (
+        SELECT pg_catalog.count(*) = 4
+           AND pg_catalog.bool_and(
+               policy.permissive = expected.permissiveness
+               AND policy.roles = expected.policy_roles
+               AND policy.cmd = expected.command_name
+               AND policy.qual = expected.using_expression
+               AND policy.with_check IS NOT DISTINCT FROM expected.check_expression
+           )
+        FROM (VALUES
+            (
+                'courses', 'courses_canary_runner_select', 'PERMISSIVE',
+                ARRAY['canary_runner']::name[], 'SELECT',
+                $policy$(url ~~ 'https://canary.invalid/%'::text)$policy$,
+                NULL::text
+            ),
+            (
+                'institution_site_profiles', 'profiles_canary_runner_select',
+                'PERMISSIVE', ARRAY['canary_runner']::name[], 'SELECT',
+                $policy$(COALESCE(notes, ''::text) = 'DB_AS_CODE_RELEASE_CANARY'::text)$policy$,
+                NULL::text
+            ),
+            (
+                'institutions', 'institutions_canary_runner_select',
+                'PERMISSIVE', ARRAY['canary_runner']::name[], 'SELECT',
+                $policy$(slug ~~ 'zz-studiamatch-canary-%'::text)$policy$,
+                NULL::text
+            ),
+            (
+                'institution_site_profiles', 'profiles_service_role',
+                'PERMISSIVE', ARRAY['service_role']::name[], 'ALL',
+                'true', 'true'
+            )
+        ) AS expected(
+            table_name, policy_name, permissiveness, policy_roles,
+            command_name, using_expression, check_expression
+        )
+        JOIN pg_catalog.pg_policies AS policy
+          ON policy.schemaname = 'public'
+         AND policy.tablename = expected.table_name
+         AND policy.policyname = expected.policy_name
+    ),
+    'four historical policies have exact metadata and predicates'
+);
+
+SELECT pg_temp.assert_true(
+    (
+        SELECT NOT role.rolsuper
+           AND NOT role.rolbypassrls
+           AND NOT role.rolcanlogin
+           AND NOT role.rolinherit
+        FROM pg_catalog.pg_roles AS role
+        WHERE role.rolname = 'canary_runner'
+    )
+    AND pg_catalog.has_table_privilege(
+        'canary_runner', 'public.institutions', 'SELECT'
+    )
+    AND pg_catalog.has_table_privilege(
+        'canary_runner', 'public.institution_site_profiles', 'SELECT'
+    )
+    AND pg_catalog.has_table_privilege(
+        'canary_runner', 'public.courses', 'SELECT'
+    )
+    AND NOT pg_catalog.has_table_privilege(
+        'canary_runner', 'public.leads', 'SELECT'
+    ),
+    'canary runner role and grants are exact'
+);
+
+SELECT pg_temp.assert_true(
+    (
+        SELECT owner.rolname = 'pg_database_owner'
+        FROM pg_catalog.pg_namespace AS namespace_record
+        JOIN pg_catalog.pg_roles AS owner
+          ON owner.oid = namespace_record.nspowner
+        WHERE namespace_record.nspname = 'public'
+    )
+    AND NOT pg_catalog.has_schema_privilege(
+        'canary_runner', 'public', 'CREATE'
+    )
+    AND pg_catalog.has_schema_privilege(
+        'canary_runner', 'public', 'USAGE'
+    )
+    AND (
+        SELECT pg_catalog.count(*) = 4
+           AND pg_catalog.bool_and(
+               NOT membership.admin_option
+               AND NOT membership.inherit_option
+               AND membership.set_option
+           )
+        FROM pg_catalog.pg_auth_members AS membership
+        JOIN pg_catalog.pg_roles AS member_role
+          ON member_role.oid = membership.member
+        JOIN pg_catalog.pg_roles AS granted_role
+          ON granted_role.oid = membership.roleid
+        WHERE member_role.rolname = 'authenticator'
+          AND granted_role.rolname IN (
+              'anon', 'authenticated', 'service_role', 'canary_runner'
+          )
+    ),
+    'schema ACL and authenticator memberships are exact'
 );
 
 SELECT pg_temp.assert_true(
@@ -404,6 +567,20 @@ SELECT pg_temp.assert_true(
     'authenticated receives the same form-only lead contract'
 );
 
+SET ROLE canary_runner;
+SELECT pg_catalog.count(id) AS canary_institutions
+FROM public.institutions \gset
+SELECT pg_catalog.count(institution_id) AS canary_profiles
+FROM public.institution_site_profiles \gset
+SELECT pg_catalog.count(id) AS canary_courses FROM public.courses \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    :'canary_institutions'::integer = 2
+    AND :'canary_profiles'::integer = 2
+    AND :'canary_courses'::integer = 2,
+    'canary runner sees only the three independently marked cohorts'
+);
+
 SET ROLE service_role;
 SELECT pg_catalog.count(id) AS service_institutions FROM public.institutions \gset
 SELECT pg_catalog.count(institution_id) AS service_profiles
@@ -428,10 +605,62 @@ FROM public.institution_site_profiles \gset
 RESET ROLE;
 SELECT pg_temp.assert_true(
     NOT :'service_without_bypass'::boolean
-    AND :'service_profiles_without_bypass'::integer = 0,
-    'service role must retain BYPASSRLS for complete operational visibility'
+    AND :'service_profiles_without_bypass'::integer = 4,
+    'service role policy remains exact while the verifier still requires BYPASSRLS'
 );
 ALTER ROLE service_role BYPASSRLS;
+
+ALTER ROLE service_role LOGIN;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS service_with_login \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'service_with_login'::boolean,
+    'service role cannot be login-capable'
+);
+ALTER ROLE service_role NOLOGIN;
+
+CREATE ROLE fase095_service_child NOLOGIN;
+GRANT service_role TO fase095_service_child;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS service_unexpected_child \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'service_unexpected_child'::boolean,
+    'service role cannot be granted to an unexpected role'
+);
+REVOKE service_role FROM fase095_service_child;
+DROP ROLE fase095_service_child;
+
+ALTER ROLE canary_runner BYPASSRLS;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS canary_with_bypass \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'canary_with_bypass'::boolean,
+    'canary runner cannot bypass RLS'
+);
+ALTER ROLE canary_runner NOBYPASSRLS;
+
+ALTER ROLE canary_runner CREATEDB;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS canary_with_createdb \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'canary_with_createdb'::boolean,
+    'canary runner cannot create databases'
+);
+ALTER ROLE canary_runner NOCREATEDB;
+
+GRANT SELECT ON TABLE public.ratings TO canary_runner;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS canary_extra_grant \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'canary_extra_grant'::boolean,
+    'canary runner cannot receive an extra table grant'
+);
+REVOKE SELECT ON TABLE public.ratings FROM canary_runner;
 
 ALTER ROLE service_role SUPERUSER;
 SET ROLE service_role;
@@ -469,6 +698,75 @@ SELECT pg_temp.assert_true(
     'public roles cannot bypass RLS'
 );
 ALTER ROLE anon NOBYPASSRLS;
+
+ALTER ROLE anon LOGIN;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS anon_with_login \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'anon_with_login'::boolean,
+    'public roles cannot be login-capable'
+);
+ALTER ROLE anon NOLOGIN;
+
+ALTER ROLE anon NOINHERIT;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS anon_without_inherit \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'anon_without_inherit'::boolean,
+    'public roles must retain the expected INHERIT attribute'
+);
+ALTER ROLE anon INHERIT;
+
+REVOKE anon FROM authenticator;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS anon_without_authenticator \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'anon_without_authenticator'::boolean,
+    'public roles require the exact authenticator membership'
+);
+GRANT anon TO authenticator;
+
+CREATE ROLE fase095_ordinary_parent NOLOGIN;
+GRANT fase095_ordinary_parent TO anon;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS anon_ordinary_membership \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'anon_ordinary_membership'::boolean,
+    'public roles cannot inherit unexpected non-privileged roles'
+);
+REVOKE fase095_ordinary_parent FROM anon;
+DROP ROLE fase095_ordinary_parent;
+
+CREATE ROLE fase095_authenticator_extra NOLOGIN;
+GRANT fase095_authenticator_extra TO authenticator
+WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract()
+AS authenticator_noncanonical_membership \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'authenticator_noncanonical_membership'::boolean,
+    'authenticator rejects every noncanonical membership edge'
+);
+REVOKE fase095_authenticator_extra FROM authenticator;
+DROP ROLE fase095_authenticator_extra;
+
+CREATE ROLE fase095_authenticator_child NOLOGIN;
+GRANT authenticator TO fase095_authenticator_child;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract()
+AS authenticator_unexpected_child \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'authenticator_unexpected_child'::boolean,
+    'authenticator cannot be granted to an unexpected role'
+);
+REVOKE authenticator FROM fase095_authenticator_child;
+DROP ROLE fase095_authenticator_child;
 
 ALTER ROLE authenticated SUPERUSER;
 SET ROLE service_role;
@@ -556,6 +854,16 @@ SELECT pg_temp.assert_true(
 REVOKE GRANT OPTION FOR SELECT (id)
 ON TABLE public.institutions FROM anon CASCADE;
 
+GRANT CREATE ON SCHEMA public TO canary_runner;
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS canary_schema_create \gset
+RESET ROLE;
+SELECT pg_temp.assert_true(
+    NOT :'canary_schema_create'::boolean,
+    'schema CREATE granted to canary runner fails closed'
+);
+REVOKE CREATE ON SCHEMA public FROM canary_runner;
+
 GRANT EXECUTE
 ON FUNCTION public.verify_fase09_5_rls_canary_reconciliation()
 TO service_role WITH GRANT OPTION;
@@ -601,6 +909,36 @@ SELECT pg_temp.assert_true(
     'disabled institutions RLS fails closed'
 );
 ALTER TABLE public.institutions ENABLE ROW LEVEL SECURITY;
+
+BEGIN;
+DROP POLICY courses_canary_runner_select ON public.courses;
+CREATE POLICY courses_canary_runner_select
+ON public.courses AS RESTRICTIVE
+FOR SELECT TO canary_runner
+USING (url LIKE 'https://canary.invalid/%');
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS canary_wrong_mode \gset
+RESET ROLE;
+ROLLBACK;
+SELECT pg_temp.assert_true(
+    NOT :'canary_wrong_mode'::boolean,
+    'known policy permissiveness drift fails closed'
+);
+
+BEGIN;
+DROP POLICY profiles_service_role ON public.institution_site_profiles;
+CREATE POLICY profiles_service_role
+ON public.institution_site_profiles
+FOR SELECT TO service_role
+USING (true);
+SET ROLE service_role;
+SELECT public.verify_fase08_hito1_contract() AS profile_service_wrong_command \gset
+RESET ROLE;
+ROLLBACK;
+SELECT pg_temp.assert_true(
+    NOT :'profile_service_wrong_command'::boolean,
+    'known service policy command and check drift fail closed'
+);
 
 CREATE POLICY fase09_5_unknown_institution
 ON public.institutions AS RESTRICTIVE
