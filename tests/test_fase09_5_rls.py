@@ -382,8 +382,8 @@ def test_security_audit_requires_secretless_egress_restricted_f9_5_job():
     assert "test ! -w /var/run/docker.sock" in job
     assert 'chmod -R o+rX "$GITHUB_WORKSPACE"' in job
     assert 'chmod o+x "$(dirname "$GITHUB_WORKSPACE")"' in job
-    assert 'test -r "$GITHUB_WORKSPACE/pytest.ini"' in job
-    assert 'test ! -w "$GITHUB_WORKSPACE/pytest.ini"' in job
+    assert 'test -r "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"' in job
+    assert 'test ! -w "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"' in job
     assert 'sudo rm -rf -- "$state_dir"' in job
     assert "timeout --signal=TERM --kill-after=10s 300s" in job
     assert "|| true" not in job

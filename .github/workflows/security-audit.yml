@@ -598,10 +598,10 @@ jobs:
           sudo chmod -R o+rX "$GITHUB_WORKSPACE"
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            test -r "$GITHUB_WORKSPACE/pytest.ini"
+            test -r "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            test ! -w "$GITHUB_WORKSPACE/pytest.ini"
+            test ! -w "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"
           if [ -S /var/run/docker.sock ]; then
             sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
               --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
