@@ -7,11 +7,12 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 ## Estado
 
 - Macrofase F9: `IN_PROGRESS`.
-- Estado del package: `reconciled_not_certified`.
-- Free y Pro: schema apply bloqueado.
-- Subfase autorizada: ninguna; la autorizacion local de remediacion v2 no concede acceso remoto.
-- Ultima subfase cerrada: F9.4 local/documental mediante el PR que adopta el plan simplificado.
-- Siguiente accion: repetir F9.5 read-only contra el overlay v2 despues de su merge y una autorizacion nueva; F9.6 permanece bloqueada.
+- Base funcional contractual: F6-F8.
+- Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
+- Subfase activa: F9.6 `ACTIVE_AWAITING_AUTHORIZATION`.
+- Subfase autorizada: ninguna. F9.5 esta cerrada y T01 solo fue aceptada documentalmente de forma condicionada.
+- Ultima subfase cerrada: F9.5 `COMPLETED_WITH_KNOWN_FINDINGS`.
+- Siguiente accion: F9.6 P0 H-00 requiere una autorizacion decimal exacta nueva; T01 no ejecuta ni autoriza esa subfase.
 
 ## Subfases
 
@@ -21,30 +22,40 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
-| `F9.5` | Preflight Free read-only dirigido y aceptacion T01 | `BLOCKED` | Overlay v2 local de seis entradas; requiere repeticion read-only y PASS consolidado |
-| `F9.6` | Backup H-00 y remediacion Free-only counts-only | `PENDING` | Reservada; backup y DML con aprobacion propia; nunca Pro |
+| `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
+| `F9.6` | P0 H-00 Free-only | `ACTIVE_AWAITING_AUTHORIZATION` | Definida, no autorizada: backup aprobado, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada; nunca Pro |
 | `F9.7` | Backup/pausa aprobados, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
 
-La [definicion remota F9.4 anterior](./preflight_free_f9_4.md) es historica y no autorizable. F9.5 se limita al [preflight dirigido](./preflight_free_f9_5.md) y a [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md#definicion-autorizable-f95). Las reservas F9.6-F9.10 no son definiciones ejecutables. Cada subfase conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
+La [definicion remota F9.4 anterior](./preflight_free_f9_4.md) y el [registro F9.5](./preflight_free_f9_5.md) son historia no autorizable. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
 
-El intento F9.5 del `2026-07-26` confirmo localmente el package F8 y sus cuatro checksums, pero fallo cerrado antes de abrir Free porque faltaba el predicado H-00 privado exigido entonces. No se invocaron tools Supabase, no hubo SQL ni se inspeccionaron ledger, catalogos, datos, backup o writers; el FAIL permanece como evidencia historica.
+## Cierre Contractual F9.5
 
-La remediacion local autorizada reconcilia la evidencia H-00 recuperada sin copiar codigo ni SQL. Sustituye el requisito de manifest/UUID por la cohorte completa derivada en DB con cutoff `2026-07-19T00:00:00Z`; PASS requiere exactamente 3 leads totales, 3 pre-cutoff, 0 post-cutoff y 0 `email_log`, sin identidad individual. La decision no observa Free ni crea T01. Tras el merge documental se requiere otra autorizacion F9.5 read-only.
+F9.5 concluye sin repetir la lectura Free del overlay v2 y sin declarar `FREE_PREFLIGHT_PASS`. Los findings de los intentos historicos permanecen conocidos; no certifican Free/Pro ni se transforman en un package aplicable.
 
-El segundo intento F9.5 read-only verifico binding Free, candidate, ledger, columnas, constraints e indices, y encontro drift RLS que el package exacto no elimina: 7/7 policies esperadas presentes, 6/7 compatibles y 3 policies publicas adicionales. El verificador F8 rechaza ese estado. La ejecucion fallo cerrado antes de ACL, RPC, conflictos, H-00, backup o writers; T01 no existe y F9.6 sigue bloqueada.
+- Los artifacts de PR #245 y PR #247, incluidos migrations, manifests, reducers, runners, pruebas y cambios CI asociados a F9.5, son `HISTORICAL_NON_PROMOTABLE`.
+- Se conservan fisicamente y no se incluyen en la base funcional contractual, en un package de F9.7 ni en un candidate de aplicacion. La base contractual sigue siendo F6-F8.
+- `T01_CONDITIONAL_ACCEPTED` se acepta como cierre documental sin crear una attestation ni cambiar la maquina de promocion. Habilita solo la definicion de F9.6.
+- T01 no autoriza schema, migrations, F9.7, writers, backfill, Pro, produccion ni la ejecucion de F9.6. Esa ejecucion requiere una autorizacion F9.6 nueva y exacta.
 
-La remediacion local forward-only mantiene byte-identicos manifest/migrations F8 y agrega una quinta migration bajo un overlay nuevo ligado por digest completo. Versiona guards canary transitivos, restringe `institutions` a `id/name/slug`, limita `INSERT` de leads a las doce columnas enviadas por los formularios y excluye campos administrados, normaliza ACL de tabla y columna, fija owner `postgres`, rechaza superuser/BYPASS/membresias privilegiadas en roles publicos y `service_role`, exige `service_role BYPASSRLS` y cierra totalmente policies/ACL incluido `PUBLIC`.
+## Definicion Exclusiva F9.6
 
-La postcondicion sucesora cierra owner, lenguaje, volatilidad, modo, `search_path` y ACL propios. PostgreSQL 17 demostro una reconstruccion sintetica del baseline Free observado y convergencia del planner real desde 0/5, 3/5 y 4/5, aislamiento canary separado por URL, profile e institucion, rechazo de drift, rollback atomico y replay. El job CI exige PostgreSQL `--network none` y una prueba incremental del rechazo de egress IPv4 del proceso bajo reglas IPv4/IPv6.
+F9.6 es exclusivamente el P0 H-00, Free-only y previo a `FREE_CERTIFIED`; no es criterio contractual de Hito 1. Bajo una autorizacion separada debera, en este orden:
 
-El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 no promociona este overlay; F9.7 debera versionar otro schema v2. El overlay sigue `reconciled_not_certified`, Free/Pro bloqueados y T01 ausente.
+1. Confirmar un backup aprobado.
+2. Revalidar en Free el shape counts-only exacto `3/3/0/0` sin exponer PII.
+3. Ejecutar la eliminacion transaccional de la cohorte confirmada.
+4. Verificar la transicion `3 -> 0` con evidencia agregada.
 
-El tercer intento sincronizo `desarrollo@2e5be1719dffc8a867f4c40e4e8081b51ef56fb7`, confirmo binding Free, prefijo ledger `0/5` sin colision, `13/13` columnas, `11/11` constraints, `9/9` indices, RLS `6/6` y seguridad de roles `3/3`. El inventario de policies no puede converger al contrato cerrado con el overlay exacto y su verifier rechaza el drift persistente. El resultado es `FREE_PREFLIGHT_FAIL` y se detuvo antes de ACL, RPC, conflictos, H-00, backup o writers. T01 no fue preparada y F9.6 sigue bloqueada; el detalle permanece solo en evidencia privada ignorada.
+El conteo no es un selector de borrado. Esta definicion no crea una superficie DML ejecutable: la futura autorizacion F9.6 debe, fuera de Git, ligar el target Free, el backup aprobado, el predicado inmutable aprobado, el verificador humano y una allowlist positiva minima de tools/consultas. Si falta cualquiera de esos elementos, F9.6 falla cerrada. Pro esta prohibido y F9.6 no permite schema, migrations, backfill ni writers.
 
-La remediacion v2 parte de `desarrollo@1428d310747969af6818ece10cb1a31613f8069a`, preserva byte-identicos los cinco SQL y manifests anteriores y agrega una sexta migration bajo un manifest nuevo bloqueado. Versiona exactamente las tres policies SELECT del runner canary y `profiles_service_role`, redefine los verificadores al inventario cerrado de 21 y fija role posture, ownership y grants exactos. PostgreSQL 17 cubre `0/6`, `3/6`, `4/6`, `5/6`, `6/6`, replay, rollback en package completo y suffix, y drift desconocido. El preflight futuro acumula mismatches tecnicos hasta un unico resultado, pero mantiene stop inmediato para target ambiguo, PII, tool prohibida o escritura.
+## Dependencias Posteriores
+
+Antes de definir una ejecucion F9.7 deben quedar planificadas y aprobadas: migrar lecturas backend desde identidad publica a identidad de servicio; verificar que `leads` y `email_log` no tengan lectura publica; restringir `INSERT` de `leads` por columnas; y aplicar schema/RLS por comportamiento semantico, no por conteo nominal de policies.
+
+El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 
 ## Identidades Historicas
 
@@ -141,6 +152,6 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 
 ## Criterio De Salida De La Macrofase F9
 
-F9 solo termina cuando T01-T04 son consecutivas y validas, Free alcanza `free_certified`/`FREE_CERTIFIED`, el package/checksums permanecen inmutables, H-00 queda excluido de Pro, ACL por rol, smoke FG2, canary exacto, QA independiente y cleanup idempotente pasan, y la evidencia queda aprobada. Solo entonces puede iniciar la ejecucion de F10 Produccion.
+F9 solo termina cuando T01 condicionado y T02-T04 cumplen sus gates propios, Free alcanza `free_certified`/`FREE_CERTIFIED`, la base F6-F8 y sus checksums permanecen inmutables, H-00 queda excluido de Pro, ACL por rol, smoke FG2, canary exacto, QA independiente y cleanup idempotente pasan, y la evidencia queda aprobada. Solo entonces puede iniciar la ejecucion de F10 Produccion.
 
 Ver [Estado](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).

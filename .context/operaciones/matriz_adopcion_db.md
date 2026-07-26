@@ -30,12 +30,12 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Historica exacta no demostrada; candidate F6 nuevo | `ledger_applied` y `source_unavailable` | Certificar candidate forward-only; backfill separado |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Candidate F6 nuevo, aun no aplicado | `source_unavailable` | Promover solo package certificado y sin H-00 |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Base funcional F6-F8; artifacts F9.5 no promocionables | `ledger_applied` y `source_unavailable` | Certificar base F6-F8; H-00 y backfill separados |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | Promover solo package certificado y sin H-00 |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
 | G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
-| H00 | Free | Evidencia historica | No se inspeccionaron datos operativos | No requerida para promocion | `historical_free_only` | Conservar solo como historia |
-| H00 | Pro | Ausente | No aplicable | No aplicable | `historical_free_only` | Exclusion mecanica obligatoria |
+| H-00 P0 | Free | Evidencia historica | Revalidacion counts-only pendiente | Operacion separada, no package contractual | `historical_free_only` | Antes de `FREE_CERTIFIED`: backup y predicado privado aprobados, transaccion y postcondicion agregada |
+| H-00 P0 | Pro | Ausente | No aplicable | No aplicable | `historical_free_only` | Prohibicion mecanica obligatoria |
 | Efectos sin fuente canonica | Free/Pro | Sin atribucion inequivoca | Observados | Fuente activa no identificada | `observed_effective_unledgered` | Inventariar y versionar sin copiar filas |
 | Snapshots DB historicos | Git | No son ledger vigente | Contradicen el remoto actual | Disponibles pero obsoletos | `superseded` | Prohibido usarlos como baseline o replay |
 
@@ -50,18 +50,24 @@ Los detalles tecnicos sensibles para operar esta reconciliacion permanecen en un
 
 El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./reconciliacion_db_as_code_f6.md); su compatibilidad G1b se mapea en [Certificacion F7](./certificacion_g1b_f7.md).
 
+## Cierre Contractual F9.5
+
+F6-F8 permanecen como base funcional contractual de Hito 1. Los artifacts de F9.5 introducidos por PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`: se preservan para trazabilidad, no se eliminan en esta fase y no son fuente, candidate, package contractual ni replay aplicable.
+
+`H-00` es P0 separado y obligatorio antes de `FREE_CERTIFIED`, pero no agrega un criterio a `H1-CA1`, `H1-CA2P` ni `H1-CA7P`. El backfill editorial queda como dependencia `H1-CA2P` de F9.8/F9.9 para evitar que el catalogo quede invisible.
+
 ## Guardrails forward-only F6
 
 1. La unidad de adopcion es la postcondicion verificable.
 2. Los ledgers son append-only.
 3. Un stem coincidente no prueba paridad.
 4. Toda fuente historica sin checksum permanece `source_unavailable`.
-5. H00 permanece `historical_free_only` y fuera de todo manifest Pro.
+5. H-00 permanece `historical_free_only`, es P0 separado y queda fuera de todo manifest Pro.
 6. Los artifacts fuera del minimo no entran por glob ni replay accidental.
 7. Schema/RLS/RPC y backfill editorial se mantienen separados.
 8. No se copian `staging_raw`, `cleansed_programs`, `enriched_programs` ni `courses` entre ambientes.
 9. Pro genera sus datos operativos con su propio pipeline y gates.
 10. La superficie canary se versiona antes de promocion; nunca se copian filas canary.
 11. Las fuentes `superseded` no se restauran ni se reejecutan.
-12. Toda reconciliacion verifica RLS, grants, owner, modo de seguridad, path, PostgREST y frontend.
+12. Toda reconciliacion verifica RLS, grants, owner, modo de seguridad, path, PostgREST y frontend por comportamiento semantico, no por conteos nominales de policies.
 13. La promocion sigue el [flujo release minimo](./flujo_release_minimo.md) y requiere aprobacion explicita para Pro.

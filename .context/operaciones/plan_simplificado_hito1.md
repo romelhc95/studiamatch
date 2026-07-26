@@ -7,13 +7,13 @@
 - Decision humana: conservar F8, no restaurar F7 y simplificar F9.
 - Fecha de decision: 2026-07-26.
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
-- Entrada en vigor: al fusionar el PR documental F9.4 que actualiza [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
+- Entrada en vigor: adoptado en F9.4 y reconciliado por el cierre documental F9.5 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
 
-La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 asume un preflight dirigido bajo otra autorizacion; esta nota no concede esa ejecucion.
+La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`; su registro es historico y no autoriza una nueva lectura Free.
 
 ## Dictamen
 
-F1-F4 y F6 prepararon la ruta `main -> Hito 1`; `H1-CA7P` se completo documentalmente, F7 completo `H1-CA1` y F8 aporto trabajo funcional valido a `H1-CA2P`.
+F1-F4 y F6 prepararon la ruta `main -> Hito 1`. F6-F8 son la base funcional contractual: F7 implemento `H1-CA1`, F8 aporto el schema local de `H1-CA2P` y `H1-CA7P` se completo documentalmente.
 
 La auditoria fija los siguientes hechos:
 
@@ -30,32 +30,34 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 
 - Baseline: conservar F8 y las correcciones posteriores validas.
 - Fecha contractual: 2026-07-27 a las 09:00 PET.
-- H-00: eliminar definitivamente la PII historica solo si el preflight confirma exactamente las tres filas esperadas y existe autorizacion DML separada.
+- H-00: P0 Free-only separado, obligatorio antes de `FREE_CERTIFIED` pero no criterio contractual. Solo puede ejecutar backup aprobado, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada con autorizacion DML propia; el conteo no selecciona datos.
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
-- Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento.
+- Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.
 
 ## Alcance Contractual
 
-| Criterio | Alcance exigible | Exclusiones principales |
-|---|---|---|
-| `H1-CA1` | Schedules FG2/FG3, gates, circuit breakers y controles por ambiente | Redisenar scraping o ampliar pipeline |
-| `H1-CA2P` | Schema editorial/calidad, fuentes, faltantes, timestamp manual, patrocinio/leads base y RLS | Deteccion automatica completa, panel admin, UI funcional nueva y entrega de leads en tiempo real; se conserva solo compatibilidad publica minima |
-| `H1-CA7P` | Documentacion de campos, RLS, operacion FG2/FG3 y contrato para hitos posteriores | Documentacion historica completa del Sprint |
+| Criterio | Estado | Alcance exigible | Pendiente de certificacion |
+|---|---|---|---|
+| `H1-CA1` | `IMPLEMENTED` | Schedules FG2/FG3, gates, circuit breakers y controles por ambiente | Compatibilidad backend y ejecucion efectiva por ambiente |
+| `H1-CA2P` | `IN_PROGRESS` | Schema editorial/calidad, fuentes, faltantes, timestamp manual, inicio, patrocinio/leads base y RLS | Aplicacion Free/Pro, identidad backend de servicio, backfill editorial y pruebas por rol |
+| `H1-CA7P` | `COMPLETED` | Documentacion de campos, RLS, operacion FG2/FG3 y contrato para hitos posteriores | Anexo final por ambiente; no crea un criterio adicional |
 
 Ningun gate interno, manifest, attestation, adapter o framework de pruebas crea un criterio contractual adicional.
+
+Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual_updated_at` y `start_date` como equivalencias semanticas. Esta aceptacion no acredita adopcion remota ni evita las pruebas por rol.
 
 ## Plan Corregido
 
 | Subfase | Alcance minimo | Resultado requerido |
 |---|---|---|
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
-| `F9.5` | Preflight Free read-only | Identidad, ledger, compatibilidad DB, H-00, backup y writers; sin adapter nuevo; T01 solo tras PASS y aceptacion local |
-| `F9.6` | Remediacion H-00 | Aprobar respaldo H-00 y eliminar exactamente la PII confirmada en Free, sin tocar Pro |
-| `F9.7` | Schema/RLS Free | Versionar un descriptor de promocion nuevo ligado al overlay sucesor exacto de seis migrations y aplicarlo, sin H-00 ni backfill; el descriptor F10/F9.2 historico no autoriza esta ejecucion |
-| `F9.8` | Aprobar backfill editorial | Cohorte, predicado, conteos, idempotencia y rollback |
-| `F9.9` | Ejecutar backfill Free | Aplicacion separada, segunda ejecucion en cero y smoke FG2/FG3 |
+| `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
+| `F9.6` | P0 H-00 Free-only | Backup y predicado privado inmutable aprobados, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada; Pro prohibido |
+| `F9.7` | Schema/RLS Free | Requiere primero identidad backend de servicio, ausencia de lectura publica en `leads`/`email_log`, `INSERT leads` por columnas y verificacion semantica; sin H-00 ni backfill |
+| `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
+| `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
 | `F10.1` | Preflight Pro | Backup, pausa de writers, drift y package exacto |
 | `F10.2` | Aplicacion Pro | Mismo package certificado; nunca H-00 |
@@ -68,16 +70,7 @@ Cada subfase decimal conserva autorizacion exacta, allowlist, stop conditions, r
 
 ## Simplificacion De F9
 
-F9.4 no implementa el borrador staged. Reconcilia y deja definido para F9.5 un preflight dirigido que inspecciona unicamente:
-
-- El overlay vigente de seis migrations: las cuatro entradas F8 y la quinta F9.5 byte-identicas mas la reconciliacion forward-only v2 del inventario historico.
-- Columnas, constraints e indices afectados.
-- Policies y ACL de `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`.
-- Owner, `search_path`, modo y grants de las RPC afectadas.
-- Conflictos de datos previos a indices y foreign keys.
-- Identidad inequivoca del ambiente Free.
-- Capacidad de backup y pausa de writers.
-- Existencia exacta de las filas H-00 sin mostrar PII.
+F9.4 no implementa el borrador staged. F9.5 se cierra documentalmente sin repetir su preflight: los findings y artifacts de PR #245/#247 permanecen historicos no promocionables. F6-F8 conservan el unico package funcional contractual y F9.6 queda definida de forma separada para H-00.
 
 Quedan fuera del critical path:
 
@@ -89,19 +82,19 @@ Quedan fuera del critical path:
 - Nuevos frameworks de attestations.
 - Mas runners sinteticos o maquinas de estado.
 
-Los archivos ya creados pueden conservarse como historia tecnica, pero no deben gobernar el release ni ampliarse. Su retiro fisico, si se decide, queda fuera del critical path y requiere una tarea posterior explicita.
+Los archivos F9.5 ya creados se conservan como historia tecnica, pero no gobiernan el release, no se amplian y no ingresan a un package contractual. Su retiro fisico queda en F11 y requiere una tarea posterior explicita.
 
 ## Secuencia Minima De Certificacion
 
-1. Reconciliar este plan en el Context Graph mediante PR exclusivamente documental.
-2. Congelar el candidate F6-F8 y evitar cambios funcionales no ligados a un CA.
-3. Ejecutar preflight Free read-only dirigido y emitir solo evidencia sanitizada.
-4. Si H-00 coincide exactamente, aprobar/verificar su respaldo y despues ejecutar la eliminacion transaccional aprobada y verificar `3 -> 0`; Pro permanece sin cambios.
-5. Con backup y writers pausados, aplicar schema/RLS Free sin mezclar H-00 ni backfill.
-6. Aprobar y ejecutar el backfill editorial como operacion DML separada e idempotente.
+1. Mantener F6-F8 congelada como base funcional contractual y evitar cambios no ligados a un CA.
+2. Conservar F9.5 y sus artifacts como historia `HISTORICAL_NON_PROMOTABLE`, sin repetir la lectura Free ni crear un package sucesor.
+3. Usar `T01_CONDITIONAL_ACCEPTED` solo para sostener la definicion de F9.6; no habilita ejecucion ni schema.
+4. En F9.6, con autorizacion propia y predicado privado inmutable aprobado, verificar backup, revalidar el contrato counts-only, ejecutar la eliminacion transaccional y verificar la postcondicion agregada; Pro permanece sin cambios.
+5. Antes de F9.7, resolver las dependencias de identidad backend, lecturas publicas, columnas de `leads` y comportamiento semantico RLS.
+6. Aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible.
 7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente.
 8. Promover `desarrollo -> certificacion` solo con Free certificada.
-9. Aplicar en Pro el mismo package, ejecutar backfill Pro-local, smoke y observacion.
+9. Aplicar en Pro el mismo package certificado, ejecutar backfill Pro-local, smoke y observacion; nunca H-00.
 10. Promover `certificacion -> main` y cerrar con evidencia aprobada.
 
 ## Evidencia Para El Cliente
@@ -125,15 +118,19 @@ No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. 
 ## Gates De Adopcion
 
 1. El mapeo coincide con [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md), [HITO-001](../hitos/hito_001.md) y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-2. Estado, tarea, macrofase F9, release minimo, indice y changelog quedan reconciliados sin trabajo operativo.
-3. La definicion staged F9.4 queda sustituida y no autorizable.
+2. Estado, tarea, macrofase F9, release minimo, matriz DB, indice y changelog quedan reconciliados sin trabajo operativo.
+3. La definicion staged F9.4 y el registro F9.5 quedan historicos y no autorizables; PR #245/#247 quedan `HISTORICAL_NON_PROMOTABLE`.
 4. La informacion vigente del plan temporal queda preservada en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
 5. La adopcion se completa solo con Context Graph, auditorias, CI, aprobacion humana y merge del PR exclusivamente documental.
 
-El prompt exacto para continuar con la siguiente subfase, despues del merge F9.4, sera:
+El prompt exacto para solicitar F9.6, solo despues del merge documental de este cierre, sera:
 
 ```text
-Ejecuta las tareas pendientes de la Fase F9.5
+Ejecuta las tareas pendientes de la Fase F9.6
+
+Alcance exclusivo: ejecutar el P0 H-00 unicamente en Free. Antes de DML, ligar fuera de Git el target Free, backup aprobado, predicado inmutable aprobado, verificador humano y allowlist positiva minima de tools/consultas. Luego revalidar el shape counts-only exacto 3/3/0/0, ejecutar la eliminacion transaccional de la cohorte confirmada y verificar 3 -> 0.
+
+No autoriza Pro, secrets, schema, migrations, DML fuera de H-00, writers, backfill, F9.7, promocion de ramas ni produccion.
 ```
 
 ## Referencias

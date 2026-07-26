@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.5 bloqueada hasta repetir read-only el overlay v2 de seis entradas |
+| Fase vigente | Macrofase `F9` en progreso; F9.5 `COMPLETED_WITH_KNOWN_FINDINGS`; F9.6 P0 H-00 `ACTIVE_AWAITING_AUTHORIZATION` |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -28,13 +28,24 @@ Los tres criterios son hijos directos de la tarea, no subtareas.
 
 ## Criterios Y Entregables
 
-| Criterio | Entregable | Verificacion | Evidencia | Estado |
-|---|---|---|---|---|
-| `H1-CA1` | Workflows automaticos y gates | Contrato F7 | PR #226, CI y validacion post-merge | Completed |
-| `H1-CA2P` | Schema/RLS | Verificadores locales F6-F10 + PostgreSQL 17 | F9.1/F9.2 cerradas; package bloqueado hasta certificacion Free | `IN_PROGRESS` |
-| `H1-CA7P` | Contrato documentado | Context Graph + reconciliacion | PR #221, CI y `SRC-REQ-001` reconciliada | Completed |
+| Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
+|---|---|---|---|
+| `H1-CA1` | `IMPLEMENTED` | Workflows automaticos, schedules, gates y circuit breakers de F7 | Compatibilidad backend y ejecucion efectiva por ambiente |
+| `H1-CA2P` | `IN_PROGRESS` | Schema local F6-F8, calidad y seguridad base | Aplicacion Free/Pro, identidad backend de servicio, backfill editorial y pruebas por rol |
+| `H1-CA7P` | `COMPLETED` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | Anexo final por ambiente para la certificacion; no reabre el criterio |
 
 El alcance contractual de los tres criterios permanece en [REQ-EST-001](./_index.md) y [HITO-001](../../hitos/hito_001.md). [EST-001](../../estimaciones/est_001.md) conserva solo complejidad y estimacion tecnica original; esta tabla no agrega criterios.
+
+## Equivalencias Aceptadas De H1-CA2P
+
+Las siguientes equivalencias semanticas quedan aceptadas para el alcance de `H1-CA2P`; no acreditan adopcion remota, no sustituyen las pruebas por rol y no autorizan schema, migrations ni backfill:
+
+| Necesidad contractual | Campo local aceptado |
+|---|---|
+| Faltantes | `missing_fields` JSONB |
+| Fuentes de campo | `field_sources` JSONB |
+| Actualizacion manual | `manual_updated_at` |
+| Inicio | `start_date` |
 
 ## Contexto Verificable
 
@@ -52,38 +63,34 @@ F9.1 conserva byte-identicos el manifest y las migrations F8. PR #231 y la remed
 
 El package historico `FASE-10`, ahora mapeado a F9.2, se limita al [contrato local de promocion](../../operaciones/promocion_hito1_f10.md): reemplaza prerrequisitos universales por evidencia por transicion y crea un descriptor sucesor bloqueado. No modifica el candidate F8, no cambia status y no accede a ambientes remotos.
 
-F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; la ruta operacional permanece en cero attestations/status transitions hasta F9.5. F9.1/F9.2 no completan la [macrofase F9](../../operaciones/certificacion_hito1_f9.md) ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
+F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; su ruta operacional historica no otorgo attestations ni transiciones de estado. F9.1/F9.2 no completan la [macrofase F9](../../operaciones/certificacion_hito1_f9.md) ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
 
 F9.3 fue autorizada mediante la frase decimal exacta y congelo un contrato exclusivamente local: descriptor inmutable, catalogos read-only cerrados, target binding no reversible, schemas neutrales para la F9.4 entonces prevista, runner sin transportes y job CI sin secrets. PR #238 fue aprobado y fusionado; el replay detecto una incompatibilidad del fixture con CRLF del bind mount Windows, remediada y fusionada mediante PR #239. `desarrollo@4e77fe0` repitio desde un checkout Linux limpio dentro de Docker 55 pruebas focused, 253 de regresion, 22 checks sinteticos, Python compile y Context Graph en PASS. No hubo acceso Free/Pro ni cambio de estado. Al cerrar F9.3, F9.4 aun no estaba autorizada; ADR-0004 sustituyo despues esa ruta.
 
 F9.4 adopta [PLAN-H1-SIMPLIFICADO-001](../../operaciones/plan_simplificado_hito1.md) mediante [ADR-0004](../../decisiones/ADR-0004_simplificacion_contractual_hito1.md). Fue exclusivamente local/documental: reconcilio el Context Graph, convirtio la [definicion remota anterior](../../operaciones/preflight_free_f9_4.md) en `SUPERSEDED_NON_AUTHORIZABLE`, preservo el antecedente temporal y lo retiro. No accedio a Free/Pro, no cargo secrets, no creo T01 y no ejecuto DDL, DML, migrations, H-00, backfill, pausa de writers ni workflows remotos. `H1-CA2P` permanece `IN_PROGRESS`.
 
-## Definicion Autorizable F9.5
+## Cierre Contractual F9.5
 
-La definicion cerrada de herramientas, candidate, evidencia y stop conditions vive en [Preflight Free F9.5](../../operaciones/preflight_free_f9_5.md).
+F9.5 termina `COMPLETED_WITH_KNOWN_FINDINGS`. Los intentos y remediaciones locales anteriores se preservan en el [registro historico F9.5](../../operaciones/preflight_free_f9_5.md), pero no justifican una nueva lectura Free ni certifican Free o Pro.
 
-- Identidad: F9.5 `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `BLOCKED_AWAITING_V2_READ_ONLY_RETRY`; autorizacion vigente: ninguna. La remediacion local v2 no autoriza red.
-- Resultado remoto: tercer `FREE_PREFLIGHT_FAIL`; T01 no fue creada, preparada ni aceptada.
-- Target: Free unicamente. Pro, DDL, DML, migrations, H-00, backfill, pausa/reanudacion de writers, dispatch y produccion quedan prohibidos.
+- Todos los artifacts F9.5 introducidos por PR #245 y PR #247 quedan `HISTORICAL_NON_PROMOTABLE`. Se conservan fisicamente para trazabilidad, sin integrarlos al package contractual, a F9.7 ni a una ruta de aplicacion.
+- F6-F8 permanecen como la unica base funcional contractual de Hito 1. Los artifacts F9.5 no sustituyen, amplian ni promocionan esa base.
+- `T01_CONDITIONAL_ACCEPTED` es una decision documental sin attestation tecnica nueva. Su unico efecto es habilitar la definicion de F9.6; no autoriza ejecutar F9.6, aplicar schema, crear migrations, ejecutar F9.7 ni promover ramas.
+- `H-00` es un P0 separado y obligatorio antes de `FREE_CERTIFIED`, pero no es un criterio contractual de `HITO-001`.
+- F9.6 no puede seleccionar ni eliminar datos por un conteo publico: la futura autorizacion debe aportar fuera de Git target Free ligado, backup y predicado inmutable aprobados, verificador humano y allowlist positiva minima de tools/consultas. Si falta cualquiera de ellos, la subfase falla cerrada.
 
-F9.5 inspecciona las seis migrations exactas del overlay v2: el prefijo byte-identico F8, la reconciliacion RLS canary historica y la reconciliacion del inventario de 21 policies. Revisa columnas, constraints e indices afectados; policies y ACL de `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; owner, `search_path`, modo y grants de RPC; conflictos previos; identidad inequivoca de Free; factibilidad de backup/writers sin ejecutarlos; y H-00 counts-only sin mostrar PII.
+## Dependencias Posteriores Sin Implementacion
 
-F9.5 usa exclusivamente la allowlist project-scoped y evidencia sanitizada de su definicion. No implementa adapter, OpenAPI root, advisor bridge, cross-plane binding, nonce one-shot, inventarios globales ni frameworks nuevos de attestations. Cualquier necesidad de escritura, privilegio adicional, dato raw, acceso Pro o cambio de alcance detiene la subfase.
+F9.7 no puede definirse como ejecutable hasta que se planifiquen y aprueben, como minimo, estas dependencias de `H1-CA1` y `H1-CA2P`:
 
-El intento autorizado del `2026-07-26` verifico localmente 4/4 checksums de blobs Git del package F8 y se detuvo bajo el contrato previo porque no existia el predicado H-00 privado aprobado. No abrio sesion Free, no invoco tools Supabase, no emitio SQL y no inspecciono datos o catalogos; esa evidencia permanece intacta.
+1. Migrar las lecturas backend desde identidad publica a identidad de servicio.
+2. Verificar que `leads` y `email_log` no tengan lectura publica.
+3. Restringir `INSERT` de `leads` por columnas permitidas.
+4. Aplicar schema/RLS por comportamiento semantico, no por un conteo nominal de policies.
 
-La remediacion local posterior reconcilia artifacts H-00 recuperados y adopta exclusivamente una cohorte completa derivada en DB con cutoff `2026-07-19T00:00:00Z`, sin UUID ni identidad individual. PASS exige solo cuatro conteos exactos: 3 leads totales, 3 pre-cutoff, 0 post-cutoff y 0 `email_log`. Cualquier otro shape o valor falla cerrado. Esta decision no acredita los conteos actuales de Free; tras el merge documental, repetir F9.5 requiere otra autorizacion exacta. F9.6 permanece bloqueada.
+El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por este cierre.
 
-El segundo intento read-only verifico binding Free, 4/4 checksums locales, ausencia de las cuatro entradas exactas sin colision, 13/13 columnas, 11/11 constraints y 9/9 indices compatibles. La inspeccion RLS encontro 5/5 tablas protegidas, 7/7 policies esperadas presentes, 6/7 compatibles, 3 policies publicas adicionales y 4/4 policies `service_role` compatibles. Como el package no elimina las tres adicionales y el verificador F8 las rechaza, la ejecucion termino `FREE_PREFLIGHT_FAIL` antes de ACL, RPC, conflictos de datos, H-00, backup o writers.
-
-La remediacion forward-only crea `20260726_fase09_5_rls_canary_reconciliation.sql` y `fase09_5_rls_candidate.json`. Versiona los tres guards restrictivos canary, unifica profiles, restringe `institutions` a `id/name/slug`, fija owner `postgres`, rechaza bypass publico, exige `service_role BYPASSRLS`, cierra ACL/policies incluido `PUBLIC` y agrega una postcondicion sucesora con metadata cerrada. El manifest completo queda ligado por digest, conserva exactamente las cuatro entradas F8 y permanece bloqueado para ambos targets.
-
-Las pruebas reproducen explicitamente una reconstruccion sintetica del baseline historico Free con efectos F8 presentes, ledger vacio y drift RLS previo. El planner real converge atomically en PostgreSQL 17 desde 0/5, 3/5 y 4/5; valida `INSERT` publico de leads limitado a las columnas de formulario, RLS por rol, membresias privilegiadas negativas, aislamiento canary separado por URL, profile e institucion, ACL y metadata exactas, rechazo de drift desconocido, rollback, replay y ledger de cinco entradas. El job CI exige PostgreSQL sin red y una prueba incremental del rechazo de egress IPv4 del proceso, bajo reglas IPv4/IPv6. El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest completo del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 permanece historico; F9.7 debera crear otro descriptor schema v2 para este overlay. La remediacion no accede a ambientes remotos, no crea T01 y no autoriza F9.6. Tras su merge, repetir F9.5 requiere otra autorizacion exacta.
-
-El tercer intento read-only sincronizo `desarrollo@2e5be1719dffc8a867f4c40e4e8081b51ef56fb7` y verifico binding Free, ledger `0/5` sin colision, `13/13` columnas, `11/11` constraints, `9/9` indices, RLS `6/6` y roles `3/3`. El inventario de policies no converge al contrato cerrado con el overlay exacto y su verifier rechaza el drift persistente. El resultado es `FREE_PREFLIGHT_FAIL`; ACL, RPC, conflictos, H-00, backup y writers no se inspeccionaron. T01 no fue preparada y F9.6 permanece bloqueada; el detalle se conserva solo en evidencia privada ignorada.
-
-La remediacion v2 autorizada sincroniza `desarrollo@1428d310747969af6818ece10cb1a31613f8069a`, preserva los cinco SQL/manifests historicos y agrega una sexta migration y manifest cerrado. El inventario final es exactamente 21 policies, incluidas las tres SELECT del runner canary y `profiles_service_role`; roles, comandos, modo, predicados, ownership y grants quedan verificados. El planner y PostgreSQL 17 cubren prefijos 0/3/4/5/6, replay, rollback completo/suffix y drift desconocido. La repeticion remota requiere otra autorizacion F9.5 exacta; T01 y F9.6 permanecen bloqueadas.
+El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). La definicion P0 de F9.6 vive en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 
 ## Allowlist De Implementacion
 

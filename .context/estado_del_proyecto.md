@@ -14,12 +14,12 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F3` | Higiene remota | `COMPLETED` | Higiene terminada. |
 | `F4` | Bootstrap local | `COMPLETED` | Entorno local verificado. |
 | `F5` | Obsidian minimo | `COMPLETED` | Gobierno documental, PR #221 y `SRC-REQ-001` reconciliada. |
-| `F6` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
-| `F7` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
-| `F8` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | La remediacion local v2 cierra el inventario de 21 policies; Free sigue `reconciled_not_certified` hasta repetir F9.5 read-only. |
+| `F6` | Reconciliacion DB-as-Code | `COMPLETED` | Base funcional contractual Hito 1, forward-only y validada localmente; ningun cambio remoto aplicado. |
+| `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
+| `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
+| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | F9.5 cerro `COMPLETED_WITH_KNOWN_FINDINGS`; Free sigue sin certificar y F9.6 P0 H-00 es la subfase activa, pendiente de autorizacion. |
 | `F10` | Pro y produccion | `PENDING` | Bloqueada hasta que F9 termine en `free_certified`; incluye canary, `main`, smoke y observacion. |
-| `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; consolida evidencia final y limpieza autorizada. |
+| `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye limpieza fisica autorizada de artifacts historicos. |
 
 ## Subfases F9
 
@@ -29,19 +29,21 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.2` | `COMPLETED` | Contrato local de promocion; alias historico `FASE-10`, PR #235/#236 |
 | `F9.3` | `COMPLETED` | Freeze local; PR #238, remediacion CRLF #239 y replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | `COMPLETED` | Reconciliacion contractual local; plan simplificado adoptado, definicion remota sustituida y antecedente temporal retirado |
-| `F9.5` | `BLOCKED` | [Preflight Free dirigido](operaciones/preflight_free_f9_5.md); remediacion v2 local de seis entradas pendiente de repeticion read-only |
-| `F9.6` a `F9.10` | `PENDING` | H-00, schema/T02, plan/ejecucion backfill/T03 y certificacion/T04; gates separados |
+| `F9.5` | `COMPLETED_WITH_KNOWN_FINDINGS` | Cierre contractual/documental; artifacts de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`; no queda lectura Free pendiente |
+| `F9.6` | `ACTIVE_AWAITING_AUTHORIZATION` | P0 H-00 Free-only definido: la autorizacion futura debe ligar target, backup, predicado, verificador y allowlist privada antes de la revalidacion counts-only; Pro prohibido |
+| `F9.7` a `F9.10` | `PENDING` | Schema/T02, plan/ejecucion backfill/T03 y certificacion/T04; gates separados |
 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase autorizada: ninguna. La autorizacion local F9.5 para la remediacion v2 se consume con su merge y validacion post-merge.
-- Siguiente accion: repetir F9.5 exclusivamente read-only contra el overlay v2 mediante una autorizacion nueva. F9.6 permanece bloqueada.
+- Subfase activa: F9.6, definida y enlazada; no hay capacidad de ejecucion heredada.
+- Subfase autorizada: ninguna. F9.5 esta cerrada y T01 fue aceptada solo como decision documental condicionada para definir F9.6.
+- Siguiente accion: F9.6 requiere una autorizacion decimal exacta nueva y no hereda capacidad de F9.5 ni de T01.
 
 ## Alcance Inmediato
 
-La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). Los packages historicos `FASE-09`, `FASE-10`, F8 y el overlay F9.5 de cinco entradas permanecen byte-identicos. El overlay v2 agrega una sexta migration forward-only, cierra exactamente 21 policies y permanece `reconciled_not_certified`, bloqueado para Free/Pro. `H1-CA2P` y `TASK-H1-001` siguen en progreso; T01 no existe y F9.6 permanece bloqueada. F10 Produccion y F11 Cierre siguen pendientes.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). F6-F8 son la unica base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245 y PR #247 se conservan sin eliminarlos como `HISTORICAL_NON_PROMOTABLE`: no son candidate, package contractual ni autorizacion para F9.7. `H1-CA1`, `H1-CA2P` y `H1-CA7P` se reconcilian en [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md); los hallazgos diferidos viven en el [backlog F9.5](backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md). F10 Produccion y F11 Cierre siguen pendientes.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).
