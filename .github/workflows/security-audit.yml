@@ -594,6 +594,13 @@ jobs:
           test "$reject_after" -gt "$reject_before"
       - name: Validate F9.5 Python and PostgreSQL contracts without secrets
         run: |
+          sudo chmod -R o+rX "$GITHUB_WORKSPACE"
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            test -r "$GITHUB_WORKSPACE/pytest.ini"
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            test ! -w "$GITHUB_WORKSPACE/pytest.ini"
           if [ -S /var/run/docker.sock ]; then
             sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
               --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
@@ -679,7 +686,7 @@ jobs:
             fi
           fi
           if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
-            if ! rm -rf -- "$state_dir"; then
+            if ! sudo rm -rf -- "$state_dir"; then
               cleanup_failed=1
             fi
           fi
