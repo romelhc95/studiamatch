@@ -10,8 +10,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Estado del package: `reconciled_not_certified`.
 - Free y Pro: schema apply bloqueado.
 - Attestations: cero.
-- Subfase autorizada: F9.3 local unicamente; no incluye F9.4 ni operaciones remotas.
-- Candidate de implementacion: F9.3 local verificado, pendiente de CI/review/merge y replay post-merge.
+- Subfase autorizada: ninguna; la autorizacion consumida de F9.3 no incluye F9.4 ni operaciones remotas.
+- Ultima subfase cerrada: F9.3 local mediante PR #238, remediacion #239 y replay post-merge Docker.
 
 ## Subfases
 
@@ -19,7 +19,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 |---|---|---|---|
 | `F9.1` | Precertificacion local/offline | `COMPLETED` | Alias historico `FASE-09`; PR #231/#232 y cierre #233 |
 | `F9.2` | Reparacion local del contrato de promocion | `COMPLETED` | Alias historico `FASE-10`; PR #235/#236 |
-| `F9.3` | Freeze local del contrato de preflight | `IN_PROGRESS` | Candidate sin red/secrets verificado; cierre pendiente |
+| `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Ejecucion remota Free estrictamente read-only | `PENDING` | Reservada; usa unicamente el contrato F9.3 aprobado |
 | `F9.5` | Aceptacion local de readiness y T01 | `PENDING` | Reservada; no conecta ni aplica schema |
 | `F9.6` | Backup aprobado, pausa aprobada, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
@@ -76,16 +76,19 @@ Todo path no enumerado queda excluido. F9.3 no modifica manifests/migrations F6-
 4. El candidate F9.3 debe recibir auditorias, CI, review, merge, replay post-merge y PR documental de cierre.
 5. F9.4 no puede definirse ni autorizarse hasta cerrar F9.3. Debe conservar byte-identicos descriptor, catalogo de consultas, schema de evidencia y validadores; solo puede agregar un adapter de transporte minimo bajo allowlist/review propios.
 
-### Evidencia Candidate F9.3
+### Evidencia De Cierre F9.3
 
 - Autorizacion exacta recibida: `Ejecuta las tareas pendientes de la Fase F9.3`.
 - Descriptor/runner local: `LOCAL_VALID`, con `git_proof=EXTERNAL_REQUIRED`; no afirma readiness ni produce PASS/FAIL remoto.
 - Suite focused: 55 pruebas PASS. Regresion F6-F10/credenciales: 253 pruebas PASS y un warning heredado de PyPDF2; total scoped 308.
 - Replay sintetico determinista: 22 checks PASS. `py_compile`, `git diff --check` y Context Graph 30 archivos/232 enlaces: PASS.
 - SHA-256 fijado del runner: `543cff44e46f84326ae774009a58ccf4fb7d0525ff0797cd5cca561706e45a00`.
-- Auditorias finales security y QA: GO, cero hallazgos bloqueantes. Los gaps de transporte, target identity artifact, produccion de traces/evidencia y ejecucion efectiva de `unshare --net` pertenecen a F9.4/CI.
+- PR #238: CI verde, aprobacion de `romelhc95-approver` y merge humano en `desarrollo@4e712b0`.
+- El primer replay post-merge encontro que el fixture temporal construia un blob CRLF desde el bind mount Windows aunque el validador comparaba correctamente identidad LF. PR #239 limito la remediacion al fixture, agrego la regresion CRLF, recibio CI/auditorias/review en GO y fue fusionado.
+- Replay definitivo: `desarrollo@4e77fe0`, tree `efdf3f4edb53a384ee5f2a6251131696ccfb1865`, checkout limpio `i/lf w/lf` en el filesystem Linux interno de `studiamatch-dev`, sin ejecutar Python sobre el bind mount Windows. Pasaron 55 pruebas focused, 253 de regresion, 22 checks sinteticos, `py_compile` y Context Graph 30/232.
+- Auditorias finales security y QA: GO, cero hallazgos bloqueantes. CI ejecuto el job F9.3 bajo `unshare --net`; el contenedor local carece deliberadamente de `CAP_SYS_ADMIN`, por lo que el replay local mantuvo ambiente vacio, runner sin transporte y bloqueo de sockets en pruebas. Los gaps de adapter, target identity artifact y produccion de traces/evidencia pertenecen a F9.4.
 - Acceso Free/Pro, Supabase MCP, secrets, `.env*`, DDL/DML/RPC, attestations y transiciones de estado: cero.
-- Esta evidencia es candidate local. No completa F9.3 hasta CI, review, merge, replay post-merge y PR documental de cierre.
+- El PR documental que contiene esta evidencia completa F9.3 al fusionarse. No define, autoriza ni ejecuta F9.4.
 
 ## Requisitos Reservados De F9.4
 
