@@ -17,7 +17,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F6` | Reconciliacion DB-as-Code | `COMPLETED` | PR #223 y #224 fusionados; package forward-only y checksum LF/CRLF validados post-merge. Ningun cambio remoto aplicado. |
 | `F7` | G1b minimo | `COMPLETED` | PR #226 fusionado; G1b y postcondiciones F7 validadas post-merge. Package bloqueado. |
 | `F8` | Hito 1 funcional | `COMPLETED` | PR #228 fusionado; contrato funcional local y PostgreSQL 17 validados post-merge. Sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | Drift RLS remediado localmente mediante overlay forward-only; F9.5 queda pendiente de repeticion read-only. Free sigue `reconciled_not_certified`. |
+| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | El tercer preflight F9.5 fallo por drift de policies no cubierto por el overlay. Free sigue `reconciled_not_certified`. |
 | `F10` | Pro y produccion | `PENDING` | Bloqueada hasta que F9 termine en `free_certified`; incluye canary, `main`, smoke y observacion. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; consolida evidencia final y limpieza autorizada. |
 
@@ -29,7 +29,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.2` | `COMPLETED` | Contrato local de promocion; alias historico `FASE-10`, PR #235/#236 |
 | `F9.3` | `COMPLETED` | Freeze local; PR #238, remediacion CRLF #239 y replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | `COMPLETED` | Reconciliacion contractual local; plan simplificado adoptado, definicion remota sustituida y antecedente temporal retirado |
-| `F9.5` | `PENDING` | [Preflight Free dirigido](operaciones/preflight_free_f9_5.md); overlay de 5 entradas localmente validado, pendiente de nueva autorizacion exacta read-only |
+| `F9.5` | `BLOCKED` | [Preflight Free dirigido](operaciones/preflight_free_f9_5.md); `FREE_PREFLIGHT_FAIL` por inventario de policies incompatible con el overlay cerrado |
 | `F9.6` a `F9.10` | `PENDING` | H-00, schema/T02, plan/ejecucion backfill/T03 y certificacion/T04; gates separados |
 
 ## Tarea Activa
@@ -37,11 +37,11 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase autorizada: ninguna. La autorizacion de remediacion local forward-only F9.5 se consume exclusivamente con el merge de esta reconciliacion y no autoriza red.
-- Siguiente accion: solicitar otra autorizacion decimal exacta para repetir F9.5 read-only contra el overlay sucesor. F9.6 permanece bloqueada.
+- Subfase autorizada: ninguna. La autorizacion read-only F9.5 fue consumida por el tercer intento.
+- Siguiente accion: definir y aprobar una remediacion forward-only del drift de policies antes de otra repeticion F9.5. F9.6 permanece bloqueada.
 
 ## Alcance Inmediato
 
-La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). Los packages historicos `FASE-09` y `FASE-10` se preservan como F9.1/F9.2 sin renombrar artifacts. F8 y sus cuatro migrations permanecen byte-identicos. La remediacion crea un overlay sucesor de cinco entradas, aun `reconciled_not_certified` y bloqueado para Free/Pro, que versiona los guards canary y reconcilia el verificador F8 sin modificar ledgers. `H1-CA2P` y `TASK-H1-001` siguen en progreso; T01 no existe y F9.6 permanece bloqueada. F10 Produccion y F11 Cierre siguen pendientes.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md). Los packages historicos `FASE-09` y `FASE-10` se preservan como F9.1/F9.2 sin renombrar artifacts. F8 y sus cuatro migrations permanecen byte-identicos. El overlay sucesor de cinco entradas sigue `reconciled_not_certified` y bloqueado para Free/Pro: el tercer preflight encontro drift de policies que el package no retira y su verificador cerrado rechaza. `H1-CA2P` y `TASK-H1-001` siguen en progreso; T01 no existe y F9.6 permanece bloqueada. F10 Produccion y F11 Cierre siguen pendientes.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).

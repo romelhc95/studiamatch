@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; remediacion RLS local validada y repeticion F9.5 read-only pendiente de reautorizacion |
+| Fase vigente | Macrofase `F9` en progreso; F9.5 bloqueada por drift remoto de policies no cubierto por el overlay cerrado |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -63,8 +63,8 @@ F9.4 adopta [PLAN-H1-SIMPLIFICADO-001](../../operaciones/plan_simplificado_hito1
 La definicion cerrada de herramientas, candidate, evidencia y stop conditions vive en [Preflight Free F9.5](../../operaciones/preflight_free_f9_5.md).
 
 - Identidad: F9.5 `REMOTE_READ_FREE_DIRECTED`.
-- Estado: `PENDING_REAUTHORIZATION`; autorizacion vigente: ninguna. La remediacion local forward-only se consume con el merge de esta reconciliacion.
-- Resultado remoto: los `FREE_PREFLIGHT_FAIL` previos permanecen historicos; T01 no fue creada ni aceptada.
+- Estado: `BLOCKED_BY_REMOTE_POLICY_DRIFT`; autorizacion vigente: ninguna. La autorizacion read-only del tercer intento fue consumida.
+- Resultado remoto: tercer `FREE_PREFLIGHT_FAIL`; T01 no fue creada, preparada ni aceptada.
 - Target: Free unicamente. Pro, DDL, DML, migrations, H-00, backfill, pausa/reanudacion de writers, dispatch y produccion quedan prohibidos.
 
 F9.5 inspecciona las cinco migrations exactas del overlay sucesor: el prefijo byte-identico F8 mas la reconciliacion RLS canary. Revisa columnas, constraints e indices afectados; policies y ACL de `institutions`, `courses`, `leads`, `ratings`, `reviews` e `institution_site_profiles`; owner, `search_path`, modo y grants de RPC; conflictos previos; identidad inequivoca de Free; factibilidad de backup/writers sin ejecutarlos; y H-00 counts-only sin mostrar PII.
@@ -80,6 +80,8 @@ El segundo intento read-only verifico binding Free, 4/4 checksums locales, ausen
 La remediacion forward-only crea `20260726_fase09_5_rls_canary_reconciliation.sql` y `fase09_5_rls_candidate.json`. Versiona los tres guards restrictivos canary, unifica profiles, restringe `institutions` a `id/name/slug`, fija owner `postgres`, rechaza bypass publico, exige `service_role BYPASSRLS`, cierra ACL/policies incluido `PUBLIC` y agrega una postcondicion sucesora con metadata cerrada. El manifest completo queda ligado por digest, conserva exactamente las cuatro entradas F8 y permanece bloqueado para ambos targets.
 
 Las pruebas reproducen explicitamente una reconstruccion sintetica del baseline historico Free con efectos F8 presentes, ledger vacio y drift RLS previo. El planner real converge atomically en PostgreSQL 17 desde 0/5, 3/5 y 4/5; valida `INSERT` publico de leads limitado a las columnas de formulario, RLS por rol, membresias privilegiadas negativas, aislamiento canary separado por URL, profile e institucion, ACL y metadata exactas, rechazo de drift desconocido, rollback, replay y ledger de cinco entradas. El job CI exige PostgreSQL sin red y una prueba incremental del rechazo de egress IPv4 del proceso, bajo reglas IPv4/IPv6. El checksum sucesor es `4959b3f1ad60e2fe3a6e9a23161dd0467cfc549e10c1262ba8a0bb2aaf4c9a01` y el digest completo del manifest es `27af06a3411f65786d5dfbda19814c24b187f13a055a0fa4733698843f1d3353`. El descriptor F10/F9.2 permanece historico; F9.7 debera crear otro descriptor schema v2 para este overlay. La remediacion no accede a ambientes remotos, no crea T01 y no autoriza F9.6. Tras su merge, repetir F9.5 requiere otra autorizacion exacta.
+
+El tercer intento read-only sincronizo `desarrollo@2e5be1719dffc8a867f4c40e4e8081b51ef56fb7` y verifico binding Free, ledger `0/5` sin colision, `13/13` columnas, `11/11` constraints, `9/9` indices, RLS `6/6` y roles `3/3`. El inventario de policies no converge al contrato cerrado con el overlay exacto y su verifier rechaza el drift persistente. El resultado es `FREE_PREFLIGHT_FAIL`; ACL, RPC, conflictos, H-00, backup y writers no se inspeccionaron. T01 no fue preparada y F9.6 permanece bloqueada; el detalle se conserva solo en evidencia privada ignorada.
 
 ## Allowlist De Implementacion
 
