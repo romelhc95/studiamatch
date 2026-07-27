@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; candidate local contractual implementado y validado.
+- Subfase activa: F9.7 `IN_PROGRESS`; Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: Gate B pre-DDL/read-only requiere una autorizacion decimal exacta nueva y sus prerrequisitos propios.
+- Siguiente accion: definir la remediacion de los findings Gate B bajo una autorizacion decimal exacta nueva.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Candidate local contractual validado; Gate B remoto, resguardo, migration y writers conservan gates separados |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Gate B read-only FAIL y detenido; resguardo, migration y writers conservan gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -58,6 +58,10 @@ El candidate local F9.7 conserva byte-identicas las cuatro migrations F6-F8 y ag
 Gate B es exclusivamente pre-DDL y read-only: liga Free; congela commit/tree, package, allowlist y stop conditions; verifica identidad backend y estado de acceso; identifica responsables; y somete resguardo/restore y pausa de writers a aprobaciones humanas separadas. No pausa writers ni aplica schema/migrations.
 
 Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/RLS/T02 solo despues de esas aprobaciones. Debera demostrar semanticamente que `leads` y `email_log` no tienen lectura publica, que `INSERT leads` solo acepta columnas permitidas y que las lecturas backend usan identidad de servicio. F9.7 no incluye H-00, backfill, Pro ni produccion.
+
+### Resultado Gate B
+
+[EVID-F9.7-GATE-B-001](./gate_b_f9_7.md) ejecuto una unica consulta agregada mediante `supabase-free` y registro `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`. El ledger candidate quedo en un boundary vacio permitido sin colisiones ni entradas F9.5, y la postura de roles/service no mostro faltantes. Sin embargo, el acceso de superficies protegidas no cumplio el estado exigido; el gate se detuvo antes del runner HTTP, de aprobaciones de resguardo/pausa, writers o DDL. La autorizacion se consumio y no es reutilizable.
 
 ## Dependencias Posteriores
 

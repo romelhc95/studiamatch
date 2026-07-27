@@ -1,6 +1,6 @@
 # Sistema DB Supabase
 
-Snapshot canonico observado para F6. Resume el estado aplicado de Supabase sin publicar identificadores de proyecto, endpoints, credenciales, hashes, conteos de ledger ni detalles de findings. Las decisiones de adopcion se toman exclusivamente en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
+Snapshot canonico observado vigente. Resume el estado aplicado de Supabase sin publicar identificadores de proyecto, endpoints, credenciales, hashes, conteos de ledger ni detalles de findings. Las decisiones de adopcion se toman exclusivamente en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
 
 Enlaces canonicos: [Indice](./00_INDICE.md) | [Arquitectura pipeline](./arquitectura_pipeline.md) | [Estado del proyecto](./estado_del_proyecto.md) | [Tarea Hito 1](./backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./operaciones/flujo_release_minimo.md) | [Matriz DB](./operaciones/matriz_adopcion_db.md)
 
@@ -42,6 +42,7 @@ Regla inmutable:
 Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 
 - `[REMOTE Free]` Se observaron efectos del contrato Hito 1 y del hardening G1b.
+- `[REMOTE Free]` [Gate B F9.7](./operaciones/gate_b_f9_7.md) observo en modo read-only drift de acceso incompatible con el gate y se detuvo antes de HTTP, aprobaciones operativas o DDL.
 - `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
 - `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - `[GIT]` F6-F8 son la base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y no cambian el snapshot observado.

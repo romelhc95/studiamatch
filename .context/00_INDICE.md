@@ -27,6 +27,7 @@
 - [Definicion remota F9.4 sustituida y no autorizable](operaciones/preflight_free_f9_4.md)
 - [Registro historico F9.5](operaciones/preflight_free_f9_5.md)
 - [Cierre H-00 F9.6](operaciones/cierre_h00_f9_6.md)
+- [Evidencia Gate B F9.7](operaciones/gate_b_f9_7.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
