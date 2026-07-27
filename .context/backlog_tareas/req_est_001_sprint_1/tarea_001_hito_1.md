@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`; F9.7 `ACTIVE_AWAITING_AUTHORIZATION` |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 tiene candidate local contractual y Gate B pre-DDL/read-only pendiente de autorizacion |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -91,18 +91,20 @@ F9.6 termina `COMPLETED` con resultado `H00_ALREADY_REMEDIATED_NO_DML`. La verif
 - H-00 sigue fuera del package promocionable y nunca se aplica en Pro.
 - Este cierre no certifica Free, no cambia `H1-CA2P` y no autoriza F9.7.
 
-## Dependencias Posteriores Sin Implementacion
+## Candidate Local Contractual F9.7
 
-F9.7 queda `ACTIVE_AWAITING_AUTHORIZATION`, pero no puede ejecutarse hasta que se planifiquen y aprueben, como minimo, estas dependencias de `H1-CA1` y `H1-CA2P`:
+La autorizacion local F9.7 implementa y valida el candidate sin acceder a Free/Pro:
 
-1. Migrar las lecturas backend desde identidad publica a identidad de servicio.
-2. Verificar que `leads` y `email_log` no tengan lectura publica.
-3. Restringir `INSERT` de `leads` por columnas permitidas.
-4. Aplicar schema/RLS por comportamiento semantico, no por un conteo nominal de policies.
-5. Aprobar y verificar resguardo/restore antes de DDL.
-6. Aprobar la pausa de writers como gate separado; la reanudacion no pertenece a F9.7.
+1. Conserva byte-identicas las cuatro migrations F6-F8 y agrega una unica closure F9.7 forward-only.
+2. Versiona `db/manifests/fase09_7_free_schema_rls.json` como descriptor schema v2 de cinco entradas exactas; Free y Pro permanecen bloqueados.
+3. Migra exclusivamente lectores backend automaticos FG1/FG2/FG3 a identidad de servicio fail-closed y conserva publishable en frontend/auditorias publicas.
+4. Codifica cierre de lectura publica de `leads`/`email_log`, `INSERT leads` por columnas y verificacion RLS/ACL semantica.
+5. Valida localmente PostgreSQL 17, rollback, replay, ledger, checksums, credenciales y frontend sin DDL/DML remoto.
+6. Excluye artifacts F9.5, H-00, backfill, Pro, canary persistente y datos operativos.
 
-El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por este cierre.
+Gate B debe verificar Free de forma pre-DDL/read-only y someter resguardo/restore y pausa de writers a aprobaciones humanas separadas. No aplica schema ni pausa writers. Un gate posterior, aun no definido ni autorizado, podra aplicar la migration exacta despues de esas aprobaciones.
+
+El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 
 El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 

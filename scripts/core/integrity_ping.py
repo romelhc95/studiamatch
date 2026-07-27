@@ -19,13 +19,16 @@ def run_integrity_ping():
     guard = TimeGuard(max_seconds=3600, logger=logger)
     logger.info("Iniciando Ping de Integridad Nivel 3...")
 
-    res = db.select('institutions', columns="count")
+    res = db.count_service_raise('institutions')
     logger.info(f"[CHECK] Instituciones en DB: {res}")
 
-    res = db.select('courses', columns="count")
+    res = db.count_service_raise('courses')
     logger.info(f"[CHECK] Cursos en DB: {res}")
 
-    res = db.select('courses', filters="is_active=eq.true&or=(syllabus.is.null,objectives.is.null)")
+    res = db.select_service_raise(
+        'courses',
+        filters="is_active=eq.true&or=(syllabus.is.null,objectives.is.null)",
+    )
     missing = len(res)
     logger.info(f"[ALERT] Cursos sin enriquecer: {missing}")
 
@@ -36,7 +39,11 @@ def run_integrity_ping():
 
     # Fase 73: Expiration check — desactivar cursos con start_date expirado (>90d)
     grace_cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
-    expired = db.select('courses', filters=f"start_date=lt.{grace_cutoff},is_active=eq.true", columns="id,name,start_date,start_date_text")
+    expired = db.select_service_raise(
+        'courses',
+        filters=f"start_date=lt.{grace_cutoff}&is_active=eq.true",
+        columns="id,name,start_date,start_date_text",
+    )
     expired_count = len(expired)
     if expired_count > 0:
         logger.info(f"⏰ [EXPIRED] {expired_count} cursos con start_date < {grace_cutoff} (90d gracia)")
@@ -48,7 +55,12 @@ def run_integrity_ping():
     else:
         logger.info("[OK] 0 cursos con fecha expirada")
 
-    courses = db.select_all('courses', filters="is_active=eq.true", columns="id,name,url,last_404_at", batch_size=1000)
+    courses = db.select_all_service(
+        'courses',
+        filters="is_active=eq.true",
+        columns="id,name,url,last_404_at",
+        batch_size=1000,
+    )
     total = len(courses)
     deactivated = 0
     flagged = 0

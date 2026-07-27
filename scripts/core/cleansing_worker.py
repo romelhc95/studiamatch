@@ -249,13 +249,14 @@ class CleansingWorker:
         if not hasattr(self, '_inst_websites'):
             self._inst_websites = {}
         if inst_id not in self._inst_websites:
-            try:
-                inst = self.db.select('institutions', filters=f'id=eq.{inst_id}', columns='website_url')
-                if inst and len(inst) > 0:
-                    self._inst_websites[inst_id] = inst[0].get('website_url', '') or ''
-                else:
-                    self._inst_websites[inst_id] = ''
-            except Exception:
+            inst = self.db.select_service_raise(
+                'institutions',
+                filters=f'id=eq.{inst_id}',
+                columns='website_url',
+            )
+            if inst and len(inst) > 0:
+                self._inst_websites[inst_id] = inst[0].get('website_url', '') or ''
+            else:
                 self._inst_websites[inst_id] = ''
         return self._inst_websites.get(inst_id, '')
 

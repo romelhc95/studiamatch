@@ -55,7 +55,7 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
 | `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
-| `F9.7` | Schema/RLS Free | `ACTIVE_AWAITING_AUTHORIZATION`; su primer gate es pre-DDL/read-only y debe congelar package/allowlist, verificar identidad/acceso y obtener aprobaciones separadas de resguardo y pausa; sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free | Candidate local contractual implementado; Gate B pre-DDL/read-only debe ligar Free, congelar commit/tree/package/allowlist, verificar identidad/acceso y obtener aprobaciones separadas de resguardo y pausa; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
@@ -123,12 +123,12 @@ No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. 
 4. La informacion vigente del plan temporal queda preservada en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
 5. La adopcion se completa solo con Context Graph, auditorias, CI, aprobacion humana y merge del PR exclusivamente documental.
 
-El prompt exacto para solicitar el primer gate pre-DDL de F9.7, solo despues del merge y validacion post-merge del cierre F9.6, sera:
+El prompt exacto para solicitar Gate B pre-DDL/read-only de F9.7, solo despues del merge y validacion post-merge del candidate local, sera:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.7
 
-Alcance exclusivo: ejecutar el Gate A pre-DDL y read-only de F9.7 unicamente en Free. Ligar el target Free; congelar package/commit/tree, allowlist positiva y stop conditions; verificar identidad backend de servicio, ausencia de lectura publica en leads/email_log, columnas permitidas de INSERT leads y drift semantico; identificar responsables de resguardo/restore y pausa de writers; y someter ambos mecanismos a aprobaciones humanas separadas. Registrar solo evidencia agregada y detenerse antes de pausar writers o aplicar DDL.
+Alcance exclusivo: ejecutar el Gate B pre-DDL y read-only de F9.7 unicamente en Free. Ligar el target Free; congelar package/commit/tree, allowlist positiva y stop conditions; verificar identidad backend de servicio, ausencia de lectura publica en leads/email_log, columnas permitidas de INSERT leads y drift semantico; identificar responsables de resguardo/restore y pausa de writers; y someter ambos mecanismos a aprobaciones humanas separadas. Registrar solo evidencia agregada y detenerse antes de pausar writers o aplicar DDL.
 
 No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-00, backfill, F9.8, ramas de certificacion/main ni produccion.
 ```

@@ -300,7 +300,7 @@ class _FakeDatabase:
         self.profiles = profiles
         self.dense_ids = set(dense_ids or [])
 
-    def select_raise(self, *args, **kwargs):
+    def select_service_raise(self, *args, **kwargs):
         return list(self.institutions)
 
     def select_pipeline_raise(self, *args, **kwargs):

@@ -14,7 +14,7 @@ El release es manual, secuencial y fail-closed. Un estado documental no sustituy
 6. Congelar un candidate inmutable con package, checksum, commit y tree verificables.
 7. Mantener F9.5 `COMPLETED_WITH_KNOWN_FINDINGS`; sus artifacts de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y T01 queda solo como antecedente documental.
 8. Conservar el [cierre F9.6](./cierre_h00_f9_6.md) `H00_ALREADY_REMEDIATED_NO_DML`: cohorte con PII directa remediada y conservada como pseudonimizada, Gate B DELETE sustituido, cero DML y nunca Pro.
-9. Iniciar F9.7 con un gate pre-DDL/read-only que congele package/allowlist y verifique identidad/acceso; resguardo-restauracion, pausa de writers y aplicacion schema/RLS conservan aprobaciones posteriores separadas.
+9. Conservar el candidate local contractual F9.7 y ejecutar Gate B pre-DDL/read-only para congelar commit/tree/package/allowlist y verificar identidad/acceso; resguardo-restauracion, pausa de writers y aplicacion schema/RLS conservan aprobaciones posteriores separadas.
 10. Aprobar el plan y despues ejecutar/certificar el backfill editorial Free de `H1-CA2P` bajo gates separados para evitar catalogo invisible.
 11. Promover por PR `feat/* -> desarrollo -> certificacion`; cada merge requiere review humano y CI.
 12. Ejecutar en Free ACL por rol, smoke FG2 sin fallback, canary del package exacto, cleanup idempotente y QA independiente; aceptar T04 solo con aprobacion final y alcanzar `free_certified`/`FREE_CERTIFIED`.
@@ -44,7 +44,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.3 conserva historia del contrato local. F9.4 reconcilia documentalmente el plan. F9.5 queda `COMPLETED_WITH_KNOWN_FINDINGS`; no se repite la lectura Free y sus artifacts no se promueven.
 - T01 queda `CONDITIONAL_ACCEPTED` como antecedente de F9.6, sin attestation tecnica ni capacidad heredada.
 - F9.6 cierra H-00 como `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE`.
-- F9.7 schema/RLS, F9.8 plan de backfill, F9.9 ejecucion de backfill y F9.10 certificacion Free son gates distintos; F9.7 queda activa sin autorizacion.
+- F9.7 schema/RLS, F9.8 plan de backfill, F9.9 ejecucion de backfill y F9.10 certificacion Free son gates distintos; F9.7 conserva candidate local y Gate B remoto sin autorizacion.
 - El orden obligatorio es readiness -> H-00 Free-only -> schema/RLS -> backfill -> certificacion final.
 - `free_certified` exige postcondiciones Free, RLS por rol, ledger/checksums, PostgREST, advisors y backfill separado certificado.
 - La macrofase F10 Produccion permanece bloqueada hasta cerrar F9 en `free_certified`.

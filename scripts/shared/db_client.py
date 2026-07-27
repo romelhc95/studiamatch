@@ -485,6 +485,34 @@ class DatabaseClient:
                     pass
         return 0
 
+    def count_service_raise(self, table, filters=None):
+        """Return an exact service count or raise when it cannot be proven."""
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code not in (200, 206):
+            raise DatabaseAPIError(
+                f"DB service count failed for {table}: HTTP {res.status_code}"
+            )
+        content_range = res.headers.get("Content-Range", "")
+        parts = content_range.split("/")
+        if len(parts) != 2 or not parts[1]:
+            raise DatabaseAPIError(
+                f"DB service count missing Content-Range for {table}"
+            )
+        try:
+            count = int(parts[1])
+        except ValueError as exc:
+            raise DatabaseAPIError(
+                f"DB service count invalid for {table}"
+            ) from exc
+        if count < 0:
+            raise DatabaseAPIError(f"DB service count invalid for {table}")
+        return count
+
     def delete(self, table, filters):
         """Delete records via Supabase REST API."""
         return self._delete_api(table, filters)

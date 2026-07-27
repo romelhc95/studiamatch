@@ -42,16 +42,15 @@ def load_sources():
         print(f"WARN: Failed to load config/institution_sources.json: {e}")
 
     # Fallback: try loading from institutions table
-    try:
-        existing = db.select_all('institutions', columns="name,website_url", order="name.asc")
-        if existing and len(existing) > 0:
-            sources = [{"name": r.get("name"), "url": r.get("website_url")}
-                       for r in existing if r.get("website_url")]
-            if len(sources) > 0:
-                print(f"INFO: Loaded {len(sources)} institutions from database")
-                return sources
-    except Exception as e:
-        print(f"WARN: Failed to load from institutions table: {e}")
+    existing = db.select_all_service(
+        'institutions', columns="name,website_url", order="name.asc"
+    )
+    if existing and len(existing) > 0:
+        sources = [{"name": r.get("name"), "url": r.get("website_url")}
+                   for r in existing if r.get("website_url")]
+        if len(sources) > 0:
+            print(f"INFO: Loaded {len(sources)} institutions from database")
+            return sources
 
     print("WARN: Using legacy hardcoded source list.")
     return LEGACY_SOURCES
@@ -65,7 +64,9 @@ def run_discovery():
     for inst in sources:
         # 1. Verificar si ya existe por dominio
         domain = inst['url'].replace('https://', '').replace('http://', '').split('/')[0]
-        res_check_data = db.select('institutions', filters=f"website_url=ilike.*{domain}*")
+        res_check_data = db.select_service_raise(
+            'institutions', filters=f"website_url=ilike.*{domain}*"
+        )
         
         if isinstance(res_check_data, list):
             if len(res_check_data) == 0:

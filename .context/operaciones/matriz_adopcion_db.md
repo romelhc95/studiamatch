@@ -30,7 +30,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva | Base funcional F6-F8; artifacts F9.5 no promocionables | `ledger_applied` y `source_unavailable` | Certificar base F6-F8; H-00 cerrado sin DML y backfill separado |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Evidencia identificable | Efectiva con drift pendiente de Gate B | Candidate local F6-F8 + closure F9.7; artifacts F9.5 no promocionables | `ledger_applied` y `source_unavailable` | Verificar candidate F9.7 read-only antes de DDL; H-00 cerrado sin DML y backfill separado |
 | Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | Promover solo package certificado y sin H-00 |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
 | G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |

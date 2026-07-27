@@ -753,7 +753,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 # Buscar el ID de la primera categoría válida
                 cat_name = suggested_cats[0] if isinstance(suggested_cats, list) else suggested_cats
                 safe_cat = re.sub(r'[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]', '', cat_name[:5]).strip()
-                res_cat = self.db.select('categories', filters=f"name=ilike.*{safe_cat}*") if safe_cat else None
+                res_cat = self.db.select_service_raise(
+                    'categories', filters=f"name=ilike.*{safe_cat}*"
+                ) if safe_cat else None
                 if res_cat: cat_id = res_cat[0]['id']
 
             # Sanitize duration_months: LLM may return 3.5 (float) but DB column is INT

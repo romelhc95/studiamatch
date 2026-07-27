@@ -78,7 +78,7 @@ def duration_months_to_hours(duration_months):
     return months * 160
 
 
-def lookup_market_salary(db, category_id, seniority_level):
+def _lookup_market_salary(select_rows, category_id, seniority_level):
     if not category_id:
         return None
 
@@ -86,7 +86,7 @@ def lookup_market_salary(db, category_id, seniority_level):
     if not column:
         return None
 
-    rows = db.select(
+    rows = select_rows(
         "market_salaries",
         filters=f"category_id=eq.{category_id}",
         columns=f"category_name,{column}",
@@ -95,6 +95,18 @@ def lookup_market_salary(db, category_id, seniority_level):
     if not rows:
         return None
     return coerce_float(rows[0].get(column))
+
+
+def lookup_market_salary(db, category_id, seniority_level):
+    """Look up salary through the public identity for public-surface tooling."""
+    return _lookup_market_salary(db.select, category_id, seniority_level)
+
+
+def lookup_market_salary_service(db, category_id, seniority_level):
+    """Look up salary through the explicit backend service identity."""
+    return _lookup_market_salary(
+        db.select_service_raise, category_id, seniority_level
+    )
 
 
 def adjust_salary_for_course_type(salary_base, course_type):
