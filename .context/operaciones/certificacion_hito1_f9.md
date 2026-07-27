@@ -12,7 +12,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Subfase activa: F9.7 `IN_PROGRESS`; Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: definir la remediacion de los findings Gate B bajo una autorizacion decimal exacta nueva.
+- Siguiente accion: fusionar y revalidar la definicion local; despues, definir y autorizar separadamente una atestacion read-only de origen ACL.
 
 ## Subfases
 
@@ -63,9 +63,13 @@ Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/
 
 [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md) ejecuto una unica consulta agregada mediante `supabase-free` y registro `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`. El ledger candidate quedo en un boundary vacio permitido sin colisiones ni entradas F9.5, y la postura de roles/service no mostro faltantes. Sin embargo, el acceso de superficies protegidas no cumplio el estado exigido; el gate se detuvo antes del runner HTTP, de aprobaciones de resguardo/pausa, writers o DDL. La autorizacion se consumio y no es reutilizable.
 
+### Definicion De Remediacion
+
+La [definicion local](./remediacion_gate_b_f9_7.md) congela el package existente sin modificar migrations y termina `REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION`. PostgreSQL 17 demuestra convergencia para las tres clases directas reducidas y rollback atomico ante policy desconocida o ACL heredada. Como Gate B no preservo el rol origen de cada ACL, la aplicacion queda bloqueada hasta una atestacion read-only futura, definida y autorizada separadamente. Los runbooks de restore y pausa son datos no ejecutables, sin approvals concedidas.
+
 ## Dependencias Posteriores
 
-Antes de aplicar la migration F9.7 deben aprobarse y verificarse resguardo/restore y pausa de writers. Gate B observa de forma read-only que la identidad backend de servicio, el acceso de `leads`/`email_log`, las columnas de `INSERT leads` y el comportamiento RLS remoto sean compatibles con el candidate local; cualquier drift detiene la ejecucion.
+Antes de aplicar la migration F9.7 deben atribuirse los origenes ACL, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 

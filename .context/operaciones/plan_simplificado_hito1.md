@@ -135,6 +135,8 @@ No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-0
 
 La autorizacion fue recibida y consumida por [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
 
+La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. Su estado `REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION` no autoriza repetir Gate B ni aplicar schema. La cobertura completa requiere una futura atestacion read-only de origen ACL con autorizacion nueva.
+
 ## Referencias
 
 - [Estado del proyecto](../estado_del_proyecto.md)

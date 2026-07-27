@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; Gate B F9.7 termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY` y toda remediacion requiere autorizacion nueva |
+| Fase vigente | Macrofase `F9` en progreso; definicion local F9.7 completada y bloqueada por atribucion ACL; toda atestacion o accion remota posterior requiere autorizacion nueva |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -105,6 +105,8 @@ La autorizacion local F9.7 implementa y valida el candidate sin acceder a Free/P
 Gate B debe verificar Free de forma pre-DDL/read-only y someter resguardo/restore y pausa de writers a aprobaciones humanas separadas. No aplica schema ni pausa writers. Un gate posterior, aun no definido ni autorizado, podra aplicar la migration exacta despues de esas aprobaciones.
 
 [EVID-F9.7-GATE-B-001](../../operaciones/gate_b_f9_7.md) ejecuto Gate B con una consulta Free agregada y termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`: el boundary candidate vacio fue permitido, pero el acceso de superficies protegidas activo stop conditions. El runner HTTP y las aprobaciones separadas de resguardo/restore y pausa quedaron `NOT_SUBMITTED_BLOCKED_BY_GATE_B_FAIL`; writers, DDL/DML, Pro y backfill permanecieron en cero.
+
+La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La closure converge localmente para drift directo, pero la cobertura remota completa queda `NOT_PROVEN_WITHOUT_NEW_SOURCE_ATTRIBUTION`; una ACL heredada desconocida produce rollback atomico. No hubo red, schema, migrations, DML, backup, restore ni control de writers.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 

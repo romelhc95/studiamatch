@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "phase": "F9.7",
+  "artifact_type": "BACKUP_RESTORE_RUNBOOK_DEFINITION",
+  "status": "DEFINED_NOT_APPROVED_NOT_EXECUTABLE",
+  "capabilities": [],
+  "commands": [],
+  "target_class": "FREE_ONLY_FUTURE_BINDING",
+  "blocked_targets": ["free", "pro"],
+  "state_machine": {
+    "initial": "PLANNED",
+    "states": [
+      "PLANNED",
+      "APPROVED",
+      "CREATED",
+      "INTEGRITY_ATTESTED",
+      "RESTORE_PROVEN"
+    ],
+    "required_terminal_state_before_schema_window": "RESTORE_PROVEN",
+    "current_state": "PLANNED"
+  },
+  "approval_classes": [
+    {
+      "decision": "backup_custody_approval",
+      "actor_class": "operation_owner",
+      "status": "required_not_granted"
+    },
+    {
+      "decision": "restore_evidence_approval",
+      "actor_class": "independent_human_reviewer",
+      "status": "required_not_granted"
+    }
+  ],
+  "scope": {
+    "database_schema": "required",
+    "database_data": "required",
+    "database_roles_and_grants": "required",
+    "migration_ledger": "required",
+    "operational_pii": "restricted_never_public_evidence"
+  },
+  "custody_controls": [
+    "encrypted_at_rest",
+    "access_limited_to_approved_operator_classes",
+    "retention_window_human_approved",
+    "location_outside_repository",
+    "non_reversible_integrity_digest",
+    "no_url_project_ref_key_private_path_or_row_in_public_evidence"
+  ],
+  "restore_proof": {
+    "destination": "isolated_non_free_non_pro_environment",
+    "network_binding": "none_or_explicitly_isolated",
+    "checks": [
+      "artifact_integrity_pass",
+      "schema_restore_pass",
+      "data_restore_pass",
+      "roles_and_grants_restore_pass",
+      "ledger_restore_pass",
+      "candidate_preconditions_read_only_pass"
+    ],
+    "rpo": "human_accepted_before_window",
+    "rto": "human_accepted_before_window"
+  },
+  "failure_matrix": [
+    {
+      "moment": "before_database_commit",
+      "required_action": "transaction_rollback",
+      "ledger_action": "no_append",
+      "writers_state": "unchanged_or_held"
+    },
+    {
+      "moment": "after_database_commit",
+      "required_action": "open_incident_and_hold_writers",
+      "allowed_recovery": ["forward_fix", "restore"],
+      "approval": "separate_emergency_human_gate_required"
+    }
+  ],
+  "public_evidence": [
+    "state",
+    "pass_fail",
+    "artifact_digest",
+    "approval_status_by_actor_class"
+  ],
+  "stop_conditions": [
+    "missing_or_ambiguous_free_target_binding",
+    "pro_binding_present",
+    "backup_not_encrypted_or_custody_unknown",
+    "integrity_digest_mismatch",
+    "restore_not_proven_in_isolation",
+    "rpo_or_rto_not_human_accepted",
+    "operation_owner_and_reviewer_not_independent",
+    "raw_identifier_secret_pii_row_or_private_location_would_be_logged",
+    "attempt_to_execute_command_from_this_definition",
+    "attempt_to_authorize_schema_or_writer_control"
+  ],
+  "explicitly_forbidden": [
+    "backup_execution",
+    "restore_execution",
+    "free_connection",
+    "pro_connection",
+    "schema_change",
+    "dml",
+    "writer_control",
+    "backfill"
+  ]
+}
