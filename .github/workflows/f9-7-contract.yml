@@ -5,14 +5,23 @@ on:
     paths:
       - 'db/manifests/fase09_7_free_schema_rls.json'
       - 'db/manifests/fase09_7_gate_b_readonly.json'
+      - 'db/manifests/fase09_7_remediation_definition.json'
+      - 'db/runbooks/fase09_7_backup_restore.json'
+      - 'db/runbooks/fase09_7_writer_pause.json'
+      - 'db/migrations/20260724_fase06_g1b_reconciliation.sql'
+      - 'db/migrations/20260724_fase06_hito1_editorial_contract.sql'
+      - 'db/migrations/20260725_fase07_g1b_closure.sql'
+      - 'db/migrations/20260725_fase08_hito1_functional_closure.sql'
       - 'db/migrations/20260727_fase09_7_public_access_closure.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
       - 'scripts/maintenance/fase09_7_gate_b_catalog_v1.sql'
-      - 'scripts/maintenance/fase09_7_gate_b_http.py'
       - 'tests/sql/fase09_7_*'
+      - 'tests/sql/fase08_minimal_baseline.sql'
+      - 'tests/sql/fase09_exec_sql_fixture.sql'
       - 'tests/sql/run_fase09_7_postgres.sh'
       - 'tests/test_fase09_7_backend_identity.py'
       - 'tests/test_fase09_7_gate_b_readonly.py'
+      - 'tests/test_fase09_7_remediation_definition.py'
       - 'tests/test_fase09_7_schema_rls.py'
       - 'tests/test_supabase_credentials_contract.py'
       - '.github/workflows/fg1_inventory.yml'
@@ -24,6 +33,8 @@ on:
       - 'scripts/maintenance/taxonomy_roi_audit.py'
       - 'scripts/shared/**'
       - 'requirements-pipeline.txt'
+      - 'requirements-db-migrate.txt'
+      - 'requirements-test.txt'
       - '.github/workflows/f9-7-contract.yml'
   push:
     branches: [desarrollo]
@@ -100,6 +111,7 @@ jobs:
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
              tests/test_fase09_7_backend_identity.py \
              tests/test_fase09_7_gate_b_readonly.py \
+             tests/test_fase09_7_remediation_definition.py \
              tests/test_fase09_7_schema_rls.py \
              tests/test_supabase_credentials_contract.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \

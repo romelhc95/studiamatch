@@ -49,6 +49,10 @@ GATE_B_QUERY="$ROOT/scripts/maintenance/fase09_7_gate_b_catalog_v1.sql"
 
 command -v psql >/dev/null
 command -v python3 >/dev/null
+server_version_num="$(psql -X --quiet --tuples-only --no-align \
+  --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  'SHOW server_version_num;' | tr -d '[:space:]')"
+[[ "$server_version_num" -ge 170000 && "$server_version_num" -lt 180000 ]]
 
 mapfile -t migrations < <(
   python3 - "$MANIFEST" <<'PY'
@@ -102,6 +106,7 @@ FROM pg_catalog.pg_roles AS role
 WHERE role.rolname IN (
     'anon', 'authenticated', 'service_role', 'fase097_policy_parent',
     'fase097_private_reader', 'fase097_courses_parent',
+    'fase097_inherited_reader',
     'fase097_insert_parent'
 )
 ORDER BY role.rolname
@@ -111,6 +116,7 @@ FROM pg_catalog.pg_roles AS role
 WHERE role.rolname IN (
     'anon', 'authenticated', 'service_role', 'fase097_policy_parent',
     'fase097_private_reader', 'fase097_courses_parent',
+    'fase097_inherited_reader',
     'fase097_insert_parent'
 )
 ORDER BY role.rolname
@@ -254,6 +260,18 @@ FROM catalog_rows;
 SQL
 }
 
+gate_b_row() {
+  local output
+  local -a rows
+  output="$(
+    psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+      "$TEST_DATABASE_URL" --file "$GATE_B_QUERY"
+  )"
+  mapfile -t rows <<< "$output"
+  [[ ${#rows[@]} -eq 1 ]]
+  printf '%s\n' "${rows[0]}"
+}
+
 # Accepted immutable predecessor boundaries converge to the same five entries.
 for prefix_size in 3 4; do
   setup_database
@@ -264,10 +282,35 @@ for prefix_size in 3 4; do
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
     "INSERT INTO public.supabase_migrations (version, name, statements, applied_at) VALUES (20260101000000, '20260101_unrelated_history', 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', pg_catalog.clock_timestamp());" \
     >/dev/null
+  if [[ "$prefix_size" -eq 4 ]]; then
+    before_direct_repair="$(gate_b_row)"
+    IFS='|' read -r -a before_fields <<< "$before_direct_repair"
+    [[ ${#before_fields[@]} -eq 37 ]]
+    [[ "${before_fields[2]}" == "4" ]]
+    [[ "${before_fields[33]}" == "f" ]]
+    [[ "${before_fields[34]}" == "f" ]]
+    [[ "${before_fields[35]}" == "f" ]]
+    [[ "${before_fields[36]}" == "f" ]]
+    [[ "${before_fields[24]}" -gt 0 ]]
+    [[ "${before_fields[25]}" -gt 0 ]]
+  fi
   plan_manifest "$((5 - prefix_size))" "$package_wrapper"
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$package_wrapper" >/dev/null
   plan_manifest 0
+  if [[ "$prefix_size" -eq 4 ]]; then
+    after_direct_repair="$(gate_b_row)"
+    IFS='|' read -r -a after_fields <<< "$after_direct_repair"
+    [[ ${#after_fields[@]} -eq 37 ]]
+    [[ "${after_fields[2]}" == "5" ]]
+    [[ "${after_fields[24]}" == "0" ]]
+    [[ "${after_fields[25]}" == "0" ]]
+    [[ "${after_fields[30]}" == "0" ]]
+    [[ "${after_fields[33]}" == "t" ]]
+    [[ "${after_fields[34]}" == "t" ]]
+    [[ "${after_fields[35]}" == "t" ]]
+    [[ "${after_fields[36]}" == "t" ]]
+  fi
   unrelated_state="$(psql -X --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
     "SELECT statements FROM public.supabase_migrations WHERE name = '20260101_unrelated_history';" | tr -d '[:space:]')"
@@ -301,35 +344,59 @@ replay_state="$({
 } | tail -n 1 | tr -d '[:space:]')"
 [[ "$replay_state" == "t" ]]
 plan_manifest 0
-gate_b_output="$(
-  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
-    "$TEST_DATABASE_URL" --file "$GATE_B_QUERY"
-)"
-mapfile -t gate_b_rows <<< "$gate_b_output"
-[[ ${#gate_b_rows[@]} -eq 1 ]]
-[[ "${gate_b_rows[0]##*|}" == "t" ]]
+gate_b_output="$(gate_b_row)"
+[[ "${gate_b_output##*|}" == "t" ]]
 
-# Unknown policy drift makes the final semantic verifier roll back schema and ledger.
+# Unknown F9.7 policy drift at prefix four rolls back schema and ledger.
 setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix4_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
-  'CREATE POLICY fase097_atomic_fault ON public.leads FOR SELECT TO PUBLIC USING (true);' \
+  'CREATE POLICY fase097_atomic_fault ON public.email_log FOR SELECT TO PUBLIC USING (true);' \
   >/dev/null
-plan_manifest 5 "$package_wrapper"
 before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
 if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
   --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
   exit 1
 fi
-grep -Fq 'Postcondicion fallida: 20260725_fase08_hito1_functional_closure' \
+grep -Fq 'Postcondicion fallida: 20260727_fase09_7_public_access_closure' \
   "$failure_log"
 after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
 [[ "$before_rollback" == "$after_rollback" ]]
 rollback_state="$({
   psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
     "$TEST_DATABASE_URL" --command \
-    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations) = 0 AND pg_catalog.to_regprocedure('public.verify_fase09_7_public_access_closure()') IS NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND policyname = 'fase097_atomic_fault');"
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 4 AND pg_catalog.to_regprocedure('public.verify_fase09_7_public_access_closure()') IS NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_policies WHERE schemaname = 'public' AND policyname = 'fase097_atomic_fault');"
 } | tr -d '[:space:]')"
 [[ "$rollback_state" == "t" ]]
+
+# An inherited ACL source not attributable by the consumed evidence is not
+# silently repaired; the exact package fails closed and preserves prefix four.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix4_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" >/dev/null <<'SQL'
+CREATE ROLE fase097_inherited_reader NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+GRANT fase097_inherited_reader TO anon;
+GRANT SELECT ON public.leads TO fase097_inherited_reader;
+SQL
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'Postcondicion fallida: 20260727_fase09_7_public_access_closure' \
+  "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+inherited_rollback_state="$({
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 4 AND pg_catalog.to_regprocedure('public.verify_fase09_7_public_access_closure()') IS NULL AND pg_catalog.has_table_privilege('anon', 'public.leads', 'SELECT');"
+} | tr -d '[:space:]')"
+[[ "$inherited_rollback_state" == "t" ]]
 
 reset_database
 result=0
