@@ -26,6 +26,7 @@
 - [Evidencia historica F9.2 - package FASE-10](operaciones/promocion_hito1_f10.md)
 - [Definicion remota F9.4 sustituida y no autorizable](operaciones/preflight_free_f9_4.md)
 - [Registro historico F9.5](operaciones/preflight_free_f9_5.md)
+- [Cierre H-00 F9.6](operaciones/cierre_h00_f9_6.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
 ## Alcance Y Trabajo
@@ -49,6 +50,7 @@
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
 - [Changelog 2026-07-26](changelog/2026-07-26.md)
+- [Changelog 2026-07-27](changelog/2026-07-27.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad

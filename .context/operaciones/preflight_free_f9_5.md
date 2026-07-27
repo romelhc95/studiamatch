@@ -53,15 +53,15 @@ La evidencia recuperada del backup local en cuarentena confirma que el contrato 
 - Limite: `created_at = cutoff` pertenece a post-cutoff. Un timestamp nulo o una particion donde pre-cutoff + post-cutoff no iguale el total falla cerrado.
 - Identidad: no existe identidad individual en la evidencia recuperada ni como input autorizado. Se prohiben UUID, lead ID, email, nombre, manifest, lista o evidencia por fila.
 - Evidencia autorizada: exactamente cuatro conteos agregados, sin campos adicionales.
-- PASS: `leads_total = 3`, `leads_pre_cutoff = 3`, `leads_post_cutoff = 0` y `email_log_total = 0`.
+- PASS: los cuatro conteos coinciden con el shape agregado aprobado, cuyos valores se conservan solo en evidencia privada.
 - Cualquier valor, campo, cutoff o shape diferente produce `FREE_PREFLIGHT_FAIL`.
-- Un resultado inicial `already_absent`/`0/0/0/0` puede describir un no-op, pero no demuestra la precondicion aprobada y no es PASS F9.5.
+- Un resultado inicial vacio puede describir un no-op, pero no demuestra la precondicion aprobada y no es PASS F9.5.
 
-DB-only significa que la base deriva la cohorte desde el cutoff sin identidades aportadas por el cliente. Este antecedente no ejecuta F9.6: F9.6 requiere backup aprobado, revalidacion `3/3/0/0`, eliminacion transaccional y verificacion `3 -> 0` con autorizacion propia.
+DB-only significa que la base deriva la cohorte desde el cutoff sin identidades aportadas por el cliente. Este antecedente no ejecuto F9.6 y conserva solo la definicion entonces prevista; el cierre posterior F9.6 sustituyo la rama de eliminacion al verificar la remediacion historica y cerrar sin DML.
 
 ## Registro De Evidencia Y Stop Conditions
 
-La evidencia privada se mantiene bajo `.context/artifacts/private/f9_5/` y no se versiona. El cierre publico solo puede registrar commit, tree, package, los cuatro conteos H-00, checks y resultado. Nunca publica project URL/ref, SQL response raw, filas, UUIDs, PII, policies completas, DSN, keys o findings explotables.
+La evidencia privada se mantiene fuera de Git. El cierre publico solo puede registrar commit, tree, package, checks y resultado sanitizado, sin valores de conteos H-00. Nunca publica project URL/ref, SQL response raw, filas, UUIDs, PII, policies completas, DSN, keys o findings explotables.
 
 Target ambiguo, PII o identidad individual, tool no permitida o cualquier escritura detienen inmediatamente la ejecucion. Los mismatches tecnicos restantes, incluidos package/checksum, ledger, catalogos, ACL, RPC, conflictos, H-00, backup y writers, se registran de forma sanitizada y no impiden completar los demas checks read-only seguros. La ejecucion emite exactamente un resultado consolidado `FREE_PREFLIGHT_PASS` o `FREE_PREFLIGHT_FAIL`; nunca emite resultados intermedios ni respuestas raw.
 
@@ -83,7 +83,7 @@ La evidencia detallada se conserva exclusivamente en el artifact privado ignorad
 - Se reconciliaron read-only los artifacts H-00 recuperados del backup local autorizado.
 - Se preservaron provenance y digests en un artifact privado nuevo; el FAIL anterior no fue editado.
 - Se retiro el requisito de manifest/predicado privado con UUID o identidad individual.
-- Se adopto el cutoff exacto y el PASS agregado `3/3/0/0` definidos arriba.
+- Se adopto el cutoff exacto y el shape PASS agregado preservado solo en evidencia privada.
 - No se accedio a Free/Pro, no se cargaron secrets y no se ejecuto SQL, DDL, DML, migration, H-00, backup, pausa de writers o backfill.
 - La remediacion quedo registrada como antecedente despues de CI, review y merge del PR documental; el cierre actual no la mantiene vigente ni promocionable.
 

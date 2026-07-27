@@ -7,9 +7,9 @@
 - Decision humana: conservar F8, no restaurar F7 y simplificar F9.
 - Fecha de decision: 2026-07-26.
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
-- Entrada en vigor: adoptado en F9.4 y reconciliado por el cierre documental F9.5 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
+- Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
 
-La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`; su registro es historico y no autoriza una nueva lectura Free.
+La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion.
 
 ## Dictamen
 
@@ -30,7 +30,7 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 
 - Baseline: conservar F8 y las correcciones posteriores validas.
 - Fecha contractual: 2026-07-27 a las 09:00 PET.
-- H-00: P0 Free-only separado, obligatorio antes de `FREE_CERTIFIED` pero no criterio contractual. Solo puede ejecutar backup aprobado, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada con autorizacion DML propia; el conteo no selecciona datos.
+- H-00: P0 Free-only separado, obligatorio antes de `FREE_CERTIFIED` pero no criterio contractual. [F9.6](./cierre_h00_f9_6.md) verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
@@ -54,8 +54,8 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 |---|---|---|
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
-| `F9.6` | P0 H-00 Free-only | Backup y predicado privado inmutable aprobados, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada; Pro prohibido |
-| `F9.7` | Schema/RLS Free | Requiere primero identidad backend de servicio, ausencia de lectura publica en `leads`/`email_log`, `INSERT leads` por columnas y verificacion semantica; sin H-00 ni backfill |
+| `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
+| `F9.7` | Schema/RLS Free | `ACTIVE_AWAITING_AUTHORIZATION`; su primer gate es pre-DDL/read-only y debe congelar package/allowlist, verificar identidad/acceso y obtener aprobaciones separadas de resguardo y pausa; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
@@ -70,7 +70,7 @@ Cada subfase decimal conserva autorizacion exacta, allowlist, stop conditions, r
 
 ## Simplificacion De F9
 
-F9.4 no implementa el borrador staged. F9.5 se cierra documentalmente sin repetir su preflight: los findings y artifacts de PR #245/#247 permanecen historicos no promocionables. F6-F8 conservan el unico package funcional contractual y F9.6 queda definida de forma separada para H-00.
+F9.4 no implementa el borrador staged. F9.5 se cierra documentalmente sin repetir su preflight: los findings y artifacts de PR #245/#247 permanecen historicos no promocionables. F6-F8 conservan el unico package funcional contractual. F9.6 cierra H-00 con PII directa ya remediada y cohorte pseudonimizada; F9.7 queda definida separadamente para schema/RLS Free.
 
 Quedan fuera del critical path:
 
@@ -88,9 +88,9 @@ Los archivos F9.5 ya creados se conservan como historia tecnica, pero no gobiern
 
 1. Mantener F6-F8 congelada como base funcional contractual y evitar cambios no ligados a un CA.
 2. Conservar F9.5 y sus artifacts como historia `HISTORICAL_NON_PROMOTABLE`, sin repetir la lectura Free ni crear un package sucesor.
-3. Usar `T01_CONDITIONAL_ACCEPTED` solo para sostener la definicion de F9.6; no habilita ejecucion ni schema.
-4. En F9.6, con autorizacion propia y predicado privado inmutable aprobado, verificar backup, revalidar el contrato counts-only, ejecutar la eliminacion transaccional y verificar la postcondicion agregada; Pro permanece sin cambios.
-5. Antes de F9.7, resolver las dependencias de identidad backend, lecturas publicas, columnas de `leads` y comportamiento semantico RLS.
+3. Conservar `T01_CONDITIONAL_ACCEPTED` como antecedente documental de F9.6; no habilita schema ni nuevas operaciones.
+4. Registrar F9.6 `H00_ALREADY_REMEDIATED_NO_DML`: PII directa remediada en la cohorte pseudonimizada, Gate B DELETE sustituido, cero DML y Pro sin acceso.
+5. En F9.7, resolver bajo autorizacion propia resguardo/restore, pausa de writers, identidad backend, lecturas publicas, columnas de `leads` y comportamiento semantico RLS antes de aplicar schema/T02.
 6. Aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible.
 7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente.
 8. Promover `desarrollo -> certificacion` solo con Free certificada.
@@ -111,7 +111,7 @@ No se entregan artifacts privados, identificadores operativos, filas, PII, endpo
 
 ## Fecha Contractual Y Estado De Release
 
-La fecha contractual es 2026-07-27 a las 09:00 PET. El estado observado al aprobar este plan es `NO-GO` porque Free no esta certificada, H-00 sigue pendiente, schema/backfill no fueron ejecutados bajo el candidate vigente, `certificacion`/`main` no contienen F7-F9 y quedan CI/reviews/aprobaciones humanas.
+La fecha contractual es 2026-07-27 a las 09:00 PET. El estado sigue `NO-GO` porque Free no esta certificada: H-00 cerro sin DML, pero schema/backfill no fueron ejecutados bajo el candidate vigente, `certificacion`/`main` no contienen F7-F9 y quedan CI/reviews/aprobaciones humanas.
 
 No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. Si la fecha no puede cumplirse, corresponde entregar un informe de avance y acordar por escrito una reprogramacion; Hito 1 no puede presentarse como completado antes del release productivo y su evidencia.
 
@@ -123,14 +123,14 @@ No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. 
 4. La informacion vigente del plan temporal queda preservada en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
 5. La adopcion se completa solo con Context Graph, auditorias, CI, aprobacion humana y merge del PR exclusivamente documental.
 
-El prompt exacto para solicitar F9.6, solo despues del merge documental de este cierre, sera:
+El prompt exacto para solicitar el primer gate pre-DDL de F9.7, solo despues del merge y validacion post-merge del cierre F9.6, sera:
 
 ```text
-Ejecuta las tareas pendientes de la Fase F9.6
+Ejecuta las tareas pendientes de la Fase F9.7
 
-Alcance exclusivo: ejecutar el P0 H-00 unicamente en Free. Antes de DML, ligar fuera de Git el target Free, backup aprobado, predicado inmutable aprobado, verificador humano y allowlist positiva minima de tools/consultas. Luego revalidar el shape counts-only exacto 3/3/0/0, ejecutar la eliminacion transaccional de la cohorte confirmada y verificar 3 -> 0.
+Alcance exclusivo: ejecutar el Gate A pre-DDL y read-only de F9.7 unicamente en Free. Ligar el target Free; congelar package/commit/tree, allowlist positiva y stop conditions; verificar identidad backend de servicio, ausencia de lectura publica en leads/email_log, columnas permitidas de INSERT leads y drift semantico; identificar responsables de resguardo/restore y pausa de writers; y someter ambos mecanismos a aprobaciones humanas separadas. Registrar solo evidencia agregada y detenerse antes de pausar writers o aplicar DDL.
 
-No autoriza Pro, secrets, schema, migrations, DML fuera de H-00, writers, backfill, F9.7, promocion de ramas ni produccion.
+No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-00, backfill, F9.8, ramas de certificacion/main ni produccion.
 ```
 
 ## Referencias

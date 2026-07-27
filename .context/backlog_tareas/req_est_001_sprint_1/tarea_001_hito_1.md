@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.5 `COMPLETED_WITH_KNOWN_FINDINGS`; F9.6 P0 H-00 `ACTIVE_AWAITING_AUTHORIZATION` |
+| Fase vigente | Macrofase `F9` en progreso; F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`; F9.7 `ACTIVE_AWAITING_AUTHORIZATION` |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -77,22 +77,34 @@ F9.5 termina `COMPLETED_WITH_KNOWN_FINDINGS`. Los intentos y remediaciones local
 
 - Todos los artifacts F9.5 introducidos por PR #245 y PR #247 quedan `HISTORICAL_NON_PROMOTABLE`. Se conservan fisicamente para trazabilidad, sin integrarlos al package contractual, a F9.7 ni a una ruta de aplicacion.
 - F6-F8 permanecen como la unica base funcional contractual de Hito 1. Los artifacts F9.5 no sustituyen, amplian ni promocionan esa base.
-- `T01_CONDITIONAL_ACCEPTED` es una decision documental sin attestation tecnica nueva. Su unico efecto es habilitar la definicion de F9.6; no autoriza ejecutar F9.6, aplicar schema, crear migrations, ejecutar F9.7 ni promover ramas.
+- Al cerrar F9.5, `T01_CONDITIONAL_ACCEPTED` fue una decision documental sin attestation tecnica nueva y habilito solo la definicion entonces futura de F9.6; nunca autorizo schema, migrations, F9.7 ni ramas.
 - `H-00` es un P0 separado y obligatorio antes de `FREE_CERTIFIED`, pero no es un criterio contractual de `HITO-001`.
-- F9.6 no puede seleccionar ni eliminar datos por un conteo publico: la futura autorizacion debe aportar fuera de Git target Free ligado, backup y predicado inmutable aprobados, verificador humano y allowlist positiva minima de tools/consultas. Si falta cualquiera de ellos, la subfase falla cerrada.
+- La definicion inicial F9.6 exigia backup y predicado antes de una posible eliminacion. Esa rama quedo sustituida al cerrar F9.6 sin DML despues de verificar la remediacion historica de PII directa; los intentos de backup no se reclasifican como PASS.
+
+## Cierre F9.6 - H-00 Ya Remediado
+
+F9.6 termina `COMPLETED` con resultado `H00_ALREADY_REMEDIATED_NO_DML`. La verificacion sanitizada [EVID-F9.6-H00-001](../../operaciones/cierre_h00_f9_6.md) confirmo la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Seguridad y calidad de datos revisaron la cadena de evidencia en GO.
+
+- Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`; no se elimino ni modifico ninguna fila.
+- La cohorte tiene PII directa remediada y se conserva como pseudonimizada. El data owner acepta el riesgo residual de vinculabilidad de UUID y metadatos dentro de Free restringido; no autoriza correlacionarlos con Pro. F9.7 debe verificar ausencia de lectura publica y F11 revaluar su retencion.
+- No hubo DELETE, UPDATE, INSERT, backup valido, acceso Pro, schema, migrations, writers ni backfill.
+- H-00 sigue fuera del package promocionable y nunca se aplica en Pro.
+- Este cierre no certifica Free, no cambia `H1-CA2P` y no autoriza F9.7.
 
 ## Dependencias Posteriores Sin Implementacion
 
-F9.7 no puede definirse como ejecutable hasta que se planifiquen y aprueben, como minimo, estas dependencias de `H1-CA1` y `H1-CA2P`:
+F9.7 queda `ACTIVE_AWAITING_AUTHORIZATION`, pero no puede ejecutarse hasta que se planifiquen y aprueben, como minimo, estas dependencias de `H1-CA1` y `H1-CA2P`:
 
 1. Migrar las lecturas backend desde identidad publica a identidad de servicio.
 2. Verificar que `leads` y `email_log` no tengan lectura publica.
 3. Restringir `INSERT` de `leads` por columnas permitidas.
 4. Aplicar schema/RLS por comportamiento semantico, no por un conteo nominal de policies.
+5. Aprobar y verificar resguardo/restore antes de DDL.
+6. Aprobar la pausa de writers como gate separado; la reanudacion no pertenece a F9.7.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por este cierre.
 
-El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). La definicion P0 de F9.6 vive en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
+El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 
 ## Allowlist De Implementacion
 
@@ -127,7 +139,7 @@ La allowlist ejecutada del alias historico `FASE-10` vive exclusivamente en [Con
 - La adopcion se decide desde la [matriz DB](../../operaciones/matriz_adopcion_db.md), no desde evidencia historica.
 - El frontend debe ser compatible con las superficies que el contrato aprobado retire.
 
-H-00 no forma parte del paquete promocionable. Es DML Free-only, con autorizacion separada, respaldo remoto previo, counts-only y verificacion independiente antes de `FREE_CERTIFIED`. Nunca se aplica en Pro.
+H-00 no forma parte del paquete promocionable. F9.6 verifico la remediacion historica de PII directa y la conservacion pseudonimizada, y cerro sin DML como `H00_ALREADY_REMEDIATED_NO_DML`; nunca se aplica en Pro.
 
 ## Criterio De Salida
 
