@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "phase": "F9.7",
+  "gate": "GATE_B_PRE_DDL_READ_ONLY",
+  "target": "free",
+  "status": "frozen_for_read_only_execution",
+  "candidate": {
+    "package_id": "F9.7-PUBLIC-ACCESS-CLOSURE-20260727",
+    "base_commit": "f7b808f38d9a554932a8ae3547891a1a052d26e1",
+    "reviewed_head_commit": "71868c62db3cf6a8303cdc117e834c11db282011",
+    "reviewed_tree": "e08acc3f136ea9fd6a0d3c01def20d2a42542d13",
+    "merge_commit": "3e18ec7ad2d2304179a0ce979b854db73e33d883",
+    "manifest_canonical_sha256": "5d32ed2c977c59c38d56948e687ba2b05ecd9ad8b2d3f5752cce3a9836889de3",
+    "closure_sha256": "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b"
+  },
+  "target_binding": {
+    "mcp_server": "supabase-free",
+    "origin_env": "NEXT_PUBLIC_SUPABASE_URL",
+    "publishable_env": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "service_env": "NEXT_SUPABASE_SECRET_KEY",
+    "expected_fingerprint_env": "F9_7_EXPECTED_FREE_TARGET_FINGERPRINT",
+    "algorithm": "studiamatch-gate-b-target-v1",
+    "comparison": "constant_time",
+    "forbid_pro_env": true
+  },
+  "positive_tool_allowlist": [
+    {
+      "tool": "supabase-free.execute_sql",
+      "max_calls": 1,
+      "query_id": "F9.7-GATE-B-CATALOG-V1",
+      "path": "scripts/maintenance/fase09_7_gate_b_catalog_v1.sql",
+      "canonical_sha256": "b7fc2e6485865ccbf91750a95a186f8e0468d9e8286a9b630af6780e054a8448",
+      "cardinality": 1,
+      "shape": "fixed_scalar_aggregate_row"
+    }
+  ],
+  "positive_http_allowlist": {
+    "runner": "scripts/maintenance/fase09_7_gate_b_http.py",
+    "runner_canonical_sha256": "eea58a8ee28de70bba330fe125416060624b564ede1281a7bc08899d18b0fc41",
+    "method": "GET",
+    "origin_binding": "private_free_origin_only",
+    "paths": [
+      "/rest/v1/courses?select=id&limit=0",
+      "/rest/v1/leads?select=id&limit=0",
+      "/rest/v1/email_log?select=id&limit=0"
+    ],
+    "identities": ["publishable", "service"],
+    "max_calls_per_identity_and_path": 1,
+    "record": ["identity_class", "path_id", "status_class", "content_range_present"],
+    "forbid_response_body": true,
+    "expected_results": {
+      "publishable": {
+        "courses": ["success", true],
+        "leads": ["denied", false],
+        "email_log": ["denied", false]
+      },
+      "service": {
+        "courses": ["success", true],
+        "leads": ["success", true],
+        "email_log": ["success", true]
+      }
+    }
+  },
+  "allowed_evidence": [
+    "pass_fail",
+    "fixed_catalog_counts",
+    "non_reversible_target_fingerprint",
+    "candidate_and_query_digests",
+    "http_status_class",
+    "content_range_presence",
+    "approval_request_ids"
+  ],
+  "stop_conditions": [
+    "target_binding_mismatch_or_ambiguity",
+    "missing_or_reused_free_credentials",
+    "secret_or_operational_identifier_would_be_logged",
+    "query_or_http_request_not_byte_exact_allowlisted",
+    "candidate_commit_tree_package_or_digest_mismatch",
+    "ledger_boundary_gap_collision_or_historical_f9_5_entry",
+    "missing_relation_column_role_or_rls",
+    "unexpected_owner_role_membership_policy_or_acl",
+    "public_read_on_leads_or_email_log",
+    "leads_insert_columns_not_exact",
+    "service_identity_cannot_read_both_protected_tables",
+    "any_ddl_dml_rpc_lock_copy_call_set_or_writer_control",
+    "any_pro_tool_origin_key_or_data",
+    "raw_row_pii_uuid_url_key_policy_expression_or_query_text_in_evidence"
+  ],
+  "separate_human_approvals": {
+    "operation_owner": "romelhc95",
+    "reviewer": "romelhc95-approver",
+    "backup_restore": "required_not_granted",
+    "writers_pause": "required_not_granted",
+    "separate_artifacts_required": true
+  },
+  "explicitly_forbidden": [
+    "supabase-pro",
+    "apply_migration",
+    "database_mutation",
+    "schema_change",
+    "writer_pause_or_resume",
+    "h00",
+    "backfill",
+    "f9_8",
+    "certificacion",
+    "main",
+    "production"
+  ]
+}
