@@ -45,6 +45,7 @@ ACCESS_FIXTURE="$ROOT/tests/sql/fase09_7_access_fixture.sql"
 EXEC_FIXTURE="$ROOT/tests/sql/fase09_exec_sql_fixture.sql"
 FUNCTIONAL="$ROOT/tests/sql/fase09_7_functional_test.sql"
 CLOSURE="$ROOT/db/migrations/20260727_fase09_7_public_access_closure.sql"
+GATE_B_QUERY="$ROOT/scripts/maintenance/fase09_7_gate_b_catalog_v1.sql"
 
 command -v psql >/dev/null
 command -v python3 >/dev/null
@@ -300,6 +301,13 @@ replay_state="$({
 } | tail -n 1 | tr -d '[:space:]')"
 [[ "$replay_state" == "t" ]]
 plan_manifest 0
+gate_b_output="$(
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --file "$GATE_B_QUERY"
+)"
+mapfile -t gate_b_rows <<< "$gate_b_output"
+[[ ${#gate_b_rows[@]} -eq 1 ]]
+[[ "${gate_b_rows[0]##*|}" == "t" ]]
 
 # Unknown policy drift makes the final semantic verifier roll back schema and ledger.
 setup_database

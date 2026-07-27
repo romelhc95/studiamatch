@@ -133,6 +133,8 @@ Alcance exclusivo: ejecutar el Gate B pre-DDL y read-only de F9.7 unicamente en 
 No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-00, backfill, F9.8, ramas de certificacion/main ni produccion.
 ```
 
+La autorizacion fue recibida y consumida por [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
+
 ## Referencias
 
 - [Estado del proyecto](../estado_del_proyecto.md)

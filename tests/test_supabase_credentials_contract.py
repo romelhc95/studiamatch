@@ -138,6 +138,7 @@ APPROVED_BEARERS = {
 DIRECT_SUPABASE_CONSUMERS = {
     ".github/workflows/security-audit.yml": "supabase-ci",
     "tests/test_fase09_7_backend_identity.py": "supabase-data-api-test",
+    "tests/test_fase09_7_gate_b_readonly.py": "supabase-data-api-test",
     "tests/test_fase09_7_schema_rls.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
@@ -163,6 +164,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/diag_pro.py": "supabase-data-api",
     "scripts/maintenance/diag_schema_diff.py": "supabase-data-and-management-api",
     "scripts/maintenance/diagnose_pro_db.py": "supabase-data-api",
+    "scripts/maintenance/fase09_7_gate_b_http.py": "supabase-data-api",
     "scripts/maintenance/fase62_update_profiles.py": "supabase-data-api",
     "scripts/maintenance/fase62b_create_pucp_and_sync_pro.py": "supabase-data-api",
     "scripts/maintenance/fase74_seed_pro.py": "supabase-data-api",

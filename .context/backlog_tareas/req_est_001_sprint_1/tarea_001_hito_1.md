@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.7 tiene candidate local contractual y Gate B pre-DDL/read-only pendiente de autorizacion |
+| Fase vigente | Macrofase `F9` en progreso; Gate B F9.7 termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY` y toda remediacion requiere autorizacion nueva |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -103,6 +103,8 @@ La autorizacion local F9.7 implementa y valida el candidate sin acceder a Free/P
 6. Excluye artifacts F9.5, H-00, backfill, Pro, canary persistente y datos operativos.
 
 Gate B debe verificar Free de forma pre-DDL/read-only y someter resguardo/restore y pausa de writers a aprobaciones humanas separadas. No aplica schema ni pausa writers. Un gate posterior, aun no definido ni autorizado, podra aplicar la migration exacta despues de esas aprobaciones.
+
+[EVID-F9.7-GATE-B-001](../../operaciones/gate_b_f9_7.md) ejecuto Gate B con una consulta Free agregada y termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`: el boundary candidate vacio fue permitido, pero el acceso de superficies protegidas activo stop conditions. El runner HTTP y las aprobaciones separadas de resguardo/restore y pausa quedaron `NOT_SUBMITTED_BLOCKED_BY_GATE_B_FAIL`; writers, DDL/DML, Pro y backfill permanecieron en cero.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 
