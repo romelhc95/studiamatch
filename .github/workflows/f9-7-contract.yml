@@ -6,6 +6,7 @@ on:
       - 'db/manifests/fase09_7_free_schema_rls.json'
       - 'db/manifests/fase09_7_gate_b_readonly.json'
       - 'db/manifests/fase09_7_remediation_definition.json'
+      - 'db/manifests/fase09_7_acl_source_attestation.json'
       - 'db/runbooks/fase09_7_backup_restore.json'
       - 'db/runbooks/fase09_7_writer_pause.json'
       - 'db/migrations/20260724_fase06_g1b_reconciliation.sql'
@@ -15,11 +16,13 @@ on:
       - 'db/migrations/20260727_fase09_7_public_access_closure.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
       - 'scripts/maintenance/fase09_7_gate_b_catalog_v1.sql'
+      - 'scripts/maintenance/fase09_7_acl_source_attestation.sql'
       - 'tests/sql/fase09_7_*'
       - 'tests/sql/fase08_minimal_baseline.sql'
       - 'tests/sql/fase09_exec_sql_fixture.sql'
       - 'tests/sql/run_fase09_7_postgres.sh'
       - 'tests/test_fase09_7_backend_identity.py'
+      - 'tests/test_fase09_7_acl_source_attestation.py'
       - 'tests/test_fase09_7_gate_b_readonly.py'
       - 'tests/test_fase09_7_remediation_definition.py'
       - 'tests/test_fase09_7_schema_rls.py'
@@ -109,11 +112,19 @@ jobs:
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
-             tests/test_fase09_7_backend_identity.py \
-             tests/test_fase09_7_gate_b_readonly.py \
-             tests/test_fase09_7_remediation_definition.py \
-             tests/test_fase09_7_schema_rls.py \
-             tests/test_supabase_credentials_contract.py
+              tests/test_fase09_7_backend_identity.py \
+              tests/test_fase09_7_acl_source_attestation.py \
+              tests/test_fase09_7_gate_b_readonly.py \
+              tests/test_fase09_7_remediation_definition.py \
+              tests/test_fase09_7_schema_rls.py \
+              tests/test_supabase_credentials_contract.py
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
+            PYTHONDONTWRITEBYTECODE=1 \
+            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f97?host=$FASE097_STATE/postgres-socket" \
+            python3 -m pytest -q -p no:cacheprovider \
+              tests/test_fase09_7_acl_source_attestation.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \

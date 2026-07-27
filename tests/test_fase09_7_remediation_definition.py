@@ -11,7 +11,7 @@ BACKUP_PATH = ROOT / "db/runbooks/fase09_7_backup_restore.json"
 WRITERS_PATH = ROOT / "db/runbooks/fase09_7_writer_pause.json"
 CLOSURE_PATH = ROOT / "db/migrations/20260727_fase09_7_public_access_closure.sql"
 
-DEFINITION_CANONICAL_SHA256 = "5691b2b7e5c55122a707ac48dc9cc8523ca647e934af6581c412efe9a9001fd2"
+DEFINITION_CANONICAL_SHA256 = "dcfe1e49892f78719036013adce73871e1aa4d91a8d100abdd8b5898edbfdc62"
 PACKAGE_CANONICAL_SHA256 = "5d32ed2c977c59c38d56948e687ba2b05ecd9ad8b2d3f5752cce3a9836889de3"
 BACKUP_SHA256 = "15a8a4522c3c19491cecc9a8ee1355596b656f4039065d52f67aa1d8b3d57e0f"
 WRITERS_SHA256 = "aa4583b919838cf14bc8e107e46cda7fc068326ccc4e40a6088f38082e89c525"
@@ -51,6 +51,12 @@ def test_definition_is_closed_local_only_and_not_authorized():
     assert _canonical_sha256(definition) == DEFINITION_CANONICAL_SHA256
     assert definition["artifact_type"] == "LOCAL_ONLY_REMEDIATION_DEFINITION"
     assert definition["status"] == "REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION"
+    assert definition["status_scope"] == "HISTORICAL_AS_DEFINED_BEFORE_ACL_ATTESTATION"
+    assert definition["superseded_for_live_state_by"] == {
+        "path": "db/manifests/fase09_7_acl_source_attestation.json",
+        "status": "CONSUMED_READ_ONLY_PACKAGE_SOURCE_COVERAGE_COMPLETE_BLOCKED",
+        "result": "FREE_ACL_SOURCE_ATTESTED_PACKAGE_COVERAGE_COMPLETE_STOPPED_READ_ONLY",
+    }
     assert definition["capabilities"] == []
     assert definition["blocked_targets"] == ["free", "pro"]
     assert definition["parent_evidence"]["result"] == (

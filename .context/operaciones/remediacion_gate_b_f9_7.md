@@ -2,9 +2,9 @@
 
 ## Resultado
 
-`REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION`.
+`ACL_SOURCE_ATTESTED_PACKAGE_COVERAGE_COMPLETE_BLOCKED_SUPPLEMENTAL_AND_OPERATIONAL_GATES`.
 
-La autorizacion exacta recibida se consumio solo para definir localmente la remediacion de [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). No hubo nueva lectura Free, acceso Pro, DDL/DML, schema remoto, migrations remotas, backup/restore, pausa de writers, backfill ni promocion.
+La definicion local no realizo lecturas remotas. Una autorizacion posterior se consumio exclusivamente por [EVID-F9.7-ACL-SOURCE-001](./atestacion_origen_acl_f9_7.md): una consulta Free catalog-only, sin filas de negocio, HTTP, Pro, DDL/DML, backup/restore, writers, backfill ni promocion.
 
 ## Conclusion De Cobertura
 
@@ -18,7 +18,7 @@ La closure F9.7 cubre localmente y hace converger las tres clases directas reduc
 
 La prueba PostgreSQL 17 parte del boundary F8, confirma que los controles Gate B estan en FAIL, aplica exclusivamente la quinta entrada y exige que los controles de acceso y el agregado final pasen, con ledger final exacto.
 
-La cobertura remota completa no puede afirmarse todavia. La evidencia sanitizada preserva el resultado efectivo, pero no el rol origen de cada ACL. Un grant heredado desde un rol ordinario no seria revocado por la closure actual: el verifier lo detecta y la transaccion revierte, pero deteccion no equivale a convergencia. La suite demuestra ese rollback y convierte la atribucion de origen en precondicion bloqueante de cualquier ventana futura.
+La atestacion remota atribuyo las fuentes observadas y concluyo `package_source_coverage=complete`: no aparecieron grants heredados/SET, owner publico, elevacion, ACL desconocida ni paths indirectos inesperados. Esto no prueba convergencia: la closure no esta aplicada, los predicates no fueron atestados y el trigger conocido requiere evidencia suplementaria. Un grant heredado futuro seguiria forzando rollback.
 
 ## Package Congelado
 
@@ -53,7 +53,7 @@ Una fase posterior solo podra avanzar, bajo autorizacion nueva, por esta secuenc
 12. Ejecutar postcondiciones read-only independientes despues del commit.
 13. Mantener writers pausados hasta F9.10.
 
-Esta lista no contiene SQL, comandos, transporte, secretos ni capacidad remota. La atribucion read-only futura no esta implementada ni autorizada por esta definicion.
+Esta lista no contiene SQL, comandos, transporte, secretos ni capacidad remota. La atribucion read-only se implemento y consumio en un artifact separado; no concede capacidad reutilizable.
 
 ## Rollback Y Recuperacion
 
@@ -106,7 +106,7 @@ Los runbooks contienen `capabilities=[]` y `commands=[]`. Definirlos no crea bac
 
 ## Stop Conditions
 
-- Falta atribucion completa de origen de ACL o aparece un origen no reparado.
+- Aparece un origen ACL no reparado o cambia el snapshot atribuido.
 - Package, commit, tree, orden o digest no coincide.
 - Boundary no permitido, gap, colision o cambio concurrente.
 - Runbook de restore distinto de `RESTORE_PROVEN`.
@@ -115,17 +115,18 @@ Los runbooks contienen `capabilities=[]` y `commands=[]`. Definirlos no crea bac
 - Aparece policy no administrada, grant heredado o acceso indirecto.
 - Cualquier test, CI, auditoria, review o Context Graph falla.
 - Se intenta registrar ledger antes de postcondiciones.
-- Se intenta nueva lectura, transporte, DDL/DML, pausa o aplicacion con esta autorizacion.
+- Se intenta reutilizar la autorizacion ACL para nueva lectura, transporte, DDL/DML, pausa o aplicacion.
 - Se intenta reanudar writers antes de F9.10.
 
 ## Estado Y Siguiente Accion
 
-F9.7 permanece `IN_PROGRESS`; Free no esta certificada. La definicion queda bloqueada por atribucion de origen ACL y por runbooks/aprobaciones no satisfechos. Despues del merge y replay post-merge de esta definicion, cualquier nueva lectura read-only o accion operativa requerira otra autorizacion decimal exacta y un alcance nuevo. F9.8, Pro, certificacion y produccion siguen bloqueados.
+F9.7 permanece `IN_PROGRESS`; Free no esta certificada. El origen ACL observado es reparable por el package, pero la fase queda bloqueada por predicates/trigger, runbooks y aprobaciones no satisfechos. La accion inmediata es fusionar y revalidar esta evidencia; cualquier nueva lectura read-only o accion operativa requiere otra autorizacion decimal exacta y un alcance nuevo. F9.8, Pro, certificacion y produccion siguen bloqueados.
 
 ## Referencias
 
 - [Estado del proyecto](../estado_del_proyecto.md)
 - [Evidencia Gate B](./gate_b_f9_7.md)
+- [Atestacion de origen ACL](./atestacion_origen_acl_f9_7.md)
 - [Macrofase F9](./certificacion_hito1_f9.md)
 - [Flujo de release](./flujo_release_minimo.md)
 - [Matriz DB](./matriz_adopcion_db.md)

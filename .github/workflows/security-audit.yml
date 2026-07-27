@@ -952,10 +952,18 @@ jobs:
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
               tests/test_fase09_7_backend_identity.py \
+              tests/test_fase09_7_acl_source_attestation.py \
               tests/test_fase09_7_gate_b_readonly.py \
               tests/test_fase09_7_remediation_definition.py \
               tests/test_fase09_7_schema_rls.py \
               tests/test_supabase_credentials_contract.py
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
+            PYTHONDONTWRITEBYTECODE=1 \
+            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f97?host=$FASE097_AUDIT_STATE/postgres-socket" \
+            python3 -m pytest -q -p no:cacheprovider \
+              tests/test_fase09_7_acl_source_attestation.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \

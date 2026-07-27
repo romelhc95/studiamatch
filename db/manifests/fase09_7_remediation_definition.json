@@ -3,6 +3,12 @@
   "phase": "F9.7",
   "artifact_type": "LOCAL_ONLY_REMEDIATION_DEFINITION",
   "status": "REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION",
+  "status_scope": "HISTORICAL_AS_DEFINED_BEFORE_ACL_ATTESTATION",
+  "superseded_for_live_state_by": {
+    "path": "db/manifests/fase09_7_acl_source_attestation.json",
+    "status": "CONSUMED_READ_ONLY_PACKAGE_SOURCE_COVERAGE_COMPLETE_BLOCKED",
+    "result": "FREE_ACL_SOURCE_ATTESTED_PACKAGE_COVERAGE_COMPLETE_STOPPED_READ_ONLY"
+  },
   "capabilities": [],
   "blocked_targets": ["free", "pro"],
   "parent_evidence": {
