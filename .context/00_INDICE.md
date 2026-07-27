@@ -33,6 +33,7 @@
 - [HITO-001](hitos/hito_001.md)
 - [Backlog REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
+- [Seguimiento detallado de Hito 1](backlog_tareas/req_est_001_sprint_1/seguimiento_detallado_hito_1.md)
 - [Backlog diferido F9.5](backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md)
 - [INTAKE-002 pendiente de estimacion](backlog_tareas/intake/INTAKE-002.md)
 - [Plantilla de tarea](backlog_tareas/_plantilla_tarea.md)
