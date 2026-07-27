@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUERY_PATH = ROOT / "scripts/maintenance/fase09_7_acl_source_attestation.sql"
 MANIFEST_PATH = ROOT / "db/manifests/fase09_7_acl_source_attestation.json"
 QUERY_SHA256 = "71ff247d9608257ea99777d8f72f7d7db7f8f688601c4d8311c6bc6ee5bd8889"
+SANITIZED_RESULT_CANONICAL_SHA256 = "a5ea33443b8cdde9da2e74909d3d9ff80a34e4b247d040d1f8e91b9201a70c59"
 
 OUTPUT_SCHEMA = [
     "query_id", "schema_version", "snapshot_claim", "closure_coverage",
@@ -105,6 +106,9 @@ def test_query_is_frozen_single_select_and_catalog_only():
 
 def test_fixed_sanitized_output_contract_and_single_use_manifest():
     manifest = _manifest()
+    assert manifest["status"] == (
+        "CONSUMED_READ_ONLY_PACKAGE_SOURCE_COVERAGE_COMPLETE_BLOCKED"
+    )
     assert manifest["query"]["canonical_sha256"] == QUERY_SHA256
     assert manifest["output_schema"] == OUTPUT_SCHEMA
     scope = manifest["authorization_scope"]
@@ -135,6 +139,38 @@ def test_fixed_sanitized_output_contract_and_single_use_manifest():
         "package_source_coverage_enum", "snapshot_claim_enum",
         "git_artifact_digests",
     ]
+
+    execution = manifest["execution"]
+    assert execution["result"] == (
+        "FREE_ACL_SOURCE_ATTESTED_PACKAGE_COVERAGE_COMPLETE_STOPPED_READ_ONLY"
+    )
+    assert execution["remote_calls"] == 1
+    assert execution["retries"] == 0
+    assert execution["http_calls"] == 0
+    assert execution["ddl_calls"] == 0
+    assert execution["dml_calls"] == 0
+    assert execution["business_relation_scans"] == 0
+    assert execution["result_rows"] == 1
+    assert list(execution["sanitized_result"]) == OUTPUT_SCHEMA
+    canonical_result = json.dumps(
+        execution["sanitized_result"], sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    assert hashlib.sha256(canonical_result).hexdigest() == (
+        SANITIZED_RESULT_CANONICAL_SHA256
+    )
+    assert execution["sanitized_result"]["package_source_coverage"] == "complete"
+    assert execution["sanitized_result"]["closure_coverage"] == "incomplete"
+    assert execution["sanitized_result"]["policy_expression_attested"] is False
+    assert execution["sanitized_result"]["inherited_acl_source_count"] == 0
+    assert execution["sanitized_result"]["set_acl_source_count"] == 0
+    assert execution["sanitized_result"]["unknown_acl_source_count"] == 0
+    assert execution["sanitized_result"]["unmanaged_policy_count"] == 0
+    assert execution["sanitized_result"]["fail_closed"] is True
+    assert execution["sanitized_result"]["requires_supplemental_attestation"] is True
+    assert {
+        "ddl", "dml", "migration_or_package_application", "backup_or_restore",
+        "writer_pause_or_resume", "backfill", "f9_8", "certification", "production",
+    } <= set(manifest["explicitly_prohibited"])
 
     sql = _query_bytes().decode("ascii")
     assert "VALUES (128::integer, false)" in sql

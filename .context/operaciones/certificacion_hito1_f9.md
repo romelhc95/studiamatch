@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`.
+- Subfase activa: F9.7 `IN_PROGRESS`; origen ACL atestado con cobertura del package completa y aplicacion bloqueada.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: fusionar y revalidar la definicion local; despues, definir y autorizar separadamente una atestacion read-only de origen ACL.
+- Siguiente accion: fusionar/revalidar evidencia y definir bajo autorizacion nueva la atestacion suplementaria de predicates/trigger.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Gate B read-only FAIL y detenido; resguardo, migration y writers conservan gates separados |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Origen ACL cubierto por package; predicates/trigger, resguardo, migration y writers conservan gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -65,11 +65,15 @@ Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/
 
 ### Definicion De Remediacion
 
-La [definicion local](./remediacion_gate_b_f9_7.md) congela el package existente sin modificar migrations y termina `REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION`. PostgreSQL 17 demuestra convergencia para las tres clases directas reducidas y rollback atomico ante policy desconocida o ACL heredada. Como Gate B no preservo el rol origen de cada ACL, la aplicacion queda bloqueada hasta una atestacion read-only futura, definida y autorizada separadamente. Los runbooks de restore y pausa son datos no ejecutables, sin approvals concedidas.
+La [definicion local](./remediacion_gate_b_f9_7.md) congela el package existente sin modificar migrations. PostgreSQL 17 demuestra convergencia para las tres clases directas reducidas y rollback atomico ante policy desconocida o ACL heredada. La atestacion posterior resolvio la atribucion del snapshot, no la convergencia ni los predicates/trigger. Los runbooks de restore y pausa son datos no ejecutables, sin approvals concedidas.
+
+### Atestacion De Origen ACL
+
+[EVID-F9.7-ACL-SOURCE-001](./atestacion_origen_acl_f9_7.md) consumio una unica consulta Free catalog-only y sanitizada. No observo grants heredados/SET, owners publicos, elevacion, ACL desconocida, policy no administrada, view/rule/definer desconocido, publication o particion; `package_source_coverage=complete`. La closure actual sigue incompleta; el mismatch y el trigger conocido mantienen `fail_closed=true`, mientras los predicates no atestados bloquean aplicacion de forma independiente. No hubo filas de negocio, HTTP, DDL/DML, backup/restore, writers ni Pro.
 
 ## Dependencias Posteriores
 
-Antes de aplicar la migration F9.7 deben atribuirse los origenes ACL, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+Antes de aplicar la migration F9.7 deben atestarse predicates/trigger, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 

@@ -55,7 +55,7 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
 | `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
-| `F9.7` | Schema/RLS Free | Candidate local contractual implementado; Gate B pre-DDL/read-only debe ligar Free, congelar commit/tree/package/allowlist, verificar identidad/acceso y obtener aprobaciones separadas de resguardo y pausa; sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free | Candidate implementado; Gate B consumido y origen ACL atestado; predicates/trigger, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
@@ -123,7 +123,7 @@ No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. 
 4. La informacion vigente del plan temporal queda preservada en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
 5. La adopcion se completa solo con Context Graph, auditorias, CI, aprobacion humana y merge del PR exclusivamente documental.
 
-El prompt exacto para solicitar Gate B pre-DDL/read-only de F9.7, solo despues del merge y validacion post-merge del candidate local, sera:
+El prompt historico que solicito Gate B pre-DDL/read-only de F9.7 despues del merge y validacion post-merge del candidate local fue:
 
 ```text
 Ejecuta las tareas pendientes de la Fase F9.7
@@ -135,7 +135,7 @@ No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-0
 
 La autorizacion fue recibida y consumida por [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
 
-La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. Su estado `REMEDIATION_DEFINED_BLOCKED_PENDING_ACL_SOURCE_ATTRIBUTION` no autoriza repetir Gate B ni aplicar schema. La cobertura completa requiere una futura atestacion read-only de origen ACL con autorizacion nueva.
+La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. La [atestacion ACL posterior](./atestacion_origen_acl_f9_7.md) observo unicamente fuentes reparables por el package; el mismatch de closure y el trigger mantienen fail-closed, mientras predicates no atestados bloquean aplicacion independientemente. No autoriza repetir lecturas ni aplicar schema.
 
 ## Referencias
 

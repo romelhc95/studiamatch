@@ -44,6 +44,7 @@ Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 - `[REMOTE Free]` Se observaron efectos del contrato Hito 1 y del hardening G1b.
 - `[REMOTE Free]` [Gate B F9.7](./operaciones/gate_b_f9_7.md) observo en modo read-only drift de acceso incompatible con el gate y se detuvo antes de HTTP, aprobaciones operativas o DDL.
 - `[GIT/DERIVED]` La [remediacion F9.7](./operaciones/remediacion_gate_b_f9_7.md) demuestra cobertura local de drift directo y rollback atomico de drift heredado/desconocido; no cambia el snapshot remoto ni autoriza aplicacion.
+- `[REMOTE Free]` La [atestacion ACL F9.7](./operaciones/atestacion_origen_acl_f9_7.md) atribuyo las fuentes observadas a drift reparable por el package, sin herencia/SET/owner/unknown; predicates/trigger y aplicacion permanecen bloqueados.
 - `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
 - `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - `[GIT]` F6-F8 son la base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y no cambian el snapshot observado.
