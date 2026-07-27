@@ -45,7 +45,7 @@ Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 - `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
 - `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - `[GIT]` F6-F8 son la base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y no cambian el snapshot observado.
-- H-00 es P0 `historical_free_only`, queda excluido de Pro y se ejecuta solo antes de `FREE_CERTIFIED` bajo su gate separado.
+- H-00 es P0 `historical_free_only`, queda excluido de Pro y cerro `H00_ALREADY_REMEDIATED_NO_DML`: la cohorte con PII directa remediada se conserva pseudonimizada bajo riesgo aceptado; Gate B DELETE fue sustituido.
 - Los objetos y diferencias sensibles permanecen en el artifact privado ignorado. El contrato publicable F6 vive en la [reconciliacion DB-as-Code](./operaciones/reconciliacion_db_as_code_f6.md).
 
 ## Ledgers y fuentes
@@ -69,7 +69,7 @@ Los detalles tecnicos se conservan solo en el artifact privado local ignorado. N
 2. Mantener los ledgers append-only; no actualizar, borrar ni reconstruir historia.
 3. Recuperar artifacts historicos solo con checksum verificable.
 4. Si la fuente no se demuestra, mantener `source_unavailable` y crear una migracion nueva forward-only.
-5. Mantener H-00 como P0 `historical_free_only` y excluirlo mecanicamente de Pro.
+5. Mantener H-00 como P0 `historical_free_only`, enlazar su [cierre F9.6](./operaciones/cierre_h00_f9_6.md) y excluirlo mecanicamente de Pro.
 6. Separar schema/RLS/RPC de cualquier backfill editorial.
 7. Todo backfill futuro debe ser acotado, idempotente, auditable y aprobado.
 8. No copiar datos operativos entre Free y Pro.

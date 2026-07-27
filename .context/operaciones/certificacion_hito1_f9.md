@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.6 `ACTIVE_AWAITING_AUTHORIZATION`.
-- Subfase autorizada: ninguna. F9.5 esta cerrada y T01 solo fue aceptada documentalmente de forma condicionada.
-- Ultima subfase cerrada: F9.5 `COMPLETED_WITH_KNOWN_FINDINGS`.
-- Siguiente accion: F9.6 P0 H-00 requiere una autorizacion decimal exacta nueva; T01 no ejecuta ni autoriza esa subfase.
+- Subfase activa: F9.7 `ACTIVE_AWAITING_AUTHORIZATION`.
+- Subfase autorizada: ninguna. F9.6 esta cerrada sin DML y no habilita automaticamente schema/RLS.
+- Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
+- Siguiente accion: F9.7 requiere una autorizacion decimal exacta nueva y sus prerrequisitos propios.
 
 ## Subfases
 
@@ -23,8 +23,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.3` | Freeze local del contrato de preflight | `COMPLETED` | PR #238/#239; replay post-merge Docker sobre checkout Linux limpio |
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
-| `F9.6` | P0 H-00 Free-only | `ACTIVE_AWAITING_AUTHORIZATION` | Definida, no autorizada: backup aprobado, revalidacion counts-only cerrada, eliminacion transaccional y verificacion agregada; nunca Pro |
-| `F9.7` | Backup/pausa aprobados, schema/RLS Free y T02 | `PENDING` | Reservada; migration y writers tienen gates separados |
+| `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
+| `F9.7` | Resguardo/restore, pausa, schema/RLS Free y T02 | `ACTIVE_AWAITING_AUTHORIZATION` | Definida, no autorizada; resguardo, migration y writers conservan gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -37,19 +37,23 @@ F9.5 concluye sin repetir la lectura Free del overlay v2 y sin declarar `FREE_PR
 
 - Los artifacts de PR #245 y PR #247, incluidos migrations, manifests, reducers, runners, pruebas y cambios CI asociados a F9.5, son `HISTORICAL_NON_PROMOTABLE`.
 - Se conservan fisicamente y no se incluyen en la base funcional contractual, en un package de F9.7 ni en un candidate de aplicacion. La base contractual sigue siendo F6-F8.
-- `T01_CONDITIONAL_ACCEPTED` se acepta como cierre documental sin crear una attestation ni cambiar la maquina de promocion. Habilita solo la definicion de F9.6.
-- T01 no autoriza schema, migrations, F9.7, writers, backfill, Pro, produccion ni la ejecucion de F9.6. Esa ejecucion requiere una autorizacion F9.6 nueva y exacta.
+- `T01_CONDITIONAL_ACCEPTED` se acepto como cierre documental sin crear una attestation ni cambiar la maquina de promocion. Habilito solo la definicion entonces futura de F9.6.
+- T01 nunca autorizo schema, migrations, F9.7, writers, backfill, Pro ni produccion. La definicion inicial de F9.6 contemplaba backup previo a DELETE; [el cierre posterior](./cierre_h00_f9_6.md) sustituyo esa rama al verificar la remediacion existente y cerrar sin DML.
 
-## Definicion Exclusiva F9.6
+## Cierre Exclusivo F9.6
 
-F9.6 es exclusivamente el P0 H-00, Free-only y previo a `FREE_CERTIFIED`; no es criterio contractual de Hito 1. Bajo una autorizacion separada debera, en este orden:
+F9.6 fue exclusivamente el P0 H-00, Free-only y previo a `FREE_CERTIFIED`; no es criterio contractual de Hito 1. La evidencia sanitizada [EVID-F9.6-H00-001](./cierre_h00_f9_6.md) verifico la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Se conserva pseudonimizada por su riesgo residual de vinculabilidad. El resultado es `H00_ALREADY_REMEDIATED_NO_DML`.
 
-1. Confirmar un backup aprobado.
-2. Revalidar en Free el shape counts-only exacto `3/3/0/0` sin exponer PII.
-3. Ejecutar la eliminacion transaccional de la cohorte confirmada.
-4. Verificar la transicion `3 -> 0` con evidencia agregada.
+- Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`.
+- Los fixtures conservan UUID y metadatos pseudonimizados; el data owner acepta ese riesgo residual en Free restringido y prohibe correlacionarlos o copiarlos a Pro. F9.7 debe verificar ausencia de lectura publica y F11 revaluar retencion.
+- DELETE, UPDATE, INSERT, backup valido, acceso Pro, schema, migrations, writers y backfill fueron cero.
+- Seguridad y calidad de datos aprobaron la evidencia agregada. Este cierre no certifica Free ni autoriza F9.7.
 
-El conteo no es un selector de borrado. Esta definicion no crea una superficie DML ejecutable: la futura autorizacion F9.6 debe, fuera de Git, ligar el target Free, el backup aprobado, el predicado inmutable aprobado, el verificador humano y una allowlist positiva minima de tools/consultas. Si falta cualquiera de esos elementos, F9.6 falla cerrada. Pro esta prohibido y F9.6 no permite schema, migrations, backfill ni writers.
+## Definicion Exclusiva F9.7
+
+F9.7 es la siguiente subfase y queda `ACTIVE_AWAITING_AUTHORIZATION`. Su primer gate futuro es exclusivamente pre-DDL y read-only: congela package, allowlist y stop conditions; liga Free; verifica identidad backend y estado de acceso; identifica responsables; y somete resguardo/restore y pausa de writers a aprobaciones humanas separadas. No pausa writers ni aplica schema/migrations.
+
+Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/RLS/T02 solo despues de esas aprobaciones. Debera demostrar semanticamente que `leads` y `email_log` no tienen lectura publica, que `INSERT leads` solo acepta columnas permitidas y que las lecturas backend usan identidad de servicio. F9.7 no incluye H-00, backfill, Pro ni produccion.
 
 ## Dependencias Posteriores
 
@@ -141,7 +145,7 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 
 ## Gates Humanos Preservados
 
-- El respaldo H-00 y su DML requieren aprobaciones propias en F9.6; la eliminacion no comienza sin respaldo verificado.
+- F9.6 cerro H-00 con PII directa ya remediada y la cohorte conservada como pseudonimizada, sin DML; Gate B DELETE fue sustituido y no puede reabrirse desde esta macrofase.
 - Toda migration Free y el backup/restore previo requieren aprobacion explicita en F9.7.
 - Pausar y reanudar writers son dos decisiones humanas separadas; F9.7 pausa y F9.10 solo puede reanudar despues de postcondiciones/QA.
 - Plan y ejecucion de backfill requieren aprobaciones separadas en F9.8/F9.9.
