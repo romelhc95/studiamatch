@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -139,6 +140,42 @@ def test_manifest_closes_scope_and_stops_before_mutation():
     assert "any_ddl_dml_rpc_lock_copy_call_set_or_writer_control" in manifest["stop_conditions"]
     assert "raw_row_pii_uuid_url_key_policy_expression_or_query_text_in_evidence" in manifest["stop_conditions"]
     assert "approval_request_ids" in manifest["allowed_evidence"]
+
+
+def test_gate_b_contract_is_enforced_by_independent_ci():
+    workflow = (ROOT / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    postgres_runner = (ROOT / "tests/sql/run_fase09_7_postgres.sh").read_text(
+        encoding="utf-8"
+    )
+    for path in (
+        "db/manifests/fase09_7_gate_b_readonly.json",
+        "scripts/maintenance/fase09_7_gate_b_catalog_v1.sql",
+        "scripts/maintenance/fase09_7_gate_b_http.py",
+        "tests/test_fase09_7_gate_b_readonly.py",
+        "tests/test_supabase_credentials_contract.py",
+    ):
+        assert path in workflow
+    assert "tests/test_fase09_7_gate_b_readonly.py" in workflow
+    assert "tests/test_supabase_credentials_contract.py" in workflow
+    assert 'GATE_B_QUERY="$ROOT/scripts/maintenance/fase09_7_gate_b_catalog_v1.sql"' in postgres_runner
+    assert 'gate_b_output="$(' in postgres_runner
+    assert 'mapfile -t gate_b_rows <<< "$gate_b_output"' in postgres_runner
+    assert "[[ ${#gate_b_rows[@]} -eq 1 ]]" in postgres_runner
+    assert '[[ "${gate_b_rows[0]##*|}" == "t" ]]' in postgres_runner
+
+    producer_failure = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'set -e; output="$(printf partial; exit 42)"; printf "%s" "$output"',
+        ],
+        capture_output=True,
+        check=False,
+    )
+    assert producer_failure.returncode == 42
+    assert producer_failure.stdout == b""
 
 
 class FakeResponse:
