@@ -12,9 +12,42 @@ PILLARS = [
     "brochure_url", "objectives", "requirements", "certification", "benefits"
 ]
 
+PUBLIC_COURSE_FILTERS = (
+    "is_active=eq.true&is_verified=eq.true&publication_status=eq.publicado"
+)
+COURSE_COLUMNS = (
+    "id,name,slug,institution_id,mode,address,price_pen,description_long,"
+    "duration,start_date_text,target_audience,syllabus,brochure_url,objectives,"
+    "requirements,certification,benefits,institutions(slug)"
+)
+
+
+def _load_public_visible_courses(database):
+    profiles = database.select_all_service(
+        'institution_site_profiles',
+        filters='production_enabled=eq.true',
+        columns='institution_id',
+    )
+    production_institution_ids = {
+        str(profile.get('institution_id'))
+        for profile in profiles
+        if profile.get('institution_id')
+    }
+    courses = database.select_all_service(
+        'courses',
+        filters=PUBLIC_COURSE_FILTERS,
+        columns=COURSE_COLUMNS,
+    )
+    return [
+        course
+        for course in courses
+        if str(course.get('institution_id')) in production_institution_ids
+    ]
+
+
 def run_audit():
     print("Iniciando Auditoría de Coherencia y Calidad (Fase 26)...")
-    courses = db.select_all('courses', filters='is_active=eq.true', columns='*,institutions(slug)')
+    courses = _load_public_visible_courses(db)
     total_courses = len(courses)
     flagged_courses = []
 

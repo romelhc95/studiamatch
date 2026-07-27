@@ -18,7 +18,12 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
-from shared.roi_engine import compute_roi, duration_months_to_hours, infer_seniority, lookup_market_salary
+from shared.roi_engine import (
+    compute_roi,
+    duration_months_to_hours,
+    infer_seniority,
+    lookup_market_salary_service as lookup_market_salary,
+)
 
 # Setup logging
 load_dotenv()

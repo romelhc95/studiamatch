@@ -63,7 +63,7 @@ def get_institutions(limit=10, excluded_slugs=None, now=None):
     client = _get_db()
     current_time = now or datetime.now(timezone.utc)
     excluded = set(excluded_slugs or [])
-    all_insts = client.select_raise(
+    all_insts = client.select_service_raise(
         'institutions',
         columns="id,name,slug,website_url,last_harvest_at",
         order="last_harvest_at.asc.nullsfirst",

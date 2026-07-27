@@ -38,7 +38,7 @@ from shared.utils import (
     setup_lima_logging,
     normalize_url
 )
-from shared.db_client import get_db_client
+from shared.db_client import DatabaseAPIError, get_db_client
 
 logger = setup_lima_logging("UniversalHarvester")
 load_dotenv()
@@ -136,28 +136,26 @@ class UniversalHarvester:
         return re.search(pattern, text, re.IGNORECASE)
 
     def _load_site_profile(self):
-        try:
-            inst_id = self.institution.get('id')
-            profiles = self.db.select_pipeline('institution_site_profiles',
-                                       filters=f'institution_id=eq.{inst_id}',
-                                       limit=1)
-            if profiles and len(profiles) > 0:
-                profile = profiles[0]
-                has_site_type = profile.get('site_type')
-                has_discovery = profile.get('discovery_mode')
-                if has_site_type and has_discovery:
-                    norm_fields = ['catalog_url_patterns', 'exclusion_patterns',
-                                   'allowed_url_patterns', 'seed_urls']
-                    for field in norm_fields:
-                        if field in profile:
-                            profile[field] = self._normalize_jsonb_list(profile[field])
-                    logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
-                    return profile
-                logger.info(f"Profile exists but incomplete for {self.institution.get('slug')}, will auto-detect.")
-            return self._auto_detect_profile()
-        except Exception as e:
-            logger.warning(f"Error loading site profile: {e}")
-        return {}
+        inst_id = self.institution.get('id')
+        profiles = self.db.select_pipeline_raise(
+            'institution_site_profiles',
+            filters=f'institution_id=eq.{inst_id}',
+            limit=1,
+        )
+        if profiles and len(profiles) > 0:
+            profile = profiles[0]
+            has_site_type = profile.get('site_type')
+            has_discovery = profile.get('discovery_mode')
+            if has_site_type and has_discovery:
+                norm_fields = ['catalog_url_patterns', 'exclusion_patterns',
+                               'allowed_url_patterns', 'seed_urls']
+                for field in norm_fields:
+                    if field in profile:
+                        profile[field] = self._normalize_jsonb_list(profile[field])
+                logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
+                return profile
+            logger.info(f"Profile exists but incomplete for {self.institution.get('slug')}, will auto-detect.")
+        return self._auto_detect_profile()
 
     def _auto_detect_profile(self):
         """Fase 121: Auto-detecta tipo de sitio cuando no hay perfil configurado."""
@@ -192,14 +190,16 @@ class UniversalHarvester:
         profile['auto_generated'] = True
         profile['pipeline_ready'] = False
 
+        existing = self.db.select_pipeline_raise(
+            'institution_site_profiles',
+            filters=f'institution_id=eq.{inst_id}',
+            limit=1,
+        )
         try:
-            existing = self.db.select_pipeline('institution_site_profiles',
-                                        filters=f'institution_id=eq.{inst_id}',
-                                        limit=1)
             if existing:
                 self.db.patch('institution_site_profiles',
-                             filters=f'institution_id=eq.{inst_id}',
-                             data=profile)
+                              filters=f'institution_id=eq.{inst_id}',
+                              data=profile)
                 logger.info(f"Updated auto-generated profile for {inst_slug}")
             else:
                 self.db.insert('institution_site_profiles', profile)
@@ -277,13 +277,19 @@ class UniversalHarvester:
         try:
             ids = [url, effective_url, canonical_url]
             ids = [normalize_url(i) for i in ids if i]
-            data = self.db.select_pipeline("staging_raw", filters=f"url=eq.{quote(url, safe='')}", columns="content_hash")
+            data = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"url=eq.{quote(url, safe='')}",
+                columns="content_hash",
+            )
             if data and len(data) > 0:
                 old_hash = data[0].get('content_hash')
                 if old_hash == content_hash:
                     return False, content_hash
-        except Exception as e:
-            logger.warning(f"Error checking hash for {url}: {e}")
+        except Exception as exc:
+            raise DatabaseAPIError(
+                "Backend read failed while checking staging content hash"
+            ) from exc
         return True, content_hash
 
     async def _safe_request(self, session, url):
@@ -411,17 +417,26 @@ class UniversalHarvester:
         return list(set(links)), depth + 1
 
     async def _load_existing_urls(self):
+        inst_id = self.institution.get('id')
+        data = self.db.select_pipeline_raise(
+            "staging_raw",
+            filters=(
+                f"institution_id=eq.{inst_id}"
+                "&status=in.(processed,discarded,discovered)"
+            ),
+            columns="url",
+        )
         try:
-            inst_id = self.institution.get('id')
-            data = self.db.select_pipeline("staging_raw", filters=f"institution_id=eq.{inst_id},status=in.(processed,discarded,discovered)", columns="url")
             if data:
                 existing = {row['url'] for row in data}
                 logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
                 self.visited_urls.update(existing)
                 if self._gate_enabled('pipeline_enabled'):
-                    discovered_count = self.db.patch("staging_raw",
-                        filters=f"institution_id=eq.{inst_id},status=eq.discovered",
-                        data={"status": "pending"})
+                    discovered_count = self.db.patch(
+                        "staging_raw",
+                        filters=f"institution_id=eq.{inst_id}&status=eq.discovered",
+                        data={"status": "pending"},
+                    )
                     if discovered_count and discovered_count.get("status") == "success":
                         logger.info(f"Reset discovered → pending for reprocessing.")
                 return existing
@@ -697,6 +712,8 @@ class UniversalHarvester:
                     "woocommerce_category": woocommerce_category,
                 }),
             }
+        except DatabaseAPIError:
+            raise
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
             return None
@@ -768,6 +785,8 @@ class UniversalHarvester:
                 "status": "pending",
                 "metadata": json.dumps({"extracted_sections": sections, "field_defaults": self.field_defaults}),
             }
+        except DatabaseAPIError:
+            raise
         except Exception as e:
             logger.error(f"Error scraping (HTTP) {url}: {e}")
             return None
