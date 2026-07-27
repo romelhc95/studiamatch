@@ -83,6 +83,11 @@ jobs:
           sudo ip6tables -w 10 -I OUTPUT 1 -j FASE097_EGRESS
       - name: Run local-only Python and PostgreSQL contracts
         run: |
+          workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
+          while [ "$workspace_ancestor" != "/" ]; do
+            sudo chmod o+x "$workspace_ancestor"
+            workspace_ancestor="$(dirname "$workspace_ancestor")"
+          done
           sudo chmod -R o+rX "$GITHUB_WORKSPACE"
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
