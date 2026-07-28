@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 
 -- TEST-ONLY F9.7 access drift. It contains schema and ACLs, never rows.
+-- The runner loads the reviewed trigger source separately with canonical LF bytes.
 CREATE TABLE public.institutions (
     id uuid PRIMARY KEY,
     name text NOT NULL,

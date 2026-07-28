@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE_ID = "F9.7-PUBLIC-ACCESS-CLOSURE-20260727"
-MANIFEST_SHA256 = "5d32ed2c977c59c38d56948e687ba2b05ecd9ad8b2d3f5752cce3a9836889de3"
+PACKAGE_ID = "F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-20260727"
+MANIFEST_SHA256 = "e198125dbaa20a7966abcdfb9676e3ab38813d9f5347f57d7b3118d24953190d"
 ENTRY_SPECS = (
     (
         "F6-G1B-FORWARD", "g1b",
@@ -38,6 +38,11 @@ ENTRY_SPECS = (
         "db/migrations/20260727_fase09_7_public_access_closure.sql",
         "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b",
     ),
+    (
+        "F9.7-NOTIFY-NEW-LEAD-RETIREMENT", "notify_new_lead_retirement",
+        "db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql",
+        "fd6287795245a131b6b71bc2242ed4c8727091c61af27f4fe5cf9faaecc742fa",
+    ),
 )
 POSTCONDITIONS = {
     "20260724_fase06_g1b_reconciliation":
@@ -49,8 +54,107 @@ POSTCONDITIONS = {
         "public.verify_fase08_hito1_contract()",
     "20260727_fase09_7_public_access_closure":
         "public.verify_fase09_7_public_access_closure()",
+    "20260727_fase09_7_notify_new_lead_retirement":
+        "public.verify_fase09_7_notify_new_lead_retirement()",
 }
-ALLOWED_BOUNDARIES = {0, 3, 4, 5}
+ALLOWED_BOUNDARIES = {0, 3, 4, 5, 6}
+RETIREMENT_STEM = "20260727_fase09_7_notify_new_lead_retirement"
+RETIREMENT_VERIFIER_SOURCE_SHA256 = (
+    "1f990216697fcf938e079fb3c17196f0d616a6511628f5a2032c00428ec4423e"
+)
+RETIREMENT_VERIFIER_ATTESTATION = f"""(
+    SELECT pg_catalog.count(*) = 1
+       AND pg_catalog.bool_and(
+           owner.rolname = 'postgres'
+           AND language_record.lanname = 'sql'
+           AND return_namespace.nspname = 'pg_catalog'
+           AND return_type.typname = 'bool'
+           AND procedure_record.prokind = 'f'
+           AND NOT procedure_record.prosecdef
+           AND procedure_record.provolatile = 's'
+           AND NOT procedure_record.proisstrict
+           AND NOT procedure_record.proleakproof
+           AND procedure_record.proparallel = 'u'
+           AND NOT procedure_record.proretset
+           AND procedure_record.pronargs = 0
+           AND procedure_record.pronargdefaults = 0
+           AND procedure_record.proconfig IS NOT DISTINCT FROM
+               ARRAY['search_path=""']::text[]
+           AND pg_catalog.octet_length(pg_catalog.replace(
+               procedure_record.prosrc, E'\\r\\n', E'\\n'
+           )) = 908
+           AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+               pg_catalog.replace(procedure_record.prosrc, E'\\r\\n', E'\\n'),
+               'UTF8'
+           )), 'hex') = '{RETIREMENT_VERIFIER_SOURCE_SHA256}'
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+           ) = 2
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+               WHERE acl.privilege_type = 'EXECUTE'
+                 AND NOT acl.is_grantable
+                 AND acl.grantee = procedure_record.proowner
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+               WHERE acl.privilege_type = 'EXECUTE'
+                 AND NOT acl.is_grantable
+                 AND acl.grantee = (
+                     SELECT role.oid
+                     FROM pg_catalog.pg_roles AS role
+                     WHERE role.rolname = 'service_role'
+                 )
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_depend AS dependency
+               WHERE dependency.classid =
+                     'pg_catalog.pg_proc'::pg_catalog.regclass
+                 AND dependency.objid = procedure_record.oid
+                 AND dependency.objsubid = 0
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_depend AS dependency
+               WHERE dependency.classid =
+                     'pg_catalog.pg_proc'::pg_catalog.regclass
+                 AND dependency.objid = procedure_record.oid
+                 AND dependency.objsubid = 0
+                 AND dependency.refclassid =
+                     'pg_catalog.pg_namespace'::pg_catalog.regclass
+                 AND dependency.refobjid = procedure_record.pronamespace
+                 AND dependency.refobjsubid = 0
+                 AND dependency.deptype = 'n'
+           ) = 1
+       )
+    FROM pg_catalog.pg_proc AS procedure_record
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = procedure_record.pronamespace
+    JOIN pg_catalog.pg_roles AS owner
+      ON owner.oid = procedure_record.proowner
+    JOIN pg_catalog.pg_language AS language_record
+      ON language_record.oid = procedure_record.prolang
+    JOIN pg_catalog.pg_type AS return_type
+      ON return_type.oid = procedure_record.prorettype
+    JOIN pg_catalog.pg_namespace AS return_namespace
+      ON return_namespace.oid = return_type.typnamespace
+    WHERE namespace.nspname = 'public'
+      AND procedure_record.proname =
+          'verify_fase09_7_notify_new_lead_retirement'
+) AND public.verify_fase09_7_notify_new_lead_retirement() IS TRUE"""
 _DOLLAR_BODY = re.compile(
     r"(?P<tag>\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$).*?(?P=tag)", re.DOTALL
 )
@@ -120,8 +224,8 @@ def load_manifest(
     ):
         raise ManifestError("F9.7 manifest metadata drift")
     entries = manifest.get("entries")
-    if not isinstance(entries, list) or len(entries) != 5:
-        raise ManifestError("F9.7 manifest must contain exactly five entries")
+    if not isinstance(entries, list) or len(entries) != 6:
+        raise ManifestError("F9.7 manifest must contain exactly six entries")
     paths: list[Path] = []
     for entry, spec in zip(entries, ENTRY_SPECS):
         entry_id, component, relative_path, expected_hash = spec
@@ -169,12 +273,17 @@ def validate_manifest_ledger_state(
     if any(path.stem in projected for path in migration_files[prefix_size:]):
         raise RuntimeError("Ledger must be a contiguous manifest prefix")
     if prefix_size not in ALLOWED_BOUNDARIES:
-        raise RuntimeError("F9.7 only accepts ledger boundaries 0, 3, 4, or 5")
+        raise RuntimeError("F9.7 only accepts ledger boundaries 0, 3, 4, 5, or 6")
     for path in migration_files[:prefix_size]:
         signature = POSTCONDITIONS[path.stem]
         name = signature.removeprefix("public.").removesuffix("()")
         if not database.rpc_raise(name, {}):
             raise RuntimeError(f"Postcondicion fallida: {path.stem}")
+        if (
+            path.stem == RETIREMENT_STEM
+            and not database.scalar_bool(RETIREMENT_VERIFIER_ATTESTATION)
+        ):
+            raise RuntimeError(f"Postcondicion externa fallida: {path.stem}")
     return list(migration_files[prefix_size:])
 
 
@@ -187,16 +296,27 @@ def build_manifest_package_sql(
     if not migration_files:
         raise RuntimeError("cannot build a zero-pending package")
     lines = [
+        "SET lock_timeout = '5s';",
+        "SET statement_timeout = '60s';",
         "LOCK TABLE public.supabase_migrations IN SHARE ROW EXCLUSIVE MODE;",
         "-- manifest-prefix-guard",
     ]
     for stem, marker in (expected_prefix or {}).items():
+        if stem not in POSTCONDITIONS:
+            raise RuntimeError(f"unknown manifest prefix verifier: {stem}")
         lines.extend([
             "DO $manifest_prefix$", "BEGIN", "    IF NOT EXISTS (",
             "        SELECT 1 FROM public.supabase_migrations",
             f"        WHERE name = '{stem}' AND statements = '{marker}'",
             "    ) THEN RAISE EXCEPTION 'Manifest prefix drift'; END IF;",
             "END;", "$manifest_prefix$;",
+        ])
+        signature = POSTCONDITIONS[stem]
+        lines.extend([
+            "DO $manifest_prefix_verify$", "BEGIN",
+            f"    IF {signature} IS NOT TRUE THEN",
+            f"        RAISE EXCEPTION 'Postcondicion de prefijo fallida: {stem}';",
+            "    END IF;", "END;", "$manifest_prefix_verify$;",
         ])
     for path in migration_files:
         lines.extend([
@@ -213,10 +333,17 @@ def build_manifest_package_sql(
         signature = POSTCONDITIONS[path.stem]
         lines.extend([
             "DO $manifest_verify$", "BEGIN",
-            f"    IF NOT {signature} THEN",
+            f"    IF {signature} IS NOT TRUE THEN",
             f"        RAISE EXCEPTION 'Postcondicion fallida: {path.stem}';",
             "    END IF;", "END;", "$manifest_verify$;",
         ])
+        if path.stem == RETIREMENT_STEM:
+            lines.extend([
+                "DO $manifest_external_verify$", "BEGIN",
+                f"    IF ({RETIREMENT_VERIFIER_ATTESTATION}) IS NOT TRUE THEN",
+                f"        RAISE EXCEPTION 'Postcondicion externa fallida: {path.stem}';",
+                "    END IF;", "END;", "$manifest_external_verify$;",
+            ])
     lines.append("-- manifest-ledger-registration")
     for offset, path in enumerate(migration_files):
         lines.append(

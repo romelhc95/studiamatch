@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; origen ACL atestado con cobertura del package completa y aplicacion bloqueada.
+- Subfase activa: F9.7 `IN_PROGRESS`; package sucesor local de seis entradas definido y aplicacion bloqueada.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: fusionar/revalidar evidencia y definir bajo autorizacion nueva la atestacion suplementaria de predicates/trigger.
+- Siguiente accion: fusionar/revalidar la remediacion local; cualquier lectura o gate operativo requiere autorizacion nueva.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Origen ACL cubierto por package; predicates/trigger, resguardo, migration y writers conservan gates separados |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Sexta migration local retira trigger inseguro; snapshot remoto, resguardo, aplicacion y writers conservan gates separados |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -53,6 +53,8 @@ F9.6 fue exclusivamente el P0 H-00, Free-only y previo a `FREE_CERTIFIED`; no es
 
 El candidate local F9.7 conserva byte-identicas las cuatro migrations F6-F8 y agrega una unica closure forward-only. `db/manifests/fase09_7_free_schema_rls.json` es el descriptor schema v2 de cinco entradas exactas, `reconciled_not_certified` y bloqueado para Free/Pro. Los artifacts F9.5 no son entradas ni insumos. Las pruebas locales cubren PostgreSQL 17, identidad backend, RLS/ACL semantico, rollback, replay, checksums, credenciales y frontend publico.
 
+La [remediacion local del trigger](./remediacion_trigger_f9_7.md) preserva ese descriptor como antecedente y agrega `db/manifests/fase09_7_free_schema_rls_v2.json`, sucesor exacto de seis entradas y unico camino manifest-only. La sexta migration fija timeouts antes de locks, no bloquea `pg_catalog`, exige el verifier de acceso y fingerprints exactos antes de retirar el trigger y la funcion sin `CASCADE`; la Edge Function historica queda tombstoneada y el [drenaje pg_net](./pg_net_queue_drain_f9_7.md) queda counts-only. El draft remoto de predicates/trigger no fue ejecutado ni conserva capacidad.
+
 ## Gate B Pre-DDL/Read-Only F9.7
 
 Gate B es exclusivamente pre-DDL y read-only: liga Free; congela commit/tree, package, allowlist y stop conditions; verifica identidad backend y estado de acceso; identifica responsables; y somete resguardo/restore y pausa de writers a aprobaciones humanas separadas. No pausa writers ni aplica schema/migrations.
@@ -71,9 +73,11 @@ La [definicion local](./remediacion_gate_b_f9_7.md) congela el package existente
 
 [EVID-F9.7-ACL-SOURCE-001](./atestacion_origen_acl_f9_7.md) consumio una unica consulta Free catalog-only y sanitizada. No observo grants heredados/SET, owners publicos, elevacion, ACL desconocida, policy no administrada, view/rule/definer desconocido, publication o particion; `package_source_coverage=complete`. La closure actual sigue incompleta; el mismatch y el trigger conocido mantienen `fail_closed=true`, mientras los predicates no atestados bloquean aplicacion de forma independiente. No hubo filas de negocio, HTTP, DDL/DML, backup/restore, writers ni Pro.
 
+La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra que el package sucesor aplica la closure y retira atomicamente la ruta de egress, o revierte schema y ledger completos ante overloads, triggers adicionales, drift de owner/ACL/body/config/timing, mismatch o falla posterior a los drops. Esto no demuestra el snapshot remoto ni habilita ejecucion.
+
 ## Dependencias Posteriores
 
-Antes de aplicar la migration F9.7 deben atestarse predicates/trigger, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+Antes de aplicar el package sucesor F9.7 deben validarse su snapshot, boundary y precondiciones exactas, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 

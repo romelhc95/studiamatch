@@ -78,7 +78,9 @@ MANIFEST_ONLY_PREFIXES = (
     "20260725_fase07_",
     "20260725_fase08_",
     "20260726_fase09_5_",
+    "20260727_fase09_7_",
 )
+F9_7_MANIFEST_ONLY_PREFIXES = ("20260727_fase09_7_",)
 F9_5_OVERLAY_STEMS = (
     "20260724_fase06_g1b_reconciliation",
     "20260724_fase06_hito1_editorial_contract",
@@ -195,7 +197,7 @@ def extract_name(filepath):
 
 
 def select_legacy_migrations(only=None):
-    """Resolve non-F6 migrations while keeping F6 behind its manifest."""
+    """Resolve migrations that are not locked behind a manifest package."""
     migration_files = sorted(glob.glob(os.path.join(MIGRATIONS_DIR, "*.sql")))
     wanted = set(only or [])
     if wanted:
@@ -210,9 +212,18 @@ def select_legacy_migrations(only=None):
     ):
         raise ManifestError(
             "Las migrations FASE-06/07 requieren --manifest; "
-            "FASE-08/09.5 tambien"
+            "FASE-08/09.5/09.7 tambien"
         )
     return migration_files
+
+
+def _assert_not_manifest_only_legacy(filepath):
+    name = extract_name(filepath)
+    if name.casefold().startswith(F9_7_MANIFEST_ONLY_PREFIXES):
+        raise ManifestError(
+            f"{name} es manifest-only; use el manifest canonico en vez "
+            "del aplicador legacy por orden lexicografico"
+        )
 
 
 def _exec_sql_with_retry(db, sql, max_retries=2):
@@ -449,6 +460,7 @@ def apply_manifest_package(db, migration_files, *, expected_prefix=None):
 def apply_migration(db, filepath, dry_run=False):
     """Aplica un archivo SQL como migration. Retorna True si éxito."""
     name = extract_name(filepath)
+    _assert_not_manifest_only_legacy(filepath)
 
     with open(filepath, "r", encoding="utf-8") as f:
         sql = f.read()

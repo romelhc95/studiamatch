@@ -5,6 +5,9 @@ result=1
 package_wrapper=""
 prefix3_wrapper=""
 prefix4_wrapper=""
+prefix5_wrapper=""
+trigger_fixture_wrapper=""
+trigger_crlf_fixture_wrapper=""
 failure_log=""
 
 finish() {
@@ -14,12 +17,15 @@ finish() {
   [[ -z "$package_wrapper" ]] || rm -f -- "$package_wrapper"
   [[ -z "$prefix3_wrapper" ]] || rm -f -- "$prefix3_wrapper"
   [[ -z "$prefix4_wrapper" ]] || rm -f -- "$prefix4_wrapper"
+  [[ -z "$prefix5_wrapper" ]] || rm -f -- "$prefix5_wrapper"
+  [[ -z "$trigger_fixture_wrapper" ]] || rm -f -- "$trigger_fixture_wrapper"
+  [[ -z "$trigger_crlf_fixture_wrapper" ]] || rm -f -- "$trigger_crlf_fixture_wrapper"
   [[ -z "$failure_log" ]] || rm -f -- "$failure_log"
   if [[ $exit_status -eq 0 && $result -eq 0 ]]; then
-    printf '%s\n' 'F9.7 PostgreSQL 17 public access closure: PASS'
+    printf '%s\n' 'F9.7 PostgreSQL 17 public access and trigger retirement: PASS'
     exit 0
   fi
-  printf '%s\n' 'F9.7 PostgreSQL 17 public access closure: FAIL' >&2
+  printf '%s\n' 'F9.7 PostgreSQL 17 public access and trigger retirement: FAIL' >&2
   [[ $exit_status -eq 0 ]] && exit 1
   exit "$exit_status"
 }
@@ -39,12 +45,14 @@ for variable_name in $(compgen -e); do
 done
 
 ROOT="${FASE097_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-MANIFEST="$ROOT/db/manifests/fase09_7_free_schema_rls.json"
+MANIFEST="$ROOT/db/manifests/fase09_7_free_schema_rls_v2.json"
 BASELINE="$ROOT/tests/sql/fase08_minimal_baseline.sql"
 ACCESS_FIXTURE="$ROOT/tests/sql/fase09_7_access_fixture.sql"
 EXEC_FIXTURE="$ROOT/tests/sql/fase09_exec_sql_fixture.sql"
 FUNCTIONAL="$ROOT/tests/sql/fase09_7_functional_test.sql"
 CLOSURE="$ROOT/db/migrations/20260727_fase09_7_public_access_closure.sql"
+RETIREMENT="$ROOT/db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql"
+HISTORICAL_TRIGGER_SOURCE="$ROOT/db/migrations/20260531_fase67b_secure_trigger.sql"
 GATE_B_QUERY="$ROOT/scripts/maintenance/fase09_7_gate_b_catalog_v1.sql"
 
 command -v psql >/dev/null
@@ -65,14 +73,19 @@ for migration in load_manifest(Path(sys.argv[1]), "free"):
     print(migration)
 PY
 )
-[[ ${#migrations[@]} -eq 5 ]]
+[[ ${#migrations[@]} -eq 6 ]]
 
 package_wrapper="$(mktemp /tmp/studiamatch-f97-package.XXXXXX.sql)"
 prefix3_wrapper="$(mktemp /tmp/studiamatch-f97-prefix3.XXXXXX.sql)"
 prefix4_wrapper="$(mktemp /tmp/studiamatch-f97-prefix4.XXXXXX.sql)"
+prefix5_wrapper="$(mktemp /tmp/studiamatch-f97-prefix5.XXXXXX.sql)"
+trigger_fixture_wrapper="$(mktemp /tmp/studiamatch-f97-trigger.XXXXXX.sql)"
+trigger_crlf_fixture_wrapper="$(mktemp /tmp/studiamatch-f97-trigger-crlf.XXXXXX.sql)"
 failure_log="$(mktemp /tmp/studiamatch-f97-failure.XXXXXX.log)"
 
-python3 - "$MANIFEST" "$prefix3_wrapper" "$prefix4_wrapper" <<'PY'
+python3 - "$MANIFEST" "$HISTORICAL_TRIGGER_SOURCE" \
+  "$trigger_fixture_wrapper" "$trigger_crlf_fixture_wrapper" \
+  "$prefix3_wrapper" "$prefix4_wrapper" "$prefix5_wrapper" <<'PY'
 import sys
 from pathlib import Path
 
@@ -81,8 +94,31 @@ from scripts.maintenance.fase09_7_candidate import (
     load_manifest,
 )
 
-paths = load_manifest(Path(sys.argv[1]), "free")
-for prefix_size, wrapper_path in zip((3, 4), sys.argv[2:]):
+manifest, trigger_source, trigger_wrapper, trigger_crlf_wrapper, *prefix_wrappers = sys.argv[1:]
+paths = load_manifest(Path(manifest), "free")
+source = Path(trigger_source).read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
+fixture_lines = (
+        "\\set ON_ERROR_STOP on",
+        "DROP FUNCTION public.notify_new_lead();",
+        "{source}",
+        "REVOKE ALL ON FUNCTION public.notify_new_lead() "
+        "FROM PUBLIC, anon, authenticated, service_role CASCADE;",
+        "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO service_role;",
+        "CREATE TRIGGER trg_notify_new_lead AFTER INSERT ON public.leads "
+        "FOR EACH ROW EXECUTE FUNCTION public.notify_new_lead();",
+)
+Path(trigger_wrapper).write_text(
+    "\n".join(fixture_lines).format(source=source.rstrip()) + "\n",
+    encoding="utf-8",
+    newline="\n",
+)
+crlf_source = source.replace("\n", "\r\n").rstrip("\r\n")
+Path(trigger_crlf_wrapper).write_text(
+    "\n".join(fixture_lines).format(source=crlf_source) + "\n",
+    encoding="utf-8",
+    newline="",
+)
+for prefix_size, wrapper_path in zip((3, 4, 5), prefix_wrappers):
     lines = ["\\set ON_ERROR_STOP on"]
     for index, path in enumerate(paths[:prefix_size], start=1):
         lines.append(f"\\i {path}")
@@ -127,11 +163,14 @@ SQL
 }
 
 setup_database() {
+  local reviewed_trigger_fixture="${1:-$trigger_fixture_wrapper}"
   reset_database
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$BASELINE" >/dev/null
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$ACCESS_FIXTURE" >/dev/null
+  psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+    --file "$reviewed_trigger_fixture" >/dev/null
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$EXEC_FIXTURE" >/dev/null
 }
@@ -177,6 +216,19 @@ class Adapter:
                 "psql", "-X", "--quiet", "--tuples-only", "--no-align",
                 dsn, "--command",
                 f"SET ROLE service_role; SELECT public.{name}();",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip().splitlines()
+        return bool(output and output[-1] == "t")
+
+    @staticmethod
+    def scalar_bool(sql):
+        output = subprocess.run(
+            [
+                "psql", "-X", "--quiet", "--tuples-only", "--no-align",
+                dsn, "--command", f"SET ROLE service_role; SELECT ({sql});",
             ],
             check=True,
             capture_output=True,
@@ -244,11 +296,23 @@ WITH catalog_rows AS (
     SELECT 'function', pg_catalog.concat_ws(
         '|', procedure.proname,
         pg_catalog.pg_get_function_identity_arguments(procedure.oid),
-        procedure.prosecdef, procedure.provolatile, procedure.proconfig::text,
+        owner.rolname,
+        procedure.prokind, procedure.prosecdef, procedure.provolatile,
+        procedure.proconfig::text,
         procedure.proacl::text, procedure.prosrc
     )
     FROM pg_catalog.pg_proc AS procedure
+    JOIN pg_catalog.pg_roles AS owner ON owner.oid = procedure.proowner
     WHERE procedure.pronamespace = 'public'::regnamespace
+    UNION ALL
+    SELECT 'trigger', pg_catalog.concat_ws(
+        '|', trigger_record.tgname, trigger_record.tgrelid,
+        trigger_record.tgfoid, trigger_record.tgtype,
+        trigger_record.tgenabled, trigger_record.tgargs::text,
+        trigger_record.tgqual::text, trigger_record.tgparentid
+    )
+    FROM pg_catalog.pg_trigger AS trigger_record
+    WHERE NOT trigger_record.tgisinternal
     UNION ALL
     SELECT 'ledger', pg_catalog.concat_ws('|', name, statements)
     FROM public.supabase_migrations
@@ -272,11 +336,37 @@ gate_b_row() {
   printf '%s\n' "${rows[0]}"
 }
 
-# Accepted immutable predecessor boundaries converge to the same five entries.
-for prefix_size in 3 4; do
+expect_boundary5_retirement_rejects() {
+  local label="$1"
+  local setup_sql="$2"
+  setup_database
+  psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+    --file "$prefix5_wrapper" >/dev/null
+  plan_manifest 1 "$package_wrapper"
+  printf '%s\n' "$setup_sql" | psql -X --quiet --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" >/dev/null
+  before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+  if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+    --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+    printf 'expected F9.7 retirement rejection for %s\n' "$label" >&2
+    exit 1
+  fi
+  grep -Fq 'F9.7 trigger retirement precondition failed' "$failure_log"
+  after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+  [[ "$before_rollback" == "$after_rollback" ]]
+  guard_rollback_state="$(psql -X --quiet --tuples-only --no-align \
+    --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 5 AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');" \
+    | tr -d '[:space:]')"
+  [[ "$guard_rollback_state" == "t" ]]
+}
+
+# Accepted immutable predecessor boundaries converge to the same six entries.
+for prefix_size in 3 4 5; do
   setup_database
   prefix_wrapper="$prefix3_wrapper"
   [[ "$prefix_size" -ne 4 ]] || prefix_wrapper="$prefix4_wrapper"
+  [[ "$prefix_size" -ne 5 ]] || prefix_wrapper="$prefix5_wrapper"
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$prefix_wrapper" >/dev/null
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
@@ -294,32 +384,41 @@ for prefix_size in 3 4; do
     [[ "${before_fields[24]}" -gt 0 ]]
     [[ "${before_fields[25]}" -gt 0 ]]
   fi
-  plan_manifest "$((5 - prefix_size))" "$package_wrapper"
+  if [[ "$prefix_size" -eq 5 ]]; then
+    before_retirement="$(gate_b_row)"
+    IFS='|' read -r -a before_retirement_fields <<< "$before_retirement"
+    [[ ${#before_retirement_fields[@]} -eq 37 ]]
+    [[ "${before_retirement_fields[2]}" == "5" ]]
+    [[ "${before_retirement_fields[36]}" == "t" ]]
+  fi
+  plan_manifest "$((6 - prefix_size))" "$package_wrapper"
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$package_wrapper" >/dev/null
   plan_manifest 0
-  if [[ "$prefix_size" -eq 4 ]]; then
-    after_direct_repair="$(gate_b_row)"
-    IFS='|' read -r -a after_fields <<< "$after_direct_repair"
-    [[ ${#after_fields[@]} -eq 37 ]]
-    [[ "${after_fields[2]}" == "5" ]]
-    [[ "${after_fields[24]}" == "0" ]]
-    [[ "${after_fields[25]}" == "0" ]]
-    [[ "${after_fields[30]}" == "0" ]]
-    [[ "${after_fields[33]}" == "t" ]]
-    [[ "${after_fields[34]}" == "t" ]]
-    [[ "${after_fields[35]}" == "t" ]]
-    [[ "${after_fields[36]}" == "t" ]]
-  fi
+  retirement_state="$({
+    psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+      "$TEST_DATABASE_URL" --command \
+      "SET ROLE service_role; SELECT public.verify_fase09_7_notify_new_lead_retirement() AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');"
+  } | tail -n 1 | tr -d '[:space:]')"
+  [[ "$retirement_state" == "t" ]]
   unrelated_state="$(psql -X --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
     "SELECT statements FROM public.supabase_migrations WHERE name = '20260101_unrelated_history';" | tr -d '[:space:]')"
   [[ "$unrelated_state" == "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ]]
 done
 
-# Empty ledger boundary applies atomically, passes role tests, replays, then is zero-pending.
+# CRLF in the historical function body is canonicalized without relaxing bytes.
+setup_database "$trigger_crlf_fixture_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null
+plan_manifest 0
+
+# Empty ledger applies atomically, passes role tests, and is zero-pending.
 setup_database
-plan_manifest 5 "$package_wrapper"
+plan_manifest 6 "$package_wrapper"
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
   --file "$package_wrapper" >/dev/null
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
@@ -340,18 +439,27 @@ after_replay="$({
 replay_state="$({
   psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
     "$TEST_DATABASE_URL" --command \
-    'SET ROLE service_role; SELECT public.verify_fase09_7_public_access_closure() AND public.verify_fase08_hito1_contract();'
+    'SET ROLE service_role; SELECT public.verify_fase09_7_notify_new_lead_retirement() AND public.verify_fase09_7_public_access_closure() AND public.verify_fase08_hito1_contract();'
 } | tail -n 1 | tr -d '[:space:]')"
 [[ "$replay_state" == "t" ]]
 plan_manifest 0
-gate_b_output="$(gate_b_row)"
-[[ "${gate_b_output##*|}" == "t" ]]
+
+# Direct replay of the non-idempotent sixth migration fails closed without drift.
+before_replay="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --single-transaction --set=ON_ERROR_STOP=1 \
+  "$TEST_DATABASE_URL" --file "$RETIREMENT" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'F9.7 trigger retirement precondition failed' "$failure_log"
+after_replay="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_replay" == "$after_replay" ]]
+plan_manifest 0
 
 # Unknown F9.7 policy drift at prefix four rolls back schema and ledger.
 setup_database
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
   --file "$prefix4_wrapper" >/dev/null
-plan_manifest 1 "$package_wrapper"
+plan_manifest 2 "$package_wrapper"
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
   'CREATE POLICY fase097_atomic_fault ON public.email_log FOR SELECT TO PUBLIC USING (true);' \
   >/dev/null
@@ -376,7 +484,7 @@ rollback_state="$({
 setup_database
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
   --file "$prefix4_wrapper" >/dev/null
-plan_manifest 1 "$package_wrapper"
+plan_manifest 2 "$package_wrapper"
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" >/dev/null <<'SQL'
 CREATE ROLE fase097_inherited_reader NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 GRANT fase097_inherited_reader TO anon;
@@ -397,6 +505,140 @@ inherited_rollback_state="$({
     "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 4 AND pg_catalog.to_regprocedure('public.verify_fase09_7_public_access_closure()') IS NULL AND pg_catalog.has_table_privilege('anon', 'public.leads', 'SELECT');"
 } | tr -d '[:space:]')"
 [[ "$inherited_rollback_state" == "t" ]]
+
+# Trigger/function drift at boundary five fails before either object is dropped.
+expect_boundary5_retirement_rejects "function config drift" \
+  "ALTER FUNCTION public.notify_new_lead() SET search_path = '';"
+expect_boundary5_retirement_rejects "notify overload" \
+  $'CREATE FUNCTION public.notify_new_lead(p_value integer)\nRETURNS integer\nLANGUAGE sql\nAS $overload$\n    SELECT p_value;\n$overload$;'
+expect_boundary5_retirement_rejects "extra leads trigger" \
+  $'CREATE FUNCTION public.fase097_extra_trigger()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $extra$\nBEGIN\n    RETURN NEW;\nEND;\n$extra$;\nCREATE TRIGGER fase097_extra_trigger\nAFTER INSERT ON public.leads\nFOR EACH ROW EXECUTE FUNCTION public.fase097_extra_trigger();'
+expect_boundary5_retirement_rejects "same trigger name other table" \
+  $'CREATE TABLE public.fase097_other (id integer);\nCREATE FUNCTION public.fase097_other_trigger()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $other$\nBEGIN\n    RETURN NEW;\nEND;\n$other$;\nCREATE TRIGGER trg_notify_new_lead\nAFTER INSERT ON public.fase097_other\nFOR EACH ROW EXECUTE FUNCTION public.fase097_other_trigger();'
+expect_boundary5_retirement_rejects "function reuse by another trigger" \
+  $'CREATE TABLE public.fase097_other (id integer);\nCREATE TRIGGER fase097_reuse_notify\nAFTER INSERT ON public.fase097_other\nFOR EACH ROW EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "disabled trigger" \
+  "ALTER TABLE public.leads DISABLE TRIGGER trg_notify_new_lead;"
+expect_boundary5_retirement_rejects "wrong trigger timing" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nBEFORE INSERT ON public.leads\nFOR EACH ROW EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "function owner drift" \
+  "ALTER FUNCTION public.notify_new_lead() OWNER TO service_role;"
+expect_boundary5_retirement_rejects "function ACL drift" \
+  "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO authenticated;"
+expect_boundary5_retirement_rejects "function body drift" \
+  $'CREATE OR REPLACE FUNCTION public.notify_new_lead()\nRETURNS trigger\nLANGUAGE plpgsql\nSECURITY DEFINER\nSET search_path = \'pg_catalog, public\'\nAS $function$\nBEGIN\n    RETURN NEW;\nEND;\n$function$;'
+
+# A compatible verifier-name collision is rejected before either drop.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "CREATE FUNCTION public.verify_fase09_7_notify_new_lead_retirement() RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS 'SELECT true';" >/dev/null
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'F9.7 trigger retirement precondition failed' "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+collision_rollback_state="$({
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 5 AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');"
+} | tr -d '[:space:]')"
+[[ "$collision_rollback_state" == "t" ]]
+
+# A NULL-returning applied-prefix verifier is rejected again in the package.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" >/dev/null <<'SQL'
+CREATE OR REPLACE FUNCTION public.verify_fase09_7_public_access_closure()
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $function$
+BEGIN
+    RETURN NULL;
+END;
+$function$;
+SQL
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'Postcondicion de prefijo fallida: 20260727_fase09_7_public_access_closure' \
+  "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+null_prefix_state="$({
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 5 AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');"
+} | tr -d '[:space:]')"
+[[ "$null_prefix_state" == "t" ]]
+
+# A failure injected after both drops still rolls back schema and the ledger.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+python3 - "$package_wrapper" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = path.read_text(encoding="utf-8")
+needle = "DROP FUNCTION public.notify_new_lead();"
+replacement = needle + """
+DO $fase097_fault$
+BEGIN
+    RAISE EXCEPTION 'F9.7 induced post-drop rollback';
+END;
+$fase097_fault$;"""
+if payload.count(needle) != 1:
+    raise RuntimeError("post-drop fault injection target drift")
+path.write_text(payload.replace(needle, replacement), encoding="utf-8", newline="\n")
+PY
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'F9.7 induced post-drop rollback' "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+post_drop_rollback_state="$({
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 5 AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');"
+} | tr -d '[:space:]')"
+[[ "$post_drop_rollback_state" == "t" ]]
+
+# Boundary six rejects verifier body drift through the external catalog check.
+setup_database
+plan_manifest 6 "$package_wrapper"
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "CREATE OR REPLACE FUNCTION public.verify_fase09_7_notify_new_lead_retirement() RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS 'SELECT true';" >/dev/null
+if plan_manifest 0 >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'Postcondicion externa fallida: 20260727_fase09_7_notify_new_lead_retirement' \
+  "$failure_log"
+verifier_drift_state="$({
+  psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
+    "$TEST_DATABASE_URL" --command \
+    "SELECT (SELECT pg_catalog.count(*) FROM public.supabase_migrations WHERE name LIKE '202607%') = 6 AND pg_catalog.to_regprocedure('public.notify_new_lead()') IS NULL AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_trigger WHERE NOT tgisinternal AND tgname = 'trg_notify_new_lead');"
+} | tr -d '[:space:]')"
+[[ "$verifier_drift_state" == "t" ]]
 
 reset_database
 result=0

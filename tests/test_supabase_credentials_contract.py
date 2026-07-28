@@ -119,13 +119,6 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
-    "supabase/functions/send-lead-emails/index.ts": {
-        "identities": {"RESEND_API_KEY"},
-        "provider": "resend-api",
-        "provider_marker": "api.resend.com",
-        "provider_env": "RESEND_API_KEY",
-        "derivation_marker": 'RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")',
-    },
     ".github/workflows/production_pipeline.yml": {
         "identities": {"CF_API_TOKEN"},
         "provider": "cloudflare-api",
