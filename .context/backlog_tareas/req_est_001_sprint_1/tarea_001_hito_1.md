@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; origen ACL F9.7 atestado como reparable por package; predicates/trigger y gates operativos pendientes |
+| Fase vigente | Macrofase `F9` en progreso; package local F9.7 de seis entradas queda PR-ready local; snapshot remoto y gates operativos pendientes |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -107,6 +107,8 @@ Gate B verifico Free de forma pre-DDL/read-only y se consumio sin aplicar schema
 [EVID-F9.7-GATE-B-001](../../operaciones/gate_b_f9_7.md) ejecuto Gate B con una consulta Free agregada y termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`: el boundary candidate vacio fue permitido, pero el acceso de superficies protegidas activo stop conditions. El runner HTTP y las aprobaciones separadas de resguardo/restore y pausa quedaron `NOT_SUBMITTED_BLOCKED_BY_GATE_B_FAIL`; writers, DDL/DML, Pro y backfill permanecieron en cero.
 
 La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La [atestacion ACL](../../operaciones/atestacion_origen_acl_f9_7.md) observo cobertura completa del package para fuentes ACL, sin herencia/SET/owner/unknown; el mismatch y el trigger mantuvieron fail-closed y los predicates no atestados bloquearon aplicacion independientemente. No hubo filas de negocio, HTTP, schema, migrations, DML, backup, restore ni control de writers.
+
+La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por un manifest sucesor de seis entradas. Las cinco migrations historicas quedan byte-identicas; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado y el drenaje pg_net queda counts-only. PostgreSQL 17, replay, rollback, drift cases y ledger locales pasan; no observa ni modifica Free/Pro y no autoriza aplicacion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 

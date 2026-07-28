@@ -55,7 +55,7 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
 | `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
-| `F9.7` | Schema/RLS Free | Candidate implementado; Gate B consumido y origen ACL atestado; predicates/trigger, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free | Package sucesor local PR-ready de seis entradas retira el trigger inseguro y tombstonea egress residual; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |

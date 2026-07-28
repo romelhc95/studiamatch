@@ -1,0 +1,71 @@
+{
+  "schema_version": 2,
+  "phase": "F9.7",
+  "package_id": "F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-20260727",
+  "status": "reconciled_not_certified",
+  "blocked_targets": ["free", "pro"],
+  "prerequisites": [
+    "backend_service_identity_verified",
+    "local_postgresql17_candidate_verified"
+  ],
+  "entries": [
+    {
+      "id": "F6-G1B-FORWARD",
+      "component": "g1b",
+      "path": "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+      "sha256": "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F6-HITO1-FORWARD",
+      "component": "hito1",
+      "path": "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+      "sha256": "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F7-G1B-CLOSURE",
+      "component": "g1b_closure",
+      "path": "db/migrations/20260725_fase07_g1b_closure.sql",
+      "sha256": "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F8-HITO1-FUNCTIONAL-CLOSURE",
+      "component": "hito1_functional_closure",
+      "path": "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+      "sha256": "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F9.7-PUBLIC-ACCESS-CLOSURE",
+      "component": "public_access_closure",
+      "path": "db/migrations/20260727_fase09_7_public_access_closure.sql",
+      "sha256": "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    },
+    {
+      "id": "F9.7-NOTIFY-NEW-LEAD-RETIREMENT",
+      "component": "notify_new_lead_retirement",
+      "path": "db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql",
+      "sha256": "fd6287795245a131b6b71bc2242ed4c8727091c61af27f4fe5cf9faaecc742fa",
+      "provenance": "new_forward_only",
+      "targets": ["free", "pro"]
+    }
+  ],
+  "excluded": {
+    "fase09_5_artifacts": "historical_non_promotable",
+    "H-00": "historical_free_only",
+    "backfill": "separate_future_gate",
+    "pro_execution": "blocked",
+    "persistent_canary": "excluded",
+    "operational_data": "excluded",
+    "historical_snapshots": "superseded",
+    "remote_predicate_trigger_attestation": "replaced_by_local_forward_only_retirement"
+  }
+}

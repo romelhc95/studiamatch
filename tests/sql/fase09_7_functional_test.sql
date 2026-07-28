@@ -14,12 +14,30 @@ END;
 $function$;
 
 SET ROLE service_role;
-SELECT public.verify_fase09_7_public_access_closure() AS initial_verifier \gset
+SELECT public.verify_fase09_7_notify_new_lead_retirement() AS initial_verifier \gset
+SELECT public.verify_fase09_7_public_access_closure() AS access_verifier \gset
 SELECT public.verify_fase08_hito1_contract() AS transitive_f8_verifier \gset
 RESET ROLE;
 SELECT pg_temp.assert_true(:'initial_verifier'::boolean, 'initial verifier');
+SELECT pg_temp.assert_true(:'access_verifier'::boolean, 'access verifier');
 SELECT pg_temp.assert_true(
     :'transitive_f8_verifier'::boolean, 'transitive F8 wrapper'
+);
+SELECT pg_temp.assert_true(
+    pg_catalog.to_regprocedure('public.notify_new_lead()') IS NULL,
+    'notify_new_lead function retired'
+);
+SELECT pg_temp.assert_true(
+    NOT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_trigger AS trigger_record
+        WHERE NOT trigger_record.tgisinternal
+          AND (
+              trigger_record.tgrelid = 'public.leads'::regclass
+              OR trigger_record.tgname = 'trg_notify_new_lead'
+          )
+    ),
+    'notify_new_lead trigger retired'
 );
 
 INSERT INTO public.institution_site_profiles (
@@ -457,9 +475,26 @@ SELECT pg_temp.assert_true(
     :'denied_verifier_state' = '42501', 'verifier is service-only'
 );
 
+SAVEPOINT denied_retirement_verifier;
+\set ON_ERROR_STOP off
+SET ROLE authenticated;
+SELECT public.verify_fase09_7_notify_new_lead_retirement();
+\set denied_retirement_verifier_state :SQLSTATE
+ROLLBACK TO SAVEPOINT denied_retirement_verifier;
+RESET ROLE;
+\set ON_ERROR_STOP on
+SELECT pg_temp.assert_true(
+    :'denied_retirement_verifier_state' = '42501',
+    'trigger retirement verifier is service-only'
+);
+
 SET ROLE service_role;
 SELECT public.verify_fase09_7_public_access_closure() AS final_verifier \gset
+SELECT public.verify_fase09_7_notify_new_lead_retirement() AS final_retirement \gset
 RESET ROLE;
 SELECT pg_temp.assert_true(:'final_verifier'::boolean, 'final verifier');
+SELECT pg_temp.assert_true(
+    :'final_retirement'::boolean, 'final trigger retirement verifier'
+);
 
 ROLLBACK;

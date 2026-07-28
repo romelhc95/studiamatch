@@ -4,19 +4,25 @@ on:
   pull_request:
     paths:
       - 'db/manifests/fase09_7_free_schema_rls.json'
+      - 'db/manifests/fase09_7_free_schema_rls_v2.json'
       - 'db/manifests/fase09_7_gate_b_readonly.json'
       - 'db/manifests/fase09_7_remediation_definition.json'
       - 'db/manifests/fase09_7_acl_source_attestation.json'
       - 'db/runbooks/fase09_7_backup_restore.json'
       - 'db/runbooks/fase09_7_writer_pause.json'
+      - '.context/operaciones/remediacion_trigger_f9_7.md'
+      - '.context/operaciones/pg_net_queue_drain_f9_7.md'
       - 'db/migrations/20260724_fase06_g1b_reconciliation.sql'
       - 'db/migrations/20260724_fase06_hito1_editorial_contract.sql'
       - 'db/migrations/20260725_fase07_g1b_closure.sql'
       - 'db/migrations/20260725_fase08_hito1_functional_closure.sql'
       - 'db/migrations/20260727_fase09_7_public_access_closure.sql'
+      - 'db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
+      - 'scripts/maintenance/db_migrate.py'
       - 'scripts/maintenance/fase09_7_gate_b_catalog_v1.sql'
       - 'scripts/maintenance/fase09_7_acl_source_attestation.sql'
+      - 'supabase/functions/send-lead-emails/index.ts'
       - 'tests/sql/fase09_7_*'
       - 'tests/sql/fase08_minimal_baseline.sql'
       - 'tests/sql/fase09_exec_sql_fixture.sql'
@@ -48,7 +54,7 @@ permissions:
 
 jobs:
   fase09-7-schema-rls:
-    name: F9.7 Public Access Closure PostgreSQL 17 Contract
+    name: F9.7 Public Access and Trigger Retirement PostgreSQL 17 Contract
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
