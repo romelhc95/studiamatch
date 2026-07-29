@@ -132,6 +132,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     ".github/workflows/security-audit.yml": "supabase-ci",
     "tests/test_fase09_7_backend_identity.py": "supabase-data-api-test",
     "tests/test_fase09_7_schema_rls.py": "supabase-data-api-test",
+    "tests/test_frontend_lead_capture_playwright.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
@@ -196,6 +197,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/harvesters/usil_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/utp_harvester.py": "supabase-data-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
+    "web/src/lib/leadCaptureCore.ts": "supabase-data-api",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
     "web/src/app/page.tsx": "supabase-data-api",
     "web/src/app/compare/CompareContent.tsx": "supabase-data-api",
@@ -853,3 +855,16 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-ci",
         "supabase-data-api-test",
     }
+
+
+def test_credential_scanners_block_real_supabase_publishable_keys():
+    scanner_paths = [
+        ROOT / ".github/workflows/security-audit.yml",
+        ROOT / ".githooks/pre-commit",
+        ROOT / ".githooks/pre-push",
+    ]
+
+    for path in scanner_paths:
+        source = path.read_text(encoding="utf-8")
+        assert "sb_publishable_[A-Za-z0-9_-]{20,}" in source
+        assert "sb_secret_[A-Za-z0-9_-]{10,}" in source

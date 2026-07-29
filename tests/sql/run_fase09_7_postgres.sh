@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 result=1
 package_wrapper=""
@@ -8,6 +8,9 @@ prefix4_wrapper=""
 prefix5_wrapper=""
 trigger_fixture_wrapper=""
 trigger_crlf_fixture_wrapper=""
+trigger_project_ref_fixture_wrapper=""
+email_fixture_wrapper=""
+absent_clean_wrapper=""
 failure_log=""
 
 finish() {
@@ -20,6 +23,9 @@ finish() {
   [[ -z "$prefix5_wrapper" ]] || rm -f -- "$prefix5_wrapper"
   [[ -z "$trigger_fixture_wrapper" ]] || rm -f -- "$trigger_fixture_wrapper"
   [[ -z "$trigger_crlf_fixture_wrapper" ]] || rm -f -- "$trigger_crlf_fixture_wrapper"
+  [[ -z "$trigger_project_ref_fixture_wrapper" ]] || rm -f -- "$trigger_project_ref_fixture_wrapper"
+  [[ -z "$email_fixture_wrapper" ]] || rm -f -- "$email_fixture_wrapper"
+  [[ -z "$absent_clean_wrapper" ]] || rm -f -- "$absent_clean_wrapper"
   [[ -z "$failure_log" ]] || rm -f -- "$failure_log"
   if [[ $exit_status -eq 0 && $result -eq 0 ]]; then
     printf '%s\n' 'F9.7 PostgreSQL 17 public access and trigger retirement: PASS'
@@ -30,6 +36,7 @@ finish() {
   exit "$exit_status"
 }
 trap finish EXIT
+trap 'status=$?; printf "F9.7 PostgreSQL runner failed near line %s (exit %s)\n" "$LINENO" "$status" >&2; exit "$status"' ERR
 trap 'exit 130' HUP INT TERM
 
 : "${TEST_DATABASE_URL:?TEST_DATABASE_URL must point to an ephemeral PostgreSQL 17 database}"
@@ -45,15 +52,18 @@ for variable_name in $(compgen -e); do
 done
 
 ROOT="${FASE097_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-MANIFEST="$ROOT/db/manifests/fase09_7_free_schema_rls_v2.json"
+MANIFEST="$ROOT/db/manifests/fase09_7_free_schema_rls_v3.json"
 BASELINE="$ROOT/tests/sql/fase08_minimal_baseline.sql"
 ACCESS_FIXTURE="$ROOT/tests/sql/fase09_7_access_fixture.sql"
 EXEC_FIXTURE="$ROOT/tests/sql/fase09_exec_sql_fixture.sql"
 FUNCTIONAL="$ROOT/tests/sql/fase09_7_functional_test.sql"
 CLOSURE="$ROOT/db/migrations/20260727_fase09_7_public_access_closure.sql"
-RETIREMENT="$ROOT/db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql"
+RETIREMENT="$ROOT/db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql"
 HISTORICAL_TRIGGER_SOURCE="$ROOT/db/migrations/20260531_fase67b_secure_trigger.sql"
+HISTORICAL_EMAIL_SOURCE="$ROOT/db/migrations/20260531_fase67b_email_infrastructure.sql"
 GATE_B_QUERY="$ROOT/scripts/maintenance/fase09_7_gate_b_catalog_v1.sql"
+DRIFT_DIAGNOSTIC="$ROOT/scripts/maintenance/fase09_7_notify_drift_diagnostic.sql"
+NOTIFY_MATRIX="$ROOT/tests/sql/fase09_7_notify_variants_offline.sql"
 
 command -v psql >/dev/null
 command -v python3 >/dev/null
@@ -75,16 +85,21 @@ PY
 )
 [[ ${#migrations[@]} -eq 6 ]]
 
-package_wrapper="$(mktemp /tmp/studiamatch-f97-package.XXXXXX.sql)"
-prefix3_wrapper="$(mktemp /tmp/studiamatch-f97-prefix3.XXXXXX.sql)"
-prefix4_wrapper="$(mktemp /tmp/studiamatch-f97-prefix4.XXXXXX.sql)"
-prefix5_wrapper="$(mktemp /tmp/studiamatch-f97-prefix5.XXXXXX.sql)"
-trigger_fixture_wrapper="$(mktemp /tmp/studiamatch-f97-trigger.XXXXXX.sql)"
-trigger_crlf_fixture_wrapper="$(mktemp /tmp/studiamatch-f97-trigger-crlf.XXXXXX.sql)"
-failure_log="$(mktemp /tmp/studiamatch-f97-failure.XXXXXX.log)"
+tmp_parent="${TMPDIR:-/tmp}"
+package_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-package.XXXXXX.sql")"
+prefix3_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-prefix3.XXXXXX.sql")"
+prefix4_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-prefix4.XXXXXX.sql")"
+prefix5_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-prefix5.XXXXXX.sql")"
+trigger_fixture_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-trigger.XXXXXX.sql")"
+trigger_crlf_fixture_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-trigger-crlf.XXXXXX.sql")"
+trigger_project_ref_fixture_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-trigger-project-ref.XXXXXX.sql")"
+email_fixture_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-email.XXXXXX.sql")"
+absent_clean_wrapper="$(mktemp "$tmp_parent/studiamatch-f97-absent-clean.XXXXXX.sql")"
+failure_log="$(mktemp "$tmp_parent/studiamatch-f97-failure.XXXXXX.log")"
 
-python3 - "$MANIFEST" "$HISTORICAL_TRIGGER_SOURCE" \
+python3 - "$MANIFEST" "$HISTORICAL_TRIGGER_SOURCE" "$HISTORICAL_EMAIL_SOURCE" \
   "$trigger_fixture_wrapper" "$trigger_crlf_fixture_wrapper" \
+  "$trigger_project_ref_fixture_wrapper" "$email_fixture_wrapper" "$absent_clean_wrapper" \
   "$prefix3_wrapper" "$prefix4_wrapper" "$prefix5_wrapper" <<'PY'
 import sys
 from pathlib import Path
@@ -94,9 +109,24 @@ from scripts.maintenance.fase09_7_candidate import (
     load_manifest,
 )
 
-manifest, trigger_source, trigger_wrapper, trigger_crlf_wrapper, *prefix_wrappers = sys.argv[1:]
+(
+    manifest,
+    trigger_source,
+    email_source,
+    trigger_wrapper,
+    trigger_crlf_wrapper,
+    trigger_project_ref_wrapper,
+    email_wrapper,
+    absent_clean_wrapper,
+    *prefix_wrappers,
+) = sys.argv[1:]
 paths = load_manifest(Path(manifest), "free")
 source = Path(trigger_source).read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
+email_source_text = Path(email_source).read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
+email_function = email_source_text.split(
+    "CREATE OR REPLACE FUNCTION public.notify_new_lead()", 1
+)[1].split("\n$$;", 1)[0]
+email_function = "CREATE OR REPLACE FUNCTION public.notify_new_lead()" + email_function + "\n$$;"
 fixture_lines = (
         "\\set ON_ERROR_STOP on",
         "DROP FUNCTION public.notify_new_lead();",
@@ -117,6 +147,26 @@ Path(trigger_crlf_wrapper).write_text(
     "\n".join(fixture_lines).format(source=crlf_source) + "\n",
     encoding="utf-8",
     newline="",
+)
+project_ref_source = source.replace(
+    "xwhtiqmboljkshrtviyw", "aaaaaaaaaaaaaaaaaaaa"
+)
+Path(trigger_project_ref_wrapper).write_text(
+    "\n".join(fixture_lines).format(source=project_ref_source.rstrip()) + "\n",
+    encoding="utf-8",
+    newline="\n",
+)
+Path(email_wrapper).write_text(
+    "\n".join(fixture_lines).format(source=email_function.rstrip()) + "\n",
+    encoding="utf-8",
+    newline="\n",
+)
+Path(absent_clean_wrapper).write_text(
+    "\\set ON_ERROR_STOP on\n"
+    "DROP TRIGGER IF EXISTS trg_notify_new_lead ON public.leads;\n"
+    "DROP FUNCTION public.notify_new_lead();\n",
+    encoding="utf-8",
+    newline="\n",
 )
 for prefix_size, wrapper_path in zip((3, 4, 5), prefix_wrappers):
     lines = ["\\set ON_ERROR_STOP on"]
@@ -143,7 +193,7 @@ WHERE role.rolname IN (
     'anon', 'authenticated', 'service_role', 'fase097_policy_parent',
     'fase097_private_reader', 'fase097_courses_parent',
     'fase097_inherited_reader',
-    'fase097_insert_parent'
+    'fase097_insert_parent', 'fase097_unknown_grantee'
 )
 ORDER BY role.rolname
 \gexec
@@ -153,7 +203,7 @@ WHERE role.rolname IN (
     'anon', 'authenticated', 'service_role', 'fase097_policy_parent',
     'fase097_private_reader', 'fase097_courses_parent',
     'fase097_inherited_reader',
-    'fase097_insert_parent'
+    'fase097_insert_parent', 'fase097_unknown_grantee'
 )
 ORDER BY role.rolname
 \gexec
@@ -237,7 +287,8 @@ class Adapter:
         return bool(output and output[-1] == "t")
 
 
-pending = validate_manifest_ledger_state(Adapter(), paths, applied)
+plan = validate_manifest_ledger_state(Adapter(), paths, applied)
+pending = list(plan.pending_paths)
 if len(pending) != int(expected_pending):
     raise RuntimeError(
         f"planner returned {len(pending)} pending; expected {expected_pending}"
@@ -245,14 +296,7 @@ if len(pending) != int(expected_pending):
 if output_wrapper:
     if not pending:
         raise RuntimeError("cannot emit a zero-pending package")
-    expected_prefix = {
-        path.stem: applied[path.stem] for path in paths if path.stem in applied
-    }
-    payload = build_manifest_package_sql(
-        pending,
-        expected_prefix=expected_prefix,
-        version=20260727090500 + len(applied),
-    )
+    payload = build_manifest_package_sql(plan, version=20260727090500 + len(applied))
     delimiter = "$fase097_planned_package$"
     if delimiter in payload:
         raise RuntimeError("reserved package delimiter collision")
@@ -331,9 +375,160 @@ gate_b_row() {
     psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
       "$TEST_DATABASE_URL" --file "$GATE_B_QUERY"
   )"
-  mapfile -t rows <<< "$output"
+  mapfile -t rows < <(printf '%s\n' "$output" | sed '/^$/d')
   [[ ${#rows[@]} -eq 1 ]]
   printf '%s\n' "${rows[0]}"
+}
+
+DIAGNOSTIC_FIELDS=()
+
+diagnostic_fields() {
+  local output
+  local -a rows fields
+  output="$(
+    psql -X --quiet --tuples-only --no-align --field-separator '|' \
+      --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$DRIFT_DIAGNOSTIC"
+  )"
+  mapfile -t rows < <(printf '%s\n' "$output" | sed '/^$/d')
+  [[ ${#rows[@]} -eq 1 ]]
+  IFS='|' read -r -a fields <<< "${rows[0]}"
+  [[ ${#fields[@]} -eq 37 ]]
+  [[ "${fields[2]}" == "t" ]]
+  [[ "${fields[4]}" == "t" ]]
+  [[ "${fields[35]}" == "f" ]]
+  DIAGNOSTIC_FIELDS=("${fields[@]}")
+}
+
+diagnostic_route_class() {
+  diagnostic_fields
+  printf '%s\n' "${DIAGNOSTIC_FIELDS[1]}"
+}
+
+assert_diagnostic_state() {
+  local expected_boundary="$1"
+  local expected_route="$2"
+  local expected_class="$3"
+  local expected_successor="$4"
+  local expected_fail_closed="$5"
+  diagnostic_fields
+  [[ "${DIAGNOSTIC_FIELDS[3]}" == "$expected_boundary" ]]
+  [[ "${DIAGNOSTIC_FIELDS[1]}" == "$expected_route" ]]
+  [[ "${DIAGNOSTIC_FIELDS[32]}" == "$expected_successor" ]]
+  [[ "${DIAGNOSTIC_FIELDS[33]}" == "$expected_successor" ]]
+  [[ "${DIAGNOSTIC_FIELDS[34]}" == "$expected_class" ]]
+  [[ "${DIAGNOSTIC_FIELDS[36]}" == "$expected_fail_closed" ]]
+}
+
+capture_matrix_summary() {
+  local label="$1"
+  local expected_route="$2"
+  local actual_route="$3"
+  local package_applied="$4"
+  local expected_package_applied="f"
+  local output
+  local -a rows fields
+  [[ "$package_applied" != "true" ]] || expected_package_applied="t"
+  output="$(psql -X --quiet --tuples-only --no-align --field-separator '|' \
+    --set=ON_ERROR_STOP=1 \
+    --set="FASE097_MATRIX_SENTINEL=fase09_7_notify_matrix_${label//-/_}" \
+    "$TEST_DATABASE_URL" \
+    --file "$NOTIFY_MATRIX" \
+    --command "SELECT pg_temp.capture_notify_variant('${label}', '${expected_route}', '${actual_route}', ${package_applied});" \
+    --command "SELECT variant_name, expected_route_class, actual_route_class, package_applied, metadata_exact, owner_exact, search_path_exact, acl_exact_after_fixture, dependency_exact, trigger_exact, egress_category FROM notify_variant_summary WHERE variant_name = '${label}';")"
+  mapfile -t rows < <(printf '%s\n' "$output" | sed '/^$/d')
+  [[ ${#rows[@]} -eq 1 ]]
+  IFS='|' read -r -a fields <<< "${rows[0]}"
+  [[ ${#fields[@]} -eq 11 ]]
+  [[ "${fields[0]}" == "$label" ]]
+  [[ "${fields[1]}" == "$expected_route" ]]
+  [[ "${fields[2]}" == "$actual_route" ]]
+  [[ "${fields[3]}" == "$expected_package_applied" ]]
+  [[ "${fields[4]}" == "t" ]]
+  [[ "${fields[5]}" == "t" ]]
+  [[ "${fields[6]}" == "t" ]]
+  [[ "${fields[7]}" == "t" ]]
+  [[ "${fields[8]}" == "t" ]]
+  [[ "${fields[9]}" == "t" ]]
+  [[ -n "${fields[10]}" ]]
+}
+
+expect_matrix_case() {
+  local label="$1"
+  local boundary="$2"
+  local fixture="$3"
+  local expected_route="$4"
+  local expected_package="$5"
+  local expected_class="$6"
+  local expected_successor="f"
+  local expected_fail_closed="t"
+  if [[ "$expected_route" == "successor_v3" ]]; then
+    expected_successor="t"
+    expected_fail_closed="f"
+  fi
+  setup_database "$fixture"
+  case "$boundary" in
+    0) ;;
+    3) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix3_wrapper" >/dev/null ;;
+    4) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix4_wrapper" >/dev/null ;;
+    5) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix5_wrapper" >/dev/null ;;
+    *) exit 1 ;;
+  esac
+  actual_route="$(diagnostic_route_class)"
+  [[ "$actual_route" == "$expected_route" ]]
+  assert_diagnostic_state "$boundary" "$expected_route" "$expected_class" \
+    "$expected_successor" "$expected_fail_closed"
+  capture_matrix_summary "$label" "$expected_route" "$actual_route" false
+  plan_manifest "$((6 - boundary))" "$package_wrapper"
+  if [[ "$expected_package" == "success" ]]; then
+    psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+      --file "$package_wrapper" >/dev/null
+    actual_route="$(diagnostic_route_class)"
+    [[ "$actual_route" == "successor_v3" ]]
+    assert_diagnostic_state 6 "successor_v3" "SUCCESSOR_V3_ELIGIBLE" "t" "f"
+    capture_matrix_summary "${label}_post" "successor_v3" "$actual_route" true
+    plan_manifest 0
+  else
+    before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+    if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+      --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+      printf 'expected diagnostic/package rejection for %s\n' "$label" >&2
+      exit 1
+    fi
+    after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+    [[ "$before_rollback" == "$after_rollback" ]]
+    ledger_rollback_state="$(psql -X --quiet --tuples-only --no-align \
+      --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+      "SELECT pg_catalog.count(*)::text FROM public.supabase_migrations WHERE name LIKE '202607%';" \
+      | tr -d '[:space:]')"
+    [[ "$ledger_rollback_state" == "$boundary" ]]
+  fi
+}
+
+expect_absent_clean_boundary() {
+  local label="$1"
+  local boundary="$2"
+  setup_database
+  case "$boundary" in
+    3) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix3_wrapper" >/dev/null ;;
+    4) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix4_wrapper" >/dev/null ;;
+    5) psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --file "$prefix5_wrapper" >/dev/null ;;
+    *) exit 1 ;;
+  esac
+  psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+    --file "$absent_clean_wrapper" >/dev/null
+  actual_route="$(diagnostic_route_class)"
+  [[ "$actual_route" == "successor_v3" ]]
+  assert_diagnostic_state "$boundary" "successor_v3" \
+    "SUCCESSOR_V3_ELIGIBLE" "t" "f"
+  capture_matrix_summary "$label" "successor_v3" "$actual_route" false
+  plan_manifest "$((6 - boundary))" "$package_wrapper"
+  psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+    --file "$package_wrapper" >/dev/null
+  actual_route="$(diagnostic_route_class)"
+  [[ "$actual_route" == "successor_v3" ]]
+  assert_diagnostic_state 6 "successor_v3" "SUCCESSOR_V3_ELIGIBLE" "t" "f"
+  capture_matrix_summary "${label}_post" "successor_v3" "$actual_route" true
+  plan_manifest 0
 }
 
 expect_boundary5_retirement_rejects() {
@@ -360,6 +555,97 @@ expect_boundary5_retirement_rejects() {
     | tr -d '[:space:]')"
   [[ "$guard_rollback_state" == "t" ]]
 }
+
+# Diagnostic/package matrix for reviewed source variants and absent-clean boundaries.
+expect_matrix_case "secure_trigger_exact_b5" 5 "$trigger_fixture_wrapper" "successor_v3" success "SUCCESSOR_V3_ELIGIBLE"
+expect_matrix_case "secure_trigger_crlf_b5" 5 "$trigger_crlf_fixture_wrapper" "successor_v3" success "SUCCESSOR_V3_ELIGIBLE"
+expect_matrix_case "project_ref_redacted_b5" 5 "$trigger_project_ref_fixture_wrapper" "successor_v3" success "SUCCESSOR_V3_ELIGIBLE"
+expect_matrix_case "email_infrastructure_b5" 5 "$email_fixture_wrapper" "successor_v3" success "SUCCESSOR_V3_ELIGIBLE"
+expect_absent_clean_boundary "absent_clean_b3" 3
+expect_absent_clean_boundary "absent_clean_b4" 4
+expect_absent_clean_boundary "absent_clean_b5" 5
+expect_matrix_case "absent_clean_b0" 0 "$absent_clean_wrapper" "stop" failure "STOP_ABSENT_CLEAN_BOUNDARY_0"
+
+# Diagnostic fail-closed coverage for ledger shape, roles, and verifier evidence.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "UPDATE public.supabase_migrations SET statements = 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' WHERE name = '20260727_fase09_7_public_access_closure';" \
+  >/dev/null
+assert_diagnostic_state 4 "stop" "STOP_LEDGER_CHECKSUM_DRIFT" "f" "t"
+if plan_manifest 1 >/dev/null 2>"$failure_log"; then
+  printf '%s\n' 'expected checksum drift rejection' >&2
+  exit 1
+fi
+
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix3_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "INSERT INTO public.supabase_migrations (version, name, statements, applied_at) VALUES (20260727090005, '20260727_fase09_7_public_access_closure', 'sha256:040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b', pg_catalog.clock_timestamp());" \
+  >/dev/null
+assert_diagnostic_state 3 "stop" "STOP_LEDGER_GAP" "f" "t"
+if plan_manifest 3 >/dev/null 2>"$failure_log"; then
+  printf '%s\n' 'expected ledger gap rejection' >&2
+  exit 1
+fi
+
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix3_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "ALTER TABLE public.supabase_migrations DROP CONSTRAINT supabase_migrations_pkey; INSERT INTO public.supabase_migrations (version, name, statements, applied_at) VALUES (20260727090013, '20260725_fase07_g1b_closure', 'sha256:9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120', pg_catalog.clock_timestamp());" \
+  >/dev/null
+assert_diagnostic_state 3 "stop" "STOP_LEDGER_DUPLICATE" "f" "t"
+plan_manifest 3 "$package_wrapper"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  printf '%s\n' 'expected ledger duplicate rejection' >&2
+  exit 1
+fi
+grep -Fq 'Manifest prefix drift' "$failure_log"
+
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" >/dev/null <<'SQL'
+DROP OWNED BY service_role;
+DROP ROLE service_role;
+SQL
+assert_diagnostic_state 5 "stop" "STOP_SERVICE_ROLE_ABSENT" "f" "t"
+if plan_manifest 1 >/dev/null 2>"$failure_log"; then
+  printf '%s\n' 'expected service_role absence rejection' >&2
+  exit 1
+fi
+
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" >/dev/null <<'SQL'
+CREATE OR REPLACE FUNCTION public.verify_fase09_7_public_access_closure()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $function$
+    SELECT true;
+$function$;
+SQL
+assert_diagnostic_state 5 "stop" "STOP_PUBLIC_ACCESS_VERIFIER_DRIFT" "f" "t"
+if plan_manifest 1 >/dev/null 2>"$failure_log"; then
+  printf '%s\n' 'expected public access verifier drift rejection' >&2
+  exit 1
+fi
+
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
+  "CREATE FUNCTION public.verify_fase09_7_notify_new_lead_retirement() RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS 'SELECT true';" \
+  >/dev/null
+assert_diagnostic_state 5 "stop" "STOP_RETIREMENT_VERIFIER_COLLISION" "f" "t"
 
 # Accepted immutable predecessor boundaries converge to the same six entries.
 for prefix_size in 3 4 5; do
@@ -394,6 +680,7 @@ for prefix_size in 3 4 5; do
   plan_manifest "$((6 - prefix_size))" "$package_wrapper"
   psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
     --file "$package_wrapper" >/dev/null
+  assert_diagnostic_state 6 "successor_v3" "SUCCESSOR_V3_ELIGIBLE" "t" "f"
   plan_manifest 0
   retirement_state="$({
     psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \
@@ -521,10 +808,28 @@ expect_boundary5_retirement_rejects "disabled trigger" \
   "ALTER TABLE public.leads DISABLE TRIGGER trg_notify_new_lead;"
 expect_boundary5_retirement_rejects "wrong trigger timing" \
   $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nBEFORE INSERT ON public.leads\nFOR EACH ROW EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "wrong trigger event" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nAFTER UPDATE ON public.leads\nFOR EACH ROW EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "wrong trigger level" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nAFTER INSERT ON public.leads\nFOR EACH STATEMENT EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "trigger args" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nAFTER INSERT ON public.leads\nFOR EACH ROW EXECUTE FUNCTION public.notify_new_lead('"'"'unexpected'"'"');'
+expect_boundary5_retirement_rejects "trigger when clause" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nAFTER INSERT ON public.leads\nFOR EACH ROW WHEN (NEW.email IS NOT NULL) EXECUTE FUNCTION public.notify_new_lead();'
+expect_boundary5_retirement_rejects "transition table" \
+  $'DROP TRIGGER trg_notify_new_lead ON public.leads;\nCREATE TRIGGER trg_notify_new_lead\nAFTER INSERT ON public.leads\nREFERENCING NEW TABLE AS new_table\nFOR EACH STATEMENT EXECUTE FUNCTION public.notify_new_lead();'
 expect_boundary5_retirement_rejects "function owner drift" \
   "ALTER FUNCTION public.notify_new_lead() OWNER TO service_role;"
-expect_boundary5_retirement_rejects "function ACL drift" \
+expect_boundary5_retirement_rejects "function ACL authenticated drift" \
   "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO authenticated;"
+expect_boundary5_retirement_rejects "function ACL PUBLIC drift" \
+  "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO PUBLIC;"
+expect_boundary5_retirement_rejects "function ACL anon drift" \
+  "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO anon;"
+expect_boundary5_retirement_rejects "function ACL unknown grantee" \
+  $'CREATE ROLE fase097_unknown_grantee NOLOGIN;\nGRANT EXECUTE ON FUNCTION public.notify_new_lead() TO fase097_unknown_grantee;'
+expect_boundary5_retirement_rejects "function ACL grant option" \
+  "GRANT EXECUTE ON FUNCTION public.notify_new_lead() TO service_role WITH GRANT OPTION;"
 expect_boundary5_retirement_rejects "function body drift" \
   $'CREATE OR REPLACE FUNCTION public.notify_new_lead()\nRETURNS trigger\nLANGUAGE plpgsql\nSECURITY DEFINER\nSET search_path = \'pg_catalog, public\'\nAS $function$\nBEGIN\n    RETURN NEW;\nEND;\n$function$;'
 
@@ -621,6 +926,63 @@ post_drop_rollback_state="$({
 } | tr -d '[:space:]')"
 [[ "$post_drop_rollback_state" == "t" ]]
 
+# A failure after final verifier and before ledger append also rolls back drops.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+python3 - "$package_wrapper" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = path.read_text(encoding="utf-8")
+needle = "-- manifest-ledger-registration"
+replacement = """DO $fase097_fault$
+BEGIN
+    RAISE EXCEPTION 'F9.7 induced post-verifier rollback';
+END;
+$fase097_fault$;
+-- manifest-ledger-registration"""
+if payload.count(needle) != 1:
+    raise RuntimeError("post-verifier fault injection target drift")
+path.write_text(payload.replace(needle, replacement), encoding="utf-8", newline="\n")
+PY
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'F9.7 induced post-verifier rollback' "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+
+# A failure during ledger append preserves schema and ledger atomically.
+setup_database
+psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$prefix5_wrapper" >/dev/null
+plan_manifest 1 "$package_wrapper"
+python3 - "$package_wrapper" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = path.read_text(encoding="utf-8")
+needle = "pg_catalog.clock_timestamp());"
+replacement = "pg_catalog.clock_timestamp());\nSELECT 1 / 0;"
+if payload.count(needle) < 1:
+    raise RuntimeError("ledger fault injection target drift")
+path.write_text(payload.replace(needle, replacement, 1), encoding="utf-8", newline="\n")
+PY
+before_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+if psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
+  --file "$package_wrapper" >/dev/null 2>"$failure_log"; then
+  exit 1
+fi
+grep -Fq 'division by zero' "$failure_log"
+after_rollback="$(schema_fingerprint | tr -d '[:space:]')"
+[[ "$before_rollback" == "$after_rollback" ]]
+
 # Boundary six rejects verifier body drift through the external catalog check.
 setup_database
 plan_manifest 6 "$package_wrapper"
@@ -628,10 +990,11 @@ psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" \
   --file "$package_wrapper" >/dev/null
 psql -X --quiet --set=ON_ERROR_STOP=1 "$TEST_DATABASE_URL" --command \
   "CREATE OR REPLACE FUNCTION public.verify_fase09_7_notify_new_lead_retirement() RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS 'SELECT true';" >/dev/null
+assert_diagnostic_state 6 "stop" "STOP_RETIREMENT_VERIFIER_DRIFT" "f" "t"
 if plan_manifest 0 >/dev/null 2>"$failure_log"; then
   exit 1
 fi
-grep -Fq 'Postcondicion externa fallida: 20260727_fase09_7_notify_new_lead_retirement' \
+grep -Fq 'Postcondicion externa fallida: 20260728_fase09_7_notify_new_lead_retirement_v3' \
   "$failure_log"
 verifier_drift_state="$({
   psql -X --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 \

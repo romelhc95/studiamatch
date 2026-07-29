@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  MapPin, TrendingUp, ChevronLeft, 
+import {
+  MapPin, TrendingUp,
   CheckCircle, ShieldCheck, GraduationCap, Download, Info,
   Star, MessageSquare, User, Award, Sprout
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { LEAD_CAPTURE_ENABLED, LEAD_CAPTURE_MAINTENANCE_COPY, LEAD_CAPTURE_MAINTENANCE_TITLE, submitLead } from "@/lib/leadCapture";
 
 interface Rating {
   id: string;
@@ -71,7 +72,15 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
   const [formError, setFormError] = useState<string | null>(null);
+  const [invalidField, setInvalidField] = useState<"first_name" | "email" | "whatsapp" | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
+  const successMessageRef = useRef<HTMLDivElement>(null);
+  const errorMessageRef = useRef<HTMLDivElement>(null);
+  const detailLeadErrorId = "detail-lead-error";
+
+  const focusLeadField = (id: string) => {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  };
 
   // SOCIAL PROOF STATE
   const [ratings, setRatings] = useState<Rating[]>([]);
@@ -113,24 +122,44 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (submitted) successMessageRef.current?.focus();
+  }, [submitted]);
+
+  useEffect(() => {
+    if (formError && !invalidField) errorMessageRef.current?.focus();
+  }, [formError, invalidField]);
+
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!course) return;
     setFormError(null);
+    setInvalidField(null);
+
+    if (!LEAD_CAPTURE_ENABLED) {
+      setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
+      return;
+    }
 
     if (!formData.first_name.trim()) {
+      setInvalidField("first_name");
       setFormError("Ingresa tu nombre.");
+      focusLeadField("detail-lead-first-name");
       return;
     }
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setInvalidField("email");
       setFormError("Ingresa un correo electrónico válido.");
+      focusLeadField("detail-lead-email");
       return;
     }
     if (formData.whatsapp.replace(/\D/g, '').length < 9) {
+      setInvalidField("whatsapp");
       setFormError("Ingresa un número de contacto válido (mín. 9 dígitos).");
+      focusLeadField("detail-lead-whatsapp");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       // Sanitización básica: trim de espacios
@@ -148,22 +177,18 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         is_late_enrollment_request: true
       };
 
-      const url = `${SUPABASE_URL}/rest/v1/leads`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(leadData)
-      });
+      const result = await submitLead(leadData);
 
-      if (response.ok) {
+      if (result.status === 'submitted') {
         setSubmitted(true);
+      } else if (result.status === 'disabled') {
+        setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
+      } else {
+        setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
       }
     } catch (error) {
       console.error("Error submitting lead:", error);
+      setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -174,7 +199,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       try {
         setLoading(true);
         setErrorInfo(null);
-        
+
         if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
           throw new Error("Configuración de Supabase faltante.");
         }
@@ -188,25 +213,25 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
         // Buscamos el curso que coincida con el slug Y cuya institución vinculada también coincida con el slug de la URL
         const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`;
-        
+
         const response = await fetch(url, {
           headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
         });
-        
+
         if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
-        
+
         let data = await response.json();
 
         // STRATEGY 2: Fallback to partial slug match OR URL contains slug
         if (!data || data.length === 0) {
           console.warn("⚠️ No encontrado por slug exacto, intentando búsqueda por URL y coincidencia parcial...");
-          
+
           // Intentamos buscar por coincidencia en la URL (muy robusto si el slug se extrajo de ahí)
           const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
           const urlRes = await fetch(urlMatch, {
             headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
           });
-          
+
           if (urlRes.ok) {
             data = await urlRes.json();
           }
@@ -215,13 +240,13 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           if (!data || data.length === 0) {
             const keywords = courseSlug.replace(/-/g, '*');
             const safeKeywords = encodeURIComponent(keywords);
-            
+
             try {
               const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
               const likeRes = await fetch(likeUrl, {
                 headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
               });
-              
+
               if (likeRes.ok) {
                 data = await likeRes.json();
               }
@@ -265,11 +290,11 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     if (course) {
       const fetchSocialProofAndRelated = async () => {
         if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
-        
+
         const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
         const safeId = encodeURIComponent(course.id);
         const safeCatId = course.category_id ? encodeURIComponent(course.category_id) : null;
-        
+
         try {
           // Intentar fetch paralelo de ratings, reviews y cursos relacionados
           const promises = [
@@ -282,7 +307,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           }
 
           const results = await Promise.all(promises);
-          
+
           const ratingsData = results[0].ok ? await results[0].json() : [];
           const reviewsData = results[1].ok ? await results[1].json() : [];
           const relatedData = (safeCatId && results[2] && results[2].ok) ? await results[2].json() : [];
@@ -476,7 +501,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     {course.course_type}
                   </span>
                 </div>
-                
+
                 <h1 className="text-4xl md:text-5xl font-black leading-[1.1] tracking-tighter text-brand-slate uppercase">
                   {course.name}
                 </h1>
@@ -554,15 +579,15 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
             <section className="space-y-8">
               <div className="flex items-center gap-4 bg-slate-100 dark:bg-white/5 p-2 rounded-2xl w-full md:w-fit overflow-x-auto custom-scrollbar scroll-smooth whitespace-nowrap hide-scrollbar">
-                <button 
+                <button
                   onClick={() => setActiveTab('info')}
                   className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'info' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                 >GENERAL</button>
-                <button 
+                <button
                   onClick={() => setActiveTab('requisitos')}
                   className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'requisitos' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                 >REQUISITOS</button>
-                <button 
+                <button
                   onClick={() => setActiveTab('reviews')}
                   className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'reviews' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
                 >RESEÑAS ({reviews.length})</button>
@@ -577,7 +602,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                         {course.description_long ? renderText(course.description_long.split('\n\n')[0]) : "Este programa representa una oportunidad estratégica de especialización."}
                       </div>
                     </div>
-                    
+
                     {course.benefits && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
                         <h2 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-brand-blue" /> Qué Incluye</h2>
@@ -707,41 +732,69 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
               </div>
 
               {!submitted ? (
-                <form className="space-y-4" onSubmit={handleSubmitLead}>
+                !LEAD_CAPTURE_ENABLED ? (
+                  <div className="py-12 text-center animate-in zoom-in duration-500" role="status" aria-live="polite" data-lead-capture-surface="course-detail" data-lead-capture-state="disabled">
+                    <div className="h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ShieldCheck className="h-10 w-10 text-brand-blue" />
+                    </div>
+                    <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">{LEAD_CAPTURE_MAINTENANCE_TITLE}</h3>
+                    <p className="text-[10px] text-slate-600 mt-3 font-bold uppercase tracking-wider leading-relaxed">{LEAD_CAPTURE_MAINTENANCE_COPY}</p>
+                  </div>
+                ) : (
+                <form className="space-y-4" onSubmit={handleSubmitLead} data-lead-capture-surface="course-detail" data-lead-capture-state="enabled" data-lead-capture-form="course-detail">
                    {formError && (
-                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
+                     <div ref={errorMessageRef} id={detailLeadErrorId} role="alert" tabIndex={-1} className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none">{formError}</div>
                    )}
                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
-                      <Input 
+                      <label htmlFor="detail-lead-first-name" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
+                      <Input
+                        id="detail-lead-first-name"
                         required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
+                        type="text"
+                        autoComplete="given-name"
+                        data-pii-control="first_name"
+                        aria-invalid={invalidField === "first_name"}
+                        aria-describedby={invalidField === "first_name" ? detailLeadErrorId : undefined}
+                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
                         value={formData.first_name}
                         onChange={(e) => setFormData({...formData, first_name: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp de Contacto</label>
-                      <Input 
+                      <label htmlFor="detail-lead-whatsapp" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp de Contacto</label>
+                      <Input
+                        id="detail-lead-whatsapp"
                         required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        data-pii-control="whatsapp"
+                        aria-invalid={invalidField === "whatsapp"}
+                        aria-describedby={invalidField === "whatsapp" ? detailLeadErrorId : undefined}
+                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
                         value={formData.whatsapp}
                         onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
-                      <Input 
+                      <label htmlFor="detail-lead-email" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
+                      <Input
+                        id="detail-lead-email"
                         required
-                        type="email" 
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
+                        type="email"
+                        autoComplete="email"
+                        data-pii-control="email"
+                        aria-invalid={invalidField === "email"}
+                        aria-describedby={invalidField === "email" ? detailLeadErrorId : undefined}
+                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
+                      <label htmlFor="detail-lead-budget" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
                       <select
+                        id="detail-lead-budget"
                         className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
                         value={formData.budget}
                         onChange={(e) => setFormData({...formData, budget: e.target.value})}
@@ -754,8 +807,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
+                      <label htmlFor="detail-lead-modality" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
                       <select
+                        id="detail-lead-modality"
                         className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
                         value={formData.modality_pref}
                         onChange={(e) => setFormData({...formData, modality_pref: e.target.value})}
@@ -766,18 +820,19 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                         <option value="Híbrido">Híbrido</option>
                       </select>
                     </div>
-                  
-                  <Button 
+
+                  <Button
                     disabled={isSubmitting}
-                    type="submit" 
+                    type="submit"
                     className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-2 active:scale-95"
                   >
                     {isSubmitting ? "Tramitando..." : "Confirmar Solicitud"}
                   </Button>
-                  <p className="text-[8px] text-slate-300 text-center uppercase font-bold tracking-widest mt-4">Respuesta estimada: 2 horas</p>
+                   <p className="text-[8px] text-slate-300 text-center uppercase font-bold tracking-widest mt-4">Respuesta estimada: 2 horas</p>
                 </form>
+                )
               ) : (
-                <div className="py-12 text-center animate-in zoom-in duration-500">
+                <div ref={successMessageRef} tabIndex={-1} role="status" aria-live="polite" className="py-12 text-center animate-in zoom-in duration-500 focus:outline-none" data-lead-capture-state="submitted" data-lead-capture-status="success">
                   <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="h-10 w-10 text-emerald-500" />
                   </div>
@@ -824,7 +879,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 Basado en {course.category}
               </p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedCourses.map((rc) => (
                 <article key={rc.id} className="group relative flex flex-col justify-between rounded-2xl border border-brand-gray/50 bg-white p-6 shadow-premium transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-brand-blue/30 overflow-hidden">

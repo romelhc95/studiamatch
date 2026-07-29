@@ -2,21 +2,22 @@
 
 ## Resultado
 
-`LOCAL_SIX_ENTRY_TRIGGER_RETIREMENT_DEFINED_REMOTE_AND_OPERATIONAL_GATES_BLOCKED`.
+`v3_local_pr_ready`.
 
-El draft de atestacion remota de predicates/trigger no fue confirmado ni ejecutado y fue reemplazado por una remediacion local forward-only. No hubo lectura Free/Pro, transporte, DDL/DML remoto, migration remota, backup/restore, control de writers, aplicacion del package, backfill, F9.8, certificacion ni produccion.
+El draft de atestacion remota de predicates/trigger no fue confirmado ni ejecutado y fue reemplazado por una remediacion local forward-only v3. PR-R reconstruye historicamente offline las variantes revisadas, incorpora el mismatch sanitizado ya conocido y no afirma ningun diagnostico remoto nuevo. No hubo lectura Free/Pro, transporte, DDL/DML remoto, migration remota, backup/restore, control de writers, aplicacion del package, backfill, F9.8, certificacion ni produccion.
 
 ## Package Sucesor
 
-- Package: `F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-20260727`.
-- Manifest: `db/manifests/fase09_7_free_schema_rls_v2.json`.
-- Manifest canonico: `e198125dbaa20a7966abcdfb9676e3ab38813d9f5347f57d7b3118d24953190d`.
-- Sexta migration: `db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql`.
-- Sexta migration SHA-256 LF: `fd6287795245a131b6b71bc2242ed4c8727091c61af27f4fe5cf9faaecc742fa`.
+- Package: `F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-V3-20260728`.
+- Manifest: `db/manifests/fase09_7_free_schema_rls_v3.json`.
+- Manifest canonico: `33c3b262dd1754d2fd8e7c8684e50601043654010c41b2d7b97c7386645a180c`.
+- Sexta migration: `db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql`.
+- Sexta migration SHA-256 LF: `f1fd6e618bd16ff4216f46587ce897756e465ada92ee9bc398335cd9239fe188`.
 - Boundaries aceptados: `0`, `3`, `4`, `5` y `6`.
 - Targets declarados pero bloqueados: Free y Pro.
+- Estado operativo: `application_authorized=false`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_BLOCKED`.
 
-El manifest historico `F9.7-PUBLIC-ACCESS-CLOSURE-20260727`, sus cinco entradas y la evidencia Gate B/ACL permanecen intactos. Las cinco migrations previas conservan sus digests LF:
+El manifest historico `F9.7-PUBLIC-ACCESS-CLOSURE-20260727`, v2 y la evidencia Gate B/ACL permanecen intactos. V2 es antecedente historico no promocionable; v3 es el unico candidate local. Las cinco migrations previas conservan sus digests LF:
 
 | Entrada | SHA-256 LF |
 |---|---|
@@ -33,7 +34,7 @@ La sexta migration fija `lock_timeout` y `statement_timeout` antes de cualquier 
 1. PostgreSQL sea 17 y el verifier de la quinta entrada pase.
 2. Exista una sola rutina `public.notify_new_lead`, sin overloads ni otro tipo de rutina.
 3. Metadata, owner, ACL, configuracion, cuerpo, definicion y dependencias coincidan con los fingerprints revisados; CRLF/LF se canoniza antes de comparar sin relajar otros bytes.
-4. Exista un solo trigger no interno en `public.leads`, llamado `trg_notify_new_lead`, ligado a esa funcion y con evento, timing, nivel, estado y dependencias exactos.
+4. Exista un solo trigger no interno en `public.leads`, llamado `trg_notify_new_lead`, ligado a esa funcion y con evento, timing, nivel, estado, argumentos, `WHEN`, transition tables y dependencias exactos.
 5. No exista colision global por nombre, trigger adicional sobre `leads` ni reutilizacion de la funcion.
 
 Solo despues ejecuta, sin `IF EXISTS` y sin `CASCADE`:
@@ -47,29 +48,31 @@ El verifier `public.verify_fase09_7_notify_new_lead_retirement()` exige que el c
 
 ## Camino Manifest-Only
 
-F9.7 v2 tiene un unico camino local PR-ready: `scripts/maintenance/fase09_7_candidate.py` carga `db/manifests/fase09_7_free_schema_rls_v2.json`, valida seis entradas exactas y emite un package atomico manifest-only. El modo legacy de `scripts/maintenance/db_migrate.py` rechaza mecanicamente `20260727_fase09_7_*` para impedir aplicacion por orden lexicografico. El package generado fija timeouts antes del lock de `public.supabase_migrations`, no usa locks explicitos sobre `pg_catalog.pg_proc`, `pg_catalog.pg_trigger` ni `pg_catalog.pg_depend`, y conserva las revalidaciones de prefijo antes de las entradas pendientes.
+F9.7 v3 tiene un unico camino local PR-ready: `scripts/maintenance/fase09_7_candidate.py` carga `db/manifests/fase09_7_free_schema_rls_v3.json`, valida seis entradas exactas y emite un package atomico manifest-only. El planner separa clasificacion de ledger, generacion de SQL y append de ledger para que PR-O componga locks/hold/ledger sin modificar migrations. El modo legacy de `scripts/maintenance/db_migrate.py` rechaza mecanicamente `20260727_fase09_7_*` y `20260728_fase09_7_*` para impedir aplicacion por orden lexicografico. El package generado fija timeouts antes del lock de `public.supabase_migrations`, no usa locks explicitos sobre `pg_catalog.pg_proc`, `pg_catalog.pg_trigger` ni `pg_catalog.pg_depend`, y conserva las revalidaciones de prefijo antes de las entradas pendientes.
 
 ## Egress Residual
 
 `supabase/functions/send-lead-emails/index.ts` queda tombstoneado en Git: responde `410`, no lee payloads, no deriva secretos, no invoca Resend, no construye `Authorization: Bearer`, no ejecuta `fetch()` y no procesa PII. La sexta migration retira la ruta DB `net.http_post`/`to_jsonb(NEW)` al eliminar el trigger y la funcion revisados. El runbook counts-only de drenaje pg_net queda documentado en [Pg Net queue drain F9.7](./pg_net_queue_drain_f9_7.md), sin ejecucion remota.
 
+El frontend conserva captura fail-closed por build: `leadCaptureCore.ts` limita columnas y estado `enabled|disabled|unset`, `leadCapture.ts` usa `apikey` publishable sin bearer, y los exports `disabled/unset` no renderizan controles PII en HTML. Esto no reemplaza RLS/ACL ni autoriza PostgREST directo; solo reduce UX/egress residual mientras F9.7 sigue bloqueada.
+
 ## PostgreSQL 17
 
 El runner local networkless demuestra:
 
-1. Convergencia desde boundaries `0`, `3`, `4` y `5` al ledger exacto de seis entradas.
+1. Convergencia desde boundaries `0`, `3`, `4` y `5` al ledger exacto de seis entradas cuando la superficie revisada lo permite.
 2. Boundary `6` sin SQL pendiente.
 3. Policies, RLS, ACL e inserts publicos funcionales despues del retiro del trigger.
 4. Replay del package por ledger como no-op y replay SQL directo de la sexta entrada en fail-closed.
 5. Rollback atomico de policy desconocida y ACL heredada desde boundary `4`.
-6. Rollback sin drops ante drift de overload, trigger extra, trigger homonimo en otra tabla, reutilizacion de funcion, trigger deshabilitado, timing incorrecto, owner, ACL, cuerpo o configuracion desde boundary `5`.
-7. Rollback posterior a ambos drops mediante una falla inducida antes del verifier/ledger; funcion, trigger y boundary `5` quedan restaurados.
+6. Rollback sin drops ante drift de overload, firma incorrecta, trigger extra, trigger homonimo en otra tabla, reutilizacion de funcion, trigger deshabilitado, timing/evento/nivel/args/WHEN/transition table incorrectos, owner, ACL, cuerpo o configuracion desde boundary `5`.
+7. Rollback posterior a ambos drops, posterior al verifier y durante append de ledger; funcion, trigger y boundary `5` quedan restaurados.
 8. Ledger append-only solo despues de todas las postcondiciones.
 9. Colision homonima del verifier rechazada antes de los drops y drift posterior de su cuerpo rechazado en boundary `6`.
 
 ## Limites
 
-Esta definicion local no demuestra el snapshot remoto ni autoriza ejecucion. Los runbooks siguen `PLANNED` e `INVENTORIED`; restore no es `RESTORE_PROVEN`, writers no estan `HELD` y las decisiones humanas separadas no fueron concedidas. Cualquier aplicacion futura requiere un gate nuevo y no puede reutilizar la autorizacion de esta remediacion.
+Esta definicion local no demuestra el snapshot remoto ni autoriza ejecucion. No existe aun gate operacional aprobado; el hold DB ACL sera definido en PR-O y el T02 historico F10 no sera reactivado. Los runbooks siguen `PLANNED` e `INVENTORIED`; restore no es `RESTORE_PROVEN`, writers no estan `HELD` y las decisiones humanas separadas no fueron concedidas. Cualquier aplicacion futura requiere un gate nuevo y no puede reutilizar la autorizacion de esta remediacion.
 
 ## Referencias
 

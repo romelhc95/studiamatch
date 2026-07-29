@@ -18,7 +18,7 @@ export function Footer() {
               Datos actualizados periódicamente
             </p>
           </div>
-          <div className="flex gap-12">
+          <div className="flex flex-wrap gap-x-10 gap-y-6">
             <div className="space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Plataforma</p>
               <ul className="space-y-2.5">

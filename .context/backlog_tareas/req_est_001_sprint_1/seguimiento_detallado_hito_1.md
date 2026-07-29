@@ -135,6 +135,7 @@ No se incluyen artifacts privados, project refs, endpoints, PII, filas, credenti
 - H-00 es un P0 de privacidad separado; no agrega un CA.
 - H-00 cerro en F9.6 sin DML; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 conserva autorizacion separada.
 - Los artifacts PR #245/#247 son `HISTORICAL_NON_PROMOTABLE`.
+- PR-R F9.7 deja v3 como unico candidate local PR-ready; v2 queda historico no promocionable, T02 permanece `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_BLOCKED`.
 - PR #248 fija el baseline de cierre F9.5 y definicion F9.6 usado por esta vista; no se modifica aqui.
 - Los hallazgos no contractuales se consultan en el [Backlog F9.5](./backlog_f9_5_known_findings.md).
 - El detalle de migrations/policies internas no se presenta como criterio cliente.

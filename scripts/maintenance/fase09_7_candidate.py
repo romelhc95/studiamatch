@@ -6,12 +6,15 @@ import hashlib
 import hmac
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from scripts.maintenance.fase09_7_notify_truth import NOTIFY_VARIANTS_BY_NAME
+
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE_ID = "F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-20260727"
-MANIFEST_SHA256 = "e198125dbaa20a7966abcdfb9676e3ab38813d9f5347f57d7b3118d24953190d"
+PACKAGE_ID = "F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-V3-20260728"
+MANIFEST_SHA256 = "33c3b262dd1754d2fd8e7c8684e50601043654010c41b2d7b97c7386645a180c"
 ENTRY_SPECS = (
     (
         "F6-G1B-FORWARD", "g1b",
@@ -39,9 +42,10 @@ ENTRY_SPECS = (
         "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b",
     ),
     (
-        "F9.7-NOTIFY-NEW-LEAD-RETIREMENT", "notify_new_lead_retirement",
-        "db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql",
-        "fd6287795245a131b6b71bc2242ed4c8727091c61af27f4fe5cf9faaecc742fa",
+        "F9.7-NOTIFY-NEW-LEAD-RETIREMENT-V3",
+        "notify_new_lead_retirement_v3",
+        "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
+        "f1fd6e618bd16ff4216f46587ce897756e465ada92ee9bc398335cd9239fe188",
     ),
 )
 POSTCONDITIONS = {
@@ -54,13 +58,142 @@ POSTCONDITIONS = {
         "public.verify_fase08_hito1_contract()",
     "20260727_fase09_7_public_access_closure":
         "public.verify_fase09_7_public_access_closure()",
-    "20260727_fase09_7_notify_new_lead_retirement":
+    "20260728_fase09_7_notify_new_lead_retirement_v3":
         "public.verify_fase09_7_notify_new_lead_retirement()",
 }
 ALLOWED_BOUNDARIES = {0, 3, 4, 5, 6}
-RETIREMENT_STEM = "20260727_fase09_7_notify_new_lead_retirement"
+F9_7_V2_RETIREMENT_STEM = "20260727_fase09_7_notify_new_lead_retirement"
+RETIREMENT_STEM = "20260728_fase09_7_notify_new_lead_retirement_v3"
+PUBLIC_ACCESS_STEM = "20260727_fase09_7_public_access_closure"
+F9_5_HISTORICAL_NON_PROMOTABLE_STEMS = frozenset(
+    {
+        "20260726_fase09_5_rls_canary_reconciliation",
+        "20260726_fase09_5_policy_inventory_reconciliation",
+    }
+)
+PUBLIC_ACCESS_VERIFIER_SOURCE_SHA256 = (
+    "207ea3023a7485bbec6cf4e90a975d15907bcd771cf155d2f4d0bc97ff1b7d2a"
+)
+PUBLIC_ACCESS_VERIFIER_DEFINITION_SHA256 = (
+    "be9d1514c8f40eae3b9a351640c0c2a21f3308224de103a4b8e9f4c4193ae137"
+)
+PUBLIC_ACCESS_VERIFIER_ATTESTATION = f"""(
+    SELECT pg_catalog.count(*) = 1
+       AND pg_catalog.bool_and(
+           owner.rolname = 'postgres'
+           AND language_record.lanname = 'plpgsql'
+           AND return_namespace.nspname = 'pg_catalog'
+           AND return_type.typname = 'bool'
+           AND procedure_record.prokind = 'f'
+           AND NOT procedure_record.prosecdef
+           AND procedure_record.provolatile = 's'
+           AND NOT procedure_record.proisstrict
+           AND NOT procedure_record.proleakproof
+           AND procedure_record.proparallel = 'u'
+           AND NOT procedure_record.proretset
+           AND procedure_record.pronargs = 0
+           AND procedure_record.pronargdefaults = 0
+           AND procedure_record.proconfig IS NOT DISTINCT FROM
+               ARRAY['search_path=""']::text[]
+           AND pg_catalog.octet_length(pg_catalog.replace(
+               procedure_record.prosrc, E'\\r\\n', E'\\n'
+           )) = 35054
+           AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+               pg_catalog.replace(procedure_record.prosrc, E'\\r\\n', E'\\n'),
+               'UTF8'
+           )), 'hex') = '{PUBLIC_ACCESS_VERIFIER_SOURCE_SHA256}'
+           AND pg_catalog.octet_length(pg_catalog.replace(
+               pg_catalog.pg_get_functiondef(procedure_record.oid), E'\\r\\n', E'\\n'
+           )) = 35218
+           AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+               pg_catalog.replace(
+                   pg_catalog.pg_get_functiondef(procedure_record.oid),
+                   E'\\r\\n', E'\\n'
+               ),
+               'UTF8'
+           )), 'hex') = '{PUBLIC_ACCESS_VERIFIER_DEFINITION_SHA256}'
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+           ) = 2
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+               WHERE acl.privilege_type = 'EXECUTE'
+                 AND NOT acl.is_grantable
+                 AND acl.grantee = procedure_record.proowner
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.aclexplode(COALESCE(
+                   procedure_record.proacl,
+                   pg_catalog.acldefault('f', procedure_record.proowner)
+               )) AS acl
+               WHERE acl.privilege_type = 'EXECUTE'
+                 AND NOT acl.is_grantable
+                 AND acl.grantee = (
+                     SELECT role.oid
+                     FROM pg_catalog.pg_roles AS role
+                     WHERE role.rolname = 'service_role'
+                 )
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_depend AS dependency
+               WHERE dependency.classid =
+                     'pg_catalog.pg_proc'::pg_catalog.regclass
+                 AND dependency.objid = procedure_record.oid
+                 AND dependency.objsubid = 0
+           ) = 2
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_depend AS dependency
+               WHERE dependency.classid =
+                     'pg_catalog.pg_proc'::pg_catalog.regclass
+                 AND dependency.objid = procedure_record.oid
+                 AND dependency.objsubid = 0
+                 AND dependency.refclassid =
+                     'pg_catalog.pg_namespace'::pg_catalog.regclass
+                 AND dependency.refobjid = procedure_record.pronamespace
+                 AND dependency.refobjsubid = 0
+                 AND dependency.deptype = 'n'
+           ) = 1
+           AND (
+               SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_depend AS dependency
+               WHERE dependency.classid =
+                     'pg_catalog.pg_proc'::pg_catalog.regclass
+                 AND dependency.objid = procedure_record.oid
+                 AND dependency.objsubid = 0
+                 AND dependency.refclassid =
+                     'pg_catalog.pg_language'::pg_catalog.regclass
+                 AND dependency.refobjid = procedure_record.prolang
+                 AND dependency.refobjsubid = 0
+                 AND dependency.deptype = 'n'
+           ) = 1
+       )
+    FROM pg_catalog.pg_proc AS procedure_record
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = procedure_record.pronamespace
+    JOIN pg_catalog.pg_roles AS owner
+      ON owner.oid = procedure_record.proowner
+    JOIN pg_catalog.pg_language AS language_record
+      ON language_record.oid = procedure_record.prolang
+    JOIN pg_catalog.pg_type AS return_type
+      ON return_type.oid = procedure_record.prorettype
+    JOIN pg_catalog.pg_namespace AS return_namespace
+      ON return_namespace.oid = return_type.typnamespace
+    WHERE namespace.nspname = 'public'
+      AND procedure_record.proname = 'verify_fase09_7_public_access_closure'
+) AND public.verify_fase09_7_public_access_closure() IS TRUE"""
 RETIREMENT_VERIFIER_SOURCE_SHA256 = (
-    "1f990216697fcf938e079fb3c17196f0d616a6511628f5a2032c00428ec4423e"
+    "38172c8a98884d317567e4a9814f7b8c340dfd0df9f5d2b2f39ae89e8e34e618"
 )
 RETIREMENT_VERIFIER_ATTESTATION = f"""(
     SELECT pg_catalog.count(*) = 1
@@ -82,7 +215,7 @@ RETIREMENT_VERIFIER_ATTESTATION = f"""(
                ARRAY['search_path=""']::text[]
            AND pg_catalog.octet_length(pg_catalog.replace(
                procedure_record.prosrc, E'\\r\\n', E'\\n'
-           )) = 908
+            )) = 7059
            AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
                pg_catalog.replace(procedure_record.prosrc, E'\\r\\n', E'\\n'),
                'UTF8'
@@ -170,6 +303,13 @@ class ManifestError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class ManifestPlan:
+    boundary: int
+    exact_prefix: tuple[tuple[str, str], ...]
+    pending_paths: tuple[Path, ...]
+
+
 def canonical_sql_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
@@ -214,9 +354,9 @@ def load_manifest(
         object_pairs_hook=reject_duplicates,
     )
     if not hmac.compare_digest(canonical_json_sha256(manifest), MANIFEST_SHA256):
-        raise ManifestError("F9.7 manifest does not match exact schema-v2 digest")
+        raise ManifestError("F9.7 manifest does not match exact schema-v3 digest")
     if (
-        manifest.get("schema_version") != 2
+        manifest.get("schema_version") != 3
         or manifest.get("phase") != "F9.7"
         or manifest.get("package_id") != PACKAGE_ID
         or manifest.get("status") != "reconciled_not_certified"
@@ -256,7 +396,40 @@ def validate_manifest_ledger_state(
     database,
     migration_files: Sequence[Path],
     applied: Mapping[str, str],
-) -> list[Path]:
+) -> ManifestPlan:
+    plan = classify_manifest_ledger(migration_files, applied)
+    for path in migration_files[:plan.boundary]:
+        signature = POSTCONDITIONS[path.stem]
+        name = signature.removeprefix("public.").removesuffix("()")
+        if not database.rpc_raise(name, {}):
+            raise RuntimeError(f"Postcondicion fallida: {path.stem}")
+        if (
+            path.stem == PUBLIC_ACCESS_STEM
+            and not database.scalar_bool(PUBLIC_ACCESS_VERIFIER_ATTESTATION)
+        ):
+            raise RuntimeError(f"Postcondicion externa fallida: {path.stem}")
+        if (
+            path.stem == RETIREMENT_STEM
+            and not database.scalar_bool(RETIREMENT_VERIFIER_ATTESTATION)
+        ):
+            raise RuntimeError(f"Postcondicion externa fallida: {path.stem}")
+    return plan
+
+
+def classify_manifest_ledger(
+    migration_files: Sequence[Path],
+    applied: Mapping[str, str],
+) -> ManifestPlan:
+    blocked = sorted(
+        set(applied).intersection(
+            {F9_7_V2_RETIREMENT_STEM, *F9_5_HISTORICAL_NON_PROMOTABLE_STEMS}
+        )
+    )
+    if blocked:
+        raise RuntimeError(
+            "F9.7 ledger contains non-promotable historical stem(s): "
+            + ", ".join(blocked)
+        )
     expected_stems = [path.stem for path in migration_files]
     projected = {
         stem: applied[stem]
@@ -274,34 +447,86 @@ def validate_manifest_ledger_state(
         raise RuntimeError("Ledger must be a contiguous manifest prefix")
     if prefix_size not in ALLOWED_BOUNDARIES:
         raise RuntimeError("F9.7 only accepts ledger boundaries 0, 3, 4, 5, or 6")
-    for path in migration_files[:prefix_size]:
-        signature = POSTCONDITIONS[path.stem]
-        name = signature.removeprefix("public.").removesuffix("()")
-        if not database.rpc_raise(name, {}):
-            raise RuntimeError(f"Postcondicion fallida: {path.stem}")
-        if (
-            path.stem == RETIREMENT_STEM
-            and not database.scalar_bool(RETIREMENT_VERIFIER_ATTESTATION)
-        ):
-            raise RuntimeError(f"Postcondicion externa fallida: {path.stem}")
-    return list(migration_files[prefix_size:])
+    return ManifestPlan(
+        boundary=prefix_size,
+        exact_prefix=tuple((path.stem, projected[path.stem]) for path in migration_files[:prefix_size]),
+        pending_paths=tuple(migration_files[prefix_size:]),
+    )
 
 
-def build_manifest_package_sql(
-    migration_files: Sequence[Path],
-    *,
-    expected_prefix: Mapping[str, str] | None = None,
-    version: int,
-) -> str:
-    if not migration_files:
-        raise RuntimeError("cannot build a zero-pending package")
+def _manifest_revalidation_sql(plan: ManifestPlan) -> str:
+    expected_rows = []
+    for ordinal, (stem, marker) in enumerate(plan.exact_prefix, start=1):
+        expected_rows.append(f"({ordinal}, '{stem}', '{marker}')")
+    for ordinal, path in enumerate(plan.pending_paths, start=len(plan.exact_prefix) + 1):
+        expected_rows.append(f"({ordinal}, '{path.stem}', '{_marker(path)}')")
+    expected_values = ",\n        ".join(expected_rows)
+    blocked_names = "', '".join(
+        [F9_7_V2_RETIREMENT_STEM, *sorted(F9_5_HISTORICAL_NON_PROMOTABLE_STEMS)]
+    )
+    return f"""DO $manifest_ledger_revalidate$
+DECLARE
+    ledger_record record;
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM public.supabase_migrations AS migration
+        WHERE migration.name IN ('{blocked_names}')
+    ) THEN
+        RAISE EXCEPTION 'F9.7 ledger contains non-promotable historical stem';
+    END IF;
+
+    WITH expected_ledger(ordinal, migration_name, checksum_marker) AS (
+        VALUES
+        {expected_values}
+    ),
+    expected_with_state AS (
+        SELECT
+            expected.ordinal,
+            expected.migration_name,
+            expected.checksum_marker,
+            ledger.name IS NOT NULL AS is_present,
+            ledger.statements IS NOT DISTINCT FROM expected.checksum_marker AS is_exact,
+            COALESCE(ledger.match_count, 0) AS match_count
+        FROM expected_ledger AS expected
+        LEFT JOIN (
+            SELECT name, statements, pg_catalog.count(*) AS match_count
+            FROM public.supabase_migrations
+            GROUP BY name, statements
+        ) AS ledger
+          ON ledger.name = expected.migration_name
+    ),
+    ledger_summary AS (
+        SELECT
+            pg_catalog.count(*) FILTER (WHERE ordinal <= {plan.boundary} AND is_exact)::integer AS exact_prefix_count,
+            pg_catalog.count(*) FILTER (WHERE ordinal <= {plan.boundary} AND NOT is_exact)::integer AS prefix_drift_count,
+            pg_catalog.count(*) FILTER (WHERE ordinal > {plan.boundary} AND is_present)::integer AS suffix_present_count,
+            pg_catalog.count(*) FILTER (WHERE is_present AND NOT is_exact)::integer AS checksum_drift_count,
+            pg_catalog.count(*) FILTER (WHERE match_count > 1)::integer AS duplicate_count
+        FROM expected_with_state
+    )
+    SELECT * INTO ledger_record FROM ledger_summary;
+
+    IF ledger_record.exact_prefix_count <> {plan.boundary}
+       OR ledger_record.prefix_drift_count <> 0
+       OR ledger_record.suffix_present_count <> 0
+       OR ledger_record.checksum_drift_count <> 0
+       OR ledger_record.duplicate_count <> 0 THEN
+        RAISE EXCEPTION 'Manifest prefix drift';
+    END IF;
+END;
+$manifest_ledger_revalidate$;"""
+
+
+def build_manifest_migration_sql(plan: ManifestPlan) -> str:
     lines = [
         "SET lock_timeout = '5s';",
         "SET statement_timeout = '60s';",
         "LOCK TABLE public.supabase_migrations IN SHARE ROW EXCLUSIVE MODE;",
+        _manifest_revalidation_sql(plan),
         "-- manifest-prefix-guard",
     ]
-    for stem, marker in (expected_prefix or {}).items():
+    for stem, marker in plan.exact_prefix:
         if stem not in POSTCONDITIONS:
             raise RuntimeError(f"unknown manifest prefix verifier: {stem}")
         lines.extend([
@@ -318,7 +543,21 @@ def build_manifest_package_sql(
             f"        RAISE EXCEPTION 'Postcondicion de prefijo fallida: {stem}';",
             "    END IF;", "END;", "$manifest_prefix_verify$;",
         ])
-    for path in migration_files:
+        if stem == PUBLIC_ACCESS_STEM:
+            lines.extend([
+                "DO $manifest_prefix_external_verify$", "BEGIN",
+                f"    IF ({PUBLIC_ACCESS_VERIFIER_ATTESTATION}) IS NOT TRUE THEN",
+                f"        RAISE EXCEPTION 'Postcondicion externa de prefijo fallida: {stem}';",
+                "    END IF;", "END;", "$manifest_prefix_external_verify$;",
+            ])
+        if stem == RETIREMENT_STEM:
+            lines.extend([
+                "DO $manifest_prefix_external_verify$", "BEGIN",
+                f"    IF ({RETIREMENT_VERIFIER_ATTESTATION}) IS NOT TRUE THEN",
+                f"        RAISE EXCEPTION 'Postcondicion externa de prefijo fallida: {stem}';",
+                "    END IF;", "END;", "$manifest_prefix_external_verify$;",
+            ])
+    for path in plan.pending_paths:
         lines.extend([
             "DO $manifest_pending$", "BEGIN", "    IF EXISTS (",
             "        SELECT 1 FROM public.supabase_migrations",
@@ -329,7 +568,7 @@ def build_manifest_package_sql(
         sql = path.read_text(encoding="utf-8")
         validate_promotable_sql(sql, label=path.name)
         lines.extend([f"-- manifest-entry {path.stem}", sql])
-    for path in migration_files:
+    for path in plan.pending_paths:
         signature = POSTCONDITIONS[path.stem]
         lines.extend([
             "DO $manifest_verify$", "BEGIN",
@@ -337,6 +576,13 @@ def build_manifest_package_sql(
             f"        RAISE EXCEPTION 'Postcondicion fallida: {path.stem}';",
             "    END IF;", "END;", "$manifest_verify$;",
         ])
+        if path.stem == PUBLIC_ACCESS_STEM:
+            lines.extend([
+                "DO $manifest_external_verify$", "BEGIN",
+                f"    IF ({PUBLIC_ACCESS_VERIFIER_ATTESTATION}) IS NOT TRUE THEN",
+                f"        RAISE EXCEPTION 'Postcondicion externa fallida: {path.stem}';",
+                "    END IF;", "END;", "$manifest_external_verify$;",
+            ])
         if path.stem == RETIREMENT_STEM:
             lines.extend([
                 "DO $manifest_external_verify$", "BEGIN",
@@ -344,13 +590,28 @@ def build_manifest_package_sql(
                 f"        RAISE EXCEPTION 'Postcondicion externa fallida: {path.stem}';",
                 "    END IF;", "END;", "$manifest_external_verify$;",
             ])
-    lines.append("-- manifest-ledger-registration")
-    for offset, path in enumerate(migration_files):
+    return "\n".join(lines)
+
+
+def build_manifest_ledger_sql(plan: ManifestPlan, *, version: int) -> str:
+    lines = ["-- manifest-ledger-registration"]
+    for offset, path in enumerate(plan.pending_paths):
         lines.append(
             "INSERT INTO public.supabase_migrations "
             "(version, name, statements, applied_at) VALUES "
             f"({version + offset}, '{path.stem}', '{_marker(path)}', "
             "pg_catalog.clock_timestamp());"
         )
-    lines.append("")
     return "\n".join(lines)
+
+
+def build_manifest_package_sql(plan: ManifestPlan, *, version: int) -> str:
+    if not isinstance(plan, ManifestPlan):
+        raise TypeError("F9.7 package generation requires a validated ManifestPlan")
+    if not plan.pending_paths:
+        raise RuntimeError("cannot build a zero-pending package")
+    return "\n".join([
+        build_manifest_migration_sql(plan),
+        build_manifest_ledger_sql(plan, version=version),
+        "",
+    ])

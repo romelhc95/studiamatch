@@ -26,8 +26,7 @@ jobs:
           persist-credentials: false
       - name: Scan for hardcoded credentials
         run: |
-          FOUND=0
-          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
+          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
           if ! find . -type f \
             ! -path './.git/*' \
             ! -path '*/node_modules/*' \
@@ -103,7 +102,7 @@ jobs:
         run: npx tsc --noEmit
 
   frontend-build:
-    name: Frontend Static Build
+    name: Frontend Static Builds and Lead Capture Contracts
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -117,13 +116,59 @@ jobs:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
       - name: Install dependencies
         run: npm ci
-      - name: Build static frontend
+      - name: Install Python Playwright dependencies and browser
+        run: |
+          pip install --require-hashes -r ../requirements-test.txt
+          python -m playwright install chromium --with-deps
+      - name: Run lead capture helper tests
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_test
+        run: node --experimental-strip-types --test tests/leadCapture.test.ts
+      - name: Build static frontend with lead capture enabled
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_test
+          NEXT_PUBLIC_LEAD_CAPTURE_ENABLED: 'true'
+        run: npm run build
+      - name: Assert enabled static export and local Playwright POST contract
+        env:
+          LEAD_CAPTURE_EXPECTED: enabled
+          SUPABASE_TEST_ORIGIN: http://127.0.0.1:54321
+        run: |
+          node tests/assertLeadCaptureExport.mjs enabled
+          python -m pytest -q ../tests/test_frontend_lead_capture_playwright.py
+      - name: Build static frontend with lead capture disabled
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_test
+          NEXT_PUBLIC_LEAD_CAPTURE_ENABLED: 'false'
+        run: npm run build
+      - name: Assert disabled static export and local Playwright zero-POST contract
+        env:
+          LEAD_CAPTURE_EXPECTED: disabled
+          SUPABASE_TEST_ORIGIN: http://127.0.0.1:54321
+        run: |
+          node tests/assertLeadCaptureExport.mjs disabled
+          python -m pytest -q ../tests/test_frontend_lead_capture_playwright.py
+      - name: Build static frontend with lead capture unset
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_test
         run: npm run build
+      - name: Assert unset static export fails closed
+        env:
+          LEAD_CAPTURE_EXPECTED: unset
+          SUPABASE_TEST_ORIGIN: http://127.0.0.1:54321
+        run: |
+          node tests/assertLeadCaptureExport.mjs unset
+          python -m pytest -q ../tests/test_frontend_lead_capture_playwright.py
 
   python-check:
     name: Python Syntax Check
@@ -1009,80 +1054,81 @@ jobs:
           F97: ${{ needs.fase09-7-remediation.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
-          echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          exec >> "$GITHUB_STEP_SUMMARY"
+          echo "### Security Audit Results"
+          echo ""
+          echo "| Check | Status |"
+          echo "|---|---|"
           # Credential scan and Python check are HARD requirements
           if [ "$CS" != "success" ]; then
-            echo "❌ **credential-scan**: $CS (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **credential-scan**: $CS (BLOCKING)"
             exit 1
           fi
-          echo "✅ **credential-scan**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **credential-scan**: passed"
           if [ "$PC" != "success" ]; then
-            echo "❌ **python-check**: $PC (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **python-check**: $PC (BLOCKING)"
             exit 1
           fi
-          echo "✅ **python-check**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **python-check**: passed"
           if [ "$CG" != "success" ]; then
-            echo "❌ **context-graph**: $CG (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **context-graph**: $CG (BLOCKING)"
             exit 1
           fi
-          echo "✅ **context-graph**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **context-graph**: passed"
           if [ "$F6" != "success" ]; then
-            echo "❌ **fase06-db-as-code**: $F6 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase06-db-as-code**: $F6 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase06-db-as-code**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase06-db-as-code**: passed"
           if [ "$F7" != "success" ]; then
-            echo "❌ **fase07-g1b**: $F7 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase07-g1b**: $F7 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase07-g1b**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase07-g1b**: passed"
           if [ "$F8" != "success" ]; then
-            echo "❌ **fase08-hito1**: $F8 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase08-hito1**: $F8 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase08-hito1**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase08-hito1**: passed"
           if [ "$F9" != "success" ]; then
-            echo "❌ **fase09-pre-free**: $F9 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase09-pre-free**: $F9 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase09-pre-free**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase09-pre-free**: passed"
           if [ "$F93" != "success" ]; then
-            echo "❌ **fase09-free-preflight-contract**: $F93 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase09-free-preflight-contract**: $F93 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase09-free-preflight-contract**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase09-free-preflight-contract**: passed"
           if [ "$F95" != "success" ]; then
-            echo "❌ **fase09-5-rls**: $F95 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase09-5-rls**: $F95 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase09-5-rls**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase09-5-rls**: passed"
           if [ "$F97" != "success" ]; then
-            echo "❌ **fase09-7-remediation**: $F97 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase09-7-remediation**: $F97 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase09-7-remediation**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase09-7-remediation**: passed"
           if [ "$F10" != "success" ]; then
-            echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)"
             exit 1
           fi
-          echo "✅ **fase10-promotion-contract**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **fase10-promotion-contract**: passed"
           if [ "$LINT" != "success" ]; then
-            echo "❌ **lint**: $LINT (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **lint**: $LINT (BLOCKING)"
             exit 1
           fi
-          echo "✅ **lint**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **lint**: passed"
           if [ "$TC" != "success" ]; then
-            echo "❌ **typecheck**: $TC (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **typecheck**: $TC (BLOCKING)"
             exit 1
           fi
-          echo "✅ **typecheck**: passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **typecheck**: passed"
           if [ "$BUILD" != "success" ]; then
-            echo "❌ **frontend-build**: $BUILD (BLOCKING)" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **frontend-build**: $BUILD (BLOCKING)"
             exit 1
           fi
-          echo "✅ **frontend-build**: passed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F10, credential, Python, Context Graph and frontend gates are green." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **frontend-build**: passed"
+          echo ""
+          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F10, credential, Python, Context Graph and frontend gates are green."

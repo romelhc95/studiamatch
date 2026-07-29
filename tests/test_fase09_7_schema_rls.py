@@ -10,30 +10,54 @@ from scripts.maintenance import db_migrate
 from scripts.maintenance import fase09_7_candidate as candidate_module
 from scripts.maintenance.fase09_7_candidate import (
     ManifestError,
+    ManifestPlan,
     canonical_json_sha256,
     canonical_sql_sha256,
+    classify_manifest_ledger,
     load_manifest,
     validate_promotable_sql,
+)
+from scripts.maintenance.fase09_7_notify_truth import (
+    NOTIFY_VARIANTS_BY_NAME,
+    PROJECT_REF_GRAMMAR,
+    PROJECT_REF_LENGTH,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 F8_MANIFEST = ROOT / "db/manifests/fase08_candidate.json"
 F9_7_HISTORICAL_MANIFEST = ROOT / "db/manifests/fase09_7_free_schema_rls.json"
-F9_7_MANIFEST = ROOT / "db/manifests/fase09_7_free_schema_rls_v2.json"
+F9_7_V2_MANIFEST = ROOT / "db/manifests/fase09_7_free_schema_rls_v2.json"
+F9_7_MANIFEST = ROOT / "db/manifests/fase09_7_free_schema_rls_v3.json"
 F9_7_MIGRATION = (
     ROOT / "db/migrations/20260727_fase09_7_public_access_closure.sql"
 )
-F9_7_RETIREMENT = (
+F9_7_RETIREMENT_V2 = (
     ROOT / "db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql"
+)
+F9_7_RETIREMENT = (
+    ROOT / "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql"
 )
 F9_7_MIGRATION_SHA256 = (
     "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b"
 )
+LF_MIGRATION_SHA256 = {
+    "20260724_fase06_g1b_reconciliation.sql": "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df",
+    "20260724_fase06_hito1_editorial_contract.sql": "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a",
+    "20260725_fase07_g1b_closure.sql": "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120",
+    "20260725_fase08_hito1_functional_closure.sql": "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527",
+    "20260727_fase09_7_public_access_closure.sql": "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b",
+}
 F9_7_DESCRIPTOR_SHA256 = (
-    "e198125dbaa20a7966abcdfb9676e3ab38813d9f5347f57d7b3118d24953190d"
+    "33c3b262dd1754d2fd8e7c8684e50601043654010c41b2d7b97c7386645a180c"
 )
 F9_7_RETIREMENT_SHA256 = (
+    "f1fd6e618bd16ff4216f46587ce897756e465ada92ee9bc398335cd9239fe188"
+)
+F9_7_V2_DESCRIPTOR_SHA256 = (
+    "e198125dbaa20a7966abcdfb9676e3ab38813d9f5347f57d7b3118d24953190d"
+)
+F9_7_RETIREMENT_V2_SHA256 = (
     "fd6287795245a131b6b71bc2242ed4c8727091c61af27f4fe5cf9faaecc742fa"
 )
 F9_7_HISTORICAL_DESCRIPTOR_SHA256 = (
@@ -79,30 +103,38 @@ class _VerifierDatabase:
         return self.catalog_result
 
 
-def test_manifest_is_exact_schema_v2_six_entry_successor():
+def test_manifest_is_exact_schema_v3_six_entry_successor():
     f8 = _manifest(F8_MANIFEST)
     historical = _manifest(F9_7_HISTORICAL_MANIFEST)
+    v2 = _manifest(F9_7_V2_MANIFEST)
     candidate = _manifest()
 
-    assert candidate["schema_version"] == 2
+    assert candidate["schema_version"] == 3
     assert candidate["phase"] == "F9.7"
     assert candidate["package_id"] == candidate_module.PACKAGE_ID
     assert candidate["status"] == "reconciled_not_certified"
     assert candidate["blocked_targets"] == ["free", "pro"]
     assert historical["entries"][:4] == f8["entries"]
     assert candidate["entries"][:5] == historical["entries"]
+    assert v2["entries"][:5] == candidate["entries"][:5]
     assert len(candidate["entries"]) == 6
     assert candidate["entries"][-1] == {
-        "id": "F9.7-NOTIFY-NEW-LEAD-RETIREMENT",
-        "component": "notify_new_lead_retirement",
-        "path": "db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql",
+        "id": "F9.7-NOTIFY-NEW-LEAD-RETIREMENT-V3",
+        "component": "notify_new_lead_retirement_v3",
+        "path": "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
         "sha256": F9_7_RETIREMENT_SHA256,
         "provenance": "new_forward_only",
         "targets": ["free", "pro"],
     }
+    assert candidate["supersedes"] == {
+        "manifest": "db/manifests/fase09_7_free_schema_rls_v2.json",
+        "status": "superseded_non_promotable",
+        "reason": "fresh_free_notify_drift_classified_successor_v3_required",
+    }
     assert candidate["prerequisites"] == [
         "backend_service_identity_verified",
         "local_postgresql17_candidate_verified",
+        "notify_drift_diagnostic_successor_v3_eligible",
     ]
     assert "free_certified" not in candidate["prerequisites"]
     assert not any("backfill" in item for item in candidate["prerequisites"])
@@ -111,6 +143,7 @@ def test_manifest_is_exact_schema_v2_six_entry_successor():
 def test_manifest_freezes_closure_and_canonical_descriptor_digests():
     candidate = _manifest()
     historical = _manifest(F9_7_HISTORICAL_MANIFEST)
+    v2 = _manifest(F9_7_V2_MANIFEST)
     canonical = json.dumps(
         candidate,
         ensure_ascii=False,
@@ -120,7 +153,9 @@ def test_manifest_freezes_closure_and_canonical_descriptor_digests():
 
     assert canonical_sql_sha256(F9_7_MIGRATION) == F9_7_MIGRATION_SHA256
     assert canonical_sql_sha256(F9_7_RETIREMENT) == F9_7_RETIREMENT_SHA256
+    assert canonical_sql_sha256(F9_7_RETIREMENT_V2) == F9_7_RETIREMENT_V2_SHA256
     assert canonical_json_sha256(historical) == F9_7_HISTORICAL_DESCRIPTOR_SHA256
+    assert canonical_json_sha256(v2) == F9_7_V2_DESCRIPTOR_SHA256
     assert hashlib.sha256(canonical).hexdigest() == F9_7_DESCRIPTOR_SHA256
     assert canonical_json_sha256(candidate) == F9_7_DESCRIPTOR_SHA256
     assert candidate_module.MANIFEST_SHA256 == F9_7_DESCRIPTOR_SHA256
@@ -129,10 +164,19 @@ def test_manifest_freezes_closure_and_canonical_descriptor_digests():
     )
 
 
+def test_first_five_migrations_freeze_lf_identity_across_worktree_eol():
+    for name, lf_sha256 in LF_MIGRATION_SHA256.items():
+        path = ROOT / "db/migrations" / name
+        raw_bytes = path.read_bytes()
+        assert hashlib.sha256(raw_bytes.replace(b"\r\n", b"\n")).hexdigest() == lf_sha256
+        assert canonical_sql_sha256(path) == lf_sha256
+
+
 @pytest.mark.parametrize(
     ("migration", "expected_sha256"),
     [
         (F9_7_MIGRATION, F9_7_MIGRATION_SHA256),
+        (F9_7_RETIREMENT_V2, F9_7_RETIREMENT_V2_SHA256),
         (F9_7_RETIREMENT, F9_7_RETIREMENT_SHA256),
     ],
 )
@@ -160,6 +204,7 @@ def test_manifest_excludes_non_candidate_surfaces_without_historical_entries():
         "remote_predicate_trigger_attestation": (
             "replaced_by_local_forward_only_retirement"
         ),
+        "fase09_7_v2_manifest": "superseded_non_promotable",
     }
     entry_identity = json.dumps(candidate["entries"], sort_keys=True)
     assert "20260726_fase09_5" not in entry_identity
@@ -180,7 +225,7 @@ def test_manifest_excludes_non_candidate_surfaces_without_historical_entries():
         lambda value: value.__setitem__("unexpected", True),
     ],
 )
-def test_schema_v2_descriptor_rejects_any_digest_or_shape_drift(
+def test_schema_v3_descriptor_rejects_any_digest_or_shape_drift(
     tmp_path: Path,
     mutation,
 ):
@@ -188,7 +233,7 @@ def test_schema_v2_descriptor_rejects_any_digest_or_shape_drift(
     mutation(candidate)
     path = tmp_path / "candidate.json"
     path.write_text(json.dumps(candidate), encoding="utf-8")
-    with pytest.raises(ManifestError, match="F9.7.*schema-v2 digest"):
+    with pytest.raises(ManifestError, match="F9.7.*schema-v3 digest"):
         load_manifest(path, "free", root=ROOT)
 
 
@@ -235,6 +280,8 @@ def test_sixth_migration_fail_closes_and_retires_only_reviewed_objects():
     assert "pg_catalog.pg_depend" not in preamble
     assert "IN SHARE ROW EXCLUSIVE MODE;" not in preamble
     assert "public.verify_fase09_7_public_access_closure()" in sql
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_SOURCE_SHA256 in sql
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_DEFINITION_SHA256 in sql
     assert "DROP TRIGGER trg_notify_new_lead ON public.leads;" in sql
     assert "DROP FUNCTION public.notify_new_lead();" in sql
     assert sql.index("$retirement_guard$;") < sql.index("DROP TRIGGER")
@@ -246,18 +293,65 @@ def test_sixth_migration_fail_closes_and_retires_only_reviewed_objects():
     assert "CREATE OR REPLACE FUNCTION" not in sql
     assert "CREATE FUNCTION public.verify_fase09_7_notify_new_lead_retirement" in sql
     assert "E'\\r\\n', E'\\n'" in sql
+    assert PROJECT_REF_LENGTH == 20
+    assert f"[a-z0-9]{{{PROJECT_REF_LENGTH}}}" in sql
     assert "IS NOT TRUE" in sql
     assert "verify_fase09_7_notify_new_lead_retirement" in sql
     assert "net.http_post" not in sql
     assert "to_jsonb(NEW)" not in sql
     assert "supabase.co" not in sql
-    for fingerprint in (
-        "5fa712326d4c331c074caabafc8957dc4edd3e85404ad31ad0f5f7304fc6b32e",
-        "42dab6c9e511e61ad04f8dbd8bccf070e23b598d6877de1dd27865b4b2734ccc",
-        "c05c403dc06c7a03379591de7bc729f6aa15366566aa5dcf6a00de2e7f3e0d12",
-        "7844c0c19a151091d05ba33800013edc4709125725221bd313e59363f647d020",
-    ):
-        assert fingerprint in sql
+    assert "functions/v1" not in sql
+    assert "send-lead-emails" not in sql
+    assert "absent_clean" in sql
+    for variant in NOTIFY_VARIANTS_BY_NAME.values():
+        assert str(variant.prosrc_lf_octets) in sql
+        for fingerprint in (
+            variant.prosrc_lf_sha256,
+            variant.prosrc_normalized_sha256,
+            variant.definition_lf_sha256,
+            variant.definition_normalized_sha256,
+            variant.prosrc_redacted_sha256,
+            variant.prosrc_normalized_redacted_sha256,
+            variant.definition_redacted_sha256,
+            variant.definition_normalized_redacted_sha256,
+        ):
+            if fingerprint:
+                assert fingerprint in sql
+
+
+def test_notify_truth_table_is_shared_by_diagnostic_and_migration():
+    migration = F9_7_RETIREMENT.read_text(encoding="utf-8")
+    diagnostic = (
+        ROOT / "scripts/maintenance/fase09_7_notify_drift_diagnostic.sql"
+    ).read_text(encoding="utf-8")
+
+    assert PROJECT_REF_GRAMMAR in migration
+    assert PROJECT_REF_GRAMMAR in diagnostic
+    assert "boundary_class" in diagnostic
+    assert "route_class" in diagnostic
+    assert "successor_v3_eligible" in diagnostic
+    assert "diagnostic_fail_closed" in diagnostic
+    assert "SUCCESSOR_V3_ELIGIBLE" in diagnostic
+    assert "STOP_ABSENT_CLEAN_BOUNDARY_0" in diagnostic
+    assert "STOP_F9_7_V2_STEM" in diagnostic
+    assert "STOP_F9_5_HISTORICAL_NON_PROMOTABLE" in diagnostic
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_SOURCE_SHA256 in diagnostic
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_DEFINITION_SHA256 in diagnostic
+    for variant in NOTIFY_VARIANTS_BY_NAME.values():
+        assert variant.name in diagnostic
+        for fingerprint in (
+            variant.prosrc_lf_sha256,
+            variant.prosrc_normalized_sha256,
+            variant.definition_lf_sha256,
+            variant.definition_normalized_sha256,
+            variant.prosrc_redacted_sha256,
+            variant.prosrc_normalized_redacted_sha256,
+            variant.definition_redacted_sha256,
+            variant.definition_normalized_redacted_sha256,
+        ):
+            if fingerprint:
+                assert fingerprint in migration
+                assert fingerprint in diagnostic
 
 
 def test_lead_insert_grant_is_the_exact_frontend_allowlist():
@@ -315,10 +409,17 @@ def test_planner_accepts_only_reviewed_ledger_boundaries(prefix_size: int):
     paths = load_manifest(F9_7_MANIFEST, "free")
     applied = {path.stem: _marker(path) for path in paths[:prefix_size]}
     database = _VerifierDatabase()
-    assert candidate_module.validate_manifest_ledger_state(
-        database, paths, applied
-    ) == paths[prefix_size:]
+    plan = classify_manifest_ledger(paths, applied)
+    assert isinstance(plan, ManifestPlan)
+    assert plan.boundary == prefix_size
+    assert plan.exact_prefix == tuple(
+        (path.stem, _marker(path)) for path in paths[:prefix_size]
+    )
+    assert list(plan.pending_paths) == paths[prefix_size:]
+    validated = candidate_module.validate_manifest_ledger_state(database, paths, applied)
+    assert validated == plan
     assert len(database.calls) == prefix_size
+    assert len(database.catalog_calls) == int(prefix_size >= 5) + int(prefix_size >= 6)
 
 
 @pytest.mark.parametrize("prefix_size", [1, 2])
@@ -348,6 +449,15 @@ def test_planner_rejects_checksum_gap_and_semantic_drift():
             _VerifierDatabase(), paths, gap
         )
 
+    for blocked in (
+        candidate_module.F9_7_V2_RETIREMENT_STEM,
+        *candidate_module.F9_5_HISTORICAL_NON_PROMOTABLE_STEMS,
+    ):
+        with pytest.raises(RuntimeError, match="non-promotable"):
+            candidate_module.validate_manifest_ledger_state(
+                _VerifierDatabase(), paths, {blocked: "sha256:" + "a" * 64}
+            )
+
     applied = {path.stem: _marker(path) for path in paths}
     with pytest.raises(RuntimeError, match="Postcondicion fallida"):
         candidate_module.validate_manifest_ledger_state(
@@ -368,15 +478,14 @@ def test_planner_projects_candidate_without_rejecting_unrelated_history():
     }
     assert candidate_module.validate_manifest_ledger_state(
         _VerifierDatabase(), paths, applied
-    ) == paths[4:]
+    ).pending_paths == tuple(paths[4:])
     assert applied["20260101_unrelated_history"] == "sha256:" + "a" * 64
 
 
 def test_atomic_package_has_final_postcondition_before_six_ledger_writes():
     paths = load_manifest(F9_7_MANIFEST, "free")
-    package = candidate_module.build_manifest_package_sql(
-        paths, version=20260727093000
-    )
+    plan = classify_manifest_ledger(paths, {})
+    package = candidate_module.build_manifest_package_sql(plan, version=20260727093000)
     final_verifier = "public.verify_fase09_7_notify_new_lead_retirement()"
 
     assert package.count("-- manifest-entry") == 6
@@ -389,10 +498,12 @@ def test_atomic_package_has_final_postcondition_before_six_ledger_writes():
     assert "LOCK TABLE pg_catalog.pg_depend" not in package
     assert package.count("DO $manifest_pending$") == 6
     assert package.count("DO $manifest_verify$") == 6
-    assert package.count("DO $manifest_external_verify$") == 1
+    assert package.count("DO $manifest_external_verify$") == 2
     assert package.count("INSERT INTO public.supabase_migrations") == 6
     assert final_verifier in package
     assert candidate_module.RETIREMENT_VERIFIER_SOURCE_SHA256 in package
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_SOURCE_SHA256 in package
+    assert candidate_module.PUBLIC_ACCESS_VERIFIER_DEFINITION_SHA256 in package
     assert "IS NOT TRUE THEN" in package
     assert "net.http_post" not in package
     assert "to_jsonb(NEW)" not in package
@@ -410,13 +521,17 @@ def test_atomic_package_has_final_postcondition_before_six_ledger_writes():
 def test_atomic_package_revalidates_applied_prefix_under_timeout_without_catalog_locks():
     paths = load_manifest(F9_7_MANIFEST, "free")
     prefix = {path.stem: _marker(path) for path in paths[:5]}
-    package = candidate_module.build_manifest_package_sql(
-        paths[5:], expected_prefix=prefix, version=20260727093005
-    )
+    plan = classify_manifest_ledger(paths, prefix)
+    package = candidate_module.build_manifest_package_sql(plan, version=20260727093005)
 
     assert package.count("DO $manifest_prefix$") == 5
     assert package.count("DO $manifest_prefix_verify$") == 5
+    assert package.count("DO $manifest_prefix_external_verify$") == 1
+    assert "F9.7 ledger contains non-promotable historical stem" in package
+    assert "WITH expected_ledger" in package
+    assert "suffix_present_count" in package
     assert "Postcondicion de prefijo fallida" in package
+    assert "Postcondicion externa de prefijo fallida" in package
     assert "public.verify_fase09_7_public_access_closure() IS NOT TRUE" in package
     assert "pg_catalog.pg_proc, pg_catalog.pg_trigger" not in package
     assert package.index("SET lock_timeout = '5s';") < package.index(
@@ -430,6 +545,12 @@ def test_atomic_package_revalidates_applied_prefix_under_timeout_without_catalog
     assert package.index("DO $manifest_prefix_verify$") < package.index(
         "-- manifest-entry"
     )
+
+
+def test_package_generation_rejects_unvalidated_inputs():
+    paths = load_manifest(F9_7_MANIFEST, "free")
+    with pytest.raises(TypeError, match="ManifestPlan"):
+        candidate_module.build_manifest_package_sql(paths, version=20260727093000)  # type: ignore[arg-type]
 
 
 def test_f9_7_v2_is_manifest_only_and_legacy_runner_guarded():
@@ -487,6 +608,19 @@ def test_unconfirmed_remote_attestation_draft_is_absent():
         assert not (ROOT / relative_path).exists()
 
 
+def test_offline_notify_fixture_is_ephemeral_pg17_guarded():
+    source = (ROOT / "tests/sql/fase09_7_notify_variants_offline.sql").read_text(
+        encoding="utf-8"
+    )
+    assert source.index("current_database() <> 'studiamatch_f97'") < source.index(
+        "CREATE TEMP TABLE IF NOT EXISTS notify_variant_summary"
+    )
+    assert "server_version_num" in source
+    assert "session sentinel" in source
+    assert "sed -n" not in source
+    assert "/tmp/fase09" not in source
+
+
 def test_frontend_public_client_uses_publishable_key_and_never_secret_key():
     frontend = (ROOT / "web/src/lib/supabase.ts").read_text(encoding="utf-8")
     web_sources = "\n".join(
@@ -499,9 +633,61 @@ def test_frontend_public_client_uses_publishable_key_and_never_secret_key():
     )
 
     assert "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in frontend
+    assert "normalizeSupabaseUrl" in frontend
+    assert "sb_publishable_ci_test" in frontend
+    assert "supabase\\.co" in frontend
+    assert "parsed.origin" in frontend
     assert "NEXT_SUPABASE_SECRET_KEY" not in frontend
     assert "NEXT_SUPABASE_SECRET_KEY" not in web_sources
     assert "sb_secret_" not in web_sources
+
+
+def test_frontend_lead_capture_flag_fail_closes_before_public_post():
+    wrapper = (ROOT / "web/src/lib/leadCapture.ts").read_text(encoding="utf-8")
+    core = (ROOT / "web/src/lib/leadCaptureCore.ts").read_text(encoding="utf-8")
+    sources = [
+        ROOT / "web/src/app/HomeContent.tsx",
+        ROOT / "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx",
+    ]
+
+    assert "isLeadCaptureEnabled(" in wrapper
+    assert "process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED" in wrapper
+    assert "LEAD_CAPTURE_MAINTENANCE_TITLE" in wrapper
+    assert "submitLead" in wrapper
+    assert "fetchImpl: (input, init) => fetch(input, init)" in wrapper
+    assert 'value === "true"' in core
+    assert 'value === "false"' in core
+    assert core.count("/rest/v1/leads") == 1
+    assert "Authorization" not in wrapper
+    assert "Authorization" not in core
+    assert '"apikey"' in core
+    for path in sources:
+        source = path.read_text(encoding="utf-8")
+        assert "/rest/v1/leads" not in source
+        assert "submitLead" in source
+        handler = source.split("const handleSubmitLead", 1)[1].split(
+            "const filteredCourses" if path.name == "HomeContent.tsx" else "useEffect",
+            1,
+        )[0]
+        assert handler.index("if (!LEAD_CAPTURE_ENABLED)") < handler.index("submitLead")
+        assert "data-lead-capture-state" in source
+        assert "LEAD_CAPTURE_MAINTENANCE_COPY" in source
+        assert "data-pii-control" in source
+
+
+def test_course_jsonld_escapes_script_breakout_sequences():
+    source = (ROOT / "web/src/app/courses/[institution]/[slug]/page.tsx").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function serializeJsonLd" in source
+    assert '"<": "\\\\u003c"' in source
+    assert '">": "\\\\u003e"' in source
+    assert '"&": "\\\\u0026"' in source
+    assert '"\\u2028": "\\\\u2028"' in source
+    assert '"\\u2029": "\\\\u2029"' in source
+    assert "dangerouslySetInnerHTML={{ __html: serializeJsonLd(ld) }}" in source
+    assert "dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}" not in source
 
 
 def test_sibling_workflow_contains_networkless_f9_7_job():
@@ -515,7 +701,11 @@ def test_sibling_workflow_contains_networkless_f9_7_job():
     assert "bash tests/sql/run_fase09_7_postgres.sh" in workflow
     assert "studiamatch-f97-postgres" in workflow
     assert "scripts/maintenance/db_migrate.py" in workflow
+    assert "scripts/maintenance/fase09_7_notify_truth.py" in workflow
     assert "supabase/functions/send-lead-emails/index.ts" in workflow
+    assert "web/src/lib/leadCapture.ts" in workflow
+    assert "web/src/lib/leadCaptureCore.ts" in workflow
+    assert "web/src/app/courses/**/CourseDetailClient.tsx" in workflow
     assert ".context/operaciones/pg_net_queue_drain_f9_7.md" in workflow
     assert "--network none" in workflow
     assert "continue-on-error: true" not in workflow
