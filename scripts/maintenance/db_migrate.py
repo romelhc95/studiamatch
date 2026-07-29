@@ -79,8 +79,9 @@ MANIFEST_ONLY_PREFIXES = (
     "20260725_fase08_",
     "20260726_fase09_5_",
     "20260727_fase09_7_",
+    "20260728_fase09_7_",
 )
-F9_7_MANIFEST_ONLY_PREFIXES = ("20260727_fase09_7_",)
+F9_7_MANIFEST_ONLY_PREFIXES = ("20260727_fase09_7_", "20260728_fase09_7_")
 F9_5_OVERLAY_STEMS = (
     "20260724_fase06_g1b_reconciliation",
     "20260724_fase06_hito1_editorial_contract",

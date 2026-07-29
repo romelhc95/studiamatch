@@ -4,6 +4,39 @@
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
+function normalizeSupabaseUrl(rawUrl: string, publishableKey: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL must be a valid URL.");
+  }
+
+  const hasCleanOrigin =
+    !parsed.username &&
+    !parsed.password &&
+    (parsed.pathname === "" || parsed.pathname === "/") &&
+    !parsed.search &&
+    !parsed.hash;
+  const isSupabaseOrigin =
+    parsed.protocol === "https:" &&
+    /^[a-z0-9-]+\.supabase\.co$/.test(parsed.hostname) &&
+    hasCleanOrigin;
+  const isLocalCiOrigin =
+    publishableKey === "sb_publishable_ci_test" &&
+    parsed.protocol === "http:" &&
+    parsed.hostname === "127.0.0.1" &&
+    hasCleanOrigin;
+
+  if (!isSupabaseOrigin && !isLocalCiOrigin) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL must be an HTTPS Supabase project origin. Loopback is allowed only with the CI test publishable key.",
+    );
+  }
+
+  return parsed.origin;
+}
+
 if (!supabaseUrl) {
   throw new Error("Missing required environment variable NEXT_PUBLIC_SUPABASE_URL.");
 }
@@ -15,8 +48,8 @@ if (
   throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must start with sb_publishable_.");
 }
 
-export const SUPABASE_URL = supabaseUrl;
 export const SUPABASE_PUBLISHABLE_KEY = supabasePublishableKey;
+export const SUPABASE_URL = normalizeSupabaseUrl(supabaseUrl, supabasePublishableKey);
 
 // Fase 80A: Columnas públicas de courses — explícitas, sin internals (provider_used, is_mock_data, last_scraped_at, etc.)
 export const COURSE_PUBLIC_FIELDS = 'id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,brochure_url,start_date,created_at,updated_at';

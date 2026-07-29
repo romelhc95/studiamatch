@@ -1,10 +1,11 @@
-name: F9.7 Local Contract
+name: F9.7 Public Access and Trigger Retirement PostgreSQL 17 Contract
 
 on:
   pull_request:
     paths:
       - 'db/manifests/fase09_7_free_schema_rls.json'
       - 'db/manifests/fase09_7_free_schema_rls_v2.json'
+      - 'db/manifests/fase09_7_free_schema_rls_v3.json'
       - 'db/manifests/fase09_7_gate_b_readonly.json'
       - 'db/manifests/fase09_7_remediation_definition.json'
       - 'db/manifests/fase09_7_acl_source_attestation.json'
@@ -18,11 +19,27 @@ on:
       - 'db/migrations/20260725_fase08_hito1_functional_closure.sql'
       - 'db/migrations/20260727_fase09_7_public_access_closure.sql'
       - 'db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql'
+      - 'db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
+      - 'scripts/maintenance/fase09_7_notify_drift_diagnostic.sql'
+      - 'scripts/maintenance/fase09_7_notify_truth.py'
       - 'scripts/maintenance/db_migrate.py'
       - 'scripts/maintenance/fase09_7_gate_b_catalog_v1.sql'
       - 'scripts/maintenance/fase09_7_acl_source_attestation.sql'
       - 'supabase/functions/send-lead-emails/index.ts'
+      - 'web/src/lib/leadCapture.ts'
+      - 'web/src/lib/leadCaptureCore.ts'
+      - 'web/src/app/HomeContent.tsx'
+      - 'web/src/app/layout.tsx'
+      - 'web/src/app/globals.css'
+      - 'web/src/app/courses/**/CourseDetailClient.tsx'
+      - 'web/src/app/page.tsx'
+      - 'web/src/app/courses/page.tsx'
+      - 'web/src/app/courses/CoursesFallbackPage.tsx'
+      - 'web/src/app/courses/**/page.tsx'
+      - 'web/src/components/Footer.tsx'
+      - 'web/tests/**/*.ts'
+      - 'web/tests/**/*.mjs'
       - 'tests/sql/fase09_7_*'
       - 'tests/sql/fase08_minimal_baseline.sql'
       - 'tests/sql/fase09_exec_sql_fixture.sql'
@@ -33,6 +50,7 @@ on:
       - 'tests/test_fase09_7_remediation_definition.py'
       - 'tests/test_fase09_7_schema_rls.py'
       - 'tests/test_supabase_credentials_contract.py'
+      - 'tests/test_frontend_lead_capture_playwright.py'
       - '.github/workflows/fg1_inventory.yml'
       - '.github/workflows/fg3_integrity.yml'
       - '.github/workflows/production_pipeline.yml'

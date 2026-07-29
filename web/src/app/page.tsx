@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { getLeadCaptureBuildState } from "@/lib/leadCaptureCore";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, type Course, type Institution } from "@/lib/supabase";
 import HomeContent from "./HomeContent";
 
@@ -63,14 +64,18 @@ type CourseApiRecord = {
 
 export default async function Home() {
   const initialCourses = await fetchCourses();
+  const leadCaptureBuildState = getLeadCaptureBuildState(process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED);
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-brand-slate flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div>
-      </div>
-    }>
-      <HomeContent initialCourses={initialCourses} />
-    </Suspense>
+    <>
+      <div hidden aria-hidden="true" data-lead-capture-server-marker="home" data-lead-capture-state={leadCaptureBuildState} />
+      <Suspense fallback={
+        <div className="min-h-screen bg-brand-slate flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div>
+        </div>
+      }>
+        <HomeContent initialCourses={initialCourses} />
+      </Suspense>
+    </>
   );
 }

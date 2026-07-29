@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowR
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
+import { LEAD_CAPTURE_ENABLED, LEAD_CAPTURE_MAINTENANCE_COPY, LEAD_CAPTURE_MAINTENANCE_TITLE, submitLead } from "@/lib/leadCapture";
 
 const ALLOWED_SORTS = new Set(['price', 'roi', 'recent', 'asc', 'desc']);
 
@@ -266,7 +267,68 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [invalidField, setInvalidField] = useState<"first_name" | "email" | "whatsapp" | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
+  const successMessageRef = useRef<HTMLDivElement>(null);
+  const errorMessageRef = useRef<HTMLDivElement>(null);
+  const homeLeadErrorId = "home-lead-error";
+
+  const focusLeadField = (id: string) => {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  };
+
+  const closeLeadModal = useCallback(() => {
+    setIsModalOpen(false);
+    modalTriggerRef.current?.focus();
+  }, []);
+
+  const openLeadModal = (type: 'recommendation' | 'info', course: Course | null = null) => {
+    modalTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setModalType(type);
+    setSelectedCourseForInfo(course);
+    setIsModalOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLeadModal();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => !element.hasAttribute('disabled'));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closeLeadModal, isModalOpen]);
+
+  useEffect(() => {
+    if (isSuccess) successMessageRef.current?.focus();
+  }, [isSuccess]);
+
+  useEffect(() => {
+    if (formError && !invalidField) errorMessageRef.current?.focus();
+  }, [formError, invalidField]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -344,10 +406,15 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setInvalidField(null);
+    if (!LEAD_CAPTURE_ENABLED) {
+      setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) { setFormError("Por favor, ingresa un email válido."); return; }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) { setFormError("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); return; }
-    if (!formData.first_name.trim()) { setFormError("Por favor, ingresa tu nombre."); return; }
+    if (!emailRegex.test(formData.email)) { setInvalidField("email"); setFormError("Por favor, ingresa un email válido."); focusLeadField("home-lead-email"); return; }
+    if (formData.whatsapp.replace(/\D/g, '').length < 9) { setInvalidField("whatsapp"); setFormError("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); focusLeadField("home-lead-whatsapp"); return; }
+    if (!formData.first_name.trim()) { setInvalidField("first_name"); setFormError("Por favor, ingresa tu nombre."); focusLeadField("home-lead-first-name"); return; }
     setIsSubmitting(true);
     try {
       const leadData = {
@@ -364,26 +431,23 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         description: formData.description
       };
 
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(leadData)
-      });
+      const result = await submitLead(leadData);
 
-      if (response.ok) {
+      if (result.status === 'submitted') {
         setIsSuccess(true);
         setTimeout(() => {
-          setIsModalOpen(false);
+          closeLeadModal();
           setIsSuccess(false);
           setFormData({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
         }, 2500);
+      } else if (result.status === 'disabled') {
+        setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
+      } else {
+        setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
       }
     } catch (error) {
       console.error("Error submitting lead:", error);
+      setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -671,7 +735,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </button>
 
                 {showMoreFilters && (
-                  <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                  <div className="fixed inset-x-4 top-1/2 z-[70] mt-0 w-auto max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] -translate-y-1/2 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-100 bg-white shadow-elevated animate-in fade-in zoom-in-95 duration-100 origin-center md:absolute md:inset-x-auto md:top-full md:left-0 md:mt-2 md:w-[320px] md:max-h-none md:translate-y-0 md:overflow-visible md:origin-top-left">
                     <div className="p-3 space-y-3">
                       <div className="flex flex-wrap gap-2">
                         {[
@@ -1179,7 +1243,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
             <p className="text-blue-200/60 text-[14px] mt-3 max-w-md mx-auto">Obtén una recomendación personalizada basada en datos reales de mercado.</p>
             <div className="mt-6">
               <Button
-                onClick={() => { setModalType('recommendation'); setSelectedCourseForInfo(null); setIsModalOpen(true); }}
+                onClick={() => openLeadModal('recommendation')}
                 className="bg-white hover:bg-slate-50 text-brand-blue font-semibold rounded-lg px-8 h-11 text-[13px] border-0 shadow-lg shadow-black/10 transition-all active:scale-[0.98]"
               >
                 Solicitar asesoría
@@ -1192,13 +1256,22 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 pb-4 px-4 overflow-y-auto bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-white w-full max-w-md rounded-xl shadow-elevated relative border border-slate-100 animate-in zoom-in-95 duration-200 my-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 pb-4 px-4 overflow-y-auto bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeLeadModal}>
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="home-lead-dialog-title"
+            className="bg-white w-full max-w-md rounded-xl shadow-elevated relative border border-slate-100 animate-in zoom-in-95 duration-200 my-auto"
+            onClick={(e) => e.stopPropagation()}
+            data-lead-capture-surface="home-modal"
+            data-lead-capture-state={LEAD_CAPTURE_ENABLED ? "enabled" : "disabled"}
+          >
             <div className="sticky top-0 z-30 flex items-center justify-between bg-white rounded-t-xl border-b border-slate-100 px-6 py-3">
-              <p className="text-[12px] font-semibold text-brand-blue">
+              <p id="home-lead-dialog-title" className="text-[12px] font-semibold text-brand-blue">
                 {modalType === 'info' ? 'Consulta directa' : 'Asesoría personalizada'}
               </p>
-              <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-md transition-all">
+              <button ref={closeButtonRef} type="button" aria-label="Cerrar formulario de contacto" onClick={closeLeadModal} className="p-1.5 hover:bg-slate-100 rounded-md transition-all">
                 <X className="h-5 w-5 text-slate-400" />
               </button>
             </div>
@@ -1206,38 +1279,47 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
             <div className="max-h-[70vh] overflow-y-auto p-6">
 
               {isSuccess ? (
-                <div className="py-10 text-center animate-in zoom-in duration-300">
+                <div ref={successMessageRef} tabIndex={-1} role="status" aria-live="polite" className="py-10 text-center animate-in zoom-in duration-300 focus:outline-none" data-lead-capture-state="submitted" data-lead-capture-status="success">
                   <div className="h-14 w-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CheckCircle2 className="h-7 w-7 text-emerald-500" />
                   </div>
                   <h3 className="text-[15px] font-semibold text-brand-slate">Enviado con éxito</h3>
                   <p className="text-[13px] text-slate-400 mt-1">Un asesor te contactará pronto.</p>
                 </div>
+              ) : !LEAD_CAPTURE_ENABLED ? (
+                <div className="py-10 text-center animate-in zoom-in duration-300" role="status" aria-live="polite">
+                  <div className="h-14 w-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="h-7 w-7 text-brand-blue" />
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-brand-slate">{LEAD_CAPTURE_MAINTENANCE_TITLE}</h3>
+                  <p className="text-[13px] text-slate-600 mt-2 leading-relaxed">{LEAD_CAPTURE_MAINTENANCE_COPY}</p>
+                </div>
               ) : (
-                <form onSubmit={handleSubmitLead} className="space-y-3.5">
+                <form onSubmit={handleSubmitLead} className="space-y-3.5" data-lead-capture-form="home">
                   {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
+                    <div ref={errorMessageRef} id={homeLeadErrorId} role="alert" tabIndex={-1} className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none">{formError}</div>
                   )}
                   <h3 className="text-xl font-bold mb-2 text-brand-slate tracking-tight leading-tight">
                     {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">Nombre</label>
-                      <Input required className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} />
+                      <label htmlFor="home-lead-first-name" className="text-[12px] font-medium text-slate-400 mb-1 block">Nombre</label>
+                      <Input id="home-lead-first-name" required type="text" autoComplete="given-name" data-pii-control="first_name" aria-invalid={invalidField === "first_name"} aria-describedby={invalidField === "first_name" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} />
                     </div>
                     <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">WhatsApp</label>
-                      <Input required className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
+                      <label htmlFor="home-lead-whatsapp" className="text-[12px] font-medium text-slate-400 mb-1 block">WhatsApp</label>
+                      <Input id="home-lead-whatsapp" required type="tel" autoComplete="tel" inputMode="tel" data-pii-control="whatsapp" aria-invalid={invalidField === "whatsapp"} aria-describedby={invalidField === "whatsapp" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
                     </div>
                   </div>
                   <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Email</label>
-                    <Input required type="email" className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                    <label htmlFor="home-lead-email" className="text-[12px] font-medium text-slate-400 mb-1 block">Email</label>
+                    <Input id="home-lead-email" required type="email" autoComplete="email" data-pii-control="email" aria-invalid={invalidField === "email"} aria-describedby={invalidField === "email" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Área de interés</label>
+                    <label htmlFor="home-lead-area" className="text-[12px] font-medium text-slate-400 mb-1 block">Área de interés</label>
                     <select
+                      id="home-lead-area"
                       className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
                       value={formData.area_interest}
                       onChange={(e) => setFormData({ ...formData, area_interest: e.target.value })}
@@ -1249,8 +1331,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     </select>
                   </div>
                   <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Presupuesto estimado</label>
+                    <label htmlFor="home-lead-budget" className="text-[12px] font-medium text-slate-400 mb-1 block">Presupuesto estimado</label>
                     <select
+                      id="home-lead-budget"
                       className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
                       value={formData.budget}
                       onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
@@ -1263,8 +1346,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     </select>
                   </div>
                   <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Modalidad preferida</label>
+                    <label htmlFor="home-lead-modality" className="text-[12px] font-medium text-slate-400 mb-1 block">Modalidad preferida</label>
                     <select
+                      id="home-lead-modality"
                       className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
                       value={formData.modality}
                       onChange={(e) => setFormData({ ...formData, modality: e.target.value })}
@@ -1277,8 +1361,8 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                   </div>
                   {modalType === 'recommendation' && (
                     <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">Tus objetivos</label>
-                      <textarea className="w-full h-20 rounded-lg bg-slate-50 border-0 p-3 text-[13px] focus:ring-1 focus:ring-brand-blue/30 resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+                      <label htmlFor="home-lead-description" className="text-[12px] font-medium text-slate-400 mb-1 block">Tus objetivos</label>
+                      <textarea id="home-lead-description" autoComplete="off" data-pii-control="description" className="w-full h-20 rounded-lg bg-slate-50 border-0 p-3 text-[13px] focus:ring-1 focus:ring-brand-blue/30 resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                     </div>
                   )}
                   <Button disabled={isSubmitting} type="submit" className="w-full h-10 bg-brand-slate hover:bg-black text-white font-medium rounded-lg border-0 text-[13px] mt-2 transition-all active:scale-[0.98]">

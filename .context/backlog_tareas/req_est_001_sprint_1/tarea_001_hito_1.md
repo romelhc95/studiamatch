@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; package local F9.7 de seis entradas queda PR-ready local; snapshot remoto y gates operativos pendientes |
+| Fase vigente | Macrofase `F9` en progreso; candidate local F9.7 v3 de seis entradas queda PR-ready local; snapshot remoto y gates operativos pendientes |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
@@ -108,9 +108,11 @@ Gate B verifico Free de forma pre-DDL/read-only y se consumio sin aplicar schema
 
 La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La [atestacion ACL](../../operaciones/atestacion_origen_acl_f9_7.md) observo cobertura completa del package para fuentes ACL, sin herencia/SET/owner/unknown; el mismatch y el trigger mantuvieron fail-closed y los predicates no atestados bloquearon aplicacion independientemente. No hubo filas de negocio, HTTP, schema, migrations, DML, backup, restore ni control de writers.
 
-La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por un manifest sucesor de seis entradas. Las cinco migrations historicas quedan byte-identicas; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado y el drenaje pg_net queda counts-only. PostgreSQL 17, replay, rollback, drift cases y ledger locales pasan; no observa ni modifica Free/Pro y no autoriza aplicacion.
+La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado y el drenaje pg_net queda counts-only. PostgreSQL 17, replay, rollback, drift cases, diagnostico/package y ledger locales pasan; no observa ni modifica Free/Pro y no autoriza aplicacion. No existe aun gate operacional aprobado, el hold DB ACL sera definido en PR-O, el T02 historico F10 no se reactiva y PR-O creara el contrato sucesor F9.7 v3.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
+
+Estado PR-R: candidate `v3_local_pr_ready`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_BLOCKED`, siguiente accion `merge_and_postmerge_replay_then_define_PR_O`. El flag frontend `NEXT_PUBLIC_LEAD_CAPTURE_ENABLED` es UX/build-time only y no reemplaza RLS/ACL ni barreras PostgREST.
 
 El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 

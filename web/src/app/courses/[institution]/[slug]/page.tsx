@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, cleanSlug, type Course } from "@/lib/supabase";
+import { getLeadCaptureBuildState } from "@/lib/leadCaptureCore";
 import type { Metadata } from "next";
 import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
@@ -81,6 +82,18 @@ export async function generateStaticParams() {
   }
 }
 
+const JSON_LD_ESCAPE_LOOKUP: Record<string, string> = {
+  "<": "\\u003c",
+  ">": "\\u003e",
+  "&": "\\u0026",
+  "\u2028": "\\u2028",
+  "\u2029": "\\u2029",
+};
+
+function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (character) => JSON_LD_ESCAPE_LOOKUP[character]);
+}
+
 function CourseJsonLd({ course }: { course: Course & { institutions?: { name: string } } }) {
   const ld = {
     "@context": "https://schema.org",
@@ -106,7 +119,7 @@ function CourseJsonLd({ course }: { course: Course & { institutions?: { name: st
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(ld) }}
     />
   );
 }
@@ -118,9 +131,11 @@ export default async function CourseDetailPage({
 }) {
   const { institution, slug } = await params;
   const courseMeta = await fetchCourseMeta(slug);
+  const leadCaptureBuildState = getLeadCaptureBuildState(process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED);
 
   return (
     <>
+      <div hidden aria-hidden="true" data-lead-capture-server-marker="course-detail" data-lead-capture-state={leadCaptureBuildState} />
       {courseMeta && <CourseJsonLd course={courseMeta} />}
       <CourseDetailClientWrapper institutionSlug={institution} courseSlug={slug} />
     </>
