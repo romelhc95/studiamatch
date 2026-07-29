@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "db/manifests/fase09_7_leads_email_security_hold.json"
 MIGRATION = ROOT / "db/migrations/20260729_fase09_7_leads_email_security_hold.sql"
 V3_MANIFEST = ROOT / "db/manifests/fase09_7_free_schema_rls_v3.json"
+POSTGRES_RUNNER = ROOT / "tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh"
 
 
 def _marker(path: Path) -> str:
@@ -111,6 +112,17 @@ def test_terminal_migration_is_hold_only_without_cascade_or_legacy_postcondition
     assert "membership.admin_option" in body
     assert "authenticator_oid" in body
     assert "dependent_views(view_oid, path)" in body
+    assert "writable_relations(relation_oid)" in body
+    assert "dangerous_routines(procedure_oid, path)" in body
+    assert "dependency.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass" in body
+    assert "pg_catalog.format(" in body
+    assert "\\m(leads|email_log)\\M" in body
+    assert "dangerous_procedure.proname" in body
+    assert "pg_catalog.has_column_privilege" in body
+    assert "trigger_record.tgfoid" in body
+    assert "pg_catalog.pg_get_ruledef(rewrite_record.oid)" in body
+    assert "constraint_record.confrelid" in body
+    assert "constraint_record.conkey" in body
     assert "publication.puballtables" in body
     assert "pg_publication_namespace" in body
     assert "pg_catalog.pg_get_functiondef(procedure_record.oid)" in body
@@ -163,6 +175,26 @@ def test_planner_accepts_only_boundaries_6_and_7():
         )
 
 
+def test_postgres_runner_covers_terminal_adversarial_closure():
+    runner = POSTGRES_RUNNER.read_text(encoding="utf-8")
+
+    for snippet in (
+        "capture_legacy_digests()",
+        "pg_catalog.pg_get_viewdef",
+        "pg_catalog.pg_get_functiondef",
+        "pg_publication_namespace",
+        "security-hold-stage-postcondition-complete",
+        "security-hold-stage-terminal-verification-complete",
+        "security-hold-stage-after-ledger",
+        "membership inherit option transitive path",
+        "membership set option transitive path",
+        "membership admin option transitive path",
+        "f97_boolean_domain",
+        "Domain-return verifier was invoked before return type attestation",
+    ):
+        assert snippet in runner
+
+
 def test_package_generation_separates_apply_from_replay():
     v3_paths, hold_path = hold.load_security_hold_manifest(MANIFEST, "free")
     v3_applied = {path.stem: _marker(path) for path in v3_paths}
@@ -181,6 +213,10 @@ def test_package_generation_separates_apply_from_replay():
     assert package.index("public.verify_fase09_7_leads_email_security_hold()") < package.index(
         "-- manifest-ledger-registration"
     )
+    assert "return_namespace.nspname = 'pg_catalog'" in package
+    assert "return_type.typname = 'bool'" in package
+    assert "procedure_record.prorettype = 'pg_catalog.bool'::pg_catalog.regtype" in package
+    assert "procedure_record.pronargs = 0" in package
 
     boundary7 = hold.classify_security_hold_ledger(
         v3_paths,
@@ -188,6 +224,8 @@ def test_package_generation_separates_apply_from_replay():
         {**v3_applied, hold_path.stem: _marker(hold_path)},
     )
     replay = hold.build_security_hold_package_sql(boundary7, version=20260729000100)
+    assert "return_type.typname = 'bool'" in replay
+    assert "procedure_record.pronargs = 0" in replay
     assert "SET TRANSACTION READ ONLY;" not in replay
     assert "LOCK TABLE public.supabase_migrations IN SHARE ROW EXCLUSIVE MODE;" in replay
     assert "LOCK TABLE public.leads IN ACCESS EXCLUSIVE MODE;" in replay

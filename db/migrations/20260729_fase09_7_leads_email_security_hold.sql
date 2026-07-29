@@ -836,6 +836,355 @@ BEGIN
                   OR membership.admin_option
               )
         ),
+        writable_relations(relation_oid) AS (
+            SELECT DISTINCT relation.oid
+            FROM pg_catalog.pg_class AS relation
+            JOIN pg_catalog.pg_namespace AS relation_schema
+              ON relation_schema.oid = relation.relnamespace
+            CROSS JOIN reachable_roles
+            WHERE relation.oid <> ALL(ARRAY[
+                'public.leads'::pg_catalog.regclass,
+                'public.email_log'::pg_catalog.regclass
+            ])
+              AND relation.relkind IN ('r', 'p', 'v', 'f')
+              AND pg_catalog.has_schema_privilege(
+                  reachable_roles.role_oid, relation_schema.oid, 'USAGE'
+              )
+              AND (
+                  pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'INSERT')
+                  OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'UPDATE')
+                  OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'DELETE')
+                  OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'TRUNCATE')
+                  OR EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_attribute AS attribute
+                      WHERE attribute.attrelid = relation.oid
+                        AND attribute.attnum > 0
+                        AND NOT attribute.attisdropped
+                        AND (
+                            pg_catalog.has_column_privilege(
+                                reachable_roles.role_oid, relation.oid, attribute.attnum, 'INSERT'
+                            )
+                            OR pg_catalog.has_column_privilege(
+                                reachable_roles.role_oid, relation.oid, attribute.attnum, 'UPDATE'
+                            )
+                        )
+                  )
+              )
+        ),
+        dangerous_routines(procedure_oid, path) AS (
+            SELECT procedure_record.oid, ARRAY[procedure_record.oid]
+            FROM pg_catalog.pg_proc AS procedure_record
+            WHERE procedure_record.prokind IN ('f', 'p')
+              AND (
+                  procedure_record.prosrc ILIKE '%public.leads%'
+                  OR procedure_record.prosrc ILIKE '%public.email_log%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.leads%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.email_log%'
+                  OR procedure_record.prosrc ~* '\m(leads|email_log)\M'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ~*
+                     '\m(leads|email_log)\M'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = procedure_record.oid
+                        AND dependency.refobjid IN (
+                            'public.leads'::pg_catalog.regclass,
+                            'public.email_log'::pg_catalog.regclass
+                        )
+                  )
+                  OR procedure_record.prosrc ~* '\mEXECUTE\M'
+              )
+            UNION ALL
+            SELECT caller.oid, dangerous_routines.path || caller.oid
+            FROM dangerous_routines
+            JOIN pg_catalog.pg_proc AS dangerous_procedure
+              ON dangerous_procedure.oid = dangerous_routines.procedure_oid
+            JOIN pg_catalog.pg_namespace AS dangerous_schema
+              ON dangerous_schema.oid = dangerous_procedure.pronamespace
+            JOIN pg_catalog.pg_proc AS caller
+              ON caller.prokind IN ('f', 'p')
+            WHERE caller.oid <> ALL(dangerous_routines.path)
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = caller.oid
+                        AND dependency.refobjid = dangerous_routines.procedure_oid
+                  )
+                  OR caller.prosrc ILIKE '%' || dangerous_schema.nspname || '.' ||
+                     dangerous_procedure.proname || '%'
+                  OR caller.prosrc ILIKE '%' || pg_catalog.format(
+                      '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                  ) || '%'
+                  OR caller.prosrc ILIKE '%' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_schema.nspname || '.' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     pg_catalog.format(
+                         '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                     ) || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_procedure.proname || '%'
+              )
+        )
+        SELECT 1
+        FROM pg_catalog.pg_trigger AS trigger_record
+        JOIN writable_relations
+          ON writable_relations.relation_oid = trigger_record.tgrelid
+        JOIN dangerous_routines
+          ON dangerous_routines.procedure_oid = trigger_record.tgfoid
+        WHERE NOT trigger_record.tgisinternal
+    ) THEN
+        RETURN false;
+    END IF;
+
+    IF EXISTS (
+        WITH RECURSIVE reachable_roles(role_oid, path) AS (
+            SELECT role.oid, ARRAY[role.oid]
+            FROM pg_catalog.pg_roles AS role
+            WHERE role.rolname IN ('anon', 'authenticated', 'authenticator', 'service_role')
+            UNION ALL
+            SELECT parent_role.oid, reachable_roles.path || parent_role.oid
+            FROM reachable_roles
+            JOIN pg_catalog.pg_auth_members AS membership
+              ON membership.member = reachable_roles.role_oid
+            JOIN pg_catalog.pg_roles AS parent_role
+              ON parent_role.oid = membership.roleid
+            WHERE parent_role.oid <> ALL(reachable_roles.path)
+              AND (
+                  membership.inherit_option
+                  OR membership.set_option
+                  OR membership.admin_option
+              )
+        ),
+        dangerous_routines(procedure_oid, path) AS (
+            SELECT procedure_record.oid, ARRAY[procedure_record.oid]
+            FROM pg_catalog.pg_proc AS procedure_record
+            WHERE procedure_record.prokind IN ('f', 'p')
+              AND (
+                  procedure_record.prosrc ILIKE '%public.leads%'
+                  OR procedure_record.prosrc ILIKE '%public.email_log%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.leads%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.email_log%'
+                  OR procedure_record.prosrc ~* '\m(leads|email_log)\M'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ~*
+                     '\m(leads|email_log)\M'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = procedure_record.oid
+                        AND dependency.refobjid IN (
+                            'public.leads'::pg_catalog.regclass,
+                            'public.email_log'::pg_catalog.regclass
+                        )
+                  )
+                  OR procedure_record.prosrc ~* '\mEXECUTE\M'
+              )
+            UNION ALL
+            SELECT caller.oid, dangerous_routines.path || caller.oid
+            FROM dangerous_routines
+            JOIN pg_catalog.pg_proc AS dangerous_procedure
+              ON dangerous_procedure.oid = dangerous_routines.procedure_oid
+            JOIN pg_catalog.pg_namespace AS dangerous_schema
+              ON dangerous_schema.oid = dangerous_procedure.pronamespace
+            JOIN pg_catalog.pg_proc AS caller
+              ON caller.prokind IN ('f', 'p')
+            WHERE caller.oid <> ALL(dangerous_routines.path)
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = caller.oid
+                        AND dependency.refobjid = dangerous_routines.procedure_oid
+                  )
+                  OR caller.prosrc ILIKE '%' || dangerous_schema.nspname || '.' ||
+                     dangerous_procedure.proname || '%'
+                  OR caller.prosrc ILIKE '%' || pg_catalog.format(
+                      '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                  ) || '%'
+                  OR caller.prosrc ILIKE '%' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_schema.nspname || '.' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     pg_catalog.format(
+                         '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                     ) || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_procedure.proname || '%'
+              )
+        )
+        SELECT 1
+        FROM pg_catalog.pg_rewrite AS rewrite_record
+        JOIN pg_catalog.pg_class AS relation
+          ON relation.oid = rewrite_record.ev_class
+        JOIN pg_catalog.pg_namespace AS relation_schema
+          ON relation_schema.oid = relation.relnamespace
+        CROSS JOIN reachable_roles
+        WHERE rewrite_record.rulename <> '_RETURN'
+          AND relation.oid <> ALL(ARRAY[
+              'public.leads'::pg_catalog.regclass,
+              'public.email_log'::pg_catalog.regclass
+          ])
+          AND pg_catalog.has_schema_privilege(
+              reachable_roles.role_oid, relation_schema.oid, 'USAGE'
+          )
+          AND (
+              pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'SELECT')
+              OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'INSERT')
+              OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'UPDATE')
+              OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'DELETE')
+              OR EXISTS (
+                  SELECT 1
+                  FROM pg_catalog.pg_attribute AS attribute
+                  WHERE attribute.attrelid = relation.oid
+                    AND attribute.attnum > 0
+                    AND NOT attribute.attisdropped
+                    AND (
+                        pg_catalog.has_column_privilege(
+                            reachable_roles.role_oid, relation.oid, attribute.attnum, 'SELECT'
+                        )
+                        OR pg_catalog.has_column_privilege(
+                            reachable_roles.role_oid, relation.oid, attribute.attnum, 'INSERT'
+                        )
+                        OR pg_catalog.has_column_privilege(
+                            reachable_roles.role_oid, relation.oid, attribute.attnum, 'UPDATE'
+                        )
+                    )
+              )
+          )
+          AND (
+              pg_catalog.pg_get_ruledef(rewrite_record.oid) ILIKE '%public.leads%'
+              OR pg_catalog.pg_get_ruledef(rewrite_record.oid) ILIKE '%public.email_log%'
+              OR EXISTS (
+                  SELECT 1
+                  FROM pg_catalog.pg_depend AS dependency
+                  WHERE dependency.classid = 'pg_catalog.pg_rewrite'::pg_catalog.regclass
+                    AND dependency.objid = rewrite_record.oid
+                    AND dependency.refobjid IN (
+                        'public.leads'::pg_catalog.regclass,
+                        'public.email_log'::pg_catalog.regclass
+                    )
+              )
+              OR EXISTS (
+                  SELECT 1
+                  FROM pg_catalog.pg_depend AS dependency
+                  JOIN dangerous_routines
+                    ON dangerous_routines.procedure_oid = dependency.refobjid
+                  WHERE dependency.classid = 'pg_catalog.pg_rewrite'::pg_catalog.regclass
+                    AND dependency.objid = rewrite_record.oid
+              )
+              OR EXISTS (
+                  SELECT 1
+                  FROM dangerous_routines
+                  JOIN pg_catalog.pg_proc AS dangerous_procedure
+                    ON dangerous_procedure.oid = dangerous_routines.procedure_oid
+                  JOIN pg_catalog.pg_namespace AS dangerous_schema
+                    ON dangerous_schema.oid = dangerous_procedure.pronamespace
+                  WHERE pg_catalog.pg_get_ruledef(rewrite_record.oid) ILIKE '%' ||
+                        dangerous_schema.nspname || '.' || dangerous_procedure.proname || '%'
+                     OR pg_catalog.pg_get_ruledef(rewrite_record.oid) ILIKE '%' ||
+                        pg_catalog.format(
+                            '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                        ) || '%'
+                     OR pg_catalog.pg_get_ruledef(rewrite_record.oid) ILIKE '%' ||
+                        dangerous_procedure.proname || '%'
+              )
+          )
+    ) THEN
+        RETURN false;
+    END IF;
+
+    IF EXISTS (
+        WITH RECURSIVE reachable_roles(role_oid, path) AS (
+            SELECT role.oid, ARRAY[role.oid]
+            FROM pg_catalog.pg_roles AS role
+            WHERE role.rolname IN ('anon', 'authenticated', 'authenticator', 'service_role')
+            UNION ALL
+            SELECT parent_role.oid, reachable_roles.path || parent_role.oid
+            FROM reachable_roles
+            JOIN pg_catalog.pg_auth_members AS membership
+              ON membership.member = reachable_roles.role_oid
+            JOIN pg_catalog.pg_roles AS parent_role
+              ON parent_role.oid = membership.roleid
+            WHERE parent_role.oid <> ALL(reachable_roles.path)
+              AND (
+                  membership.inherit_option
+                  OR membership.set_option
+                  OR membership.admin_option
+              )
+        )
+        SELECT 1
+        FROM pg_catalog.pg_constraint AS constraint_record
+        JOIN pg_catalog.pg_class AS relation
+          ON relation.oid = constraint_record.conrelid
+        JOIN pg_catalog.pg_namespace AS relation_schema
+          ON relation_schema.oid = relation.relnamespace
+        CROSS JOIN reachable_roles
+        WHERE constraint_record.contype = 'f'
+          AND constraint_record.confrelid IN (
+              'public.leads'::pg_catalog.regclass,
+              'public.email_log'::pg_catalog.regclass
+          )
+          AND constraint_record.conrelid <> ALL(ARRAY[
+              'public.leads'::pg_catalog.regclass,
+              'public.email_log'::pg_catalog.regclass
+          ])
+          AND pg_catalog.has_schema_privilege(
+              reachable_roles.role_oid, relation_schema.oid, 'USAGE'
+          )
+          AND (
+              pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'INSERT')
+              OR pg_catalog.has_table_privilege(reachable_roles.role_oid, relation.oid, 'UPDATE')
+              OR EXISTS (
+                  SELECT 1
+                  FROM pg_catalog.pg_attribute AS attribute
+                  WHERE attribute.attrelid = relation.oid
+                    AND attribute.attnum = ANY(constraint_record.conkey)
+                    AND NOT attribute.attisdropped
+                    AND (
+                        pg_catalog.has_column_privilege(
+                            reachable_roles.role_oid, relation.oid, attribute.attnum, 'INSERT'
+                        )
+                        OR pg_catalog.has_column_privilege(
+                            reachable_roles.role_oid, relation.oid, attribute.attnum, 'UPDATE'
+                        )
+                    )
+              )
+          )
+    ) THEN
+        RETURN false;
+    END IF;
+
+    IF EXISTS (
+        WITH RECURSIVE reachable_roles(role_oid, path) AS (
+            SELECT role.oid, ARRAY[role.oid]
+            FROM pg_catalog.pg_roles AS role
+            WHERE role.rolname IN ('anon', 'authenticated', 'authenticator', 'service_role')
+            UNION ALL
+            SELECT parent_role.oid, reachable_roles.path || parent_role.oid
+            FROM reachable_roles
+            JOIN pg_catalog.pg_auth_members AS membership
+              ON membership.member = reachable_roles.role_oid
+            JOIN pg_catalog.pg_roles AS parent_role
+              ON parent_role.oid = membership.roleid
+            WHERE parent_role.oid <> ALL(reachable_roles.path)
+              AND (
+                  membership.inherit_option
+                  OR membership.set_option
+                  OR membership.admin_option
+              )
+        ),
         dependent_views(view_oid, path) AS (
             SELECT view_record.oid, ARRAY[view_record.oid]
             FROM pg_catalog.pg_rewrite AS rewrite_record
@@ -958,14 +1307,76 @@ BEGIN
                   OR membership.set_option
                   OR membership.admin_option
               )
+        ),
+        dangerous_routines(procedure_oid, path) AS (
+            SELECT procedure_record.oid, ARRAY[procedure_record.oid]
+            FROM pg_catalog.pg_proc AS procedure_record
+            WHERE procedure_record.prokind IN ('f', 'p')
+              AND (
+                  procedure_record.prosrc ILIKE '%public.leads%'
+                  OR procedure_record.prosrc ILIKE '%public.email_log%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.leads%'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
+                     '%public.email_log%'
+                  OR procedure_record.prosrc ~* '\m(leads|email_log)\M'
+                  OR pg_catalog.pg_get_functiondef(procedure_record.oid) ~*
+                     '\m(leads|email_log)\M'
+                  OR EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = procedure_record.oid
+                        AND dependency.refobjid IN (
+                            'public.leads'::pg_catalog.regclass,
+                            'public.email_log'::pg_catalog.regclass
+                      )
+                  )
+                  OR procedure_record.prosrc ~* '\mEXECUTE\M'
+              )
+            UNION ALL
+            SELECT caller.oid, dangerous_routines.path || caller.oid
+            FROM dangerous_routines
+            JOIN pg_catalog.pg_proc AS dangerous_procedure
+              ON dangerous_procedure.oid = dangerous_routines.procedure_oid
+            JOIN pg_catalog.pg_namespace AS dangerous_schema
+              ON dangerous_schema.oid = dangerous_procedure.pronamespace
+            JOIN pg_catalog.pg_proc AS caller
+              ON caller.prokind IN ('f', 'p')
+            WHERE caller.oid <> ALL(dangerous_routines.path)
+              AND (
+                  EXISTS (
+                      SELECT 1
+                      FROM pg_catalog.pg_depend AS dependency
+                      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+                        AND dependency.objid = caller.oid
+                        AND dependency.refobjid = dangerous_routines.procedure_oid
+                  )
+                  OR caller.prosrc ILIKE '%' || dangerous_schema.nspname || '.' ||
+                     dangerous_procedure.proname || '%'
+                  OR caller.prosrc ILIKE '%' || pg_catalog.format(
+                      '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                  ) || '%'
+                  OR caller.prosrc ILIKE '%' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_schema.nspname || '.' || dangerous_procedure.proname || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     pg_catalog.format(
+                         '%I.%I', dangerous_schema.nspname, dangerous_procedure.proname
+                     ) || '%'
+                  OR pg_catalog.pg_get_functiondef(caller.oid) ILIKE '%' ||
+                     dangerous_procedure.proname || '%'
+              )
         )
         SELECT 1
-        FROM pg_catalog.pg_proc AS procedure_record
+        FROM dangerous_routines
+        JOIN pg_catalog.pg_proc AS procedure_record
+          ON procedure_record.oid = dangerous_routines.procedure_oid
         JOIN pg_catalog.pg_namespace AS procedure_schema
           ON procedure_schema.oid = procedure_record.pronamespace
         CROSS JOIN reachable_roles
-        WHERE procedure_record.prokind IN ('f', 'p')
-          AND procedure_record.oid NOT IN (
+        WHERE procedure_record.oid NOT IN (
               pg_catalog.to_regprocedure('public.verify_fase06_g1b_reconciliation()'),
               pg_catalog.to_regprocedure('public.verify_fase06_hito1_contract()'),
               pg_catalog.to_regprocedure('public.verify_fase07_g1b_closure()'),
@@ -980,25 +1391,6 @@ BEGIN
           )
           AND pg_catalog.has_function_privilege(
               reachable_roles.role_oid, procedure_record.oid, 'EXECUTE'
-          )
-          AND (
-              procedure_record.prosrc ILIKE '%public.leads%'
-              OR procedure_record.prosrc ILIKE '%public.email_log%'
-              OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
-                 '%public.leads%'
-              OR pg_catalog.pg_get_functiondef(procedure_record.oid) ILIKE
-                 '%public.email_log%'
-              OR EXISTS (
-                  SELECT 1
-                  FROM pg_catalog.pg_depend AS dependency
-                  WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
-                    AND dependency.objid = procedure_record.oid
-                    AND dependency.refobjid IN (
-                        'public.leads'::pg_catalog.regclass,
-                        'public.email_log'::pg_catalog.regclass
-                  )
-              )
-              OR procedure_record.prosrc ~* '\mEXECUTE\M'
           )
     ) THEN
         RETURN false;

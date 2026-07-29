@@ -282,35 +282,45 @@ Cerrar el package terminal con acceso cero para roles de aplicacion, identidad/v
 - Stem, hash, verifier, ACL o dependency drift falla.
 - `anon`, `authenticated`, `authenticator` y `service_role` reciben denegacion directa.
 - Membership `INHERIT`, `SET ROLE` o `ADMIN OPTION` peligrosa falla.
+- Membership `INHERIT OPTION`, `SET OPTION` y `ADMIN OPTION` peligrosa falla con fixtures dinamicos separados, incluyendo camino transitivo.
 - View directa, column grant, DML view, view chain y materialized view fallan.
-- Routine wrapper y overload peligroso fallan; rutina fuera de ruta publica no genera falso positivo.
+- Routine wrapper, helper transitivo y overload peligroso fallan; rutina fuera de ruta publica no genera falso positivo.
+- Boundary 7 rechaza drift de return type del verifier terminal antes de invocarlo; sentinel no transaccional confirma no ejecucion.
+- Fingerprint de rollback/replay cubre catalogo, ACLs, dependencias, rutinas relevantes, publications, policies, constraints, ledger y digest legacy sin filas PII.
+- Trigger/rule relay con grants por tabla o columna falla.
+- Rule relay mediante helper privado peligroso falla.
+- Rutinas, triggers y rules con `SET search_path` y referencias no calificadas a `leads`/`email_log` o helpers peligrosos fallan.
 - Publication directa, global y por schema falla.
 - Trigger/rule/policy inesperada falla.
-- Cada fault injection restaura fingerprint exacto.
-- Las filas legacy conservan valores exactos.
+- Fault injection despues de revokes, policies, constraints, verifier, postcondition, terminal verification, before-ledger y after-ledger restaura fingerprint exacto.
+- Digest legacy canonico de `leads` y `email_log` permanece identico en apply, replay y cada rollback.
 
 ### Evidencia GO
 
 - Runner v3 PostgreSQL 17 PASS.
-- Runner hold apply/replay/rollback PostgreSQL 17 PASS.
+- Runner hold apply/replay/rollback PostgreSQL 17 PASS con FF04-FF08.
 - Contratos Python DB PASS.
 - Hashes y manifest recalculados desde bytes finales.
+- `GO_SECURITY`: FF04 return type antes de invocacion y FF05 fingerprint completo PASS.
+- `GO_FUNCTIONALITY`: FF06 fault injection completa, FF07 membership options dinamicos y FF08 digest legacy en apply/replay/rollback PASS.
+- `GO_EFFICIENCY`: sin dependencia nueva, sin runtime normal, checks limitados a apply/replay/tests, CTE recursivos con proteccion de ciclos y sin ampliar rutas WP-02.
 - Auditor `supabase-architect`: `GO_WP`.
 - Auditor `security-auditor`: `GO_WP`.
-- Commit local `fix(db): close F9.7 terminal hold routes`.
+- Commit local forward-fix objetivo: `fix(db): complete F9.7 hold adversarial closure`.
 
 ### Evidencia De Cierre WP-02
 
 - PostgreSQL 17 v3: PASS local en Docker.
-- PostgreSQL 17 hold apply/replay/rollback: PASS local en Docker.
+- PostgreSQL 17 hold apply/replay/rollback: PASS local en Docker, incluyendo return type domain adversarial, fingerprint completo, fault injection after-ledger, membership option fixtures y digest legacy.
 - Python compile: PASS para `db_migrate.py` y candidate del hold.
 - Pytest focused: PASS para `tests/test_fase09_7_leads_email_security_hold.py`.
 - Validate-only manifest Free/Pro: PASS sin acceso remoto.
+- Backlog nuevo: ninguno.
 - Auditor `supabase-architect`: `GO_WP` sin findings despues de remediacion.
 - Auditor `security-auditor`: `GO_WP` sin findings despues de remediacion.
-- `MANIFEST_SHA256`: `9caee6d5167a5c8b7a0e7da772e42de554e58d43460e555fdc0d5a409556bf6e`.
-- Hold SQL SHA256: `2f23dbc77494f3f8868df5ba5f5cb078acb600e6054e415e749d1a5e3d905cac`.
-- Terminal verifier SHA256: `2a370753a9ef0170bc04a60b57365db0972fb61908731744d815b0d8a2e7771e`; octets `27694`.
+- `MANIFEST_SHA256`: `3248376c2d92e953907590d158702a07f0b5523f7559ae4a0f85809b4aff4ebb`.
+- Hold SQL SHA256: `29082d96cbfd746753324aef0330a7af6f34b0e8bcfa2db0841ac0a8af90134e`.
+- Terminal verifier SHA256: `ceb80ae8865cf522b0cf2354c856f13c8c32156e38b492fdc55a223f44b51ab2`; octets `47721`.
 - `public.exec_sql(text)` queda como residual aceptado exacto; manifest normal/dry-run queda fail-closed y solo `--validate-only` resuelve paths.
 
 ### Stop Conditions

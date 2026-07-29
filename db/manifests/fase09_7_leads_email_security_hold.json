@@ -57,7 +57,7 @@
       "id": "F9.7-LEADS-EMAIL-SECURITY-HOLD",
       "component": "leads_email_security_hold",
       "path": "db/migrations/20260729_fase09_7_leads_email_security_hold.sql",
-      "sha256": "2f23dbc77494f3f8868df5ba5f5cb078acb600e6054e415e749d1a5e3d905cac",
+      "sha256": "29082d96cbfd746753324aef0330a7af6f34b0e8bcfa2db0841ac0a8af90134e",
       "provenance": "new_forward_only_terminal_hold",
       "targets": ["free", "pro"]
     }

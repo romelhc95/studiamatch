@@ -17,13 +17,13 @@ except ModuleNotFoundError:  # pragma: no cover - used when db_migrate.py is run
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ID = "F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729"
-MANIFEST_SHA256 = "9caee6d5167a5c8b7a0e7da772e42de554e58d43460e555fdc0d5a409556bf6e"
+MANIFEST_SHA256 = "3248376c2d92e953907590d158702a07f0b5523f7559ae4a0f85809b4aff4ebb"
 HOLD_STEM = "20260729_fase09_7_leads_email_security_hold"
 HOLD_ENTRY = {
     "id": "F9.7-LEADS-EMAIL-SECURITY-HOLD",
     "component": "leads_email_security_hold",
     "path": "db/migrations/20260729_fase09_7_leads_email_security_hold.sql",
-    "sha256": "2f23dbc77494f3f8868df5ba5f5cb078acb600e6054e415e749d1a5e3d905cac",
+    "sha256": "29082d96cbfd746753324aef0330a7af6f34b0e8bcfa2db0841ac0a8af90134e",
     "provenance": "new_forward_only_terminal_hold",
     "targets": ["free", "pro"],
 }
@@ -42,8 +42,8 @@ F9_7_LEDGER_PREFIXES = (
     "20260728_fase09_7_",
     "20260729_fase09_7_",
 )
-TERMINAL_VERIFIER_SOURCE_SHA256 = "2a370753a9ef0170bc04a60b57365db0972fb61908731744d815b0d8a2e7771e"
-TERMINAL_VERIFIER_SOURCE_OCTETS = 27694
+TERMINAL_VERIFIER_SOURCE_SHA256 = "ceb80ae8865cf522b0cf2354c856f13c8c32156e38b492fdc55a223f44b51ab2"
+TERMINAL_VERIFIER_SOURCE_OCTETS = 47721
 
 
 class SecurityHoldManifestError(ValueError):
@@ -291,6 +291,11 @@ BEGIN
            AND pg_catalog.bool_and(
                owner.rolname = 'postgres'
                AND language_record.lanname = 'plpgsql'
+               AND return_namespace.nspname = 'pg_catalog'
+               AND return_type.typname = 'bool'
+               AND procedure_record.prorettype = 'pg_catalog.bool'::pg_catalog.regtype
+               AND procedure_record.prokind = 'f'
+               AND procedure_record.pronargs = 0
                AND NOT procedure_record.prosecdef
                AND procedure_record.provolatile = 's'
                AND procedure_record.proconfig IS NOT DISTINCT FROM
@@ -307,6 +312,10 @@ BEGIN
         JOIN pg_catalog.pg_roles AS owner ON owner.oid = procedure_record.proowner
         JOIN pg_catalog.pg_language AS language_record
           ON language_record.oid = procedure_record.prolang
+        JOIN pg_catalog.pg_type AS return_type
+          ON return_type.oid = procedure_record.prorettype
+        JOIN pg_catalog.pg_namespace AS return_namespace
+          ON return_namespace.oid = return_type.typnamespace
         WHERE namespace.nspname = 'public'
           AND procedure_record.proname = 'verify_fase09_7_leads_email_security_hold'
     ) THEN
