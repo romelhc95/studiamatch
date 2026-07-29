@@ -14,6 +14,7 @@ Este backlog registra hallazgos del cierre documental F9.5 sin crear una subtare
 | `BK-F9.5-04` | `ratings`/`reviews` y sus contadores | Requiere alcance y pruebas propias; no forma parte de H-00. |
 | `BK-F9.5-05` | [Arquitectura diferida de leads/email](backlog_seguridad_leads_email.md): email, rate limit, privacidad, outbox, provider, secretos, observabilidad y supply-chain hardening | Requiere evaluacion de seguridad, nuevo ciclo `INTAKE -> EST -> REQ -> TASK` y autorizacion separada. |
 | `BK-F9.5-06` | Limpieza fisica de artifacts historicos | Reservada exclusivamente para F11, con aprobacion explicita. |
+| `BK-F9.5-07` | [Exec SQL control-plane](backlog_exec_sql_control_plane.md): canal administrativo restringido `public.exec_sql(text)` | Residual aceptado para PR local; requiere sustitucion futura sin autorizar implementacion. |
 
 ## Regla De Tratamiento
 

@@ -31,6 +31,7 @@ Hito 1 conserva como destino la produccion completa, pero su perfil habilitado n
 16. `anon`, `authenticated`, `authenticator` y `service_role` quedan sin acceso a `leads` y `email_log`; las filas legacy se preservan bajo autoridad exclusiva del owner `postgres`.
 17. El cierre local se ejecuta mediante `WP-F9.7-01` a `WP-F9.7-06`, que son work packages internos de F9.7 y no subfases, subtareas ni criterios nuevos.
 18. La publishable key historica retirada fue rotada; la atestacion humana se registra sin valor, identificador ni referencia sensible.
+19. `public.exec_sql(text)` se conserva temporalmente como control-plane administrativo restringido a `service_role`; no es ruta data-plane y su sustitucion queda diferida en [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md).
 
 ## Consecuencias
 
@@ -39,5 +40,6 @@ Hito 1 conserva como destino la produccion completa, pero su perfil habilitado n
 - El package terminal `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda local, bloqueado y posterior a v3.
 - El verifier terminal detecta drift administrativo ordinario sobre grants, ACL, RLS, policies, views, routines, publications, triggers, rules y membresias; no promete neutralizar a un owner/superuser ni probar SQL dinamico arbitrariamente ofuscado.
 - El security hold no conserva lectura de aplicacion sobre las tablas retenidas; cualquier inspeccion futura requiere una operacion owner separada y autorizada.
+- `service_role` no conserva acceso data-plane a `leads`/`email_log`; el contrato exacto de `exec_sql(text)` es residual aceptado para el PR local y cualquier executor adicional, overload o ACL distinta bloquea el GO del hold.
 - [PLAN-F9.7-CIERRE-001](../operaciones/cierre_definitivo_f9_7.md) congela invariantes, clasificacion de hallazgos, checkpoints y criterios GO diferenciados para evitar ampliacion de alcance durante auditorias.
 - F9, F9.7, F10, F11 y `TASK-H1-001` permanecen abiertos.

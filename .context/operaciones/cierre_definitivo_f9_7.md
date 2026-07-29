@@ -74,6 +74,8 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 ### Dentro Del Alcance
 
 - Roles de aplicacion `anon`, `authenticated`, `authenticator` y `service_role`.
+- `service_role` como rol de aplicacion no tiene acceso data-plane a `leads` ni `email_log`.
+- `public.exec_sql(text)` exacto queda aceptado temporalmente como control-plane administrativo restringido, enlazado a [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md), no como ruta data-plane.
 - Privilegios de tabla y columna, incluidos caminos por membership, `INHERIT`, `SET ROLE` y `ADMIN OPTION`.
 - Views y materialized views dependientes en schemas utilizables por roles de aplicacion.
 - Rutinas ejecutables y overloads que dependan o hagan referencia comprobable a `leads`/`email_log`.
@@ -84,6 +86,7 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 ### Fuera Del Alcance Aceptado
 
 - Owner `postgres` y superuser como autoridad administrativa deliberada.
+- `public.exec_sql(text)` exacto bajo owner `postgres`, `SECURITY DEFINER`, search_path atestado y EXECUTE solo para `service_role`, como residual control-plane aceptado para el PR local.
 - SQL dinamico arbitrariamente ofuscado que no pueda probarse por catalogo o inspeccion estatica razonable.
 - Free/Pro y Edge desplegada hasta que exista binding y autorizacion propios.
 - Reactivacion futura de leads/email, que exige nuevo ciclo `INTAKE -> EST -> REQ -> TASK`.
@@ -100,6 +103,8 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 | `FALSE_POSITIVE` | No existe ruta, impacto o reproduccion | Se cierra con evidencia |
 
 Todo `BLOCKING_IN_SCOPE` debe incluir invariante afectado, archivo/linea, reproduccion determinista, resultado esperado y resultado observado. Una afirmacion teorica sin ese mapeo no cambia el verdict del WP.
+
+Para `WP-F9.7-02`, el `exec_sql(text)` exacto descrito en [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md) se clasifica como `RESIDUAL_ACCEPTED` para el PR local y `BACKLOG_OUT_OF_SCOPE` para su sustitucion futura. Cualquier otro executor SQL dinamico, overload inesperado o ACL distinta es `BLOCKING_IN_SCOPE`.
 
 ## Secuencia Y Dependencias
 
@@ -293,6 +298,20 @@ Cerrar el package terminal con acceso cero para roles de aplicacion, identidad/v
 - Auditor `supabase-architect`: `GO_WP`.
 - Auditor `security-auditor`: `GO_WP`.
 - Commit local `fix(db): close F9.7 terminal hold routes`.
+
+### Evidencia De Cierre WP-02
+
+- PostgreSQL 17 v3: PASS local en Docker.
+- PostgreSQL 17 hold apply/replay/rollback: PASS local en Docker.
+- Python compile: PASS para `db_migrate.py` y candidate del hold.
+- Pytest focused: PASS para `tests/test_fase09_7_leads_email_security_hold.py`.
+- Validate-only manifest Free/Pro: PASS sin acceso remoto.
+- Auditor `supabase-architect`: `GO_WP` sin findings despues de remediacion.
+- Auditor `security-auditor`: `GO_WP` sin findings despues de remediacion.
+- `MANIFEST_SHA256`: `9caee6d5167a5c8b7a0e7da772e42de554e58d43460e555fdc0d5a409556bf6e`.
+- Hold SQL SHA256: `2f23dbc77494f3f8868df5ba5f5cb078acb600e6054e415e749d1a5e3d905cac`.
+- Terminal verifier SHA256: `2a370753a9ef0170bc04a60b57365db0972fb61908731744d815b0d8a2e7771e`; octets `27694`.
+- `public.exec_sql(text)` queda como residual aceptado exacto; manifest normal/dry-run queda fail-closed y solo `--validate-only` resuelve paths.
 
 ### Stop Conditions
 
