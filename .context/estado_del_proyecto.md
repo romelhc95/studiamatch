@@ -31,7 +31,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.4` | `COMPLETED` | Reconciliacion contractual local; plan simplificado adoptado, definicion remota sustituida y antecedente temporal retirado |
 | `F9.5` | `COMPLETED_WITH_KNOWN_FINDINGS` | Cierre contractual/documental; artifacts de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`; no queda lectura Free pendiente |
 | `F9.6` | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`: cohorte con PII directa remediada, conservada como pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; Pro prohibido |
-| `F9.7` | `IN_PROGRESS` | `security_cutoff_local_candidate`; [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md) vigente con `WP-F9.7-01` listo; v3 byte-identico, security hold bloqueado y Free/Pro `UNCHANGED_NOT_ATTESTED` |
+| `F9.7` | `IN_PROGRESS` | `security_cutoff_local_candidate`; [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md) vigente; `WP-F9.7-01` completado mediante `88c7139` y `WP-F9.7-02` es el siguiente paquete; v3 byte-identico, security hold bloqueado y Free/Pro `UNCHANGED_NOT_ATTESTED` |
 | `F9.8` a `F9.10` | `PENDING` | Plan/ejecucion backfill/T03 y certificacion/T04; gates separados |
 
 ## Tarea Activa
@@ -39,12 +39,12 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F9.7; [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md), [PLAN-H1-CORTE-SFE-001](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) y [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md) fijan el corte local y su secuencia `WP-F9.7-01..06`: arquitectura leads/email `DEFERRED_NO_IMPLEMENTATION`, roles de aplicacion sin acceso, frontend sin captura publica, Edge tombstone solo en Git, v3 byte-identico y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
+- Subfase activa: F9.7; [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md), [PLAN-H1-CORTE-SFE-001](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) y [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md) fijan el corte local y su secuencia `WP-F9.7-01..06`: `WP-F9.7-01` esta completado localmente, `WP-F9.7-02` abre la remediacion del security hold, la arquitectura leads/email permanece `DEFERRED_NO_IMPLEMENTATION`, los roles de aplicacion quedan sin acceso, el frontend no tiene captura publica, la Edge tombstone vive solo en Git, v3 sigue byte-identico y el security hold terminal sigue `LOCAL_CANDIDATE_BLOCKED`.
 - Subfase autorizada: definicion local, validaciones, auditorias, commit, push de `feat/*` y PR GitHub tras GO local. Ninguna operacion remota; no autoriza retry Free/Pro, DDL/DML, backup/restore, writers, aplicacion, backfill, dispatch ni deploy.
-- Siguiente accion: `execute_wp_f9_7_01_freeze_closure_contract`; despues de `WP-F9.7-06`, el PR local y su merge humano habilitaran la definicion separada de PR-O.
+- Siguiente accion: `execute_wp_f9_7_02_close_security_hold`; despues de `WP-F9.7-06`, el PR local y su merge humano habilitaran la definicion separada de PR-O.
 
 ## Alcance Inmediato
 
-La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md) y el [plan de corte local](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md). F6-F8 y v3 permanecen byte-identicos; el nuevo security hold es package terminal separado y bloqueado. La atribucion Free previa solo cubrio fuentes ACL y no prueba snapshot actual ni convergencia. Gate B y la atestacion ACL quedan consumidos; backup/restore y writers solo tienen runbooks de datos sin capacidad. Los artifacts F9.5 siguen `HISTORICAL_NON_PROMOTABLE`. F9.8-F9.10, F10 Produccion y F11 Cierre siguen pendientes.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) sigue el [plan simplificado](operaciones/plan_simplificado_hito1.md) y el [plan de corte local](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md). F6-F8 y v3 permanecen byte-identicos; `TASK-H1-001` y F9.7 permanecen `IN_PROGRESS`; el nuevo security hold es package terminal separado y bloqueado. La atribucion Free previa solo cubrio fuentes ACL y no prueba snapshot actual ni convergencia; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`. Gate B y la atestacion ACL quedan consumidos; backup/restore y writers solo tienen runbooks de datos sin capacidad. Los artifacts F9.5 siguen `HISTORICAL_NON_PROMOTABLE`. F9.8-F9.10, F10 Produccion y F11 Cierre siguen pendientes.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).
