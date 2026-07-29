@@ -1,5 +1,4 @@
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, cleanSlug, type Course } from "@/lib/supabase";
-import { getLeadCaptureBuildState } from "@/lib/leadCaptureCore";
 import type { Metadata } from "next";
 import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
@@ -57,7 +56,7 @@ export async function generateStaticParams() {
       return defaultPath;
     }
 
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)&is_active=eq.true&is_verified=eq.true`, {
       headers: {
         'apikey': SUPABASE_PUBLISHABLE_KEY
       }
@@ -131,11 +130,9 @@ export default async function CourseDetailPage({
 }) {
   const { institution, slug } = await params;
   const courseMeta = await fetchCourseMeta(slug);
-  const leadCaptureBuildState = getLeadCaptureBuildState(process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED);
 
   return (
     <>
-      <div hidden aria-hidden="true" data-lead-capture-server-marker="course-detail" data-lead-capture-state={leadCaptureBuildState} />
       {courseMeta && <CourseJsonLd course={courseMeta} />}
       <CourseDetailClientWrapper institutionSlug={institution} courseSlug={slug} />
     </>

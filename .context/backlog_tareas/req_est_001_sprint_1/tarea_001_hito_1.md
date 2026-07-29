@@ -112,7 +112,7 @@ La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 
-Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, `WP-F9.7-02=GO_WP_LOCAL`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, siguiente accion `execute_wp_f9_7_03_no_leads_frontend`. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
+Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, `WP-F9.7-02=GO_WP_LOCAL`, `WP-F9.7-03=GO_WP_LOCAL`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, siguiente accion `execute_wp_f9_7_04_ci_release_gates`. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
 
 ### Work Packages De Cierre F9.7
 
@@ -122,12 +122,12 @@ El contrato, dependencias y criterios completos viven en [PLAN-F9.7-CIERRE-001](
 |---|---|---|
 | `WP-F9.7-01` | `COMPLETED` | Contrato, inventario y gobierno congelados en checkpoint documental local |
 | `WP-F9.7-02` | `COMPLETED` | Security hold DB con acceso cero y matriz PostgreSQL 17 en `GO_WP` local |
-| `WP-F9.7-03` | `READY_FOR_REMEDIATION` | Frontend no-leads, accesibilidad y egress en `GO_WP` |
+| `WP-F9.7-03` | `COMPLETED` | Frontend no-leads, accesibilidad y egress en `GO_WP` |
 | `WP-F9.7-04` | `READY_FOR_REMEDIATION` | CI, hooks, EOL, actionlint y protected gates en `GO_WP` |
-| `WP-F9.7-05` | `BLOCKED_BY_WP03_WP04` | Candidate inmutable y matriz acumulada en `GO_WP` |
+| `WP-F9.7-05` | `BLOCKED_BY_WP04` | Candidate inmutable y matriz acumulada en `GO_WP` |
 | `WP-F9.7-06` | `BLOCKED_BY_WP05` | Seis auditorias `GO_FOR_LOCAL_PR`, push y PR sin merge |
 
-Decisiones vinculantes: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log`; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. El siguiente paso es ejecutar exclusivamente `WP-F9.7-03`.
+Decisiones vinculantes: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log`; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. El siguiente paso es ejecutar exclusivamente `WP-F9.7-04`.
 
 El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 

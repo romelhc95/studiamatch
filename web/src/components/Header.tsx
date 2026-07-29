@@ -20,7 +20,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center space-x-3" onClick={() => handleMobileClose}>
+        <Link href="/" prefetch={false} className="flex items-center space-x-3" onClick={handleMobileClose}>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-blue text-sm font-black text-white shadow-premium">
             SM
           </div>
@@ -32,6 +32,7 @@ export function Header() {
         <nav className="hidden md:flex items-center space-x-8">
           <Link
             href="/"
+            prefetch={false}
             className={cn(
               "text-sm font-semibold transition-colors",
               isActive("/") && "text-brand-blue border-b-2 border-brand-blue pb-0.5",
@@ -42,12 +43,14 @@ export function Header() {
           </Link>
           <Link
             href="/#como-funciona"
+            prefetch={false}
             className="text-sm font-semibold text-slate-500 hover:text-brand-blue transition-colors"
           >
             Cómo Funciona
           </Link>
           <Link
             href="/compare"
+            prefetch={false}
             className={cn(
               "text-sm font-semibold transition-colors",
               isActive("/compare") && "text-brand-blue border-b-2 border-brand-blue pb-0.5",
@@ -58,6 +61,7 @@ export function Header() {
           </Link>
           <Link
             href="/#programas"
+            prefetch={false}
             className="rounded-lg bg-brand-blue px-4 py-2 text-xs font-bold text-white shadow-premium hover:shadow-lg transition-all"
           >
             Explorar Carreras
@@ -81,12 +85,12 @@ export function Header() {
 
       {mobileOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => handleMobileClose} />
+          <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={handleMobileClose} />
           <div className="relative z-50 md:hidden border-t border-slate-100 bg-white px-6 py-6 space-y-4 shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Navegación</span>
               <button
-                onClick={() => handleMobileClose}
+                onClick={handleMobileClose}
                 className="p-1 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                 aria-label="Cerrar menú"
               >
@@ -97,35 +101,39 @@ export function Header() {
             </div>
             <Link
               href="/"
+              prefetch={false}
               className={cn(
                 "block text-sm font-semibold transition-colors py-1",
                 isActive("/") ? "text-brand-blue" : "text-slate-600"
               )}
-              onClick={() => handleMobileClose}
+              onClick={handleMobileClose}
             >
               Inicio
             </Link>
             <Link
               href="/#como-funciona"
+              prefetch={false}
               className="block text-sm font-semibold text-slate-600 transition-colors hover:text-brand-blue"
-              onClick={() => handleMobileClose}
+              onClick={handleMobileClose}
             >
               Cómo Funciona
             </Link>
             <Link
               href="/compare"
+              prefetch={false}
               className={cn(
                 "block text-sm font-semibold transition-colors py-1",
                 isActive("/compare") ? "text-brand-blue" : "text-slate-600"
               )}
-              onClick={() => handleMobileClose}
+              onClick={handleMobileClose}
             >
               Comparar
             </Link>
             <Link
               href="/#programas"
+              prefetch={false}
               className="block text-sm font-bold text-brand-blue pt-1"
-              onClick={() => handleMobileClose}
+              onClick={handleMobileClose}
             >
               Explorar Carreras
             </Link>

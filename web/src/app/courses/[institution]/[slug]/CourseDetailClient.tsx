@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   MapPin, TrendingUp,
@@ -13,7 +12,7 @@ import {
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { LEAD_CAPTURE_ENABLED, LEAD_CAPTURE_MAINTENANCE_COPY, LEAD_CAPTURE_MAINTENANCE_TITLE, submitLead } from "@/lib/leadCapture";
+import { readCompareItems, sanitizeCompareItems, writeCompareItems, type CompareStorageItem } from "@/lib/compareStorage";
 
 interface Rating {
   id: string;
@@ -63,136 +62,78 @@ interface Course {
   seniority_level?: string;
 }
 
+type DetailTab = 'info' | 'requisitos' | 'reviews';
+
+const DETAIL_TABS: Array<{ id: DetailTab; label: string }> = [
+  { id: 'info', label: 'GENERAL' },
+  { id: 'requisitos', label: 'REQUISITOS' },
+  { id: 'reviews', label: 'RESEÑAS' },
+];
+
 export default function CourseDetailClient({ institutionSlug, courseSlug }: { institutionSlug: string, courseSlug: string }) {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
-  const [formError, setFormError] = useState<string | null>(null);
-  const [invalidField, setInvalidField] = useState<"first_name" | "email" | "whatsapp" | null>(null);
-  const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
-  const successMessageRef = useRef<HTMLDivElement>(null);
-  const errorMessageRef = useRef<HTMLDivElement>(null);
-  const detailLeadErrorId = "detail-lead-error";
-
-  const focusLeadField = (id: string) => {
-    requestAnimationFrame(() => document.getElementById(id)?.focus());
-  };
+  const [activeTab, setActiveTab] = useState<DetailTab>('info');
 
   // SOCIAL PROOF STATE
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
-  const [compareList, setCompareList] = useState<Array<{ id: string; name: string }>>([]);
+  const [compareList, setCompareList] = useState<CompareStorageItem[]>([]);
   const [compareInit, setCompareInit] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('StudIAMatch_compare_list');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setCompareList(parsed);
-        }
-      }
-    } catch {}
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCompareList(readCompareItems());
     setCompareInit(true);
   }, []);
 
   useEffect(() => {
     if (compareInit) {
-      localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(compareList));
+      writeCompareItems(compareList);
     }
   }, [compareList, compareInit]);
 
   const toggleCompare = (course: Course) => {
     setCompareList(prev => {
-      if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
-      if (prev.length >= 3) return prev;
-      return [...prev, { id: course.id, name: course.name }];
+      const current = sanitizeCompareItems(prev);
+      const candidate = sanitizeCompareItems([{ id: course.id, name: course.name }])[0];
+      if (!candidate) return current;
+      if (current.find(c => c.id === candidate.id)) return current.filter(c => c.id !== candidate.id);
+      if (current.length >= 3) return current;
+      return sanitizeCompareItems([...current, candidate]);
     });
+  };
+
+  const selectTab = (tabId: DetailTab, focus = false) => {
+    setActiveTab(tabId);
+    if (focus) {
+      window.setTimeout(() => document.getElementById(`course-tab-${tabId}`)?.focus(), 0);
+    }
+  };
+
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, tabId: DetailTab) => {
+    const currentIndex = DETAIL_TABS.findIndex((tab) => tab.id === tabId);
+    const lastIndex = DETAIL_TABS.length - 1;
+    let nextIndex: number | null = null;
+
+    if (event.key === 'ArrowRight') nextIndex = currentIndex === lastIndex ? 0 : currentIndex + 1;
+    if (event.key === 'ArrowLeft') nextIndex = currentIndex === 0 ? lastIndex : currentIndex - 1;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = lastIndex;
+
+    if (nextIndex !== null) {
+      event.preventDefault();
+      selectTab(DETAIL_TABS[nextIndex].id, true);
+    }
   };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (submitted) successMessageRef.current?.focus();
-  }, [submitted]);
-
-  useEffect(() => {
-    if (formError && !invalidField) errorMessageRef.current?.focus();
-  }, [formError, invalidField]);
-
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!course) return;
-    setFormError(null);
-    setInvalidField(null);
-
-    if (!LEAD_CAPTURE_ENABLED) {
-      setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
-      return;
-    }
-
-    if (!formData.first_name.trim()) {
-      setInvalidField("first_name");
-      setFormError("Ingresa tu nombre.");
-      focusLeadField("detail-lead-first-name");
-      return;
-    }
-    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setInvalidField("email");
-      setFormError("Ingresa un correo electrónico válido.");
-      focusLeadField("detail-lead-email");
-      return;
-    }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) {
-      setInvalidField("whatsapp");
-      setFormError("Ingresa un número de contacto válido (mín. 9 dígitos).");
-      focusLeadField("detail-lead-whatsapp");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Sanitización básica: trim de espacios
-      const leadData = {
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        whatsapp: formData.whatsapp.trim(),
-        type: 'info',
-        course_id: course.id,
-        source_page: 'detail',
-        area_interest: formData.area_interest || course.category || '',
-        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
-        modality: formData.modality_pref || course.mode || '',
-        is_late_enrollment_request: true
-      };
-
-      const result = await submitLead(leadData);
-
-      if (result.status === 'submitted') {
-        setSubmitted(true);
-      } else if (result.status === 'disabled') {
-        setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
-      } else {
-        setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
-      }
-    } catch (error) {
-      console.error("Error submitting lead:", error);
-      setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -343,7 +284,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       <div className="bg-red-50 dark:bg-red-500/10 p-10 rounded-[3rem] border border-red-100 dark:border-red-500/20 max-w-lg">
         <h2 className="text-3xl font-bold mb-4 text-brand-slate dark:text-white">Lo sentimos</h2>
         <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">{errorInfo}</p>
-        <Link href="/">
+        <Link href="/" prefetch={false}>
           <Button className="bg-brand-blue text-white rounded-2xl h-12 px-8 font-bold shadow-lg shadow-brand-blue/20">Volver al buscador</Button>
         </Link>
       </div>
@@ -351,6 +292,14 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   );
 
   if (!course) return null;
+
+  const isCourseCompared = Boolean(compareList.find(c => c.id === course.id));
+  const isCompareLimitReached = compareList.length >= 3 && !isCourseCompared;
+  const compareActionLabel = isCourseCompared
+    ? `Quitar ${course.name} de la comparativa`
+    : isCompareLimitReached
+    ? "Límite de 3 programas alcanzado"
+    : `Agregar ${course.name} a la comparativa`;
 
   const isValidUrl = (url: string) => {
     try { const p = new URL(url); return p.protocol === 'https:' || p.protocol === 'http:'; }
@@ -463,9 +412,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
   return (
     <div className="min-h-screen bg-white dark:bg-brand-slate text-brand-slate dark:text-white font-sans selection:bg-brand-mint/30 pb-20">
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <nav className="flex items-center gap-2 text-[11px] text-slate-400 mb-10 font-medium">
-          <Link href="/" className="hover:text-brand-blue transition-colors">Home</Link>
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-10">
+        <nav className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400 mb-10 font-medium">
+          <Link href="/" prefetch={false} className="hover:text-brand-blue transition-colors">Home</Link>
           {course?.category && (
             <>
               <span className="text-slate-300">/</span>
@@ -479,7 +428,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             </>
           )}
           <span className="text-slate-300">/</span>
-          <span className="text-brand-slate dark:text-white font-semibold truncate max-w-[200px]">{course?.name || ""}</span>
+          <span className="min-w-0 max-w-full truncate text-brand-slate dark:text-white font-semibold">{course?.name || ""}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
@@ -502,7 +451,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                   </span>
                 </div>
 
-                <h1 className="text-4xl md:text-5xl font-black leading-[1.1] tracking-tighter text-brand-slate uppercase">
+                <h1 className="break-words text-2xl sm:text-4xl md:text-5xl font-black leading-[1.1] tracking-tighter text-brand-slate uppercase">
                   {course.name}
                 </h1>
 
@@ -539,7 +488,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 </div>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-y border-brand-gray/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 sm:gap-8 py-8 border-y border-brand-gray/50">
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inicio</p><p className="font-black text-xs text-brand-blue uppercase">{course.start_date_text || "Consultar"}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Inversión</p><p className="font-black text-xs text-brand-slate uppercase truncate">{course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Consultar")}</p></div>
                 <div className="space-y-1"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Duración</p><p className="font-black text-xs text-brand-slate uppercase">{course.duration || "N/A"}</p></div>
@@ -547,28 +496,28 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
               </div>
             </header>
 
-            <section className="relative overflow-hidden rounded-[2rem] bg-brand-slate p-10 text-white shadow-2xl border border-white/5">
+            <section className="relative overflow-hidden rounded-[2rem] bg-brand-slate p-6 sm:p-10 text-white shadow-2xl border border-white/5">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-8">
                   <TrendingUp className="h-4 w-4 text-brand-mint" />
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-mint">Análisis de Retorno Educativo</h2>
+                  <h2 className="text-[10px] font-black uppercase tracking-widest sm:tracking-[0.3em] text-brand-mint">Análisis de Retorno Educativo</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Inversión Total</p>
-                    <p className="text-3xl font-black">
+                    <p className="text-2xl sm:text-3xl font-black">
                       {course.price_status === 'consultar' ? "S/ --" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "S/ --")}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Salario Sugerido</p>
-                    <p className="text-3xl font-black text-brand-mint">
+                    <p className="text-2xl sm:text-3xl font-black text-brand-mint">
                       {course.expected_monthly_salary ? `S/ ${course.expected_monthly_salary.toLocaleString()}` : "S/ --"}
                     </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">ROI (Estimado)</p>
-                    <p className="text-3xl font-black">{course.roi_months ? `x${Number(course.roi_months).toFixed(1)}` : "—"}</p>
+                    <p className="text-2xl sm:text-3xl font-black">{course.roi_months ? `x${Number(course.roi_months).toFixed(1)}` : "—"}</p>
                   </div>
                 </div>
                 <p className="mt-8 text-[9px] text-white/30 font-bold uppercase tracking-wider leading-relaxed border-t border-white/5 pt-4">
@@ -578,26 +527,37 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             </section>
 
             <section className="space-y-8">
-              <div className="flex items-center gap-4 bg-slate-100 dark:bg-white/5 p-2 rounded-2xl w-full md:w-fit overflow-x-auto custom-scrollbar scroll-smooth whitespace-nowrap hide-scrollbar">
-                <button
-                  onClick={() => setActiveTab('info')}
-                  className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'info' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                >GENERAL</button>
-                <button
-                  onClick={() => setActiveTab('requisitos')}
-                  className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'requisitos' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                >REQUISITOS</button>
-                <button
-                  onClick={() => setActiveTab('reviews')}
-                  className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", activeTab === 'reviews' ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                >RESEÑAS ({reviews.length})</button>
+              <div
+                role="tablist"
+                aria-label="Secciones del programa"
+                className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-white/5 p-2 rounded-2xl w-full md:w-fit"
+              >
+                {DETAIL_TABS.map((tab) => {
+                  const selected = activeTab === tab.id;
+                  const label = tab.id === 'reviews' ? `${tab.label} (${reviews.length})` : tab.label;
+                  return (
+                    <button
+                      key={tab.id}
+                      id={`course-tab-${tab.id}`}
+                      role="tab"
+                      type="button"
+                      aria-selected={selected}
+                      aria-controls={`course-panel-${tab.id}`}
+                      tabIndex={selected ? 0 : -1}
+                      onClick={() => selectTab(tab.id)}
+                      onKeyDown={(event) => onTabKeyDown(event, tab.id)}
+                      className={cn("flex-shrink-0 px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black transition-all uppercase tracking-widest", selected ? "bg-white dark:bg-brand-blue text-brand-blue dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="min-h-[200px] animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {activeTab === 'info' && (
-                  <div className="space-y-12">
+                <div id="course-panel-info" role="tabpanel" tabIndex={0} aria-labelledby="course-tab-info" hidden={activeTab !== 'info'} className="space-y-12">
                     <div className="space-y-4">
-                      <h2 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-brand-blue" /> Visión del Programa</h2>
+                      <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><ShieldCheck className="h-6 w-6 shrink-0 text-brand-blue" /> Visión del Programa</h2>
                       <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
                         {course.description_long ? renderText(course.description_long.split('\n\n')[0]) : "Este programa representa una oportunidad estratégica de especialización."}
                       </div>
@@ -605,7 +565,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
                     {course.benefits && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-brand-blue" /> Qué Incluye</h2>
+                        <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><ShieldCheck className="h-6 w-6 shrink-0 text-brand-blue" /> Qué Incluye</h2>
                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
                           {renderText(course.benefits)}
                         </div>
@@ -614,7 +574,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
                     {course.objectives && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><GraduationCap className="h-6 w-6 text-brand-blue" /> Qué Aprenderás (Objetivos)</h2>
+                        <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><GraduationCap className="h-6 w-6 shrink-0 text-brand-blue" /> Qué Aprenderás (Objetivos)</h2>
                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
                           {renderText(course.objectives)}
                         </div>
@@ -623,20 +583,18 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
                     {course.syllabus && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><MapPin className="h-6 w-6 text-brand-blue" /> Temario Detallado</h2>
+                        <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><MapPin className="h-6 w-6 shrink-0 text-brand-blue" /> Temario Detallado</h2>
                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg bg-slate-50 dark:bg-white/5 p-8 rounded-3xl border border-dashed border-slate-200 dark:border-white/10">
                           {renderText(course.syllabus)}
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
+                </div>
 
-                {activeTab === 'requisitos' && (
-                  <div className="space-y-12">
+                <div id="course-panel-requisitos" role="tabpanel" tabIndex={0} aria-labelledby="course-tab-requisitos" hidden={activeTab !== 'requisitos'} className="space-y-12">
                     {course.target_audience && (
                       <div className="space-y-4">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><CheckCircle className="h-6 w-6 text-brand-blue" /> Perfil del Estudiante</h2>
+                        <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><CheckCircle className="h-6 w-6 shrink-0 text-brand-blue" /> Perfil del Estudiante</h2>
                         <h4 className="text-xs font-black uppercase tracking-widest text-brand-blue">Dirigido a:</h4>
                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg italic">
                           {renderText(course.target_audience)}
@@ -645,7 +603,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     )}
                     {course.requirements && (!course.target_audience || course.requirements !== course.target_audience) && (
                       <div className="space-y-4 pt-6 border-t border-brand-gray/30">
-                        <h2 className="text-2xl font-bold flex items-center gap-2"><CheckCircle className="h-6 w-6 text-brand-blue" /> Requisitos Previos (Obligatorios)</h2>
+                        <h2 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2"><CheckCircle className="h-6 w-6 shrink-0 text-brand-blue" /> Requisitos Previos (Obligatorios)</h2>
                         <div className="prose dark:prose-invert max-w-none text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
                           {renderText(course.requirements)}
                         </div>
@@ -654,15 +612,13 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                     {!course.target_audience && !course.requirements && (
                       <div className="text-slate-400 italic py-10">No existen prerrequisitos técnicos estrictos reportados para este programa.</div>
                     )}
-                  </div>
-                )}
+                </div>
 
-                {activeTab === 'reviews' && (
-                  <div className="space-y-12 animate-in fade-in duration-700">
+                <div id="course-panel-reviews" role="tabpanel" tabIndex={0} aria-labelledby="course-tab-reviews" hidden={activeTab !== 'reviews'} className="space-y-12 animate-in fade-in duration-700">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-6">
-                        <h3 className="text-2xl font-bold flex items-center gap-2">
-                          <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
+                        <h3 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2">
+                          <Star className="h-6 w-6 shrink-0 text-amber-400 fill-amber-400" />
                           Calificaciones
                         </h3>
                         {ratings.length > 0 ? (
@@ -689,8 +645,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </div>
 
                       <div className="space-y-6">
-                        <h3 className="text-2xl font-bold flex items-center gap-2">
-                          <MessageSquare className="h-6 w-6 text-brand-blue" />
+                        <h3 className="break-words text-lg sm:text-2xl font-bold flex flex-wrap items-center gap-2">
+                          <MessageSquare className="h-6 w-6 shrink-0 text-brand-blue" />
                           Comentarios
                         </h3>
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
@@ -716,149 +672,49 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
             </section>
           </div>
 
           <div className="lg:col-span-1">
-            <Card className="sticky top-24 overflow-hidden border-brand-gray/50 shadow-2xl rounded-[2rem] p-10 bg-white border-0">
-              <div className="mb-10 text-center lg:text-left">
-                <h3 className="text-2xl font-black uppercase tracking-tight mb-2">Solicitar Asesoría</h3>
+            <Card className="sticky top-24 overflow-hidden border-brand-gray/50 shadow-2xl rounded-[2rem] p-6 sm:p-10 bg-white border-0">
+              <div className="mb-8 text-center lg:text-left">
+                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight mb-2">Comparar programa</h3>
                 <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider leading-relaxed">
-                  Recibe el plan detallado y asesoría imparcial sobre este programa.
+                  Agrega este programa a tu comparativa para revisar inversión, modalidad y retorno junto a otras opciones.
                 </p>
               </div>
 
-              {!submitted ? (
-                !LEAD_CAPTURE_ENABLED ? (
-                  <div className="py-12 text-center animate-in zoom-in duration-500" role="status" aria-live="polite" data-lead-capture-surface="course-detail" data-lead-capture-state="disabled">
-                    <div className="h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <ShieldCheck className="h-10 w-10 text-brand-blue" />
-                    </div>
-                    <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">{LEAD_CAPTURE_MAINTENANCE_TITLE}</h3>
-                    <p className="text-[10px] text-slate-600 mt-3 font-bold uppercase tracking-wider leading-relaxed">{LEAD_CAPTURE_MAINTENANCE_COPY}</p>
-                  </div>
-                ) : (
-                <form className="space-y-4" onSubmit={handleSubmitLead} data-lead-capture-surface="course-detail" data-lead-capture-state="enabled" data-lead-capture-form="course-detail">
-                   {formError && (
-                     <div ref={errorMessageRef} id={detailLeadErrorId} role="alert" tabIndex={-1} className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none">{formError}</div>
-                   )}
-                   <div className="space-y-1.5">
-                      <label htmlFor="detail-lead-first-name" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
-                      <Input
-                        id="detail-lead-first-name"
-                        required
-                        type="text"
-                        autoComplete="given-name"
-                        data-pii-control="first_name"
-                        aria-invalid={invalidField === "first_name"}
-                        aria-describedby={invalidField === "first_name" ? detailLeadErrorId : undefined}
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
-                        value={formData.first_name}
-                        onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="detail-lead-whatsapp" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp de Contacto</label>
-                      <Input
-                        id="detail-lead-whatsapp"
-                        required
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        data-pii-control="whatsapp"
-                        aria-invalid={invalidField === "whatsapp"}
-                        aria-describedby={invalidField === "whatsapp" ? detailLeadErrorId : undefined}
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
-                        value={formData.whatsapp}
-                        onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="detail-lead-email" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
-                      <Input
-                        id="detail-lead-email"
-                        required
-                        type="email"
-                        autoComplete="email"
-                        data-pii-control="email"
-                        aria-invalid={invalidField === "email"}
-                        aria-describedby={invalidField === "email" ? detailLeadErrorId : undefined}
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="detail-lead-budget" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
-                      <select
-                        id="detail-lead-budget"
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.budget}
-                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                      >
-                        <option value="">Selecciona un rango</option>
-                        <option value="5000">S/ 0 - 5,000</option>
-                        <option value="15000">S/ 5,000 - 15,000</option>
-                        <option value="30000">S/ 15,000 - 30,000</option>
-                        <option value="999999">S/ 30,000+</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="detail-lead-modality" className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
-                      <select
-                        id="detail-lead-modality"
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.modality_pref}
-                        onChange={(e) => setFormData({...formData, modality_pref: e.target.value})}
-                      >
-                        <option value="">Sin preferencia</option>
-                        <option value="Presencial">Presencial</option>
-                        <option value="Remoto">Remoto</option>
-                        <option value="Híbrido">Híbrido</option>
-                      </select>
-                    </div>
-
-                  <Button
-                    disabled={isSubmitting}
-                    type="submit"
-                    className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-2 active:scale-95"
-                  >
-                    {isSubmitting ? "Tramitando..." : "Confirmar Solicitud"}
-                  </Button>
-                   <p className="text-[8px] text-slate-300 text-center uppercase font-bold tracking-widest mt-4">Respuesta estimada: 2 horas</p>
-                </form>
-                )
-              ) : (
-                <div ref={successMessageRef} tabIndex={-1} role="status" aria-live="polite" className="py-12 text-center animate-in zoom-in duration-500 focus:outline-none" data-lead-capture-state="submitted" data-lead-capture-status="success">
-                  <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="h-10 w-10 text-emerald-500" />
-                  </div>
-                  <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">Solicitud enviada</h3>
-                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
-                </div>
-              )}
-            <div className="mt-6">
+            <div>
               <button
-                onClick={() => toggleCompare(course)}
+                onClick={(event) => {
+                  const button = event.currentTarget;
+                  toggleCompare(course);
+                  button.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' });
+                  window.setTimeout(() => button.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' }), 0);
+                }}
+                type="button"
+                aria-label={compareActionLabel}
+                aria-pressed={isCourseCompared}
+                disabled={isCompareLimitReached}
+                title={compareActionLabel}
                 className={cn(
-                  "w-full flex items-center justify-center gap-2 h-12 rounded-xl font-bold text-[12px] uppercase tracking-wider transition-all active:scale-[0.98] border",
-                  compareList.find(c => c.id === course.id)
+                  "w-full flex items-center justify-center gap-2 h-12 scroll-mb-24 rounded-xl font-bold text-[12px] uppercase tracking-wider transition-all active:scale-[0.98] border",
+                  isCourseCompared
                     ? "bg-brand-blue border-brand-blue text-white shadow-lg shadow-brand-blue/20"
+                    : isCompareLimitReached
+                    ? "bg-white border-slate-200 text-slate-300 shadow-sm cursor-not-allowed"
                     : "bg-white border-slate-200 text-slate-600 hover:border-brand-blue hover:text-brand-blue shadow-md"
                 )}
               >
-                {compareList.find(c => c.id === course.id) ? "✓ En comparativa" : "+ Agregar a comparativa"}
+                {isCourseCompared ? "✓ En comparativa" : isCompareLimitReached ? "Máximo alcanzado" : "+ Agregar a comparativa"}
               </button>
               {compareList.length > 0 && (
                 <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
                   <p className="text-[10px] text-slate-400 font-medium">{compareList.length}/3 programas seleccionados</p>
-                  <Link href={`/compare?ids=${compareList.map(c => c.id).join(",")}`}>
-                    <button className="mt-2 text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 underline underline-offset-2">
-                      Ver comparativa
-                    </button>
+                  <Link href={`/compare?ids=${compareList.map(c => c.id).join(",")}`} prefetch={false} className="mt-2 inline-flex text-[11px] font-bold text-brand-blue hover:text-brand-blue/80 underline underline-offset-2">
+                    Ver comparativa
                   </Link>
                 </div>
               )}
@@ -890,7 +746,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                       </span>
                       <GraduationCap className="h-4 w-4 text-slate-200" />
                     </div>
-                    <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`}>
+                    <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`} prefetch={false}>
                       <h3 className="text-base font-black text-brand-slate leading-tight line-clamp-2 h-10 group-hover:text-brand-blue transition-colors uppercase">
                         {rc.name}
                       </h3>
@@ -902,7 +758,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                        </span>
                     </div>
                   </div>
-                   <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
+                   <Link href={`/courses/${cleanSlug((rc as Course).institution_slug || 'general')}/${rc.slug}`} prefetch={false} className="mt-8 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-brand-blue hover:text-white py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all border border-brand-gray/20">
                     Ver Programa
                   </Link>
                 </article>

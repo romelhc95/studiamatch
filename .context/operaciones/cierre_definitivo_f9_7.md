@@ -376,7 +376,23 @@ Cerrar el perfil web sin PII/leads y preservar todas las superficies publicas co
 - Lint, typecheck, build, export y Playwright PASS en Docker.
 - Auditor `frontend-architect`: `GO_WP`.
 - Auditor `qa-test-engineer`: `GO_WP` para el perimetro frontend.
+- Auditor `security-auditor`: `GO_WP` para el perimetro frontend/no-leads.
 - Commit local `fix(web): finalize no-leads public surface`.
+
+### Evidencia De Cierre WP-03
+
+- Docker `npm run lint`: PASS con 9 warnings preexistentes en `HomeContent.tsx`, sin errores.
+- Docker `npx tsc --noEmit`: PASS.
+- Docker `node tests/buildWithLocalSupabaseStub.mjs`: PASS con stub loopback fijo `SUPABASE_TEST_ORIGIN`, apikey sintetica, GET-only, sin `Authorization` y guard de red loopback-only.
+- Docker `node tests/assertPublicExport.mjs`: PASS; export publico sin modulos lead capture, PII controls, endpoints `leads`/`email_log`/`send-lead-emails`, flags de reactivacion ni tokens.
+- Docker `pytest -q tests/test_frontend_public_surfaces_playwright.py`: PASS (`1 passed`); cubre Home, catalogo, detalle, comparador, privacidad, terminos, filtros abiertos, tabs, compare bar, storage/query hostile y canaries de egress.
+- Comparador cubierto explicitamente a `188x334`; Home, detalle, privacidad y terminos cubiertos a `188x334`; viewport movil base `375x667` cubierto.
+- Edge Function historica `send-lead-emails` queda tombstone Git-only `410 Gone`, `text/plain`, `no-store`, sin lectura de request/env ni `fetch`.
+- `compareStorage` canonicaliza UUID trim/lowercase, deduplica, limita a tres y falla cerrado ante storage malformed.
+- `Header`/`Footer` y enlaces publicos deshabilitan prefetch de `next/link` para evitar HEAD abortados en static export; menu movil cierra overlays y links.
+- Canaries esperados se cumplen sin generar request failures ni console errors; egress real no-canary sigue abortando fail-closed.
+- Auditorias finales acotadas: `frontend-architect=GO_WP`, `qa-test-engineer=GO_WP`, `security-auditor=GO_WP`.
+- Residuales aceptados: 9 warnings lint preexistentes en `HomeContent.tsx`; cobertura Chromium-only; tres tarjetas de comparador a `188x334` queda como gap visual no bloqueante; Header movil no tiene prueba dedicada aunque la remediacion fue revisada.
 
 ### Stop Conditions
 

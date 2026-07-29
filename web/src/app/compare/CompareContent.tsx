@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
+import { sanitizeCompareIds, sanitizeCompareItems, writeCompareItems } from "@/lib/compareStorage";
 
 // Componente Skeleton para Feedback Inmediato
 const ComparisonSkeleton = () => (
@@ -55,6 +55,7 @@ export default function CompareContent() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const idsString = searchParams.get("ids") || "";
+  const compareIds = useMemo(() => sanitizeCompareIds(idsString.split(",")), [idsString]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -62,20 +63,29 @@ export default function CompareContent() {
   }, []);
 
   useEffect(() => {
+    if (!mounted || !idsString || window.location.pathname !== "/compare/") return;
+    window.history.replaceState(null, "", `/compare${window.location.search}`);
+  }, [mounted, idsString]);
+
+  useEffect(() => {
     if (!mounted) return;
-    if (!idsString) {
+    if (compareIds.length === 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       router.push("/");
       return;
     }
 
-    const ids = idsString.split(",").filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    const canonicalIds = compareIds.join(",");
+    if (canonicalIds !== idsString) {
+      router.replace(`/compare?ids=${canonicalIds}`, { scroll: false });
+      return;
+    }
 
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        const queryIds = ids.join(',');
+        const queryIds = compareIds.join(',');
         const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`, {
           headers: {
             'apikey': SUPABASE_PUBLISHABLE_KEY
@@ -102,7 +112,9 @@ export default function CompareContent() {
           };
         });
 
-        setCourses(enriched);
+        const limited = enriched.slice(0, 3);
+        setCourses(limited);
+        writeCompareItems(sanitizeCompareItems(limited));
 
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
@@ -112,7 +124,7 @@ export default function CompareContent() {
     };
 
     fetchCourses();
-  }, [mounted, idsString, router]);
+  }, [mounted, idsString, compareIds, router]);
 
   const handleRemove = (id: string) => {
     const updatedCourses = courses.filter(c => c.id !== id);
@@ -124,7 +136,7 @@ export default function CompareContent() {
     } else {
       router.push("/");
     }
-    localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(updatedCourses));
+    writeCompareItems(sanitizeCompareItems(updatedCourses));
   };
 
   // Best-value analysis
@@ -146,14 +158,14 @@ export default function CompareContent() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-brand-slate text-brand-slate dark:text-white font-sans selection:bg-brand-mint/30">
-      <main className="mx-auto max-w-7xl px-6 py-12">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-12">
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-12 gap-6">
-          <div className="animate-in fade-in slide-in-from-left duration-500">
-            <Link href="/" className="inline-flex items-center text-sm font-bold text-brand-blue hover:translate-x-[-4px] transition-all mb-4 group">
+          <div className="w-full min-w-0">
+            <Link href="/" prefetch={false} className="inline-flex max-w-full flex-wrap items-center text-xs sm:text-sm font-bold text-brand-blue hover:translate-x-[-4px] transition-all mb-4 group">
               <ChevronLeft className="h-5 w-5 mr-1 group-hover:stroke-[3px]" /> Volver a la búsqueda
             </Link>
-            <h1 className="text-4xl font-bold text-brand-slate dark:text-white leading-tight">Comparativa de Programas</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Analiza detalladamente tus mejores opciones con datos reales.</p>
+            <h1 className="break-words text-2xl sm:text-4xl font-bold text-brand-slate dark:text-white leading-tight">Comparativa de Programas</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 text-sm sm:text-lg">Analiza detalladamente tus mejores opciones con datos reales.</p>
           </div>
           {!loading && (
             <Badge className="px-5 py-2 text-sm font-bold bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20 border-0 rounded-xl animate-in zoom-in duration-300">
@@ -183,12 +195,13 @@ export default function CompareContent() {
                 <button
                   onClick={() => handleRemove(course.id)}
                   className="absolute top-4 right-4 h-8 w-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm"
+                  aria-label={`Quitar ${course.name} de la comparativa`}
                   title="Retirar de la comparativa"
                 >
                   <X className="h-4 w-4" />
                 </button>
 
-                <div className="p-8 flex-1 space-y-8">
+                <div className="p-5 sm:p-8 flex-1 space-y-8">
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20 font-black border-0 px-3 text-[9px] uppercase tracking-widest">
@@ -212,29 +225,29 @@ export default function CompareContent() {
                         </Badge>
                       )}
                     </div>
-                    <h2 className="text-xl font-bold text-brand-slate dark:text-white leading-snug h-14 overflow-hidden line-clamp-2">
+                    <h2 className="text-lg sm:text-xl font-bold text-brand-slate dark:text-white leading-snug min-h-14 overflow-hidden line-clamp-2">
                       {course.name}
                     </h2>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-brand-gray/30 dark:border-white/5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 dark:bg-zinc-800/50 p-3 sm:p-4 rounded-2xl border border-brand-gray/30 dark:border-white/5">
                       <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Inversión</div>
-                      <div className="text-lg font-bold text-brand-slate dark:text-white">
+                      <div className="text-base sm:text-lg font-bold text-brand-slate dark:text-white">
                         {course.price_status === 'consultar' ? "Consultar" : (course.price_pen ? `S/ ${course.price_pen.toLocaleString()}` : "Gratis")}
                       </div>
                     </div>
-                    <div className="bg-emerald-50 dark:bg-emerald-500/10 p-4 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
+                    <div className="bg-emerald-50 dark:bg-emerald-500/10 p-3 sm:p-4 rounded-2xl border border-emerald-100 dark:border-emerald-500/20">
                       <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-1">ROI Est.</div>
-                      <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                      <div className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400">
                         {course.roi_months ? course.roi_months.toFixed(1) : "12.0"} meses
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-5 pt-6 border-t border-brand-gray/30 dark:border-white/10">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0 shadow-sm">
                         <Clock className="h-5 w-5 text-brand-blue" />
                       </div>
                       <div>
@@ -243,8 +256,8 @@ export default function CompareContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center shrink-0 shadow-sm">
                         <GraduationCap className="h-5 w-5 text-purple-600" />
                       </div>
                       <div>
@@ -253,8 +266,8 @@ export default function CompareContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center shrink-0 shadow-sm">
                         <MapPin className="h-5 w-5 text-amber-600" />
                       </div>
                       <div>
@@ -263,8 +276,8 @@ export default function CompareContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-brand-mint/10 dark:bg-brand-mint/20 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-brand-mint/10 dark:bg-brand-mint/20 flex items-center justify-center shrink-0 shadow-sm">
                         <TrendingUp className="h-5 w-5 text-brand-slate dark:text-brand-mint" />
                       </div>
                       <div>
@@ -275,11 +288,9 @@ export default function CompareContent() {
                   </div>
                 </div>
 
-                <div className="p-8 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-brand-gray/30 dark:border-white/10 flex flex-col gap-3 mt-auto">
-                   <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="w-full">
-                    <Button className="w-full bg-brand-mint hover:bg-brand-mint/90 text-brand-slate font-black h-14 rounded-2xl shadow-lg shadow-brand-mint/10 border-0 uppercase tracking-widest text-xs">
-                      Solicitar Info
-                    </Button>
+                <div className="p-5 sm:p-8 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-brand-gray/30 dark:border-white/10 flex flex-col gap-3 mt-auto">
+                   <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} prefetch={false} className="flex w-full h-14 items-center justify-center rounded-2xl border-0 bg-brand-mint text-xs font-black uppercase tracking-widest text-brand-slate shadow-lg shadow-brand-mint/10 transition-all hover:bg-brand-mint/90">
+                    Ver detalle
                   </Link>
                 </div>
               </Card>
@@ -295,10 +306,12 @@ export default function CompareContent() {
                   <div className="text-xl font-bold text-slate-400">Espacio disponible</div>
                   <p className="text-sm text-slate-400 max-w-[200px] mx-auto">Agrega otro programa para una comparativa más completa.</p>
                 </div>
-                <Link href="/#programas">
-                  <Button variant="outline" className="rounded-xl border-brand-blue text-brand-blue font-bold hover:bg-brand-blue hover:text-white transition-all">
-                    <ArrowRight className="h-4 w-4 mr-1" /> Agregar más programas
-                  </Button>
+                <Link
+                  href="/#programas"
+                  prefetch={false}
+                  className="inline-flex items-center justify-center rounded-xl border border-brand-blue px-4 py-2 text-sm font-bold text-brand-blue transition-all hover:bg-brand-blue hover:text-white"
+                >
+                  <ArrowRight className="h-4 w-4 mr-1" /> Agregar más programas
                 </Link>
               </div>
             )}
