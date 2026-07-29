@@ -40,6 +40,8 @@ El gate solo puede avanzar si la consulta devuelve exactamente:
 
 Si alguna relacion `net.*` no existe, no hay permiso para inspeccionarla, o cualquier conteo es distinto de cero, el drenaje queda `NOT_PROVEN` y la aplicacion F9.7 permanece bloqueada.
 
+[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) no ejecuta este drenaje. La Edge Function tombstoneada en Git y el security hold local no prueban el estado de `pg_net` remoto; un gate futuro debera seguir esta regla counts-only sin leer payloads.
+
 ## Referencias
 
 - [Remediacion local del trigger F9.7](./remediacion_trigger_f9_7.md)

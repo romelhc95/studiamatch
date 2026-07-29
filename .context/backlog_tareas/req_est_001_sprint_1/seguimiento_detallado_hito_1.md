@@ -29,6 +29,7 @@ Las fechas registran el compromiso original. No prueban cumplimiento ni sustituy
 - Backlog historico preservado fuera del workspace actual.
 - [Plan simplificado](../../operaciones/plan_simplificado_hito1.md).
 - [Macrofase F9](../../operaciones/certificacion_hito1_f9.md).
+- [Plan de corte seguridad/funcionalidad/estabilidad](../../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 - [Matriz de adopcion DB](../../operaciones/matriz_adopcion_db.md).
 - Git, migrations, PR y evidencia enlazada desde las notas operativas.
 
@@ -61,24 +62,24 @@ Los identificadores `CHK-H1-*` son referencias de verificacion, no criterios de 
 
 ## Filas De Seguimiento No Ejecutables
 
-| ID | Tema observado | Relacion | Fuente de autoridad | Gate relacionado |
-|---|---|---|---|---|
-| `TR-H1-01` | Workflows FG2/FG3 | `H1-CA1` | Git y TASK-H1-001 | F7/F9.10 |
-| `TR-H1-02` | Modalidad FG3 | `H1-CA1`, `H1-CA7P` | Git y TASK-H1-001 | F7/F11 |
-| `TR-H1-03` | Gates, limites y circuit breakers | `H1-CA1` | Git y TASK-H1-001 | F7/F9.10 |
-| `TR-H1-04` | Campos editoriales/calidad | `H1-CA2P` | Package F6-F8 | F6-F8/F9.7 |
-| `TR-H1-05` | Migration contractual | `H1-CA2P` | Package F6-F8 y matriz DB | F6-F8/F9.7 |
-| `TR-H1-06` | Patrocinio y leads base | `H1-CA2P` | Package F6-F8 | F6-F8/F9.7 |
-| `TR-H1-07` | RLS, RPC y ACL | `H1-CA2P` | TASK-H1-001 y matriz DB | F9.7/F9.10 |
-| `TR-H1-08` | Contrato para hitos siguientes | `H1-CA7P` | Context Graph | F11 |
-| `TR-H1-09` | H-00 Free-only | `P0_PRIVACY`, no CA | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md) | F9.6 |
-| `TR-H1-10` | Identidad backend de servicio | Dependencia `H1-CA1/H1-CA2P` | TASK-H1-001 | F9.7 |
-| `TR-H1-11` | Schema/RLS contractual en Free | `H1-CA2P` | TASK-H1-001 y matriz DB | F9.7 |
-| `TR-H1-12` | Plan de backfill editorial | Dependencia `H1-CA2P` | Macrofase F9 | F9.8 |
-| `TR-H1-13` | Backfill Free | Dependencia `H1-CA2P` | Macrofase F9 | F9.9 |
-| `TR-H1-14` | Canary, smoke, QA y certificacion Free | `H1-CA1/H1-CA2P` | Macrofase F9 | F9.10 |
-| `TR-H1-15` | Promocion certificada a Pro | `H1-CA2P`, release | Estado y flujo de release | F10 |
-| `TR-H1-16` | Evidencia cliente | `H1-CA7P` | TASK-H1-001 y estado | F11 |
+| ID         | Tema observado                                                                 | Relacion                     | Fuente de autoridad                                            | Gate relacionado |
+| ---------- | ------------------------------------------------------------------------------ | ---------------------------- | -------------------------------------------------------------- | ---------------- |
+| `TR-H1-01` | Workflows FG2/FG3                                                              | `H1-CA1`                     | Git y TASK-H1-001                                              | F7/F9.10         |
+| `TR-H1-02` | Modalidad FG3                                                                  | `H1-CA1`, `H1-CA7P`          | Git y TASK-H1-001                                              | F7/F11           |
+| `TR-H1-03` | Gates, limites y circuit breakers                                              | `H1-CA1`                     | Git y TASK-H1-001                                              | F7/F9.10         |
+| `TR-H1-04` | Campos editoriales/calidad                                                     | `H1-CA2P`                    | Package F6-F8                                                  | F6-F8/F9.7       |
+| `TR-H1-05` | Migration contractual                                                          | `H1-CA2P`                    | Package F6-F8 y matriz DB                                      | F6-F8/F9.7       |
+| `TR-H1-06` | Patrocinio y leads base; captura publica y email quedan diferidos por ADR-0005 | `H1-CA2P`                    | Package F6-F8 y [BK-F9.5-05](backlog_seguridad_leads_email.md) | F6-F8/F9.7       |
+| `TR-H1-07` | RLS, RPC y ACL                                                                 | `H1-CA2P`                    | TASK-H1-001 y matriz DB                                        | F9.7/F9.10       |
+| `TR-H1-08` | Contrato para hitos siguientes                                                 | `H1-CA7P`                    | Context Graph                                                  | F11              |
+| `TR-H1-09` | H-00 Free-only                                                                 | `P0_PRIVACY`, no CA          | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md)       | F9.6             |
+| `TR-H1-10` | Identidad backend de servicio                                                  | Dependencia `H1-CA1/H1-CA2P` | TASK-H1-001                                                    | F9.7             |
+| `TR-H1-11` | Schema/RLS contractual en Free                                                 | `H1-CA2P`                    | TASK-H1-001 y matriz DB                                        | F9.7             |
+| `TR-H1-12` | Plan de backfill editorial                                                     | Dependencia `H1-CA2P`        | Macrofase F9                                                   | F9.8             |
+| `TR-H1-13` | Backfill Free                                                                  | Dependencia `H1-CA2P`        | Macrofase F9                                                   | F9.9             |
+| `TR-H1-14` | Canary, smoke, QA y certificacion Free                                         | `H1-CA1/H1-CA2P`             | Macrofase F9                                                   | F9.10            |
+| `TR-H1-15` | Promocion certificada a Pro                                                    | `H1-CA2P`, release           | Estado y flujo de release                                      | F10              |
+| `TR-H1-16` | Evidencia cliente                                                              | `H1-CA7P`                    | TASK-H1-001 y estado                                           | F11              |
 
 ## Referencia De Cierre H-00
 
@@ -135,7 +136,7 @@ No se incluyen artifacts privados, project refs, endpoints, PII, filas, credenti
 - H-00 es un P0 de privacidad separado; no agrega un CA.
 - H-00 cerro en F9.6 sin DML; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 conserva autorizacion separada.
 - Los artifacts PR #245/#247 son `HISTORICAL_NON_PROMOTABLE`.
-- PR-R F9.7 deja v3 como unico candidate local PR-ready; v2 queda historico no promocionable, T02 permanece `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_BLOCKED`.
+- El corte F9.7 deja v3 byte-identico como predecessor y agrega security hold terminal `LOCAL_CANDIDATE_BLOCKED`; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
 - PR #248 fija el baseline de cierre F9.5 y definicion F9.6 usado por esta vista; no se modifica aqui.
 - Los hallazgos no contractuales se consultan en el [Backlog F9.5](./backlog_f9_5_known_findings.md).
 - El detalle de migrations/policies internas no se presenta como criterio cliente.

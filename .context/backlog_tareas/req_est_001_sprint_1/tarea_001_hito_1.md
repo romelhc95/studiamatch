@@ -6,10 +6,10 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; candidate local F9.7 v3 de seis entradas queda PR-ready local; snapshot remoto y gates operativos pendientes |
+| Fase vigente | Macrofase `F9` en progreso; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) divide el corte local en seis work packages; frontend sin leads, Edge tombstone Git-only y security hold terminal `LOCAL_CANDIDATE_BLOCKED`; snapshot remoto y gates operativos pendientes |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
-Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas.
+Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -108,11 +108,26 @@ Gate B verifico Free de forma pre-DDL/read-only y se consumio sin aplicar schema
 
 La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La [atestacion ACL](../../operaciones/atestacion_origen_acl_f9_7.md) observo cobertura completa del package para fuentes ACL, sin herencia/SET/owner/unknown; el mismatch y el trigger mantuvieron fail-closed y los predicates no atestados bloquearon aplicacion independientemente. No hubo filas de negocio, HTTP, schema, migrations, DML, backup, restore ni control de writers.
 
-La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado y el drenaje pg_net queda counts-only. PostgreSQL 17, replay, rollback, drift cases, diagnostico/package y ledger locales pasan; no observa ni modifica Free/Pro y no autoriza aplicacion. No existe aun gate operacional aprobado, el hold DB ACL sera definido en PR-O, el T02 historico F10 no se reactiva y PR-O creara el contrato sucesor F9.7 v3.
+La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplazo el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado en Git y el drenaje pg_net queda counts-only. [ADR-0005](../../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local: la arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`, el frontend soportado no tiene captura publica y el package terminal [security hold](../../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md#package-terminal-de-security-hold) queda `LOCAL_CANDIDATE_BLOCKED` como successor separado posterior a v3. No observa ni modifica Free/Pro y no autoriza aplicacion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 
-Estado PR-R: candidate `v3_local_pr_ready`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_BLOCKED`, siguiente accion `merge_and_postmerge_replay_then_define_PR_O`. El flag frontend `NEXT_PUBLIC_LEAD_CAPTURE_ENABLED` es UX/build-time only y no reemplaza RLS/ACL ni barreras PostgREST.
+Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, siguiente accion `execute_wp_f9_7_01_freeze_closure_contract`. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
+
+### Work Packages De Cierre F9.7
+
+El contrato, dependencias y criterios completos viven en [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md). Esta tabla es la autoridad viva de su avance:
+
+| Work package | Estado | Resultado requerido |
+|---|---|---|
+| `WP-F9.7-01` | `READY` | Contrato, inventario y gobierno congelados en checkpoint documental local |
+| `WP-F9.7-02` | `PARTIAL_NO_GO` | Security hold DB con acceso cero y matriz PostgreSQL 17 en `GO_WP` |
+| `WP-F9.7-03` | `PARTIAL_NO_GO` | Frontend no-leads, accesibilidad y egress en `GO_WP` |
+| `WP-F9.7-04` | `PARTIAL_NO_GO` | CI, hooks, EOL, actionlint y protected gates en `GO_WP` |
+| `WP-F9.7-05` | `BLOCKED_BY_WP02_WP04` | Candidate inmutable y matriz acumulada en `GO_WP` |
+| `WP-F9.7-06` | `BLOCKED_BY_WP05` | Seis auditorias `GO_FOR_LOCAL_PR`, push y PR sin merge |
+
+Decisiones vinculantes: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log`; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. El siguiente paso es ejecutar exclusivamente `WP-F9.7-01`.
 
 El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 
