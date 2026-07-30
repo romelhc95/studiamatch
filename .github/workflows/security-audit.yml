@@ -14,6 +14,8 @@ env:
   CI: true
   F97_BASELINE_COMMIT: 8ab1cdf9173b8093781e75ba32c2fea9ae931b14
   ACTIONLINT_VERSION: '1.7.7'
+  SHELLCHECK_VERSION: '0.9.0'
+  SHELLCHECK_SHA256: 700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f
   ACTIONLINT_ASSET: actionlint_1.7.7_linux_amd64.tar.gz
   ACTIONLINT_SHA256: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
   F97_CREDENTIAL_PATTERN: >-
@@ -46,7 +48,7 @@ jobs:
           git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
           F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git write-tree)" = "$F97_CANDIDATE_TREE"
+          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
           git diff --quiet
           git diff --cached --quiet
           {
@@ -95,7 +97,7 @@ jobs:
           git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
           F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git write-tree)" = "$F97_CANDIDATE_TREE"
+          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
           git diff --quiet
           git diff --cached --quiet
           {
@@ -106,25 +108,39 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
-      - name: Install pinned actionlint
+      - name: Install pinned actionlint and ShellCheck
         run: |
           set -eu
+          shellcheck_dir="$(mktemp -d "$RUNNER_TEMP/shellcheck.XXXXXXXX")"
+          shellcheck_archive="$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -fsSLo "$shellcheck_archive" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          printf '%s  %s\n' "$SHELLCHECK_SHA256" "$shellcheck_archive" | sha256sum -c -
+          tar -xJf "$shellcheck_archive" -C "$shellcheck_dir"
+          PATH="$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}:$PATH"
+          command -v shellcheck
+          reported_shellcheck_version="$(shellcheck --version | awk -F': ' '$1 == "version" { print $2 }')"
+          test "$reported_shellcheck_version" = "$SHELLCHECK_VERSION"
+          echo "$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
           actionlint_dir="$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXXXX")"
           actionlint_archive="$actionlint_dir/$ACTIONLINT_ASSET"
           curl -fsSLo "$actionlint_archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ACTIONLINT_ASSET}"
           printf '%s  %s\n' "$ACTIONLINT_SHA256" "$actionlint_archive" | sha256sum -c -
           tar -xzf "$actionlint_archive" -C "$actionlint_dir" actionlint
-          actionlint_version_output="$("$actionlint_dir/actionlint" -version)"
-          actionlint_version="${actionlint_version_output%%$'\n'*}"
-          test "$actionlint_version" = "$ACTIONLINT_VERSION"
+          reported_actionlint_output="$("$actionlint_dir/actionlint" -version)"
+          reported_actionlint_release="${reported_actionlint_output%%$'\n'*}"
+          test "$reported_actionlint_release" = "$ACTIONLINT_VERSION"
           echo "ACTIONLINT_BIN=$actionlint_dir/actionlint" >> "$GITHUB_ENV"
       - name: Run actionlint
         run: |
           set -eu
+          command -v shellcheck
+          reported_shellcheck_version="$(shellcheck --version | awk -F': ' '$1 == "version" { print $2 }')"
+          test "$reported_shellcheck_version" = "$SHELLCHECK_VERSION"
           workflow_list="$RUNNER_TEMP/actionlint-workflows.list"
           find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 > "$workflow_list"
           test -s "$workflow_list"
-          xargs -0 "$ACTIONLINT_BIN" < "$workflow_list"
+          xargs -0 "$ACTIONLINT_BIN" \
+            -config-file .github/actionlint.yaml < "$workflow_list"
       - name: Enforce LF for candidate text files
         run: |
           python3 - <<'PY'
@@ -1102,7 +1118,7 @@ jobs:
           git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
           F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git write-tree)" = "$F97_CANDIDATE_TREE"
+          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
           git diff --quiet
           git diff --cached --quiet
           {
@@ -1156,7 +1172,7 @@ jobs:
             sudo chmod o+x "$workspace_ancestor"
             workspace_ancestor="$(dirname "$workspace_ancestor")"
           done
-          sudo chmod -R o+rX "$GITHUB_WORKSPACE"
+          sudo chmod -R go+rX,go-w "$GITHUB_WORKSPACE"
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \

@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) divide el corte local en seis work packages; PR #258 tuvo `NO_GO_CI` inicial y `NO_GO_CI_120D234`; `WP-F9.7-04` queda reabierto para forward-fix acotado, `CORR-WP-F9.7-04-01=NO_GO_CI_PARTIAL`, `CORR-WP-F9.7-04-02=IN_PROGRESS`, candidates `b711e0b`/`249295` y `120d234`/`bf68ed` quedan no promocionables, `WP-F9.7-05` y auditorias previas quedan invalidadas por paridad CI; frontend sin leads, Edge tombstone Git-only y security hold terminal `LOCAL_CANDIDATE_BLOCKED`; snapshot remoto y gates operativos pendientes |
+| Fase vigente | Macrofase `F9` en progreso; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) divide el corte local en seis work packages; PR #258 tuvo `NO_GO_CI` inicial, `NO_GO_CI_120D234` y `NO_GO_CI_D2CB32E`; `WP-F9.7-04` queda reabierto para forward-fix acotado, `CORR-WP-F9.7-04-01=NO_GO_CI_PARTIAL`, `CORR-WP-F9.7-04-02=IN_PROGRESS`, candidates `b711e0b`/`249295`, `120d234`/`bf68ed` y `d2cb32e`/`16081a60` quedan no promocionables, `WP-F9.7-05` queda invalidado por paridad CI y `WP-F9.7-06` continua `NO_GO_CI`; frontend sin leads, Edge tombstone Git-only y security hold terminal `LOCAL_CANDIDATE_BLOCKED`; snapshot remoto y gates operativos pendientes |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
@@ -112,7 +112,7 @@ La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
 
-Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, `WP-F9.7-02=GO_WP_LOCAL`, `WP-F9.7-03=GO_WP_LOCAL`, `WP-F9.7-04=CORR_WP_F9_7_04_02_IN_PROGRESS`, `CORR-WP-F9.7-04-01=NO_GO_CI_PARTIAL`, `CORR-WP-F9.7-04-02=IN_PROGRESS`, `WP-F9.7-05=INVALIDATED_BY_CI_PARITY_GAP`, `WP-F9.7-06=NO_GO_CI_120D234`, candidates `b711e0b`/`249295` y `120d234`/`bf68ed` no promocionables, auditorias previas `INVALIDATED_STALE_ORACLE`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, Supabase previews skipped, `AUTOMATIC_PR_PREVIEW_ACCEPTED` sin Cloudflare manual y siguiente accion `validate_wp_f9_7_04_ci_forward_fix`. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
+Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, `WP-F9.7-02=GO_WP_LOCAL`, `WP-F9.7-03=GO_WP_LOCAL`, `WP-F9.7-04=CORR_WP_F9_7_04_02_IN_PROGRESS`, `CORR-WP-F9.7-04-01=NO_GO_CI_PARTIAL`, `CORR-WP-F9.7-04-02=IN_PROGRESS`, `WP-F9.7-05=INVALIDATED_BY_CI_PARITY_GAP`, `WP-F9.7-06=NO_GO_CI`, candidates `b711e0b`/`249295`, `120d234`/`bf68ed` y `d2cb32e`/`16081a60` no promocionables, Frontend Static Build CI de `d2cb32e=PASS`, causas restantes actionlint/ShellCheck parity y commit-mode Git read-only, dos `SC2086` legacy `RESIDUAL_ACCEPTED_PROTECTED_BASELINE`, auditorias previas `INVALIDATED_STALE_ORACLE`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, Supabase previews skipped, `AUTOMATIC_PR_PREVIEW_ACCEPTED` sin Cloudflare manual y siguiente accion `validate_wp_f9_7_04_ci_forward_fix`. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
 
 ### Work Packages De Cierre F9.7
 
@@ -123,9 +123,9 @@ El contrato, dependencias y criterios completos viven en [PLAN-F9.7-CIERRE-001](
 | `WP-F9.7-01` | `COMPLETED` | Contrato, inventario y gobierno congelados en checkpoint documental local |
 | `WP-F9.7-02` | `COMPLETED` | Security hold DB con acceso cero y matriz PostgreSQL 17 en `GO_WP` local |
 | `WP-F9.7-03` | `COMPLETED` | Frontend no-leads, accesibilidad y egress en `GO_WP` |
-| `WP-F9.7-04` | `CORR_WP_F9_7_04_02_IN_PROGRESS` | Forward-fix acotado de actionlint multiline, `env -i`/`safe.directory` y frontend cold-cache descubierto por CI de `120d234` |
-| `WP-F9.7-05` | `INVALIDATED_BY_CI_PARITY_GAP` | Candidates `b711e0b`/`249295` y `120d234`/`bf68ed` no promocionables; matriz acumulada debe repetirse sobre nuevo tree |
-| `WP-F9.7-06` | `NO_GO_CI_120D234` | Seis auditorias previas `INVALIDATED_STALE_ORACLE`; PR #258 sigue abierto sin merge y requiere CI verde antes de auditorias finales nuevas |
+| `WP-F9.7-04` | `CORR_WP_F9_7_04_02_IN_PROGRESS` | Forward-fix acotado de actionlint/ShellCheck parity y commit-mode Git read-only despues de `NO_GO_CI_D2CB32E`; frontend CI ya paso |
+| `WP-F9.7-05` | `INVALIDATED_BY_CI_PARITY_GAP` | Candidates `b711e0b`/`249295`, `120d234`/`bf68ed` y `d2cb32e`/`16081a60` no promocionables; matriz acumulada debe repetirse sobre nuevo tree |
+| `WP-F9.7-06` | `NO_GO_CI` | Seis auditorias previas `INVALIDATED_STALE_ORACLE`; PR #258 sigue abierto sin merge y requiere CI verde antes de auditorias finales nuevas |
 
 Decisiones vinculantes: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log`; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. El siguiente paso es validar exclusivamente `validate_wp_f9_7_04_ci_forward_fix`; la secuencia obligatoria es `READY_FOR_CI` -> CI verde -> seis auditorias finales nuevas -> `GO_FOR_HUMAN_REVIEW`, sin merge automatico.
 

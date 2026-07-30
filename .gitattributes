@@ -5,6 +5,7 @@ AGENTS.md text eol=lf
 *.sh text eol=lf
 .github/workflows/security-audit.yml text eol=lf
 .github/workflows/f9-7-contract.yml text eol=lf
+.github/actionlint.yaml text eol=lf
 db/migrations/20260727_fase09_7_*.sql text eol=lf
 db/migrations/20260728_fase09_7_*.sql text eol=lf
 db/migrations/20260729_fase09_7_*.sql text eol=lf

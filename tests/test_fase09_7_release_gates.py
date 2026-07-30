@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import stat
 import subprocess
 from pathlib import Path
 
 import pytest
 
+import tests.test_fase09_7_pipeline_no_regression as pipeline_contract
 from tests.test_fase09_7_pipeline_no_regression import (
     F97_BASELINE_COMMIT,
     PROTECTED_PATHS,
@@ -18,8 +20,37 @@ from tests.test_fase09_7_pipeline_no_regression import (
 
 ROOT = Path(__file__).resolve().parents[1]
 ACTIONLINT_VERSION = "1.7.7"
+SHELLCHECK_VERSION = "0.9.0"
+SHELLCHECK_SHA256 = "700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f"
 ACTIONLINT_ASSET = f"actionlint_{ACTIONLINT_VERSION}_linux_amd64.tar.gz"
 ACTIONLINT_SHA256 = "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
+ACTIONLINT_CONFIG = """paths:
+  .github/workflows/db-sync-to-pro.yml:
+    ignore:
+      - '^shellcheck reported issue in this script: SC2086:info:3:24: Double quote to prevent globbing and word splitting$'
+  .github/workflows/production_pipeline.yml:
+    ignore:
+      - '^shellcheck reported issue in this script: SC2086:info:1:38: Double quote to prevent globbing and word splitting$'
+"""
+WORKFLOW_PATHS = (
+    ".github/workflows/db-sync-to-pro.yml",
+    ".github/workflows/f9-7-contract.yml",
+    ".github/workflows/fg1_inventory.yml",
+    ".github/workflows/fg3_integrity.yml",
+    ".github/workflows/opencode.yml",
+    ".github/workflows/production_pipeline.yml",
+    ".github/workflows/security-audit.yml",
+)
+LEGACY_ACTIONLINT_IGNORES = (
+    (
+        ".github/workflows/db-sync-to-pro.yml",
+        "^shellcheck reported issue in this script: SC2086:info:3:24: Double quote to prevent globbing and word splitting$",
+    ),
+    (
+        ".github/workflows/production_pipeline.yml",
+        "^shellcheck reported issue in this script: SC2086:info:1:38: Double quote to prevent globbing and word splitting$",
+    ),
+)
 ALLOWED_FIREWALL_CHAINS = (
     "F97_FRONTEND_EGRESS",
     "FASE097_EGRESS",
@@ -182,10 +213,141 @@ def _index_lf_attribute_findings(repo: Path) -> list[str]:
     return findings
 
 
-def test_candidate_identity_uses_explicit_tree_and_preserves_staged_index():
-    _, candidate_tree = resolve_candidate_tree()
-    assert candidate_tree == os.environ["F97_CANDIDATE_TREE"]
-    assert _git(["write-tree"]).stdout.strip() == candidate_tree
+def _resolve_candidate_tree_branches() -> tuple[str, str]:
+    source = _source("tests/test_fase09_7_pipeline_no_regression.py")
+    commit_branch = source.split('if mode == "commit":', 1)[1].split(
+        'if mode == "index":', 1
+    )[0]
+    index_branch = source.split('if mode == "index":', 1)[1].split(
+        'raise AssertionError("F97_CANDIDATE_MODE', 1
+    )[0]
+    return commit_branch, index_branch
+
+
+def _validate_resolve_candidate_tree_source(source: str) -> None:
+    commit_branch = source.split('if mode == "commit":', 1)[1].split('if mode == "index":', 1)[0]
+    index_branch = source.split('if mode == "index":', 1)[1].split(
+        'raise AssertionError("F97_CANDIDATE_MODE', 1
+    )[0]
+    assert "write-tree" not in commit_branch
+    assert '["rev-parse", f"{candidate}^{{tree}}"]' in commit_branch
+    assert "write-tree" in index_branch
+
+
+def _prepare_candidate_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
+    repo = tmp_path / "candidate-repo"
+    repo.mkdir()
+    _init_repo(repo)
+    _write(repo / "tracked.txt", "baseline\n")
+    baseline = _commit(repo, "baseline")
+    monkeypatch.setattr(pipeline_contract, "F97_BASELINE_COMMIT", baseline)
+    monkeypatch.setenv("F97_BASELINE_COMMIT", baseline)
+    return repo, baseline
+
+
+def test_candidate_identity_uses_mode_aware_tree_resolution_and_preserves_index():
+    before = _git_bytes(["ls-files", "--stage", "-z"]).stdout
+    assert not (ROOT / ".git" / "index.lock").exists()
+    candidate, candidate_tree = resolve_candidate_tree()
+    if os.environ["F97_CANDIDATE_MODE"] == "commit":
+        assert candidate == os.environ["F97_CANDIDATE_COMMIT"]
+        assert _git(["rev-parse", f"{candidate}^{{tree}}"]).stdout.strip() == candidate_tree
+    else:
+        assert candidate == "index"
+        assert candidate_tree == os.environ["F97_CANDIDATE_TREE"]
+        assert _git(["write-tree"]).stdout.strip() == candidate_tree
+    after = _git_bytes(["ls-files", "--stage", "-z"]).stdout
+    assert after == before
+    assert not (ROOT / ".git" / "index.lock").exists()
+
+
+def test_resolve_candidate_tree_commit_mode_does_not_call_write_tree(tmp_path: Path, monkeypatch):
+    repo, _baseline = _prepare_candidate_repo(tmp_path, monkeypatch)
+    _write(repo / "tracked.txt", "candidate\n")
+    candidate_commit = _commit(repo, "candidate")
+    candidate_tree = _git(["rev-parse", f"{candidate_commit}^{{tree}}"], cwd=repo).stdout.strip()
+    real_git = shutil.which("git")
+    assert real_git
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    log_path = tmp_path / "git-write-tree.log"
+    fake_git = bin_dir / "git"
+    fake_git.write_text(
+        f'''#!/bin/sh
+if [ "$1" = "write-tree" ]; then
+  printf '%s\n' "$1" >> "{log_path}"
+  exit 97
+fi
+exec "{real_git}" "$@"
+''',
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+    monkeypatch.setenv("F97_CANDIDATE_MODE", "commit")
+    monkeypatch.setenv("F97_CANDIDATE_COMMIT", candidate_commit)
+    monkeypatch.setenv("F97_CANDIDATE_TREE", candidate_tree)
+    before = _git_bytes(["ls-files", "--stage", "-z"], cwd=repo).stdout
+
+    resolved_candidate, resolved_tree = pipeline_contract.resolve_candidate_tree(repo)
+
+    assert resolved_candidate == candidate_commit
+    assert resolved_tree == candidate_tree
+    assert _git_bytes(["ls-files", "--stage", "-z"], cwd=repo).stdout == before
+    assert not log_path.exists()
+    assert not (repo / ".git" / "index.lock").exists()
+
+
+def test_resolve_candidate_tree_index_mode_uses_write_tree_for_valid_and_modified_stage(
+    tmp_path: Path, monkeypatch
+):
+    repo, _baseline = _prepare_candidate_repo(tmp_path, monkeypatch)
+    monkeypatch.setenv("F97_CANDIDATE_MODE", "index")
+    candidate_tree = _git(["write-tree"], cwd=repo).stdout.strip()
+    monkeypatch.setenv("F97_CANDIDATE_TREE", candidate_tree)
+    assert pipeline_contract.resolve_candidate_tree(repo) == ("index", candidate_tree)
+
+    _write(repo / "staged.txt", "staged\n")
+    _git(["add", "staged.txt"], cwd=repo)
+    modified_tree = _git(["write-tree"], cwd=repo).stdout.strip()
+    monkeypatch.setenv("F97_CANDIDATE_TREE", modified_tree)
+    assert pipeline_contract.resolve_candidate_tree(repo) == ("index", modified_tree)
+
+    monkeypatch.setenv("F97_CANDIDATE_TREE", candidate_tree)
+    with pytest.raises(AssertionError, match="staged index tree changed"):
+        pipeline_contract.resolve_candidate_tree(repo)
+    assert not (repo / ".git" / "index.lock").exists()
+
+
+def test_resolve_candidate_tree_index_mode_fails_for_unmerged_index(tmp_path: Path, monkeypatch):
+    repo, _baseline = _prepare_candidate_repo(tmp_path, monkeypatch)
+    branch = _git(["branch", "--show-current"], cwd=repo).stdout.strip()
+    _git(["checkout", "-q", "-b", "other"], cwd=repo)
+    _write(repo / "tracked.txt", "other\n")
+    _commit(repo, "other")
+    _git(["checkout", "-q", branch], cwd=repo)
+    _write(repo / "tracked.txt", "main\n")
+    _commit(repo, "main")
+    assert _git(["merge", "other"], cwd=repo, check=False).returncode != 0
+    assert _git(["ls-files", "-u"], cwd=repo).stdout.strip()
+    monkeypatch.setenv("F97_CANDIDATE_MODE", "index")
+    monkeypatch.setenv("F97_CANDIDATE_TREE", _git(["rev-parse", "HEAD^{tree}"], cwd=repo).stdout.strip())
+    with pytest.raises(subprocess.CalledProcessError):
+        pipeline_contract.resolve_candidate_tree(repo)
+
+
+def test_resolve_candidate_tree_source_keeps_commit_read_only_and_index_write_tree():
+    _validate_resolve_candidate_tree_source(_source("tests/test_fase09_7_pipeline_no_regression.py"))
+
+
+def test_resolve_candidate_tree_source_rejects_write_tree_reintroduced_in_commit_mode():
+    source = _source("tests/test_fase09_7_pipeline_no_regression.py")
+    mutated = source.replace(
+        'return candidate, _git(["rev-parse", f"{candidate}^{{tree}}"], cwd=repo).strip()',
+        'return candidate, _git(["write-tree"], cwd=repo).strip()',
+    )
+    with pytest.raises(AssertionError):
+        _validate_resolve_candidate_tree_source(mutated)
 
 
 def test_ci_boundary_pytest_runs_as_nobody_with_limited_safe_directory():
@@ -202,35 +364,64 @@ def test_ci_boundary_pytest_runs_as_nobody_with_limited_safe_directory():
         pytest.skip("requires the F9.7 setpriv/env-i CI boundary")
     assert os.geteuid() == 65534
     assert os.getegid() == 65534
+    assert ROOT.stat().st_uid != os.geteuid()
     assert os.environ["GIT_CONFIG_COUNT"] == "1"
     assert os.environ["GIT_CONFIG_KEY_0"] == "safe.directory"
     assert os.environ["GIT_CONFIG_VALUE_0"] == str(ROOT)
     assert os.environ["GIT_CONFIG_VALUE_0"] != "*"
+    assert not os.access(ROOT, os.W_OK)
+    assert not os.access(ROOT / ".git", os.W_OK)
+    before = _git_bytes(["ls-files", "--stage", "-z"]).stdout
+    probe = ROOT / ".f97-read-only-probe"
+    with pytest.raises(OSError):
+        probe.write_text("blocked\n", encoding="utf-8")
+    assert not probe.exists()
+    assert _git_bytes(["ls-files", "--stage", "-z"]).stdout == before
+    assert not (ROOT / ".git" / "index.lock").exists()
 
 
 def _validate_actionlint_contract(source: str) -> None:
     assert f"ACTIONLINT_VERSION: '{ACTIONLINT_VERSION}'" in source
+    assert f"SHELLCHECK_VERSION: '{SHELLCHECK_VERSION}'" in source
+    assert f"SHELLCHECK_SHA256: {SHELLCHECK_SHA256}" in source
     assert f"ACTIONLINT_ASSET: {ACTIONLINT_ASSET}" in source
     assert "linux_x86_64" not in source
     assert "linux_386" not in source
     assert "linux_arm64" not in source
     assert ACTIONLINT_SHA256 in source
     assert "sha256sum -c -" in source
-    assert 'actionlint_version_output="$("$actionlint_dir/actionlint" -version)"' in source
-    assert "actionlint_version=\"${actionlint_version_output%%$'\\n'*}\"" in source
-    assert "test \"$actionlint_version\" = \"$ACTIONLINT_VERSION\"" in source
+    assert "koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}" in source
+    assert "shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" in source
+    assert 'printf \'%s  %s\\n\' "$SHELLCHECK_SHA256" "$shellcheck_archive" | sha256sum -c -' in source
+    assert "command -v shellcheck" in source
+    assert "reported_shellcheck_version=\"$(shellcheck --version | awk -F': ' '$1 == \"version\" { print $2 }')\"" in source
+    assert "test \"$reported_shellcheck_version\" = \"$SHELLCHECK_VERSION\"" in source
+    assert 'reported_actionlint_output="$("$actionlint_dir/actionlint" -version)"' in source
+    assert "reported_actionlint_release=\"${reported_actionlint_output%%$'\\n'*}\"" in source
+    assert "test \"$reported_actionlint_release\" = \"$ACTIONLINT_VERSION\"" in source
     assert 'actionlint_version="$($actionlint_dir/actionlint -version)"' not in source
     assert 'actionlint_version_output="$($actionlint_dir/actionlint -version)"' not in source
     assert "test \"$actionlint_version_output\" = \"$ACTIONLINT_VERSION\"" not in source
+    assert "actionlint_version_output" not in source
+    assert "actionlint_version=\"" not in source
+    assert "test \"$actionlint_version\"" not in source
     assert "find .github/workflows" in source
     assert "-name '*.yml'" in source
     assert "-name '*.yaml'" in source
     assert "-print0" in source
     assert "xargs -0" in source
+    assert "-config-file .github/actionlint.yaml" in source
     assert "test -s \"$workflow_list\"" in source
     assert "RUNNER_TEMP" in source
     assert "$GITHUB_WORKSPACE/actionlint" not in source
     assert "curl -fsSLo actionlint.tar.gz" not in source
+    assert "# shellcheck disable" not in source
+    assert "-shellcheck=" not in source
+    assert "SHELLCHECK_OPTS" not in source
+    assert " -ignore " not in source
+    assert "continue-on-error" not in source
+    assert "! -path" not in source
+    assert "git diff --name-only" not in source
 
 
 @pytest.mark.parametrize(
@@ -247,6 +438,65 @@ def test_actionlint_version_parser_accepts_official_multiline_output():
     assert _first_actionlint_version_line(f"{ACTIONLINT_VERSION}.1\nextra") != ACTIONLINT_VERSION
 
 
+def _validate_actionlint_config(source: str) -> None:
+    assert source == ACTIONLINT_CONFIG
+    assert source.count("SC2086") == 2
+    assert source.count("SC2153") == 0
+    assert "\nignore:" not in source
+    assert ".*" not in source
+    assert ".+" not in source
+    assert "|" not in source
+    assert "SC2086$" not in source
+    for path, finding in LEGACY_ACTIONLINT_IGNORES:
+        assert f"  {path}:" in source
+        assert f"      - '{finding}'" in source
+
+
+def test_actionlint_config_is_byte_exact_and_limited_to_two_legacy_sc2086_findings():
+    assert (ROOT / ".github/actionlint.yaml").read_bytes() == ACTIONLINT_CONFIG.encode("utf-8")
+    _validate_actionlint_config(_source(".github/actionlint.yaml"))
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda s: s + "ignore:\n  - '.*'\n",
+        lambda s: s.replace("db-sync-to-pro.yml", "fg1_inventory.yml"),
+        lambda s: s.replace("SC2086:info:3:24", "SC2086:info:3:25"),
+        lambda s: s.replace("SC2086:info:3:24", "SC2153:info:3:24"),
+        lambda s: s.replace("^shellcheck", "shellcheck"),
+        lambda s: s.replace("word splitting$", "word splitting"),
+        lambda s: s.replace("word splitting$'", "word splitting.*'"),
+        lambda s: s.replace("production_pipeline.yml", "*.yml"),
+        lambda s: s.replace("SC2086:info:1:38", "SC2086"),
+        lambda s: s + "  .github/workflows/opencode.yml:\n    ignore:\n      - '^x$'\n",
+    ],
+)
+def test_actionlint_config_mutations_are_rejected(mutator):
+    with pytest.raises(AssertionError):
+        _validate_actionlint_config(mutator(ACTIONLINT_CONFIG))
+
+
+def test_actionlint_workflow_inventory_is_exactly_seven_tracked_files():
+    observed = tuple(
+        sorted(
+            subprocess.check_output(
+                ["git", "ls-files", ".github/workflows/*.yml", ".github/workflows/*.yaml"],
+                cwd=ROOT,
+                text=True,
+            ).splitlines()
+        )
+    )
+    assert observed == WORKFLOW_PATHS
+
+
+def test_actionlint_legacy_sc2086_workflow_blobs_remain_at_baseline():
+    for path, _finding in LEGACY_ACTIONLINT_IGNORES:
+        baseline_blob = _git_bytes(["cat-file", "blob", f"{F97_BASELINE_COMMIT}:{path}"]).stdout
+        candidate_blob = _git_bytes(["cat-file", "blob", f"HEAD:{path}"]).stdout
+        assert candidate_blob == baseline_blob
+
+
 @pytest.mark.parametrize(
     "mutator",
     [
@@ -255,12 +505,17 @@ def test_actionlint_version_parser_accepts_official_multiline_output():
         lambda s: s.replace("linux_amd64", "linux_arm64"),
         lambda s: s.replace("linux_amd64", "linux_ppc64le"),
         lambda s: s.replace(ACTIONLINT_SHA256, "0" * 64),
+        lambda s: s.replace(SHELLCHECK_SHA256, "0" * 64),
         lambda s: s.replace(ACTIONLINT_VERSION, "1.7.8", 1),
-        lambda s: s.replace('actionlint_version="${actionlint_version_output%%$\'\\n\'*}"', 'actionlint_version="$actionlint_version_output"'),
-        lambda s: s.replace('test "$actionlint_version" = "$ACTIONLINT_VERSION"', 'test "$actionlint_version_output" = "$ACTIONLINT_VERSION"'),
-        lambda s: s.replace('test "$actionlint_version" = "$ACTIONLINT_VERSION"', "true"),
+        lambda s: s.replace(SHELLCHECK_VERSION, "0.10.0", 1),
+        lambda s: s.replace("command -v shellcheck\n", ""),
+        lambda s: s.replace('reported_actionlint_release="${reported_actionlint_output%%$\'\\n\'*}"', 'actionlint_version="${actionlint_version_output%%$\'\\n\'*}"'),
+        lambda s: s.replace('test "$reported_actionlint_release" = "$ACTIONLINT_VERSION"', 'test "$reported_actionlint_output" = "$ACTIONLINT_VERSION"'),
+        lambda s: s.replace('test "$reported_actionlint_release" = "$ACTIONLINT_VERSION"', "true"),
+        lambda s: s.replace('test "$reported_shellcheck_version" = "$SHELLCHECK_VERSION"', "true"),
         lambda s: s.replace("-name '*.yaml'", "-name '*.yml'"),
         lambda s: s.replace("$RUNNER_TEMP/actionlint", "$GITHUB_WORKSPACE/actionlint"),
+        lambda s: s.replace("-config-file .github/actionlint.yaml", ""),
     ],
 )
 def test_actionlint_contract_mutations_are_rejected(mutator):
@@ -312,6 +567,7 @@ def test_gitattributes_lf_scope_is_explicit_and_index_blobs_are_lf():
         "*.sh text eol=lf",
         ".github/workflows/security-audit.yml text eol=lf",
         ".github/workflows/f9-7-contract.yml text eol=lf",
+        ".github/actionlint.yaml text eol=lf",
         "db/migrations/20260727_fase09_7_*.sql text eol=lf",
         "db/migrations/20260728_fase09_7_*.sql text eol=lf",
         "db/migrations/20260729_fase09_7_*.sql text eol=lf",
@@ -918,6 +1174,7 @@ def test_f9_7_contract_workflow_triggers_cover_wp04_paths_and_protected_inventor
         ".env.example",
         ".githooks/**",
         ".github/scripts/fase09_7_firewall_guard.sh",
+        ".github/actionlint.yaml",
         "tests/test_fase09_7_release_gates.py",
         "config/**",
         *PROTECTED_PATHS,
@@ -938,6 +1195,10 @@ def test_f9_7_workflows_run_release_gate_tests_in_focused_jobs():
 
 def _validate_f9_7_setpriv_env_contract(source: str) -> None:
     for required in (
+        "sudo chmod -R go+rX,go-w \"$GITHUB_WORKSPACE\"",
+        "sudo setpriv --reuid=65534 --regid=65534 --clear-groups \\",
+        "--bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \\",
+        "env -i HOME=/tmp CI=true PATH=\"$PATH\" PYTHONPATH=\"$GITHUB_WORKSPACE\" \\",
         'F97_BASELINE_COMMIT="$F97_BASELINE_COMMIT"',
         'F97_CANDIDATE_MODE="$F97_CANDIDATE_MODE"',
         'F97_CANDIDATE_COMMIT="$F97_CANDIDATE_COMMIT"',
@@ -945,6 +1206,7 @@ def _validate_f9_7_setpriv_env_contract(source: str) -> None:
         "GIT_CONFIG_COUNT=1",
         "GIT_CONFIG_KEY_0=safe.directory",
         'GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE"',
+        "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider",
     ):
         assert required in source
     assert "safe.directory=*" not in source
@@ -952,6 +1214,8 @@ def _validate_f9_7_setpriv_env_contract(source: str) -> None:
     assert "git config --global --add safe.directory" not in source
     assert "F97_CANDIDATE_COMMIT:-" not in source
     assert "F97_CANDIDATE_TREE:-" not in source
+    assert "chown" not in source
+    assert "GIT_OPTIONAL_LOCKS" not in source
 
 
 @pytest.mark.parametrize(
@@ -1043,7 +1307,8 @@ def test_workflows_use_explicit_candidate_sha_and_index_clean_tree():
         assert 'test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"' in workflow
         assert "git merge-base --is-ancestor \"$F97_BASELINE_COMMIT\" \"$F97_CANDIDATE_COMMIT\"" in workflow
         assert "F97_CANDIDATE_TREE" in workflow
-        assert 'test "$(git write-tree)" = "$F97_CANDIDATE_TREE"' in workflow
+        assert 'test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"' in workflow
+        assert 'git write-tree' not in workflow
 
 
 def test_changed_only_eol_and_ranged_whitespace_are_used_by_release_gates():

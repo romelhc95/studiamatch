@@ -484,6 +484,9 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - Causa raiz actionlint: `actionlint -version` puede emitir salida multilinea y el gate comparaba el output completo en bruto contra `1.7.7`; el fix debe comparar solo la primera linea y mantener asset/SHA256 fijados.
 - Causa raiz `env -i`: los jobs ejecutados como UID/GID `65534` no propagaban `F97_BASELINE_COMMIT`, `F97_CANDIDATE_MODE`, `F97_CANDIDATE_COMMIT`, `F97_CANDIDATE_TREE` ni `safe.directory` restringido al workspace; el fix debe pasar esas variables explicitamente sin usar `safe.directory=*`.
 - Causa raiz frontend cold-cache: el helper hermetico trataba como fallo el warning exacto de Next.js `No build cache found` en CI frio; el fix permite una unica ocurrencia exacta en stdout, mantiene stderr fail-closed y conserva fallo absoluto ante exit code distinto de cero.
+- CI de `d2cb32ea118a4b8461460f57973d02f9d3e39754` / tree `16081a60c0e90b4e7fc39e4223371f1c388b8ae3` produjo `NO_GO_CI_D2CB32E`; ese candidate queda `NO_GO_CI_D2CB32E_NOT_PROMOTABLE`.
+- Frontend Static Build CI de `d2cb32e=PASS`; las causas restantes son actionlint/ShellCheck parity y commit-mode Git read-only.
+- Dos findings `SC2086` legacy en `.github/workflows/db-sync-to-pro.yml` y `.github/workflows/production_pipeline.yml` quedan `RESIDUAL_ACCEPTED_PROTECTED_BASELINE`; no autorizan waivers amplios ni cambios a workflows legacy.
 - `CORR-WP-F9.7-04-02=IN_PROGRESS`; su salida local esperada es `READY_FOR_CI`, no `GO_FOR_HUMAN_REVIEW`.
 - Orden vinculante actualizado: `READY_FOR_CI` -> CI verde -> seis auditorias finales nuevas sobre el mismo commit/tree -> `GO_FOR_HUMAN_REVIEW`.
 - Las auditorias anteriores quedan `INVALIDATED_STALE_ORACLE`; no se reutilizan aunque hayan sido GO sobre `b711e0b` o `120d234`.
