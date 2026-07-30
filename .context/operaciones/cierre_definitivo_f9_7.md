@@ -478,6 +478,16 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - Supabase previews skipped; no Supabase Free/Pro, DDL/DML, backup, writers ni backfill.
 - Siguiente accion: `validate_wp_f9_7_04_ci_forward_fix`.
 
+### Reapertura Forward-Fix WP-F9.7-04 - CORR-02
+
+- `CORR-WP-F9.7-04-01` produjo commit `120d234a99a5f856f209b1f5007d713c296b4612` con tree `bf68ed90d186439ced713bcef2a4a6b1448e38fb`; la evidencia local fue util, pero CI produjo `NO_GO_CI_120D234` y el candidate queda `NO_GO_CI_NOT_PROMOTABLE`.
+- Causa raiz actionlint: `actionlint -version` puede emitir salida multilinea y el gate comparaba el output completo en bruto contra `1.7.7`; el fix debe comparar solo la primera linea y mantener asset/SHA256 fijados.
+- Causa raiz `env -i`: los jobs ejecutados como UID/GID `65534` no propagaban `F97_BASELINE_COMMIT`, `F97_CANDIDATE_MODE`, `F97_CANDIDATE_COMMIT`, `F97_CANDIDATE_TREE` ni `safe.directory` restringido al workspace; el fix debe pasar esas variables explicitamente sin usar `safe.directory=*`.
+- Causa raiz frontend cold-cache: el helper hermetico trataba como fallo el warning exacto de Next.js `No build cache found` en CI frio; el fix permite una unica ocurrencia exacta en stdout, mantiene stderr fail-closed y conserva fallo absoluto ante exit code distinto de cero.
+- `CORR-WP-F9.7-04-02=IN_PROGRESS`; su salida local esperada es `READY_FOR_CI`, no `GO_FOR_HUMAN_REVIEW`.
+- Orden vinculante actualizado: `READY_FOR_CI` -> CI verde -> seis auditorias finales nuevas sobre el mismo commit/tree -> `GO_FOR_HUMAN_REVIEW`.
+- Las auditorias anteriores quedan `INVALIDATED_STALE_ORACLE`; no se reutilizan aunque hayan sido GO sobre `b711e0b` o `120d234`.
+
 ### Stop Conditions
 
 - Gate que pase vaciamente por comparar worktree limpio contra index.
@@ -522,7 +532,8 @@ Materializar un unico tree acumulado, ejecutar toda la matriz contra sus bytes e
 
 ### Evidencia Local WP-F9.7-05
 
-- Estado: `GO_WP_LOCAL`.
+- Estado anterior: `GO_WP_LOCAL`, ahora `INVALIDATED_BY_CI_PARITY_GAP`.
+- Motivo: los candidates `b711e0b`/`249295` y `120d234`/`bf68ed` no son promocionables tras CI; toda matriz acumulada debe repetirse sobre el proximo tree que aspire a cierre.
 - Candidate final capturado fuera de archivos versionados para evitar autorreferencia; el SHA se conserva en el recibo de ejecucion y futuro PR.
 - Diferencia contra el tree tecnico posterior a WP-F9.7-04 limitada a documentacion permitida; blobs tecnicos, tests, hooks, workflows, frontend y DB permanecen identicos.
 - Matriz Git/release: candidate identity, ancestry, actionlint, R01-R09, EOL changed-only, whitespace ranged, protected closure, hooks, credential scan, firewall helper, aggregator y Context Graph en PASS.
@@ -568,6 +579,7 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - PR hacia `desarrollo` con template, matriz, hashes, threat model y riesgos.
 - Review solicitado a `romelhc95-approver`.
 - Checks requeridos, incluido `security-audit`, en success.
+- Para `CORR-WP-F9.7-04-02`, CI verde antecede a las seis auditorias finales; solo despues puede emitirse `GO_FOR_HUMAN_REVIEW`.
 
 ### Prohibiciones
 

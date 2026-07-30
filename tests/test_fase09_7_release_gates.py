@@ -109,6 +109,10 @@ def _credential_scan_tree(repo: Path, treeish: str, pattern: str | None = None) 
     return completed.returncode
 
 
+def _first_actionlint_version_line(output: str) -> str:
+    return output.split("\n", 1)[0]
+
+
 def _changed_eol_findings(repo: Path, baseline: str, candidate: str) -> list[str]:
     raw = _git_bytes(
         [
@@ -184,6 +188,26 @@ def test_candidate_identity_uses_explicit_tree_and_preserves_staged_index():
     assert _git(["write-tree"]).stdout.strip() == candidate_tree
 
 
+def test_ci_boundary_pytest_runs_as_nobody_with_limited_safe_directory():
+    required = {
+        "F97_BASELINE_COMMIT",
+        "F97_CANDIDATE_MODE",
+        "F97_CANDIDATE_COMMIT",
+        "F97_CANDIDATE_TREE",
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_KEY_0",
+        "GIT_CONFIG_VALUE_0",
+    }
+    if os.environ.get("CI") != "true" or not required <= set(os.environ):
+        pytest.skip("requires the F9.7 setpriv/env-i CI boundary")
+    assert os.geteuid() == 65534
+    assert os.getegid() == 65534
+    assert os.environ["GIT_CONFIG_COUNT"] == "1"
+    assert os.environ["GIT_CONFIG_KEY_0"] == "safe.directory"
+    assert os.environ["GIT_CONFIG_VALUE_0"] == str(ROOT)
+    assert os.environ["GIT_CONFIG_VALUE_0"] != "*"
+
+
 def _validate_actionlint_contract(source: str) -> None:
     assert f"ACTIONLINT_VERSION: '{ACTIONLINT_VERSION}'" in source
     assert f"ACTIONLINT_ASSET: {ACTIONLINT_ASSET}" in source
@@ -192,7 +216,12 @@ def _validate_actionlint_contract(source: str) -> None:
     assert "linux_arm64" not in source
     assert ACTIONLINT_SHA256 in source
     assert "sha256sum -c -" in source
+    assert 'actionlint_version_output="$("$actionlint_dir/actionlint" -version)"' in source
+    assert "actionlint_version=\"${actionlint_version_output%%$'\\n'*}\"" in source
     assert "test \"$actionlint_version\" = \"$ACTIONLINT_VERSION\"" in source
+    assert 'actionlint_version="$($actionlint_dir/actionlint -version)"' not in source
+    assert 'actionlint_version_output="$($actionlint_dir/actionlint -version)"' not in source
+    assert "test \"$actionlint_version_output\" = \"$ACTIONLINT_VERSION\"" not in source
     assert "find .github/workflows" in source
     assert "-name '*.yml'" in source
     assert "-name '*.yaml'" in source
@@ -212,6 +241,12 @@ def test_actionlint_tuple_is_immutable_and_nul_safe(relative: str):
     _validate_actionlint_contract(_source(relative))
 
 
+def test_actionlint_version_parser_accepts_official_multiline_output():
+    official_like = f"{ACTIONLINT_VERSION}\nbuilt with go1.24.0 for linux/amd64"
+    assert _first_actionlint_version_line(official_like) == ACTIONLINT_VERSION
+    assert _first_actionlint_version_line(f"{ACTIONLINT_VERSION}.1\nextra") != ACTIONLINT_VERSION
+
+
 @pytest.mark.parametrize(
     "mutator",
     [
@@ -221,6 +256,8 @@ def test_actionlint_tuple_is_immutable_and_nul_safe(relative: str):
         lambda s: s.replace("linux_amd64", "linux_ppc64le"),
         lambda s: s.replace(ACTIONLINT_SHA256, "0" * 64),
         lambda s: s.replace(ACTIONLINT_VERSION, "1.7.8", 1),
+        lambda s: s.replace('actionlint_version="${actionlint_version_output%%$\'\\n\'*}"', 'actionlint_version="$actionlint_version_output"'),
+        lambda s: s.replace('test "$actionlint_version" = "$ACTIONLINT_VERSION"', 'test "$actionlint_version_output" = "$ACTIONLINT_VERSION"'),
         lambda s: s.replace('test "$actionlint_version" = "$ACTIONLINT_VERSION"', "true"),
         lambda s: s.replace("-name '*.yaml'", "-name '*.yml'"),
         lambda s: s.replace("$RUNNER_TEMP/actionlint", "$GITHUB_WORKSPACE/actionlint"),
@@ -897,6 +934,49 @@ def test_f9_7_workflows_run_release_gate_tests_in_focused_jobs():
     assert "tests/test_fase09_7_release_gates.py" in contract.split(
         "Run local-only Python and PostgreSQL contracts", 1
     )[1]
+
+
+def _validate_f9_7_setpriv_env_contract(source: str) -> None:
+    for required in (
+        'F97_BASELINE_COMMIT="$F97_BASELINE_COMMIT"',
+        'F97_CANDIDATE_MODE="$F97_CANDIDATE_MODE"',
+        'F97_CANDIDATE_COMMIT="$F97_CANDIDATE_COMMIT"',
+        'F97_CANDIDATE_TREE="$F97_CANDIDATE_TREE"',
+        "GIT_CONFIG_COUNT=1",
+        "GIT_CONFIG_KEY_0=safe.directory",
+        'GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE"',
+    ):
+        assert required in source
+    assert "safe.directory=*" not in source
+    assert "safe.directory *" not in source
+    assert "git config --global --add safe.directory" not in source
+    assert "F97_CANDIDATE_COMMIT:-" not in source
+    assert "F97_CANDIDATE_TREE:-" not in source
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [".github/workflows/security-audit.yml", ".github/workflows/f9-7-contract.yml"],
+)
+def test_f9_7_setpriv_env_boundary_passes_candidate_and_limited_safe_directory(relative: str):
+    _validate_f9_7_setpriv_env_contract(_source(relative))
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda s: s.replace('F97_BASELINE_COMMIT="$F97_BASELINE_COMMIT" \\\n', ""),
+        lambda s: s.replace('F97_CANDIDATE_MODE="$F97_CANDIDATE_MODE" \\\n', ""),
+        lambda s: s.replace('F97_CANDIDATE_COMMIT="$F97_CANDIDATE_COMMIT" \\\n', ""),
+        lambda s: s.replace('F97_CANDIDATE_TREE="$F97_CANDIDATE_TREE" \\\n', ""),
+        lambda s: s.replace("GIT_CONFIG_COUNT=1 \\\n", ""),
+        lambda s: s.replace("GIT_CONFIG_KEY_0=safe.directory \\\n", ""),
+        lambda s: s.replace('GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE"', "GIT_CONFIG_VALUE_0=\"*\""),
+    ],
+)
+def test_f9_7_setpriv_env_boundary_mutations_are_rejected(mutator):
+    with pytest.raises(AssertionError):
+        _validate_f9_7_setpriv_env_contract(mutator(_source(".github/workflows/security-audit.yml")))
 
 
 def test_f9_7_workflow_cleanup_blocks_are_state_guarded_and_preserve_markers():

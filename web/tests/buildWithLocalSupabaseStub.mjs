@@ -4,10 +4,12 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const webDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const expectedApikey = "sb_publishable_ci_test";
+const allowedColdCiBuildWarning = "⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache";
 const coursePublicFields = "id,name,slug,url,institution_id,price_pen,price_status,mode,course_type,category_id,duration,start_date_text,description_long,syllabus,target_audience,requirements,certification,benefits,objectives,expected_monthly_salary,seniority_level,roi_months,address,region,is_active,is_verified,brochure_url,start_date,created_at,updated_at";
 
 const institution = {
@@ -259,6 +261,64 @@ function runNodeCanary(guardPath) {
   });
 }
 
+function diagnosticLines(text) {
+  return stripVTControlCharacters(text)
+    .split(/\r?\n/)
+    .filter((line) => /(^|\s|[>])(?:warning|warn|error|failed|failure|ERR!|⚠)/i.test(line));
+}
+
+function classifyBuildOutput(code, stdout, stderr) {
+  const output = `${stdout}\n${stderr}`;
+  if (code !== 0) {
+    return { ok: false, message: `npm run build failed with exit code ${code}\n${output}` };
+  }
+
+  const stderrDiagnostics = diagnosticLines(stderr);
+  if (stderrDiagnostics.length > 0) {
+    return {
+      ok: false,
+      message: `unexpected build warning/error output:\n${stderrDiagnostics.join("\n")}`,
+    };
+  }
+
+  let allowedWarnings = 0;
+  const unexpected = [];
+  for (const line of diagnosticLines(stdout)) {
+    if (line === allowedColdCiBuildWarning) {
+      allowedWarnings += 1;
+    } else {
+      unexpected.push(line);
+    }
+  }
+  if (allowedWarnings > 1) {
+    unexpected.push(allowedColdCiBuildWarning);
+  }
+  if (unexpected.length > 0) {
+    return {
+      ok: false,
+      message: `unexpected build warning/error output:\n${unexpected.join("\n")}`,
+    };
+  }
+  return { ok: true, output };
+}
+
+function runBuildOutputSelfTests() {
+  assert.equal(classifyBuildOutput(0, `${allowedColdCiBuildWarning}\n`, "").ok, true);
+  assert.equal(
+    classifyBuildOutput(0, `\u001b[33m${allowedColdCiBuildWarning}\u001b[0m\r\n`, "").ok,
+    true,
+  );
+  assert.equal(classifyBuildOutput(0, "", `${allowedColdCiBuildWarning}\n`).ok, false);
+  assert.equal(classifyBuildOutput(0, `${allowedColdCiBuildWarning}.\n`, "").ok, false);
+  assert.equal(
+    classifyBuildOutput(0, `${allowedColdCiBuildWarning}\n${allowedColdCiBuildWarning}\n`, "").ok,
+    false,
+  );
+  assert.equal(classifyBuildOutput(0, `${allowedColdCiBuildWarning}\nError: extra\n`, "").ok, false);
+  assert.equal(classifyBuildOutput(0, "compiled cleanly\n", "").ok, true);
+  assert.equal(classifyBuildOutput(1, "compiled cleanly\n", "").ok, false);
+}
+
 function runBuild(origin, guardPath) {
   return new Promise((resolve, rejectRun) => {
     const child = spawn("npm", ["run", "build"], {
@@ -268,30 +328,27 @@ function runBuild(origin, guardPath) {
     });
     let stdout = "";
     let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
+      stdout += chunk;
     });
     child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
+      stderr += chunk;
     });
     child.on("error", rejectRun);
-    child.on("exit", (code) => {
-      const output = `${stdout}\n${stderr}`;
-      const unexpected = output
-        .split(/\r?\n/)
-        .filter((line) => /(^|\s|[>])(?:warning|warn|error|failed|failure|ERR!|⚠)/i.test(line));
-      if (code !== 0) {
-        rejectRun(new Error(`npm run build failed with exit code ${code}\n${output}`));
+    child.on("close", (code) => {
+      const result = classifyBuildOutput(code, stdout, stderr);
+      if (!result.ok) {
+        rejectRun(new Error(result.message));
         return;
       }
-      if (unexpected.length > 0) {
-        rejectRun(new Error(`unexpected build warning/error output:\n${unexpected.join("\n")}`));
-        return;
-      }
-      resolve(output);
+      resolve(result.output);
     });
   });
 }
+
+runBuildOutputSelfTests();
 
 const { directory: guardDirectory, guardPath } = writeNetworkGuard();
 const configuredOrigin = configuredSupabaseTestOrigin();

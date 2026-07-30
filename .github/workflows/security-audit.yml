@@ -114,7 +114,8 @@ jobs:
           curl -fsSLo "$actionlint_archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ACTIONLINT_ASSET}"
           printf '%s  %s\n' "$ACTIONLINT_SHA256" "$actionlint_archive" | sha256sum -c -
           tar -xzf "$actionlint_archive" -C "$actionlint_dir" actionlint
-          actionlint_version="$($actionlint_dir/actionlint -version)"
+          actionlint_version_output="$("$actionlint_dir/actionlint" -version)"
+          actionlint_version="${actionlint_version_output%%$'\n'*}"
           test "$actionlint_version" = "$ACTIONLINT_VERSION"
           echo "ACTIONLINT_BIN=$actionlint_dir/actionlint" >> "$GITHUB_ENV"
       - name: Run actionlint
@@ -1159,6 +1160,13 @@ jobs:
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
+            F97_BASELINE_COMMIT="$F97_BASELINE_COMMIT" \
+            F97_CANDIDATE_MODE="$F97_CANDIDATE_MODE" \
+            F97_CANDIDATE_COMMIT="$F97_CANDIDATE_COMMIT" \
+            F97_CANDIDATE_TREE="$F97_CANDIDATE_TREE" \
+            GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0=safe.directory \
+            GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
               tests/test_fase09_7_backend_identity.py \
               tests/test_fase09_7_acl_source_attestation.py \
