@@ -270,8 +270,18 @@ jobs:
         if: always()
         run: |
           cleanup_status=0
-          .github/scripts/fase09_7_firewall_guard.sh cleanup F97_FRONTEND_EGRESS "$F97_FRONTEND_FIREWALL_STATE" || cleanup_status=$?
-          rm -rf -- "$F97_FRONTEND_FIREWALL_STATE"
+          state_dir="${F97_FRONTEND_FIREWALL_STATE:-}"
+          if [ -n "$state_dir" ]; then
+            if [ -d "$state_dir" ]; then
+              .github/scripts/fase09_7_firewall_guard.sh cleanup F97_FRONTEND_EGRESS "$state_dir" || cleanup_status=$?
+              if [ "$cleanup_status" -eq 0 ]; then
+                rm -rf -- "$state_dir" || cleanup_status=1
+              fi
+            else
+              echo "F9.7 frontend firewall state directory is missing"
+              cleanup_status=1
+            fi
+          fi
           exit "$cleanup_status"
       - name: Prepare local PostgreSQL socket
         run: |
@@ -323,6 +333,7 @@ jobs:
               tests/test_fase09_7_schema_rls.py \
               tests/test_fase09_7_leads_email_security_hold.py \
               tests/test_fase09_7_pipeline_no_regression.py \
+              tests/test_fase09_7_release_gates.py \
               tests/test_supabase_credentials_contract.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
@@ -345,14 +356,28 @@ jobs:
         if: always()
         run: |
           cleanup_status=0
-          .github/scripts/fase09_7_firewall_guard.sh cleanup FASE097_EGRESS "$FASE097_FIREWALL_STATE" || cleanup_status=$?
+          firewall_state="${FASE097_FIREWALL_STATE:-}"
+          if [ -n "$firewall_state" ]; then
+            if [ -d "$firewall_state" ]; then
+              .github/scripts/fase09_7_firewall_guard.sh cleanup FASE097_EGRESS "$firewall_state" || cleanup_status=$?
+              if [ "$cleanup_status" -eq 0 ]; then
+                rm -rf -- "$firewall_state" || cleanup_status=1
+              fi
+            else
+              echo "F9.7 firewall state directory is missing"
+              cleanup_status=1
+            fi
+          fi
           if docker inspect studiamatch-f97-postgres >/dev/null 2>&1; then
             docker rm --force studiamatch-f97-postgres || cleanup_status=1
           fi
-          if [ -n "${FASE097_STATE:-}" ] && [ -d "$FASE097_STATE" ]; then
-            sudo rm -rf -- "$FASE097_STATE" || cleanup_status=1
-          fi
-          if [ -n "${FASE097_FIREWALL_STATE:-}" ] && [ -d "$FASE097_FIREWALL_STATE" ]; then
-            rm -rf -- "$FASE097_FIREWALL_STATE" || cleanup_status=1
+          state_dir="${FASE097_STATE:-}"
+          if [ -n "$state_dir" ]; then
+            if [ -d "$state_dir" ]; then
+              sudo rm -rf -- "$state_dir" || cleanup_status=1
+            else
+              echo "F9.7 PostgreSQL state directory is missing"
+              cleanup_status=1
+            fi
           fi
           exit "$cleanup_status"

@@ -61,7 +61,36 @@ chain_status() {
 
 jump_status() {
     firewall=$1
-    run_firewall "$firewall" -w 10 -C OUTPUT -j "$CHAIN" >/dev/null 2>&1
+    rules=$(run_firewall "$firewall" -w 10 -S OUTPUT 2>/dev/null)
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        return "$rc"
+    fi
+    printf '%s\n' "$rules" | grep -Fx -- "-A OUTPUT -j $CHAIN" >/dev/null
+}
+
+rule_status() {
+    firewall=$1
+    shift
+    run_firewall "$firewall" -w 10 -C "$CHAIN" "$@" >/dev/null 2>&1
+}
+
+record_marker() {
+    family=$1
+    resource=$2
+    : > "$(marker "$family" "$resource")"
+}
+
+append_rule() {
+    firewall=$1
+    family=$2
+    rule_name=$3
+    shift 3
+    if run_firewall "$firewall" -w 10 -A "$CHAIN" "$@" && rule_status "$firewall" "$@"; then
+        return 0
+    fi
+    echo "$family $rule_name rule setup failed" >&2
+    return 1
 }
 
 setup_family() {
@@ -93,25 +122,38 @@ setup_family() {
         fi
     fi
 
-    if run_firewall "$firewall" -w 10 -N "$CHAIN"; then
-        : > "$(marker "$family" chain)" || family_failed=1
-    else
+    if ! record_marker "$family" chain; then
+        echo "$family chain ownership marker failed" >&2
+        return 1
+    fi
+    if ! run_firewall "$firewall" -w 10 -N "$CHAIN"; then
         echo "$family chain creation failed" >&2
         return 1
     fi
 
-    run_firewall "$firewall" -w 10 -A "$CHAIN" -o lo -j RETURN || family_failed=1
-    run_firewall "$firewall" -w 10 -A "$CHAIN" -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN || family_failed=1
-    run_firewall "$firewall" -w 10 -A "$CHAIN" -j REJECT || family_failed=1
-
-    if run_firewall "$firewall" -w 10 -I OUTPUT 1 -j "$CHAIN"; then
-        : > "$(marker "$family" jump)" || family_failed=1
-    else
-        echo "$family jump insertion failed" >&2
-        family_failed=1
+    append_rule "$firewall" "$family" loopback -o lo -j RETURN || family_failed=1
+    append_rule "$firewall" "$family" conntrack -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN || family_failed=1
+    append_rule "$firewall" "$family" reject -j REJECT || family_failed=1
+    if [ "$family_failed" -ne 0 ]; then
+        return 1
     fi
 
-    return "$family_failed"
+    if ! record_marker "$family" jump; then
+        echo "$family jump ownership marker failed" >&2
+        return 1
+    fi
+    if ! run_firewall "$firewall" -w 10 -I OUTPUT 1 -j "$CHAIN"; then
+        echo "$family jump insertion failed" >&2
+        return 1
+    fi
+
+    if ! jump_status "$firewall"; then
+        rc=$?
+        echo "$family jump verification failed (rc=$rc)" >&2
+        return 1
+    fi
+
+    return 0
 }
 
 cleanup_family() {

@@ -467,6 +467,17 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - Backlog fuera de alcance registrado como [BK-F9.5-08](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-08---hardening-futuro-fuera-de-alcance-wp-f97-04), estado `DEFERRED_NO_IMPLEMENTATION`.
 - Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; sin Supabase, Cloudflare, DDL/DML, pipeline, frontend runtime, push ni PR.
 
+### Reapertura Forward-Fix WP-F9.7-04
+
+- PR #258 produjo `NO_GO_CI` inicial contra candidate `b711e0b`/tree `249295`.
+- Candidate `b711e0b`/`249295` queda `SUPERSEDED_BY_CI_FORWARD_FIX`, no se reescribe ni se amenda.
+- Causa raiz CRLF: `.gitattributes` aplicaba `eol=lf` a blobs historicos CRLF; el fix debe acotar patrones a rutas cuyos blobs candidate ya son LF, sin `--ignore-cr-at-eol`, sin `git add --renormalize .` y sin normalizacion global.
+- Causa raiz firewall: el helper verificaba jumps mediante `-C OUTPUT -j CHAIN` antes de que la cadena existiera; el fix debe inspeccionar `-S OUTPUT`, capturar primero el rc del firewall, registrar ownership antes de mutaciones recuperables y preservar recursos no-owned.
+- `WP-F9.7-05` y las seis auditorias finales previas quedan invalidadas por cambio de tree y deben repetirse sobre el nuevo candidate.
+- `AUTOMATIC_PR_PREVIEW_ACCEPTED`: se acepta solo el preview automatico preexistente del PR; no hay operacion manual Cloudflare, dashboard, API, Workers, produccion ni deploy manual.
+- Supabase previews skipped; no Supabase Free/Pro, DDL/DML, backup, writers ni backfill.
+- Siguiente accion: `validate_wp_f9_7_04_ci_forward_fix`.
+
 ### Stop Conditions
 
 - Gate que pase vaciamente por comparar worktree limpio contra index.

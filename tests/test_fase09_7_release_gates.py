@@ -142,6 +142,42 @@ def _changed_eol_findings(repo: Path, baseline: str, candidate: str) -> list[str
     return findings
 
 
+def _index_lf_attribute_findings(repo: Path) -> list[str]:
+    raw_index = _git_bytes(["ls-files", "-s", "-z"], cwd=repo).stdout
+    paths: list[bytes] = []
+    oid_by_path: dict[bytes, str] = {}
+    for record in raw_index.split(b"\0"):
+        if not record:
+            continue
+        meta, path = record.split(b"\t", 1)
+        _mode, oid, stage = meta.decode("ascii").split(" ")
+        if stage != "0":
+            raise AssertionError("unmerged index entries are not valid for F9.7 release gates")
+        paths.append(path)
+        oid_by_path[path] = oid
+
+    if not paths:
+        return []
+
+    attrs = subprocess.run(
+        ["git", "check-attr", "-z", "--stdin", "eol"],
+        cwd=repo,
+        input=b"\0".join(paths) + b"\0",
+        check=True,
+        capture_output=True,
+    ).stdout.split(b"\0")
+
+    findings: list[str] = []
+    for index in range(0, len(attrs) - 1, 3):
+        path, _attribute, value = attrs[index : index + 3]
+        if value != b"lf":
+            continue
+        blob = _git_bytes(["cat-file", "blob", oid_by_path[path]], cwd=repo).stdout
+        if b"\r" in blob:
+            findings.append(path.decode("utf-8", "surrogateescape"))
+    return findings
+
+
 def test_candidate_identity_uses_explicit_tree_and_preserves_staged_index():
     _, candidate_tree = resolve_candidate_tree()
     assert candidate_tree == os.environ["F97_CANDIDATE_TREE"]
@@ -229,6 +265,44 @@ def test_changed_only_eol_blocks_only_changed_crlf_and_sanitizes_paths(tmp_path:
     assert _changed_eol_findings(repo, baseline, candidate) == ["bad\\npath.txt"]
 
 
+def test_gitattributes_lf_scope_is_explicit_and_index_blobs_are_lf():
+    source = _source(".gitattributes")
+    required = {
+        ".gitattributes text eol=lf",
+        ".env.example text eol=lf",
+        "AGENTS.md text eol=lf",
+        ".githooks/* text eol=lf",
+        "*.sh text eol=lf",
+        ".github/workflows/security-audit.yml text eol=lf",
+        ".github/workflows/f9-7-contract.yml text eol=lf",
+        "db/migrations/20260727_fase09_7_*.sql text eol=lf",
+        "db/migrations/20260728_fase09_7_*.sql text eol=lf",
+        "db/migrations/20260729_fase09_7_*.sql text eol=lf",
+        "tests/sql/fase09_7_*.sql text eol=lf",
+        "tests/test_fase09_7_*.py text eol=lf",
+        "web/src/app/compare/CompareContent.tsx text eol=lf",
+    }
+    lines = set(source.splitlines())
+    assert required <= lines
+    for forbidden in (
+        "*.css text eol=lf",
+        "*.html text eol=lf",
+        "*.js text eol=lf",
+        "*.json text eol=lf",
+        "*.md text eol=lf",
+        "*.mjs text eol=lf",
+        "*.py text eol=lf",
+        "*.sql text eol=lf",
+        "*.ts text eol=lf",
+        "*.tsx text eol=lf",
+        "*.txt text eol=lf",
+        "*.yaml text eol=lf",
+        "*.yml text eol=lf",
+    ):
+        assert forbidden not in lines
+    assert _index_lf_attribute_findings(ROOT) == []
+
+
 def test_changed_only_eol_fails_for_invalid_git_objects(tmp_path: Path):
     repo = tmp_path / "eol-invalid"
     repo.mkdir()
@@ -238,6 +312,11 @@ def test_changed_only_eol_fails_for_invalid_git_objects(tmp_path: Path):
 
     with pytest.raises(subprocess.CalledProcessError):
         _changed_eol_findings(repo, baseline, ZERO_SHA)
+
+
+def test_explicit_candidate_changed_blobs_are_lf_only():
+    _, candidate_tree = resolve_candidate_tree()
+    assert _changed_eol_findings(ROOT, F97_BASELINE_COMMIT, candidate_tree) == []
 
 
 def test_ranged_whitespace_check_catches_clean_worktree_regression(tmp_path: Path):
@@ -423,21 +502,45 @@ state_path = Path(os.environ["FAKE_FIREWALL_STATE"])
 family = sys.argv[1]
 args = sys.argv[2:]
 state = json.loads(state_path.read_text() if state_path.exists() else "{}")
+state.setdefault("ops", []).append(f"{family} {' '.join(args)}")
 family_state = state.setdefault(family, {"chains": {}, "jumps": {}})
-fail = os.environ.get("FAKE_FIREWALL_FAIL", "")
+for name, rules in list(family_state["chains"].items()):
+    if rules is True:
+        family_state["chains"][name] = []
+fail = {item for item in os.environ.get("FAKE_FIREWALL_FAIL", "").split(",") if item}
 
 def save_exit(code):
     state_path.write_text(json.dumps(state, sort_keys=True))
     raise SystemExit(code)
 
 def fails(op):
-    return fail in {f"{family}:{op}", f"all:{op}"}
+    return bool(fail & {f"{family}:{op}", f"all:{op}"})
 
-def chain_name_after(flag):
-    return args[args.index(flag) + 1]
+def rule_key(rule):
+    return "\0".join(rule)
+
+def jump_target(rule):
+    return rule[rule.index("-j") + 1] if "-j" in rule else ""
+
+def append_op(rule):
+    if rule == ["-o", "lo", "-j", "RETURN"]:
+        return "append-loopback"
+    if rule == ["-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "RETURN"]:
+        return "append-conntrack"
+    if rule == ["-j", "REJECT"]:
+        return "append-reject"
+    return "append"
 
 if args[:3] == ["-w", "10", "-L"] and args[3] == "OUTPUT":
     save_exit(1 if fails("available") else 0)
+if args[:3] == ["-w", "10", "-S"] and args[3] == "OUTPUT":
+    if fails("show"):
+        save_exit(2)
+    print("-P OUTPUT ACCEPT")
+    for chain, count in family_state["jumps"].items():
+        for _ in range(count):
+            print(f"-A OUTPUT -j {chain}")
+    save_exit(0)
 if args[:3] == ["-w", "10", "-nL"]:
     if fails("query"):
         save_exit(2)
@@ -445,24 +548,38 @@ if args[:3] == ["-w", "10", "-nL"]:
 if args[:3] == ["-w", "10", "-C"]:
     if fails("query"):
         save_exit(2)
-    chain = args[-1]
-    save_exit(0 if family_state["jumps"].get(chain, 0) > 0 else 1)
+    chain = args[3]
+    if chain == "OUTPUT":
+        target = jump_target(args[4:])
+        if target not in family_state["chains"]:
+            save_exit(2)
+        save_exit(0 if family_state["jumps"].get(target, 0) > 0 else 1)
+    if chain not in family_state["chains"]:
+        save_exit(1)
+    save_exit(0 if rule_key(args[4:]) in family_state["chains"][chain] else 1)
 if args[:3] == ["-w", "10", "-N"]:
     if fails("new"):
         save_exit(1)
     chain = args[3]
     if chain in family_state["chains"]:
         save_exit(1)
-    family_state["chains"][chain] = True
+    family_state["chains"][chain] = []
     save_exit(0)
 if args[:3] == ["-w", "10", "-A"]:
-    if fails("append"):
+    rule = args[4:]
+    if fails("append") or fails(append_op(rule)):
         save_exit(1)
-    save_exit(0 if args[3] in family_state["chains"] else 1)
+    chain = args[3]
+    if chain not in family_state["chains"]:
+        save_exit(1)
+    family_state["chains"][chain].append(rule_key(rule))
+    save_exit(0)
 if args[:3] == ["-w", "10", "-I"]:
     if fails("insert"):
         save_exit(1)
     chain = args[-1]
+    if chain not in family_state["chains"]:
+        save_exit(2)
     family_state["jumps"][chain] = family_state["jumps"].get(chain, 0) + 1
     save_exit(0)
 if args[:3] == ["-w", "10", "-D"]:
@@ -477,12 +594,18 @@ if args[:3] == ["-w", "10", "-D"]:
 if args[:3] == ["-w", "10", "-F"]:
     if fails("flush"):
         save_exit(1)
-    save_exit(0 if args[3] in family_state["chains"] else 1)
+    chain = args[3]
+    if chain not in family_state["chains"]:
+        save_exit(1)
+    family_state["chains"][chain] = []
+    save_exit(0)
 if args[:3] == ["-w", "10", "-X"]:
     if fails("delete-chain"):
         save_exit(1)
     chain = args[3]
     if chain not in family_state["chains"] or family_state["jumps"].get(chain, 0):
+        save_exit(1)
+    if family_state["chains"][chain]:
         save_exit(1)
     del family_state["chains"][chain]
     save_exit(0)
@@ -497,7 +620,7 @@ save_exit(2)
         link.chmod(link.stat().st_mode | stat.S_IXUSR)
 
 
-def _run_firewall(tmp_path: Path, action: str, chain: str, state_dir: Path, fail: str = ""):
+def _fake_firewall_env(tmp_path: Path, fail: str = "") -> dict[str, str]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     if not (bin_dir / "iptables").exists():
@@ -511,6 +634,11 @@ def _run_firewall(tmp_path: Path, action: str, chain: str, state_dir: Path, fail
             "FAKE_FIREWALL_FAIL": fail,
         }
     )
+    return env
+
+
+def _run_firewall(tmp_path: Path, action: str, chain: str, state_dir: Path, fail: str = ""):
+    env = _fake_firewall_env(tmp_path, fail)
     return subprocess.run(
         ["sh", str(ROOT / ".github/scripts/fase09_7_firewall_guard.sh"), action, chain, str(state_dir)],
         cwd=ROOT,
@@ -526,23 +654,129 @@ def _firewall_state(tmp_path: Path) -> dict:
     return {} if not path.exists() else __import__("json").loads(path.read_text())
 
 
+def _assert_no_owned_firewall_residue(tmp_path: Path, chain: str) -> None:
+    state = _firewall_state(tmp_path)
+    for family in ("iptables", "ip6tables"):
+        family_state = state.get(family, {"chains": {}, "jumps": {}})
+        assert chain not in family_state.get("chains", {})
+        assert family_state.get("jumps", {}).get(chain, 0) == 0
+
+
+def test_fake_firewall_models_output_rules_and_missing_chain_checks(tmp_path: Path):
+    env = _fake_firewall_env(tmp_path)
+    state_file = tmp_path / "firewall-state.json"
+    state_file.write_text(
+        '{"iptables":{"chains":{"F97_FRONTEND_EGRESS":[]},"jumps":{"F97_FRONTEND_EGRESS":1}}}',
+        encoding="utf-8",
+    )
+    listed = subprocess.run(
+        ["iptables", "-w", "10", "-S", "OUTPUT"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert listed.returncode == 0
+    assert "-A OUTPUT -j F97_FRONTEND_EGRESS" in listed.stdout.splitlines()
+    missing = subprocess.run(
+        ["iptables", "-w", "10", "-C", "OUTPUT", "-j", "NO_SUCH_CHAIN"],
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert missing.returncode == 2
+
+
 def test_firewall_helper_setup_cleanup_and_partial_failures_are_fail_closed(tmp_path: Path):
     state_dir = tmp_path / "state"
     state_dir.mkdir(mode=0o700)
     assert _run_firewall(tmp_path, "setup", "F97_FRONTEND_EGRESS", state_dir).returncode == 0
     assert _run_firewall(tmp_path, "cleanup", "F97_FRONTEND_EGRESS", state_dir).returncode == 0
-    assert _firewall_state(tmp_path)["iptables"]["chains"] == {}
-    assert _firewall_state(tmp_path)["ip6tables"]["chains"] == {}
+    _assert_no_owned_firewall_residue(tmp_path, "F97_FRONTEND_EGRESS")
 
     partial = tmp_path / "partial"
     partial.mkdir(mode=0o700)
     assert _run_firewall(tmp_path, "setup", "FASE097_EGRESS", partial, "iptables:insert").returncode != 0
     assert _run_firewall(tmp_path, "cleanup", "FASE097_EGRESS", partial).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, "FASE097_EGRESS")
 
     partial6 = tmp_path / "partial6"
     partial6.mkdir(mode=0o700)
     assert _run_firewall(tmp_path, "setup", "FASE097_AUDIT_EGRESS", partial6, "ip6tables:append").returncode != 0
     assert _run_firewall(tmp_path, "cleanup", "FASE097_AUDIT_EGRESS", partial6).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, "FASE097_AUDIT_EGRESS")
+
+
+@pytest.mark.parametrize("chain", ALLOWED_FIREWALL_CHAINS)
+def test_firewall_helper_setup_cleanup_repeated_for_all_owned_chains(tmp_path: Path, chain: str):
+    state_dir = tmp_path / chain
+    state_dir.mkdir(mode=0o700)
+    assert _run_firewall(tmp_path, "setup", chain, state_dir).returncode == 0
+    state = _firewall_state(tmp_path)
+    for family in ("iptables", "ip6tables"):
+        ops = state[family]["chains"][chain]
+        assert "-o\0lo\0-j\0RETURN" in ops
+        assert "-m\0conntrack\0--ctstate\0ESTABLISHED,RELATED\0-j\0RETURN" in ops
+        assert "-j\0REJECT" in ops
+        assert state[family]["jumps"][chain] == 1
+    assert _run_firewall(tmp_path, "cleanup", chain, state_dir).returncode == 0
+    assert _run_firewall(tmp_path, "cleanup", chain, state_dir).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, chain)
+
+
+@pytest.mark.parametrize("family", ["iptables", "ip6tables"])
+@pytest.mark.parametrize("append_failure", ["append-loopback", "append-conntrack", "append-reject"])
+def test_firewall_helper_never_inserts_family_jump_after_append_failure(
+    tmp_path: Path, family: str, append_failure: str
+):
+    chain = "FASE097_EGRESS"
+    state_dir = tmp_path / f"{family}-{append_failure}"
+    state_dir.mkdir(mode=0o700)
+    failed = _run_firewall(tmp_path, "setup", chain, state_dir, f"{family}:{append_failure}")
+    assert failed.returncode != 0
+    assert _firewall_state(tmp_path)[family]["jumps"].get(chain, 0) == 0
+    assert _run_firewall(tmp_path, "cleanup", chain, state_dir).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, chain)
+
+
+@pytest.mark.parametrize("family", ["iptables", "ip6tables"])
+@pytest.mark.parametrize("operation", ["insert", "delete-jump", "flush", "delete-chain"])
+def test_firewall_helper_partial_failures_preserve_markers_until_recovered(
+    tmp_path: Path, family: str, operation: str
+):
+    chain = "FASE097_AUDIT_EGRESS"
+    state_dir = tmp_path / f"{family}-{operation}"
+    state_dir.mkdir(mode=0o700)
+    if operation == "insert":
+        assert _run_firewall(tmp_path, "setup", chain, state_dir, f"{family}:insert").returncode != 0
+        assert (state_dir / f"{'ipv4' if family == 'iptables' else 'ipv6'}-jump").exists()
+    else:
+        assert _run_firewall(tmp_path, "setup", chain, state_dir).returncode == 0
+        assert _run_firewall(tmp_path, "cleanup", chain, state_dir, f"{family}:{operation}").returncode != 0
+        assert (state_dir / f"{'ipv4' if family == 'iptables' else 'ipv6'}-chain").exists()
+    assert _run_firewall(tmp_path, "cleanup", chain, state_dir).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, chain)
+
+
+def test_firewall_helper_cleanup_before_prepare_empty_state_and_inconsistent_markers(tmp_path: Path):
+    chain = "F97_FRONTEND_EGRESS"
+    empty = tmp_path / "empty"
+    empty.mkdir(mode=0o700)
+    assert _run_firewall(tmp_path, "cleanup", chain, empty).returncode == 0
+    _assert_no_owned_firewall_residue(tmp_path, chain)
+
+    inconsistent = tmp_path / "inconsistent"
+    inconsistent.mkdir(mode=0o700)
+    (inconsistent / "ipv4-jump").write_text("", encoding="utf-8")
+    (tmp_path / "firewall-state.json").write_text(
+        '{"iptables":{"chains":{"F97_FRONTEND_EGRESS":[]},"jumps":{"F97_FRONTEND_EGRESS":1}},"ip6tables":{"chains":{},"jumps":{}}}',
+        encoding="utf-8",
+    )
+    assert _run_firewall(tmp_path, "cleanup", chain, inconsistent).returncode == 0
+    state = _firewall_state(tmp_path)
+    assert state["iptables"]["jumps"].get(chain, 0) == 0
+    assert chain in state["iptables"]["chains"]
 
 
 def test_firewall_helper_preserves_unowned_resources_and_reports_cleanup_errors(tmp_path: Path):
@@ -595,6 +829,9 @@ def test_firewall_helper_contract_is_limited_to_f9_7_owned_chains():
         assert chain in helper
     assert "LEGACY_EGRESS" not in helper
     assert "|| true" not in helper
+    assert "-S OUTPUT" in helper
+    assert "-C OUTPUT" not in helper
+    assert 'grep -Fx -- "-A OUTPUT -j $CHAIN"' in helper
     assert "cleanup_family iptables ipv4" in helper
     assert "cleanup_family ip6tables ipv6" in helper
 
@@ -649,6 +886,43 @@ def test_f9_7_contract_workflow_triggers_cover_wp04_paths_and_protected_inventor
         *PROTECTED_PATHS,
     ):
         assert f"'{required}'" in workflow
+
+
+def test_f9_7_workflows_run_release_gate_tests_in_focused_jobs():
+    security = _source(".github/workflows/security-audit.yml")
+    contract = _source(".github/workflows/f9-7-contract.yml")
+    assert "tests/test_fase09_7_release_gates.py" in security.split(
+        "  fase09-7-remediation:\n", 1
+    )[1].split("\n  security-audit:", 1)[0]
+    assert "tests/test_fase09_7_release_gates.py" in contract.split(
+        "Run local-only Python and PostgreSQL contracts", 1
+    )[1]
+
+
+def test_f9_7_workflow_cleanup_blocks_are_state_guarded_and_preserve_markers():
+    cleanup_expectations = {
+        ".github/workflows/security-audit.yml": (
+            'state_dir="${F97_FRONTEND_FIREWALL_STATE:-}"',
+            'firewall_state="${FASE097_AUDIT_FIREWALL_STATE:-}"',
+            'audit_state="${FASE097_AUDIT_STATE:-}"',
+        ),
+        ".github/workflows/f9-7-contract.yml": (
+            'state_dir="${F97_FRONTEND_FIREWALL_STATE:-}"',
+            'firewall_state="${FASE097_FIREWALL_STATE:-}"',
+            'state_dir="${FASE097_STATE:-}"',
+        ),
+    }
+    for relative, expected_snippets in cleanup_expectations.items():
+        workflow = _source(relative)
+        for snippet in expected_snippets:
+            assert snippet in workflow
+        assert 'rm -rf -- "$F97_FRONTEND_FIREWALL_STATE"' not in workflow
+        assert 'rm -rf -- "$FASE097_FIREWALL_STATE"' not in workflow
+        assert 'rm -rf -- "$FASE097_AUDIT_FIREWALL_STATE"' not in workflow
+        assert 'rm -rf -- "$FASE097_STATE"' not in workflow
+        assert 'rm -rf -- "$FASE097_AUDIT_STATE"' not in workflow
+        assert "state directory is missing" in workflow
+        assert 'if [ "$cleanup_status" -eq 0 ]; then' in workflow
 
 
 def test_wp04_executable_modes_are_tracked_as_100755():

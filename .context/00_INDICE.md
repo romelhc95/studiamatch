@@ -62,6 +62,7 @@
 - [Changelog 2026-07-27](changelog/2026-07-27.md)
 - [Changelog 2026-07-28](changelog/2026-07-28.md)
 - [Changelog 2026-07-29](changelog/2026-07-29.md)
+- [Changelog 2026-07-30](changelog/2026-07-30.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad
