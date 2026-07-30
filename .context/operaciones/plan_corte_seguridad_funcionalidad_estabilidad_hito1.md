@@ -52,9 +52,13 @@ La captura publica no puede reactivarse por flag, grant manual ni edicion de led
 
 El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` es separado, forward-only, de una entrada, `application_authorized=false`, con Free/Pro bloqueados. El orden remoto futuro obligatorio es v3 exacto, security hold, verifier, ledger commit y revalidacion.
 
+## PR-O Combinado V3 + Hold
+
+[PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) define localmente el contrato sucesor Free-only que liga v3 exacto y security hold terminal. Mantiene `application_authorized=false`, `capabilities=[]`, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, y cero capacidad remota ejecutable.
+
 ## Gate Futuro De Contencion Free
 
-Free requiere binding, snapshot, backup/restore, pausa de writers, boundary 6/7, evidencia local del target y aprobacion humana independiente antes de aplicar v3 + hold.
+Free requiere binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target y aprobacion humana independiente antes de aplicar v3 + hold.
 
 ## Gate Futuro De Contencion Pro
 
@@ -66,7 +70,7 @@ F9.8/F9.9 permanecen limitadas a cursos legacy anteriores a cutoff aprobado, `is
 
 ## Ruta Restante A Produccion
 
-Merge humano del corte, replay local post-merge, definicion de PR-O combinado v3 + hold, gates Free, puente editorial, F9.10 certificacion Free, F10 Pro/main/observacion y F11 cierre final.
+Merge humano del corte, replay local post-merge, definicion local de PR-O combinado v3 + hold, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, F9.10 certificacion Free, F10 Pro/main/observacion y F11 cierre final.
 
 ## Plan De Cierre Definitivo
 
@@ -90,6 +94,7 @@ No autoriza Supabase Free/Pro, Supabase MCP, DDL/DML remoto, deploy Edge/Cloudfl
 - [Cierre definitivo F9.7](./cierre_definitivo_f9_7.md)
 - [Certificacion Hito 1 F9](./certificacion_hito1_f9.md)
 - [Remediacion local del trigger F9.7](./remediacion_trigger_f9_7.md)
+- [Contrato PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md)
 - [Backlog leads/email](../backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md)
 - [Arquitectura del pipeline](../arquitectura_pipeline.md)
 - [Estructura frontend](../estructura_frontend.md)

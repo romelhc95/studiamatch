@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #259 fusionado en `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c` / tree `2fa573d878eb566dd00f6fe21939e5b6420133ed` y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
+- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #260 fusionado en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) `DEFINED_LOCAL_NOT_AUTHORIZED` y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: `definicion de PR-O combinado v3 + hold`; no implementa ni aplica PR-O. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
+- Siguiente accion: `aprobacion independiente de GO_FOR_FREE para PR-O combinado v3 + hold`; no aplica PR-O. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS y PR #259 merge `fdaac63` conserva tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`; v3 byte-identico; roles de aplicacion con acceso cero en el hold objetivo; security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED` |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS, PR #260 merge `e2721a0` contiene `779001c`, [PR-O](./pr_o_f9_7_v3_hold.md) definido localmente Free-only sin autorizacion; v3 byte-identico; roles de aplicacion con acceso cero en el hold objetivo; security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED` |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -79,7 +79,7 @@ La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra 
 
 ## Dependencias Posteriores
 
-La siguiente accion exacta es `definicion de PR-O combinado v3 + hold`. Antes de aplicar el package sucesor F9.7 deben validarse snapshot, boundary y precondiciones exactas de v3 + security hold, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+El [contrato PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) define localmente el gate combinado Free-only: boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`; target binding privado; snapshot read-only; call budget; freshness; evidencia sanitizada; backup/restore, writers/drain y maintenance window `PENDING`; aplicacion atomica futura en una unica transaccion; politica no-retry ante respuesta ambigua; rollback, recovery owner, postcondiciones y evidencia requerida para `GO_FOR_FREE` y `GO_F9.7_COMPLETE`. Antes de aplicar el package sucesor F9.7 deben existir aprobaciones independientes y evidencia Free especifica. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 
