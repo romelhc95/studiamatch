@@ -46,7 +46,7 @@ Trazabilidad: `H1-CA1`, `H1-CA2P`, `H1-CA7P`.
 - `[GIT/DERIVED]` La [remediacion F9.7](./operaciones/remediacion_gate_b_f9_7.md) demuestra cobertura local de drift directo y rollback atomico de drift heredado/desconocido; no cambia el snapshot remoto ni autoriza aplicacion.
 - `[REMOTE Free]` La [atestacion ACL F9.7](./operaciones/atestacion_origen_acl_f9_7.md) atribuyo las fuentes observadas a drift reparable por el package, sin herencia/SET/owner/unknown; predicates/trigger y aplicacion permanecen bloqueados.
 - `[GIT/DERIVED]` La [remediacion local del trigger F9.7](./operaciones/remediacion_trigger_f9_7.md) agrega el candidate v3 local PR-ready de seis entradas. V2 queda como antecedente historico no promocionable; v3 retira fail-closed la ruta de egress y tombstonea la Edge Function historica; el [drenaje pg_net](./operaciones/pg_net_queue_drain_f9_7.md) queda counts-only y no ejecutado; no observa ni cambia Free/Pro.
-- `[GIT/DERIVED]` [ADR-0005](./decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega un security hold terminal local y bloqueado posterior a v3. La arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`; el frontend sin captura y el tombstone Edge no demuestran runtime remoto. Free y Pro permanecen `UNCHANGED_NOT_ATTESTED` para este corte.
+- `[GIT/DERIVED]` [ADR-0005](./decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrego un security hold local y bloqueado posterior a v3. Despues de PR #261, [PR-O v1](./operaciones/pr_o_f9_7_v3_hold.md) y el hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; el sucesor vigente es [PR-O executor privado](./operaciones/pr_o_f9_7_successor_private_executor.md), aun no implementado. La arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`; el frontend sin captura y el tombstone Edge no demuestran runtime remoto. Free y Pro permanecen `UNCHANGED_NOT_ATTESTED` para este corte.
 - `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
 - `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - `[GIT]` F6-F8 son la base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y no cambian el snapshot observado.
@@ -82,6 +82,6 @@ Los detalles tecnicos se conservan solo en el artifact privado local ignorado. N
 10. No usar snapshots `superseded` como baseline ni replay.
 11. Verificar RLS, grants, owner, modo de seguridad, path, PostgREST y compatibilidad frontend.
 12. Seguir el [flujo release minimo](./operaciones/flujo_release_minimo.md) y requerir aprobacion explicita para Pro.
-13. Aplicar cualquier ruta futura de leads/email solo mediante v3 exacto seguido por security hold o una reactivacion forward-only aprobada; no por grants manuales ni flags.
+13. Aplicar cualquier ruta futura de leads/email solo mediante v3 exacto seguido por hold sucesor con executor privado no expuesto por Data API, o una reactivacion forward-only aprobada; no por grants manuales, flags, `public.exec_sql(text)` ni el hold actual superseded.
 
 La clasificacion por alcance y ambiente vive en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).

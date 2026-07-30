@@ -23,7 +23,7 @@ Hito 1 conserva como destino la produccion completa, pero su perfil habilitado n
 8. La reactivacion no puede ocurrir mediante variable de entorno, grant manual o edicion de ledger.
 9. Free y Pro deben contenerse por gates, bindings, backups y aprobaciones independientes.
 10. El candidate v3 de PR #257 se conserva byte-identico como predecessor tecnico requerido, pero no puede aplicarse solo porque permite `INSERT` publico limitado.
-11. El estado final seguro exige un package terminal separado de security hold.
+11. El estado final seguro exige un hold sucesor separado posterior a v3.
 12. El puente editorial futuro de F9.8/F9.9 permanece limitado a `publication_status`.
 13. Esta decision no demuestra deployment, contencion, certificacion ni release remoto.
 14. [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) conserva su historia y decisiones F9.4-F9.6; esta ADR modifica solo el camino futuro de seguridad de leads/email y preservacion funcional.
@@ -31,15 +31,15 @@ Hito 1 conserva como destino la produccion completa, pero su perfil habilitado n
 16. `anon`, `authenticated`, `authenticator` y `service_role` quedan sin acceso a `leads` y `email_log`; las filas legacy se preservan bajo autoridad exclusiva del owner `postgres`.
 17. El cierre local se ejecuta mediante `WP-F9.7-01` a `WP-F9.7-06`, que son work packages internos de F9.7 y no subfases, subtareas ni criterios nuevos.
 18. La publishable key historica retirada fue rotada; la atestacion humana se registra sin valor, identificador ni referencia sensible.
-19. `public.exec_sql(text)` se conserva temporalmente como control-plane administrativo restringido a `service_role`; no es ruta data-plane y su sustitucion queda diferida en [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md).
+19. `public.exec_sql(text)` se conserva temporalmente como control-plane administrativo restringido a `service_role` en el PR local historico; no es ruta data-plane y el PR-O sucesor debe sustituirlo antes de cualquier estado final.
 
 ## Consecuencias
 
 - El frontend soportado por el corte no tiene ruta de habilitacion de leads por configuracion.
 - La Edge Function historica queda tombstoneada solo en Git; runtime Free y Pro siguen `UNKNOWN_NOT_ATTESTED`.
-- El package terminal `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda local, bloqueado y posterior a v3.
-- El verifier terminal detecta drift administrativo ordinario sobre grants, ACL, RLS, policies, views, routines, publications, triggers, rules y membresias; no promete neutralizar a un owner/superuser ni probar SQL dinamico arbitrariamente ofuscado.
+- El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda local, bloqueado, posterior a v3 y luego `SUPERSEDED_NON_PROMOTABLE` por el PR-O sucesor.
+- El verifier sucesor debe detectar drift administrativo ordinario sobre grants, ACL, RLS, policies, views, routines, publications, triggers, rules y membresias; no promete neutralizar a un owner/superuser ni probar SQL dinamico arbitrariamente ofuscado.
 - El security hold no conserva lectura de aplicacion sobre las tablas retenidas; cualquier inspeccion futura requiere una operacion owner separada y autorizada.
-- `service_role` no conserva acceso data-plane a `leads`/`email_log`; el contrato exacto de `exec_sql(text)` es residual aceptado para el PR local y cualquier executor adicional, overload o ACL distinta bloquea el GO del hold.
+- `service_role` no conserva acceso data-plane a `leads`/`email_log`; el contrato exacto de `exec_sql(text)` es residual aceptado solo para el PR local historico y queda fuera del estado final del PR-O sucesor.
 - [PLAN-F9.7-CIERRE-001](../operaciones/cierre_definitivo_f9_7.md) congela invariantes, clasificacion de hallazgos, checkpoints y criterios GO diferenciados para evitar ampliacion de alcance durante auditorias.
 - F9, F9.7, F10, F11 y `TASK-H1-001` permanecen abiertos.

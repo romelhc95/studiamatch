@@ -35,7 +35,7 @@ El cierre de este plan produce `GO_FOR_LOCAL_PR`, no `GO_FOR_FREE` ni `GO_F9.7_C
 
 - Frontend sin captura publica de PII ni transporte de leads/email.
 - Edge Function historica como tombstone `410 Gone` solo en Git.
-- Security hold terminal local, separado, posterior a v3 y bloqueado para Free/Pro.
+- Security hold historico local, separado, posterior a v3 y bloqueado para Free/Pro; no promocionable para la ruta sucesora.
 - Cero acceso de roles de aplicacion a `leads` y `email_log`.
 - Golden Pipeline y harvester byte-identicos al baseline protegido.
 - Candidate Git inmutable con matriz Docker y auditorias acotadas en GO.
@@ -62,7 +62,7 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 4. `anon`, `authenticated`, `authenticator` y `service_role` no tienen acceso directo ni indirecto a `leads` o `email_log`.
 5. Las filas legacy permanecen byte/valor equivalentes durante apply, replay y rollback; solo `postgres` conserva autoridad administrativa.
 6. Views, materialized views, rutinas, overloads, publications, rules, triggers, ACL y memberships dentro del threat model no abren rutas ordinarias de aplicacion.
-7. El manifest v3 y sus seis migrations permanecen byte-identicos; el hold se ejecuta despues en una unica llamada `exec_sql`.
+7. El manifest v3 y sus seis migrations permanecen byte-identicos; el hold actual queda historico/no promocionable y el sucesor no puede depender de `public.exec_sql(text)`.
 8. Boundary 6, boundary 7 y cada fallo inyectado mantienen ledger, schema, ACL, RLS, funciones y datos en el estado esperado.
 9. Catalogo, busqueda, filtros, detalle, comparacion, soporte estatico, privacidad y terminos conservan comportamiento publico y accesible.
 10. FG1, FG2, FG3, harvester, `scripts/core`, `scripts/shared`, requisitos y auditorias del pipeline no cambian respecto del baseline protegido.
@@ -75,7 +75,7 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 
 - Roles de aplicacion `anon`, `authenticated`, `authenticator` y `service_role`.
 - `service_role` como rol de aplicacion no tiene acceso data-plane a `leads` ni `email_log`.
-- `public.exec_sql(text)` exacto queda aceptado temporalmente como control-plane administrativo restringido, enlazado a [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md), no como ruta data-plane.
+- `public.exec_sql(text)` exacto queda aceptado temporalmente como residual historico del PR local, enlazado a [BK-F9.5-07](../backlog_tareas/req_est_001_sprint_1/backlog_exec_sql_control_plane.md), no como ruta data-plane ni como estado final del PR-O sucesor.
 - Privilegios de tabla y columna, incluidos caminos por membership, `INHERIT`, `SET ROLE` y `ADMIN OPTION`.
 - Views y materialized views dependientes en schemas utilizables por roles de aplicacion.
 - Rutinas ejecutables y overloads que dependan o hagan referencia comprobable a `leads`/`email_log`.
@@ -86,7 +86,7 @@ Un hallazgo solo puede bloquear el cierre local si demuestra de forma reproducib
 ### Fuera Del Alcance Aceptado
 
 - Owner `postgres` y superuser como autoridad administrativa deliberada.
-- `public.exec_sql(text)` exacto bajo owner `postgres`, `SECURITY DEFINER`, search_path atestado y EXECUTE solo para `service_role`, como residual control-plane aceptado para el PR local.
+- `public.exec_sql(text)` exacto bajo owner `postgres`, `SECURITY DEFINER`, search_path atestado y EXECUTE solo para `service_role`, como residual control-plane aceptado solo para el PR local historico; el sucesor debe eliminarlo del estado final.
 - SQL dinamico arbitrariamente ofuscado que no pueda probarse por catalogo o inspeccion estatica razonable.
 - Free/Pro y Edge desplegada hasta que exista binding y autorizacion propios.
 - Reactivacion futura de leads/email, que exige nuevo ciclo `INTAKE -> EST -> REQ -> TASK`.
@@ -245,19 +245,19 @@ Captura local en `feat/f9-7-security-cutoff` sobre `8ab1cdf9173b8093781e75ba32c2
 - Documento que afirme aplicacion, test, key o remoto no demostrado.
 - Archivo no documental en el stage.
 
-## WP-F9.7-02 - Security Hold DB
+## WP-F9.7-02 - Security Hold DB Historico
 
 ### Objetivo
 
-Cerrar el package terminal con acceso cero para roles de aplicacion, identidad/verificacion segura y matriz PostgreSQL 17 adversarial finita.
+Cerrar el package historico de hold con acceso cero para roles de aplicacion, identidad/verificacion segura y matriz PostgreSQL 17 adversarial finita. Este resultado no es terminal para la ruta sucesora.
 
 ### Alcance Tecnico
 
-- Migration terminal del security hold.
-- Manifest, runbook y candidate generator terminales.
+- Migration historica del security hold actual.
+- Manifest, runbook y candidate generator historicos no promocionables para la ruta sucesora.
 - Integracion manifest-only en `db_migrate.py`.
 - Runner y tests Python/PostgreSQL del hold.
-- Fixtures estrictamente necesarios para roles y `exec_sql`.
+- Fixtures historicos estrictamente necesarios para roles y `exec_sql`; no heredables por el PR-O sucesor.
 
 ### Actividades
 
@@ -269,7 +269,7 @@ Cerrar el package terminal con acceso cero para roles de aplicacion, identidad/v
 6. Detectar view chains, materialized views, routines, wrappers y overloads dentro del threat model.
 7. Detectar publications directas, `FOR ALL TABLES` y `FOR TABLES IN SCHEMA`.
 8. Validar cada stem/hash individualmente bajo lock en boundaries 6 y 7.
-9. Ejecutar el payload terminal mediante una unica llamada `exec_sql` como `service_role`.
+9. Evidenciar historicamente el payload del hold actual; el PR-O sucesor reemplaza esta ruta por executor privado no expuesto por Data API.
 10. Ampliar fingerprint con owner, RLS/FORCE RLS, schema ACL, views, rutinas, memberships, publications y filas.
 11. Inyectar fallos despues de cada etapa y despues del intento de ledger; exigir rollback exacto.
 12. Probar una rutina exclusivamente administrativa/service-only no expuesta para evitar falsos positivos fuera de alcance.
@@ -321,7 +321,7 @@ Cerrar el package terminal con acceso cero para roles de aplicacion, identidad/v
 - `MANIFEST_SHA256`: `3248376c2d92e953907590d158702a07f0b5523f7559ae4a0f85809b4aff4ebb`.
 - Hold SQL SHA256: `29082d96cbfd746753324aef0330a7af6f34b0e8bcfa2db0841ac0a8af90134e`.
 - Terminal verifier SHA256: `ceb80ae8865cf522b0cf2354c856f13c8c32156e38b492fdc55a223f44b51ab2`; octets `47721`.
-- `public.exec_sql(text)` queda como residual aceptado exacto; manifest normal/dry-run queda fail-closed y solo `--validate-only` resuelve paths.
+- `public.exec_sql(text)` queda como residual aceptado exacto del hold historico; manifest normal/dry-run queda fail-closed y solo `--validate-only` resuelve paths. Esta aceptacion no se hereda al PR-O sucesor.
 
 ### Stop Conditions
 
@@ -593,7 +593,7 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - Evidencia final sanitizada: [issuecomment-5133103661](https://github.com/romelhc95/studiamatch/pull/258#issuecomment-5133103661).
 - CI requerida: `security-audit=pass`; checks del PR en success y Supabase Preview skipped esperado.
 - Seis verdicts individuales finales: `security-auditor=GO_FOR_LOCAL_PR`, `supabase-architect=GO_FOR_LOCAL_PR`, `frontend-architect=GO_FOR_LOCAL_PR`, `pipeline-engineer=GO_FOR_LOCAL_PR`, `qa-test-engineer=GO_FOR_LOCAL_PR`, `devops-release-manager=GO_FOR_LOCAL_PR`.
-- `BLOCKING_IN_SCOPE=0`; residuales aceptados: `public.exec_sql(text)` control-plane local, autoridad administrativa `postgres`/superuser, Free/Pro `UNCHANGED_NOT_ATTESTED`, dos `SC2086` legacy de baseline protegido y warnings externos no mapeados a invariantes.
+- `BLOCKING_IN_SCOPE=0`; residuales aceptados historicos: `public.exec_sql(text)` control-plane local, autoridad administrativa `postgres`/superuser, Free/Pro `UNCHANGED_NOT_ATTESTED`, dos `SC2086` legacy de baseline protegido y warnings externos no mapeados a invariantes. `public.exec_sql(text)` no es aceptable como estado final del PR-O sucesor.
 - Aprobacion humana: `romelhc95-approver`, review `APPROVED` sobre `258ef3a98c7c1010efe58522bb1eca892e26390e`.
 - Merge humano: PR #258 cerrado como merged por `romelhc95-approver` en `e95eeaccc864477db587bbb13c827d0c17340d8d`, sin merge automatico por agente.
 
@@ -604,13 +604,15 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - Acciones anteriores `validate_wp_f9_7_04_ci_forward_fix`, `CORR-WP-F9.7-04-01`, candidates `b711e0b`, `120d234` y `d2cb32e`, y auditorias previas al tree final quedan historicas o `SUPERSEDED`.
 - Siguiente accion historica de PR #259: `definicion de PR-O combinado v3 + hold`; queda satisfecha por la seccion siguiente. No se implemento ni aplico PR-O en ese follow-up.
 
-### Definicion Local PR-O
+### Definicion Local PR-O V1
 
 - PR #260 fue mergeado por humano en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, tree `0bc0d4b806117fb1b6a2a9fc4d618daa367829ee`, y contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
-- [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) queda `DEFINED_LOCAL_NOT_AUTHORIZED`: Free-only futuro, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, cualquier otro boundary fail-closed.
-- La definicion congela target binding privado, snapshot read-only, call budget, freshness, evidencia sanitizada, stop conditions, backup/restore, writer pause/drain, maintenance window, aprobaciones independientes, transaccion unica, no-retry, rollback, recovery owner, postcondiciones y evidencia requerida para `GO_FOR_FREE` y `GO_F9.7_COMPLETE`.
-- `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, security hold `LOCAL_CANDIDATE_BLOCKED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
-- Los siete SQL y los manifests v3/hold existentes no se modifican.
+- PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, tree `218bfcc7e99bdef3569fc730bba21228dee53540`, y llevo [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) a historia.
+- [PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md) queda `SUPERSEDED_NON_PROMOTABLE`; el hold actual `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE`.
+- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `DEFINED_LOCAL_NOT_IMPLEMENTED`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar implementacion local, certificacion local, preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
+- La secuencia atomica futura queda `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`; boundary `7` es replay `READ ONLY` sin locks de escritura.
+- `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
+- Los siete SQL y los manifests actuales no se modifican y quedan ligados por digest en el contrato sucesor.
 
 ### Prohibiciones
 
@@ -650,14 +652,15 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 1. Merge humano del corte: completado en PR #258 (`e95eeaccc864477db587bbb13c827d0c17340d8d`).
 2. Replay post-merge en checkout Linux limpio: PASS sobre tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
 3. Follow-up documental post-merge sobre `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`: completado en PR #260; merge humano `e2721a0ec4581e422246dfabfa2048297f537025` contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
-4. `definicion de PR-O combinado v3 + hold`: definida localmente en [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md), sin autorizacion de aplicacion.
-5. Aprobacion independiente de `GO_FOR_FREE` para PR-O combinado v3 + hold.
-6. Gate separado de binding, snapshot, restore y writers Free.
-7. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
-8. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
-9. F9.10 `free_certified`.
-10. F10 Pro/main/observacion.
-11. F11 cierre final.
+4. `definicion de PR-O combinado v3 + hold`: completada en PR #261 y luego superseded; merge humano `ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`.
+5. Definicion local del PR-O sucesor con executor privado: [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md), sin implementacion ni autorizacion de aplicacion.
+6. Implementacion y certificacion local del PR-O sucesor.
+7. Gate separado de preflight read-only, binding, snapshot, restore y writers Free.
+8. Aprobacion independiente de `GO_FOR_FREE` y aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
+9. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
+10. F9.10 `free_certified`.
+11. F10 Pro/main/observacion.
+12. F11 cierre final.
 
 ## Datos Y Aprobaciones Futuras
 

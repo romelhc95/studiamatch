@@ -54,7 +54,7 @@ F9.7 v3 tiene un unico camino local PR-ready: `scripts/maintenance/fase09_7_cand
 
 `supabase/functions/send-lead-emails/index.ts` queda tombstoneado en Git: responde `410`, no lee payloads, no deriva secretos, no invoca Resend, no construye `Authorization: Bearer`, no ejecuta `fetch()` y no procesa PII. La sexta migration retira la ruta DB `net.http_post`/`to_jsonb(NEW)` al eliminar el trigger y la funcion revisados. El runbook counts-only de drenaje pg_net queda documentado en [Pg Net queue drain F9.7](./pg_net_queue_drain_f9_7.md), sin ejecucion remota.
 
-Esta nota conserva la identidad tecnica v3. [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) modifica el camino futuro: el frontend soportado ya no conserva captura fail-closed por build, sino eliminacion local de la captura publica; v3 queda como predecessor byte-identico pero insuficiente por permitir `INSERT` publico limitado. El security hold terminal posterior se define en [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
+Esta nota conserva la identidad tecnica v3. [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) modifica el camino futuro: el frontend soportado ya no conserva captura fail-closed por build, sino eliminacion local de la captura publica; v3 queda como predecessor byte-identico pero insuficiente por permitir `INSERT` publico limitado. Despues de PR-O v1, el camino futuro exige un hold sucesor con executor privado definido en [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 
 ## PostgreSQL 17
 
@@ -72,7 +72,7 @@ El runner local networkless demuestra:
 
 ## Limites
 
-Esta definicion local no demuestra el snapshot remoto ni autoriza ejecucion. No existe aun gate operacional aprobado; el hold DB ACL sera definido en PR-O y el T02 historico F10 no sera reactivado. Los runbooks siguen `PLANNED` e `INVENTORIED`; restore no es `RESTORE_PROVEN`, writers no estan `HELD` y las decisiones humanas separadas no fueron concedidas. Cualquier aplicacion futura requiere un gate nuevo y no puede reutilizar la autorizacion de esta remediacion.
+Esta definicion local no demuestra el snapshot remoto ni autoriza ejecucion. No existe aun gate operacional aprobado; el hold DB ACL actual quedo superseded para la ruta futura y el T02 historico F10 no sera reactivado. Los runbooks siguen `PLANNED` e `INVENTORIED`; restore no es `RESTORE_PROVEN`, writers no estan `HELD` y las decisiones humanas separadas no fueron concedidas. Cualquier aplicacion futura requiere un gate nuevo y no puede reutilizar la autorizacion de esta remediacion.
 
 ## Referencias
 
