@@ -35,7 +35,7 @@ La atestacion remota atribuyo las fuentes observadas y concluyo `package_source_
 
 El descriptor no ejecutable es `db/manifests/fase09_7_remediation_definition.json`. Conserva `capabilities=[]`, bloquea Free/Pro y no habilita la generacion ni aplicacion remota del package.
 
-[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) no modifica este antecedente: lo conserva como evidencia de la closure de acceso previa, pero exige que cualquier PR-O futuro ligue v3 + security hold terminal en ese orden. La closure sola ya no es suficiente para el perfil seguro de Hito 1 porque la captura publica queda fuera del perfil habilitado.
+[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) no modifica este antecedente: lo conserva como evidencia de la closure de acceso previa. Despues de PR-O v1, cualquier ruta futura debe ligar v3 + hold sucesor con executor privado en ese orden. La closure sola ya no es suficiente para el perfil seguro de Hito 1 porque la captura publica queda fuera del perfil habilitado.
 
 ## Allowlist Futura Congelada
 
@@ -54,7 +54,7 @@ Una fase posterior solo podra avanzar, bajo autorizacion nueva, por esta secuenc
 11. Ejecutar postcondiciones dentro de la transaccion antes del ledger.
 12. Ejecutar postcondiciones read-only independientes despues del commit.
 13. Mantener writers pausados hasta F9.10.
-14. Aplicar el security hold terminal posterior a v3 si la ruta contiene leads/email.
+14. Aplicar el hold sucesor posterior a v3 si la ruta contiene leads/email.
 
 Esta lista no contiene SQL, comandos, transporte, secretos ni capacidad remota. La atribucion read-only se implemento y consumio en un artifact separado; no concede capacidad reutilizable.
 

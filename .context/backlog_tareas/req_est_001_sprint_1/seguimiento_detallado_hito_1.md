@@ -136,7 +136,7 @@ No se incluyen artifacts privados, project refs, endpoints, PII, filas, credenti
 - H-00 es un P0 de privacidad separado; no agrega un CA.
 - H-00 cerro en F9.6 sin DML; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 conserva autorizacion separada.
 - Los artifacts PR #245/#247 son `HISTORICAL_NON_PROMOTABLE`.
-- El corte F9.7 deja v3 byte-identico como predecessor y agrega security hold terminal `LOCAL_CANDIDATE_BLOCKED`; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
+- El corte F9.7 deja v3 byte-identico como predecessor; el hold actual queda `SUPERSEDED_NON_PROMOTABLE` y la ruta futura exige PR-O sucesor con executor privado. [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
 - PR #248 fija el baseline de cierre F9.5 y definicion F9.6 usado por esta vista; no se modifica aqui.
 - Los hallazgos no contractuales se consultan en el [Backlog F9.5](./backlog_f9_5_known_findings.md).
 - El detalle de migrations/policies internas no se presenta como criterio cliente.

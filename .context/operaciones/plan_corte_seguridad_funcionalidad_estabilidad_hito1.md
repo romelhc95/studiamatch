@@ -20,7 +20,7 @@ Hito 1 conserva tres criterios, producto publico, harvester completo y ruta a pr
 
 ## Baseline Git Y Disposicion De Artifacts
 
-F6-F8 permanecen como baseline contractual. Los artifacts F9.5 permanecen `HISTORICAL_NON_PROMOTABLE`. El manifest v3 y sus seis migrations de PR #257 permanecen byte-identicos. V3 no se autoriza por si solo porque permite `INSERT` publico limitado en `leads`; solo podra usarse como dependencia previa del security hold terminal. La Edge Function tombstone en Git no demuestra deployment remoto.
+F6-F8 permanecen como baseline contractual. Los artifacts F9.5 permanecen `HISTORICAL_NON_PROMOTABLE`. El manifest v3 y sus seis migrations de PR #257 permanecen byte-identicos. V3 no se autoriza por si solo porque permite `INSERT` publico limitado en `leads`; solo podra usarse como dependencia previa de un hold sucesor. La Edge Function tombstone en Git no demuestra deployment remoto.
 
 ## Perimetro Funcional
 
@@ -48,17 +48,17 @@ Leads/email no son una estacion del Golden Pipeline. Su arquitectura completa qu
 
 La captura publica no puede reactivarse por flag, grant manual ni edicion de ledger. Cualquier reactivacion exige requerimiento aceptado y migration forward-only propia.
 
-## Package Terminal De Security Hold
+## Package Historico De Security Hold
 
-El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` es separado, forward-only, de una entrada, `application_authorized=false`, con Free/Pro bloqueados. El orden remoto futuro obligatorio es v3 exacto, security hold, verifier, ledger commit y revalidacion.
+El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` es separado, forward-only, de una entrada, `application_authorized=false`, con Free/Pro bloqueados y se conserva byte-identico. Para la ruta futura queda `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE`: no es hold terminal aplicable porque el estado final sucesor debe eliminar `public.exec_sql(text)` y exigir executor privado no expuesto por Data API.
 
-## PR-O Combinado V3 + Hold
+## PR-O Sucesor Con Executor Privado
 
-[PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) define localmente el contrato sucesor Free-only que liga v3 exacto y security hold terminal. Mantiene `application_authorized=false`, `capabilities=[]`, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, y cero capacidad remota ejecutable.
+[PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) define localmente el contrato sucesor Free-only. Mantiene `application_authorized=false`, `capabilities=[]`, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, cero capacidad remota ejecutable, approvals single-use y secuencia atomica `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`.
 
 ## Gate Futuro De Contencion Free
 
-Free requiere binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target y aprobacion humana independiente antes de aplicar v3 + hold.
+Free requiere implementacion y certificacion local del PR-O sucesor, binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target, estado Edge valido y aprobacion humana independiente antes de aplicar v3 + hold sucesor.
 
 ## Gate Futuro De Contencion Pro
 
@@ -70,7 +70,7 @@ F9.8/F9.9 permanecen limitadas a cursos legacy anteriores a cutoff aprobado, `is
 
 ## Ruta Restante A Produccion
 
-Merge humano del corte, replay local post-merge, definicion local de PR-O combinado v3 + hold, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, F9.10 certificacion Free, F10 Pro/main/observacion y F11 cierre final.
+Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion y certificacion local del sucesor, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, F9.10 certificacion Free, F10 Pro/main/observacion y F11 cierre final.
 
 ## Plan De Cierre Definitivo
 
@@ -94,7 +94,8 @@ No autoriza Supabase Free/Pro, Supabase MCP, DDL/DML remoto, deploy Edge/Cloudfl
 - [Cierre definitivo F9.7](./cierre_definitivo_f9_7.md)
 - [Certificacion Hito 1 F9](./certificacion_hito1_f9.md)
 - [Remediacion local del trigger F9.7](./remediacion_trigger_f9_7.md)
-- [Contrato PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md)
+- [Contrato PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md)
+- [Contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md)
 - [Backlog leads/email](../backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md)
 - [Arquitectura del pipeline](../arquitectura_pipeline.md)
 - [Estructura frontend](../estructura_frontend.md)

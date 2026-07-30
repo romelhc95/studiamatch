@@ -45,7 +45,7 @@ El estado actual permanece `closure_coverage=incomplete` y `catalog_comparison_p
 
 La atestacion ACL no autoriza aplicar el package. Los runbooks siguen `PLANNED`/`INVENTORIED`, las aprobaciones siguen sin concederse y la ventana operativa no existe.
 
-[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) conserva esta atestacion como historia read-only consumida. No atesta el security hold terminal, no prueba Free/Pro contenidos y no habilita una nueva lectura; PR-O posterior debera obtener evidencia propia para v3 + hold.
+[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) conserva esta atestacion como historia read-only consumida. No atesta el hold sucesor, no prueba Free/Pro contenidos y no habilita una nueva lectura; PR-O posterior debera obtener evidencia propia para v3 + hold sucesor.
 
 ## Operaciones Excluidas
 
@@ -57,7 +57,7 @@ La atestacion ACL no autoriza aplicar el package. Los runbooks siguen `PLANNED`/
 
 ## Siguiente Gate
 
-La autorizacion queda consumida y no es reutilizable. F9.7 permanece `IN_PROGRESS`; antes de cualquier aplicacion se requiere definir, autorizar y ejecutar separadamente evidencia para v3 + security hold, ademas de satisfacer restore `RESTORE_PROVEN`, writers `HELD` y decisiones humanas independientes.
+La autorizacion queda consumida y no es reutilizable. F9.7 permanece `IN_PROGRESS`; antes de cualquier aplicacion se requiere definir, autorizar y ejecutar separadamente evidencia para v3 + hold sucesor, ademas de satisfacer restore `RESTORE_PROVEN`, writers `HELD` y decisiones humanas independientes.
 
 ## Referencias
 
