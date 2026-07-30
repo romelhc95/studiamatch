@@ -448,6 +448,25 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - Auditor `pipeline-engineer`: `GO_WP` para preservacion.
 - Commit local `ci(f9.7): bind cutoff release gates`.
 
+### Evidencia Local WP-F9.7-04
+
+- Estado: `GO_WP_LOCAL`.
+- Tree tecnico validado antes de cierre documental: `eac02134877441a0e7ff6d5646b2a3a23579d98d`.
+- Candidate tree posterior a la excepcion EOL mecanica: `a9d8f93750d295b394584e6435ae98117494dfcc`; el tree final del commit se captura despues de esta evidencia documental.
+- Actionlint oficial: version `1.7.7`, asset `actionlint_1.7.7_linux_amd64.tar.gz`, SHA256 `023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757`; archive y binario usados solo bajo `/tmp`/`RUNNER_TEMP`.
+- R01 actionlint: PASS sobre 7 workflows `.yml`; no existen workflows `.yaml` tracked.
+- R02 EOL changed-only: PASS, con renames/copies y blobs del candidate. Excepcion mecanica autorizada: `git add --renormalize -- web/src/app/compare/CompareContent.tsx`; CRLF previo `237`, CRLF posterior `0`, `semantic_bytes_changed=false` porque `old_bytes.replace(b"\r\n", b"\n") == staged_bytes`; cero CR aislado, modo/path preservados, sin rename, sin formatter y sin renormalizacion global. No se reabrio WP-F9.7-03.
+- R03 whitespace ranged: PASS con `git diff --check BASELINE CANDIDATE`.
+- R04 protected closure: PASS, 21 pathspecs canonicos expanden a 32 archivos baseline y comparan blob/path/mode sin drift.
+- R05 candidate identity: PASS, modo local `index`, baseline `8ab1cdf9173b8093781e75ba32c2fea9ae931b14`, candidate tree explicito y stage estable.
+- R06 hooks: PASS, `.githooks/pre-commit` y `.githooks/pre-push` modo `100755`, scan Git-native fail-closed.
+- R07 credential scan: PASS, candidate tree/index sin findings y output redacted.
+- R08 firewall cleanup: PASS, helper unico `.github/scripts/fase09_7_firewall_guard.sh` modo `100755`, ownership y cleanup solo para `F97_FRONTEND_EGRESS`, `FASE097_EGRESS`, `FASE097_AUDIT_EGRESS`.
+- R09 aggregator: PASS, job requerido `security-audit` con `if: always()`, `release-gates` en `needs` y cero `continue-on-error`.
+- Tests locales Docker: `tests/test_fase09_7_release_gates.py` + `tests/test_fase09_7_pipeline_no_regression.py` = `44 passed`; subset credenciales WP-04 = `5 passed`; subset integrado schema/RLS = `3 passed`; Context Graph = `PASS (52 files, 507 links)`.
+- Backlog fuera de alcance registrado como [BK-F9.5-08](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-08---hardening-futuro-fuera-de-alcance-wp-f97-04), estado `DEFERRED_NO_IMPLEMENTATION`.
+- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; sin Supabase, Cloudflare, DDL/DML, pipeline, frontend runtime, push ni PR.
+
 ### Stop Conditions
 
 - Gate que pase vaciamente por comparar worktree limpio contra index.

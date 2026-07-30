@@ -1,25 +1,40 @@
 #!/bin/sh
-# pre-commit hook — Blocks commit if stage contains hardcoded credentials.
+# pre-commit hook - blocks commits when the staged index contains credentials.
 # Installation: git config core.hooksPath .githooks
 
-echo "🔍 [pre-commit] Scanning staged files for hardcoded credentials..."
+set -u
 
-staged=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
-[ -z "$staged" ] && echo "✅ [pre-commit] No files to check." && exit 0
+F97_CREDENTIAL_PATTERN="eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
 
-found=0
-for f in $staged; do
-    if git show ":${f}" 2>/dev/null | grep -qE \
-        "eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"; then
-        echo "⚠️  CREDENTIAL FOUND in staged file: $f"
-        found=1
-    fi
-done
+echo "[pre-commit] Scanning staged index for hardcoded credentials..."
 
-if [ "$found" -eq 1 ]; then
-    echo "❌ [pre-commit] SECURITY BLOCKED: Hardcoded credentials detected. Remove them and use env vars."
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "[pre-commit] SECURITY BLOCKED: unable to inspect Git index."
     exit 1
 fi
 
-echo "✅ [pre-commit] No credentials detected."
-exit 0
+if ! git ls-files --cached -z >/dev/null 2>&1; then
+    echo "[pre-commit] SECURITY BLOCKED: unable to enumerate staged index."
+    exit 1
+fi
+
+if [ -z "$(git ls-files --cached)" ]; then
+    echo "[pre-commit] No tracked index entries to scan."
+    exit 0
+fi
+
+git grep --cached -a -q -E "$F97_CREDENTIAL_PATTERN" -- .
+status=$?
+
+if [ "$status" -eq 0 ]; then
+    echo "[pre-commit] SECURITY BLOCKED: potential credential detected in staged index (content redacted)."
+    exit 1
+fi
+
+if [ "$status" -eq 1 ]; then
+    echo "[pre-commit] No credentials detected."
+    exit 0
+fi
+
+echo "[pre-commit] SECURITY BLOCKED: credential scan failed operationally."
+exit 1

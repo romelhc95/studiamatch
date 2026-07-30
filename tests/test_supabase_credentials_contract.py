@@ -32,6 +32,7 @@ SOURCE_PATTERNS = (
     "supabase/functions/**/*.ts",
     ".github/workflows/*.yml",
     ".github/workflows/*.yaml",
+    ".github/scripts/*.sh",
     ".githooks/*",
     "db/migrations/*.py",
     "*.py",
@@ -128,11 +129,14 @@ APPROVED_BEARERS = {
     },
 }
 
+APPROVED_BEARER_TEST_LITERALS = {
+    "tests/test_frontend_public_surfaces_playwright.py": {"blocked"},
+}
+
 DIRECT_SUPABASE_CONSUMERS = {
-    ".github/workflows/security-audit.yml": "supabase-ci",
     "tests/test_fase09_7_backend_identity.py": "supabase-data-api-test",
     "tests/test_fase09_7_schema_rls.py": "supabase-data-api-test",
-    "tests/test_frontend_lead_capture_playwright.py": "supabase-data-api-test",
+    "tests/test_frontend_public_surfaces_playwright.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
@@ -197,7 +201,6 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/harvesters/usil_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/utp_harvester.py": "supabase-data-api",
     "web/src/lib/supabase.ts": "supabase-data-api",
-    "web/src/lib/leadCaptureCore.ts": "supabase-data-api",
     "web/src/app/HomeContent.tsx": "supabase-data-api",
     "web/src/app/page.tsx": "supabase-data-api",
     "web/src/app/compare/CompareContent.tsx": "supabase-data-api",
@@ -810,6 +813,16 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
         observed_paths.add(relative)
         approval = APPROVED_BEARERS.get(relative)
         if approval is None:
+            approved_test_literals = APPROVED_BEARER_TEST_LITERALS.get(relative, set())
+            identities = {next(group for group in match.groupdict().values() if group) for match in matches}
+            contexts = [
+                source[max(0, match.start() - 240):match.end() + 240]
+                for match in matches
+            ]
+            if identities <= approved_test_literals and all(
+                "Authorization" in context for context in contexts
+            ):
+                continue
             findings.append(f"{relative}: path is not approved for Bearer auth")
             continue
         if not approval["provider"] or approval["provider_marker"] not in source:

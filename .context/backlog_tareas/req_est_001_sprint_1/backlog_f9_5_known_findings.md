@@ -15,6 +15,21 @@ Este backlog registra hallazgos del cierre documental F9.5 sin crear una subtare
 | `BK-F9.5-05` | [Arquitectura diferida de leads/email](backlog_seguridad_leads_email.md): email, rate limit, privacidad, outbox, provider, secretos, observabilidad y supply-chain hardening | Requiere evaluacion de seguridad, nuevo ciclo `INTAKE -> EST -> REQ -> TASK` y autorizacion separada. |
 | `BK-F9.5-06` | Limpieza fisica de artifacts historicos | Reservada exclusivamente para F11, con aprobacion explicita. |
 | `BK-F9.5-07` | [Exec SQL control-plane](backlog_exec_sql_control_plane.md): canal administrativo restringido `public.exec_sql(text)` | Residual aceptado para PR local; requiere sustitucion futura sin autorizar implementacion. |
+| `BK-F9.5-08` | Hardening futuro fuera de alcance WP-F9.7-04: cadenas firewall legacy distintas de las tres F9.7, medicion/optimizacion de tiempo CI, escaneo de commit messages, verificacion remota de branch protection y expansion general de patrones de credenciales | `DEFERRED_NO_IMPLEMENTATION`; no crea tarea, criterio, fecha ni compromiso. |
+
+## BK-F9.5-08 - Hardening Futuro Fuera De Alcance WP-F9.7-04
+
+Estado: `DEFERRED_NO_IMPLEMENTATION`.
+
+Riesgo: las superficies legacy y controles operativos externos pueden requerir endurecimiento futuro, pero no forman parte de los invariantes R01-R09 del release gate local F9.7.
+
+Mitigaciones actuales: WP-F9.7-04 deja fail-closed actionlint, EOL changed-only, whitespace ranged, protected closure por objetos Git, hooks pre-commit/pre-push, credential scan de candidate tree, helper firewall con ownership para `F97_FRONTEND_EGRESS`, `FASE097_EGRESS` y `FASE097_AUDIT_EGRESS`, y aggregator bloqueante `security-audit`.
+
+Por que no bloquea Hito 1: no hay ejecucion remota, no hay DDL/DML, no hay deploy, no hay cambio de branch protection remoto y las cadenas legacy distintas de esas tres no son recursos owned por WP-F9.7-04.
+
+Criterio de activacion futura: abrir evaluacion separada si se autoriza hardening general de firewall CI, reduccion de tiempo total de pipelines, scanning de commit metadata, verificacion remota de branch protection o ampliacion transversal de patrones de credenciales.
+
+Comunicacion al cliente: si se activa, comunicarlo como hardening posterior al corte local, no como defecto bloqueante del candidato Hito 1.
 
 ## Regla De Tratamiento
 
