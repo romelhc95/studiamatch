@@ -487,8 +487,8 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - CI de `d2cb32ea118a4b8461460f57973d02f9d3e39754` / tree `16081a60c0e90b4e7fc39e4223371f1c388b8ae3` produjo `NO_GO_CI_D2CB32E`; ese candidate queda `NO_GO_CI_D2CB32E_NOT_PROMOTABLE`.
 - Frontend Static Build CI de `d2cb32e=PASS`; las causas restantes son actionlint/ShellCheck parity y commit-mode Git read-only.
 - Dos findings `SC2086` legacy en `.github/workflows/db-sync-to-pro.yml` y `.github/workflows/production_pipeline.yml` quedan `RESIDUAL_ACCEPTED_PROTECTED_BASELINE`; no autorizan waivers amplios ni cambios a workflows legacy.
-- `CORR-WP-F9.7-04-02=IN_PROGRESS`; su salida local esperada es `READY_FOR_CI`, no `GO_FOR_HUMAN_REVIEW`.
-- Orden vinculante actualizado: `READY_FOR_CI` -> CI verde -> seis auditorias finales nuevas sobre el mismo commit/tree -> `GO_FOR_HUMAN_REVIEW`.
+- `CORR-WP-F9.7-04-02=COMPLETED_LOCAL_MERGED`: commit `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de` paso CI, seis auditorias finales y merge humano.
+- Orden ejecutado: `READY_FOR_CI` -> CI verde -> seis auditorias finales nuevas sobre el mismo commit/tree -> `GO_FOR_HUMAN_REVIEW` -> aprobacion humana -> merge PR #258 -> replay post-merge PASS.
 - Las auditorias anteriores quedan `INVALIDATED_STALE_ORACLE`; no se reutilizan aunque hayan sido GO sobre `b711e0b` o `120d234`.
 
 ### Stop Conditions
@@ -535,17 +535,17 @@ Materializar un unico tree acumulado, ejecutar toda la matriz contra sus bytes e
 
 ### Evidencia Local WP-F9.7-05
 
-- Estado anterior: `GO_WP_LOCAL`, ahora `INVALIDATED_BY_CI_PARITY_GAP`.
-- Motivo: los candidates `b711e0b`/`249295` y `120d234`/`bf68ed` no son promocionables tras CI; toda matriz acumulada debe repetirse sobre el proximo tree que aspire a cierre.
-- Candidate final capturado fuera de archivos versionados para evitar autorreferencia; el SHA se conserva en el recibo de ejecucion y futuro PR.
-- Diferencia contra el tree tecnico posterior a WP-F9.7-04 limitada a documentacion permitida; blobs tecnicos, tests, hooks, workflows, frontend y DB permanecen identicos.
-- Matriz Git/release: candidate identity, ancestry, actionlint, R01-R09, EOL changed-only, whitespace ranged, protected closure, hooks, credential scan, firewall helper, aggregator y Context Graph en PASS.
-- Matriz Python sin database: backend identity, Gate B readonly, remediation definition, schema/RLS, security hold, pipeline no-regression, release gates y credentials en PASS.
-- Matriz PostgreSQL 17: ACL source attestation con database, v3 y hold ejecutados en base efimera networkless con apply/replay/rollback en PASS y cleanup final.
-- Matriz frontend: una sola build con stub loopback, lint/typecheck/export/Playwright publico en PASS; warnings lint limitados a los historicos documentados.
-- Contratos historicos locales requeridos por `security-audit.yml`: F6, F7, F8, F9 pre-Free, F9.3, F9.5, F9.7 y F10 validate-only/local en PASS o cubiertos por la matriz deduplicada.
-- Warning permitido: una ocurrencia `PyPDF2 DeprecationWarning` desde dependencia externa, clasificada en [BK-F9.5-09](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-09---warning-pypdf2-externo) como `BACKLOG_OUT_OF_SCOPE`, no originada por codigo modificado y no bloqueante para Hito 1.
-- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; security hold permanece `LOCAL_CANDIDATE_BLOCKED`; sin push, PR, merge, Supabase, Cloudflare, DDL/DML, backup, writers, backfill ni deploy.
+- Estado: `COMPLETED_LOCAL_REPLAYED` para el corte local; F9.7 completo en Free sigue pendiente.
+- Candidates previos no promocionables: `b711e0b`/`249295`, `120d234`/`bf68ed` y `d2cb32e`/`16081a60`.
+- Candidate final PR: `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Merge humano: `e95eeaccc864477db587bbb13c827d0c17340d8d`, parents `8ab1cdf9173b8093781e75ba32c2fea9ae931b14` y `258ef3a98c7c1010efe58522bb1eca892e26390e`, tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Materializacion post-merge: checkout Linux limpio dentro de Docker sobre `e95eeac`; tree inicial y final `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Matriz Git/release post-merge: candidate identity, ancestry, actionlint `1.7.7`, ShellCheck `0.9.0`, EOL changed-only, whitespace ranged, protected closure, hooks, credential scan, firewall helper y Context Graph en PASS.
+- Matriz Python sin database post-merge: backend identity, Gate B readonly, remediation definition, schema/RLS, security hold, pipeline no-regression, release gates y credentials en PASS bajo UID/GID `65534`.
+- Matriz PostgreSQL 17 post-merge: v3 y hold ejecutados en PostgreSQL 17 efimero sin red mediante socket compartido, con apply/replay/rollback en PASS y cleanup final.
+- Matriz frontend post-merge: `npm ci`, lint, typecheck, build con stub loopback, export y Playwright publico en PASS con firewall local F9.7.
+- Python compile, Context Graph, actionlint, credential scan y protected closure PASS; evidencia de replay termina en `POST_MERGE_REPLAY PASS e95eeaccc864477db587bbb13c827d0c17340d8d 2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; security hold permanece `LOCAL_CANDIDATE_BLOCKED`; sin Supabase Free/Pro, Cloudflare manual, DDL/DML, backup, writers, backfill ni deploy.
 
 ### Stop Conditions
 
@@ -584,6 +584,16 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - Checks requeridos, incluido `security-audit`, en success.
 - Para `CORR-WP-F9.7-04-02`, CI verde antecede a las seis auditorias finales; solo despues puede emitirse `GO_FOR_HUMAN_REVIEW`.
 
+### Evidencia Final WP-F9.7-06
+
+- Estado: `COMPLETED_LOCAL_MERGED`.
+- Evidencia final sanitizada: [issuecomment-5133103661](https://github.com/romelhc95/studiamatch/pull/258#issuecomment-5133103661).
+- CI requerida: `security-audit=pass`; checks del PR en success y Supabase Preview skipped esperado.
+- Seis verdicts individuales finales: `security-auditor=GO_FOR_LOCAL_PR`, `supabase-architect=GO_FOR_LOCAL_PR`, `frontend-architect=GO_FOR_LOCAL_PR`, `pipeline-engineer=GO_FOR_LOCAL_PR`, `qa-test-engineer=GO_FOR_LOCAL_PR`, `devops-release-manager=GO_FOR_LOCAL_PR`.
+- `BLOCKING_IN_SCOPE=0`; residuales aceptados: `public.exec_sql(text)` control-plane local, autoridad administrativa `postgres`/superuser, Free/Pro `UNCHANGED_NOT_ATTESTED`, dos `SC2086` legacy de baseline protegido y warnings externos no mapeados a invariantes.
+- Aprobacion humana: `romelhc95-approver`, review `APPROVED` sobre `258ef3a98c7c1010efe58522bb1eca892e26390e`.
+- Merge humano: PR #258 cerrado como merged por `romelhc95-approver` en `e95eeaccc864477db587bbb13c827d0c17340d8d`, sin merge automatico por agente.
+
 ### Prohibiciones
 
 - No merge automatico.
@@ -619,8 +629,8 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 
 ## Ruta Posterior Al PR Local
 
-1. Merge humano del corte.
-2. Replay post-merge en checkout Linux limpio.
+1. Merge humano del corte: completado en PR #258 (`e95eeaccc864477db587bbb13c827d0c17340d8d`).
+2. Replay post-merge en checkout Linux limpio: PASS sobre tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
 3. Definicion de PR-O combinado v3 + hold.
 4. Gate separado de binding, snapshot, restore y writers Free.
 5. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
