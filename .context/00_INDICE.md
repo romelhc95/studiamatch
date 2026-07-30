@@ -21,6 +21,8 @@
 - [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
 - [Certificacion Hito 1 - macrofase F9](operaciones/certificacion_hito1_f9.md)
 - [Plan simplificado de Hito 1 - vigente](operaciones/plan_simplificado_hito1.md)
+- [Plan de corte seguridad/funcionalidad/estabilidad Hito 1](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
+- [Cierre definitivo F9.7 por work packages](operaciones/cierre_definitivo_f9_7.md)
 - [Preservacion y retiro del plan temporal F9.4](operaciones/preservacion_plan_temporal_f9_4.md)
 - [Evidencia historica F9.1 - package FASE-09](operaciones/precertificacion_hito1_f9.md)
 - [Evidencia historica F9.2 - package FASE-10](operaciones/promocion_hito1_f10.md)
@@ -41,6 +43,7 @@
 - [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [Seguimiento detallado de Hito 1](backlog_tareas/req_est_001_sprint_1/seguimiento_detallado_hito_1.md)
 - [Backlog diferido F9.5](backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md)
+- [Backlog diferido leads/email](backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md)
 - [INTAKE-002 pendiente de estimacion](backlog_tareas/intake/INTAKE-002.md)
 - [Plantilla de tarea](backlog_tareas/_plantilla_tarea.md)
 
@@ -51,12 +54,15 @@
 - [ADR-0002](decisiones/ADR-0002_ciclo_requerimientos_privados.md)
 - [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md)
 - [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md)
+- [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
 - [Changelog 2026-07-26](changelog/2026-07-26.md)
 - [Changelog 2026-07-27](changelog/2026-07-27.md)
 - [Changelog 2026-07-28](changelog/2026-07-28.md)
+- [Changelog 2026-07-29](changelog/2026-07-29.md)
+- [Changelog 2026-07-30](changelog/2026-07-30.md)
 - [Plantilla de changelog](changelog/_plantilla_changelog.md)
 
 ## Matriz De Autoridad
@@ -69,7 +75,7 @@
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
 | Estado de tareas | [Nota canonica TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | La tarea es la unica autoridad de su avance y criterios. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
-| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0004 sustituye la identidad F9.4/F9.5; aliases historicos no autorizan trabajo nuevo. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md), [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0004 sustituye la identidad F9.4/F9.5; ADR-0005 fija el corte leads/email local; aliases historicos no autorizan trabajo nuevo. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | [Changelog no autoritativo](changelog/2026-07-24.md) | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |

@@ -2,7 +2,7 @@
 
 ## Resultado
 
-`v3_local_pr_ready`.
+`v3_local_predecessor_preserved`.
 
 El draft de atestacion remota de predicates/trigger no fue confirmado ni ejecutado y fue reemplazado por una remediacion local forward-only v3. PR-R reconstruye historicamente offline las variantes revisadas, incorpora el mismatch sanitizado ya conocido y no afirma ningun diagnostico remoto nuevo. No hubo lectura Free/Pro, transporte, DDL/DML remoto, migration remota, backup/restore, control de writers, aplicacion del package, backfill, F9.8, certificacion ni produccion.
 
@@ -15,7 +15,7 @@ El draft de atestacion remota de predicates/trigger no fue confirmado ni ejecuta
 - Sexta migration SHA-256 LF: `f1fd6e618bd16ff4216f46587ce897756e465ada92ee9bc398335cd9239fe188`.
 - Boundaries aceptados: `0`, `3`, `4`, `5` y `6`.
 - Targets declarados pero bloqueados: Free y Pro.
-- Estado operativo: `application_authorized=false`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_BLOCKED`.
+- Estado operativo historico PR-R: `application_authorized=false`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro bloqueados. El corte posterior se registra en [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 
 El manifest historico `F9.7-PUBLIC-ACCESS-CLOSURE-20260727`, v2 y la evidencia Gate B/ACL permanecen intactos. V2 es antecedente historico no promocionable; v3 es el unico candidate local. Las cinco migrations previas conservan sus digests LF:
 
@@ -54,7 +54,7 @@ F9.7 v3 tiene un unico camino local PR-ready: `scripts/maintenance/fase09_7_cand
 
 `supabase/functions/send-lead-emails/index.ts` queda tombstoneado en Git: responde `410`, no lee payloads, no deriva secretos, no invoca Resend, no construye `Authorization: Bearer`, no ejecuta `fetch()` y no procesa PII. La sexta migration retira la ruta DB `net.http_post`/`to_jsonb(NEW)` al eliminar el trigger y la funcion revisados. El runbook counts-only de drenaje pg_net queda documentado en [Pg Net queue drain F9.7](./pg_net_queue_drain_f9_7.md), sin ejecucion remota.
 
-El frontend conserva captura fail-closed por build: `leadCaptureCore.ts` limita columnas y estado `enabled|disabled|unset`, `leadCapture.ts` usa `apikey` publishable sin bearer, y los exports `disabled/unset` no renderizan controles PII en HTML. Esto no reemplaza RLS/ACL ni autoriza PostgREST directo; solo reduce UX/egress residual mientras F9.7 sigue bloqueada.
+Esta nota conserva la identidad tecnica v3. [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) modifica el camino futuro: el frontend soportado ya no conserva captura fail-closed por build, sino eliminacion local de la captura publica; v3 queda como predecessor byte-identico pero insuficiente por permitir `INSERT` publico limitado. El security hold terminal posterior se define en [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 
 ## PostgreSQL 17
 

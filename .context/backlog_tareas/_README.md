@@ -13,7 +13,7 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 | Subfase | `FNN.n` | Identificar una unidad ejecutable con alcance, allowlist, gates y autorizacion exactos. | Nota operativa enlazada desde [Estado](../estado_del_proyecto.md) |
 | Alias historico | `FASE-NN` | Preservar identidad de artifacts/PR cerrados sin determinar la macrofase vigente. | Nota de evidencia correspondiente |
 | Tarea | `TASK-H1-001` | Ejecutar y mantener el estado del paquete principal de Hito 1. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md) |
-| Backlog diferido | `BK-F9.5-*` | Registrar hallazgos sin implementar, autorizar ni crear subtareas. | [Hallazgos F9.5](./req_est_001_sprint_1/backlog_f9_5_known_findings.md) |
+| Backlog diferido | `BK-F9.5-*` | Registrar hallazgos sin implementar, autorizar ni crear subtareas. | [Hallazgos F9.5](./req_est_001_sprint_1/backlog_f9_5_known_findings.md), [BK-F9.5-05](./req_est_001_sprint_1/backlog_seguridad_leads_email.md) |
 | Criterio | `H1-CA1` | Trazar la orquestacion aceptada dentro de `HITO-001`. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md#criterios-y-entregables) |
 | Criterio parcial | `H1-CA2P` | Trazar el schema y seguridad base aceptados. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md#criterios-y-entregables) |
 | Criterio preparatorio | `H1-CA7P` | Trazar el contrato documental aceptado. | [TASK-H1-001](./req_est_001_sprint_1/tarea_001_hito_1.md#criterios-y-entregables) |

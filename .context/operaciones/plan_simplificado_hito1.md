@@ -33,6 +33,7 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 - H-00: P0 Free-only separado, obligatorio antes de `FREE_CERTIFIED` pero no criterio contractual. [F9.6](./cierre_h00_f9_6.md) verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
+- Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
 - Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.
 
@@ -55,7 +56,7 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
 | `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
-| `F9.7` | Schema/RLS Free | Package sucesor local PR-ready de seis entradas retira el trigger inseguro y tombstonea egress residual; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free y corte local leads/email | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cierran el candidate local; v3 byte-identico retira trigger; hold objetivo niega todos los roles de aplicacion; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
@@ -90,7 +91,7 @@ Los archivos F9.5 ya creados se conservan como historia tecnica, pero no gobiern
 2. Conservar F9.5 y sus artifacts como historia `HISTORICAL_NON_PROMOTABLE`, sin repetir la lectura Free ni crear un package sucesor.
 3. Conservar `T01_CONDITIONAL_ACCEPTED` como antecedente documental de F9.6; no habilita schema ni nuevas operaciones.
 4. Registrar F9.6 `H00_ALREADY_REMEDIATED_NO_DML`: PII directa remediada en la cohorte pseudonimizada, Gate B DELETE sustituido, cero DML y Pro sin acceso.
-5. En F9.7, resolver bajo autorizacion propia resguardo/restore, pausa de writers, identidad backend, lecturas publicas, columnas de `leads` y comportamiento semantico RLS antes de aplicar schema/T02.
+5. En F9.7, cerrar primero [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md); despues, bajo autorizacion propia, resolver resguardo/restore, pausa de writers, acceso cero de roles de aplicacion a `leads`/`email_log` y comportamiento semantico RLS antes de aplicar schema/T02.
 6. Aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible.
 7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente.
 8. Promover `desarrollo -> certificacion` solo con Free certificada.
@@ -135,7 +136,7 @@ No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-0
 
 La autorizacion fue recibida y consumida por [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
 
-La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. La [atestacion ACL posterior](./atestacion_origen_acl_f9_7.md) observo unicamente fuentes reparables por el package; el mismatch de closure y el trigger mantienen fail-closed, mientras predicates no atestados bloquean aplicacion independientemente. No autoriza repetir lecturas ni aplicar schema.
+La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. La [atestacion ACL posterior](./atestacion_origen_acl_f9_7.md) observo unicamente fuentes reparables por el package; el mismatch de closure y el trigger mantienen fail-closed, mientras predicates no atestados bloquean aplicacion independientemente. [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local y no autoriza repetir lecturas ni aplicar schema.
 
 ## Referencias
 

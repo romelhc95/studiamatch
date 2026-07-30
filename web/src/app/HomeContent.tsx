@@ -4,11 +4,11 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, ChevronDown, X, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
+import { Search, TrendingUp, ChevronDown, GraduationCap, CheckCircle2, ArrowRight, Building2, Globe, LayoutGrid, ArrowUpDown, ArrowDownWideNarrow, ArrowUpNarrowWide, RotateCcw, Sparkles, Zap, Clock, Verified } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, parseDurationToMonths, type Course, type Institution } from "@/lib/supabase";
-import { LEAD_CAPTURE_ENABLED, LEAD_CAPTURE_MAINTENANCE_COPY, LEAD_CAPTURE_MAINTENANCE_TITLE, submitLead } from "@/lib/leadCapture";
+import { readCompareItems, sanitizeCompareItems, writeCompareItems, type CompareStorageItem } from "@/lib/compareStorage";
 
 const ALLOWED_SORTS = new Set(['price', 'roi', 'recent', 'asc', 'desc']);
 
@@ -21,9 +21,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || "");
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || "");
   const [loading, setLoading] = useState(initialCourses.length === 0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCourseForInfo, setSelectedCourseForInfo] = useState<Course | null>(null);
-  const [modalType, setModalType] = useState<'recommendation' | 'info'>('recommendation');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const [activeFilters, setActiveFilters] = useState({
@@ -44,6 +41,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const [priceRange, setPriceRange] = useState<string | null>(searchParams.get('priceRange') || null);
   const [showGoals, setShowGoals] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const shouldFocusMoreFiltersRef = useRef(false);
+  const moreFiltersButtonRef = useRef<HTMLButtonElement | null>(null);
+  const firstMoreFilterRef = useRef<HTMLButtonElement | null>(null);
   const careerGoals = [
     { id: 'tech', label: 'Cambiar a Tech', icon: Zap, desc: 'Cursos Junior para empezar en tecnología' },
     { id: 'update', label: 'Actualizarme', icon: Sparkles, desc: 'Cursos cortos y flexibles' },
@@ -232,103 +232,55 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12;
-  const [compareList, setCompareList] = useState<Course[]>([]);
+  const [compareList, setCompareList] = useState<CompareStorageItem[]>([]);
   const [isCompareInitialized, setIsCompareInitialized] = useState(false);
 
   useEffect(() => {
-    const savedCompare = localStorage.getItem('StudIAMatch_compare_list');
-    if (savedCompare) {
-      try {
-        const parsed = JSON.parse(savedCompare);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(parsed)) setCompareList(parsed);
-      } catch (e) {
-        console.error("Error parsing saved comparison list", e);
-      }
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCompareList(readCompareItems());
     setIsCompareInitialized(true);
   }, []);
 
   useEffect(() => {
     if (isCompareInitialized) {
-      localStorage.setItem('StudIAMatch_compare_list', JSON.stringify(compareList));
+      writeCompareItems(compareList);
     }
   }, [compareList, isCompareInitialized]);
 
   const toggleCompare = (course: Course) => {
     setCompareList(prev => {
-      if (prev.find(c => c.id === course.id)) return prev.filter(c => c.id !== course.id);
-      if (prev.length >= 3) return prev;
-      return [...prev, course];
+      const current = sanitizeCompareItems(prev);
+      const candidate = sanitizeCompareItems([{ id: course.id, name: course.name }])[0];
+      if (!candidate) return current;
+      if (current.find(c => c.id === candidate.id)) return current.filter(c => c.id !== candidate.id);
+      if (current.length >= 3) return current;
+      return sanitizeCompareItems([...current, candidate]);
     });
   };
 
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [invalidField, setInvalidField] = useState<"first_name" | "email" | "whatsapp" | null>(null);
+  useEffect(() => {
+    if (!showMoreFilters || !shouldFocusMoreFiltersRef.current) return;
+    shouldFocusMoreFiltersRef.current = false;
+    firstMoreFilterRef.current?.focus();
+  }, [showMoreFilters]);
+
+  const toggleMoreFilters = (byKeyboard = false) => {
+    setShowMoreFilters((current) => {
+      const next = !current;
+      if (!next) setActiveDropdown(null);
+      shouldFocusMoreFiltersRef.current = next && byKeyboard;
+      return next;
+    });
+  };
+
+  const closeMoreFilters = () => {
+    setShowMoreFilters(false);
+    setActiveDropdown(null);
+    shouldFocusMoreFiltersRef.current = false;
+    moreFiltersButtonRef.current?.focus();
+  };
+
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const modalTriggerRef = useRef<HTMLElement | null>(null);
-  const successMessageRef = useRef<HTMLDivElement>(null);
-  const errorMessageRef = useRef<HTMLDivElement>(null);
-  const homeLeadErrorId = "home-lead-error";
-
-  const focusLeadField = (id: string) => {
-    requestAnimationFrame(() => document.getElementById(id)?.focus());
-  };
-
-  const closeLeadModal = useCallback(() => {
-    setIsModalOpen(false);
-    modalTriggerRef.current?.focus();
-  }, []);
-
-  const openLeadModal = (type: 'recommendation' | 'info', course: Course | null = null) => {
-    modalTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setModalType(type);
-    setSelectedCourseForInfo(course);
-    setIsModalOpen(true);
-  };
-
-  useEffect(() => {
-    if (!isModalOpen) return;
-    closeButtonRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeLeadModal();
-        return;
-      }
-      if (event.key !== 'Tab' || !modalRef.current) return;
-      const focusable = Array.from(
-        modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-      ).filter((element) => !element.hasAttribute('disabled'));
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [closeLeadModal, isModalOpen]);
-
-  useEffect(() => {
-    if (isSuccess) successMessageRef.current?.focus();
-  }, [isSuccess]);
-
-  useEffect(() => {
-    if (formError && !invalidField) errorMessageRef.current?.focus();
-  }, [formError, invalidField]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -402,56 +354,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
-
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    setInvalidField(null);
-    if (!LEAD_CAPTURE_ENABLED) {
-      setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) { setInvalidField("email"); setFormError("Por favor, ingresa un email válido."); focusLeadField("home-lead-email"); return; }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) { setInvalidField("whatsapp"); setFormError("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); focusLeadField("home-lead-whatsapp"); return; }
-    if (!formData.first_name.trim()) { setInvalidField("first_name"); setFormError("Por favor, ingresa tu nombre."); focusLeadField("home-lead-first-name"); return; }
-    setIsSubmitting(true);
-    try {
-      const leadData = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        whatsapp: formData.whatsapp,
-        source_page: 'home',
-        type: modalType,
-        course_id: selectedCourseForInfo?.id || null,
-        area_interest: formData.area_interest || (modalType === 'info' ? selectedCourseForInfo?.category : ""),
-        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
-        modality: formData.modality,
-        description: formData.description
-      };
-
-      const result = await submitLead(leadData);
-
-      if (result.status === 'submitted') {
-        setIsSuccess(true);
-        setTimeout(() => {
-          closeLeadModal();
-          setIsSuccess(false);
-          setFormData({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
-        }, 2500);
-      } else if (result.status === 'disabled') {
-        setFormError(LEAD_CAPTURE_MAINTENANCE_TITLE);
-      } else {
-        setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
-      }
-    } catch (error) {
-      console.error("Error submitting lead:", error);
-      setFormError("No pudimos registrar la solicitud. Inténtalo nuevamente.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const filteredCourses = useMemo(() => {
     let result = [...allCourses];
@@ -573,11 +475,11 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0 bg-brand-slate" />
           <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-          <div className="absolute bottom-0 left-1/4 w-64 h-64 md:w-96 md:h-96 bg-brand-blue/20 rounded-full blur-[100px]" />
-          <div className="absolute top-0 right-1/4 w-48 h-48 bg-brand-mint/10 rounded-full blur-[80px]" />
+          <div className="absolute bottom-0 left-1/4 hidden h-64 w-64 rounded-full bg-brand-blue/20 blur-[100px] sm:block md:h-96 md:w-96" />
+          <div className="absolute top-0 right-1/4 hidden h-48 w-48 rounded-full bg-brand-mint/10 blur-[80px] sm:block" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-6 pt-8 pb-10 md:pt-14 md:pb-14">
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-8 pb-10 md:pt-14 md:pb-14">
           <div className="max-w-2xl mb-5 space-y-3 md:space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 border border-white/[0.08]">
               <div className="h-1.5 w-1.5 rounded-full bg-brand-mint" />
@@ -600,25 +502,41 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
           <div id="hero-search" className="max-w-4xl scroll-mt-32">
             <div className="flex flex-col md:flex-row shadow-2xl rounded-2xl bg-white p-2 gap-2 focus-within:ring-4 focus-within:ring-brand-blue/20 transition-all border border-white/10 group">
               <div className="relative flex-1">
+                <label htmlFor="home-search" className="absolute left-12 top-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Búsqueda
+                </label>
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-slate-300 group-focus-within:text-brand-blue transition-colors" />
                 </div>
                   <Input
+                    id="home-search"
                     placeholder="¿Qué quieres estudiar hoy?"
-                    className="pl-12 h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
+                    className="pl-12 h-14 pt-5 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 rounded-xl"
                     value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
+                    onFocus={() => {
+                      setActiveDropdown(null);
+                      setShowMoreFilters(false);
+                    }}
+                    onChange={(e) => {
+                      setActiveDropdown(null);
+                      setShowMoreFilters(false);
+                      setSearchInput(e.target.value);
+                    }}
                   />
               </div>
 
               <div className="h-10 w-px bg-slate-100 self-center hidden md:block" />
 
               <div className="relative flex-shrink-0 flex items-center w-full md:w-[200px] md:min-w-[200px]">
+                <label htmlFor="home-price-max" className="absolute left-6 top-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Precio máximo
+                </label>
                 <Input
+                  id="home-price-max"
                   type="text"
                   inputMode="numeric"
                   placeholder="Precio Máx"
-                  className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 w-full rounded-xl"
+                  className="h-14 bg-transparent border-0 text-brand-slate font-medium text-base placeholder:text-slate-400 focus-visible:ring-0 pl-6 pr-4 pt-5 w-full rounded-xl"
                   value={activeFilters.priceMax}
                   onKeyDown={(e) => {
                     if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault();
@@ -637,6 +555,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     sortOrder ? "text-brand-blue bg-brand-blue/5" : "text-slate-300 hover:text-slate-500"
                   )}
                   title={sortOrder === 'asc' ? "Precio: Menor a Mayor" : (sortOrder === 'desc' ? "Precio: Mayor a Menor" : "Ordenar por precio")}
+                  aria-label={sortOrder === 'asc' ? "Precio: Menor a Mayor" : (sortOrder === 'desc' ? "Precio: Mayor a Menor" : "Ordenar por precio")}
                 >
                   {sortOrder === 'asc' ? <ArrowUpNarrowWide className="h-4 w-4" /> : 
                    sortOrder === 'desc' ? <ArrowDownWideNarrow className="h-4 w-4" /> : 
@@ -644,12 +563,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </button>
               </div>
 
-              <Button
-                onClick={() => document.getElementById('programas')?.scrollIntoView({ behavior: 'smooth' })}
-                className="w-full md:w-auto bg-brand-blue hover:bg-brand-blue/90 text-white font-bold rounded-xl px-10 h-14 text-sm transition-all hover:shadow-lg active:scale-[0.98]"
+              <a
+                href="#programas"
+                className="inline-flex w-full md:w-auto items-center justify-center bg-brand-blue hover:bg-brand-blue/90 text-white font-bold rounded-xl px-10 h-14 text-sm transition-all hover:shadow-lg active:scale-[0.98]"
               >
                 Explorar
-              </Button>
+              </a>
             </div>
           </div>
 
@@ -664,7 +583,17 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               ].map((filter) => (
                 <div key={filter.id} className="relative">
                   <button
+                    id={`home-filter-${filter.id}-button`}
+                    type="button"
+                    aria-expanded={activeDropdown === filter.id}
+                    aria-controls={`home-filter-${filter.id}-menu`}
                     onClick={() => setActiveDropdown(activeDropdown === filter.id ? null : filter.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape' && activeDropdown === filter.id) {
+                        event.preventDefault();
+                        setActiveDropdown(null);
+                      }
+                    }}
                     className={cn(
                       "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all border",
                       activeDropdown === filter.id || (filter.current !== "Todos" && filter.current !== "Todas" && filter.current !== "")
@@ -682,17 +611,30 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm md:hidden" onClick={() => setActiveDropdown(null)} />
                       <div className="fixed inset-0 z-40 hidden md:block" onClick={() => setActiveDropdown(null)} />
                       
-                      <div className={cn(
-                        "absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left",
+                      <div
+                        id={`home-filter-${filter.id}-menu`}
+                        aria-labelledby={`home-filter-${filter.id}-button`}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            event.preventDefault();
+                            setActiveDropdown(null);
+                            window.setTimeout(() => document.getElementById(`home-filter-${filter.id}-button`)?.focus(), 0);
+                          }
+                        }}
+                        className={cn(
+                        "absolute top-full left-0 mt-2 w-[calc(100vw-2rem)] max-w-64 bg-white rounded-xl shadow-elevated border border-slate-100 z-[70] overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left md:w-64",
                         "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:absolute md:top-full md:left-0 md:translate-x-0 md:translate-y-0"
                       )}>
                         <div className="p-1.5 max-h-72 overflow-y-auto custom-scrollbar">
                           {filter.options.map((opt) => (
                             <button
                               key={opt}
+                              type="button"
+                              aria-pressed={filter.current === opt}
                               onClick={() => {
                                 filter.setter(opt === "Cualquier precio" ? "" : opt);
                                 setActiveDropdown(null);
+                                window.setTimeout(() => document.getElementById(`home-filter-${filter.id}-button`)?.focus(), 0);
                               }}
                               className={cn(
                                 "w-full text-left px-3 py-2 rounded-lg text-[13px] transition-all flex items-center justify-between",
@@ -722,7 +664,18 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               {/* Más filtros collapsible */}
               <div className="relative">
                 <button
-                  onClick={() => setShowMoreFilters(!showMoreFilters)}
+                  id="home-more-filters-button"
+                  ref={moreFiltersButtonRef}
+                  type="button"
+                  aria-expanded={showMoreFilters}
+                  aria-controls="home-more-filters-panel"
+                  onClick={() => toggleMoreFilters(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleMoreFilters(true);
+                    }
+                  }}
                   className={cn(
                     "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all border",
                     showMoreFilters
@@ -735,7 +688,24 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </button>
 
                 {showMoreFilters && (
-                  <div className="fixed inset-x-4 top-1/2 z-[70] mt-0 w-auto max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] -translate-y-1/2 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-100 bg-white shadow-elevated animate-in fade-in zoom-in-95 duration-100 origin-center md:absolute md:inset-x-auto md:top-full md:left-0 md:mt-2 md:w-[320px] md:max-h-none md:translate-y-0 md:overflow-visible md:origin-top-left">
+                  <div
+                    id="home-more-filters-panel"
+                    role="region"
+                    aria-labelledby="home-more-filters-button"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        if (activeDropdown) {
+                          const triggerId = `home-filter-${activeDropdown}-button`;
+                          setActiveDropdown(null);
+                          window.setTimeout(() => document.getElementById(triggerId)?.focus(), 0);
+                        } else {
+                          closeMoreFilters();
+                        }
+                      }
+                    }}
+                    className="fixed inset-x-4 top-1/2 z-[70] mt-0 w-auto max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] -translate-y-1/2 overflow-y-auto rounded-xl border border-slate-100 bg-white shadow-elevated animate-in fade-in zoom-in-95 duration-100 origin-center md:absolute md:inset-x-auto md:top-full md:left-0 md:mt-2 md:w-[320px] md:max-h-none md:translate-y-0 md:overflow-visible md:origin-top-left"
+                  >
                     <div className="p-3 space-y-3">
                       <div className="flex flex-wrap gap-2">
                         {[
@@ -743,7 +713,19 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                         ].map((filter) => (
                           <div key={filter.id} className="relative">
                             <button
+                              id={`home-filter-${filter.id}-button`}
+                              type="button"
+                              aria-expanded={activeDropdown === filter.id}
+                              aria-controls={`home-filter-${filter.id}-menu`}
+                              ref={filter.id === 'tipo' ? firstMoreFilterRef : undefined}
+                              data-more-filter-first={filter.id === 'tipo' ? 'true' : undefined}
                               onClick={() => setActiveDropdown(activeDropdown === filter.id ? null : filter.id)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Escape' && activeDropdown === filter.id) {
+                                  event.preventDefault();
+                                  setActiveDropdown(null);
+                                }
+                              }}
                               className={cn(
                                 "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all border",
                                 filter.current !== "Todos" && filter.current !== "Todas"
@@ -757,12 +739,29 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                             </button>
 
                             {activeDropdown === filter.id && (
-                              <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-elevated border border-slate-100 z-[70] overflow-hidden">
+                              <div
+                                id={`home-filter-${filter.id}-menu`}
+                                aria-labelledby={`home-filter-${filter.id}-button`}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    setActiveDropdown(null);
+                                    window.setTimeout(() => document.getElementById(`home-filter-${filter.id}-button`)?.focus(), 0);
+                                  }
+                                }}
+                                className="absolute top-full left-0 mt-1 w-[calc(100vw-3rem)] max-w-56 bg-white rounded-lg shadow-elevated border border-slate-100 z-[70] overflow-hidden md:w-56"
+                              >
                                 <div className="p-1 max-h-56 overflow-y-auto custom-scrollbar">
                                   {filter.options.map((opt) => (
                                     <button
                                       key={opt}
-                                      onClick={() => { filter.setter(opt === "Cualquier precio" ? "" : opt); setActiveDropdown(null); }}
+                                      type="button"
+                                      aria-pressed={filter.current === opt}
+                                      onClick={() => {
+                                        filter.setter(opt === "Cualquier precio" ? "" : opt);
+                                        setActiveDropdown(null);
+                                        window.setTimeout(() => document.getElementById(`home-filter-${filter.id}-button`)?.focus(), 0);
+                                      }}
                                       className={cn(
                                         "w-full text-left px-3 py-2 rounded-lg text-[12px] transition-all flex items-center justify-between",
                                         filter.current === opt ? "bg-brand-blue text-white font-semibold" : "hover:bg-slate-50 text-slate-600"
@@ -853,6 +852,9 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
             {/* Carrera goals + Quick sort row */}
             <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
+                aria-expanded={showGoals}
+                aria-controls="home-career-goals"
                 onClick={() => setShowGoals(!showGoals)}
                 className={cn(
                   "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border",
@@ -867,10 +869,12 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
               </button>
 
               {showGoals && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div id="home-career-goals" role="region" className="flex flex-wrap items-center gap-1.5">
                   {careerGoals.map((goal) => (
                     <button
                       key={goal.id}
+                      type="button"
+                      aria-pressed={careerGoal === goal.id}
                       onClick={() => { setCareerGoal(careerGoal === goal.id ? null : goal.id); setShowGoals(false); }}
                       className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border whitespace-nowrap",
@@ -922,13 +926,13 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       </section>
 
       {/* Catalog */}
-      <div id="programas" className="mx-auto max-w-6xl px-6 py-8 md:py-12 scroll-mt-16">
+      <div id="programas" className="mx-auto max-w-6xl px-4 sm:px-6 py-8 md:py-12 scroll-mt-16">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-brand-slate">Catálogo de Programas</h2>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
               <p className="text-[13px] text-slate-400 font-medium">{filteredCourses.length} resultados encontrados</p>
-              <span className="text-slate-300 mx-0.5">·</span>
+              <span className="text-slate-300">·</span>
               <p className="text-[13px] text-slate-400 font-medium tabular-nums">
                 <span className="text-brand-blue font-semibold">{allCourses.length || 0}</span> programas | <span className="text-brand-mint font-semibold">{Object.keys(stats.institutions).length}</span> instituciones
               </p>
@@ -995,28 +999,48 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                     course.certification ? { icon: '🏆', label: 'Certificación', color: 'bg-amber-50 text-amber-700' } : null,
                     priceRangeBadge ? { label: priceRangeBadge.label, color: 'bg-slate-50 text-slate-600' } : null,
                   ].filter(canShowBadges).slice(0, 3);
+                  const isSelectedForCompare = Boolean(compareList.find(c => c.id === course.id));
+                  const isCompareLimitReached = compareList.length >= 3 && !isSelectedForCompare;
+                  const compareActionLabel = isSelectedForCompare
+                    ? `Quitar ${course.name} de la comparativa`
+                    : isCompareLimitReached
+                    ? 'Límite de 3 programas alcanzado'
+                    : `Agregar ${course.name} a la comparativa`;
                   return (
                   <article key={course.id} className="group relative flex flex-col bg-white rounded-xl border border-slate-100 hover:border-slate-200 transition-all duration-200 hover:shadow-card overflow-hidden">
-                    <div
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleCompare(course); }}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const button = e.currentTarget;
+                        toggleCompare(course);
+                        button.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' });
+                        window.setTimeout(() => button.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' }), 0);
+                      }}
+                      aria-label={compareActionLabel}
+                      aria-pressed={isSelectedForCompare}
+                      disabled={isCompareLimitReached}
                       className={cn(
-                        "absolute top-3 right-3 z-10 flex h-5 w-5 items-center justify-center rounded border transition-all duration-200 cursor-pointer",
-                        compareList.find(c => c.id === course.id)
+                        "absolute top-3 right-3 z-10 flex h-6 w-6 scroll-mb-24 items-center justify-center rounded border transition-all duration-200 cursor-pointer",
+                        isSelectedForCompare
                           ? "bg-brand-blue border-brand-blue text-white"
-                          : compareList.length >= 3
+                        : isCompareLimitReached
                           ? "bg-white border-slate-200 opacity-40 cursor-not-allowed"
                           : "bg-white border-slate-300 hover:border-brand-blue"
                       )}
-                      title={compareList.length >= 3 && !compareList.find(c => c.id === course.id) ? "Máximo 3 programas" : "Agregar a comparativa"}
+                      title={compareActionLabel}
                     >
-                      {compareList.find(c => c.id === course.id) && (
+                      {isSelectedForCompare ? (
                         <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
+                      ) : (
+                        <span aria-hidden="true" className="text-sm leading-none">+</span>
                       )}
-                    </div>
+                    </button>
                     <div className="p-5 flex-1 flex flex-col">
-                      <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} className="group/title">
+                      <Link href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`} prefetch={false} className="group/title">
                         <h3 className="text-[15px] font-semibold text-brand-slate leading-snug group-hover/title:text-brand-blue transition-colors line-clamp-2">
                           {course.name}
                         </h3>
@@ -1066,6 +1090,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-50">
                         <Link
                           href={`/courses/${cleanSlug(course.institution_slug || 'general')}/${course.slug}`}
+                          prefetch={false}
                           className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-brand-blue hover:bg-brand-blue/90 text-white text-[13px] font-medium transition-all active:scale-[0.98]"
                         >
                           Ver detalle <ArrowRight className="h-3 w-3" />
@@ -1157,15 +1182,20 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       {/* Compare Bar */}
       {compareList.length > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-brand-slate backdrop-blur-xl rounded-full px-4 py-2 shadow-elevated border border-white/10 flex items-center gap-4">
+        <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex justify-center animate-in slide-in-from-bottom-4 duration-300">
+          <div className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/10 bg-brand-slate px-3 py-2 shadow-elevated backdrop-blur-xl sm:gap-4 sm:rounded-full sm:px-4">
             <div className="flex -space-x-2">
               {compareList.map(c => <div key={c.id} className="h-8 w-8 rounded-full border-2 border-brand-slate bg-brand-blue flex items-center justify-center text-white font-semibold text-[10px]">{c.name.charAt(0)}</div>)}
             </div>
             <span className="text-white text-[13px] font-medium hidden sm:inline">{compareList.length} programas</span>
-            <button onClick={() => setCompareList([])} className="text-white/40 hover:text-white text-[13px] transition-colors">Limpiar</button>
-            <Link href={`/compare?ids=${compareList.map(c => c.id).join(",")}`}>
-              <Button size="sm" className="bg-brand-mint hover:bg-brand-mint/90 text-brand-slate font-semibold rounded-full h-9 px-5 border-0 text-[13px]">Comparar</Button>
+            <button type="button" onClick={() => setCompareList([])} className="text-white/40 hover:text-white text-[13px] transition-colors">Limpiar</button>
+            <Link
+              data-compare-bar-link
+              href={`/compare?ids=${compareList.map(c => c.id).join(",")}`}
+              prefetch={false}
+              className="inline-flex h-9 items-center justify-center rounded-full border-0 bg-brand-mint px-5 text-[13px] font-semibold text-brand-slate transition-colors hover:bg-brand-mint/90"
+            >
+              Comparar
             </Link>
           </div>
         </div>
@@ -1173,10 +1203,10 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       {/* Cómo Funciona */}
       <section id="como-funciona" className="section-spacing bg-slate-50/50 scroll-mt-16">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-lg mb-10">
             <p className="text-[13px] font-medium text-brand-blue mb-1.5">Metodología</p>
-            <h2 className="text-2xl font-bold tracking-tight">¿Cómo funciona StudIAMatch?</h2>
+            <h2 className="break-words text-xl sm:text-2xl font-bold tracking-tight">¿Cómo funciona StudIAMatch?</h2>
             <p className="text-[14px] text-slate-400 mt-2 leading-relaxed">Tres pilares para garantizar la transparencia de tu inversión educativa.</p>
           </div>
 
@@ -1201,17 +1231,17 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
       {/* Nosotros */}
       <section id="nosotros" className="section-spacing scroll-mt-16">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-12">
-            <div className="flex-1 space-y-5">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-8 lg:gap-12">
+            <div className="w-full min-w-0 flex-1 space-y-5">
               <p className="text-[13px] font-medium text-brand-blue">Nuestra misión</p>
-              <h2 className="text-2xl font-bold tracking-tight text-balance">
+              <h2 className="break-words text-xl sm:text-2xl font-bold tracking-tight text-balance">
                 Democratizar la inteligencia educativa en Perú.
               </h2>
               <p className="text-[14px] text-slate-400 leading-relaxed">
                 En un mercado saturado de promesas, aportamos claridad. Consolidamos datos reales de instituciones para que tomes decisiones basadas en mérito y retorno financiero.
               </p>
-              <div className="flex gap-3 pt-1">
+              <div className="flex flex-col gap-3 pt-1 min-[320px]:flex-row">
                 <div className="px-4 py-3 rounded-lg bg-slate-50 border border-slate-100">
                   <p className="text-[11px] text-slate-400 mb-0.5">Principio</p>
                   <p className="text-[13px] font-semibold text-brand-slate">Transparencia total</p>
@@ -1222,7 +1252,7 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
                 </div>
               </div>
             </div>
-            <div className="flex-1 w-full max-w-md">
+            <div className="w-full min-w-0 flex-1 max-w-md">
               <div className="aspect-[4/3] rounded-xl bg-brand-slate flex items-center justify-center relative overflow-hidden">
                 <div className="text-center">
                   <p className="text-5xl font-bold text-brand-mint tabular-nums">+{allCourses.length}</p>
@@ -1236,144 +1266,23 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-6xl px-6 section-spacing">
-        <div className="rounded-xl bg-brand-blue p-10 md:p-12 text-center text-white relative overflow-hidden">
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 section-spacing">
+        <div className="rounded-xl bg-brand-blue p-6 sm:p-10 md:p-12 text-center text-white relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">¿Listo para elegir con <span className="text-brand-mint">certeza</span>?</h2>
-            <p className="text-blue-200/60 text-[14px] mt-3 max-w-md mx-auto">Obtén una recomendación personalizada basada en datos reales de mercado.</p>
+            <h2 className="break-words text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">¿Listo para elegir con <span className="text-brand-mint">certeza</span>?</h2>
+            <p className="text-blue-200/60 text-[14px] mt-3 max-w-md mx-auto">Explora y compara programas con datos reales de mercado.</p>
             <div className="mt-6">
-              <Button
-                onClick={() => openLeadModal('recommendation')}
-                className="bg-white hover:bg-slate-50 text-brand-blue font-semibold rounded-lg px-8 h-11 text-[13px] border-0 shadow-lg shadow-black/10 transition-all active:scale-[0.98]"
+              <a
+                href="#programas"
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border-0 bg-white px-4 py-3 text-[13px] font-semibold text-brand-blue shadow-lg shadow-black/10 transition-all hover:bg-slate-50 active:scale-[0.98] sm:px-8"
               >
-                Solicitar asesoría
-              </Button>
+                Explorar programas
+              </a>
             </div>
           </div>
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/8 via-transparent to-transparent" />
         </div>
       </section>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-4 pb-4 px-4 overflow-y-auto bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={closeLeadModal}>
-          <div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="home-lead-dialog-title"
-            className="bg-white w-full max-w-md rounded-xl shadow-elevated relative border border-slate-100 animate-in zoom-in-95 duration-200 my-auto"
-            onClick={(e) => e.stopPropagation()}
-            data-lead-capture-surface="home-modal"
-            data-lead-capture-state={LEAD_CAPTURE_ENABLED ? "enabled" : "disabled"}
-          >
-            <div className="sticky top-0 z-30 flex items-center justify-between bg-white rounded-t-xl border-b border-slate-100 px-6 py-3">
-              <p id="home-lead-dialog-title" className="text-[12px] font-semibold text-brand-blue">
-                {modalType === 'info' ? 'Consulta directa' : 'Asesoría personalizada'}
-              </p>
-              <button ref={closeButtonRef} type="button" aria-label="Cerrar formulario de contacto" onClick={closeLeadModal} className="p-1.5 hover:bg-slate-100 rounded-md transition-all">
-                <X className="h-5 w-5 text-slate-400" />
-              </button>
-            </div>
-
-            <div className="max-h-[70vh] overflow-y-auto p-6">
-
-              {isSuccess ? (
-                <div ref={successMessageRef} tabIndex={-1} role="status" aria-live="polite" className="py-10 text-center animate-in zoom-in duration-300 focus:outline-none" data-lead-capture-state="submitted" data-lead-capture-status="success">
-                  <div className="h-14 w-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-brand-slate">Enviado con éxito</h3>
-                  <p className="text-[13px] text-slate-400 mt-1">Un asesor te contactará pronto.</p>
-                </div>
-              ) : !LEAD_CAPTURE_ENABLED ? (
-                <div className="py-10 text-center animate-in zoom-in duration-300" role="status" aria-live="polite">
-                  <div className="h-14 w-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Clock className="h-7 w-7 text-brand-blue" />
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-brand-slate">{LEAD_CAPTURE_MAINTENANCE_TITLE}</h3>
-                  <p className="text-[13px] text-slate-600 mt-2 leading-relaxed">{LEAD_CAPTURE_MAINTENANCE_COPY}</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmitLead} className="space-y-3.5" data-lead-capture-form="home">
-                  {formError && (
-                    <div ref={errorMessageRef} id={homeLeadErrorId} role="alert" tabIndex={-1} className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold focus:outline-none">{formError}</div>
-                  )}
-                  <h3 className="text-xl font-bold mb-2 text-brand-slate tracking-tight leading-tight">
-                    {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="home-lead-first-name" className="text-[12px] font-medium text-slate-400 mb-1 block">Nombre</label>
-                      <Input id="home-lead-first-name" required type="text" autoComplete="given-name" data-pii-control="first_name" aria-invalid={invalidField === "first_name"} aria-describedby={invalidField === "first_name" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} />
-                    </div>
-                    <div>
-                      <label htmlFor="home-lead-whatsapp" className="text-[12px] font-medium text-slate-400 mb-1 block">WhatsApp</label>
-                      <Input id="home-lead-whatsapp" required type="tel" autoComplete="tel" inputMode="tel" data-pii-control="whatsapp" aria-invalid={invalidField === "whatsapp"} aria-describedby={invalidField === "whatsapp" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="home-lead-email" className="text-[12px] font-medium text-slate-400 mb-1 block">Email</label>
-                    <Input id="home-lead-email" required type="email" autoComplete="email" data-pii-control="email" aria-invalid={invalidField === "email"} aria-describedby={invalidField === "email" ? homeLeadErrorId : undefined} className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                  </div>
-                  <div>
-                    <label htmlFor="home-lead-area" className="text-[12px] font-medium text-slate-400 mb-1 block">Área de interés</label>
-                    <select
-                      id="home-lead-area"
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.area_interest}
-                      onChange={(e) => setFormData({ ...formData, area_interest: e.target.value })}
-                    >
-                      <option value="">Selecciona un área</option>
-                      {Array.from(new Set(allCourses.map(c => c.category).filter(Boolean))).sort().map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="home-lead-budget" className="text-[12px] font-medium text-slate-400 mb-1 block">Presupuesto estimado</label>
-                    <select
-                      id="home-lead-budget"
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.budget}
-                      onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    >
-                      <option value="">Selecciona un rango</option>
-                      <option value="5000">S/ 0 - 5,000</option>
-                      <option value="15000">S/ 5,000 - 15,000</option>
-                      <option value="30000">S/ 15,000 - 30,000</option>
-                      <option value="999999">S/ 30,000+</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="home-lead-modality" className="text-[12px] font-medium text-slate-400 mb-1 block">Modalidad preferida</label>
-                    <select
-                      id="home-lead-modality"
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.modality}
-                      onChange={(e) => setFormData({ ...formData, modality: e.target.value })}
-                    >
-                      <option value="Remoto">Remoto</option>
-                      <option value="Presencial">Presencial</option>
-                      <option value="Híbrido">Híbrido</option>
-                      <option value="Sin preferencia">Sin preferencia</option>
-                    </select>
-                  </div>
-                  {modalType === 'recommendation' && (
-                    <div>
-                      <label htmlFor="home-lead-description" className="text-[12px] font-medium text-slate-400 mb-1 block">Tus objetivos</label>
-                      <textarea id="home-lead-description" autoComplete="off" data-pii-control="description" className="w-full h-20 rounded-lg bg-slate-50 border-0 p-3 text-[13px] focus:ring-1 focus:ring-brand-blue/30 resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                    </div>
-                  )}
-                  <Button disabled={isSubmitting} type="submit" className="w-full h-10 bg-brand-slate hover:bg-black text-white font-medium rounded-lg border-0 text-[13px] mt-2 transition-all active:scale-[0.98]">
-                    {isSubmitting ? "Enviando…" : "Confirmar solicitud"}
-                  </Button>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

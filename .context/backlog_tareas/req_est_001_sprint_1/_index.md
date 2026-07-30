@@ -32,6 +32,8 @@ No existen subtareas para este paquete. El estado vigente se consulta exclusivam
 ## Backlog Diferido
 
 - [Hallazgos F9.5 sin implementacion](backlog_f9_5_known_findings.md): registro `DEFERRED_NO_IMPLEMENTATION`; no crea subtareas ni autorizaciones.
+- [Seguridad leads/email BK-F9.5-05](backlog_seguridad_leads_email.md): detalle diferido `DEFERRED_NO_IMPLEMENTATION`; no crea subtarea, criterio ni autorizacion.
+- [Exec SQL control-plane BK-F9.5-07](backlog_exec_sql_control_plane.md): residual administrativo `DEFERRED_NO_IMPLEMENTATION`; no crea subtarea, criterio ni autorizacion.
 
 ## Dependencias Canonicas
 
@@ -41,3 +43,4 @@ No existen subtareas para este paquete. El estado vigente se consulta exclusivam
 - [Matriz de adopcion DB](../../operaciones/matriz_adopcion_db.md)
 - [Flujo de requerimientos](../../operaciones/flujo_requerimientos.md)
 - [Flujo de release](../../operaciones/flujo_release_minimo.md)
+- [Cierre definitivo F9.7](../../operaciones/cierre_definitivo_f9_7.md)

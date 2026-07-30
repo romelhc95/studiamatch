@@ -567,12 +567,14 @@ def test_retired_send_lead_emails_edge_function_has_no_pii_egress():
     )
 
     assert "status: 410" in source
-    assert "retired in F9.7" in source
+    assert 'new Response("Gone"' in source
+    assert "Deno.serve(() =>" in source
     for forbidden in (
         "RESEND_API_KEY",
         "api.resend.com",
         "Deno.env",
         "fetch(",
+        "Request",
         "req.json",
         "payload",
         "first_name",
@@ -583,6 +585,7 @@ def test_retired_send_lead_emails_edge_function_has_no_pii_egress():
         "wa.me",
         "Authorization",
         "Bear" + "er",
+        "Access-Control-Allow-Origin",
     ):
         assert forbidden not in source
 
@@ -642,37 +645,36 @@ def test_frontend_public_client_uses_publishable_key_and_never_secret_key():
     assert "sb_secret_" not in web_sources
 
 
-def test_frontend_lead_capture_flag_fail_closes_before_public_post():
-    wrapper = (ROOT / "web/src/lib/leadCapture.ts").read_text(encoding="utf-8")
-    core = (ROOT / "web/src/lib/leadCaptureCore.ts").read_text(encoding="utf-8")
-    sources = [
+def test_frontend_public_cutoff_removes_lead_capture_transport():
+    assert not (ROOT / "web/src/lib" / "".join(["lead", "Capture.ts"])).exists()
+    assert not (ROOT / "web/src/lib" / "".join(["lead", "CaptureCore.ts"])).exists()
+    assert not (ROOT / "web/tests" / "".join(["lead", "Capture.test.ts"])).exists()
+    assert "".join(["NEXT_PUBLIC", "_LEAD_CAPTURE", "_ENABLED"]) not in (
+        ROOT / ".env.example"
+    ).read_text(encoding="utf-8")
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "web/src").rglob("*")
+        if path.is_file() and path.suffix in {".ts", ".tsx", ".js", ".jsx"}
+    )
+    for fragments in (
+        ("/rest/v1", "/leads"),
+        ("submit", "Lead"),
+        ("NEXT_PUBLIC", "_LEAD_CAPTURE", "_ENABLED"),
+        ("data-", "lead-capture"),
+        ("data-", "pii-control"),
+        ("handle", "SubmitLead"),
+    ):
+        assert "".join(fragments) not in source
+    for path in (
         ROOT / "web/src/app/HomeContent.tsx",
         ROOT / "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx",
-    ]
-
-    assert "isLeadCaptureEnabled(" in wrapper
-    assert "process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED" in wrapper
-    assert "LEAD_CAPTURE_MAINTENANCE_TITLE" in wrapper
-    assert "submitLead" in wrapper
-    assert "fetchImpl: (input, init) => fetch(input, init)" in wrapper
-    assert 'value === "true"' in core
-    assert 'value === "false"' in core
-    assert core.count("/rest/v1/leads") == 1
-    assert "Authorization" not in wrapper
-    assert "Authorization" not in core
-    assert '"apikey"' in core
-    for path in sources:
-        source = path.read_text(encoding="utf-8")
-        assert "/rest/v1/leads" not in source
-        assert "submitLead" in source
-        handler = source.split("const handleSubmitLead", 1)[1].split(
-            "const filteredCourses" if path.name == "HomeContent.tsx" else "useEffect",
-            1,
-        )[0]
-        assert handler.index("if (!LEAD_CAPTURE_ENABLED)") < handler.index("submitLead")
-        assert "data-lead-capture-state" in source
-        assert "LEAD_CAPTURE_MAINTENANCE_COPY" in source
-        assert "data-pii-control" in source
+        ROOT / "web/src/app/compare/CompareContent.tsx",
+    ):
+        file_source = path.read_text(encoding="utf-8")
+        assert "Solicitar Info" not in file_source
+        assert "Me interesa" not in file_source
+        assert "whatsapp" not in file_source.casefold()
 
 
 def test_course_jsonld_escapes_script_breakout_sequences():
@@ -695,16 +697,20 @@ def test_sibling_workflow_contains_networkless_f9_7_job():
         encoding="utf-8"
     )
     assert (
-        "name: F9.7 Public Access and Trigger Retirement PostgreSQL 17 Contract"
+        "name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract"
         in workflow
     )
     assert "bash tests/sql/run_fase09_7_postgres.sh" in workflow
+    assert "bash tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh" in workflow
+    assert "node tests/buildWithLocalSupabaseStub.mjs" in workflow
+    assert "python -m pytest -q ../tests/test_frontend_public_surfaces_playwright.py" in workflow
     assert "studiamatch-f97-postgres" in workflow
     assert "scripts/maintenance/db_migrate.py" in workflow
     assert "scripts/maintenance/fase09_7_notify_truth.py" in workflow
+    assert "scripts/maintenance/fase09_7_leads_email_security_hold_candidate.py" in workflow
     assert "supabase/functions/send-lead-emails/index.ts" in workflow
-    assert "web/src/lib/leadCapture.ts" in workflow
-    assert "web/src/lib/leadCaptureCore.ts" in workflow
+    assert "web/src/lib/" + "".join(["lead", "Capture.ts"]) not in workflow
+    assert "web/src/lib/" + "".join(["lead", "CaptureCore.ts"]) not in workflow
     assert "web/src/app/courses/**/CourseDetailClient.tsx" in workflow
     assert ".context/operaciones/pg_net_queue_drain_f9_7.md" in workflow
     assert "--network none" in workflow

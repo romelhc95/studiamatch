@@ -30,7 +30,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Gate B FAIL; origen ACL atestado read-only | Fuentes observadas reparables; snapshot actual no observado | Candidate v3 local F6-F8 + closure + retiro de trigger; runbooks no ejecutables | `observed_effective_unledgered` | No DDL; PR-O debe definir gate remoto y autorizacion nuevos |
+| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Gate B FAIL; origen ACL atestado read-only | Fuentes observadas reparables; snapshot actual no observado | Candidate v3 local F6-F8 + closure + retiro de trigger; security hold local bloqueado; runbooks no ejecutables | `observed_effective_unledgered` | No DDL; PR-O debe ligar v3 + hold y definir gate remoto/autorizacion nuevos |
 | Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | Promover solo package certificado y sin H-00 |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
 | G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
@@ -67,6 +67,8 @@ La [verificacion sanitizada](./cierre_h00_f9_6.md) confirmo la cohorte con PII d
 La [atestacion de origen ACL](./atestacion_origen_acl_f9_7.md) observo `package_source_coverage=complete` sin fuentes heredadas/SET/owner/unknown, pero no cambia la adopcion: la closure sigue sin aplicar, su mismatch y el trigger mantienen fail-closed, y los predicates no atestados bloquean aplicacion independientemente. Los runbooks permanecen sin aprobar y no ejecutan operaciones.
 
 La [remediacion local del trigger](./remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por el candidate v3 local PR-ready de seis entradas. V2 queda historico no promocionable. La nueva entrada retira fail-closed la ruta de egress y conserva rollback/ledger atomicos, el Edge Function historico queda tombstoneado en Git, y el [drenaje pg_net](./pg_net_queue_drain_f9_7.md) queda counts-only y no ejecutado. Nada observa ni cambia la adopcion remota.
+
+[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) define un corte local posterior: public lead capture `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED`. Esta matriz registra adopcion, no capacidad operativa.
 
 ## Guardrails forward-only F6
 

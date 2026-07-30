@@ -23,6 +23,8 @@ La ruta posterior a F8 agrego una definicion F9.4 remota bloqueada por controles
 
 Esta decision sustituye solo los puntos incompatibles 4 y 8 de [ADR-0003](./ADR-0003_taxonomia_macrofases_subfases.md) y la anterior identidad F9.4. Las identidades historicas F9.1/F9.2, las macrofases F0-F11 y los gates separados para operaciones riesgosas permanecen vigentes.
 
+[ADR-0005](./ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) conserva esta historia y agrega un corte futuro/local para leads/email; no reabre F9.4-F9.6 ni modifica la simplificacion contractual adoptada aqui.
+
 ## Consecuencias
 
 - F9.4 puede cerrarse mediante un PR exclusivamente documental, CI y aprobacion humana.

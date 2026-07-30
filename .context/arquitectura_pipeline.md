@@ -44,4 +44,14 @@ FG2 y FG3 comparten grupo de concurrencia y no se cancelan entre si; FG3 queda e
 - La promocion DB-as-Code incluye catalogos, perfiles, reglas y schema; no replica datos operativos Free a Pro.
 - H-00 es Free-only y requiere autorizacion separada.
 
+## Invariante De Preservacion Completa Del Corte
+
+El corte de [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) preserva harvester completo y Golden Pipeline: `universal_harvester.py`, `master_orchestrator.py`, sitemap discovery, crawl/BFS, catalog-link discovery, extraccion HTTP, extraccion browser/Playwright cuando el perfil lo requiere, persistencia `discovered/pending` en `staging_raw`, deduplicacion, hashing, `allowed_url_patterns`, `exclusion_patterns`, `discovery_enabled`, `pipeline_enabled`, fallback temporal `pipeline_ready`, `production_enabled`, circuit breaker, cooldown, freshness, timeouts, persistencia parcial, `cleansing_worker.py`, `enrichment_worker.py`, `sync_vector_worker.py`, `integrity_ping.py`, FG1 mensual, FG2 diario, FG3 diario posterior a FG2, branch guards y environments.
+
+No significa activar globalmente instituciones, saltar `pipeline_enabled`, saltar `production_enabled`, restaurar harvesters deprecated, afirmar que todas las instituciones fueron cosechadas ni ejecutar remote smoke en este corte.
+
+## Separacion Respecto De Leads Y Email
+
+Leads/email no son una estacion del Golden Pipeline. La arquitectura completa de captura, outbox, proveedor, secretos, observabilidad y reintentos queda `DEFERRED_NO_IMPLEMENTATION` en [BK-F9.5-05](backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md). El security hold DB-as-Code no toca `staging_raw`, `cleansed_programs`, `enriched_programs`, `courses`, RPCs del pipeline ni workflows FG.
+
 Ver [Sistema DB Supabase](sistema_db_supabase.md) y [Flujo de release](operaciones/flujo_release_minimo.md).

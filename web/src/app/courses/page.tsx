@@ -1,18 +1,14 @@
-import { getLeadCaptureBuildState } from "@/lib/leadCaptureCore";
-import CoursesFallbackPage from "./CoursesFallbackPage";
+import type { Metadata } from "next";
+import Home from "../page";
 
-export const metadata = {
-  title: "Detalle de programa | StudIAMatch",
-  description: "Información detallada de programas educativos verificados en StudIAMatch.",
+export const metadata: Metadata = {
+  title: "Catálogo de programas | StudIAMatch",
+  description: "Explora y compara programas educativos verificados en StudIAMatch.",
+  alternates: {
+    canonical: "https://studiamatch.com/courses/",
+  },
 };
 
-export default function CoursesPage() {
-  const leadCaptureBuildState = getLeadCaptureBuildState(process.env.NEXT_PUBLIC_LEAD_CAPTURE_ENABLED);
-
-  return (
-    <>
-      <div hidden aria-hidden="true" data-lead-capture-server-marker="course-detail" data-lead-capture-state={leadCaptureBuildState} />
-      <CoursesFallbackPage />
-    </>
-  );
+export default async function CoursesPage() {
+  return Home();
 }

@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; candidate sucesor local v3 de seis entradas queda PR-ready y aplicacion bloqueada.
+- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: `merge_and_postmerge_replay_then_define_PR_O`; cualquier lectura o gate operativo requiere autorizacion nueva.
+- Siguiente accion: `execute_wp_f9_7_01_freeze_closure_contract`; cualquier lectura o gate operativo remoto requiere autorizacion nueva.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free y T02 | `IN_PROGRESS` | Candidate v3 local PR-ready; T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_BLOCKED` |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) vigentes; v3 byte-identico; roles de aplicacion con acceso cero en el hold objetivo; security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED` |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -55,11 +55,13 @@ El candidate local F9.7 conserva byte-identicas las cuatro migrations F6-F8 y ag
 
 La [remediacion local del trigger](./remediacion_trigger_f9_7.md) preserva el descriptor v2 como antecedente historico no promocionable y agrega `db/manifests/fase09_7_free_schema_rls_v3.json`, sucesor exacto de seis entradas y unico camino manifest-only local. La sexta migration fija timeouts antes de locks, no bloquea `pg_catalog`, exige el verifier de acceso y fingerprints exactos antes de retirar el trigger y la funcion sin `CASCADE`; la Edge Function historica queda tombstoneada y el [drenaje pg_net](./pg_net_queue_drain_f9_7.md) queda counts-only. El draft remoto de predicates/trigger no fue ejecutado ni conserva capacidad.
 
+[ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local: la arquitectura leads/email queda diferida, el frontend soportado no incluye captura publica, la Edge Function queda tombstoneada solo en Git y el security hold terminal debe ejecutarse siempre despues de v3. El orden futuro es v3 exacto -> hold -> verifier -> ledger -> revalidacion; no hay aplicacion remota autorizada.
+
 ## Gate B Pre-DDL/Read-Only F9.7
 
 Gate B es exclusivamente pre-DDL y read-only: liga Free; congela commit/tree, package, allowlist y stop conditions; verifica identidad backend y estado de acceso; identifica responsables; y somete resguardo/restore y pausa de writers a aprobaciones humanas separadas. No pausa writers ni aplica schema/migrations.
 
-Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/RLS/T02 solo despues de esas aprobaciones. Debera demostrar semanticamente que `leads` y `email_log` no tienen lectura publica, que `INSERT leads` solo acepta columnas permitidas y que las lecturas backend usan identidad de servicio. F9.7 no incluye H-00, backfill, Pro ni produccion.
+Un gate F9.7 posterior, todavia no definido ni autorizado, podra aplicar schema/RLS/T02 solo despues de esas aprobaciones. Debera demostrar semanticamente que `leads` y `email_log` no son accesibles por `anon`, `authenticated`, `authenticator` ni `service_role`; el acceso owner queda fuera de la aplicacion. F9.7 no incluye H-00, backfill, Pro ni produccion.
 
 ### Resultado Gate B
 
@@ -77,7 +79,7 @@ La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra 
 
 ## Dependencias Posteriores
 
-Antes de aplicar el package sucesor F9.7 deben validarse su snapshot, boundary y precondiciones exactas, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+Antes de aplicar el package sucesor F9.7 deben validarse snapshot, boundary y precondiciones exactas de v3 + security hold, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 
@@ -154,7 +156,7 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 | Validacion Free del package exacto | F9.5 y F9.7 |
 | H-00 Free-only counts-only | F9.6 |
 | ACL negativas `anon`/`authenticated` | F9.7 y revalidacion F9.10 |
-| ACL positiva `service_role` con fixture sintetica | F9.7 y revalidacion F9.10 |
+| ACL negativa `service_role` sobre `leads`/`email_log`; identidad de servicio se conserva para superficies autorizadas | F9.7 y revalidacion F9.10 |
 | Smoke FG2 sin fallback de persistencia | F9.10 |
 | Cleanup idempotente | F9.10 |
 | PR a `desarrollo` si el candidate nace temporal | Cada subfase aplicable; comprobacion final F9.10 |

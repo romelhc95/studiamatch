@@ -59,6 +59,8 @@ MIGRATIONS_DIR = os.path.join(
     "db", "migrations"
 )
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 SUPABASE_MIGRATIONS_TABLE = "supabase_migrations"
 PACKAGE_POSTCONDITIONS = {
@@ -72,6 +74,9 @@ PACKAGE_POSTCONDITIONS = {
     "20260726_fase09_5_policy_inventory_reconciliation": (
         "public.verify_fase09_5_policy_inventory_reconciliation()"
     ),
+    "20260729_fase09_7_leads_email_security_hold": (
+        "public.verify_fase09_7_leads_email_security_hold()"
+    ),
 }
 MANIFEST_ONLY_PREFIXES = (
     "20260724_fase06_",
@@ -80,8 +85,13 @@ MANIFEST_ONLY_PREFIXES = (
     "20260726_fase09_5_",
     "20260727_fase09_7_",
     "20260728_fase09_7_",
+    "20260729_fase09_7_",
 )
-F9_7_MANIFEST_ONLY_PREFIXES = ("20260727_fase09_7_", "20260728_fase09_7_")
+F9_7_MANIFEST_ONLY_PREFIXES = (
+    "20260727_fase09_7_",
+    "20260728_fase09_7_",
+    "20260729_fase09_7_",
+)
 F9_5_OVERLAY_STEMS = (
     "20260724_fase06_g1b_reconciliation",
     "20260724_fase06_hito1_editorial_contract",
@@ -269,6 +279,35 @@ def _sql_literal(value):
 
 def _file_sha256(filepath):
     return canonical_sql_sha256(Path(filepath))
+
+
+def _load_manifest_paths(manifest_path, target, *, offline_only):
+    try:
+        return [
+            str(path)
+            for path in load_manifest(
+                manifest_path,
+                target,
+                required_status=None if offline_only else (
+                    "free_certified" if target == "pro"
+                    else ("ready_for_free", "free_certified")
+                ),
+            )
+        ]
+    except ManifestError:
+        if manifest_path.name != "fase09_7_leads_email_security_hold.json":
+            raise
+        if not offline_only:
+            raise ManifestError(
+                "F9.7 leads/email security hold is blocked; "
+                "only --validate-only may resolve this manifest"
+            )
+        from maintenance.fase09_7_leads_email_security_hold_candidate import (
+            load_security_hold_manifest,
+        )
+
+        _v3_paths, hold_path = load_security_hold_manifest(manifest_path, target)
+        return [str(hold_path)]
 
 
 def verify_applied_postcondition(db, migration_name):
@@ -578,17 +617,9 @@ def main():
     offline_only = args.validate_only
     if args.manifest:
         try:
-            migration_files = [
-                str(path)
-                for path in load_manifest(
-                    Path(args.manifest),
-                    args.env,
-                    required_status=None if offline_only else (
-                        "free_certified" if args.env == "pro"
-                        else ("ready_for_free", "free_certified")
-                    ),
-                )
-            ]
+            migration_files = _load_manifest_paths(
+                Path(args.manifest), args.env, offline_only=offline_only
+            )
         except ManifestError as exc:
             print(f"  🛑 Manifest invalido: {exc}")
             sys.exit(2)
