@@ -16,6 +16,7 @@ Este backlog registra hallazgos del cierre documental F9.5 sin crear una subtare
 | `BK-F9.5-06` | Limpieza fisica de artifacts historicos | Reservada exclusivamente para F11, con aprobacion explicita. |
 | `BK-F9.5-07` | [Exec SQL control-plane](backlog_exec_sql_control_plane.md): canal administrativo restringido `public.exec_sql(text)` | Residual aceptado para PR local; requiere sustitucion futura sin autorizar implementacion. |
 | `BK-F9.5-08` | Hardening futuro fuera de alcance WP-F9.7-04: cadenas firewall legacy distintas de las tres F9.7, medicion/optimizacion de tiempo CI, escaneo de commit messages, verificacion remota de branch protection y expansion general de patrones de credenciales | `DEFERRED_NO_IMPLEMENTATION`; no crea tarea, criterio, fecha ni compromiso. |
+| `BK-F9.5-09` | `PyPDF2 DeprecationWarning` emitido por dependencia externa en pruebas Python | `DEFERRED_NO_IMPLEMENTATION`; no originado por codigo modificado, no bloquea Hito 1 y no autoriza migracion de dependencia en F9.7. |
 
 ## BK-F9.5-08 - Hardening Futuro Fuera De Alcance WP-F9.7-04
 
@@ -30,6 +31,20 @@ Por que no bloquea Hito 1: no hay ejecucion remota, no hay DDL/DML, no hay deplo
 Criterio de activacion futura: abrir evaluacion separada si se autoriza hardening general de firewall CI, reduccion de tiempo total de pipelines, scanning de commit metadata, verificacion remota de branch protection o ampliacion transversal de patrones de credenciales.
 
 Comunicacion al cliente: si se activa, comunicarlo como hardening posterior al corte local, no como defecto bloqueante del candidato Hito 1.
+
+## BK-F9.5-09 - Warning PyPDF2 Externo
+
+Estado: `DEFERRED_NO_IMPLEMENTATION`.
+
+Riesgo: `PyPDF2` emite `DeprecationWarning` desde `site-packages`, lo que puede generar ruido en reportes de prueba.
+
+Mitigaciones actuales: WP-F9.7-05 permite una unica ocurrencia de `DeprecationWarning` proveniente de la dependencia externa; cualquier warning de ruta StudIAMatch o warning adicional sigue bloqueando.
+
+Por que no bloquea Hito 1: el warning no proviene de codigo modificado, no altera el candidate, no expone secretos, no cambia DB/frontend/pipeline y no afecta los criterios funcionales del corte local.
+
+Criterio de activacion futura: evaluar migracion desde `PyPDF2` solo en un ciclo separado de mantenimiento de dependencias.
+
+Comunicacion al cliente: si aparece en evidencias, reportarlo como deuda tecnica de dependencia externa ya clasificada, sin compromiso ni fecha dentro de F9.7.
 
 ## Regla De Tratamiento
 

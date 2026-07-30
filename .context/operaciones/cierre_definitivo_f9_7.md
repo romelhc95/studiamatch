@@ -509,6 +509,19 @@ Materializar un unico tree acumulado, ejecutar toda la matriz contra sus bytes e
 - Auditor `devops-release-manager`: `GO_WP` sobre tree/ancestry/evidence.
 - Cero cambio de archivos despues de capturar el tree.
 
+### Evidencia Local WP-F9.7-05
+
+- Estado: `GO_WP_LOCAL`.
+- Candidate final capturado fuera de archivos versionados para evitar autorreferencia; el SHA se conserva en el recibo de ejecucion y futuro PR.
+- Diferencia contra el tree tecnico posterior a WP-F9.7-04 limitada a documentacion permitida; blobs tecnicos, tests, hooks, workflows, frontend y DB permanecen identicos.
+- Matriz Git/release: candidate identity, ancestry, actionlint, R01-R09, EOL changed-only, whitespace ranged, protected closure, hooks, credential scan, firewall helper, aggregator y Context Graph en PASS.
+- Matriz Python sin database: backend identity, Gate B readonly, remediation definition, schema/RLS, security hold, pipeline no-regression, release gates y credentials en PASS.
+- Matriz PostgreSQL 17: ACL source attestation con database, v3 y hold ejecutados en base efimera networkless con apply/replay/rollback en PASS y cleanup final.
+- Matriz frontend: una sola build con stub loopback, lint/typecheck/export/Playwright publico en PASS; warnings lint limitados a los historicos documentados.
+- Contratos historicos locales requeridos por `security-audit.yml`: F6, F7, F8, F9 pre-Free, F9.3, F9.5, F9.7 y F10 validate-only/local en PASS o cubiertos por la matriz deduplicada.
+- Warning permitido: una ocurrencia `PyPDF2 DeprecationWarning` desde dependencia externa, clasificada en [BK-F9.5-09](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-09---warning-pypdf2-externo) como `BACKLOG_OUT_OF_SCOPE`, no originada por codigo modificado y no bloqueante para Hito 1.
+- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; security hold permanece `LOCAL_CANDIDATE_BLOCKED`; sin push, PR, merge, Supabase, Cloudflare, DDL/DML, backup, writers, backfill ni deploy.
+
 ### Stop Conditions
 
 - Test ejecutado contra worktree distinto del tree registrado.
