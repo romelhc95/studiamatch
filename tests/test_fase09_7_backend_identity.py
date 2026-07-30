@@ -360,12 +360,18 @@ def test_fg3_read_failure_propagates(monkeypatch):
 
 def test_frontend_and_public_surface_audits_keep_publishable_identity():
     frontend = _source("web/src/lib/supabase.ts")
-    frontend_gate = _source(".github/workflows/security-audit.yml")
+    build_helper = _source("web/tests/buildWithLocalSupabaseStub.mjs")
+    security_audit = _source(".github/workflows/security-audit.yml")
+    f9_7_contract = _source(".github/workflows/f9-7-contract.yml")
     sitemap = _source("scripts/maintenance/generate_sitemap.py")
 
     assert "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in frontend
     assert "NEXT_SUPABASE_SECRET_KEY" not in frontend
-    assert "name: Frontend Static Build" in frontend_gate
-    assert "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_test" in frontend_gate
+    assert "sb_publishable_ci_test" in build_helper
+    assert "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in build_helper
+    assert "node tests/buildWithLocalSupabaseStub.mjs" in security_audit
+    assert "node tests/buildWithLocalSupabaseStub.mjs" in f9_7_contract
+    assert "sb_publishable_ci_test" not in security_audit
+    assert "sb_publishable_ci_test" not in f9_7_contract
     assert "db.select_all('courses'" in sitemap
     assert "select_all_service" not in sitemap
