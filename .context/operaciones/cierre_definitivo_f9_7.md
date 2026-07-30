@@ -602,13 +602,21 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - PR #259 reconcilio documentalmente el replay post-merge y fue fusionado por humano en `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`.
 - `fdaac633d29476e3323a8f88741a87570ece3b7c` conserva tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`; este snapshot sustituye la accion documental anterior y no cambia el candidate tecnico `258ef3a`/`2cb182` ni el replay `e95eeac`/`2cb182`.
 - Acciones anteriores `validate_wp_f9_7_04_ci_forward_fix`, `CORR-WP-F9.7-04-01`, candidates `b711e0b`, `120d234` y `d2cb32e`, y auditorias previas al tree final quedan historicas o `SUPERSEDED`.
-- Siguiente accion exacta: `definicion de PR-O combinado v3 + hold`. No se implementa ni aplica PR-O en este follow-up.
+- Siguiente accion historica de PR #259: `definicion de PR-O combinado v3 + hold`; queda satisfecha por la seccion siguiente. No se implemento ni aplico PR-O en ese follow-up.
+
+### Definicion Local PR-O
+
+- PR #260 fue mergeado por humano en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, tree `0bc0d4b806117fb1b6a2a9fc4d618daa367829ee`, y contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
+- [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) queda `DEFINED_LOCAL_NOT_AUTHORIZED`: Free-only futuro, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, cualquier otro boundary fail-closed.
+- La definicion congela target binding privado, snapshot read-only, call budget, freshness, evidencia sanitizada, stop conditions, backup/restore, writer pause/drain, maintenance window, aprobaciones independientes, transaccion unica, no-retry, rollback, recovery owner, postcondiciones y evidencia requerida para `GO_FOR_FREE` y `GO_F9.7_COMPLETE`.
+- `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, security hold `LOCAL_CANDIDATE_BLOCKED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
+- Los siete SQL y los manifests v3/hold existentes no se modifican.
 
 ### Prohibiciones
 
 - No merge automatico.
 - No push directo a `desarrollo`, `certificacion` o `main`.
-- No Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup/restore, writers, deploy o PR-O.
+- No Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup/restore, writers, deploy o aplicacion PR-O.
 - No reutilizar auditorias de un tree anterior.
 
 ## Propiedad De Archivos
@@ -641,14 +649,15 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 
 1. Merge humano del corte: completado en PR #258 (`e95eeaccc864477db587bbb13c827d0c17340d8d`).
 2. Replay post-merge en checkout Linux limpio: PASS sobre tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
-3. Follow-up documental post-merge sobre `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`: confirma tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`, completa evidencia sanitizada y marca acciones anteriores como historicas o `SUPERSEDED`.
-4. `definicion de PR-O combinado v3 + hold`.
-5. Gate separado de binding, snapshot, restore y writers Free.
-6. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
-7. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
-8. F9.10 `free_certified`.
-9. F10 Pro/main/observacion.
-10. F11 cierre final.
+3. Follow-up documental post-merge sobre `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`: completado en PR #260; merge humano `e2721a0ec4581e422246dfabfa2048297f537025` contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
+4. `definicion de PR-O combinado v3 + hold`: definida localmente en [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md), sin autorizacion de aplicacion.
+5. Aprobacion independiente de `GO_FOR_FREE` para PR-O combinado v3 + hold.
+6. Gate separado de binding, snapshot, restore y writers Free.
+7. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
+8. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
+9. F9.10 `free_certified`.
+10. F10 Pro/main/observacion.
+11. F11 cierre final.
 
 ## Datos Y Aprobaciones Futuras
 

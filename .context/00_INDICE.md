@@ -33,6 +33,7 @@
 - [Definicion de remediacion Gate B F9.7](operaciones/remediacion_gate_b_f9_7.md)
 - [Atestacion de origen ACL F9.7](operaciones/atestacion_origen_acl_f9_7.md)
 - [Remediacion local del trigger F9.7](operaciones/remediacion_trigger_f9_7.md)
+- [Contrato PR-O F9.7 v3 + hold](operaciones/pr_o_f9_7_v3_hold.md)
 - [Pg Net queue drain F9.7](operaciones/pg_net_queue_drain_f9_7.md)
 - [Flujo de release minimo](operaciones/flujo_release_minimo.md)
 
