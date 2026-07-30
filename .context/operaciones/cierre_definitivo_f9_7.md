@@ -6,7 +6,7 @@
 | Estado documental | `VIGENTE` |
 | Subfase | `F9.7` |
 | Tarea | [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) |
-| Decision | Cerrar el corte por seis work packages finitos antes del PR local |
+| Decision | Cerrar el corte por seis work packages finitos antes del PR local y conservar el follow-up documental post-merge |
 | Baseline Git | `8ab1cdf9173b8093781e75ba32c2fea9ae931b14` |
 | Plan superior | [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) |
 
@@ -465,7 +465,7 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - R09 aggregator: PASS, job requerido `security-audit` con `if: always()`, `release-gates` en `needs` y cero `continue-on-error`.
 - Tests locales Docker: `tests/test_fase09_7_release_gates.py` + `tests/test_fase09_7_pipeline_no_regression.py` = `44 passed`; subset credenciales WP-04 = `5 passed`; subset integrado schema/RLS = `3 passed`; Context Graph = `PASS (52 files, 507 links)`.
 - Backlog fuera de alcance registrado como [BK-F9.5-08](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-08---hardening-futuro-fuera-de-alcance-wp-f97-04), estado `DEFERRED_NO_IMPLEMENTATION`.
-- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; sin Supabase, Cloudflare, DDL/DML, pipeline, frontend runtime, push ni PR.
+- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; sin Supabase Free/Pro, Cloudflare manual, DDL/DML remoto en Free/Pro, pipeline, frontend runtime, push ni PR.
 
 ### Reapertura Forward-Fix WP-F9.7-04
 
@@ -473,10 +473,10 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - Candidate `b711e0b`/`249295` queda `SUPERSEDED_BY_CI_FORWARD_FIX`, no se reescribe ni se amenda.
 - Causa raiz CRLF: `.gitattributes` aplicaba `eol=lf` a blobs historicos CRLF; el fix debe acotar patrones a rutas cuyos blobs candidate ya son LF, sin `--ignore-cr-at-eol`, sin `git add --renormalize .` y sin normalizacion global.
 - Causa raiz firewall: el helper verificaba jumps mediante `-C OUTPUT -j CHAIN` antes de que la cadena existiera; el fix debe inspeccionar `-S OUTPUT`, capturar primero el rc del firewall, registrar ownership antes de mutaciones recuperables y preservar recursos no-owned.
-- `WP-F9.7-05` y las seis auditorias finales previas quedan invalidadas por cambio de tree y deben repetirse sobre el nuevo candidate.
+- Estado historico: `WP-F9.7-05` y las seis auditorias finales previas quedaron invalidadas por cambio de tree y fueron repetidas sobre el candidate final.
 - `AUTOMATIC_PR_PREVIEW_ACCEPTED`: se acepta solo el preview automatico preexistente del PR; no hay operacion manual Cloudflare, dashboard, API, Workers, produccion ni deploy manual.
-- Supabase previews skipped; no Supabase Free/Pro, DDL/DML, backup, writers ni backfill.
-- Siguiente accion: `validate_wp_f9_7_04_ci_forward_fix`.
+- Supabase previews skipped; no Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup, writers ni backfill.
+- Accion historica/superseded: `validate_wp_f9_7_04_ci_forward_fix`; fue consumida por `CORR-WP-F9.7-04-02` y ya no es la siguiente accion vigente.
 
 ### Reapertura Forward-Fix WP-F9.7-04 - CORR-02
 
@@ -540,12 +540,15 @@ Materializar un unico tree acumulado, ejecutar toda la matriz contra sus bytes e
 - Candidate final PR: `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
 - Merge humano: `e95eeaccc864477db587bbb13c827d0c17340d8d`, parents `8ab1cdf9173b8093781e75ba32c2fea9ae931b14` y `258ef3a98c7c1010efe58522bb1eca892e26390e`, tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
 - Materializacion post-merge: checkout Linux limpio dentro de Docker sobre `e95eeac`; tree inicial y final `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Comandos replay registrados: `git fetch`, `git rev-parse`, checkout Linux limpio de `e95eeac`, `python3 -m venv`, `pip install`, `python3 -m py_compile`, `python3 scripts/maintenance/validate_context_graph.py`, `actionlint`, `shellcheck`, `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, Playwright publico, `python3 -m pytest` y `psql` contra PostgreSQL local efimero.
+- Versiones replay: Docker host con `studiamatch-dev`; Python `3.11.2`, Node `v20.20.2`, npm `10.8.2`, Git `2.39.5`, pytest `8.4.1`, Playwright `1.61.0`, Chromium `149.0.7827.55` / playwright chromium `v1228`, actionlint `1.7.7`, ShellCheck `0.9.0`, cliente PostgreSQL `15.18` y servidor `postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193`.
 - Matriz Git/release post-merge: candidate identity, ancestry, actionlint `1.7.7`, ShellCheck `0.9.0`, EOL changed-only, whitespace ranged, protected closure, hooks, credential scan, firewall helper y Context Graph en PASS.
-- Matriz Python sin database post-merge: backend identity, Gate B readonly, remediation definition, schema/RLS, security hold, pipeline no-regression, release gates y credentials en PASS bajo UID/GID `65534`.
-- Matriz PostgreSQL 17 post-merge: v3 y hold ejecutados en PostgreSQL 17 efimero sin red mediante socket compartido, con apply/replay/rollback en PASS y cleanup final.
-- Matriz frontend post-merge: `npm ci`, lint, typecheck, build con stub loopback, export y Playwright publico en PASS con firewall local F9.7.
-- Python compile, Context Graph, actionlint, credential scan y protected closure PASS; evidencia de replay termina en `POST_MERGE_REPLAY PASS e95eeaccc864477db587bbb13c827d0c17340d8d 2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
-- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; security hold permanece `LOCAL_CANDIDATE_BLOCKED`; sin Supabase Free/Pro, Cloudflare manual, DDL/DML, backup, writers, backfill ni deploy.
+- Matriz Python sin database post-merge: backend identity, Gate B readonly, remediation definition, schema/RLS, security hold, pipeline no-regression, release gates y credentials en PASS bajo UID/GID `65534`; conteos observados `227 passed, 4 skipped, 1 warning` y subset hold `7 passed`.
+- Matriz PostgreSQL 17 post-merge: v3 y hold ejecutados en PostgreSQL 17 efimero sin red mediante socket compartido, con apply/replay/rollback en PASS y cleanup final; `F9.7 PostgreSQL 17 public access and trigger retirement: PASS` y `F9.7 leads/email security hold PostgreSQL 17 contract: PASS`.
+- Matriz frontend post-merge: `npm ci` instalo `630 packages` y audito `631 packages`; `npm run lint` termino con `0 errors, 9 warnings`; typecheck, build con stub loopback, export y Playwright publico `1 passed` en PASS con firewall local F9.7.
+- Warnings/skips no bloqueantes: `npm warn deprecated node-domexception@1.0.0`, `npm audit` reporto `14 vulnerabilities (2 low, 5 moderate, 7 high)` heredadas, npm aviso upgrade `10.8.2 -> 12.0.2`, PyPDF2 `DeprecationWarning`, PostgreSQL emitio `NOTICE ... does not exist, skipping` y cleanup efimero con `drop cascades to 37 other objects` durante reset local; no hubo secretos ni endpoints remotos en la evidencia.
+- Python compile, Context Graph `PASS (53 files, 512 links)`, actionlint, credential scan y protected closure PASS; evidencia de replay termina en `POST_MERGE_REPLAY PASS e95eeaccc864477db587bbb13c827d0c17340d8d 2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
+- Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; security hold permanece `LOCAL_CANDIDATE_BLOCKED`; sin Supabase Free/Pro, Cloudflare manual, DDL/DML remoto en Free/Pro, backup, writers, backfill ni deploy.
 
 ### Stop Conditions
 
@@ -594,11 +597,18 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - Aprobacion humana: `romelhc95-approver`, review `APPROVED` sobre `258ef3a98c7c1010efe58522bb1eca892e26390e`.
 - Merge humano: PR #258 cerrado como merged por `romelhc95-approver` en `e95eeaccc864477db587bbb13c827d0c17340d8d`, sin merge automatico por agente.
 
+### Follow-Up Documental Post-Merge
+
+- PR #259 reconcilio documentalmente el replay post-merge y fue fusionado por humano en `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`.
+- `fdaac633d29476e3323a8f88741a87570ece3b7c` conserva tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`; este snapshot sustituye la accion documental anterior y no cambia el candidate tecnico `258ef3a`/`2cb182` ni el replay `e95eeac`/`2cb182`.
+- Acciones anteriores `validate_wp_f9_7_04_ci_forward_fix`, `CORR-WP-F9.7-04-01`, candidates `b711e0b`, `120d234` y `d2cb32e`, y auditorias previas al tree final quedan historicas o `SUPERSEDED`.
+- Siguiente accion exacta: `definicion de PR-O combinado v3 + hold`. No se implementa ni aplica PR-O en este follow-up.
+
 ### Prohibiciones
 
 - No merge automatico.
 - No push directo a `desarrollo`, `certificacion` o `main`.
-- No Supabase Free/Pro, DDL/DML, backup/restore, writers, deploy o PR-O.
+- No Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup/restore, writers, deploy o PR-O.
 - No reutilizar auditorias de un tree anterior.
 
 ## Propiedad De Archivos
@@ -631,13 +641,14 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 
 1. Merge humano del corte: completado en PR #258 (`e95eeaccc864477db587bbb13c827d0c17340d8d`).
 2. Replay post-merge en checkout Linux limpio: PASS sobre tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
-3. Definicion de PR-O combinado v3 + hold.
-4. Gate separado de binding, snapshot, restore y writers Free.
-5. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
-6. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
-7. F9.10 `free_certified`.
-8. F10 Pro/main/observacion.
-9. F11 cierre final.
+3. Follow-up documental post-merge sobre `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`: confirma tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`, completa evidencia sanitizada y marca acciones anteriores como historicas o `SUPERSEDED`.
+4. `definicion de PR-O combinado v3 + hold`.
+5. Gate separado de binding, snapshot, restore y writers Free.
+6. Aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
+7. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
+8. F9.10 `free_certified`.
+9. F10 Pro/main/observacion.
+10. F11 cierre final.
 
 ## Datos Y Aprobaciones Futuras
 

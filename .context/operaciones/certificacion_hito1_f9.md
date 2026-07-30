@@ -9,10 +9,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
+- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #259 fusionado en `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c` / tree `2fa573d878eb566dd00f6fe21939e5b6420133ed` y security hold terminal `LOCAL_CANDIDATE_BLOCKED`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: `execute_wp_f9_7_01_freeze_closure_contract`; cualquier lectura o gate operativo remoto requiere autorizacion nueva.
+- Siguiente accion: `definicion de PR-O combinado v3 + hold`; no implementa ni aplica PR-O. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
 
 ## Subfases
 
@@ -24,7 +24,7 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) vigentes; v3 byte-identico; roles de aplicacion con acceso cero en el hold objetivo; security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED` |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS y PR #259 merge `fdaac63` conserva tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`; v3 byte-identico; roles de aplicacion con acceso cero en el hold objetivo; security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED` |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
 | `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
@@ -73,13 +73,13 @@ La [definicion local](./remediacion_gate_b_f9_7.md) congela el package existente
 
 ### Atestacion De Origen ACL
 
-[EVID-F9.7-ACL-SOURCE-001](./atestacion_origen_acl_f9_7.md) consumio una unica consulta Free catalog-only y sanitizada. No observo grants heredados/SET, owners publicos, elevacion, ACL desconocida, policy no administrada, view/rule/definer desconocido, publication o particion; `package_source_coverage=complete`. La closure actual sigue incompleta; el mismatch y el trigger conocido mantienen `fail_closed=true`, mientras los predicates no atestados bloquean aplicacion de forma independiente. No hubo filas de negocio, HTTP, DDL/DML, backup/restore, writers ni Pro.
+[EVID-F9.7-ACL-SOURCE-001](./atestacion_origen_acl_f9_7.md) consumio una unica consulta Free catalog-only y sanitizada. No observo grants heredados/SET, owners publicos, elevacion, ACL desconocida, policy no administrada, view/rule/definer desconocido, publication o particion; `package_source_coverage=complete`. La closure actual sigue incompleta; el mismatch y el trigger conocido mantienen `fail_closed=true`, mientras los predicates no atestados bloquean aplicacion de forma independiente. No hubo filas de negocio, HTTP, DDL/DML remoto en Free/Pro, backup/restore, writers ni Pro.
 
 La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra que el package sucesor v3 aplica la closure y retira atomicamente la ruta de egress, o revierte schema y ledger completos ante overloads, triggers adicionales, drift de owner/ACL/body/config/timing/evento/nivel/args/WHEN/transition table, mismatch o falla posterior a los drops, al verifier o al append de ledger. Esto no demuestra el snapshot remoto ni habilita ejecucion.
 
 ## Dependencias Posteriores
 
-Antes de aplicar el package sucesor F9.7 deben validarse snapshot, boundary y precondiciones exactas de v3 + security hold, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+La siguiente accion exacta es `definicion de PR-O combinado v3 + hold`. Antes de aplicar el package sucesor F9.7 deben validarse snapshot, boundary y precondiciones exactas de v3 + security hold, aprobarse/verificarse resguardo/restore y aprobarse/confirmarse pausa/drenaje de writers. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 
@@ -142,7 +142,7 @@ Todo path no enumerado queda excluido. F9.3 no modifica manifests/migrations F6-
 - El primer replay post-merge encontro que el fixture temporal construia un blob CRLF desde el bind mount Windows aunque el validador comparaba correctamente identidad LF. PR #239 limito la remediacion al fixture, agrego la regresion CRLF, recibio CI/auditorias/review en GO y fue fusionado.
 - Replay definitivo: `desarrollo@4e77fe0`, tree `efdf3f4edb53a384ee5f2a6251131696ccfb1865`, checkout limpio `i/lf w/lf` en el filesystem Linux interno de `studiamatch-dev`, sin ejecutar Python sobre el bind mount Windows. Pasaron 55 pruebas focused, 253 de regresion, 22 checks sinteticos, `py_compile` y Context Graph 30/232.
 - Auditorias finales security y QA: GO, cero hallazgos bloqueantes. CI ejecuto el job F9.3 bajo `unshare --net`; el contenedor local carece deliberadamente de `CAP_SYS_ADMIN`, por lo que el replay local mantuvo ambiente vacio, runner sin transporte y bloqueo de sockets en pruebas. Los gaps de adapter, target identity artifact y traces fueron asignados entonces a una F9.4 remota, luego sustituida.
-- Acceso Free/Pro, Supabase MCP, secrets, `.env*`, DDL/DML/RPC, attestations y transiciones de estado: cero.
+- Acceso Free/Pro, Supabase MCP, secrets, `.env*`, DDL/DML/RPC remoto, attestations y transiciones de estado: cero.
 - El PR documental que contiene esta evidencia completa F9.3 al fusionarse. No define, autoriza ni ejecuta F9.4.
 
 ## Definicion Sustituida De F9.4
