@@ -388,6 +388,7 @@ Cerrar el perfil web sin PII/leads y preservar todas las superficies publicas co
 - Docker `pytest -q tests/test_frontend_public_surfaces_playwright.py`: PASS (`1 passed`); cubre Home, catalogo, detalle, comparador, privacidad, terminos, filtros abiertos, tabs, compare bar, storage/query hostile y canaries de egress.
 - Comparador cubierto explicitamente a `188x334`; Home, detalle, privacidad y terminos cubiertos a `188x334`; viewport movil base `375x667` cubierto.
 - Edge Function historica `send-lead-emails` queda tombstone Git-only `410 Gone`, `text/plain`, `no-store`, sin lectura de request/env ni `fetch`.
+- Edge disablement separada autorizada en Free: `send-lead-emails` version `15`, `verify_jwt=false`, `ezbr_sha256=e004eab92d3ebb60aa5a1ce6d9a6f4072fb6cf47f8b58638af4675e5f5170e03`, target `FREE_BOUND`, owner `external_required_not_in_git`, timestamp `2026-07-31T21:02:35.6790000Z`; estado remoto observado `REMOTE_TOMBSTONE_410`, sin body read, sin env read, sin `fetch`, sin egress, sin DDL/DML y sin cambios en Pro.
 - `compareStorage` canonicaliza UUID trim/lowercase, deduplica, limita a tres y falla cerrado ante storage malformed.
 - `Header`/`Footer` y enlaces publicos deshabilitan prefetch de `next/link` para evitar HEAD abortados en static export; menu movil cierra overlays y links.
 - Canaries esperados se cumplen sin generar request failures ni console errors; egress real no-canary sigue abortando fail-closed.
