@@ -609,7 +609,7 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - PR #260 fue mergeado por humano en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, tree `0bc0d4b806117fb1b6a2a9fc4d618daa367829ee`, y contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
 - PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, tree `218bfcc7e99bdef3569fc730bba21228dee53540`, y llevo [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) a historia.
 - [PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md) queda `SUPERSEDED_NON_PROMOTABLE`; el hold actual `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE`.
-- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `DEFINED_LOCAL_NOT_IMPLEMENTED`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar implementacion local, certificacion local, preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
+- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `GO_WP_LOCAL`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar certificacion local, preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
 - La secuencia atomica futura queda `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`; boundary `7` es replay `READ ONLY` sin locks de escritura.
 - `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
 - Los siete SQL y los manifests actuales no se modifican y quedan ligados por digest en el contrato sucesor.
@@ -653,14 +653,15 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 2. Replay post-merge en checkout Linux limpio: PASS sobre tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
 3. Follow-up documental post-merge sobre `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c`: completado en PR #260; merge humano `e2721a0ec4581e422246dfabfa2048297f537025` contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
 4. `definicion de PR-O combinado v3 + hold`: completada en PR #261 y luego superseded; merge humano `ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`.
-5. Definicion local del PR-O sucesor con executor privado: [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md), sin implementacion ni autorizacion de aplicacion.
-6. Implementacion y certificacion local del PR-O sucesor.
-7. Gate separado de preflight read-only, binding, snapshot, restore y writers Free.
-8. Aprobacion independiente de `GO_FOR_FREE` y aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
-9. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
-10. F9.10 `free_certified`.
-11. F10 Pro/main/observacion.
-12. F11 cierre final.
+5. Definicion local del PR-O sucesor con executor privado: [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md).
+6. Implementacion local del PR-O sucesor: `GO_WP_LOCAL`, sin autorizacion de aplicacion.
+7. Certificacion local separada `CERTIFICACION_LOCAL_PR_O_SUCCESSOR`.
+8. Gate separado de preflight read-only, binding, snapshot, restore y writers Free.
+9. Aprobacion independiente de `GO_FOR_FREE` y aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
+10. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
+11. F9.10 `free_certified`.
+12. F10 Pro/main/observacion.
+13. F11 cierre final.
 
 ## Datos Y Aprobaciones Futuras
 

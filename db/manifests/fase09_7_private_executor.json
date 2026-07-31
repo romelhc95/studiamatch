@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "phase": "F9.7",
+  "artifact_type": "PRIVATE_EXECUTOR_SUCCESSOR_MANIFEST",
+  "package_id": "PR-O-F9.7-PRIVATE-EXECUTOR-002",
+  "status": "GO_WP_LOCAL",
+  "application_authorized": false,
+  "capabilities": [],
+  "target": "free",
+  "blocked_targets": ["pro", "production", "certification"],
+  "depends_on": {
+    "manifest": "db/manifests/fase09_7_free_schema_rls_v3.json",
+    "package_id": "F9.7-PUBLIC-ACCESS-TRIGGER-RETIREMENT-V3-20260728",
+    "manifest_sha256": "835b9103f10a8c03b930d4474f9007d99a8715b9bcbc438f144c5bd14d80ea07",
+    "entries": [
+      {
+        "path": "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+        "sha256": "d239f7080c709cdccf7227523ff2b89b48f99a57ace376a18bbdaa4d1a4d75df"
+      },
+      {
+        "path": "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+        "sha256": "b8badde99ada9de16aae126497304cfa7d02f9f6df89f3e22604965446c1af8a"
+      },
+      {
+        "path": "db/migrations/20260725_fase07_g1b_closure.sql",
+        "sha256": "9b83b36e0d90be048ccdfdea8fc1c175b8c7d7ac1fe25d7589d4c653f6a1c120"
+      },
+      {
+        "path": "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+        "sha256": "7e392473e464df07edbcfcd7b8597ead8d7e10a47d990eedcfe6ed6cee70b527"
+      },
+      {
+        "path": "db/migrations/20260727_fase09_7_public_access_closure.sql",
+        "sha256": "040584e96996c705add37ae84e163aa51c35c4f65357279146bd6840e61e1d6b"
+      },
+      {
+        "path": "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
+        "sha256": "f1fd6e618bd16ff4216f46587ce897756e465ada92ee9bc398335cd9239fe188"
+      }
+    ]
+  },
+  "executor": {
+    "schema": "f97_private_control",
+    "schema_exposed_by_data_api": false,
+    "postgrest_rpc_endpoint": false,
+    "accepts_arbitrary_sql": false,
+    "accepts_text_sql": false,
+    "descriptor_only": true,
+    "final_state_excludes": ["public.exec_sql(text)"],
+    "execute_grants": {
+      "PUBLIC": false,
+      "anon": false,
+      "authenticated": false,
+      "authenticator": false,
+      "service_role": false
+    }
+  },
+  "bindings": {
+    "candidate_commit": "external_required_after_local_commit",
+    "candidate_tree": "external_required_after_local_commit",
+    "successor_manifest": {
+      "path": "db/manifests/fase09_7_private_executor.json"
+    },
+    "runbook": {
+      "path": "db/runbooks/fase09_7_private_executor.json",
+      "sha256": "8246675f588afc85f360c9b18dac667069615885a104ab41624da35c0e177cda"
+    },
+    "boundary7_sql": {
+      "path": "tests/sql/fase09_7_private_executor_boundary7.sql",
+      "sha256": "2c551c592c0969c89b8fa3dab8c2eb864a36b42a403e260acf468fd6edf91b14"
+    },
+    "payload": {
+      "id": "PR-O-F9.7-PRIVATE-EXECUTOR-002-PAYLOAD",
+      "sha256": "d500177945155aced1a997ab1add947b5c7bd575d9d4dfbaa4b5e2761853f0b5"
+    }
+  },
+  "target_binding": {
+    "required_target": "free",
+    "synthetic_target_fingerprint_sha256": "6a63086f1c20745985f3d76699e36a3d49bf7f16fd45aa6fdc531d33c6651153",
+    "comparison": "hmac.compare_digest",
+    "ambiguous_target_result": "fail_closed"
+  },
+  "approval": {
+    "single_use": true,
+    "nonce_storage": "private_not_in_git",
+    "nonce_digest_algorithm": "sha256",
+    "window_required": true,
+    "expiration_required": true,
+    "recovery_owner": "external_required_not_in_git",
+    "invalidates_on": [
+      "success",
+      "failure",
+      "timeout",
+      "ambiguous_response"
+    ],
+    "automatic_retry": false
+  },
+  "drift_guards": [
+    "schema",
+    "ledger",
+    "acl",
+    "rls",
+    "grants",
+    "policies",
+    "owner",
+    "routines",
+    "triggers",
+    "views",
+    "rules",
+    "publications",
+    "extensions",
+    "payload"
+  ],
+  "boundary_7": {
+    "mode": "READ_ONLY",
+    "sql_path": "tests/sql/fase09_7_private_executor_boundary7.sql",
+    "forbidden_primitives": [
+      "LOCK",
+      "SELECT FOR UPDATE",
+      "ADVISORY_LOCK",
+      "DDL",
+      "DML",
+      "MUTATING_RPC",
+      "PROTECTED_TABLE_READ"
+    ],
+    "reads_protected_tables": false
+  },
+  "atomic_sequence": [
+    "pending v3",
+    "postcondiciones v3",
+    "ledger v3",
+    "hold sucesor",
+    "verificador terminal",
+    "ledger hold",
+    "verificacion final",
+    "commit unico"
+  ],
+  "public_evidence": [
+    "aggregate_state",
+    "timestamp",
+    "artifact_digest",
+    "verdict"
+  ],
+  "explicitly_forbidden": [
+    "supabase_free_access",
+    "supabase_pro_access",
+    "remote_network",
+    "ddl",
+    "dml",
+    "arbitrary_sql",
+    "public_rpc",
+    "data_api_exposure",
+    "backup_restore_execution",
+    "writer_control",
+    "backfill",
+    "edge_remote",
+    "cloudflare_manual",
+    "pro",
+    "production",
+    "certificacion"
+  ]
+}

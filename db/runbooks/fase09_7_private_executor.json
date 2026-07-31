@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "phase": "F9.7",
+  "artifact_type": "PRIVATE_EXECUTOR_SUCCESSOR_RUNBOOK",
+  "package_id": "PR-O-F9.7-PRIVATE-EXECUTOR-002",
+  "status": "GO_WP_LOCAL",
+  "application_authorized": false,
+  "capabilities": [],
+  "commands": [],
+  "target_class": "SYNTHETIC_FREE_ONLY",
+  "approval_lifecycle": {
+    "single_use": true,
+    "nonce_storage": "private_not_in_git",
+    "nonce_digest_algorithm": "sha256",
+    "valid_terminal_results": [
+      "success",
+      "failure",
+      "timeout",
+      "ambiguous_response"
+    ],
+    "invalidates_on": [
+      "success",
+      "failure",
+      "timeout",
+      "ambiguous_response"
+    ]
+  },
+  "window": {
+    "required": true,
+    "not_before": "external_required_not_in_git",
+    "expires_at": "external_required_not_in_git",
+    "expired_result": "fail_closed"
+  },
+  "recovery_owner": {
+    "required": true,
+    "storage": "external_required_not_in_git",
+    "public_evidence": "owner_class_only"
+  },
+  "boundary_7": {
+    "mode": "READ_ONLY",
+    "sql_path": "tests/sql/fase09_7_private_executor_boundary7.sql",
+    "forbidden_primitives": [
+      "lock",
+      "select_for_update",
+      "advisory_lock",
+      "ddl",
+      "dml",
+      "mutating_rpc",
+      "protected_table_read"
+    ],
+    "ledger_behavior": "read_digest_only",
+    "business_rows_read": false
+  },
+  "failure_matrix": [
+    {
+      "condition": "schema_drift",
+      "result": "fail_closed_invalidate_approval"
+    },
+    {
+      "condition": "ledger_drift",
+      "result": "fail_closed_invalidate_approval"
+    },
+    {
+      "condition": "acl_rls_grant_drift",
+      "result": "fail_closed_invalidate_approval"
+    },
+    {
+      "condition": "owner_routine_trigger_view_rule_publication_extension_drift",
+      "result": "fail_closed_invalidate_approval"
+    },
+    {
+      "condition": "payload_drift",
+      "result": "fail_closed_invalidate_approval"
+    },
+    {
+      "condition": "timeout_or_ambiguous_response",
+      "result": "fail_closed_invalidate_approval_no_retry"
+    }
+  ],
+  "public_evidence": [
+    "aggregate_state",
+    "timestamp",
+    "artifact_digest",
+    "verdict"
+  ],
+  "explicitly_forbidden": [
+    "supabase_free_access",
+    "supabase_pro_access",
+    "remote_network",
+    "ddl",
+    "dml",
+    "arbitrary_sql",
+    "public_rpc",
+    "data_api_exposure",
+    "backup_restore_execution",
+    "writer_control",
+    "backfill",
+    "edge_remote",
+    "cloudflare_manual",
+    "pro",
+    "production",
+    "certificacion"
+  ]
+}

@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | ID | `PR-O-F9.7-PRIVATE-EXECUTOR-002` |
-| Estado | `DEFINED_LOCAL_NOT_IMPLEMENTED` |
+| Estado | `GO_WP_LOCAL` |
 | Subfase | `F9.7` |
-| Base Git | Definicion creada desde `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; merge verificado de PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039` |
+| Base Git | Definicion creada desde `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; PR #263 verificado en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba` |
 | PR-O v1 | `SUPERSEDED_NON_PROMOTABLE` |
 | Hold actual | `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729=SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE` |
 | application_authorized | `false` |
@@ -13,7 +13,7 @@
 | Ambiente permitido futuro | DB `Free` solamente, con aprobacion separada |
 | Ambientes bloqueados | DB `Pro`, `Production` y `Certification` como rama/release |
 
-Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543` y queda integrado por PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66`. Define la ruta sucesora, pero no implementa executor, no escribe SQL, no crea runner, no modifica manifests, no accede a Free/Pro y no concede `GO_FOR_FREE`.
+Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543` y queda integrado por PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66`. La implementacion local posterior crea artifacts sinteticos del executor privado y su matriz de pruebas, pero no escribe SQL remoto, no accede a Free/Pro y no concede `GO_FOR_FREE`.
 
 Free es el ambiente DB de desarrollo/certificacion para una aplicacion futura autorizada; `certificacion` como rama/release permanece bloqueada hasta F9.10. Este contrato no cambia ese bloqueo.
 
@@ -23,7 +23,7 @@ PR-O v1 queda preservado en [PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md). L
 
 ## Executor Privado Requerido
 
-La implementacion local futura debe reemplazar cualquier primitive generica `public.exec_sql(text)` por un executor privado con estas propiedades:
+La implementacion local reemplaza cualquier primitive generica `public.exec_sql(text)` del estado final esperado por un executor privado con estas propiedades:
 
 - No vive en `public` ni en ningun schema expuesto por Data API.
 - No es invocable por `PUBLIC`, `anon`, `authenticated`, `authenticator` ni por endpoints PostgREST/RPC.
@@ -66,6 +66,9 @@ La evidencia publica solo puede registrar estados agregados, timestamps, digests
 | `db/runbooks/fase09_7_backup_restore.json` | `PENDING_NOT_AUTHORIZED` | `254eb387c425675a399d5a2d03411a572ee1bb50061a73158cfb828835e267cf` |
 | `db/runbooks/fase09_7_writer_pause.json` | `PENDING_NOT_AUTHORIZED` | `005648e6fd176f03ab7a488319b437d9c1b28bb8f734fc4a878b7ac6a4909444` |
 | `db/runbooks/fase09_7_leads_email_security_hold.json` | `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE` | `7d2c6dca75f7119c649535456ff8ed31ebecffbba43a245c0c2f28139d6a5168` |
+| `db/manifests/fase09_7_private_executor.json` | `GO_WP_LOCAL` | `115f5b52bf9e975b050fe20668d4b05538eeb9a539eb04d95c0bd83e2d8a1c7a` |
+| `db/runbooks/fase09_7_private_executor.json` | `GO_WP_LOCAL` | `8246675f588afc85f360c9b18dac667069615885a104ab41624da35c0e177cda` |
+| `tests/sql/fase09_7_private_executor_boundary7.sql` | `GO_WP_LOCAL_BOUNDARY7_READ_ONLY` | `2c551c592c0969c89b8fa3dab8c2eb864a36b42a403e260acf468fd6edf91b14` |
 
 ### Payloads Locales Historicos
 
@@ -76,8 +79,11 @@ La evidencia publica solo puede registrar estados agregados, timestamps, digests
 | `tests/sql/fase09_7_leads_email_security_hold_test.sql` | Test SQL hold actual | `1143bf0214896eb9e73c32a698df778cb74287621c90a0235fde018d1d28b96c` |
 | `tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh` | Runner local hold actual | `7030d0eb5ae26ae6c74c541500735389c3498ed119c9aa0d253291394281aad6` |
 | `tests/test_fase09_7_leads_email_security_hold.py` | Pytest hold actual | `7fbdc3703ab31d57af5b247d2cec3a67c5cbf0c81ba891a60f22788cb0fc2764` |
+| `scripts/maintenance/fase09_7_private_executor.py` | Planner/validador sucesor local | `06005bc8bc8c5a6efbd215df31076101e6e77d8e69df92583fd50b0862990b3d` |
+| `tests/test_fase09_7_private_executor.py` | Pytest sucesor local | `51a505534df82d46a93db4174f911ccb86c68653e831321bb6e275ef154a080a` |
+| `PR-O-F9.7-PRIVATE-EXECUTOR-002-PAYLOAD` | Payload sintetico manifest-bound | `d500177945155aced1a997ab1add947b5c7bd575d9d4dfbaa4b5e2761853f0b5` |
 
-Un payload sucesor futuro debe tener digest propio y no puede reutilizar los payloads del hold actual como finales.
+El payload sucesor tiene digest propio y no reutiliza los payloads del hold actual como finales.
 
 ## Secuencia Atomica Futura
 
@@ -122,8 +128,8 @@ Estas autorizaciones son distintas, no transitivas y single-use:
 
 | Autorizacion | Estado actual | Alcance maximo |
 |---|---|---|
-| `IMPLEMENTACION_LOCAL_PR_O_SUCCESSOR` | `PENDING` | Crear executor privado, hold sucesor, payloads y pruebas locales sin red. |
-| `CERTIFICACION_LOCAL_PR_O_SUCCESSOR` | `PENDING` | Validar digest binding, target binding sintetico, boundary y no-Data-API en local. |
+| `IMPLEMENTACION_LOCAL_PR_O_SUCCESSOR` | `CONSUMED_GO_WP_LOCAL` | Crear executor privado, hold sucesor, payloads y pruebas locales sin red. |
+| `CERTIFICACION_LOCAL_PR_O_SUCCESSOR` | `PENDING_NEXT` | Validar digest binding, target binding sintetico, boundary y no-Data-API en local. |
 | `PREFLIGHT_READ_ONLY_FREE` | `PENDING` | Snapshot catalog-only Free sin filas ni payloads. |
 | `BACKUP_RESTORE_FREE` | `PENDING` | Backup privado y restore probado fuera de Git. |
 | `WRITER_PAUSE_DRAIN_FREE` | `PENDING` | Pausa/drain de writers y `pg_net` counts-only. |
@@ -149,7 +155,7 @@ Cada approval debe estar ligado a target fingerprint, boundary inicial, candidat
 
 ## Siguiente Accion Canonica
 
-La siguiente accion no es `GO_FOR_FREE`. La siguiente accion es `implementacion y certificacion local del PR-O sucesor`, bajo autorizacion separada, sin red remota y con pruebas locales que demuestren executor privado no expuesto por Data API, eliminacion de `public.exec_sql(text)` del estado final esperado, digests actuales y approvals single-use.
+La siguiente accion no es `GO_FOR_FREE`. La siguiente accion es `CERTIFICACION_LOCAL_PR_O_SUCCESSOR`, bajo autorizacion separada, sin red remota y con pruebas locales que demuestren executor privado no expuesto por Data API, eliminacion de `public.exec_sql(text)` del estado final esperado, digests actuales y approvals single-use.
 
 ## Referencias
 

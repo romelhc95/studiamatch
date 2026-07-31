@@ -34,7 +34,7 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
 - Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
-- PR-O sucesor F9.7: la decision humana posterior exige executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
+- PR-O sucesor F9.7: queda implementado localmente como `GO_WP_LOCAL` con executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
 - `USER_PERSONAL_UAT`: hold operativo de F9.10, no criterio, subfase ni transicion; se ubica despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`, con candidate commit/tree inmutable y `PASS` personal del usuario.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
 - Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.
