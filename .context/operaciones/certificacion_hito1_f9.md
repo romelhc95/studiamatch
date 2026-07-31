@@ -8,8 +8,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
-- Estado de certificacion: Free sigue sin certificar y Pro permanece bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #261 fusionado en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`, y [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `DEFINED_LOCAL_NOT_IMPLEMENTED`.
+- Estado de certificacion: Free sigue sin certificar, Pro permanece bloqueado y `GO_FOR_FREE` esta bloqueado.
+- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #261 fusionado en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, PR #262 fusionado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`, [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`, y [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `DEFINED_LOCAL_NOT_IMPLEMENTED`.
 - Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
 - Siguiente accion: `implementacion y certificacion local del PR-O sucesor`; no es `GO_FOR_FREE` y no aplica PR-O remoto. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
@@ -24,10 +24,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS, PR #261 merge `ee0e320` contiene PR-O v1; [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) definido localmente sin implementacion; v3 byte-identico; `public.exec_sql(text)` debe estar ausente del estado final sucesor; Free/Pro `UNCHANGED_NOT_ATTESTED` |
+| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS, PR #261 merge `ee0e320` contiene PR-O v1, PR #262 merge `c0b6c5e` define el sucesor; [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) definido localmente sin implementacion; v3 byte-identico; `public.exec_sql(text)` debe estar ausente del estado final sucesor; Free/Pro `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` bloqueado |
 | `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
 | `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
-| `F9.10` | Canary, smoke, QA, cleanup y certificacion final T04 | `PENDING` | Termina en `free_certified`/`FREE_CERTIFIED` |
+| `F9.10` | Canary, smoke, QA, cleanup, `USER_PERSONAL_UAT` y certificacion final T04 | `PENDING` | `USER_PERSONAL_UAT` es hold operativo posterior a validaciones tecnicas Free, exige candidate commit/tree inmutable y `PASS` personal del usuario antes de T04, writer resume o PR/merge `desarrollo -> certificacion`; termina en `free_certified`/`FREE_CERTIFIED` |
 
 La [definicion remota F9.4 anterior](./preflight_free_f9_4.md) y el [registro F9.5](./preflight_free_f9_5.md) son historia no autorizable. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
 
@@ -80,6 +80,8 @@ La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra 
 ## Dependencias Posteriores
 
 El [contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) define localmente el gate sucesor Free-only: PR-O v1 y hold actual `SUPERSEDED_NON_PROMOTABLE`, executor privado digest-bound/target-bound/single-use/no Data API, digests de SQL/manifests/runbooks/payloads, approvals single-use, boundary `7` estrictamente read-only sin locks de escritura y secuencia atomica `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`. Antes de aplicar en Free deben existir autorizaciones independientes de implementacion local, certificacion local, preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+
+Free es el ambiente DB de desarrollo/certificacion de esta macrofase; `certificacion` como rama/release no es un ambiente DB alterno y permanece bloqueada. En F9.10, despues de todas las validaciones tecnicas Free y antes de T04, reanudar writers o cualquier PR/merge `desarrollo -> certificacion`, debe cumplirse el hold operativo `USER_PERSONAL_UAT`: candidate commit/tree inmutable y `PASS` personal explicito del usuario. Este hold no agrega criterio contractual, subfase ni transicion nueva.
 
 El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
 
@@ -159,6 +161,7 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 | ACL negativa `service_role` sobre `leads`/`email_log`; identidad de servicio se conserva para superficies autorizadas | F9.7 y revalidacion F9.10 |
 | Smoke FG2 sin fallback de persistencia | F9.10 |
 | Cleanup idempotente | F9.10 |
+| Hold operativo `USER_PERSONAL_UAT` con candidate commit/tree inmutable y PASS personal del usuario | F9.10, despues de validaciones tecnicas Free y antes de T04/writer resume/PR a `certificacion` |
 | PR a `desarrollo` si el candidate nace temporal | Cada subfase aplicable; comprobacion final F9.10 |
 | Promocion nueva a `certificacion` | F9.10 con review/CI |
 | Canary Free desde package exacto | F9.10 |
@@ -171,6 +174,7 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 - Toda migration Free y el backup/restore previo requieren aprobacion explicita en F9.7.
 - Pausar y reanudar writers son dos decisiones humanas separadas; F9.7 pausa y F9.10 solo puede reanudar despues de postcondiciones/QA.
 - Plan y ejecucion de backfill requieren aprobaciones separadas en F9.8/F9.9.
+- `USER_PERSONAL_UAT` en F9.10 requiere candidate commit/tree inmutable y `PASS` personal del usuario despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`.
 - Cada merge a `desarrollo` y el merge a `certificacion` requieren aprobacion humana y CI en la subfase aplicable/F9.10.
 - T04 exige `free_final_certification_approval` explicita en F9.10; canary o QA por si solos no cambian estado.
 - Promocion Pro, pausa/reanudacion Pro, merge a `main` y release final pertenecen a F10 y conservan aprobaciones separadas.
