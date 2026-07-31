@@ -463,7 +463,7 @@ Hacer que el candidate exacto, no un checkout vacio o HEAD anterior, sea el obje
 - R07 credential scan: PASS, candidate tree/index sin findings y output redacted.
 - R08 firewall cleanup: PASS, helper unico `.github/scripts/fase09_7_firewall_guard.sh` modo `100755`, ownership y cleanup solo para `F97_FRONTEND_EGRESS`, `FASE097_EGRESS`, `FASE097_AUDIT_EGRESS`.
 - R09 aggregator: PASS, job requerido `security-audit` con `if: always()`, `release-gates` en `needs` y cero `continue-on-error`.
-- Tests locales Docker: `tests/test_fase09_7_release_gates.py` + `tests/test_fase09_7_pipeline_no_regression.py` = `44 passed`; subset credenciales WP-04 = `5 passed`; subset integrado schema/RLS = `3 passed`; Context Graph = `PASS (52 files, 507 links)`.
+- Tests locales Docker: `tests/test_fase09_7_release_gates.py` + `tests/test_fase09_7_pipeline_no_regression.py` = `102 passed, 1 skipped`; subset credenciales WP-04 = `5 passed`; subset integrado schema/RLS = `3 passed`; Context Graph = `PASS (55 files, 561 links)`.
 - Backlog fuera de alcance registrado como [BK-F9.5-08](../backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md#bk-f95-08---hardening-futuro-fuera-de-alcance-wp-f97-04), estado `DEFERRED_NO_IMPLEMENTATION`.
 - Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; sin Supabase Free/Pro, Cloudflare manual, DDL/DML remoto en Free/Pro, pipeline, frontend runtime, push ni PR.
 
@@ -590,7 +590,7 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 ### Evidencia Final WP-F9.7-06
 
 - Estado: `COMPLETED_LOCAL_MERGED`.
-- Evidencia final sanitizada: [issuecomment-5133103661](https://github.com/romelhc95/studiamatch/pull/258#issuecomment-5133103661).
+- Evidencia final sanitizada: `issuecomment-5133103661`.
 - CI requerida: `security-audit=pass`; checks del PR en success y Supabase Preview skipped esperado.
 - Seis verdicts individuales finales: `security-auditor=GO_FOR_LOCAL_PR`, `supabase-architect=GO_FOR_LOCAL_PR`, `frontend-architect=GO_FOR_LOCAL_PR`, `pipeline-engineer=GO_FOR_LOCAL_PR`, `qa-test-engineer=GO_FOR_LOCAL_PR`, `devops-release-manager=GO_FOR_LOCAL_PR`.
 - `BLOCKING_IN_SCOPE=0`; residuales aceptados historicos: `public.exec_sql(text)` control-plane local, autoridad administrativa `postgres`/superuser, Free/Pro `UNCHANGED_NOT_ATTESTED`, dos `SC2086` legacy de baseline protegido y warnings externos no mapeados a invariantes. `public.exec_sql(text)` no es aceptable como estado final del PR-O sucesor.
@@ -609,7 +609,7 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - PR #260 fue mergeado por humano en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, tree `0bc0d4b806117fb1b6a2a9fc4d618daa367829ee`, y contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
 - PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, tree `218bfcc7e99bdef3569fc730bba21228dee53540`, y llevo [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) a historia.
 - [PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md) queda `SUPERSEDED_NON_PROMOTABLE`; el hold actual `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE`.
-- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `GO_WP_LOCAL`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar certificacion local, preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
+- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
 - La secuencia atomica futura queda `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`; boundary `7` es replay `READ ONLY` sin locks de escritura.
 - `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
 - Los siete SQL y los manifests actuales no se modifican y quedan ligados por digest en el contrato sucesor.
@@ -655,8 +655,8 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 4. `definicion de PR-O combinado v3 + hold`: completada en PR #261 y luego superseded; merge humano `ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`.
 5. Definicion local del PR-O sucesor con executor privado: [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md).
 6. Implementacion local del PR-O sucesor: `GO_WP_LOCAL`, sin autorizacion de aplicacion.
-7. Certificacion local separada `CERTIFICACION_LOCAL_PR_O_SUCCESSOR`.
-8. Gate separado de preflight read-only, binding, snapshot, restore y writers Free.
+7. Certificacion local separada `CERTIFICACION_LOCAL_PR_O_SUCCESSOR`: `CONSUMED_PASS` como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`.
+8. Gate separado `PREFLIGHT_READ_ONLY_FREE` para snapshot catalog-only Free sin filas ni payloads, pendiente de autorizacion propia.
 9. Aprobacion independiente de `GO_FOR_FREE` y aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
 10. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
 11. F9.10 `free_certified`.
