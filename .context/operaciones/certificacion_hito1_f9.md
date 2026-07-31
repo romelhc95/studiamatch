@@ -14,6 +14,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
 - Siguiente accion: `PREFLIGHT_READ_ONLY_FREE`, pendiente de autorizacion separada y solo despues del merge/replay del PR que publique la certificacion local; no es `GO_FOR_FREE` y no aplica PR-O remoto. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
 
+Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+
 ## Subfases
 
 | ID | Alcance | Estado | Evidencia o condicion |
