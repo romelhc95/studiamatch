@@ -93,6 +93,54 @@ def test_load_contract_rejects_mutated_on_disk_artifacts(
         executor.load_contract(root)
 
 
+@pytest.mark.parametrize(
+    "relative_path, mutate, message",
+    [
+        (
+            "db/manifests/fase09_7_free_schema_rls_v3.json",
+            lambda text: text.replace(
+                '"status": "reconciled_not_certified"',
+                '"status": "reconciled_not_certified_mutated"',
+                1,
+            ),
+            "v3 manifest file digest drift",
+        ),
+        (
+            "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+            lambda text: text + "\n-- mutated\n",
+            "v3 entry digest drift",
+        ),
+    ],
+)
+def test_load_contract_rejects_mutated_v3_dependency_artifacts(
+    tmp_path: Path,
+    relative_path: str,
+    mutate,
+    message: str,
+):
+    root = tmp_path / "repo"
+    for relative in (
+        "db/manifests/fase09_7_private_executor.json",
+        "db/runbooks/fase09_7_private_executor.json",
+        "tests/sql/fase09_7_private_executor_boundary7.sql",
+        "db/manifests/fase09_7_free_schema_rls_v3.json",
+        "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+        "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+        "db/migrations/20260725_fase07_g1b_closure.sql",
+        "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+        "db/migrations/20260727_fase09_7_public_access_closure.sql",
+        "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
+    ):
+        _copy_contract_fixture(root, relative)
+
+    target = root / relative_path
+    original = target.read_text(encoding="utf-8")
+    target.write_text(mutate(original), encoding="utf-8")
+
+    with pytest.raises(executor.PrivateExecutorError, match=message):
+        executor.load_contract(root)
+
+
 def test_private_executor_surface_is_not_data_api_or_role_invocable():
     manifest = _contract().manifest
     executor.validate_private_surface(manifest)
@@ -263,6 +311,13 @@ def test_arbitrary_sql_is_rejected_and_exact_boundary_sql_is_accepted():
         "SELECT * FROM public.email_log;",
         "LOCK TABLE public.supabase_migrations;",
         "SELECT pg_advisory_lock(1);",
+        "SELECT pg_try_advisory_lock(1);",
+        "SELECT pg_advisory_lock_shared(1);",
+        "SELECT pg_try_advisory_lock_shared(1);",
+        "SELECT pg_advisory_unlock(1);",
+        "SELECT pg_advisory_unlock_shared(1);",
+        "SELECT pg_advisory_unlock_all();",
+        "SELECT lo_create(1);",
     ):
         with pytest.raises(executor.PrivateExecutorError):
             executor.reject_arbitrary_sql(contract, sql)
@@ -289,6 +344,24 @@ def test_boundary7_sql_is_strictly_read_only_and_sanitized():
     sql = _contract().boundary7_sql
     executor.validate_boundary7_sql(sql)
     lowered = sql.lower()
+    for required in (
+        "pg_roles",
+        "pg_auth_members",
+        "pg_class",
+        "pg_policy",
+        "pg_proc",
+        "pg_trigger",
+        "pg_rewrite",
+        "pg_publication",
+        "pg_extension",
+        "pg_constraint",
+        "relrowsecurity",
+        "relforcerowsecurity",
+        "relowner",
+        "proowner",
+        "extowner",
+    ):
+        assert required in lowered
     for forbidden in (
         "lock",
         "for update",

@@ -66,9 +66,9 @@ La evidencia publica solo puede registrar estados agregados, timestamps, digests
 | `db/runbooks/fase09_7_backup_restore.json` | `PENDING_NOT_AUTHORIZED` | `254eb387c425675a399d5a2d03411a572ee1bb50061a73158cfb828835e267cf` |
 | `db/runbooks/fase09_7_writer_pause.json` | `PENDING_NOT_AUTHORIZED` | `005648e6fd176f03ab7a488319b437d9c1b28bb8f734fc4a878b7ac6a4909444` |
 | `db/runbooks/fase09_7_leads_email_security_hold.json` | `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE` | `7d2c6dca75f7119c649535456ff8ed31ebecffbba43a245c0c2f28139d6a5168` |
-| `db/manifests/fase09_7_private_executor.json` | `GO_WP_LOCAL` | `1374903e3a2f696649c44f291425d48c86fef4e382396fa4e436b177c34f3229` |
+| `db/manifests/fase09_7_private_executor.json` | `GO_WP_LOCAL` | `91946b7b8deb52f335d37d414117674360eaa11c4c6e873fb6e74b1fbdcd72c5` |
 | `db/runbooks/fase09_7_private_executor.json` | `GO_WP_LOCAL` | `8246675f588afc85f360c9b18dac667069615885a104ab41624da35c0e177cda` |
-| `tests/sql/fase09_7_private_executor_boundary7.sql` | `GO_WP_LOCAL_BOUNDARY7_READ_ONLY` | `d54581979ee3d7faff14e90677081f158ab1923badf4ba341c5b7efd8182b781` |
+| `tests/sql/fase09_7_private_executor_boundary7.sql` | `GO_WP_LOCAL_BOUNDARY7_READ_ONLY` | `a01202688b0276f339190859a08e4a5bfe58338977d0b7371b8768e174efcaef` |
 
 ### Payloads Locales Historicos
 
@@ -79,9 +79,9 @@ La evidencia publica solo puede registrar estados agregados, timestamps, digests
 | `tests/sql/fase09_7_leads_email_security_hold_test.sql` | Test SQL hold actual | `1143bf0214896eb9e73c32a698df778cb74287621c90a0235fde018d1d28b96c` |
 | `tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh` | Runner local hold actual | `7030d0eb5ae26ae6c74c541500735389c3498ed119c9aa0d253291394281aad6` |
 | `tests/test_fase09_7_leads_email_security_hold.py` | Pytest hold actual | `7fbdc3703ab31d57af5b247d2cec3a67c5cbf0c81ba891a60f22788cb0fc2764` |
-| `scripts/maintenance/fase09_7_private_executor.py` | Planner/validador sucesor local | `384625282393ab8f851d2332287534dd48e260c24822b113baeaf9aa4a81a0e6` |
-| `tests/test_fase09_7_private_executor.py` | Pytest sucesor local | `51a505534df82d46a93db4174f911ccb86c68653e831321bb6e275ef154a080a` |
-| `PR-O-F9.7-PRIVATE-EXECUTOR-002-PAYLOAD` | Payload sintetico manifest-bound | `f86c3062ca1d394e809e0e2e85d5173754779dcd9e6d66fe8f0d69f46afdba49` |
+| `scripts/maintenance/fase09_7_private_executor.py` | Planner/validador sucesor local | `4c99fabd97b4914418b08cb81879afe73a1abaaf31f9814fe416ff0ce20539b8` |
+| `tests/test_fase09_7_private_executor.py` | Pytest sucesor local | `6895eeedcd9cf0dd927717315355935975ccc544661530cef148abfe7f764479` |
+| `PR-O-F9.7-PRIVATE-EXECUTOR-002-PAYLOAD` | Payload sintetico manifest-bound | `87dcb4b0cde88e32b05bb7206a67f5b9174de55e640f526cd902c80e43b9ee3a` |
 
 El payload sucesor tiene digest propio y no reutiliza los payloads del hold actual como finales.
 
