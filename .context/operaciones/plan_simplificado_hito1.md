@@ -9,7 +9,7 @@
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
 - Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 y el follow-up post-PR #262 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
 
-La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion remota. PR #262 esta mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor esta definido con executor privado digest-bound/target-bound/single-use, pero todavia no implementado.
+La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion remota. PR #262 esta mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor esta certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado digest-bound/target-bound/single-use, `application_authorized=false`, `capabilities=[]` y `GO_FOR_FREE` bloqueado.
 
 ## Dictamen
 
@@ -34,7 +34,7 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
 - Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
-- PR-O sucesor F9.7: la decision humana posterior exige executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
+- PR-O sucesor F9.7: queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
 - `USER_PERSONAL_UAT`: hold operativo de F9.10, no criterio, subfase ni transicion; se ubica despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`, con candidate commit/tree inmutable y `PASS` personal del usuario.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
 - Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.

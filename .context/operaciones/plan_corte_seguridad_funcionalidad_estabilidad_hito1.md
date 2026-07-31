@@ -54,11 +54,11 @@ El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` es separado, forward-only, 
 
 ## PR-O Sucesor Con Executor Privado
 
-[PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) define localmente el contrato sucesor Free-only. Mantiene `application_authorized=false`, `capabilities=[]`, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, cero capacidad remota ejecutable, approvals single-use y secuencia atomica `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`.
+[PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR`. Mantiene `application_authorized=false`, `capabilities=[]`, Pro/backfill/H-00/aplicaciones parciales rechazados, boundaries permitidos `0`, `3`, `4`, `5`, `6` y `7`, cero capacidad remota ejecutable, approvals single-use y secuencia atomica `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`.
 
 ## Gate Futuro De Contencion Free
 
-Free requiere implementacion y certificacion local del PR-O sucesor, binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target, estado Edge valido y aprobacion humana independiente antes de aplicar v3 + hold sucesor.
+Free requiere `PREFLIGHT_READ_ONLY_FREE` separado, binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target, estado Edge valido y aprobacion humana independiente antes de aplicar v3 + hold sucesor.
 
 ## Gate Futuro De Contencion Pro
 
@@ -70,7 +70,7 @@ F9.8/F9.9 permanecen limitadas a cursos legacy anteriores a cutoff aprobado, `is
 
 ## Ruta Restante A Produccion
 
-Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion y certificacion local del sucesor, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, validaciones tecnicas F9.10 en Free, hold operativo `USER_PERSONAL_UAT=PASS` sobre candidate commit/tree inmutable, T04, PR/merge `desarrollo -> certificacion`, F10 Pro/main/observacion y F11 cierre final.
+Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion local `GO_WP_LOCAL`, certificacion local `CERTIFIED_LOCAL_PR_O_SUCCESSOR`, `PREFLIGHT_READ_ONLY_FREE` separado, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, validaciones tecnicas F9.10 en Free, hold operativo `USER_PERSONAL_UAT=PASS` sobre candidate commit/tree inmutable, T04, PR/merge `desarrollo -> certificacion`, F10 Pro/main/observacion y F11 cierre final.
 
 ## Plan De Cierre Definitivo
 
