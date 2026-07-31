@@ -34,6 +34,8 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.7` | `IN_PROGRESS` | `security_cutoff_local_candidate` local cerrado y fusionado por PR #258; PR #261 fue mergeado por humano en `ee0e320d55b70dedd72c5a09429ed84a34bf7543`; PR #262 fue mergeado por humano en `c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; PR #263 fue remediado en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`; [PR-O v1](operaciones/pr_o_f9_7_v3_hold.md) y hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, `application_authorized=false`, `capabilities=[]`, sin capacidad remota ejecutable; F9.7 permanece `IN_PROGRESS` hasta `GO_F9.7_COMPLETE` en Free; Free/Pro `UNCHANGED_NOT_ATTESTED`, `GO_FOR_FREE` bloqueado, Supabase previews skipped y sin Cloudflare manual |
 | `F9.8` a `F9.10` | `PENDING` | Plan/ejecucion backfill/T03 y certificacion/T04; gates separados; `USER_PERSONAL_UAT` es hold operativo de F9.10 despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion` |
 
+Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.

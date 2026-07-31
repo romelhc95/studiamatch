@@ -11,6 +11,8 @@
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
+Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
 ## Objetivo Contractual
