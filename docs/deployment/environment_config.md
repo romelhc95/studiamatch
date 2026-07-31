@@ -1,5 +1,7 @@
 # Configuracion de Ambientes — StudIAMatch
 
+> Estado vigente: referencia historica no operativa. La autoridad actual esta en `.context/estado_del_proyecto.md` y `.context/operaciones/flujo_release_minimo.md`. Free es el ambiente DB de desarrollo/certificacion del contrato; `certificacion` como rama/release, Pro, `main`, Production y Cloudflare manual permanecen bloqueados hasta sus gates.
+
 ## Arquitectura de ambientes
 
 | Ambiente | Rama Git | URL | Supabase Proyecto | DB |
@@ -15,7 +17,7 @@
 
 ### Cloudflare Pages (Desarrollo, Certificacion y Produccion)
 
-Configurar en Cloudflare Dashboard > Workers & Pages > studiamatch > Settings > Environment variables:
+No configurar en Cloudflare Dashboard desde este documento. Cualquier cambio de Workers & Pages, variables o dominios requiere la autorizacion vigente del flujo release.
 
 | Variable | Desarrollo | Certificacion | Produccion |
 |---|---|---|---|
@@ -27,7 +29,7 @@ Las variables se inyectan en build time (`npm run build` → `output: export`).
 
 ### GitHub Actions (Pipelines)
 
-Configurar en GitHub > Settings > Environments:
+No configurar GitHub Environments ni secrets desde este documento; la tabla es historica y no operativa.
 
 | Environment | Secret | Valor |
 |---|---|---|
@@ -61,42 +63,27 @@ Configurar en GitHub > Settings > Environments:
 | Publishable Key | Ver `.env.local` |
 | Secret Key | Ver `.env.local` |
 
-### Pro tier (Produccion — `[PENDIENTE R6]`)
+### Pro tier (Produccion — bloqueado)
 | Key | Valor |
 |---|---|
-| URL | `[URL_PRO_PENDIENTE]` |
-| Publishable Key | Ver `.env.gitprod` |
-| Secret Key | Ver `.env.gitprod` |
+| URL | Bloqueado; no registrar ni configurar desde este documento |
+| Publishable Key | Bloqueado; no registrar ni configurar desde este documento |
+| Secret Key | Bloqueado; no registrar ni configurar desde este documento |
 
 ## Verificacion
 
-Para diagnosticar si un ambiente apunta al proyecto correcto:
-
-```bash
-# Desde el navegador, abrir DevTools y ejecutar:
-fetch('https://URL_SUPABASE/rest/v1/courses?select=count&is_active=eq.true', {
-  headers: { 'apikey': 'ANON_KEY', 'Prefer': 'count=exact' }
-}).then(r => console.log(r.headers.get('content-range')))
-
-# Debe retornar: 0-647/648  (648 cursos)
-```
-
-Si retorna un numero diferente, el ambiente esta apuntando a un proyecto incorrecto.
+Los diagnosticos remotos desde navegador quedan retirados de este documento. Usar solo gates autorizados, evidencia sanitizada y scripts aprobados por la fase vigente.
 
 ## Problemas conocidos
 
 ### "0 Programas" en produccion
 Si `www.studiamatch.com` muestra 0 resultados, verificar:
-1. `NEXT_PUBLIC_SUPABASE_URL` en Cloudflare Pages apunta al proyecto Pro correcto
-2. `NEXT_SUPABASE_PUBLISHABLE_KEY` es la `sb_publishable_...` de Pro (NO la secret key)
-3. RLS en Pro permite SELECT anon en la tabla `courses`
-4. Re-ejecutar el build (las env vars se incrustan en build time)
+1. No diagnosticar Production/Pro desde este documento.
+2. Consultar el flujo vigente y solicitar autorizacion F10/F11 si corresponde.
 
 ### Discrepancia de cursos (185 vs 600+)
 Si local muestra menos cursos que la web:
-1. Verificar que `web/.env.local` apunta al proyecto correcto
-2. Ejecutar `rm -rf .next` y reiniciar `npm run dev`
-3. Comparar el content-range del fetch desde el navegador
+1. Usar el procedimiento vigente en contenedor y sin exponer URLs, keys ni conteos sensibles.
 
 ### Static export y env vars
 `NEXT_PUBLIC_*` se incrusta en el JS en build time. Para cambiar la URL de Supabase se requiere un nuevo build.

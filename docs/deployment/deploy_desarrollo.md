@@ -2,6 +2,8 @@
 
 Este documento describe el flujo de despliegue para el entorno de desarrollo de **StudIAMatch**.
 
+> Estado vigente: referencia historica no operativa. No configurar Cloudflare, GitHub Secrets ni workflows desde este documento; usar `.context/estado_del_proyecto.md` y `.context/operaciones/flujo_release_minimo.md`.
+
 ## 1. Ficha Técnica del Ambiente
 - **Rama Git**: `desarrollo`
 - **Hosting**: Cloudflare Pages (Preview)
@@ -10,25 +12,13 @@ Este documento describe el flujo de despliegue para el entorno de desarrollo de 
 
 ## 2. Flujo de Trabajo
 1. Los desarrollos se inician en ramas de `feature/*`.
-2. Al realizar un commit en `desarrollo`, se dispara un build automático en Cloudflare Pages.
+2. Los builds automaticos solo se consideran efectos de CI configurado; este documento no autoriza Cloudflare manual.
 3. Este entorno (Tier 1) utiliza el proyecto de Supabase Free para aislar datos de experimentación.
 
 ## 3. Configuración de Visualización (Dashboard Cloudflare)
-Para que la web de desarrollo (Preview) muestre los datos de Supabase de forma automática, configure estos campos exactos:
-1. **Root Directory**: `/web`
-2. **Build command**: `npm install && npm run build`
-3. **Build output directory**: `out`
-4. **Variables de Entorno (PREVIEW)**:
-   - `NEXT_PUBLIC_SUPABASE_URL`: URL del proyecto Free (`https://YOUR_FREE_PROJECT_REF.supabase.co`)
-   - `NEXT_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` del proyecto Free
-
+Bloqueado como instruccion operativa. No configurar campos, variables ni dashboard Cloudflare desde este documento.
 ## 4. Secretos de Backend (GitHub Actions)
-Configurados en el Environment `Development` de GitHub para el pipeline de IA:
-- `SUPABASE_URL`: URL del proyecto Free (`https://YOUR_FREE_PROJECT_REF.supabase.co`)
-- `NEXT_SUPABASE_SECRET_KEY`: `sb_secret_...` (permisos de escritura pipeline).
-- `NEXT_SUPABASE_PUBLISHABLE_KEY`: `sb_publishable_...` (lectura frontend).
-- `CF_API_TOKEN` & `CF_ACCOUNT_ID`: Para el motor de Cloudflare AI.
-- `GH_MODELS_TOKEN`: Para fallback multi-cloud.
+No configurar ni copiar secretos desde este documento. Los secrets autorizados viven solo en GitHub Environments bajo el flujo vigente.
 
 ## 5. Estrategia "Data Drip" (Enriquecimiento IA)
 - **Ejecución**: Diaria vía GitHub Actions.

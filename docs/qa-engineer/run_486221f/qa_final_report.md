@@ -1,5 +1,7 @@
 # Reporte Final de Calidad E2E - StudIAMatch.ai V1
-## Estado: CERTIFICADO PARA PRODUCCIÓN
+## Estado: HISTORICO_NO_AUTORIZA_PRODUCCION
+
+> Reporte legacy. No certifica el estado actual, no autoriza Pro/main/Cloudflare/produccion y no sustituye los gates vigentes de `.context/`.
 
 ### 1. Integridad de Datos (Los 14 Pilares)
 - **Salud del Catálogo:** 100% (Validado mediante script `taxonomy_roi_audit.py`).

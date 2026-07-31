@@ -7,9 +7,9 @@
 - Decision humana: conservar F8, no restaurar F7 y simplificar F9.
 - Fecha de decision: 2026-07-26.
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
-- Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
+- Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 y el follow-up post-PR #262 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
 
-La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion.
+La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion remota. PR #262 esta mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor esta definido con executor privado digest-bound/target-bound/single-use, pero todavia no implementado.
 
 ## Dictamen
 
@@ -34,6 +34,8 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
 - Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
+- PR-O sucesor F9.7: la decision humana posterior exige executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
+- `USER_PERSONAL_UAT`: hold operativo de F9.10, no criterio, subfase ni transicion; se ubica despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`, con candidate commit/tree inmutable y `PASS` personal del usuario.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
 - Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.
 
@@ -59,7 +61,7 @@ Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual
 | `F9.7` | Schema/RLS Free y corte local leads/email | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cierran el candidate local; v3 byte-identico retira trigger; hold objetivo niega todos los roles de aplicacion; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
-| `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary y PR `desarrollo -> certificacion` |
+| `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary, cleanup, `USER_PERSONAL_UAT` sobre candidate commit/tree inmutable y solo despues T04/PR `desarrollo -> certificacion` |
 | `F10.1` | Preflight Pro | Backup, pausa de writers, drift y package exacto |
 | `F10.2` | Aplicacion Pro | Mismo package certificado; nunca H-00 |
 | `F10.3` | Backfill Pro-local | Sin copiar datos ni UUID desde Free |
@@ -93,10 +95,11 @@ Los archivos F9.5 ya creados se conservan como historia tecnica, pero no gobiern
 4. Registrar F9.6 `H00_ALREADY_REMEDIATED_NO_DML`: PII directa remediada en la cohorte pseudonimizada, Gate B DELETE sustituido, cero DML y Pro sin acceso.
 5. En F9.7, cerrar primero [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md); despues, bajo autorizacion propia, resolver resguardo/restore, pausa de writers, acceso cero de roles de aplicacion a `leads`/`email_log` y comportamiento semantico RLS antes de aplicar schema/T02.
 6. Aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible.
-7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente.
-8. Promover `desarrollo -> certificacion` solo con Free certificada.
-9. Aplicar en Pro el mismo package certificado, ejecutar backfill Pro-local, smoke y observacion; nunca H-00.
-10. Promover `certificacion -> main` y cerrar con evidencia aprobada.
+7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente en Free.
+8. Cumplir `USER_PERSONAL_UAT=PASS` del usuario sobre candidate commit/tree inmutable despues de las validaciones tecnicas Free y antes de T04, writer resume o PR/merge `desarrollo -> certificacion`.
+9. Promover `desarrollo -> certificacion` solo con Free certificada.
+10. Aplicar en Pro el mismo package certificado, ejecutar backfill Pro-local, smoke y observacion; nunca H-00.
+11. Promover `certificacion -> main` y cerrar con evidencia aprobada.
 
 ## Evidencia Para El Cliente
 
@@ -112,7 +115,7 @@ No se entregan artifacts privados, identificadores operativos, filas, PII, endpo
 
 ## Fecha Contractual Y Estado De Release
 
-La fecha contractual es 2026-07-27 a las 09:00 PET. El estado sigue `NO-GO` porque Free no esta certificada: H-00 cerro sin DML, pero schema/backfill no fueron ejecutados bajo el candidate vigente, `certificacion`/`main` no contienen F7-F9 y quedan CI/reviews/aprobaciones humanas.
+La fecha contractual es 2026-07-27 a las 09:00 PET. El estado sigue `NO-GO` porque Free no esta certificada: H-00 cerro sin DML, pero schema/backfill no fueron ejecutados bajo el candidate vigente, `GO_FOR_FREE` sigue bloqueado, `certificacion`/`main` no contienen F7-F9 y quedan CI/reviews/aprobaciones humanas. Free es el ambiente DB de desarrollo/certificacion; `certificacion` como rama/release permanece bloqueada hasta F9.10 y el hold `USER_PERSONAL_UAT=PASS`.
 
 No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. Si la fecha no puede cumplirse, corresponde entregar un informe de avance y acordar por escrito una reprogramacion; Hito 1 no puede presentarse como completado antes del release productivo y su evidencia.
 

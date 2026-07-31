@@ -70,7 +70,7 @@ F9.8/F9.9 permanecen limitadas a cursos legacy anteriores a cutoff aprobado, `is
 
 ## Ruta Restante A Produccion
 
-Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion y certificacion local del sucesor, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, F9.10 certificacion Free, F10 Pro/main/observacion y F11 cierre final.
+Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion y certificacion local del sucesor, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, validaciones tecnicas F9.10 en Free, hold operativo `USER_PERSONAL_UAT=PASS` sobre candidate commit/tree inmutable, T04, PR/merge `desarrollo -> certificacion`, F10 Pro/main/observacion y F11 cierre final.
 
 ## Plan De Cierre Definitivo
 

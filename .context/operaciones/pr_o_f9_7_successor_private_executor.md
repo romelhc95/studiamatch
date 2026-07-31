@@ -5,15 +5,17 @@
 | ID | `PR-O-F9.7-PRIVATE-EXECUTOR-002` |
 | Estado | `DEFINED_LOCAL_NOT_IMPLEMENTED` |
 | Subfase | `F9.7` |
-| Base Git | `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540` |
+| Base Git | Definicion creada desde `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; merge verificado de PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039` |
 | PR-O v1 | `SUPERSEDED_NON_PROMOTABLE` |
 | Hold actual | `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729=SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE` |
 | application_authorized | `false` |
 | capabilities | `[]` |
-| Ambiente permitido futuro | `Free` solamente, con aprobacion separada |
-| Ambientes bloqueados | `Pro`, `Production`, `Certification` |
+| Ambiente permitido futuro | DB `Free` solamente, con aprobacion separada |
+| Ambientes bloqueados | DB `Pro`, `Production` y `Certification` como rama/release |
 
-Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543`. Define la ruta sucesora, pero no implementa executor, no escribe SQL, no crea runner, no modifica manifests, no accede a Free/Pro y no concede `GO_FOR_FREE`.
+Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543` y queda integrado por PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66`. Define la ruta sucesora, pero no implementa executor, no escribe SQL, no crea runner, no modifica manifests, no accede a Free/Pro y no concede `GO_FOR_FREE`.
+
+Free es el ambiente DB de desarrollo/certificacion para una aplicacion futura autorizada; `certificacion` como rama/release permanece bloqueada hasta F9.10. Este contrato no cambia ese bloqueo.
 
 ## Supersesion
 
