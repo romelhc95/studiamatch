@@ -301,6 +301,10 @@ def test_drift_snapshot_requires_every_guard():
         executor.validate_no_drift(snapshot)
 
 
+def test_clean_drift_snapshot_passes():
+    executor.validate_no_drift(_clean_drift_snapshot())
+
+
 def test_arbitrary_sql_is_rejected_and_exact_boundary_sql_is_accepted():
     contract = _contract()
     executor.reject_arbitrary_sql(contract, contract.boundary7_sql)
@@ -312,6 +316,8 @@ def test_arbitrary_sql_is_rejected_and_exact_boundary_sql_is_accepted():
         "LOCK TABLE public.supabase_migrations;",
         "SELECT pg_advisory_lock(1);",
         "SELECT pg_try_advisory_lock(1);",
+        "SELECT pg_advisory_xact_lock_shared(1);",
+        "SELECT pg_try_advisory_xact_lock_shared(1);",
         "SELECT pg_advisory_lock_shared(1);",
         "SELECT pg_try_advisory_lock_shared(1);",
         "SELECT pg_advisory_unlock(1);",
@@ -355,11 +361,18 @@ def test_boundary7_sql_is_strictly_read_only_and_sanitized():
         "pg_publication",
         "pg_extension",
         "pg_constraint",
+        "pg_default_acl",
+        "relacl",
+        "nspacl",
+        "proacl",
         "relrowsecurity",
         "relforcerowsecurity",
         "relowner",
         "proowner",
         "extowner",
+        "has_table_privilege",
+        "has_schema_privilege",
+        "has_function_privilege",
     ):
         assert required in lowered
     for forbidden in (

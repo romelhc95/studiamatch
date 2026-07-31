@@ -25,6 +25,42 @@ catalog_fingerprint AS (
                 SELECT count(DISTINCT relowner)
                 FROM pg_catalog.pg_class
             ),
+            'acl_fingerprint', (
+                SELECT md5(
+                    coalesce((
+                        SELECT string_agg(COALESCE(c.relacl::text, '∅') || ':' || c.relowner::text, '|' ORDER BY c.oid)
+                        FROM pg_catalog.pg_class c
+                    ), '') || '|' ||
+                    coalesce((
+                        SELECT string_agg(COALESCE(n.nspacl::text, '∅') || ':' || n.nspowner::text, '|' ORDER BY n.oid)
+                        FROM pg_catalog.pg_namespace n
+                    ), '') || '|' ||
+                    coalesce((
+                        SELECT string_agg(COALESCE(p.proacl::text, '∅') || ':' || p.proowner::text, '|' ORDER BY p.oid)
+                        FROM pg_catalog.pg_proc p
+                    ), '') || '|' ||
+                    coalesce((
+                        SELECT string_agg(COALESCE(d.defaclacl::text, '∅') || ':' || d.defaclrole::text, '|' ORDER BY d.oid)
+                        FROM pg_catalog.pg_default_acl d
+                    ), '')
+                )
+            ),
+            'privilege_probe_fingerprint', (
+                SELECT md5(
+                    coalesce((
+                        SELECT string_agg(has_table_privilege('PUBLIC', c.oid, 'SELECT')::text, '|' ORDER BY c.oid)
+                        FROM pg_catalog.pg_class c
+                    ), '') || '|' ||
+                    coalesce((
+                        SELECT string_agg(has_schema_privilege('PUBLIC', n.oid, 'USAGE')::text, '|' ORDER BY n.oid)
+                        FROM pg_catalog.pg_namespace n
+                    ), '') || '|' ||
+                    coalesce((
+                        SELECT string_agg(has_function_privilege('PUBLIC', p.oid, 'EXECUTE')::text, '|' ORDER BY p.oid)
+                        FROM pg_catalog.pg_proc p
+                    ), '')
+                )
+            ),
             'class_owner_count', (
                 SELECT count(DISTINCT relowner)
                 FROM pg_catalog.pg_class
