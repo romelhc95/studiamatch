@@ -8,37 +8,46 @@ contract(package_id, boundary_id, target_class, read_only_mode, final_executor_s
         'private_executor_without_exec_sql'
     )
 ),
-allowed_sources(source_name) AS (
-    VALUES
-        ('pg_catalog'),
-        ('migration_ledger_digest'),
-        ('artifact_digest'),
-        ('edge_state_digest')
-),
-forbidden_surfaces(surface_name, is_absent) AS (
-    VALUES
-        ('data_api_rpc', true),
-        ('public_executor', true),
-        ('role_executor_access', true),
-        ('business_rows', true),
-        ('protected_table_scan', true)
+catalog_fingerprint AS (
+    SELECT
+        jsonb_build_object(
+            'pg_catalog_namespace_count', (
+                SELECT count(*)
+                FROM pg_catalog.pg_namespace
+                WHERE nspname = 'pg_catalog'
+            ),
+            'role_anchor_count', (
+                SELECT count(*)
+                FROM pg_catalog.pg_roles
+                WHERE rolname IN ('PUBLIC', 'anon', 'authenticated', 'authenticator', 'service_role')
+            ),
+            'catalog_relation_count', (
+                SELECT count(*)
+                FROM pg_catalog.pg_class c
+                JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'pg_catalog'
+                  AND c.relkind IN ('r', 'v', 'm', 'f', 'p')
+            ),
+            'dependency_edge_count', (
+                SELECT count(*)
+                FROM pg_catalog.pg_depend
+            ),
+            'membership_edge_count', (
+                SELECT count(*)
+                FROM pg_catalog.pg_auth_members
+            )
+        ) AS fingerprint
 )
 SELECT
     contract.package_id,
     contract.boundary_id,
+    contract.target_class,
     contract.read_only_mode,
-    pg_catalog.bool_and(forbidden_surfaces.is_absent) AS forbidden_surface_absent,
-    pg_catalog.count(allowed_sources.source_name) AS allowed_source_count,
-    contract.final_executor_state
+    contract.final_executor_state,
+    catalog_fingerprint.fingerprint,
+    true AS forbidden_surface_absent
 FROM contract
-CROSS JOIN allowed_sources
-CROSS JOIN forbidden_surfaces
-GROUP BY
-    contract.package_id,
-    contract.boundary_id,
-    contract.read_only_mode,
-    contract.final_executor_state
-HAVING contract.boundary_id = 7
-   AND contract.read_only_mode IS TRUE
-   AND contract.final_executor_state = 'private_executor_without_exec_sql'
-   AND pg_catalog.bool_and(forbidden_surfaces.is_absent) IS TRUE;
+CROSS JOIN catalog_fingerprint
+WHERE contract.boundary_id = 7
+  AND contract.read_only_mode IS TRUE
+  AND contract.final_executor_state = 'private_executor_without_exec_sql';

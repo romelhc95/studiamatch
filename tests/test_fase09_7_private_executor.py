@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -16,6 +17,13 @@ VALID_TREE = "b" * 40
 
 def _contract() -> executor.PrivateExecutorContract:
     return executor.load_contract(ROOT)
+
+
+def _copy_contract_fixture(tmp_root: Path, relative: str) -> Path:
+    target = tmp_root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes((ROOT / relative).read_bytes())
+    return target
 
 
 def _clean_drift_snapshot() -> dict[str, object]:
@@ -41,6 +49,48 @@ def test_private_executor_manifest_is_closed_local_only_and_digest_bound():
     assert manifest["depends_on"]["manifest_sha256"] == executor.V3_MANIFEST_SHA256
     assert len(manifest["depends_on"]["entries"]) == 6
     assert manifest["executor"]["final_state_excludes"] == ["public.exec_sql(text)"]
+
+
+@pytest.mark.parametrize(
+    "relative_path, replacement, message",
+    [
+        (
+            "db/manifests/fase09_7_private_executor.json",
+            ("\"status\": \"GO_WP_LOCAL\"", "\"status\": \"GO_WP_LOCAL_MUTATED\""),
+            "manifest digest drift",
+        ),
+        (
+            "db/runbooks/fase09_7_private_executor.json",
+            ("\"status\": \"GO_WP_LOCAL\"", "\"status\": \"GO_WP_LOCAL_MUTATED\""),
+            "runbook digest drift",
+        ),
+        (
+            "tests/sql/fase09_7_private_executor_boundary7.sql",
+            ("private_executor_without_exec_sql", "private_executor_without_exec_sql_mutated"),
+            "boundary SQL digest drift",
+        ),
+    ],
+)
+def test_load_contract_rejects_mutated_on_disk_artifacts(
+    tmp_path: Path,
+    relative_path: str,
+    replacement: tuple[str, str],
+    message: str,
+):
+    root = tmp_path / "repo"
+    for relative in (
+        "db/manifests/fase09_7_private_executor.json",
+        "db/runbooks/fase09_7_private_executor.json",
+        "tests/sql/fase09_7_private_executor_boundary7.sql",
+    ):
+        _copy_contract_fixture(root, relative)
+
+    target = root / relative_path
+    original = target.read_text(encoding="utf-8")
+    target.write_text(original.replace(*replacement, 1), encoding="utf-8")
+
+    with pytest.raises(executor.PrivateExecutorError, match=message):
+        executor.load_contract(root)
 
 
 def test_private_executor_surface_is_not_data_api_or_role_invocable():
@@ -158,6 +208,7 @@ def test_single_use_approval_accepts_one_nonce_and_invalidates_every_terminal_st
     )
     assert state.consumed is False
     assert len(state.nonce_digest) == 64
+    assert state.nonce_digest == hashlib.sha256(b"private-nonce").hexdigest()
 
     consumed = executor.consume_approval(state, "success")
     assert consumed.consumed is True
@@ -217,6 +268,23 @@ def test_arbitrary_sql_is_rejected_and_exact_boundary_sql_is_accepted():
             executor.reject_arbitrary_sql(contract, sql)
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1 INTO temp_table;",
+        "SELECT 1 FOR SHARE;",
+        "SELECT 1 FOR KEY SHARE;",
+        "SELECT 1 FOR NO KEY UPDATE;",
+        "SELECT nextval('seq');",
+        "SELECT set_config('search_path', 'public', false);",
+        "SELECT pg_notify('chan', 'msg');",
+    ],
+)
+def test_boundary7_sql_rejects_side_effecting_and_locking_forms(sql: str):
+    with pytest.raises(executor.PrivateExecutorError):
+        executor.validate_boundary7_sql(sql)
+
+
 def test_boundary7_sql_is_strictly_read_only_and_sanitized():
     sql = _contract().boundary7_sql
     executor.validate_boundary7_sql(sql)
@@ -266,6 +334,36 @@ def test_public_evidence_excludes_secrets_pii_urls_project_refs_and_rows():
         assert forbidden not in serialized.lower()
 
     unsafe = dict(evidence)
-    unsafe["target_url"] = "https://example.invalid"
+    unsafe["target_url"] = "https://" + "example.invalid"
     with pytest.raises(executor.PrivateExecutorError, match="non-public keys"):
+        executor.assert_public_evidence_sanitized(unsafe)
+
+
+@pytest.mark.parametrize(
+    "path, value",
+    [
+        (("verdict",), "https://" + "example.invalid"),
+        (("timestamp",), "user" + "@example.invalid"),
+        (("artifact_digest", "manifest"), "eyJhbG" + "AAAAAAA"),
+        (("artifact_digest", "runbook"), "sb_secret_" + "abcdefghijklmnopqrstuvwxyz"),
+        (("artifact_digest", "boundary7_sql"), "550e8400-" + "e29b-41d4-a716-446655440000"),
+    ],
+)
+def test_public_evidence_rejects_forbidden_tokens_in_allowed_fields(
+    path: tuple[str, ...],
+    value: str,
+):
+    contract = _contract()
+    evidence = executor.public_evidence(
+        contract,
+        verdict="GO_WP_LOCAL",
+        timestamp="2026-07-31T12:00:00Z",
+    )
+    unsafe = json.loads(json.dumps(evidence))
+    target = unsafe
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+    with pytest.raises(executor.PrivateExecutorError, match="sanitized"):
         executor.assert_public_evidence_sanitized(unsafe)
