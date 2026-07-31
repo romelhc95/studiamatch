@@ -339,6 +339,8 @@ def test_arbitrary_sql_is_rejected_and_exact_boundary_sql_is_accepted():
         "SELECT nextval('seq');",
         "SELECT set_config('search_path', 'public', false);",
         "SELECT pg_notify('chan', 'msg');",
+        "SELECT pg_advisory_xact_lock_shared(1);",
+        "SELECT pg_try_advisory_xact_lock_shared(1);",
     ],
 )
 def test_boundary7_sql_rejects_side_effecting_and_locking_forms(sql: str):

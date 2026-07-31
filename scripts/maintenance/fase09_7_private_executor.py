@@ -18,10 +18,10 @@ MANIFEST_PATH = ROOT / "db/manifests/fase09_7_private_executor.json"
 RUNBOOK_PATH = ROOT / "db/runbooks/fase09_7_private_executor.json"
 BOUNDARY7_SQL_PATH = ROOT / "tests/sql/fase09_7_private_executor_boundary7.sql"
 
-MANIFEST_SHA256 = "f72068ab2ddf7f1795391c4dff5901a38f72050be4fb048d97256d317996e3b6"
+MANIFEST_SHA256 = "c3ff4c3068c87f198bed44c565dfa10ff4e7461ed37734e0f75c5e735c75dff8"
 RUNBOOK_SHA256 = "8246675f588afc85f360c9b18dac667069615885a104ab41624da35c0e177cda"
-BOUNDARY7_SQL_SHA256 = "45377230693656d0f0be3192d6c81a6200c7cdd68149edfdb11708d25cc88340"
-PAYLOAD_SHA256 = "ee87827b99c215d2f35757283a39c1fd2bcb2b03a25a9968461668fde5f1c888"
+BOUNDARY7_SQL_SHA256 = "76af0034f73716d0d2b51a09293f33dd404ec9b43521094c058498dd26ca0341"
+PAYLOAD_SHA256 = "d4b5726e936fb004618c048b67bfd7623037cef6e3ccfabdec44f38d79fbf59d"
 SYNTHETIC_FREE_FINGERPRINT_SHA256 = (
     "6a63086f1c20745985f3d76699e36a3d49bf7f16fd45aa6fdc531d33c6651153"
 )
@@ -65,8 +65,8 @@ _BOUNDARY7_FORBIDDEN = re.compile(
     r"\b(?:ALTER|CALL|COPY|CREATE|DELETE|DO|DROP|GRANT|INSERT|LOCK|MERGE|"
     r"REASSIGN|RESET|REVOKE|SET|TRUNCATE|UPDATE|VACUUM)\b|"
     r"\bSELECT\b[\s\S]*?\bINTO\b|\bFOR\s+(?:UPDATE|SHARE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b|"
-    r"\bpg_try_advisory_(?:lock|xact_lock|lock_shared)\b|"
-    r"\bpg_advisory_(?:lock|xact_lock|lock_shared|unlock|unlock_shared|unlock_all)\b|"
+    r"\bpg_try_advisory_(?:lock|xact_lock|lock_shared|xact_lock_shared)\b|"
+    r"\bpg_advisory_(?:lock|xact_lock|lock_shared|xact_lock_shared|unlock|unlock_shared|unlock_all)\b|"
     r"\blo_(?:create|open|close|read|write|import|export|unlink|put)\b|"
     r"\b(?:nextval|setval|set_config|pg_notify)\s*\(|"
     r"\b(?:leads|email_log)\b",

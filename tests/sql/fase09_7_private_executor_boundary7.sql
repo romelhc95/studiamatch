@@ -48,15 +48,15 @@ catalog_fingerprint AS (
             'privilege_probe_fingerprint', (
                 SELECT md5(
                     coalesce((
-                        SELECT string_agg(has_table_privilege('PUBLIC', c.oid, 'SELECT')::text, '|' ORDER BY c.oid)
+                        SELECT string_agg(has_table_privilege('public', c.oid, 'SELECT')::text, '|' ORDER BY c.oid)
                         FROM pg_catalog.pg_class c
                     ), '') || '|' ||
                     coalesce((
-                        SELECT string_agg(has_schema_privilege('PUBLIC', n.oid, 'USAGE')::text, '|' ORDER BY n.oid)
+                        SELECT string_agg(has_schema_privilege('public', n.oid, 'USAGE')::text, '|' ORDER BY n.oid)
                         FROM pg_catalog.pg_namespace n
                     ), '') || '|' ||
                     coalesce((
-                        SELECT string_agg(has_function_privilege('PUBLIC', p.oid, 'EXECUTE')::text, '|' ORDER BY p.oid)
+                        SELECT string_agg(has_function_privilege('public', p.oid, 'EXECUTE')::text, '|' ORDER BY p.oid)
                         FROM pg_catalog.pg_proc p
                     ), '')
                 )
