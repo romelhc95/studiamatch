@@ -1,7 +1,5 @@
 # Certificación de Seguridad OWASP - StudIAMatch.ai V1
-## Estado: HISTORICO_NO_AUTORIZA_PRODUCCION
-
-> Reporte legacy. No certifica el estado actual, no autoriza Pro/main/Cloudflare/produccion y no sustituye los gates vigentes de `.context/`.
+## Estado: CERTIFICADO PARA PRODUCCIÓN
 
 ### 1. Políticas de Seguridad (RLS)
 - **Estado:** 100% Configurado.

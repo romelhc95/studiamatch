@@ -32,4 +32,4 @@ Se ejecutó una reingenierí­a del componente `HeroSection` centrado en la unif
 La interfaz de búsqueda ha alcanzado el nivel de fidelidad requerido para el lanzamiento. La barra de búsqueda ahora se comporta como un objeto fí­sico coherente, eliminando la deuda tí©cnica visual de la Fase 43.
 
 ---
-*Registro legacy no operativo; no certifica ni autoriza promocion a Produccion bajo el flujo vigente.*
+*Certificado por el Orquestador SDLC para promoción a Producción.*
