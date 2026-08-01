@@ -4,10 +4,85 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+F97_FROZEN_COMMIT = "258ef3a98c7c1010efe58522bb1eca892e26390e"
+ZERO_SHA = "0000000000000000000000000000000000000000"
+BASE_SHA = "638c51c668ae914f9308839d3653cd4db3e34251"
+HEAD_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+OTHER_SHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+
+CA1_ALLOWED = {
+    ".github/workflows/fg1_inventory.yml",
+    ".github/workflows/fg3_integrity.yml",
+    ".github/workflows/production_pipeline.yml",
+    "scripts/core/discovery_institutions.py",
+    "scripts/core/integrity_ping.py",
+    "scripts/core/sync_vector_worker.py",
+    "scripts/core/universal_harvester.py",
+    "scripts/shared/db_client.py",
+}
 
 
 def source(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def transition_boundary_policy(
+    *,
+    event_name: str,
+    ref: str,
+    before: str,
+    base_sha: str,
+    head_sha: str,
+    checkout_sha: str,
+    first_parent: str,
+    parent_count: int,
+    before_is_ancestor: bool,
+    commits_exist: bool = True,
+) -> tuple[bool, str, str]:
+    if event_name == "pull_request":
+        transition_base = base_sha
+        transition_head = head_sha
+    elif event_name == "push":
+        if ref != "refs/heads/desarrollo":
+            return False, "", ""
+        transition_base = before
+        transition_head = head_sha
+    else:
+        return False, "", ""
+
+    valid_sha = lambda value: len(value) == 40 and value != ZERO_SHA and all(ch in "0123456789abcdef" for ch in value)
+    if not valid_sha(transition_base) or not valid_sha(transition_head):
+        return False, transition_base, transition_head
+    if not commits_exist or not before_is_ancestor:
+        return False, transition_base, transition_head
+    if checkout_sha != transition_head:
+        return False, transition_base, transition_head
+    if event_name == "push":
+        if transition_base == F97_FROZEN_COMMIT:
+            return False, transition_base, transition_head
+        if parent_count > 1 and transition_base != first_parent:
+            return False, transition_base, transition_head
+    return True, transition_base, transition_head
+
+
+def transition_path_policy(changes: list[tuple[str, ...]]) -> bool:
+    denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+    denied_exact = {".gitattributes"}
+    protected_prefixes = ("scripts/core/", "scripts/shared/", "config/")
+    for change in changes:
+        status = change[0]
+        path = change[-1]
+        old_path = change[1] if status.startswith(("R", "C")) else None
+        paths_to_check = [p for p in (old_path, path) if p]
+        if any(p.startswith(denied_prefixes) or p in denied_exact for p in paths_to_check):
+            return False
+        if any(p.startswith(protected_prefixes) for p in paths_to_check) and not any(p in CA1_ALLOWED for p in paths_to_check):
+            return False
+        if path in CA1_ALLOWED or old_path in CA1_ALLOWED:
+            if status != "M":
+                return False
+    return True
 
 
 def test_fg1_inventory_is_config_driven_and_fail_closed() -> None:
@@ -112,7 +187,11 @@ def test_f9_7_bridge_preserves_frozen_candidate_and_transition_boundary() -> Non
     assert "Validate F9.8 transition boundary" in workflow
     assert "F98_BASE_COMMIT" in workflow
     assert "github.event.pull_request.base.sha" in workflow
-    assert "d9c7f180495c985a1e9a0ada4a42525fda60a870" in workflow
+    assert "F98_BASE_COMMIT=\"${{ github.event.before }}\"" in workflow
+    assert "test \"${{ github.ref }}\" = \"refs/heads/desarrollo\"" in workflow
+    assert "test \"$F98_BASE_COMMIT\" != \"$F97_FROZEN_COMMIT\"" in workflow
+    assert "git merge-base --is-ancestor \"$F98_BASE_COMMIT\" \"$F98_HEAD_COMMIT\"" in workflow
+    assert "git rev-parse \"$F98_HEAD_COMMIT^1\"" in workflow
     assert "F98_TRANSITION_PASS" in workflow
     assert "HISTORICAL_F97_PASS" in workflow
     assert "git checkout --detach \"$F97_CANDIDATE_COMMIT\"" in workflow
@@ -128,3 +207,226 @@ def test_f9_7_bridge_preserves_frozen_candidate_and_transition_boundary() -> Non
     assert "status != 'M'" in workflow
     assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in workflow
     assert "paths_to_check" in workflow
+
+
+def test_transition_boundary_accepts_pull_request_event() -> None:
+    passed, base, head = transition_boundary_policy(
+        event_name="pull_request",
+        ref="refs/pull/1/merge",
+        before=ZERO_SHA,
+        base_sha=BASE_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=True,
+    )
+    assert passed
+    assert base == BASE_SHA
+    assert head == HEAD_SHA
+
+
+def test_transition_boundary_blocks_pull_request_zero_base_or_head() -> None:
+    common = dict(
+        event_name="pull_request",
+        ref="refs/pull/1/merge",
+        before=ZERO_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=True,
+    )
+    assert not transition_boundary_policy(base_sha=ZERO_SHA, head_sha=HEAD_SHA, **common)[0]
+    assert not transition_boundary_policy(base_sha=BASE_SHA, head_sha=ZERO_SHA, **common)[0]
+
+
+def test_transition_boundary_blocks_pull_request_base_not_ancestor() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="pull_request",
+        ref="refs/pull/1/merge",
+        before=ZERO_SHA,
+        base_sha=BASE_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=False,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_pull_request_missing_commits() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="pull_request",
+        ref="refs/pull/1/merge",
+        before=ZERO_SHA,
+        base_sha=BASE_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=True,
+        commits_exist=False,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_pull_request_head_mismatch() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="pull_request",
+        ref="refs/pull/1/merge",
+        before=ZERO_SHA,
+        base_sha=BASE_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=OTHER_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=True,
+    )
+    assert not passed
+
+
+def test_transition_boundary_accepts_push_merge_first_parent() -> None:
+    passed, base, head = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=BASE_SHA,
+        parent_count=2,
+        before_is_ancestor=True,
+    )
+    assert passed
+    assert base == BASE_SHA
+    assert head == HEAD_SHA
+
+
+def test_transition_boundary_blocks_frozen_commit_as_push_base() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=F97_FROZEN_COMMIT,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=F97_FROZEN_COMMIT,
+        parent_count=2,
+        before_is_ancestor=True,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_zero_before() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=ZERO_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=ZERO_SHA,
+        parent_count=2,
+        before_is_ancestor=True,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_before_not_ancestor() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=BASE_SHA,
+        parent_count=2,
+        before_is_ancestor=False,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_non_desarrollo_push() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/main",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=BASE_SHA,
+        parent_count=2,
+        before_is_ancestor=True,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_force_push() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=2,
+        before_is_ancestor=False,
+    )
+    assert not passed
+
+
+def test_transition_boundary_blocks_head_mismatch() -> None:
+    passed, _, _ = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=OTHER_SHA,
+        first_parent=BASE_SHA,
+        parent_count=2,
+        before_is_ancestor=True,
+    )
+    assert not passed
+
+
+def test_transition_boundary_accepts_fast_forward_multi_commit_push() -> None:
+    passed, base, head = transition_boundary_policy(
+        event_name="push",
+        ref="refs/heads/desarrollo",
+        before=BASE_SHA,
+        base_sha=OTHER_SHA,
+        head_sha=HEAD_SHA,
+        checkout_sha=HEAD_SHA,
+        first_parent=OTHER_SHA,
+        parent_count=1,
+        before_is_ancestor=True,
+    )
+    assert passed
+    assert base == BASE_SHA
+    assert head == HEAD_SHA
+
+
+def test_transition_policy_blocks_ca1_plus_db_path() -> None:
+    assert not transition_path_policy([
+        ("M", "scripts/core/integrity_ping.py"),
+        ("M", "db/migrations/ca2.sql"),
+    ])
+
+
+def test_transition_policy_blocks_rename_copy_delete_and_mode_drift() -> None:
+    assert not transition_path_policy([("R100", "scripts/core/integrity_ping.py", "scripts/core/integrity_ping_new.py")])
+    assert not transition_path_policy([("C100", "scripts/core/integrity_ping.py", "scripts/core/integrity_ping_copy.py")])
+    assert not transition_path_policy([("D", "scripts/core/integrity_ping.py")])
+    assert not transition_path_policy([("T", "scripts/core/integrity_ping.py")])
+
+
+def test_replay_historical_f9_7_still_uses_frozen_candidate() -> None:
+    workflow = source(".github/workflows/f9-7-contract.yml")
+    replay = workflow.split("Resolve frozen F9.7 candidate", 1)[1].split("actions/setup-python", 1)[0]
+    assert "F97_CANDIDATE_COMMIT=\"$F97_FROZEN_COMMIT\"" in replay
+    assert "test \"$F97_CANDIDATE_TREE\" = \"$F97_FROZEN_TREE\"" in replay
+    assert "HISTORICAL_F97_PASS" in replay

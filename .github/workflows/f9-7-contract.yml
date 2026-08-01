@@ -118,13 +118,23 @@ jobs:
             F98_HEAD_COMMIT="${{ github.event.pull_request.head.sha }}"
             F98_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
           else
+            test "${{ github.ref }}" = "refs/heads/desarrollo"
             F98_HEAD_COMMIT="${{ github.sha }}"
-            F98_BASE_COMMIT="$F97_FROZEN_COMMIT"
+            F98_BASE_COMMIT="${{ github.event.before }}"
           fi
           printf '%s' "$F98_HEAD_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
           printf '%s' "$F98_BASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            test "$F98_BASE_COMMIT" = "d9c7f180495c985a1e9a0ada4a42525fda60a870"
+          test "$F98_HEAD_COMMIT" != "0000000000000000000000000000000000000000"
+          test "$F98_BASE_COMMIT" != "0000000000000000000000000000000000000000"
+          git cat-file -e "$F98_BASE_COMMIT^{commit}"
+          git cat-file -e "$F98_HEAD_COMMIT^{commit}"
+          git merge-base --is-ancestor "$F98_BASE_COMMIT" "$F98_HEAD_COMMIT"
+          if [ "${{ github.event_name }}" = "push" ]; then
+            test "$F98_BASE_COMMIT" != "$F97_FROZEN_COMMIT"
+            parent_count="$(git rev-list --parents -n 1 "$F98_HEAD_COMMIT" | awk '{ print NF - 1 }')"
+            if [ "$parent_count" -gt 1 ]; then
+              test "$F98_BASE_COMMIT" = "$(git rev-parse "$F98_HEAD_COMMIT^1")"
+            fi
           fi
           test "$(git rev-parse HEAD)" = "$F98_HEAD_COMMIT"
           F98_HEAD_TREE="$(git rev-parse "$F98_HEAD_COMMIT^{tree}")"
