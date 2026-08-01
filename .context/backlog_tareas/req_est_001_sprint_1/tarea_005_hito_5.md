@@ -61,6 +61,11 @@ segun referencia aprobada.
 - Sin credenciales privilegiadas ni PII.
 - Limites/paginacion que eviten abuso y respuestas masivas.
 
+## Metodo De Verificacion
+
+La [matriz de pruebas Hito 5](../../pruebas/05_matriz_tests_hito_5.md) permanece
+`PLANNED`; CA12 reutiliza CA9 sin crear doble alcance.
+
 ## Criterio De Salida
 
 Resultados completos, filtros/conteos consistentes, build, QA y produccion.

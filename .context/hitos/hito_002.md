@@ -40,3 +40,4 @@ subtareas, fases ni eventos de pago.
 - [TASK-H2-001](../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
 - [Adenda sanitizada](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
 - [Estado del proyecto](../estado_del_proyecto.md)
+- [Matriz de pruebas Hito 2](../pruebas/02_matriz_tests_hito_2.md)

@@ -46,3 +46,4 @@ Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TAS
 - Adenda propuesta: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
 - Plan CA1-only: [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
 - Evidencia cliente draft: [EVID-PACK-H1-001](../evidencias_cliente/sprint_1/paquete_hito_001.md)
+- Matriz de pruebas: [Tests Hito 1](../pruebas/01_matriz_tests_hito_1.md)

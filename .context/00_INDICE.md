@@ -11,9 +11,12 @@
 
 ## Producto Y Arquitectura
 
+- [Mapa canonico de arquitectura](arquitectura/00_mapa.md)
 - [Sistema DB Supabase](sistema_db_supabase.md)
 - [Arquitectura del pipeline](arquitectura_pipeline.md)
 - [Estructura frontend](estructura_frontend.md)
+- [Estrategia de pruebas Sprint 1](pruebas/00_estrategia_pruebas_sprint_1.md)
+- [Gobierno de hallazgos](pruebas/06_gobierno_hallazgos.md)
 - [Estimacion EST-001](estimaciones/est_001.md)
 - [Hitos Sprint 1](hitos/_index.md)
 - [Adenda cliente 001 sanitizada](backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
@@ -88,6 +91,8 @@
 |---|---|---|
 | Alcance aprobado | [Requerimiento sanitizado REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md) | Ninguna estimacion, tarea o nota operativa puede ampliarlo. |
 | Arquitectura decidida | [ADR aceptada](decisiones/_index.md) | La decision vigente debe estar aceptada y enlazada desde el vault. |
+| Vistas de arquitectura | [Mapa canonico](arquitectura/00_mapa.md) | Son vistas derivadas; no sustituyen REQ, TASK, Git ni evidencia remota. |
+| Cobertura y hallazgos | [Estrategia de pruebas](pruebas/00_estrategia_pruebas_sprint_1.md) | Los tests prueban CA aprobados; ningun hallazgo amplia alcance sin `INTAKE -> EST -> REQ -> TASK`. |
 | Comportamiento implementado | Git y migrations, referenciados desde las notas de `.context/` | El codigo y las migrations son autoridad tecnica, no fuentes documentales paralelas. |
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
 | Estado de tareas | TASK canonica de cada Hito, enlazada desde [REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md) | Cada tarea es la unica autoridad de su avance y criterios; solo una puede estar activa. |

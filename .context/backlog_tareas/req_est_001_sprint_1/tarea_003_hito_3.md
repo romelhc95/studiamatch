@@ -53,6 +53,11 @@ manual/timestamp y publicar bajo proteccion compatible con static export.
 - Escrituras privilegiadas fuera del browser.
 - Auditoria sin PII en logs y prevencion de escalamiento horizontal/vertical.
 
+## Metodo De Verificacion
+
+La [matriz de pruebas Hito 3](../../pruebas/03_matriz_tests_hito_3.md) permanece
+`PLANNED` y subordinada a esta TASK.
+
 ## Riesgos O Bloqueos
 
 - Static export sin backend seguro.

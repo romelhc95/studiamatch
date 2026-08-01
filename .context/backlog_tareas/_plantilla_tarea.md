@@ -33,6 +33,11 @@
 
 ## Metodo De Verificacion
 
+Enlazar una matriz de pruebas subordinada a esta TASK. Cada caso debe mapear un
+CA aprobado y usar una clasificacion autorizada por la
+[estrategia Sprint 1](../pruebas/00_estrategia_pruebas_sprint_1.md). La matriz
+no mantiene estado vivo ni crea alcance.
+
 
 ## Evidencias
 
@@ -51,6 +56,9 @@ explotables.
 
 ## Riesgos O Bloqueos
 
+Clasificar hallazgos mediante el
+[gobierno canonico](../pruebas/06_gobierno_hallazgos.md). Una ampliacion sigue
+`INTAKE -> EST -> REQ -> TASK`.
 
 ## Enlaces Canonicos
 
