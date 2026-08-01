@@ -35,7 +35,7 @@ Las fechas registran el compromiso original. No prueban cumplimiento ni sustituy
 - [Adenda CA1/CA2 aprobada](./adenda_cliente_001_sanitizada.md), efectiva por
   rebaseline F9.7.
 - [Plan CA1-only](../../operaciones/plan_cierre_hito1_ca1_only.md), vigente para
-  F9.8 pero no ejecutable sin frase decimal exacta.
+  F9.9 pero no ejecutable sin frase decimal exacta.
 - Git, migrations, PR y evidencia enlazada desde las notas operativas.
 
 ## Mapa De Criterios Canonicos

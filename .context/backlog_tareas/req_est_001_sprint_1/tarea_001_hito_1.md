@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE` y F9.8 queda activa para implementar y validar localmente el candidate CA1-only bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda activa para candidate selectivo, PR a `certificacion`, canary y QA bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -36,9 +36,11 @@ La decision humana de F9.7 adopta la adenda aprobada para cerrar Hito 1 con
 - Produccion conserva su comportamiento actual para leads/email.
 
 El plan ejecutable futuro es
-[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). Queda
-activo como definicion de F9.8, pero su ejecucion requiere la frase exacta
-`Ejecuta las tareas pendientes de la Fase F9.8`.
+[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). F9.8
+quedo cerrada por replay post-merge del candidate CA1-only (PR #270/#271,
+`desarrollo@5b282461149b7319685cf090534e28051e5eb32c`); F9.9 queda activa como
+definicion, pero su ejecucion requiere la frase exacta
+`Ejecuta las tareas pendientes de la Fase F9.9`.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -57,7 +59,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7 | Candidate local F9.8, Certification/QA F9.9, certificacion final F9.10, UAT y produccion observada F10 |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge | Candidate selectivo/Certification/QA F9.9, certificacion final F9.10, UAT y produccion observada F10 |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -184,6 +186,22 @@ Esta frontera no autoriza redisenos fuera de estas superficies.
 La allowlist ejecutada del alias historico `FASE-09` vive exclusivamente en [Precertificacion F9](../../operaciones/precertificacion_hito1_f9.md#allowlist-f9) y corresponde a F9.1.
 
 La allowlist ejecutada del alias historico `FASE-10` vive exclusivamente en [Contrato de promocion F10](../../operaciones/promocion_hito1_f10.md#allowlist-f10) y corresponde a F9.2. Las siguientes subfases usan allowlists propias.
+
+## Cierre F9.8 - Candidate Local CA1-Only
+
+F9.8 termina `COMPLETED_VERIFIED_POST_MERGE`. El candidate CA1-only implementado
+por PR #270 y PR #271 quedo fusionado en `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`
+y replay-validado en Docker/Linux (contenedor `studiamatch-dev`, checkout limpio).
+
+- Diff `638c51c..M` = 2 paths de CI, cero paths CA2.
+- `EVID-H1-002..005` quedan `VERIFIED`; `EVID-H1-006..016` permanecen `PLANNED`.
+- 53 pruebas focused F9.8 PASS; focused FG1/FG2/FG3 y jobs CI PASS; F9.7
+  congelado 226+7 PASS; runners PostgreSQL 17 PASS; actionlint/ShellCheck
+  0 issues; LF y credential scan PASS; Context Graph PASS.
+- Cero red remota, DDL/DML, backfill, Certification, canary, schedules ni
+  Production. Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`.
+- F9.9 queda como subfase activa; su ejecucion requiere la frase exacta
+  `Ejecuta las tareas pendientes de la Fase F9.9`.
 
 ## Exclusiones Historicas Preservadas
 

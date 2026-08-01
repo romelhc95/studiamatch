@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_8_LOCAL_CANDIDATE_IN_PROGRESS` |
+| Estado | `F9_8_COMPLETED_POST_MERGE_F9_9_NEXT` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -157,10 +157,25 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Assertions focused `tests/test_fase09_8_ca1_candidate.py` ejecutadas en
   contenedor Linux via import directo porque la imagen local no tenia `pytest`:
   `7 focused CA1 assertions passed`.
-- `pytest` formal, CI, PR a `desarrollo`, canaries, schedules observados,
-  Certification y Production siguen pendientes.
-- `security-auditor` final: sin hallazgos bloqueantes. Riesgos residuales:
-  CI no observado aun, candidate sin commit/tree inmutable, DNS rebinding TOCTOU
+- Replay post-merge sobre `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`
+  (PR #271) en Docker/Linux:
+  - `test_fase09_8_ca1_candidate.py` = 24 passed; `test_fase09_8_runtime_security.py` = 29 passed; juntos 53 passed.
+  - Focused FG1/FG2/FG3 y jobs CI: `test_fase07_g1b.py` 23 passed;
+    `test_fase06_db_as_code.py` + `test_supabase_credentials_contract.py` 75 passed;
+    `test_fase08_db.py` + `test_fase08_workers.py` 24 passed;
+    `test_fase09_db.py` + `test_fase09_workers.py` 25 passed.
+  - F9.7 congelado (candidate `258ef3a`): 226 passed, 5 skipped; attestation ACL 7 passed.
+  - Runners PostgreSQL 17: `run_fase09_7_postgres.sh` y
+    `run_fase09_7_leads_email_security_hold_postgres.sh` PASS (exit 0).
+  - actionlint 1.7.7 + ShellCheck 0.9.0 sobre 7 workflows: 0 issues.
+  - LF enforcement y credential scan tree+rango `8ab1cdf..M`: PASS.
+  - Context Graph `CONTEXT_GRAPH: PASS (85 files, 730 links)`.
+- `EVID-H1-002` (diff `638c51c..M` = solo 2 paths CI), `EVID-H1-003` (validacion
+  local PASS), `EVID-H1-004` (secret scan sin blockers) y `EVID-H1-005` (PR #271
+  Approved/Merged) quedan `VERIFIED`.
+- CI, canaries, schedules observados, Certification y Production siguen
+  pendientes en F9.9/F9.10.
+- Riesgos residuales aceptados: CI F9.9 no observado aun, DNS rebinding TOCTOU
   residual en FG3, y configuracion de environments/vars pendiente de atestacion
   en GitHub antes de habilitar Production.
 
@@ -203,10 +218,10 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | ID | Evidencia | Umbral | Estado |
 |---|---|---|---|
 | `EVID-H1-001` | Adenda integral aprobada | Alcance, cronograma y detalle comercial verificados en privado | `VERIFIED` |
-| `EVID-H1-002` | Diff CA1-only | Cero paths CA2 | `PLANNED` |
-| `EVID-H1-003` | Validacion local | PASS | `PLANNED` |
-| `EVID-H1-004` | Seguridad/secret scan | Sin blockers | `PLANNED` |
-| `EVID-H1-005` | PR desarrollo | Approved/Merged | `PLANNED` |
+| `EVID-H1-002` | Diff CA1-only | Cero paths CA2 | `VERIFIED` |
+| `EVID-H1-003` | Validacion local | PASS | `VERIFIED` |
+| `EVID-H1-004` | Seguridad/secret scan | Sin blockers | `VERIFIED` |
+| `EVID-H1-005` | PR desarrollo | Approved/Merged | `VERIFIED` |
 | `EVID-H1-006` | Equivalencia patch | PASS | `PLANNED` |
 | `EVID-H1-007` | PR certificacion | Approved/Merged | `PLANNED` |
 | `EVID-H1-008` | Canary Certification | PASS | `PLANNED` |
