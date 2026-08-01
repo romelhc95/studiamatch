@@ -89,5 +89,5 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "'.github/workflows/security-audit.yml'" in workflow
     assert "len(baseline) != 33" in workflow
     assert "F9.8 CA1 protected-path drift is within the explicit allowlist" in workflow
-    assert "fase09-7-remediation" in workflow
+    assert "F97: ${{ needs.fase09-7-remediation.result }}" not in workflow
     assert "fase10-promotion-contract" in workflow

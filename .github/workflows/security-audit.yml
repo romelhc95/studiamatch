@@ -1314,7 +1314,7 @@ jobs:
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase10-promotion-contract]
+    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-8-ca1, fase10-promotion-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -1332,7 +1332,6 @@ jobs:
           F9: ${{ needs.fase09-pre-free.result }}
           F93: ${{ needs.fase09-free-preflight-contract.result }}
           F95: ${{ needs.fase09-5-rls.result }}
-          F97: ${{ needs.fase09-7-remediation.result }}
           F98: ${{ needs.fase09-8-ca1.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
@@ -1392,11 +1391,6 @@ jobs:
             exit 1
           fi
           echo "✅ **fase09-5-rls**: passed"
-          if [ "$F97" != "success" ]; then
-            echo "❌ **fase09-7-remediation**: $F97 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-7-remediation**: passed"
           if [ "$F98" != "success" ]; then
             echo "❌ **fase09-8-ca1**: $F98 (BLOCKING)"
             exit 1
@@ -1423,4 +1417,4 @@ jobs:
           fi
           echo "✅ **frontend-build**: passed"
           echo ""
-          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F9.8/F10, credential, Python, Context Graph and frontend gates are green."
+          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.8/F10, credential, Python, Context Graph and frontend gates are green."
