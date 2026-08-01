@@ -58,6 +58,11 @@ Entregar Home MVP segun referencia aprobada y documentacion tecnica de Sprint
 - Sin secret keys, PII ni mutaciones administrativas.
 - Estados de error/degradacion no exponen detalle interno.
 
+## Metodo De Verificacion
+
+La [matriz de pruebas Hito 4](../../pruebas/04_matriz_tests_hito_4.md) permanece
+`PLANNED` y subordinada a esta TASK.
+
 ## Criterio De Salida
 
 Home y documentacion aprobadas, build estatico, accesibilidad, QA y produccion.

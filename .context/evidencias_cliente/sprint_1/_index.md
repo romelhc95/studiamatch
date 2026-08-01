@@ -1,8 +1,9 @@
 # Evidencia Cliente - Sprint 1
 
 Este indice reserva y gobierna evidencia sanitizada. No mantiene estado vivo y
-no convierte una evidencia planeada en resultado. Los paquetes se crean o
-promueven a `VERIFIED` solo cuando existe un candidate real.
+no convierte una evidencia planeada en resultado. La estructura puede crearse
+como `DRAFT` o `PLANNED`; solo se promueve a `VERIFIED` cuando existe un
+candidate real.
 
 ## Estados
 
@@ -31,3 +32,6 @@ promueven a `VERIFIED` solo cuando existe un candidate real.
 No incluir credenciales, endpoints, project refs, UUIDs operativos, filas, PII,
 payloads, SQL explotable, nombres de policies/routines sensibles, rutas privadas,
 datos bancarios ni firmas.
+
+La cobertura tecnica y las reglas para pasar de `PLANNED` a `VERIFIED` viven en
+la [Estrategia de pruebas Sprint 1](../../pruebas/00_estrategia_pruebas_sprint_1.md).

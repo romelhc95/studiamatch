@@ -41,6 +41,10 @@ El plan ejecutable futuro es
 [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). Esta
 documentacion no activa ese plan, no cambia Free/Pro y no cierra Hito 1.
 
+La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
+cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
+autorizaciones.
+
 ## Arbol De Criterios
 
 ```text

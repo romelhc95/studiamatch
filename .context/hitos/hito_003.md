@@ -32,3 +32,4 @@ trazabilidad; no mantiene estado vivo.
 - [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H3-001](../backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md)
 - [Estado del proyecto](../estado_del_proyecto.md)
+- [Matriz de pruebas Hito 3](../pruebas/03_matriz_tests_hito_3.md)

@@ -34,3 +34,4 @@ documenta alcance y trazabilidad; no mantiene estado vivo.
 - [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H4-001](../backlog_tareas/req_est_001_sprint_1/tarea_004_hito_4.md)
 - [Estado del proyecto](../estado_del_proyecto.md)
+- [Matriz de pruebas Hito 4](../pruebas/04_matriz_tests_hito_4.md)

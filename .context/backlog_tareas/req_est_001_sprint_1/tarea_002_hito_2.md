@@ -59,6 +59,8 @@ entregables comerciales independientes, subtareas, fases ni eventos de pago.
 
 ## Metodo De Verificacion
 
+- [Matriz de pruebas Hito 2](../../pruebas/02_matriz_tests_hito_2.md), toda en
+  `PLANNED` hasta candidate y activacion del Hito.
 - PostgreSQL soportado, rollback/replay y ledger/checksums.
 - Roles publico, autenticado, pipeline y admin.
 - Pipeline con campos vacios, paginacion y fallos parciales.

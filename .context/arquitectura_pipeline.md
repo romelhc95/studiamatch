@@ -1,5 +1,10 @@
 # Arquitectura Del Pipeline
 
+Esta nota conserva el resumen operativo del pipeline. Las vistas Mermaid y las
+fronteras completas viven en el [Mapa canonico de arquitectura](arquitectura/00_mapa.md),
+especialmente [Pipeline y estados](arquitectura/03_pipeline_estados.md). Las
+vistas son derivadas y no acreditan adopcion remota.
+
 ## Flujo Actual
 
 El Golden Pipeline mueve datos por cuatro estaciones persistentes:
@@ -26,7 +31,15 @@ El orden real de providers es DeepSeek mediante OpenCode, Cloudflare Workers AI 
 - `exclusion_patterns`: exclusiones por institucion, incluyendo regex controladas.
 - Validaciones de ruido adicionales operan en cleansing, enrichment y sync.
 
-Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only y las estaciones posteriores materializan `skipped` con razon canonica `pipeline_gate=false`. Perfiles y colas se leen fail-closed. El orquestador aplica perfil, `discovery_enabled`, exclusiones, circuit breaker y freshness antes del `limit`; lecturas no demostrables, fallos parciales o timeout global producen salida no cero sin descartar trabajo ya persistido.
+Si `pipeline_enabled=false`, el harvester puede operar en modo discovery-only:
+persiste `discovered` y no entrega esas filas a cleansing. De forma independiente,
+las estaciones posteriores materializan `skipped` con razon canonica
+`pipeline_gate=false` solo para filas pendientes que llegan a inspeccionar.
+Perfiles y colas se leen fail-closed. El orquestador aplica perfil,
+`discovery_enabled`, exclusiones, circuit breaker y freshness antes del `limit`.
+Los fallos detectados por el orquestador producen salida no cero sin descartar
+trabajo persistido; algunos fallos internos del harvester y FG3 aun se absorben
+o terminan en cero y requieren cobertura/remediacion en CA1.
 
 ## Workflows Vigentes
 
@@ -54,4 +67,6 @@ No significa activar globalmente instituciones, saltar `pipeline_enabled`, salta
 
 Leads/email no son una estacion del Golden Pipeline. La arquitectura completa de captura, outbox, proveedor, secretos, observabilidad y reintentos queda `DEFERRED_NO_IMPLEMENTATION` en [BK-F9.5-05](backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md). El security hold DB-as-Code no toca `staging_raw`, `cleansed_programs`, `enriched_programs`, `courses`, RPCs del pipeline ni workflows FG.
 
-Ver [Sistema DB Supabase](sistema_db_supabase.md) y [Flujo de release](operaciones/flujo_release_minimo.md).
+Ver [Sistema DB Supabase](sistema_db_supabase.md),
+[Flujo de release](operaciones/flujo_release_minimo.md) y
+[Estrategia de pruebas](pruebas/00_estrategia_pruebas_sprint_1.md).

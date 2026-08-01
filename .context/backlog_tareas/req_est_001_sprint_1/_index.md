@@ -101,6 +101,8 @@ puede servir como preparacion, nunca como adopcion o cierre reutilizado.
 - [Hitos Sprint 1](../../hitos/_index.md)
 - [ADR-0006](../../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
 - [Arquitectura pipeline](../../arquitectura_pipeline.md)
+- [Mapa canonico de arquitectura](../../arquitectura/00_mapa.md)
+- [Estrategia de pruebas](../../pruebas/00_estrategia_pruebas_sprint_1.md)
 - [Sistema DB](../../sistema_db_supabase.md)
 - [Matriz DB](../../operaciones/matriz_adopcion_db.md)
 - [Flujo de requerimientos](../../operaciones/flujo_requerimientos.md)
