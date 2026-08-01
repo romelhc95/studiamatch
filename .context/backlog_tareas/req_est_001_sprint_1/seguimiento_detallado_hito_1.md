@@ -32,10 +32,10 @@ Las fechas registran el compromiso original. No prueban cumplimiento ni sustituy
 - [Plan de corte seguridad/funcionalidad/estabilidad](../../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 - [Matriz de adopcion DB](../../operaciones/matriz_adopcion_db.md).
 - [PR-O F9.7 executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md), definido pero todavia no implementado tras PR #262.
-- [Adenda CA1/CA2 propuesta](./adenda_cliente_001_sanitizada.md), pendiente de
-  aprobacion cliente y sin efecto sobre el estado vivo.
-- [Plan CA1-only](../../operaciones/plan_cierre_hito1_ca1_only.md), draft no
-  ejecutable hasta aprobar la adenda y activar una subfase propia.
+- [Adenda CA1/CA2 aprobada](./adenda_cliente_001_sanitizada.md), efectiva por
+  rebaseline F9.7.
+- [Plan CA1-only](../../operaciones/plan_cierre_hito1_ca1_only.md), vigente para
+  F9.8 pero no ejecutable sin frase decimal exacta.
 - Git, migrations, PR y evidencia enlazada desde las notas operativas.
 
 ## Mapa De Criterios Canonicos
@@ -80,10 +80,10 @@ Los identificadores `CHK-H1-*` son referencias de verificacion, no criterios de 
 | `TR-H1-09` | H-00 Free-only                                                                 | `P0_PRIVACY`, no CA          | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md)       | F9.6             |
 | `TR-H1-10` | Identidad backend de servicio                                                  | Dependencia `H1-CA1/H1-CA2P` | TASK-H1-001                                                    | F9.7             |
 | `TR-H1-11` | Schema/RLS contractual en Free                                                 | `H1-CA2P`                    | TASK-H1-001 y matriz DB                                        | F9.7             |
-| `TR-H1-12` | Plan de backfill editorial                                                     | Dependencia `H1-CA2P`        | Macrofase F9                                                   | F9.8             |
-| `TR-H1-13` | Backfill Free                                                                  | Dependencia `H1-CA2P`        | Macrofase F9                                                   | F9.9             |
-| `TR-H1-14` | Canary, smoke, QA y certificacion Free                                         | `H1-CA1/H1-CA2P`             | Macrofase F9                                                   | F9.10            |
-| `TR-H1-17` | Hold operativo `USER_PERSONAL_UAT` despues de validaciones tecnicas Free        | Hold operativo, no CA        | Macrofase F9 y flujo release                                   | F9.10            |
+| `TR-H1-12` | Candidate local CA1-only                                                       | `H1-CA1`                     | Macrofase F9                                                   | F9.8             |
+| `TR-H1-13` | Candidate selectivo, Certification, canary y QA                                 | `H1-CA1`                     | Macrofase F9                                                   | F9.9             |
+| `TR-H1-14` | Certificacion final y readiness F10                                             | `H1-CA1`                     | Macrofase F9                                                   | F9.10            |
+| `TR-H1-17` | Hold operativo `USER_PERSONAL_UAT` despues de canary, validaciones y QA         | Hold operativo, no CA        | Macrofase F9 y flujo release                                   | F9.10            |
 | `TR-H1-15` | Promocion certificada a Pro                                                    | `H1-CA2P`, release           | Estado y flujo de release                                      | F10              |
 | `TR-H1-16` | Evidencia cliente                                                              | `H1-CA7P`                    | TASK-H1-001 y estado                                           | F11              |
 
@@ -118,7 +118,7 @@ Los checks historicos no se heredan como evidencia vigente. Cada estado anterior
 | F6-F8 | Base funcional contractual local | Notas operativas F6-F8 y Git |
 | F9.1-F9.5 | Historia y cierre contractual/documental | [Macrofase F9](../../operaciones/certificacion_hito1_f9.md) y TASK-H1-001 |
 | F9.6 | H-00 Free-only | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md) |
-| F9.7-F9.10 | Schema/RLS, backfill y certificacion Free | Macrofase F9 y [Estado](../../estado_del_proyecto.md) |
+| F9.7-F9.10 | Rebaseline, candidate local CA1-only, Certification/QA, UAT y readiness | Macrofase F9 y [Estado](../../estado_del_proyecto.md) |
 | F10 | Pro y produccion | Estado y flujo de release |
 | F11 | Cierre contractual | Estado y TASK-H1-001 |
 
@@ -144,9 +144,9 @@ No se incluyen artifacts privados, project refs, endpoints, PII, filas, credenti
 - H-00 cerro en F9.6 sin DML; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 conserva autorizacion separada.
 - Los artifacts PR #245/#247 son `HISTORICAL_NON_PROMOTABLE`.
 - El corte F9.7 deja v3 byte-identico como predecessor; el hold actual queda `SUPERSEDED_NON_PROMOTABLE` y la ruta futura exige PR-O sucesor con executor privado. [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
-- PR #262 quedo mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor esta definido pero no implementado, Free/Pro siguen sin certificar y `GO_FOR_FREE` permanece bloqueado.
+- PR #262 quedo mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor fue certificado localmente despues, pero queda `SUPERSEDED_FOR_HITO_1` por la rebaseline CA1-only. Free/Pro siguen `UNCHANGED_NOT_ATTESTED`.
 - Free es el ambiente DB de desarrollo/certificacion del contrato; `certificacion` como rama/release permanece bloqueada.
-- `USER_PERSONAL_UAT` es hold operativo F9.10 de tracking, no criterio, subtarea, subfase ni transicion. Debe ocurrir despues de todas las validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario.
+- `USER_PERSONAL_UAT` es hold operativo F9.10 de tracking, no criterio, subtarea, subfase ni transicion. Debe ocurrir despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario.
 - PR #248 fija el baseline de cierre F9.5 y definicion F9.6 usado por esta vista; no se modifica aqui.
 - Los hallazgos no contractuales se consultan en el [Backlog F9.5](./backlog_f9_5_known_findings.md).
 - El detalle de migrations/policies internas no se presenta como criterio cliente.

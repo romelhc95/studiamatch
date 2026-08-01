@@ -3,7 +3,7 @@
 `HITO-004` agrupa los paquetes Home y documentacion tecnica. Esta nota
 documenta alcance y trazabilidad; no mantiene estado vivo.
 
-## Alcance Propuesto
+## Alcance Vigente Pendiente
 
 - `H4-CA5`: secciones Home de instituciones, destacados/patrocinados,
   inscripciones abiertas y exploracion por pais.

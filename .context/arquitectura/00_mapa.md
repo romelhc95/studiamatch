@@ -11,7 +11,7 @@ adopcion DB en la [Matriz DB](../operaciones/matriz_adopcion_db.md).
 | Etiqueta | Significado |
 |---|---|
 | `ACTUAL` | Comportamiento versionado u observado que la fuente enlazada permite afirmar. |
-| `PROPOSED_PENDING_APPROVAL` | Diseño ligado a la adenda draft o a un Hito pendiente; no esta implementado ni autorizado. |
+| `PENDING_HITO` | Alcance aprobado por adenda pero pendiente de TASK/subfase activa, candidate y evidencia. |
 | `EXCLUDED` | Superficie fuera de Sprint 1 o fuera del paquete descrito. |
 
 Git no demuestra aplicacion remota. Una nota `ACTUAL` sobre codigo tampoco
@@ -29,7 +29,7 @@ flowchart LR
     PublicAPI["Data API publica"]
     StaticWeb["Next.js static export"]
     Browser["Navegador publico"]
-    Admin["Admin Hito 3\nPROPOSED_PENDING_APPROVAL"]
+    Admin["Admin Hito 3\nPENDING_HITO"]
 
     Sources --> Workflows
     Workflows --> Pipeline
@@ -55,7 +55,7 @@ flowchart LR
 
 - Una vista se actualiza cuando cambia codigo, un ADR aceptado o evidencia
   remota canonica.
-- Una vista propuesta nunca autoriza implementacion o promocion.
+- Una vista pendiente nunca autoriza implementacion o promocion.
 - Ningun hallazgo arquitectonico crea alcance. Se clasifica mediante el
   [gobierno de hallazgos](../pruebas/06_gobierno_hallazgos.md).
 - No se publican credenciales, endpoints, project refs, PII, filas, payloads ni

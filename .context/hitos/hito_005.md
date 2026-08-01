@@ -3,7 +3,7 @@
 `HITO-005` agrupa el paquete final de Resultados. Esta nota documenta alcance y
 trazabilidad; no mantiene estado vivo.
 
-## Alcance Propuesto
+## Alcance Vigente Pendiente
 
 - `H5-CA8`: sticky search, chips removibles y limpiar filtros.
 - `H5-CA9`: sidebar de disponibilidad, area, modalidad, pais, precio y duracion.

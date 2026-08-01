@@ -3,16 +3,17 @@
 | Campo | Valor |
 |---|---|
 | ID | `ADENDA-REQ-EST-001-001` |
-| Estado | `DRAFT_PENDING_CLIENT_APPROVAL` |
+| Estado | `APPROVED_EFFECTIVE` |
 | Requerimiento | `REQ-EST-001` |
 | Fuente privada | `SRC-REQ-002` |
-| Decision interna | Preparada por autorizacion humana en F9.7 |
-| Vigencia | Solo despues de aprobacion expresa del cliente |
+| Decision interna | Aprobada y adoptada por autorizacion humana en F9.7 |
+| Vigencia | Efectiva desde `2026-08-01` tras evidencia privada verificada |
 
-Esta nota conserva el delta sanitizado propuesto. No contiene precios,
-condiciones de pago, firmas, datos bancarios, credenciales ni identificadores
-operativos. Mientras permanezca `DRAFT_PENDING_CLIENT_APPROVAL`, el alcance
-vigente sigue siendo el de [REQ-EST-001](./_index.md).
+Esta nota conserva el delta sanitizado aprobado. No contiene precios,
+condiciones de pago, firmas, datos bancarios, credenciales, datos personales,
+rutas privadas ni identificadores operativos. La evidencia privada de aprobacion
+permanece fuera de Git; la atestacion publicable vive como `EVID-H1-001` en el
+[paquete de evidencia Hito 1](../../evidencias_cliente/sprint_1/paquete_hito_001.md).
 
 ## Proposito
 
@@ -20,9 +21,9 @@ Cerrar Hito 1 con CA1 desplegado en produccion y trasladar CA2 completo al
 Hito 2, donde se integra con CA3. La redistribucion no agrega alcance a Sprint
 1 ni habilita implementacion, despliegue o cambios de datos.
 
-## Delta Propuesto
+## Delta Aprobado
 
-| Materia | Distribucion original | Distribucion propuesta |
+| Materia | Distribucion original | Distribucion vigente por adenda |
 |---|---|---|
 | Hito 1 | CA1, CA2 parcial y preparacion CA7 | CA1 exclusivamente |
 | Hito 2 | CA3 y CA2 parcial | CA2 completo y CA3 |
@@ -30,9 +31,9 @@ Hito 2, donde se integra con CA3. La redistribucion no agrega alcance a Sprint
 | Hito 4 | CA5, CA6, CA7 y CA13 Home | Sin cambio; absorbe la preparacion CA7 pendiente |
 | Hito 5 | CA8 a CA13 Resultados | Sin cambio |
 
-## Hito 1 Propuesto
+## Hito 1 Vigente
 
-Hito 1 conserva exclusivamente:
+Hito 1 conserva exclusivamente `H1-CA1`:
 
 - schedules y ejecucion segura del harvester/pipeline;
 - FG2 y FG3 como alcance cliente de CA1;
@@ -42,11 +43,11 @@ Hito 1 conserva exclusivamente:
 - promocion selectiva `local -> desarrollo -> certificacion -> main`;
 - evidencia de funcionamiento productivo.
 
-El release Hito 1 debe conservar byte-identicas a produccion las superficies
-CA2: schema, RLS, RPC, frontend, leads/email, backfill, campos editoriales y
-tooling DB.
+El release Hito 1 debe conservar sin cambios funcionales las superficies CA2:
+schema, RLS, RPC, frontend, leads/email, backfill, campos editoriales y tooling
+DB. Los aliases `H1-CA2P` y `H1-CA7P` quedan solo como antecedentes historicos.
 
-## Hito 2 Propuesto
+## Hito 2 Vigente
 
 Hito 2 empieza por CA2 y luego integra CA3:
 
@@ -82,18 +83,17 @@ Hito 2. El resumen no tecnico vive en el
 
 ## Efectividad
 
-Antes de aprobacion cliente, esta adenda es un draft. Despues de recibir y
-registrar evidencia privada de aprobacion:
+La aprobacion cliente integral de `SRC-REQ-002` fue verificada de forma privada y
+registrada de forma sanitizada como `EVID-H1-001`. Desde esta rebaseline:
 
-1. [ADR-0006](../../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md) pasa a
-   conservar el mapa aprobado como autoridad contractual;
-2. [REQ-EST-001](./_index.md) adopta el mapa revisado como alcance vigente;
-3. Hito 1 continua hasta obtener evidencia productiva CA1-only;
+1. [ADR-0006](../../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+   conserva el mapa aprobado como autoridad contractual.
+2. [REQ-EST-001](./_index.md) adopta el mapa revisado como alcance vigente.
+3. Hito 1 continua hasta obtener evidencia productiva CA1-only.
 4. Hitos 2 a 5 permanecen `PENDING` hasta su activacion individual.
 
-La aprobacion debe abarcar integralmente el artifact privado `SRC-REQ-002`, que
-incluye alcance, condiciones comerciales y cronograma revisado. Ese detalle no
-se publica en Git.
+La aprobacion abarca integralmente el artifact privado `SRC-REQ-002`, incluido
+alcance, cronograma y condiciones revisadas. Ese detalle no se publica en Git.
 
 ## Enlaces
 

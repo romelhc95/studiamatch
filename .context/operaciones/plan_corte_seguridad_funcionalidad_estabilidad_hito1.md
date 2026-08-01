@@ -1,15 +1,15 @@
 # PLAN-H1-CORTE-SFE-001 - Corte Seguridad Funcionalidad Estabilidad Hito 1
 
-> La adenda CA1-only propuesta conserva este corte como evidencia local CA2 y
+> La adenda CA1-only aprobada conserva este corte como evidencia local CA2 y
 > evita promoverlo parcialmente. Produccion mantiene su comportamiento actual
 > durante Hito 1; cualquier cambio de frontend, Edge o DB leads/email pasa a
 > Hito 2 solo despues de aprobacion cliente y gates propios.
 
-Estado documental: `VIGENTE` mediante [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md).
+Estado documental: `SUPERSEDED_FOR_HITO_1_BY_ADR_0006`; [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) permanece como decision historica de seguridad y no autoriza aplicacion CA2/Free/Pro.
 
 ## Estado Y Autoridad
 
-El corte pertenece a F9.7 y a [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md). No cierra F9, Hito 1, F10 ni F11. La autoridad de estado vivo sigue en [Estado del proyecto](../estado_del_proyecto.md) y la tarea canonica.
+El corte pertenecio historicamente a F9.7 y a [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md). No cierra F9, Hito 1, F10 ni F11. La autoridad de estado vivo sigue en [Estado del proyecto](../estado_del_proyecto.md) y la tarea canonica.
 
 ## Objetivo Del Corte
 
@@ -17,7 +17,7 @@ Crear un corte local de seguridad, funcionalidad y estabilidad que retire la cap
 
 ## Decisiones Humanas Fijadas
 
-Hito 1 conserva tres criterios, producto publico, harvester completo y ruta a produccion. Leads/email quedan diferidos y solo pueden reactivarse con nuevo ciclo formal. Los roles `anon`, `authenticated`, `authenticator` y `service_role` quedan sin acceso a `leads`/`email_log`; las filas legacy se preservan bajo autoridad owner. El cierre se organiza mediante el [plan definitivo de work packages](./cierre_definitivo_f9_7.md), sin crear subfases ni subtareas.
+Antes de la adenda, Hito 1 conservaba tres criterios, producto publico, harvester completo y ruta a produccion. El alcance vigente de Hito 1 es CA1-only; leads/email quedan diferidos y solo pueden reactivarse con nuevo ciclo formal. Los roles `anon`, `authenticated`, `authenticator` y `service_role` quedaron sin acceso a `leads`/`email_log` en el package local historico; las filas legacy se preservan bajo autoridad owner. El cierre se organizo mediante el [plan definitivo de work packages](./cierre_definitivo_f9_7.md), sin crear subfases ni subtareas.
 
 ## Semantica De Estados
 
@@ -63,19 +63,19 @@ El package `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` es separado, forward-only, 
 
 ## Gate Futuro De Contencion Free
 
-Free requiere `PREFLIGHT_READ_ONLY_FREE` separado, binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target, estado Edge valido y aprobacion humana independiente antes de aplicar v3 + hold sucesor.
+La ruta historica Free requeria `PREFLIGHT_READ_ONLY_FREE` separado, binding privado, snapshot read-only fresco, backup/restore `RESTORE_PROVEN`, pausa/drain de writers `HELD`, boundary permitido por PR-O, evidencia sanitizada del target, estado Edge valido y aprobacion humana independiente antes de aplicar v3 + hold sucesor. Tras la rebaseline queda `SUPERSEDED_FOR_HITO_1`.
 
 ## Gate Futuro De Contencion Pro
 
 Pro repite el proceso con cohorte, binding, backup/restore y evidencia propios. Nunca copia datos Free hacia Pro.
 
-## Puente Minimo De Publication Status
+## Puente Minimo De Publication Status Historico
 
-F9.8/F9.9 permanecen limitadas a cursos legacy anteriores a cutoff aprobado, `is_active=true`, `is_verified=true`, institucion `production_enabled=true`, `publication_status=borrador`, `manual_updated_at IS NULL` y unico cambio `publication_status -> publicado`. Si la cohorte es cero, F9.9 puede cerrar como no-op certificado.
+En la ruta historica sustituida, F9.8/F9.9 permanecian limitadas a cursos legacy anteriores a cutoff aprobado, `is_active=true`, `is_verified=true`, institucion `production_enabled=true`, `publication_status=borrador`, `manual_updated_at IS NULL` y unico cambio `publication_status -> publicado`. Tras la rebaseline, este puente queda `SUPERSEDED_FOR_HITO_1` y no autoriza backfill, Free ni Pro.
 
 ## Ruta Restante A Produccion
 
-Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion local `GO_WP_LOCAL`, certificacion local `CERTIFIED_LOCAL_PR_O_SUCCESSOR`, `PREFLIGHT_READ_ONLY_FREE` separado, aprobacion independiente de `GO_FOR_FREE`, gates Free, puente editorial, validaciones tecnicas F9.10 en Free, hold operativo `USER_PERSONAL_UAT=PASS` sobre candidate commit/tree inmutable, T04, PR/merge `desarrollo -> certificacion`, F10 Pro/main/observacion y F11 cierre final.
+Merge humano del corte, replay local post-merge, definicion local de PR-O v1, supersesion local por PR-O executor privado, implementacion local `GO_WP_LOCAL` y certificacion local `CERTIFIED_LOCAL_PR_O_SUCCESSOR` quedan como historia local. `PREFLIGHT_READ_ONLY_FREE`, `GO_FOR_FREE`, gates Free, puente editorial y backfill quedan `SUPERSEDED_FOR_HITO_1`; la ruta vigente usa F9.8 candidate local CA1-only, F9.9 Certification/canary/QA, F9.10 certificacion final/`USER_PERSONAL_UAT`/readiness, F10 Production y F11 cierre final.
 
 ## Plan De Cierre Definitivo
 

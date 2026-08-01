@@ -8,38 +8,38 @@ flowchart LR
     Local["Local y PostgreSQL efimero"]
     Feature["feat/*"]
     Development["desarrollo"]
-    Free["Supabase Free"]
-    FreeSchema["free_schema_certified"]
-    FreeBackfill["free_backfill_certified"]
-    FreeValidation["Validaciones tecnicas Free\nACL, FG2 smoke, canary, cleanup y QA"]
-    UAT["USER_PERSONAL_UAT"]
-    FreeCertified["free_certified"]
+    LocalCandidate["F9.8 candidate local CA1-only"]
     Certification["certificacion"]
-    Pro["Supabase Pro"]
+    CertificationCanary["F9.9 canary y QA"]
+    UAT["USER_PERSONAL_UAT"]
+    Readiness["F9.10 readiness F10"]
     Main["main"]
-    PreMain["Canary y smoke Pro"]
+    Production["Production"]
+    PreMain["Canary Production"]
+    Schedules["Schedules graduales"]
     Observe["Observacion productiva"]
 
     Local -->|tests y auditorias| Feature
     Feature -->|PR, CI y review| Development
-    Development -. "gate remoto separado" .-> Free
-    Free --> FreeSchema --> FreeBackfill --> FreeValidation --> UAT --> FreeCertified
-    FreeCertified -->|PR humano| Certification
-    Certification -. "workflow manual aprobado" .-> Pro
-    Pro --> PreMain -->|aprobacion humana| Main --> Observe
+    Development --> LocalCandidate
+    LocalCandidate -->|candidate selectivo| Certification
+    Certification --> CertificationCanary --> UAT --> Readiness
+    Readiness -->|PR humano| Main
+    Main --> Production --> PreMain --> Schedules --> Observe
 ```
 
 ## Estado Vigente
 
 | Nodo | Estado documentable |
 |---|---|
-| Candidate local F9.7 | Certificaciones locales historicas disponibles |
-| Supabase Free | Para este corte F9.7: `UNCHANGED_NOT_ATTESTED`; no certificado |
-| Backfill | No autorizado |
-| Validaciones tecnicas Free | No ejecutadas; obligatorias antes de UAT |
+| F9.7 | `COMPLETED_BY_CONTRACT_REBASELINE` |
+| F9.8 | Activa para candidate local CA1-only; no ejecutada por este PR |
+| Supabase Free/Pro | `UNCHANGED_NOT_ATTESTED`; sin certificacion nueva |
+| Backfill | Trasladado a Hito 2; prohibido en Hito 1 CA1-only |
+| Validaciones tecnicas Certification | Pendientes; obligatorias antes de UAT |
 | `USER_PERSONAL_UAT` | Hold futuro de F9.10 |
-| `free_certified` | No alcanzado |
-| Supabase Pro | Bloqueado |
+| Readiness F10 | No alcanzado |
+| Production | Bloqueado |
 | Hitos 2 a 5 | `PENDING`, sin subfase ejecutable |
 
 ## Stop Conditions
@@ -47,8 +47,9 @@ flowchart LR
 - Secretos, PII o identificadores sensibles en archivos, logs o diffs.
 - Candidate, ancestry, tree, manifest o checksums no verificables.
 - Drift RLS/ACL, writers activos o postcondicion no demostrada.
-- Backfill mezclado con schema/RLS o datos operativos copiados entre ambientes.
+- Backfill, schema/RLS o datos operativos incluidos en el candidate CA1-only.
 - Test, Context Graph, canary, smoke o revision humana faltante.
 
-La rama `certificacion` y Supabase Free son conceptos distintos: la primera es
-una rama/release; el segundo es el ambiente DB de desarrollo y certificacion.
+La rama `certificacion` y Supabase Free son conceptos distintos. Para Hito 1
+CA1-only, Certification es la rama/release de canary y QA; Supabase Free/Pro no
+cambian por este rebaseline.

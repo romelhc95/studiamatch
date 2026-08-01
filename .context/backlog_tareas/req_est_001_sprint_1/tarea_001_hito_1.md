@@ -6,40 +6,39 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) divide el corte local en seis work packages; PR #258 cerro localmente `CORR-WP-F9.7-04-02` y `WP-F9.7-04..06`; PR #259 reconcilio el replay; PR #260 documento post-merge; PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; PR #262 fue mergeado por humano en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; PR #263 queda en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`; [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, `application_authorized=false`, `capabilities=[]`, sin Pro/backfill/H-00/aplicacion parcial; frontend sin leads, Edge tombstone Git-only y Free/Pro `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` bloqueado; F9.7 permanece `IN_PROGRESS` hasta `GO_F9.7_COMPLETE` en Free |
-| Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
-| Adenda propuesta | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), pendiente de aprobacion cliente |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE` y F9.8 queda activa para implementar y validar localmente el candidate CA1-only bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Criterios activos | `H1-CA1` |
+| Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
+| Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
 ## Objetivo Contractual
 
-Preparar la orquestacion FG2/FG3, el schema editorial y de calidad, y la seguridad base sin saltar gates, exponer credenciales ni promover cambios no certificados.
+Cerrar Hito 1 con `H1-CA1` exclusivamente: schedules y operacion segura de FG2/FG3, con FG1 como soporte operativo, sin saltar gates, circuit breakers ni controles de credenciales.
 
-## Rebaseline Propuesta CA1-Only
+## Rebaseline Vigente CA1-Only
 
-La decision humana de F9.7 preparo una adenda para cerrar Hito 1 con `H1-CA1`
-en produccion y trasladar CA2 completo a Hito 2. Mientras la adenda permanezca
-`DRAFT_PENDING_CLIENT_APPROVAL`, los tres criterios originales conservan su
-estado contractual y esta TASK continua `IN_PROGRESS`.
+La decision humana de F9.7 adopta la adenda aprobada para cerrar Hito 1 con
+`H1-CA1` en produccion y trasladar CA2 completo a Hito 2. Desde esta rebaseline:
 
-Si el cliente aprueba la adenda:
-
-- `H1-CA1` permanece en esta TASK hasta `COMPLETED_PRODUCTION`;
+- `H1-CA1` es el unico criterio activo de esta TASK hasta
+  `COMPLETED_PRODUCTION_CA1_ONLY`.
 - `H1-CA2P` se preserva como antecedente y su alcance pendiente pasa a
-  [TASK-H2-001](./tarea_002_hito_2.md) como `H2-CA2`;
+  [TASK-H2-001](./tarea_002_hito_2.md) como `H2-CA2`.
 - `H1-CA7P` se preserva como antecedente y su alcance pendiente pasa a
-  [TASK-H4-001](./tarea_004_hito_4.md) como `H4-CA7`;
-- los avances CA2 locales no se promueven con el candidate CA1-only;
-- produccion conserva su comportamiento actual para leads/email.
+  [TASK-H4-001](./tarea_004_hito_4.md) como `H4-CA7`.
+- Los avances CA2 locales no se promueven con el candidate CA1-only.
+- Produccion conserva su comportamiento actual para leads/email.
 
 El plan ejecutable futuro es
-[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). Esta
-documentacion no activa ese plan, no cambia Free/Pro y no cierra Hito 1.
+[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). Queda
+activo como definicion de F9.8, pero su ejecucion requiere la frase exacta
+`Ejecuta las tareas pendientes de la Fase F9.8`.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -49,26 +48,26 @@ autorizaciones.
 
 ```text
 TASK-H1-001
-|- H1-CA1
-|- H1-CA2P
-`- H1-CA7P
+`- H1-CA1
 ```
 
-Los tres criterios son hijos directos de la tarea, no subtareas.
+`H1-CA2P` y `H1-CA7P` permanecen fuera del arbol activo como aliases historicos.
 
 ## Criterios Y Entregables
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `IMPLEMENTED` | Workflows automaticos, schedules, gates y circuit breakers de F7 | Compatibilidad backend y ejecucion efectiva por ambiente |
-| `H1-CA2P` | `IN_PROGRESS` | Schema local F6-F8, calidad y seguridad base | Aplicacion Free/Pro, identidad backend de servicio, backfill editorial y pruebas por rol |
-| `H1-CA7P` | `COMPLETED` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | Anexo final por ambiente para la certificacion; no reabre el criterio |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7 | Candidate local F9.8, Certification/QA F9.9, certificacion final F9.10, UAT y produccion observada F10 |
+| `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
+| `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
-El alcance contractual de los tres criterios permanece en [REQ-EST-001](./_index.md) y [HITO-001](../../hitos/hito_001.md). [EST-001](../../estimaciones/est_001.md) conserva solo complejidad y estimacion tecnica original; esta tabla no agrega criterios.
+El alcance contractual vigente permanece en [REQ-EST-001](./_index.md) y [HITO-001](../../hitos/hito_001.md). [EST-001](../../estimaciones/est_001.md) conserva solo complejidad y estimacion tecnica original; esta tabla no agrega criterios.
 
 ## Equivalencias Aceptadas De H1-CA2P
 
-Las siguientes equivalencias semanticas quedan aceptadas para el alcance de `H1-CA2P`; no acreditan adopcion remota, no sustituyen las pruebas por rol y no autorizan schema, migrations ni backfill:
+Las siguientes equivalencias semanticas quedan preservadas como antecedente de
+`H2-CA2`; no acreditan adopcion remota, no sustituyen pruebas por rol y no
+autorizan schema, migrations ni backfill en Hito 1:
 
 | Necesidad contractual | Campo local aceptado |
 |---|---|
@@ -106,7 +105,7 @@ F9.5 termina `COMPLETED_WITH_KNOWN_FINDINGS`. Los intentos y remediaciones local
 - Todos los artifacts F9.5 introducidos por PR #245 y PR #247 quedan `HISTORICAL_NON_PROMOTABLE`. Se conservan fisicamente para trazabilidad, sin integrarlos al package contractual, a F9.7 ni a una ruta de aplicacion.
 - F6-F8 permanecen como la unica base funcional contractual de Hito 1. Los artifacts F9.5 no sustituyen, amplian ni promocionan esa base.
 - Al cerrar F9.5, `T01_CONDITIONAL_ACCEPTED` fue una decision documental sin attestation tecnica nueva y habilito solo la definicion entonces futura de F9.6; nunca autorizo schema, migrations, F9.7 ni ramas.
-- `H-00` es un P0 separado y obligatorio antes de `FREE_CERTIFIED`, pero no es un criterio contractual de `HITO-001`.
+- `H-00` fue un P0 separado de la ruta sustituida; no es prerrequisito del `HITO-001` CA1-only ni de F9.8.
 - La definicion inicial F9.6 exigia backup y predicado antes de una posible eliminacion. Esa rama quedo sustituida al cerrar F9.6 sin DML despues de verificar la remediacion historica de PII directa; los intentos de backup no se reclasifican como PASS.
 
 ## Cierre F9.6 - H-00 Ya Remediado
@@ -138,7 +137,8 @@ La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) con
 
 La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplazo el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado en Git y el drenaje pg_net queda counts-only. [ADR-0005](../../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local: la arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`, el frontend soportado no tiene captura publica y el hold actual queda `SUPERSEDED_NON_PROMOTABLE`; la ruta futura exige [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md). No observa ni modifica Free/Pro y no autoriza aplicacion.
 
-El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9: debe planificarse y ejecutarse separadamente para evitar que el catalogo quede invisible. No esta autorizado por el candidate local ni por Gate B.
+El backfill editorial queda trasladado a `H2-CA2`. Para Hito 1 CA1-only queda
+prohibido planificarlo, aplicarlo o usarlo como evidencia de cierre.
 
 Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, `email_egress=LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, `security_hold=LOCAL_CANDIDATE_BLOCKED`, `WP-F9.7-02=GO_WP_LOCAL`, `WP-F9.7-03=GO_WP_LOCAL`, `WP-F9.7-04=COMPLETED_LOCAL_MERGED`, `CORR-WP-F9.7-04-01=NO_GO_CI_PARTIAL`, `CORR-WP-F9.7-04-02=COMPLETED_LOCAL_MERGED`, `WP-F9.7-05=COMPLETED_LOCAL_REPLAYED`, `WP-F9.7-06=COMPLETED_LOCAL_MERGED`, `PR-O-F9.7-PRIVATE-EXECUTOR-002=CERTIFIED_LOCAL_PR_O_SUCCESSOR`, candidate final `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`, merge `e95eeaccc864477db587bbb13c827d0c17340d8d`, reconciliacion documental fusionada `desarrollo@fdaac633d29476e3323a8f88741a87570ece3b7c` / tree `2fa573d878eb566dd00f6fe21939e5b6420133ed`, PR #263 `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`, certificacion local `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, evidencia final `issuecomment-5133103661`, approval `romelhc95-approver`, replay post-merge Docker/Linux PASS, candidates `b711e0b`/`249295`, `120d234`/`bf68ed` y `d2cb32e`/`16081a60` no promocionables, dos `SC2086` legacy `RESIDUAL_ACCEPTED_PROTECTED_BASELINE`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED`, Free/Pro `UNCHANGED_NOT_ATTESTED`, Supabase previews skipped y `AUTOMATIC_PR_PREVIEW_ACCEPTED` sin Cloudflare manual. La captura publica no puede reactivarse por configuracion; cualquier reactivacion vive en [BK-F9.5-05](backlog_seguridad_leads_email.md).
 
@@ -155,31 +155,37 @@ El contrato, dependencias y criterios completos viven en [PLAN-F9.7-CIERRE-001](
 | `WP-F9.7-05` | `COMPLETED_LOCAL_REPLAYED` | Tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de` materializado en Docker/Linux limpio; matriz post-merge canonica PASS sobre merge `e95eeac` |
 | `WP-F9.7-06` | `COMPLETED_LOCAL_MERGED` | Seis auditorias finales `GO_FOR_LOCAL_PR`, `BLOCKING_IN_SCOPE=0`, evidencia final `issuecomment-5133103661`, aprobacion humana y merge PR #258 |
 
-Decisiones vinculantes: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log` en el package local; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y el hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado no expuesto por Data API, eliminacion de `public.exec_sql(text)` del estado final esperado, digests vinculantes y approvals single-use. Siguiente accion exacta: `PREFLIGHT_READ_ONLY_FREE`, pendiente de autorizacion separada y solo despues del merge/replay del PR que publique esta certificacion local. Esta definicion no aplica PR-O y no autoriza Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup, writers, backfill, Edge, deploy ni Cloudflare manual.
+Decisiones vinculantes historicas: todos los roles de aplicacion, incluido `service_role`, quedan sin acceso a `leads`/`email_log` en el package local; la publishable key historica retirada tiene estado `ROTATED_HUMAN_ATTESTED`, sin registrar su valor. [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y el hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado no expuesto por Data API, eliminacion de `public.exec_sql(text)` del estado final esperado, digests vinculantes y approvals single-use. Esa ruta queda superseded para Hito 1 por el rebaseline CA1-only y no autoriza Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup, writers, backfill, Edge, deploy ni Cloudflare manual.
 
-Hold operativo posterior: `USER_PERSONAL_UAT` pertenece a F9.10 como hold manual de experiencia personal del usuario, no como criterio contractual, subtarea, subfase ni transicion de la maquina. Debe ejecutarse despues de todas las validaciones tecnicas Free y antes de T04, reanudar writers o cualquier PR/merge `desarrollo -> certificacion`; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario. Free es el ambiente DB de desarrollo/certificacion del contrato, mientras `certificacion` como rama/release permanece bloqueada hasta cumplir este hold y los gates F9.10.
+Hold operativo posterior: `USER_PERSONAL_UAT` pertenece a F9.10 como hold manual de experiencia personal del usuario, no como criterio contractual, subtarea, subfase ni transicion de la maquina. Debe ejecutarse despues de canary, validaciones tecnicas Certification y QA, y antes de declarar readiness para F10; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario.
 
 El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
 
-## Allowlist De Implementacion
+## Frontera F9.8 CA1-Only
 
-- `scripts/core/master_orchestrator.py`.
-- `scripts/core/cleansing_worker.py`, `enrichment_worker.py` y `sync_vector_worker.py` para compatibilidad G1b minima.
-- Frontend de detalle, comparador, catalogo y selector publico para retirar superficies G1b revocadas.
-- Workflows FG1 y FG3; FG2 solo para revision contractual y el guard de refs aprobado explicitamente.
-- Workflow de seguridad para convertir pruebas y build F7 en gates bloqueantes.
-- `scripts/shared/db_client.py` y `check_db_parity.py` solo para lecturas fail-closed y revalidacion F7.
-- Migrations forward-only nuevas para el contrato editorial, calidad y RLS.
-- Tests de governance, gates del orquestador y RLS.
+### Permitido
+
+- FG1 como soporte operativo.
+- FG2 y FG3 como alcance CA1.
+- Schedules, gates, circuit breakers, limites, timeouts y seguridad operacional.
+- Tests, CI y evidencia necesarios para CA1.
 - Documentos canonicos enlazados desde [el indice](../../00_INDICE.md).
 
-La ampliacion minima de allowlist anterior fue aprobada explicitamente al iniciar F7. El guard FG2 se aprobo despues como remediacion de seguridad acotada. No autoriza redisenos fuera de estas superficies.
+### Prohibido
+
+- `db/**`, `supabase/**` y `web/**`.
+- Schema, migrations, RLS, RPC, grants y backfill.
+- Leads/email, Edge y artifacts terminales F9.7.
+- Admin, Home, Resultados, cards, filtros y campos CA2.
+- Tooling para aplicar packages DB.
+
+Esta frontera no autoriza redisenos fuera de estas superficies.
 
 La allowlist ejecutada del alias historico `FASE-09` vive exclusivamente en [Precertificacion F9](../../operaciones/precertificacion_hito1_f9.md#allowlist-f9) y corresponde a F9.1.
 
 La allowlist ejecutada del alias historico `FASE-10` vive exclusivamente en [Contrato de promocion F10](../../operaciones/promocion_hito1_f10.md#allowlist-f10) y corresponde a F9.2. Las siguientes subfases usan allowlists propias.
 
-## Exclusiones
+## Exclusiones Historicas Preservadas
 
 - Vault historico, revisiones, evidencias y candidates previos.
 - Manifest schema v1, dispatcher autonomo y diffs completos de ramas historicas.
@@ -187,10 +193,10 @@ La allowlist ejecutada del alias historico `FASE-10` vive exclusivamente en [Con
 - Copia de datos operativos Free hacia Pro.
 - H-08 y H-09; redisenos definitivos de H-04 y H-07.
 
-## Dependencia G1b Minima
+## Dependencia G1b Minima Historica
 
 - El paquete minimo conserva los IDs `H-01` a `H-07` y `H-10` sin publicar postcondiciones explotables.
-- F7 debe mapear cada postcondicion a `H1-CA2P`, un metodo de verificacion y evidencia nueva.
+- F7 mapeo postcondiciones a `H1-CA2P` como antecedente historico; Hito 2 debe producir evidencia nueva para `H2-CA2`.
 - La adopcion se decide desde la [matriz DB](../../operaciones/matriz_adopcion_db.md), no desde evidencia historica.
 - El frontend debe ser compatible con las superficies que el contrato aprobado retire.
 
@@ -198,12 +204,9 @@ H-00 no forma parte del paquete promocionable. F9.6 verifico la remediacion hist
 
 ## Criterio De Salida
 
-1. Cambios clasificados y limitados a la allowlist.
-2. Migrations nuevas, forward-only e idempotentes.
-3. Tests de gates, governance y RLS verdes en el entorno autorizado.
-4. FG1/FG3 conservan o ajustan su cadencia automatica sin omitir gates, circuit breakers ni controles de ambiente.
-5. FG2 conserva credenciales fuera del repositorio y respeta gates.
-6. Frontend pasa lint, typecheck y build estatico segun el gate acordado.
-7. Candidate inmutable, Context Graph PASS y aprobacion humana antes de promocion.
+1. `EVID-H1-001..016` completos, con `EVID-H1-001` ya verificado y las demas evidencias generadas por candidate/ambientes/observacion/conformidad.
+2. Candidate CA1-only inmutable con cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill, admin, Home, Resultados, cards, filtros y campos CA2.
+3. Tests CA1, CI, seguridad, QA, canary Certification, `USER_PERSONAL_UAT`, readiness F10, canary Production y observacion en PASS.
+4. Hitos 2 a 5 permanecen `PENDING` hasta activacion individual.
 
 Ver [Arquitectura](../../arquitectura_pipeline.md), [Estimacion](../../estimaciones/est_001.md) y [Release minimo](../../operaciones/flujo_release_minimo.md).

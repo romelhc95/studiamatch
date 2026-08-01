@@ -8,7 +8,7 @@
 | Hito | [HITO-003](../../hitos/hito_003.md) |
 | Macrofase vigente | Ninguna; no activa |
 | Subfase ejecutable | Ninguna |
-| Criterios propuestos | `H3-CA4` |
+| Criterios vigentes pendientes | `H3-CA4` |
 | Bloqueador | Hito 2 desplegado con cola real de pendientes |
 
 ## Objetivo

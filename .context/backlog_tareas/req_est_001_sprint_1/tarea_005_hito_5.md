@@ -8,7 +8,7 @@
 | Hito | [HITO-005](../../hitos/hito_005.md) |
 | Macrofase vigente | Ninguna; no activa |
 | Subfase ejecutable | Ninguna |
-| Criterios propuestos | `H5-CA8`, `H5-CA9`, `H5-CA10`, `H5-CA11`, `H5-CA12`, `H5-CA13R` |
+| Criterios vigentes pendientes | `H5-CA8`, `H5-CA9`, `H5-CA10`, `H5-CA11`, `H5-CA12`, `H5-CA13R` |
 | Bloqueador | Home y datos/flags base listos |
 
 ## Objetivo

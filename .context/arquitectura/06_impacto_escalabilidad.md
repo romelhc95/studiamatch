@@ -7,7 +7,7 @@ requisitos de capacidad, SLO, subtareas ni criterios adicionales.
 
 | Hito | Superficies afectadas | Dependencia principal | No alcance protegido |
 |---|---|---|---|
-| Hito 1 / CA1 | FG2, FG3, environments y observabilidad; FG1 solo como soporte operativo | Evidencia efectiva por ambiente | Cero CA2, DB, frontend o leads/email en candidate CA1-only propuesto |
+| Hito 1 / CA1 | FG2, FG3, environments y observabilidad; FG1 solo como soporte operativo | Evidencia efectiva por ambiente | Cero CA2, DB, frontend o leads/email en candidate CA1-only |
 | Hito 2 / CA2-CA3 | Schema, RLS, PostgREST, cuatro estaciones y backfill | CA2 integral antes de CA3 | Sin `/admin`, Home o entrega real-time |
 | Hito 3 / CA4 | Identidad admin, writer seguro, auditoria y `/admin` | Hito 2 desplegado | Sin redefinir CA2/CA3 |
 | Hito 4 / CA5-CA7-CA13H | Home, contrato publico y documentacion | Datos publicos estables y referencia aprobada | Sin Resultados ni tipo de cambio real |
