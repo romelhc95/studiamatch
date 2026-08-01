@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `ACTIVE_AWAITING_F9_8_EXECUTION` |
+| Estado | `F9_8_LOCAL_CANDIDATE_IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -150,6 +150,19 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - requirements `--require-hashes` con Python 3.11.
 - credential scan y secret scan.
 - Context Graph y diff CA2 cerrado.
+
+### F9.8 Local Candidate - 2026-08-01
+
+- `python3 -m py_compile` en contenedor Linux para scripts CA1: `PASS`.
+- Assertions focused `tests/test_fase09_8_ca1_candidate.py` ejecutadas en
+  contenedor Linux via import directo porque la imagen local no tenia `pytest`:
+  `7 focused CA1 assertions passed`.
+- `pytest` formal, CI, PR a `desarrollo`, canaries, schedules observados,
+  Certification y Production siguen pendientes.
+- `security-auditor` final: sin hallazgos bloqueantes. Riesgos residuales:
+  CI no observado aun, candidate sin commit/tree inmutable, DNS rebinding TOCTOU
+  residual en FG3, y configuracion de environments/vars pendiente de atestacion
+  en GitHub antes de habilitar Production.
 
 ## Gates De Promocion
 

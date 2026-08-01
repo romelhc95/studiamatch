@@ -120,13 +120,6 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
-    ".github/workflows/production_pipeline.yml": {
-        "identities": {"CF_API_TOKEN"},
-        "provider": "cloudflare-api",
-        "provider_marker": "api.cloudflare.com",
-        "provider_env": "CF_API_TOKEN",
-        "derivation_marker": "CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}",
-    },
 }
 
 APPROVED_BEARER_TEST_LITERALS = {

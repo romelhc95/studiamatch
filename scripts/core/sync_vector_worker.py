@@ -150,6 +150,8 @@ class SyncVectorWorker:
 
     def get_pending_enriched(self, limit=500):
         filters = "status=eq.pending"
+        if limit is None:
+            return self.db.select_all_pipeline('enriched_programs', filters=filters)
         return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit)
 
     def sync_to_production(self, enriched):
@@ -226,11 +228,11 @@ class SyncVectorWorker:
                 logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
 
         location = enriched.get('location', 'Nacional')
-        
+
         # Add location if specific
         if location and location not in ["Nacional", "Nacional/No especificado"]:
             base_slug = f"{base_slug}-{slugify(location)}"
-        
+
         # Add a short unique identifier from the original ID to guarantee uniqueness
         # while keeping the URL readable
         short_id = str(e_id).split('-')[0]
@@ -249,7 +251,7 @@ class SyncVectorWorker:
         # Fase 73: Parse start_date and determine expiration
         start_date_text = enriched.get('start_date')
         parsed_date, is_expired = parse_start_date(start_date_text)
-        
+
         # Determine is_active: False if expired (90d grace already in parse_start_date)
         course_is_active = not is_expired
         if is_expired:
@@ -258,9 +260,11 @@ class SyncVectorWorker:
         # Fase 63: Load profile defaults for this institution
         profile = self._get_profile(enriched.get('institution_id'))
         production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else False
-        course_is_active = course_is_active and production_enabled
+        course_is_active = course_is_active and production_enabled and not enriched.get('is_mock_data', True)
         if not production_enabled:
             logger.info(f"🚧 [NOT PUBLIC] {name} — production_enabled=false, syncing inactive")
+        elif enriched.get('is_mock_data', True):
+            logger.info(f"🚧 [NOT PUBLIC] {name} — mock enrichment, syncing inactive")
         defaults = profile.get('field_defaults', {}) if profile else {}
         section_mode_map = profile.get('section_mode_map', {}) if profile else {}
 
@@ -318,14 +322,17 @@ class SyncVectorWorker:
         existing = self.db.select_service_raise(
             'courses',
             filters=f"url=eq.{url_encoded}",
-            columns='id,is_active,publication_status,manual_updated_at',
+            columns='id,is_active,publication_status,manual_updated_at,last_404_at',
         )
         existing_course = existing[0] if existing else {}
         manually_disabled = (
             existing_course.get('publication_status') == 'despublicado'
             or (
                 existing_course.get('is_active') is False
-                and existing_course.get('manual_updated_at') is not None
+                and (
+                    existing_course.get('manual_updated_at') is not None
+                    or existing_course.get('last_404_at') is not None
+                )
             )
         )
         if manually_disabled:
@@ -401,14 +408,20 @@ class SyncVectorWorker:
 if __name__ == "__main__":
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched()
+    pending = worker.get_pending_enriched(limit=None)
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
+    failed = 0
+    partial = False
     for record in pending:
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante sync. Synced: {synced}/{len(pending)}")
+            partial = True
             break
         if worker.sync_to_production(record):
             synced += 1
+        else:
+            failed += 1
         guard.tick(every=50)
-    logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Time: {guard.elapsed_hours:.2f}h")
+    logger.info(f"Sync batch complete. Synced: {synced}/{len(pending)} | Failed: {failed} | Time: {guard.elapsed_hours:.2f}h")
+    sys.exit(1 if failed or partial else 0)

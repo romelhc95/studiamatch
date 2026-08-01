@@ -90,6 +90,8 @@ permissions:
 
 env:
   F97_BASELINE_COMMIT: 8ab1cdf9173b8093781e75ba32c2fea9ae931b14
+  F97_FROZEN_COMMIT: 258ef3a98c7c1010efe58522bb1eca892e26390e
+  F97_FROZEN_TREE: 2cb182ab9ece141bd8e84d7bbf9c91d771f603de
   ACTIONLINT_VERSION: '1.7.7'
   SHELLCHECK_VERSION: '0.9.0'
   SHELLCHECK_SHA256: 700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f
@@ -109,21 +111,121 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           fetch-depth: 0
-      - name: Resolve explicit F9.7 candidate
+      - name: Validate F9.8 transition boundary
         run: |
           set -eu
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            F97_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
+            F98_HEAD_COMMIT="${{ github.event.pull_request.head.sha }}"
+            F98_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
           else
-            F97_CANDIDATE_COMMIT="${{ github.sha }}"
+            F98_HEAD_COMMIT="${{ github.sha }}"
+            F98_BASE_COMMIT="$F97_FROZEN_COMMIT"
           fi
+          printf '%s' "$F98_HEAD_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          printf '%s' "$F98_BASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "$F98_BASE_COMMIT" = "d9c7f180495c985a1e9a0ada4a42525fda60a870"
+          fi
+          test "$(git rev-parse HEAD)" = "$F98_HEAD_COMMIT"
+          F98_HEAD_TREE="$(git rev-parse "$F98_HEAD_COMMIT^{tree}")"
+          export F98_HEAD_COMMIT
+          export F98_BASE_COMMIT
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          base = os.environ['F98_BASE_COMMIT']
+          head = os.environ['F98_HEAD_COMMIT']
+          allowed = {
+              '.github/workflows/fg1_inventory.yml',
+              '.github/workflows/fg3_integrity.yml',
+              '.github/workflows/production_pipeline.yml',
+              'scripts/core/discovery_institutions.py',
+              'scripts/core/integrity_ping.py',
+              'scripts/core/sync_vector_worker.py',
+              'scripts/core/universal_harvester.py',
+              'scripts/shared/db_client.py',
+          }
+          protected = {
+              '.github/workflows/fg1_inventory.yml',
+              '.github/workflows/production_pipeline.yml',
+              '.github/workflows/fg3_integrity.yml',
+              '.github/workflows/db-sync-to-pro.yml',
+              'requirements-fg1.txt',
+              'requirements-pipeline.txt',
+              'requirements-fg3.txt',
+              'requirements-db-migrate.txt',
+              'db/manifests/fase09_7_free_schema_rls_v3.json',
+              'db/migrations/20260724_fase06_g1b_reconciliation.sql',
+              'db/migrations/20260724_fase06_hito1_editorial_contract.sql',
+              'db/migrations/20260725_fase07_g1b_closure.sql',
+              'db/migrations/20260725_fase08_hito1_functional_closure.sql',
+              'db/migrations/20260727_fase09_7_public_access_closure.sql',
+              'db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql',
+              'scripts/maintenance/category_coverage_audit.py',
+              'scripts/maintenance/quality_assurance_audit.py',
+              'scripts/maintenance/taxonomy_roi_audit.py',
+          }
+          protected_prefixes = ('scripts/core/', 'scripts/shared/', 'config/')
+          denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')
+          denied_exact = {'.gitattributes'}
+          raw = subprocess.check_output([
+              'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies', base, head, '--'
+          ])
+          fields = raw.split(b'\0')
+          index = 0
+          failed = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode('ascii')
+              index += 1
+              old_path = None
+              if status.startswith(('R', 'C')):
+                  old_path = fields[index].decode('utf-8', 'surrogateescape')
+                  index += 1
+              path = fields[index].decode('utf-8', 'surrogateescape')
+              index += 1
+              paths_to_check = [p for p in (old_path, path) if p]
+              if any(p.startswith(denied_prefixes) or p in denied_exact for p in paths_to_check):
+                  failed.append(f'denied:{path}')
+              if (
+                  any(p in protected or p.startswith(protected_prefixes) for p in paths_to_check)
+                  and not any(p in allowed for p in paths_to_check)
+              ):
+                  failed.append(f'f97-drift:{path}')
+              if path in allowed or old_path in allowed:
+                  if status != 'M':
+                      failed.append(f'status:{status}:{path}')
+                  base_meta = subprocess.check_output(['git', 'ls-tree', base, '--', path]).decode().strip()
+                  head_meta = subprocess.check_output(['git', 'ls-tree', head, '--', path]).decode().strip()
+                  if not base_meta or not head_meta:
+                      failed.append(f'missing:{path}')
+                      continue
+                  base_mode, base_kind, _base_oid, _base_path = base_meta.split(None, 3)
+                  head_mode, head_kind, _head_oid, _head_path = head_meta.split(None, 3)
+                  if (base_mode, base_kind, _base_path) != ('100644', 'blob', path):
+                      failed.append(f'base-kind:{path}')
+                  if (head_mode, head_kind, _head_path) != ('100644', 'blob', path):
+                      failed.append(f'head-kind:{path}')
+          if failed:
+              for item in failed:
+                  print(f'::error::{item}')
+              raise SystemExit(1)
+          print('F98_TRANSITION_PASS')
+          PY
+          echo "F98_HEAD_COMMIT=$F98_HEAD_COMMIT" >> "$GITHUB_ENV"
+          echo "F98_HEAD_TREE=$F98_HEAD_TREE" >> "$GITHUB_ENV"
+      - name: Resolve frozen F9.7 candidate
+        run: |
+          set -eu
+          F97_CANDIDATE_COMMIT="$F97_FROZEN_COMMIT"
           printf '%s' "$F97_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
           git cat-file -e "$F97_BASELINE_COMMIT^{commit}"
           git cat-file -e "$F97_CANDIDATE_COMMIT^{commit}"
           git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
+          git checkout --detach "$F97_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
           F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
+          test "$F97_CANDIDATE_TREE" = "$F97_FROZEN_TREE"
           git diff --quiet
           git diff --cached --quiet
           {
@@ -131,6 +233,7 @@ jobs:
             echo "F97_CANDIDATE_COMMIT=$F97_CANDIDATE_COMMIT"
             echo "F97_CANDIDATE_TREE=$F97_CANDIDATE_TREE"
           } >> "$GITHUB_ENV"
+          echo "HISTORICAL_F97_PASS commit=$F97_CANDIDATE_COMMIT tree=$F97_CANDIDATE_TREE"
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'

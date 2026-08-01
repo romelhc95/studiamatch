@@ -213,7 +213,7 @@ def test_sync_updates_automatically_inactive_course_without_publishing(monkeypat
 
     assert worker.sync_to_production(_enriched_record())
     assert len(database.upserts) == 1
-    assert database.upserts[0]["is_active"] is True
+    assert database.upserts[0]["is_active"] is False
     assert "publication_status" not in database.upserts[0]
     assert "%26" in database.filters[0]
 
