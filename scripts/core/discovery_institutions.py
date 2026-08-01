@@ -1,9 +1,10 @@
 import os
 import json
 import pathlib
-from dotenv import load_dotenv
-from bs4 import BeautifulSoup
 import sys
+from urllib.parse import urlparse
+
+from dotenv import load_dotenv
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,46 +15,25 @@ load_dotenv()
 
 db = get_db_client()
 
-# Legacy fallback list (kept for backward compatibility)
-LEGACY_SOURCES = [
-    {"name": "Universidad de Lima", "url": "https://www.ulima.edu.pe/"},
-    {"name": "Universidad del Pacífico", "url": "https://www.up.edu.pe/"},
-    {"name": "IDAT", "url": "https://www.idat.edu.pe/"},
-    {"name": "SENATI", "url": "https://www.senati.edu.pe/"},
-    {"name": "UPC", "url": "https://www.upc.edu.pe/"},
-    {"name": "USIL", "url": "https://www.usil.edu.pe/"},
-    {"name": "Universidad Continental", "url": "https://ucontinental.edu.pe/"},
-    {"name": "UTP", "url": "https://www.utp.edu.pe/"},
-    {"name": "UNMSM", "url": "https://unmsm.edu.pe/"},
-    {"name": "UNI", "url": "https://www.uni.edu.pe/"}
-]
-
 def load_sources():
-    """Load institution sources from JSON config file, falling back to legacy list."""
+    """Load institution sources from the versioned JSON config, fail-closed."""
     config_path = pathlib.Path(__file__).parent.parent.parent / "config" / "institution_sources.json"
-    try:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                sources = json.load(f)
-            if isinstance(sources, list) and len(sources) > 0:
-                print(f"INFO: Loaded {len(sources)} institutions from config/institution_sources.json")
-                return sources
-    except Exception as e:
-        print(f"WARN: Failed to load config/institution_sources.json: {e}")
-
-    # Fallback: try loading from institutions table
-    existing = db.select_all_service(
-        'institutions', columns="name,website_url", order="name.asc"
-    )
-    if existing and len(existing) > 0:
-        sources = [{"name": r.get("name"), "url": r.get("website_url")}
-                   for r in existing if r.get("website_url")]
-        if len(sources) > 0:
-            print(f"INFO: Loaded {len(sources)} institutions from database")
-            return sources
-
-    print("WARN: Using legacy hardcoded source list.")
-    return LEGACY_SOURCES
+    if not config_path.exists():
+        raise RuntimeError("config/institution_sources.json is required")
+    with open(config_path, 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+    if not isinstance(sources, list) or not sources:
+        raise RuntimeError("config/institution_sources.json must be a non-empty list")
+    for index, source in enumerate(sources, start=1):
+        if not isinstance(source, dict):
+            raise RuntimeError(f"institution source #{index} must be an object")
+        name = str(source.get('name') or '').strip()
+        url = str(source.get('url') or '').strip()
+        parsed = urlparse(url)
+        if not name or parsed.scheme not in ('http', 'https') or not parsed.netloc:
+            raise RuntimeError(f"institution source #{index} must include name and http(s) url")
+    print(f"INFO: Loaded {len(sources)} institutions from config/institution_sources.json")
+    return sources
 
 def run_discovery():
     print("INFO: Iniciando Descubrimiento de Instituciones Nivel 1...")
@@ -90,6 +70,11 @@ def run_discovery():
             print(f"ERROR: Error al verificar {inst['name']}")
 
     print(f"\nSUCCESS: Descubrimiento finalizado. {found} nuevas instituciones encontradas.")
+    return 0
 
 if __name__ == "__main__":
-    run_discovery()
+    try:
+        sys.exit(run_discovery())
+    except Exception as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)

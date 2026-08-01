@@ -431,14 +431,6 @@ class UniversalHarvester:
                 existing = {row['url'] for row in data}
                 logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
                 self.visited_urls.update(existing)
-                if self._gate_enabled('pipeline_enabled'):
-                    discovered_count = self.db.patch(
-                        "staging_raw",
-                        filters=f"institution_id=eq.{inst_id}&status=eq.discovered",
-                        data={"status": "pending"},
-                    )
-                    if discovered_count and discovered_count.get("status") == "success":
-                        logger.info(f"Reset discovered → pending for reprocessing.")
                 return existing
         except Exception as e:
             logger.warning(f"Could not load existing URLs from DB: {e}")

@@ -433,16 +433,17 @@ class DatabaseClient:
             headers["Range"] = f"{offset}-{offset + limit - 1}"
             headers["Prefer"] = "count=exact"
             res = _request_with_retry(requests.get, url, headers=headers)
-            if res.status_code == 200:
-                batch = res.json()
-                if not batch:
-                    break
-                all_results.extend(batch)
-                offset += len(batch)
-                if len(batch) < limit:
-                    break
-            else:
-                print(f"DB_CLIENT_API_ERROR (SelectAllPipeline {table}): {res.status_code} - {(res.text or '')[:200]}")
+            if res.status_code not in (200, 206):
+                raise DatabaseAPIError(
+                    f"SelectAllPipeline failed for {table}: "
+                    f"unexpected HTTP status {res.status_code}"
+                )
+            batch = res.json()
+            if not batch:
+                break
+            all_results.extend(batch)
+            offset += len(batch)
+            if len(batch) < limit:
                 break
         return all_results
 
