@@ -21,6 +21,14 @@ El proyecto recibe solicitudes nuevas de forma recurrente. Los originales pueden
 - `EST-001` conserva complejidad Alta y una estimacion tecnica original de 72h; no representa por si sola el saldo real ni una obligacion contractual.
 - La intencion sin destino actual se registra como [INTAKE-002](../backlog_tareas/intake/INTAKE-002.md) para estimacion futura separada.
 
+## Aplicacion A SRC-REQ-002
+
+- La adenda comercial permanece privada y sin datos bancarios.
+- Su delta sanitizado vive en
+  [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md).
+- Hasta aprobacion cliente, la adenda no cambia alcance, estado ni gates.
+- La evidencia comercial de aprobacion se conserva fuera de Git.
+
 ## Consecuencias
 
 - El requerimiento sanitizado sigue siendo autoridad de alcance.

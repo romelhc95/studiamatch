@@ -1,6 +1,8 @@
-# HITO-001 - Orquestacion, Schema Y Seguridad Base
+# HITO-001 - Orquestacion Y Candidate CA1-Only
 
-`HITO-001` agrupa el alcance aceptado de Hito 1 para `REQ-EST-001`. Esta nota documenta alcance y trazabilidad; no mantiene estado vivo.
+`HITO-001` agrupa el alcance original de Hito 1 para `REQ-EST-001` y la
+redistribucion propuesta por la adenda. Esta nota documenta alcance y
+trazabilidad; no mantiene estado vivo.
 
 ## Alcance
 
@@ -8,7 +10,16 @@
 - `H1-CA2P`: soporte parcial de schema editorial, calidad y seguridad base.
 - `H1-CA7P`: preparacion documental para tablas, campos, RLS, pipeline y decisiones operativas.
 
-No se agregan criterios ni se modifica el contrato, el esfuerzo o el alcance de los Hitos 2 a 5.
+## Redistribucion Propuesta
+
+[ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+propone cerrar Hito 1 exclusivamente con `H1-CA1` en produccion. `H1-CA2P`
+pasa a `H2-CA2` y `H1-CA7P` a `H4-CA7` despues de aprobacion cliente. Hasta
+entonces, el alcance original anterior permanece vigente.
+
+El candidate CA1-only no puede incluir cambios de schema/RLS/RPC, frontend,
+leads/email, backfill ni artifacts terminales CA2. Ver
+[PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md).
 
 ## Alineacion Contractual Cerrada En F9.5
 
@@ -32,3 +43,6 @@ Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TAS
 - Datos: [Sistema DB](../sistema_db_supabase.md) y [Matriz DB](../operaciones/matriz_adopcion_db.md)
 - Release: [Flujo de release minimo](../operaciones/flujo_release_minimo.md)
 - Corte seguridad/funcionalidad/estabilidad: [PLAN-H1-CORTE-SFE-001](../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
+- Adenda propuesta: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+- Plan CA1-only: [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
+- Evidencia cliente draft: [EVID-PACK-H1-001](../evidencias_cliente/sprint_1/paquete_hito_001.md)

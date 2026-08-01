@@ -38,6 +38,17 @@
 
 Las referencias permanecen vacias hasta que exista evidencia verificable generada durante la ejecucion autorizada.
 
+## Seguridad, Privacidad Y RLS
+
+
+## Ambientes Y Gates De Release
+
+
+## Evidencia Cliente
+
+No incluir credenciales, identificadores operativos, filas, PII ni hallazgos
+explotables.
+
 ## Riesgos O Bloqueos
 
 
@@ -49,3 +60,7 @@ Las referencias permanecen vacias hasta que exista evidencia verificable generad
 - ADR aplicables:
 
 ## Criterio De Salida
+
+
+Los work packages internos no son subtareas, criterios, subfases ni
+autorizaciones de ejecucion.

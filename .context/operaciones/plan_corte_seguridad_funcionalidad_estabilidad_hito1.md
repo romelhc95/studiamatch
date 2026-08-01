@@ -1,5 +1,10 @@
 # PLAN-H1-CORTE-SFE-001 - Corte Seguridad Funcionalidad Estabilidad Hito 1
 
+> La adenda CA1-only propuesta conserva este corte como evidencia local CA2 y
+> evita promoverlo parcialmente. Produccion mantiene su comportamiento actual
+> durante Hito 1; cualquier cambio de frontend, Edge o DB leads/email pasa a
+> Hito 2 solo despues de aprobacion cliente y gates propios.
+
 Estado documental: `VIGENTE` mediante [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 
 ## Estado Y Autoridad

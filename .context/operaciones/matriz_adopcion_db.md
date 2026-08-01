@@ -4,6 +4,11 @@ Nota canonica para decisiones de adopcion Supabase desde F5. Separa ledger, post
 
 Enlaces canonicos: [Indice](../00_INDICE.md) | [Sistema DB](../sistema_db_supabase.md) | [Arquitectura pipeline](../arquitectura_pipeline.md) | [Estado del proyecto](../estado_del_proyecto.md) | [Tarea Hito 1](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./flujo_release_minimo.md)
 
+La adenda CA1-only propuesta no cambia ninguna adopcion DB. CA2 local se
+clasifica como preparacion de Hito 2 solo despues de aprobacion cliente; Free y
+Pro conservan los estados observados de esta matriz. El release CA1-only debe
+probar diff DB vacio.
+
 ## Evidencia
 
 - `[REMOTE]`: observacion de los ambientes Free y Pro.

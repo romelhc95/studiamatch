@@ -1,5 +1,10 @@
 # Certificacion Hito 1 - Macrofase F9
 
+> Rebaseline pendiente: la adenda CA1-only/CA2-a-Hito-2 esta en
+> `DRAFT_PENDING_CLIENT_APPROVAL`. F9 conserva `IN_PROGRESS`, no reanuda
+> preflight remoto y no transfiere sus estados a Hito 2 hasta aprobacion cliente
+> y reconciliacion documental post-merge. Ver [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md).
+
 Esta nota es la autoridad operativa de la macrofase F9 del plan `main -> Hito 1`. F9 comienza con preparacion local y termina unicamente en `free_certified`. No incluye Pro, produccion ni cierre final. [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md) y [PLAN-H1-SIMPLIFICADO-001](./plan_simplificado_hito1.md) fijan la secuencia simplificada vigente.
 
 La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md). La informacion vigente del antecedente temporal se preservo en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.

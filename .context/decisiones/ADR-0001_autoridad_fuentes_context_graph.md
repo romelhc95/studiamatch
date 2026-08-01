@@ -26,7 +26,7 @@ La documentacion necesita una precedencia unica para evitar que indices, histori
 |---|---|
 | Alcance aprobado | [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md) |
 | Arquitectura decidida | ADR aceptada enlazada desde el [indice de decisiones](./_index.md) |
-| Estado de tarea | [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) |
+| Estado de tarea | TASK canonica del Hito, enlazada desde [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md) |
 | Estado de proyecto | [Snapshot canonico](../estado_del_proyecto.md) |
 | Estado DB aplicado | [Snapshot DB](../sistema_db_supabase.md) y [matriz de adopcion](../operaciones/matriz_adopcion_db.md) |
 | Readiness de release | Candidate y gates futuros registrados en `.context/` segun el [flujo minimo](../operaciones/flujo_release_minimo.md) |
@@ -40,3 +40,9 @@ Git y las migrations determinan el comportamiento versionado. La observacion rem
 - El Context Graph tiene un punto de entrada y reglas de precedencia explicitas.
 - `REQ-EST-001`, `HITO-001` y `TASK-H1-001` conservan trazabilidad sin ampliar criterios.
 - La historia permanece consultable sin competir con el estado vigente.
+
+## Generalizacion Propuesta Sprint 1
+
+[ADR-0006](./ADR-0006_incorporacion_adenda_sprint_1.md) generaliza la fila de
+estado de tarea a una TASK canonica por Hito. `TASK-H1-001` sigue siendo la
+unica tarea activa; las TASK H2-H5 son planes `PENDING` sin subfase ejecutable.

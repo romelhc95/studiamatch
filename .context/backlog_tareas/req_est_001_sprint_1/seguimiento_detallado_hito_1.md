@@ -32,6 +32,10 @@ Las fechas registran el compromiso original. No prueban cumplimiento ni sustituy
 - [Plan de corte seguridad/funcionalidad/estabilidad](../../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 - [Matriz de adopcion DB](../../operaciones/matriz_adopcion_db.md).
 - [PR-O F9.7 executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md), definido pero todavia no implementado tras PR #262.
+- [Adenda CA1/CA2 propuesta](./adenda_cliente_001_sanitizada.md), pendiente de
+  aprobacion cliente y sin efecto sobre el estado vivo.
+- [Plan CA1-only](../../operaciones/plan_cierre_hito1_ca1_only.md), draft no
+  ejecutable hasta aprobar la adenda y activar una subfase propia.
 - Git, migrations, PR y evidencia enlazada desde las notas operativas.
 
 ## Mapa De Criterios Canonicos
