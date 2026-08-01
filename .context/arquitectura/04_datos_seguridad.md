@@ -33,8 +33,7 @@ flowchart TB
 - Publishable key: browser y lecturas publicas permitidas.
 - Secret key: backend/CI; nunca bundle del navegador.
 - `authenticated` no equivale a administrador.
-- La identidad administrativa CA4 y su writer siguen
-  `PROPOSED_PENDING_APPROVAL`.
+- La identidad administrativa CA4 y su writer siguen `PENDING_HITO`.
 - La identidad canary y su transport se fijan en el candidate/runbook aprobado;
   esta vista no infiere que una key Data API pueda seleccionar un rol arbitrario.
 - Roles, grants, RLS, owner, modo de seguridad y `search_path` se verifican por
@@ -42,7 +41,7 @@ flowchart TB
 
 El acceso publico y backend anterior resume contratos `[GIT/DERIVED]`; no
 acredita una postcondicion remota actual. Sesion/admin y cualquier binding
-canary futuro permanecen propuestos hasta candidate y evidencia propios.
+canary futuro permanecen pendientes hasta candidate y evidencia propios.
 
 ## Estado Y Fuente
 

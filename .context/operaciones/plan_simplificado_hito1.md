@@ -1,21 +1,20 @@
 # Plan Simplificado De Hito 1
 
-> Nota de rebaseline propuesta: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
-> plantea cerrar Hito 1 con CA1-only y trasladar CA2 a Hito 2. Mientras la
-> adenda no sea aprobada, este plan conserva su autoridad historica y no se
-> ejecuta la ruta productiva propuesta en
-> [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md).
+> Nota de rebaseline vigente: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+> cierra Hito 1 con CA1-only y traslada CA2 a Hito 2. Este plan queda como
+> antecedente historico sustituido por [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md)
+> para Hito 1.
 
 ## Estado Y Autoridad
 
 - ID documental: `PLAN-H1-SIMPLIFICADO-001`.
-- Estado: `VIGENTE` mediante la reconciliacion F9.4 y [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md).
+- Estado: `SUPERSEDED_FOR_HITO_1_BY_ADR_0006`; vigente solo como historia y antecedente CA2.
 - Decision humana: conservar F8, no restaurar F7 y simplificar F9.
 - Fecha de decision: 2026-07-26.
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
 - Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 y el follow-up post-PR #262 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
 
-La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 queda activa sin autorizacion remota. PR #262 esta mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor esta certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado digest-bound/target-bound/single-use, `application_authorized=false`, `capabilities=[]` y `GO_FOR_FREE` bloqueado.
+La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE`. F9.7 queda cerrada por rebaseline contractual y el PR-O sucesor certificado localmente queda `SUPERSEDED_FOR_HITO_1`.
 
 ## Dictamen
 
@@ -36,28 +35,35 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 
 - Baseline: conservar F8 y las correcciones posteriores validas.
 - Fecha contractual: 2026-07-27 a las 09:00 PET.
-- H-00: P0 Free-only separado, obligatorio antes de `FREE_CERTIFIED` pero no criterio contractual. [F9.6](./cierre_h00_f9_6.md) verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
+- H-00: P0 Free-only historico de la ruta sustituida; ya no es prerrequisito del cierre Hito 1 CA1-only. [F9.6](./cierre_h00_f9_6.md) verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
-- Alcance Hito 1: exclusivamente `H1-CA1`, `H1-CA2P` y `H1-CA7P`.
+- Alcance historico pre-adenda: `H1-CA1`, `H1-CA2P` y `H1-CA7P`. Alcance vigente Hito 1: `H1-CA1` solamente; `H1-CA2P` pasa a `H2-CA2` y `H1-CA7P` pasa a `H4-CA7`.
 - Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
-- PR-O sucesor F9.7: queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` con executor privado digest-bound, target-bound y single-use, no expuesto por Data API; no concede `GO_FOR_FREE` y mantiene Free/Pro sin certificar.
-- `USER_PERSONAL_UAT`: hold operativo de F9.10, no criterio, subfase ni transicion; se ubica despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`, con candidate commit/tree inmutable y `PASS` personal del usuario.
+- PR-O sucesor F9.7: queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` y `SUPERSEDED_FOR_HITO_1`; no concede ruta remota para CA1-only y mantiene Free/Pro sin certificar.
+- `USER_PERSONAL_UAT`: hold operativo de F9.10, no criterio, subfase ni transicion; se ubica despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10, con candidate commit/tree inmutable y `PASS` personal del usuario.
 - Esfuerzo: `EST-001` conserva una estimacion tecnica original de 72h. No constituye una obligacion contractual ni acredita por si sola el saldo real despues del avance registrado; el contrato es precio cerrado por entregable y fecha.
 - Evidencia historica: sirve como fuente de reconstruccion, no como evidencia vigente de cumplimiento. Los artifacts F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE` y no entran al package contractual.
 
-## Alcance Contractual
+## Alcance Historico Sustituido
+
+La tabla siguiente preserva la lectura previa a la adenda. No gobierna el cierre
+vigente de Hito 1 ni autoriza CA2, Free, Pro, backfill o certificacion remota.
 
 | Criterio | Estado | Alcance exigible | Pendiente de certificacion |
 |---|---|---|---|
 | `H1-CA1` | `IMPLEMENTED` | Schedules FG2/FG3, gates, circuit breakers y controles por ambiente | Compatibilidad backend y ejecucion efectiva por ambiente |
-| `H1-CA2P` | `IN_PROGRESS` | Schema editorial/calidad, fuentes, faltantes, timestamp manual, inicio, patrocinio/leads base y RLS | Aplicacion Free/Pro, identidad backend de servicio, backfill editorial y pruebas por rol |
-| `H1-CA7P` | `COMPLETED` | Documentacion de campos, RLS, operacion FG2/FG3 y contrato para hitos posteriores | Anexo final por ambiente; no crea un criterio adicional |
+| `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema editorial/calidad, fuentes, faltantes, timestamp manual, inicio, patrocinio/leads base y RLS | Nueva evidencia en Hito 2; sin aplicacion Free/Pro ni backfill en Hito 1 |
+| `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Documentacion de campos, RLS, operacion FG2/FG3 y contrato para hitos posteriores | Nueva evidencia en Hito 4; no crea un criterio adicional de Hito 1 |
 
 Ningun gate interno, manifest, attestation, adapter o framework de pruebas crea un criterio contractual adicional.
 
 Para `H1-CA2P` se aceptan `missing_fields` JSONB, `field_sources` JSONB, `manual_updated_at` y `start_date` como equivalencias semanticas. Esta aceptacion no acredita adopcion remota ni evita las pruebas por rol.
 
-## Plan Corregido
+## Plan Corregido Historico Sustituido
+
+La tabla conserva la secuencia anterior para trazabilidad. La ruta ejecutable
+vigente queda en [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) y en el
+[flujo de release minimo](./flujo_release_minimo.md).
 
 | Subfase | Alcance minimo | Resultado requerido |
 |---|---|---|
@@ -93,16 +99,20 @@ Quedan fuera del critical path:
 
 Los archivos F9.5 ya creados se conservan como historia tecnica, pero no gobiernan el release, no se amplian y no ingresan a un package contractual. Su retiro fisico queda en F11 y requiere una tarea posterior explicita.
 
-## Secuencia Minima De Certificacion
+## Secuencia Minima Historica Sustituida
+
+Esta secuencia ya no es ejecutable para Hito 1. El rebaseline CA1-only sustituye
+Free/backfill/Pro por F9.8 candidate local, F9.9 Certification/canary/QA, F9.10
+certificacion final y F10 Production.
 
 1. Mantener F6-F8 congelada como base funcional contractual y evitar cambios no ligados a un CA.
 2. Conservar F9.5 y sus artifacts como historia `HISTORICAL_NON_PROMOTABLE`, sin repetir la lectura Free ni crear un package sucesor.
 3. Conservar `T01_CONDITIONAL_ACCEPTED` como antecedente documental de F9.6; no habilita schema ni nuevas operaciones.
 4. Registrar F9.6 `H00_ALREADY_REMEDIATED_NO_DML`: PII directa remediada en la cohorte pseudonimizada, Gate B DELETE sustituido, cero DML y Pro sin acceso.
 5. En F9.7, cerrar primero [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md); despues, bajo autorizacion propia, resolver resguardo/restore, pausa de writers, acceso cero de roles de aplicacion a `leads`/`email_log` y comportamiento semantico RLS antes de aplicar schema/T02.
-6. Aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible.
+6. En la ruta historica, aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible; tras la adenda queda trasladado a `H2-CA2`.
 7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente en Free.
-8. Cumplir `USER_PERSONAL_UAT=PASS` del usuario sobre candidate commit/tree inmutable despues de las validaciones tecnicas Free y antes de T04, writer resume o PR/merge `desarrollo -> certificacion`.
+8. Cumplir `USER_PERSONAL_UAT=PASS` del usuario sobre candidate commit/tree inmutable despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10.
 9. Promover `desarrollo -> certificacion` solo con Free certificada.
 10. Aplicar en Pro el mismo package certificado, ejecutar backfill Pro-local, smoke y observacion; nunca H-00.
 11. Promover `certificacion -> main` y cerrar con evidencia aprobada.
@@ -121,7 +131,7 @@ No se entregan artifacts privados, identificadores operativos, filas, PII, endpo
 
 ## Fecha Contractual Y Estado De Release
 
-La fecha contractual es 2026-07-27 a las 09:00 PET. El estado sigue `NO-GO` porque Free no esta certificada: H-00 cerro sin DML, pero schema/backfill no fueron ejecutados bajo el candidate vigente, `GO_FOR_FREE` sigue bloqueado, `certificacion`/`main` no contienen F7-F9 y quedan CI/reviews/aprobaciones humanas. Free es el ambiente DB de desarrollo/certificacion; `certificacion` como rama/release permanece bloqueada hasta F9.10 y el hold `USER_PERSONAL_UAT=PASS`.
+La fecha contractual historica fue 2026-07-27 a las 09:00 PET. Tras la rebaseline aprobada, este plan queda superseded para Hito 1: Free/Pro siguen `UNCHANGED_NOT_ATTESTED`, `certificacion`/`main` quedan bloqueadas hasta F9.9/F9.10/F10 y el hold `USER_PERSONAL_UAT=PASS`.
 
 No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. Si la fecha no puede cumplirse, corresponde entregar un informe de avance y acordar por escrito una reprogramacion; Hito 1 no puede presentarse como completado antes del release productivo y su evidencia.
 

@@ -1,9 +1,10 @@
 # Evidencia Cliente - Sprint 1
 
 Este indice reserva y gobierna evidencia sanitizada. No mantiene estado vivo y
-no convierte una evidencia planeada en resultado. La estructura puede crearse
-como `DRAFT` o `PLANNED`; solo se promueve a `VERIFIED` cuando existe un
-candidate real.
+no convierte una evidencia planeada en resultado. `EVID-H1-001` es la excepcion
+contractual de aprobacion de adenda y puede estar `VERIFIED` antes del candidate;
+`EVID-H1-002..016` solo se promueven a `VERIFIED` cuando exista candidate real,
+ambiente, observacion o conformidad segun corresponda.
 
 ## Estados
 
@@ -17,7 +18,7 @@ candidate real.
 
 | Hito | Documento | Estado |
 |---|---|---|
-| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT` |
+| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_EVID-H1-001_VERIFIED` |
 | Hito 2 | Se crea con candidate real | `PLANNED` |
 | Hito 3 | Se crea con candidate real | `PLANNED` |
 | Hito 4 | Se crea con candidate real | `PLANNED` |

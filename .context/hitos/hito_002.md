@@ -1,10 +1,10 @@
 # HITO-002 - Contrato CA2 Y Pipeline De Incompletos
 
-`HITO-002` agrupa el alcance propuesto de CA2 completo y CA3 para
+`HITO-002` agrupa el alcance vigente pendiente de CA2 completo y CA3 para
 `REQ-EST-001`. Esta nota documenta alcance y trazabilidad; no mantiene estado
 vivo.
 
-## Alcance Propuesto
+## Alcance Vigente Pendiente
 
 - `H2-CA2`: contrato integral de schema editorial/calidad, campos faltantes,
   fuentes, actualizacion manual, inicio, patrocinio/leads base y RLS.
@@ -31,7 +31,6 @@ subtareas, fases ni eventos de pago.
 ## Dependencias
 
 - Hito 1 CA1 desplegado y estable.
-- Adenda cliente aprobada.
 - Candidate DB forward-only, pruebas por rol y rollback/replay.
 
 ## Trazabilidad

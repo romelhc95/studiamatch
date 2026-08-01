@@ -8,15 +8,15 @@ cada hito.
 ## Fuente Y Adenda
 
 - Fuente privada aprobada: `SRC-REQ-001`.
-- Adenda propuesta: `SRC-REQ-002`, sanitizada en
+- Adenda aprobada: `SRC-REQ-002`, sanitizada en
   [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md).
-- Estado de la adenda: `DRAFT_PENDING_CLIENT_APPROVAL`.
+- Estado de la adenda: `APPROVED_EFFECTIVE`.
 
-Mientras la adenda no sea aprobada, la distribucion original permanece
-contractual. Las notas de Hitos 2 a 5 y sus TASK documentan el plan completo,
-pero no autorizan ejecucion.
+La distribucion revisada es el mapa contractual vigente. Las notas de Hitos 2 a
+5 y sus TASK documentan el plan completo, pero no autorizan ejecucion mientras
+permanezcan `PENDING` y sin subfase activa.
 
-## Mapa Original Aprobado
+## Mapa Original Aprobado Como Antecedente
 
 | Hito | Paquete | Criterios | Tarea canonica |
 |---|---|---|---|
@@ -44,10 +44,9 @@ pero no autorizan ejecucion.
 | CA12 | Duplicado de CA9, absorbido sin doble alcance. |
 | CA13 | Home y Resultados respetan referencias aprobadas en estructura, paleta, jerarquia y CTA. |
 
-## Redistribucion Propuesta Por Adenda
+## Mapa Contractual Vigente Por Adenda
 
-La adenda propone el siguiente mapa, efectivo solo despues de aprobacion
-cliente:
+La adenda aprobada fija el siguiente mapa:
 
 | Hito | Criterios normalizados | Regla |
 |---|---|---|
@@ -55,11 +54,11 @@ cliente:
 | Hito 2 | `H2-CA2`, `H2-CA3` | CA2 completo antes de integrar CA3 |
 | Hito 3 | `H3-CA4` | Sin cambio |
 | Hito 4 | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` | Sin cambio; absorbe preparacion CA7 |
-| Hito 5 | `H5-CA8`, `H5-CA9`, `H5-CA10`, `H5-CA11`, `H5-CA12`, `H5-CA13R` | Sin cambio |
+| Hito 5 | `H5-CA8`, `H5-CA9`, `H5-CA10`, `H5-CA11`, `H5-CA12`, `H5-CA13R` | CA12 queda absorbido por CA9 sin doble alcance |
 
-Los aliases `H1-CA2P` y `H1-CA7P` preservan la historia local. Si la adenda se
-aprueba, su alcance pendiente pasa a `H2-CA2` y `H4-CA7`; la evidencia ya generada
-puede servir como preparacion, nunca como adopcion o cierre reutilizado.
+Los aliases `H1-CA2P` y `H1-CA7P` preservan la historia local. Su alcance
+pendiente pasa a `H2-CA2` y `H4-CA7`; la evidencia ya generada puede servir como
+preparacion, nunca como adopcion o cierre reutilizado.
 
 ## Dependencias Entre Hitos
 

@@ -6,7 +6,7 @@ Vista derivada del sistema y sus dependencias. Ver [Mapa](./00_mapa.md).
 flowchart TB
     Visitor["Visitante publico"]
     Operator["Operador de pipeline"]
-    AdminUser["Administrador futuro\nPROPOSED_PENDING_APPROVAL"]
+    AdminUser["Administrador futuro\nPENDING_HITO"]
     SourceSites["Sitios institucionales"]
     AIProviders["Proveedores AI"]
     GitHub["GitHub Actions y Environments"]
@@ -41,7 +41,7 @@ flowchart TB
 
 - `ACTUAL`: frontend publico estatico, Golden Pipeline de cuatro estaciones,
   FG1/FG2/FG3 y Supabase por ambiente.
-- `PROPOSED_PENDING_APPROVAL`: CA1-only, contrato CA2/CA3, `/admin`, Home y
-  Resultados revisados.
+- `PENDING_HITO`: contrato CA2/CA3, `/admin`, Home y Resultados revisados; CA1-only
+  esta aprobado pero pendiente de candidate y evidencia.
 - `EXCLUDED`: email/webhook real-time de leads, embeddings, reviews reales,
   scraping automatico de logos y tipo de cambio real.

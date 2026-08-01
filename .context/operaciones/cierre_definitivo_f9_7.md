@@ -1,10 +1,9 @@
 # PLAN-F9.7-CIERRE-001 - Cierre Definitivo De F9.7
 
-> Disposicion propuesta: los artifacts locales/terminales de este plan se
-> preservan como WIP CA2 no promocionable si el cliente aprueba la adenda
-> CA1-only. Hasta entonces, el plan conserva su historia y F9.7 sigue
-> `IN_PROGRESS`; esta nota no autoriza incluirlos en el PR documental ni en el
-> candidate productivo CA1-only.
+> Disposicion vigente: los artifacts locales/terminales de este plan se
+> preservan como WIP CA2 no promocionable por la adenda CA1-only aprobada.
+> F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`; esta nota no autoriza
+> incluirlos en el candidate productivo CA1-only.
 
 | Campo | Valor |
 |---|---|
@@ -49,12 +48,15 @@ El cierre de este plan produce `GO_FOR_LOCAL_PR`, no `GO_FOR_FREE` ni `GO_F9.7_C
 
 ## Resultados GO Diferenciados
 
+Tras ADR-0006, los resultados Free de esta tabla son historicos y no autorizan
+operaciones de Hito 1. La ruta vigente usa [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md).
+
 | Resultado | Significado | Autoriza |
 |---|---|---|
 | `GO_WP` | El work package cumple su contrato y evidencia enfocada | Checkpoint local del WP |
 | `GO_FOR_LOCAL_PR` | Todos los WP y auditorias finales validan el mismo tree | Commit final, push de `feat/*` y PR a `desarrollo` |
-| `GO_FOR_FREE` | Binding, snapshot, restore, writers y package Free tienen aprobacion separada | Solo la operacion Free expresamente autorizada |
-| `GO_F9.7_COMPLETE` | PR-O y contencion/certificacion schema Free terminaron con evidencia | Transicion hacia F9.8 |
+| `GO_FOR_FREE` | Resultado historico `SUPERSEDED_FOR_HITO_1` | Nada para Hito 1 CA1-only |
+| `GO_F9.7_COMPLETE` | Resultado historico sustituido por rebaseline CA1-only | Nada para Hito 1 CA1-only |
 
 `GO_FOR_LOCAL_PR` nunca implica `GO_FOR_FREE`. `Free=UNCHANGED_NOT_ATTESTED` y `Pro=UNCHANGED_NOT_ATTESTED` son estados esperados durante el corte local y no bloquean su PR.
 
@@ -616,9 +618,9 @@ Remote unknown, owner/superuser y SQL dinamico ofuscado se registran segun su cl
 - PR #260 fue mergeado por humano en `desarrollo@e2721a0ec4581e422246dfabfa2048297f537025`, tree `0bc0d4b806117fb1b6a2a9fc4d618daa367829ee`, y contiene `779001c5a63b59bcd902928d1db333e82e6f1d3b`.
 - PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, tree `218bfcc7e99bdef3569fc730bba21228dee53540`, y llevo [PR-O F9.7 v3 + hold](./pr_o_f9_7_v3_hold.md) a historia.
 - [PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md) queda `SUPERSEDED_NON_PROMOTABLE`; el hold actual `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729` queda `SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE`.
-- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR`: exige eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final.
-- La secuencia atomica futura queda `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`; boundary `7` es replay `READ ONLY` sin locks de escritura.
-- `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, backup/restore/writers/drain/window `PENDING`; cero capacidad remota ejecutable.
+- [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR`: exigia eliminar `public.exec_sql(text)` del estado final, usar executor privado digest-bound, target-bound, single-use y no expuesto por Data API, validar Edge como `REMOTE_ABSENT`, `REMOTE_TOMBSTONE_410` o `DISABLEMENT_SEPARATE_AUTHORIZED`, y separar preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final. Tras ADR-0006, esa capacidad queda historica y no autorizante para Hito 1.
+- La secuencia atomica prevista quedo como antecedente historico: `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`; boundary `7` era replay `READ ONLY` sin locks de escritura.
+- `application_authorized=false`, `capabilities=[]`, Free/Pro `UNCHANGED_NOT_ATTESTED`, backup/restore/writers/drain/window `SUPERSEDED_FOR_HITO_1`; cero capacidad remota ejecutable.
 - Los siete SQL y los manifests actuales no se modifican y quedan ligados por digest en el contrato sucesor.
 
 ### Prohibiciones
@@ -663,10 +665,10 @@ No se usa amend, squash local, reset destructivo ni bypass de hooks. El PR puede
 5. Definicion local del PR-O sucesor con executor privado: [PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md).
 6. Implementacion local del PR-O sucesor: `GO_WP_LOCAL`, sin autorizacion de aplicacion.
 7. Certificacion local separada `CERTIFICACION_LOCAL_PR_O_SUCCESSOR`: `CONSUMED_PASS` como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`.
-8. Gate separado `PREFLIGHT_READ_ONLY_FREE` para snapshot catalog-only Free sin filas ni payloads, pendiente de autorizacion propia.
-9. Aprobacion independiente de `GO_FOR_FREE` y aplicacion/certificacion schema Free hasta `GO_F9.7_COMPLETE`.
-10. F9.8 plan editorial y F9.9 ejecucion/no-op certificado.
-11. F9.10 `free_certified`.
+8. Gate separado `PREFLIGHT_READ_ONLY_FREE` queda `SUPERSEDED_FOR_HITO_1` y se preserva como antecedente CA2.
+9. `GO_FOR_FREE` y aplicacion/certificacion schema Free quedan `SUPERSEDED_FOR_HITO_1`.
+10. F9.8 pasa a candidate local CA1-only.
+11. F9.9/F9.10 pasan a Certification, canary, QA, certificacion final, UAT y readiness F10.
 12. F10 Pro/main/observacion.
 13. F11 cierre final.
 

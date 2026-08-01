@@ -3,13 +3,23 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT` |
+| Estado | `DRAFT_WITH_EVID-H1-001_VERIFIED` |
 | Hito | `HITO-001` |
-| Criterio | `H1-CA1` propuesto por adenda |
+| Criterio | `H1-CA1` vigente por adenda |
 | Candidate | Pendiente |
 
 Este documento define la evidencia que se entregara al cliente. No afirma que
 Hito 1 este completado.
+
+## Aprobacion Contractual Sanitizada
+
+| Evidencia | Estado | Fecha | Rol aprobador | ID opaco | Digest |
+|---|---|---|---|---|---|
+| `EVID-H1-001` | `VERIFIED` | `2026-08-01` | `CLIENT_AUTHORIZED_APPROVER` | `RECORDED_PRIVATELY` | `RECORDED_OUT_OF_GIT` |
+
+La evidencia privada permanece fuera de Git. Esta atestacion no copia contenido
+comercial, firmas, datos personales, rutas privadas, hashes completos ni
+credenciales.
 
 ## Resultado Ejecutivo
 
@@ -70,7 +80,29 @@ puede presentarse como mitigado sin evidencia.
 
 ## Aprobaciones
 
+- Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
 - Revision tecnica: pendiente.
 - QA: pendiente.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.
+
+## Ledger De Evidencias H1
+
+| ID | Estado |
+|---|---|
+| `EVID-H1-001` | `VERIFIED` |
+| `EVID-H1-002` | `PLANNED` |
+| `EVID-H1-003` | `PLANNED` |
+| `EVID-H1-004` | `PLANNED` |
+| `EVID-H1-005` | `PLANNED` |
+| `EVID-H1-006` | `PLANNED` |
+| `EVID-H1-007` | `PLANNED` |
+| `EVID-H1-008` | `PLANNED` |
+| `EVID-H1-009` | `PLANNED` |
+| `EVID-H1-010` | `PLANNED` |
+| `EVID-H1-011` | `PLANNED` |
+| `EVID-H1-012` | `PLANNED` |
+| `EVID-H1-013` | `PLANNED` |
+| `EVID-H1-014` | `PLANNED` |
+| `EVID-H1-015` | `PLANNED` |
+| `EVID-H1-016` | `PLANNED` |

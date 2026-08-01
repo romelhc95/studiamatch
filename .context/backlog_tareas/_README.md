@@ -33,7 +33,8 @@ El backlog organiza requerimientos y tareas canonicas sin duplicar estado vivo. 
 - Una tarea no crea criterios que no existan en el requerimiento aceptado.
 - Cada Hito tiene una unica TASK principal. Las TASK futuras permanecen
   `PENDING` sin subfase ejecutable hasta que el Estado las active.
-- Una adenda draft no cambia alcance. Solo una aprobacion externa registrada y
-  una ADR aceptada permiten normalizar el nuevo mapa en el requerimiento.
+- Una adenda draft no cambia alcance. La aprobacion externa registrada en
+  `EVID-H1-001` y [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+  normalizan el mapa vigente de `REQ-EST-001`.
 - Un backlog diferido no crea una tarea, subtarea, criterio, candidate, package ni autorizacion de ejecucion.
 - Un intake no crea alcance, hito, tarea ni esfuerzo. Solo avanza con estimacion detallada, aprobacion humana y requerimiento sanitizado; los originales y terminos comerciales permanecen privados.

@@ -3,7 +3,7 @@
 `HITO-003` agrupa CA4 para `REQ-EST-001`. Esta nota documenta alcance y
 trazabilidad; no mantiene estado vivo.
 
-## Alcance Propuesto
+## Alcance Vigente Pendiente
 
 - `H3-CA4`: ruta `/admin` con cola de pendientes, edicion inline, fuente manual,
   timestamp de actualizacion y publicacion bajo proteccion compatible con

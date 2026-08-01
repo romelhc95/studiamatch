@@ -4,10 +4,9 @@ Nota canonica para decisiones de adopcion Supabase desde F5. Separa ledger, post
 
 Enlaces canonicos: [Indice](../00_INDICE.md) | [Sistema DB](../sistema_db_supabase.md) | [Arquitectura pipeline](../arquitectura_pipeline.md) | [Estado del proyecto](../estado_del_proyecto.md) | [Tarea Hito 1](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./flujo_release_minimo.md)
 
-La adenda CA1-only propuesta no cambia ninguna adopcion DB. CA2 local se
-clasifica como preparacion de Hito 2 solo despues de aprobacion cliente; Free y
-Pro conservan los estados observados de esta matriz. El release CA1-only debe
-probar diff DB vacio.
+La adenda CA1-only aprobada no cambia ninguna adopcion DB. CA2 local se
+clasifica como preparacion de Hito 2; Free y Pro conservan los estados
+observados de esta matriz. El release CA1-only debe probar diff DB vacio.
 
 ## Evidencia
 
@@ -35,8 +34,9 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Free | Gate B FAIL; origen ACL atestado read-only | Fuentes observadas reparables; snapshot actual no observado | Candidate v3 local F6-F8 + closure + retiro de trigger; hold actual y [PR-O v1](./pr_o_f9_7_v3_hold.md) `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `CERTIFIED_LOCAL_PR_O_SUCCESSOR`; runbooks no ejecutables | `observed_effective_unledgered` | No DDL; `PREFLIGHT_READ_ONLY_FREE` requiere autorizacion separada antes de cualquier GO_FOR_FREE o gate remoto |
-| Hito 1 (`H1-CA1`, `H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | Promover solo package certificado y sin H-00 |
+| Hito 1 CA1-only (`H1-CA1`) | Free/Pro | Sin nueva evidencia de adopcion por este rebaseline | Sin cambios DB requeridos para CA1-only documental | Candidate futuro debe demostrar diff DB vacio | `source_unavailable` para cambios nuevos | No DDL/DML, no backfill y no promocion DB en Hito 1 CA1-only |
+| Antecedente CA2 (`H1-CA2P`, `H1-CA7P`) | Free | Gate B FAIL; origen ACL atestado read-only | Fuentes observadas reparables; snapshot actual no observado | Candidate v3 local F6-F8 + closure + retiro de trigger; hold actual y [PR-O v1](./pr_o_f9_7_v3_hold.md) `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `CERTIFIED_LOCAL_PR_O_SUCCESSOR`; runbooks no ejecutables | `observed_effective_unledgered` | `SUPERSEDED_FOR_HITO_1`; antecedente de Hito 2, sin GO_FOR_FREE |
+| Antecedente CA2 (`H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | No promover en Hito 1; Hito 2 requiere package y evidencia nueva |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
 | G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
 | H-00 P0 | Free | [Evidencia sanitizada F9.6](./cierre_h00_f9_6.md) | PII directa remediada; cohorte pseudonimizada | Operacion historica separada, no package contractual | `historical_free_only` | `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE sustituido, verificar acceso en F9.7 y nunca promover a Pro |
@@ -59,7 +59,9 @@ El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./
 
 F6-F8 permanecen como base funcional contractual de Hito 1. Los artifacts de F9.5 introducidos por PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`: se preservan para trazabilidad, no se eliminan en esta fase y no son fuente, candidate, package contractual ni replay aplicable.
 
-`H-00` es P0 separado y obligatorio antes de `FREE_CERTIFIED`, pero no agrega un criterio a `H1-CA1`, `H1-CA2P` ni `H1-CA7P`. El backfill editorial queda como dependencia `H1-CA2P` de F9.8/F9.9 para evitar que el catalogo quede invisible.
+`H-00` es P0 separado historico y no agrega un criterio a `H1-CA1`. El backfill
+editorial queda trasladado a `H2-CA2`; no pertenece a F9.8/F9.9 del cierre
+CA1-only.
 
 ## Cierre F9.6 H-00
 

@@ -1,9 +1,8 @@
 # Estrategia De Pruebas Sprint 1
 
 Esta estrategia deriva exclusivamente de [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md)
-y la [adenda draft](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md).
-No mantiene estado vivo, no certifica candidates y no crea alcance. Mientras la
-adenda siga `DRAFT_PENDING_CLIENT_APPROVAL`, su redistribucion solo se planifica.
+y la [adenda aprobada](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md).
+No mantiene estado vivo, no certifica candidates y no crea alcance.
 
 ## Principios
 
@@ -70,11 +69,11 @@ revision QA independiente.
 
 ## Matrices Por Hito
 
-- [Hito 1](./01_matriz_tests_hito_1.md): CA1 y guards del mapa original mientras la adenda siga draft.
-- [Hito 2](./02_matriz_tests_hito_2.md): CA2 y CA3 propuestos.
-- [Hito 3](./03_matriz_tests_hito_3.md): CA4 propuesto.
-- [Hito 4](./04_matriz_tests_hito_4.md): CA5, CA6, CA7 y CA13 Home.
-- [Hito 5](./05_matriz_tests_hito_5.md): CA8 a CA12 y CA13 Resultados.
+- [Hito 1](./01_matriz_tests_hito_1.md): CA1 runtime y guards de traslado/preservacion historica CA2P/CA7P.
+- [Hito 2](./02_matriz_tests_hito_2.md): CA2 y CA3 vigentes pendientes.
+- [Hito 3](./03_matriz_tests_hito_3.md): CA4 vigente pendiente.
+- [Hito 4](./04_matriz_tests_hito_4.md): CA5, CA6, CA7 y CA13 Home vigentes pendientes.
+- [Hito 5](./05_matriz_tests_hito_5.md): CA8 a CA12 y CA13 Resultados vigentes pendientes.
 - [Gobierno de hallazgos](./06_gobierno_hallazgos.md).
 
 ## Gates Documentales

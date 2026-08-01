@@ -5,7 +5,7 @@ duplica criterios. El alcance normalizado vive en
 [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md) y el estado de
 cada hito en su unica TASK.
 
-| Hito | Paquete | Criterios propuestos por la adenda | Tarea | Pruebas `PLANNED` |
+| Hito | Paquete | Criterios vigentes por adenda | Tarea | Pruebas `PLANNED` |
 |---|---|---|---|---|
 | [HITO-001](./hito_001.md) | Orquestacion | `H1-CA1` | [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Matriz H1](../pruebas/01_matriz_tests_hito_1.md) |
 | [HITO-002](./hito_002.md) | Contrato CA2 y pipeline incompleto | `H2-CA2`, `H2-CA3` | [TASK-H2-001](../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md) | [Matriz H2](../pruebas/02_matriz_tests_hito_2.md) |
@@ -13,5 +13,6 @@ cada hito en su unica TASK.
 | [HITO-004](./hito_004.md) | Home y documentacion | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` | [TASK-H4-001](../backlog_tareas/req_est_001_sprint_1/tarea_004_hito_4.md) | [Matriz H4](../pruebas/04_matriz_tests_hito_4.md) |
 | [HITO-005](./hito_005.md) | Resultados, filtros y cards | `H5-CA8` a `H5-CA13R` | [TASK-H5-001](../backlog_tareas/req_est_001_sprint_1/tarea_005_hito_5.md) | [Matriz H5](../pruebas/05_matriz_tests_hito_5.md) |
 
-Los criterios revisados no entran en vigor hasta aprobar
-[ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md).
+Los criterios revisados estan vigentes por
+[ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md),
+pero solo `TASK-H1-001` tiene subfase activa. Hitos 2 a 5 permanecen `PENDING`.

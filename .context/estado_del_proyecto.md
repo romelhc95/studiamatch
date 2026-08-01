@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-01-F9.7-ADENDA-DRAFT-CA1-ONLY`.
+Snapshot: `SNAPSHOT-2026-08-01-F9.7-REBASELINE-CA1-ONLY`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases. El estado vivo de la tarea activa pertenece a la propia tarea.
 
@@ -17,9 +17,9 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F6` | Reconciliacion DB-as-Code | `COMPLETED` | Base funcional contractual Hito 1, forward-only y validada localmente; ningun cambio remoto aplicado. |
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 en Free | `IN_PROGRESS` | Corte local F9.7 fusionado; PR #263 remediado en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`; PR-O v1 y hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; sucesor con executor privado certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`; Free sigue sin certificar. |
-| `F10` | Pro y produccion | `PENDING` | Bloqueada hasta que F9 termine en `free_certified`; incluye canary, `main`, smoke y observacion. |
-| `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye limpieza fisica autorizada de artifacts historicos. |
+| `F9` | Certificacion Hito 1 CA1-only | `IN_PROGRESS` | F9.7 queda cerrada documentalmente por aprobacion de adenda y rebaseline contractual; F9.8 queda como subfase activa para implementar y validar localmente el candidate CA1-only. Free/Pro siguen `UNCHANGED_NOT_ATTESTED`; no hubo aplicacion remota, DDL/DML, backfill ni certificacion. |
+| `F10` | Produccion CA1-only | `PENDING` | Bloqueada hasta readiness F9.10; contempla PR a `main`, canary Production, habilitacion gradual de schedules y observacion. |
+| `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
 ## Subfases F9
 
@@ -31,24 +31,26 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.4` | `COMPLETED` | Reconciliacion contractual local; plan simplificado adoptado, definicion remota sustituida y antecedente temporal retirado |
 | `F9.5` | `COMPLETED_WITH_KNOWN_FINDINGS` | Cierre contractual/documental; artifacts de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`; no queda lectura Free pendiente |
 | `F9.6` | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`: cohorte con PII directa remediada, conservada como pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; Pro prohibido |
-| `F9.7` | `IN_PROGRESS` | `security_cutoff_local_candidate` local cerrado y fusionado por PR #258; PR #261 fue mergeado por humano en `ee0e320d55b70dedd72c5a09429ed84a34bf7543`; PR #262 fue mergeado por humano en `c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; PR #263 fue remediado en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`; [PR-O v1](operaciones/pr_o_f9_7_v3_hold.md) y hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, `application_authorized=false`, `capabilities=[]`, sin capacidad remota ejecutable; F9.7 permanece `IN_PROGRESS` hasta `GO_F9.7_COMPLETE` en Free; Free/Pro `UNCHANGED_NOT_ATTESTED`, `GO_FOR_FREE` bloqueado, Supabase previews skipped y sin Cloudflare manual |
-| `F9.8` a `F9.10` | `PENDING` | Plan/ejecucion backfill/T03 y certificacion/T04; gates separados; `USER_PERSONAL_UAT` es hold operativo de F9.10 despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion` |
+| `F9.7` | `COMPLETED_BY_CONTRACT_REBASELINE` | Adenda `ADENDA-REQ-EST-001-001` aprobada y efectiva; `EVID-H1-001` registra atestacion sanitizada. Cierra solo el paquete documental de rebaseline; preserva los artifacts terminales F9.7 como WIP CA2 no promocionable y antecedente historico. Cero aplicacion remota, DDL/DML, backfill, Certification o Production. |
+| `F9.8` | `IN_PROGRESS` | Implementacion y validacion local del candidate CA1-only bajo [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md). Su ejecucion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.8`; este PR documental no la ejecuta. |
+| `F9.9` | `PENDING` | Candidate selectivo, PR a `certificacion`, canary y QA. Sin autorizacion ejecutable en este paquete. |
+| `F9.10` | `PENDING` | Certificacion final, `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA, y readiness para F10. Sin autorizacion ejecutable en este paquete. |
 
-Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F9.7; [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md), [PLAN-H1-CORTE-SFE-001](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md), [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) fijan el corte local y la definicion operacional sucesora: PR #258 cerro `WP-F9.7-04..06`, PR #259 reconcilio el replay, PR #260 documento post-merge, PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`, PR #262 fue mergeado por humano en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`, PR #263 quedo en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`, y el PR-O executor privado fue certificado localmente en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`.
-- Subfase autorizada: `CERTIFICACION_LOCAL_PR_O_SUCCESSOR` queda `CONSUMED_PASS` como `CERTIFIED_LOCAL_PR_O_SUCCESSOR`; no autoriza preflight remoto, Supabase Free/Pro, DDL/DML remoto en Free/Pro, backup/restore, writers, backfill, Edge, Cloudflare manual, aplicacion PR-O, push directo a ramas permanentes, merge automatico ni `GO_FOR_FREE`.
+- Subfase activa tras fusionar este rebaseline: F9.8; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
+- Subfase autorizada en este paquete: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY` queda consumida al crear el PR documental. No autoriza F9.8, codigo runtime, Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore, writers, backfill, Edge, Certification, Production, merge automatico ni habilitacion/cancelacion de schedules.
 - Autorizacion documental anterior: `DOCUMENTAR_ADENDA_Y_PLAN_CINCO_HITOS_REQ_EST_001`, completada y fusionada por PR #267 en `0dfa5dbc9c23aa0eaa487a9e113580dc0041f485`.
-- Gate decimal recibido para este paquete: `Ejecuta las tareas pendientes de la Fase F9.7`; su alcance especifico `DOCUMENTAR_ARQUITECTURA_Y_MATRICES_TEST_CA_SPRINT1` crea vistas derivadas y matrices `PLANNED`, sin codigo, DB ni operaciones remotas. El token de alcance no sustituye el gate decimal ni autoriza trabajo posterior.
-- Siguiente accion: validar y fusionar el PR documental independiente de arquitectura/pruebas, y obtener aprobacion cliente de la adenda. Mientras falte esa aprobacion, `PREFLIGHT_READ_ONLY_FREE` no se reanuda, el mapa CA1-only no entra en vigor y F9.7 sigue `IN_PROGRESS`.
+- PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
+- Siguiente accion ejecutable futura: solo `Ejecuta las tareas pendientes de la Fase F9.8` para implementar y validar localmente el candidate CA1-only.
 
 ## Alcance Inmediato
 
-La [macrofase F9](operaciones/certificacion_hito1_f9.md) conserva su historia y no ejecuta operaciones remotas. La adenda propuesta plantea separar el cierre CA1 productivo del alcance CA2 pendiente, pero no cambia el contrato hasta aprobacion cliente. F6-F8, v3 y los artifacts F9.7 permanecen inmutables; Free/Pro siguen `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` continua bloqueado. Los artifacts terminales no comprometidos son WIP CA2 no promocionable y no forman parte de este PR documental. Hitos 2 a 5 estan documentados como `PENDING`, sin subfase ejecutable.
+La [macrofase F9](operaciones/certificacion_hito1_f9.md) conserva su historia y no ejecuta operaciones remotas en este rebaseline. La adenda aprobada separa el cierre CA1 productivo del alcance CA2 pendiente: Hito 1 queda CA1-only, `H1-CA2P` y `H1-CA7P` quedan como antecedentes historicos, y su alcance pendiente pasa a `H2-CA2` y `H4-CA7` sin reutilizar evidencia historica como cierre. F6-F8, v3 y los artifacts F9.7 permanecen inmutables; Free/Pro siguen `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` queda superseded para Hito 1. Hitos 2 a 5 permanecen `PENDING`, sin subfase ejecutable.
 
 Los cambios funcionales posteriores deben seguir [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Matriz DB](operaciones/matriz_adopcion_db.md) y [Release minimo](operaciones/flujo_release_minimo.md).

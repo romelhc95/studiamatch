@@ -1,11 +1,15 @@
 # Certificacion Hito 1 - Macrofase F9
 
-> Rebaseline pendiente: la adenda CA1-only/CA2-a-Hito-2 esta en
-> `DRAFT_PENDING_CLIENT_APPROVAL`. F9 conserva `IN_PROGRESS`, no reanuda
-> preflight remoto y no transfiere sus estados a Hito 2 hasta aprobacion cliente
-> y reconciliacion documental post-merge. Ver [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md).
+> Rebaseline vigente: la adenda CA1-only/CA2-a-Hito-2 esta
+> `APPROVED_EFFECTIVE`. F9 conserva `IN_PROGRESS` con F9.8 activa para candidate
+> local CA1-only. La ruta schema/backfill/free_certified queda
+> `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2 de Hito 2. Ver
+> [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md).
 
-Esta nota es la autoridad operativa de la macrofase F9 del plan `main -> Hito 1`. F9 comienza con preparacion local y termina unicamente en `free_certified`. No incluye Pro, produccion ni cierre final. [ADR-0004](../decisiones/ADR-0004_simplificacion_contractual_hito1.md) y [PLAN-H1-SIMPLIFICADO-001](./plan_simplificado_hito1.md) fijan la secuencia simplificada vigente.
+Esta nota es la autoridad operativa de la macrofase F9 del plan `main -> Hito 1`.
+F9 comienza con preparacion local y, para la ruta CA1-only, termina en readiness
+para F10 despues de certificacion final y `USER_PERSONAL_UAT`. No incluye
+Production ni cierre final.
 
 La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md). La informacion vigente del antecedente temporal se preservo en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
 
@@ -13,13 +17,13 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
-- Estado de certificacion: Free sigue sin certificar, Pro permanece bloqueado y `GO_FOR_FREE` esta bloqueado.
-- Subfase activa: F9.7 `IN_PROGRESS`; [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) organiza el corte local en seis work packages, con v3 byte-identico, PR #261 fusionado en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543`, PR #262 fusionado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`, PR #263 en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`, [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`, y [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`.
-- Subfase autorizada: ninguna operacion remota. El candidate local no habilita automaticamente Free, schema/RLS ni writers.
+- Estado de certificacion: F9.7 cerrada por rebaseline; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill, Certification ni Production.
+- Subfase activa: F9.8 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera local CA1-only.
+- Subfase autorizada: ninguna operacion remota. Este rebaseline no habilita F9.8, Supabase, schema/RLS, writers, Certification ni Production.
 - Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: `PREFLIGHT_READ_ONLY_FREE`, pendiente de autorizacion separada y solo despues del merge/replay del PR que publique la certificacion local; no es `GO_FOR_FREE` y no aplica PR-O remoto. Cualquier lectura o gate operativo remoto requiere autorizacion nueva.
+- Siguiente accion: `Ejecuta las tareas pendientes de la Fase F9.8`, si el usuario decide implementar y validar localmente el candidate CA1-only.
 
-Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f262` / tree `f6173cf7d8fcd2a0ca95cfaf38e9e2914501d85c` (head `82fdfcf7aacb7b9ce9c1793189b6b88303c1f474`).
+Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
 
 ## Subfases
 
@@ -31,12 +35,12 @@ Post-merge preflight binding: `desarrollo@416ee19e3eea2cd61d4ae42d1455ff579c60f2
 | `F9.4` | Reconciliacion contractual local/documental | `COMPLETED` | Plan simplificado adoptado; definicion remota sustituida; antecedente temporal retirado |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
-| `F9.7` | Candidate local, resguardo/restore, pausa, schema/RLS Free, T02 y corte leads/email | `IN_PROGRESS` | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cerrados localmente; PR #258 merge `e95eeac` replay PASS, PR #261 merge `ee0e320` contiene PR-O v1, PR #262 merge `c0b6c5e` define el sucesor, PR #263 queda en `7782679`; [PR-O v1](./pr_o_f9_7_v3_hold.md) y hold actual `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`; v3 byte-identico; `public.exec_sql(text)` ausente del estado final esperado sucesor; Free/Pro `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` bloqueado |
-| `F9.8` | Aprobacion del plan de backfill | `PENDING` | Reservada; sin DML |
-| `F9.9` | Ejecucion/certificacion de backfill y T03 | `PENDING` | Reservada; aprobacion de ejecucion separada |
-| `F9.10` | Canary, smoke, QA, cleanup, `USER_PERSONAL_UAT` y certificacion final T04 | `PENDING` | `USER_PERSONAL_UAT` es hold operativo posterior a validaciones tecnicas Free, exige candidate commit/tree inmutable y `PASS` personal del usuario antes de T04, writer resume o PR/merge `desarrollo -> certificacion`; termina en `free_certified`/`FREE_CERTIFIED` |
+| `F9.7` | Rebaseline documental de adenda y cierre CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | `EVID-H1-001` verificada de forma sanitizada; PR #268 mergeado en `desarrollo@f8b8987` / tree `3d044210`; no hubo aplicacion remota, DDL/DML, backfill, Certification ni Production |
+| `F9.8` | Implementacion y validacion local del candidate CA1-only | `IN_PROGRESS` | Requiere frase exacta `Ejecuta las tareas pendientes de la Fase F9.8`; diff futuro debe respetar la frontera CA1-only |
+| `F9.9` | Candidate selectivo, Certification, canary y QA | `PENDING` | Sin autorizacion ejecutable en este paquete |
+| `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `PENDING` | `USER_PERSONAL_UAT` ocurre despues de canary, validaciones tecnicas Certification y QA, y antes de readiness para F10 |
 
-La [definicion remota F9.4 anterior](./preflight_free_f9_4.md) y el [registro F9.5](./preflight_free_f9_5.md) son historia no autorizable. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
+La [definicion remota F9.4 anterior](./preflight_free_f9_4.md), el [registro F9.5](./preflight_free_f9_5.md) y la ruta schema/backfill/free_certified son historia no autorizable para Hito 1. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
 
 ## Cierre Contractual F9.5
 
@@ -49,7 +53,7 @@ F9.5 concluye sin repetir la lectura Free del overlay v2 y sin declarar `FREE_PR
 
 ## Cierre Exclusivo F9.6
 
-F9.6 fue exclusivamente el P0 H-00, Free-only y previo a `FREE_CERTIFIED`; no es criterio contractual de Hito 1. La evidencia sanitizada [EVID-F9.6-H00-001](./cierre_h00_f9_6.md) verifico la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Se conserva pseudonimizada por su riesgo residual de vinculabilidad. El resultado es `H00_ALREADY_REMEDIATED_NO_DML`.
+F9.6 fue exclusivamente el P0 H-00 de la ruta Free-only sustituida; ya no es prerrequisito del Hito 1 CA1-only y no es criterio contractual. La evidencia sanitizada [EVID-F9.6-H00-001](./cierre_h00_f9_6.md) verifico la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Se conserva pseudonimizada por su riesgo residual de vinculabilidad. El resultado es `H00_ALREADY_REMEDIATED_NO_DML`.
 
 - Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`.
 - Los fixtures conservan UUID y metadatos pseudonimizados; el data owner acepta ese riesgo residual en Free restringido y prohibe correlacionarlos o copiarlos a Pro. F9.7 debe verificar ausencia de lectura publica y F11 revaluar retencion.
@@ -86,11 +90,11 @@ La definicion local posterior no reutilizo esa lectura. PostgreSQL 17 demuestra 
 
 ## Dependencias Posteriores
 
-El [contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR`: PR-O v1 y hold actual `SUPERSEDED_NON_PROMOTABLE`, executor privado digest-bound/target-bound/single-use/no Data API, digests de SQL/manifests/runbooks/payloads, approvals single-use, boundary `7` estrictamente read-only sin locks de escritura y secuencia atomica `pending v3 -> postcondiciones v3 -> ledger v3 -> hold sucesor -> verificador terminal -> ledger hold -> verificacion final -> commit unico`. Antes de aplicar en Free deben existir autorizaciones independientes de preflight read-only, backup/restore, writer pause, `GO_FOR_FREE` y aplicacion final. Cualquier grant no reparado, drift desconocido o precondicion incompleta detiene la ejecucion.
+El [contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md) queda certificado localmente como `CERTIFIED_LOCAL_PR_O_SUCCESSOR` y `SUPERSEDED_FOR_HITO_1`: PR-O v1 y hold actual `SUPERSEDED_NON_PROMOTABLE`, executor privado digest-bound/target-bound/single-use/no Data API y boundary `7` estrictamente read-only se preservan como historia. No habilita preflight remoto, backup/restore, writer pause, `GO_FOR_FREE` ni aplicacion final en Hito 1 CA1-only.
 
-Free es el ambiente DB de desarrollo/certificacion de esta macrofase; `certificacion` como rama/release no es un ambiente DB alterno y permanece bloqueada. En F9.10, despues de todas las validaciones tecnicas Free y antes de T04, reanudar writers o cualquier PR/merge `desarrollo -> certificacion`, debe cumplirse el hold operativo `USER_PERSONAL_UAT`: candidate commit/tree inmutable y `PASS` personal explicito del usuario. Este hold no agrega criterio contractual, subfase ni transicion nueva.
+Supabase Free/Pro permanecen `UNCHANGED_NOT_ATTESTED` en este rebaseline; `certificacion` es la rama/release para canary y QA de F9.9. En F9.10, despues de canary, validaciones tecnicas Certification y QA, debe cumplirse `USER_PERSONAL_UAT`: candidate commit/tree inmutable y `PASS` personal explicito del usuario antes de readiness F10. Este hold no agrega criterio contractual, subfase ni transicion nueva.
 
-El backfill editorial es dependencia de `H1-CA2P` para F9.8/F9.9 y debe evitar que el catalogo quede invisible. Sus planificacion, autorizacion y ejecucion siguen separadas.
+El backfill editorial queda trasladado a `H2-CA2`; para Hito 1 CA1-only no se planifica, ejecuta ni certifica.
 
 ## Identidades Historicas
 
@@ -162,33 +166,33 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 
 | Paso original | Asignacion canonica obligatoria |
 |---|---|
-| Validacion Free del package exacto | F9.5 y F9.7 |
+| Validacion Free del package exacto | `SUPERSEDED_FOR_HITO_1`; antecedente CA2 de Hito 2 |
 | H-00 Free-only counts-only | F9.6 |
-| ACL negativas `anon`/`authenticated` | F9.7 y revalidacion F9.10 |
-| ACL negativa `service_role` sobre `leads`/`email_log`; identidad de servicio se conserva para superficies autorizadas | F9.7 y revalidacion F9.10 |
-| Smoke FG2 sin fallback de persistencia | F9.10 |
-| Cleanup idempotente | F9.10 |
-| Hold operativo `USER_PERSONAL_UAT` con candidate commit/tree inmutable y PASS personal del usuario | F9.10, despues de validaciones tecnicas Free y antes de T04/writer resume/PR a `certificacion` |
+| ACL negativas `anon`/`authenticated` | Antecedente CA2; no cierre Hito 1 CA1-only |
+| ACL negativa `service_role` sobre `leads`/`email_log`; identidad de servicio se conserva para superficies autorizadas | Antecedente historico; no cierre Hito 1 CA1-only |
+| Smoke FG2 sin fallback de persistencia | F9.9/F9.10 segun candidate CA1-only |
+| Cleanup idempotente | F9.9/F9.10 segun candidate CA1-only |
+| Hold operativo `USER_PERSONAL_UAT` con candidate commit/tree inmutable y PASS personal del usuario | F9.10, despues de canary, validaciones tecnicas Certification y QA |
 | PR a `desarrollo` si el candidate nace temporal | Cada subfase aplicable; comprobacion final F9.10 |
 | Promocion nueva a `certificacion` | F9.10 con review/CI |
-| Canary Free desde package exacto | F9.10 |
+| Canary Certification desde candidate exacto | F9.9/F9.10 |
 | QA independiente | F9.10 |
-| Estado final `FREE_CERTIFIED` | F9.10; equivale exactamente al estado de maquina `free_certified` |
+| Readiness F10 | F9.10; sustituye `FREE_CERTIFIED` para Hito 1 CA1-only |
 
-## Gates Humanos Preservados
+## Gates Humanos Preservados Y Sustituidos
 
 - F9.6 cerro H-00 con PII directa ya remediada y la cohorte conservada como pseudonimizada, sin DML; Gate B DELETE fue sustituido y no puede reabrirse desde esta macrofase.
-- Toda migration Free y el backup/restore previo requieren aprobacion explicita en F9.7.
-- Pausar y reanudar writers son dos decisiones humanas separadas; F9.7 pausa y F9.10 solo puede reanudar despues de postcondiciones/QA.
-- Plan y ejecucion de backfill requieren aprobaciones separadas en F9.8/F9.9.
-- `USER_PERSONAL_UAT` en F9.10 requiere candidate commit/tree inmutable y `PASS` personal del usuario despues de validaciones tecnicas Free y antes de T04, writer resume o cualquier PR/merge `desarrollo -> certificacion`.
+- La ruta de migration Free y backup/restore de F9.7 queda `SUPERSEDED_FOR_HITO_1`; cualquier operacion equivalente futura requiere hito, subfase decimal y aprobacion propios.
+- La pausa/reanudacion de writers de la ruta F9.7 queda `SUPERSEDED_FOR_HITO_1`; F9.10 CA1-only no reanuda writers Free.
+- Plan y ejecucion de backfill quedan fuera de Hito 1 y se trasladan a Hito 2.
+- `USER_PERSONAL_UAT` en F9.10 requiere candidate commit/tree inmutable y `PASS` personal del usuario despues de canary, validaciones tecnicas Certification y QA.
 - Cada merge a `desarrollo` y el merge a `certificacion` requieren aprobacion humana y CI en la subfase aplicable/F9.10.
-- T04 exige `free_final_certification_approval` explicita en F9.10; canary o QA por si solos no cambian estado.
-- Promocion Pro, pausa/reanudacion Pro, merge a `main` y release final pertenecen a F10 y conservan aprobaciones separadas.
+- T04 y `free_final_certification_approval` quedan sustituidos para Hito 1; F9.10 CA1-only certifica candidate, canary, QA, `USER_PERSONAL_UAT` y readiness F10.
+- Cualquier promocion Supabase Pro de la ruta CA2 queda fuera de Hito 1; F10 CA1-only conserva aprobaciones separadas para Production sin adoptar Free/Pro schema/backfill.
 - Eliminar ramas remotas pertenece a F11 y requiere aprobacion propia; el antecedente temporal ya fue retirado documentalmente en F9.4.
 
 ## Criterio De Salida De La Macrofase F9
 
-F9 solo termina cuando T01 condicionado y T02-T04 cumplen sus gates propios, Free alcanza `free_certified`/`FREE_CERTIFIED`, la base F6-F8 y sus checksums permanecen inmutables, H-00 queda excluido de Pro, ACL por rol, smoke FG2, canary exacto, QA independiente y cleanup idempotente pasan, y la evidencia queda aprobada. Solo entonces puede iniciar la ejecucion de F10 Produccion.
+F9 solo termina para Hito 1 CA1-only cuando el candidate selectivo permanece inmutable, `EVID-H1-001..016` quedan verificadas segun su umbral, canary Certification, QA independiente, certificacion final y `USER_PERSONAL_UAT` pasan, y se declara readiness para F10. Solo entonces puede iniciar la ejecucion de F10 Produccion.
 
 Ver [Estado](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).

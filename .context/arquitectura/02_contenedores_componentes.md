@@ -32,7 +32,7 @@ flowchart LR
         Home["Home y /courses"]
         Detail["Detalle"]
         Compare["Comparacion"]
-        Admin["/admin\nPROPOSED_PENDING_APPROVAL"]
+        Admin["/admin\nPENDING_HITO"]
     end
 
     FG1 --> Catalogs
@@ -58,7 +58,7 @@ flowchart LR
 | `/courses/{institution}/{slug}/` | Detalle estatico con carga cliente | `ACTUAL` |
 | `/compare/` | Comparacion de hasta tres programas | `ACTUAL` |
 | `/privacidad/`, `/terminos/` | Contenido legal | `ACTUAL` |
-| `/admin/` | Panel CA4 | `PROPOSED_PENDING_APPROVAL` |
+| `/admin/` | Panel CA4 | `PENDING_HITO` |
 
 No existe una ruta separada `/resultados/` en el baseline. Hito 5 define la
 vista contractual de Resultados sin decidir por esta nota una ruta nueva.

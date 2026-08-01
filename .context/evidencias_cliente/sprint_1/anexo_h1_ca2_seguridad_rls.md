@@ -4,7 +4,7 @@
 |---|---|
 | ID | `ANNEX-H1-CA2-RLS-001` |
 | Estado | `DRAFT` |
-| Disposicion | `DEFERRED_TO_HITO_2` propuesta |
+| Disposicion | `DEFERRED_TO_HITO_2` vigente |
 | Impacto Hito 1 | Ningun cambio funcional CA2 en produccion |
 
 ## Resumen

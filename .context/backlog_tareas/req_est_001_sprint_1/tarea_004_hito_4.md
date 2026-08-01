@@ -8,7 +8,7 @@
 | Hito | [HITO-004](../../hitos/hito_004.md) |
 | Macrofase vigente | Ninguna; no activa |
 | Subfase ejecutable | Ninguna |
-| Criterios propuestos | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` |
+| Criterios vigentes pendientes | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` |
 | Bloqueador | Hito 3 desplegado si Home consume estado publicado/manual |
 
 ## Objetivo

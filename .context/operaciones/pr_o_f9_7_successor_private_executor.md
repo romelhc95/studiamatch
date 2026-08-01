@@ -3,21 +3,21 @@
 | Campo | Valor |
 |---|---|
 | ID | `PR-O-F9.7-PRIVATE-EXECUTOR-002` |
-| Estado | `CERTIFIED_LOCAL_PR_O_SUCCESSOR` |
+| Estado | `CERTIFIED_LOCAL_PR_O_SUCCESSOR_SUPERSEDED_FOR_HITO_1` |
 | Subfase | `F9.7` |
 | Base Git | Definicion creada desde `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; PR #263 verificado en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba` |
 | PR-O v1 | `SUPERSEDED_NON_PROMOTABLE` |
 | Hold actual | `F9.7-LEADS-EMAIL-SECURITY-HOLD-20260729=SUPERSEDED_NON_PROMOTABLE_FOR_FUTURE_ROUTE` |
 | application_authorized | `false` |
 | capabilities | `[]` |
-| Ambiente permitido futuro | DB `Free` solamente, con aprobacion separada |
+| Ambiente permitido futuro | Ninguno para Hito 1 CA1-only |
 | Ambientes bloqueados | DB `Pro`, `Production` y `Certification` como rama/release |
 | Commit tecnico certificado | `771b8b1366e302eae52e4263577e0f6967679d7b` |
 | Tree tecnico certificado | `99f315c6820966e94213665df43cd21f9f4ef730` |
 
-Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543` y queda integrado por PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66`. La implementacion local posterior crea artifacts sinteticos del executor privado y su matriz de pruebas; la certificacion local queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, pero no escribe SQL remoto, no accede a Free/Pro y no concede `GO_FOR_FREE`.
+Este contrato corrige local y documentalmente PR-O despues del merge `ee0e320d55b70dedd72c5a09429ed84a34bf7543` y queda integrado por PR #262 en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66`. La implementacion local posterior crea artifacts sinteticos del executor privado y su matriz de pruebas; la certificacion local queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, pero no escribe SQL remoto, no accede a Free/Pro y no concede `GO_FOR_FREE`. Tras la rebaseline CA1-only queda superseded para Hito 1 y se preserva como antecedente CA2.
 
-Free es el ambiente DB de desarrollo/certificacion para una aplicacion futura autorizada; `certificacion` como rama/release permanece bloqueada hasta F9.10. Este contrato no cambia ese bloqueo.
+No existe aplicacion futura autorizada de este contrato para Hito 1 CA1-only. `certificacion` como rama/release permanece bloqueada hasta F9.9/F9.10 bajo el candidate CA1-only.
 
 ## Supersesion
 
@@ -132,11 +132,11 @@ Estas autorizaciones son distintas, no transitivas y single-use:
 |---|---|---|
 | `IMPLEMENTACION_LOCAL_PR_O_SUCCESSOR` | `CONSUMED_GO_WP_LOCAL` | Crear executor privado, hold sucesor, payloads y pruebas locales sin red. |
 | `CERTIFICACION_LOCAL_PR_O_SUCCESSOR` | `CONSUMED_PASS` | Resultado `CERTIFIED_LOCAL_PR_O_SUCCESSOR`: digest binding, target binding sintetico, boundary 7, approvals single-use y no-Data-API PASS en local. |
-| `PREFLIGHT_READ_ONLY_FREE` | `PENDING` | Snapshot catalog-only Free sin filas ni payloads. |
-| `BACKUP_RESTORE_FREE` | `PENDING` | Backup privado y restore probado fuera de Git. |
-| `WRITER_PAUSE_DRAIN_FREE` | `PENDING` | Pausa/drain de writers y `pg_net` counts-only. |
-| `GO_FOR_FREE` | `PENDING` | Autorizar aplicacion Free del sucesor exacto. |
-| `FINAL_APPLY_FREE` | `PENDING` | Ejecutar transaccion unica y revalidacion final. |
+| `PREFLIGHT_READ_ONLY_FREE` | `SUPERSEDED_FOR_HITO_1` | Snapshot catalog-only Free preservado como antecedente CA2. |
+| `BACKUP_RESTORE_FREE` | `SUPERSEDED_FOR_HITO_1` | Backup privado y restore probado fuera de Git; no aplica a CA1-only. |
+| `WRITER_PAUSE_DRAIN_FREE` | `SUPERSEDED_FOR_HITO_1` | Pausa/drain de writers y `pg_net` counts-only; no aplica a CA1-only. |
+| `GO_FOR_FREE` | `SUPERSEDED_FOR_HITO_1` | Aplicacion Free del sucesor exacto no autorizada para Hito 1. |
+| `FINAL_APPLY_FREE` | `SUPERSEDED_FOR_HITO_1` | Transaccion unica y revalidacion final no autorizadas para Hito 1. |
 
 Cada approval debe estar ligado a target fingerprint, boundary inicial, candidate commit/tree, digests de payloads, ventana, expiracion, recovery owner y nonce privado. Al expirar, fallar, consumirse o encontrar respuesta ambigua, queda invalidado.
 
@@ -150,7 +150,7 @@ Cada approval debe estar ligado a target fingerprint, boundary inicial, candidat
 - Approval single-use, expiracion, invalidacion por fallo, timeout y respuesta ambigua: `PASS`.
 - No-Data-API, no PostgREST/RPC publico y sin grants de aplicacion: `PASS`; `public.exec_sql(text)` no forma parte del estado final esperado.
 - Auditorias `security-auditor`, `supabase-architect` y `qa-test-engineer`: sin findings bloqueantes.
-- Free/Pro: `UNCHANGED_NOT_ATTESTED`; `application_authorized=false`; `capabilities=[]`; `GO_FOR_FREE` bloqueado.
+- Free/Pro: `UNCHANGED_NOT_ATTESTED`; `application_authorized=false`; `capabilities=[]`; `GO_FOR_FREE` superseded para Hito 1.
 
 ## Stop Conditions
 
@@ -169,7 +169,7 @@ Cada approval debe estar ligado a target fingerprint, boundary inicial, candidat
 
 ## Siguiente Accion Canonica
 
-La siguiente accion no es `GO_FOR_FREE`. La siguiente accion es `PREFLIGHT_READ_ONLY_FREE`, pendiente de autorizacion separada y solo despues del merge/replay del PR que publique esta certificacion local. Esa autorizacion futura no aplica DDL/DML, no pausa writers, no ejecuta backup/restore y no aplica PR-O.
+La siguiente accion de Hito 1 ya no es `GO_FOR_FREE` ni `PREFLIGHT_READ_ONLY_FREE`. Tras la rebaseline, la siguiente accion viva es F9.8 CA1-only definida en [Estado del proyecto](../estado_del_proyecto.md) y [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md).
 
 ## Referencias
 

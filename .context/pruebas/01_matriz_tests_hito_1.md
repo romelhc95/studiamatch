@@ -1,8 +1,9 @@
 # Matriz De Tests Hito 1
 
 Plan subordinado a [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-La adenda CA1-only sigue pendiente; esta matriz no cambia el mapa contractual
-original ni autoriza ejecucion remota.
+La adenda CA1-only esta aprobada; esta matriz conserva runtime CA1 como
+`PLANNED` y reconvierte `H1-CA2P`/`H1-CA7P` en verificaciones documentales de
+traslado y preservacion historica. No autoriza ejecucion remota.
 
 | Test ID | CA | Requisito verificable | Clasificacion | Precondicion | Procedimiento | Resultado esperado | Ambiente | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|---|---|
@@ -14,8 +15,8 @@ original ni autoriza ejecucion remota.
 | `T-H1-CA1-005` | `CA1 / H1-CA1` | Secrets existen solo en CI/backend autorizado | `SECURITY_REQUIRED` | Candidate completo | Escanear tree y revisar bindings de environment | Cero secretos en Git/browser; identidad correcta | Local / CI | Vacia hasta candidate | `PLANNED` |
 | `T-H1-CA1-006` | `CA1 / H1-CA1` | Ejecucion efectiva FG2/FG3 por ambiente | `OPERABILITY_REQUIRED` | Adenda aprobada y candidate autorizado | Canary y smoke con cohorte acotada | Gates respetados y resultado observable sin falso verde | Certification / Production | Vacia hasta candidate | `PLANNED` |
 | `T-H1-CA1-007` | `CA1 / H1-CA1` | Candidate CA1-only no modifica CA2 ni otras superficies | `REGRESSION_REQUIRED` | Adenda aprobada y baseline productivo | Comparar object IDs y diff cerrado | Cero cambios DB, frontend, leads/email, backfill y artifacts CA2 | Local / CI | Vacia hasta candidate | `PLANNED` |
-| `T-H1-CA2P-001` | `CA2 / H1-CA2P` | El alcance original permanece trazable mientras la adenda sea draft | `CONTRACTUAL_CA` | Adenda no aprobada | Contrastar REQ, TASK y candidate | CA2P no se declara cerrado ni se promueve con CA1-only | Documental | Vacia hasta candidate | `PLANNED` |
-| `T-H1-CA7P-001` | `CA7 / H1-CA7P` | Preparacion documental original permanece trazable | `CONTRACTUAL_CA` | Adenda no aprobada | Revisar enlaces y anexo por ambiente | No se crea CA nuevo ni se reabre estado completado | Documental | Vacia hasta candidate | `PLANNED` |
+| `T-H1-CA2P-001` | `CA2 / H1-CA2P -> H2-CA2` | El alcance CA2P queda preservado como antecedente y trasladado a Hito 2 | `CONTRACTUAL_CA` | Adenda aprobada | Contrastar REQ, TASK, Hito 2 y candidate CA1-only | CA2P no se declara cerrado, no se promueve con CA1-only y exige evidencia nueva en Hito 2 | Documental | Vacia hasta candidate | `PLANNED` |
+| `T-H1-CA7P-001` | `CA7 / H1-CA7P -> H4-CA7` | Preparacion documental original queda preservada como antecedente historico | `CONTRACTUAL_CA` | Adenda aprobada | Revisar enlaces, TASK H4 y paquete de evidencia | No se crea CA nuevo, no se reabre cierre historico y H4 requiere evidencia nueva | Documental | Vacia hasta candidate | `PLANNED` |
 | `T-H1-OOS-001` | `CA1` | FG1 no se convierte en CA adicional | `OUT_OF_SCOPE` | Candidate CA1 | Revisar evidencia y matriz cliente | FG1 figura solo como soporte operativo | Documental | Vacia hasta candidate | `PLANNED` |
 
 ## Gate De Salida

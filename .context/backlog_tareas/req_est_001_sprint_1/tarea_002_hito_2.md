@@ -8,8 +8,8 @@
 | Hito | [HITO-002](../../hitos/hito_002.md) |
 | Macrofase vigente | Ninguna; no activa |
 | Subfase ejecutable | Ninguna |
-| Criterios propuestos | `H2-CA2`, `H2-CA3` |
-| Bloqueador | Adenda cliente y cierre productivo de Hito 1 |
+| Criterios vigentes pendientes | `H2-CA2`, `H2-CA3` |
+| Bloqueador | Cierre productivo de Hito 1 y activacion explicita de Hito 2 |
 
 Esta TASK sera la unica autoridad del estado vivo de Hito 2 cuando se active.
 Su existencia no autoriza implementacion.
@@ -37,7 +37,6 @@ programas incompletos sin detener el procesamiento.
 
 ## Dependencias
 
-- [Adenda sanitizada](./adenda_cliente_001_sanitizada.md) aprobada.
 - [TASK-H1-001](./tarea_001_hito_1.md) completada en produccion.
 - Plan DB forward-only, transport autorizado y backup/restore probado.
 

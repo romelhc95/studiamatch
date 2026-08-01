@@ -3,14 +3,14 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `DRAFT_PENDING_CLIENT_APPROVAL` |
+| Estado | `ACTIVE_AWAITING_F9_8_EXECUTION` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
 | Autoridad habilitante | [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md) |
 
-Este plan no autoriza ejecucion. Entra en vigor cuando la adenda sea aprobada,
-el Context Graph adopte la rebaseline y exista una subfase decimal activa.
+Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
+ejecuta por si mismo: la implementacion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.8`.
 
 ## Objetivo
 
@@ -41,6 +41,8 @@ interna necesaria para reactivar el schedule, no como criterio cliente nuevo.
 
 ### Permitido
 
+- FG1 como soporte operativo.
+- FG2 y FG3 como alcance CA1.
 - Workflows FG1/FG2/FG3 y sus lockfiles CA1.
 - Orquestacion, gates, circuit breaker, limites y timeouts.
 - Seguridad operacional: refs, environments, actions SHA y permisos minimos.
@@ -53,25 +55,22 @@ interna necesaria para reactivar el schedule, no como criterio cliente nuevo.
 - `db/**`, `supabase/**` y `web/**`.
 - Schema, migrations, RLS, RPC, grants y backfill CA2.
 - Campos editoriales, calidad, faltantes, fuentes, sponsorship o leads.
-- Cambios funcionales de leads/email y Edge.
-- Panel admin, Home, Resultados, cards, filtros o rutas.
+- Leads/email, Edge y artifacts terminales F9.7.
+- Admin, Home, Resultados, cards, filtros y campos CA2.
 - Tooling capaz de aplicar packages DB.
-- Artifacts terminales locales F9.7.
 
 ## Estrategia De Candidate Selectivo
 
 `desarrollo` contiene cambios mixtos y no puede promoverse completo. El release
 usa una frontera por patch:
 
-1. Implementar y revisar CA1 en una rama limpia con PR a `desarrollo`.
-2. Congelar diff, patch-id, commit/tree y hashes CA1 aprobados.
-3. Reconstruir solo ese patch sobre el baseline productivo vigente.
-4. Probar equivalencia y ausencia CA2.
-5. PR del candidate CA1-only a `certificacion`.
-6. Canary/QA Certification.
-7. PR `certificacion -> main` con tree funcional equivalente.
-8. Canary Production con schedules apagados.
-9. Habilitar schedules y observar la operacion.
+1. F9.8 implementa y valida localmente CA1 en una rama limpia.
+2. Congela diff, patch-id, commit/tree y hashes CA1 aprobados.
+3. F9.9 reconstruye solo ese patch sobre el baseline de Certification.
+4. F9.9 prueba equivalencia, ausencia CA2, canary y QA.
+5. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
+6. F10 ejecuta PR a `main`, canary Production con schedules apagados.
+7. F10 habilita schedules gradualmente y observa la operacion.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -88,9 +87,9 @@ autorizaciones.
 | `WP-H1-CA1-03` | Hardening FG2 | Gates, breaker, persistencia y no mock publico |
 | `WP-H1-CA1-04` | Hardening FG3 | SSRF, estados HTTP y mutaciones verificadas |
 | `WP-H1-CA1-05` | CI y environments | Schedules main-only y kill switch |
-| `WP-H1-CA1-06` | Development/Certification | PRs, canary y QA |
-| `WP-H1-CA1-07` | Production | Canary, schedule y observacion |
-| `WP-H1-CA1-08` | Evidencia cliente | Matriz y conformidad |
+| `WP-H1-CA1-06` | F9.8 local/desarrollo | PR, validacion y candidate patch |
+| `WP-H1-CA1-07` | F9.9/F9.10 Certification | Candidate selectivo, canary, QA, certificacion final y UAT |
+| `WP-H1-CA1-08` | F10/F11 Production y evidencia | Canary, schedules, observacion, matriz y conformidad |
 
 ## Requisitos Operativos
 
@@ -154,20 +153,21 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 
 ## Gates De Promocion
 
-### Desarrollo
+### Desarrollo / F9.8
 
 - PR CA1-only, CI y review independiente.
 - Candidate patch congelado despues del merge.
 - Ejecucion controlada contra Development solo con autorizacion.
 
-### Certificacion
+### Certification / F9.9-F9.10
 
 - Patch equivalente sobre baseline de certificacion.
 - Cero paths CA2.
 - Canary FG1/FG2/FG3, cleanup y QA.
 - Evidencia de target sin exponer identificadores.
+- `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA.
 
-### Produccion
+### Production / F10
 
 - PR `certificacion -> main`.
 - Candidate/tree inmutable y aprobacion humana.
@@ -187,28 +187,27 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 
 ## Evidencia De Salida
 
-| ID | Evidencia | Umbral |
-|---|---|---|
-| `EVID-H1-001` | Adenda integral aprobada | Alcance, cronograma y detalle comercial verificados en privado |
-| `EVID-H1-002` | Diff CA1-only | Cero paths CA2 |
-| `EVID-H1-003` | Validacion local | PASS |
-| `EVID-H1-004` | Seguridad/secret scan | Sin blockers |
-| `EVID-H1-005` | PR desarrollo | Approved/Merged |
-| `EVID-H1-006` | Equivalencia patch | PASS |
-| `EVID-H1-007` | PR certificacion | Approved/Merged |
-| `EVID-H1-008` | Canary Certification | PASS |
-| `EVID-H1-009` | PR main | Approved/Merged |
-| `EVID-H1-010` | Canary Production | PASS |
-| `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo |
-| `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo |
-| `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS |
-| `EVID-H1-015` | QA independiente | PASS |
-| `EVID-H1-016` | Conformidad cliente | APPROVED |
+| ID | Evidencia | Umbral | Estado |
+|---|---|---|---|
+| `EVID-H1-001` | Adenda integral aprobada | Alcance, cronograma y detalle comercial verificados en privado | `VERIFIED` |
+| `EVID-H1-002` | Diff CA1-only | Cero paths CA2 | `PLANNED` |
+| `EVID-H1-003` | Validacion local | PASS | `PLANNED` |
+| `EVID-H1-004` | Seguridad/secret scan | Sin blockers | `PLANNED` |
+| `EVID-H1-005` | PR desarrollo | Approved/Merged | `PLANNED` |
+| `EVID-H1-006` | Equivalencia patch | PASS | `PLANNED` |
+| `EVID-H1-007` | PR certificacion | Approved/Merged | `PLANNED` |
+| `EVID-H1-008` | Canary Certification | PASS | `PLANNED` |
+| `EVID-H1-009` | PR main | Approved/Merged | `PLANNED` |
+| `EVID-H1-010` | Canary Production | PASS | `PLANNED` |
+| `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
+| `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
+| `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PLANNED` |
+| `EVID-H1-015` | QA independiente | PASS | `PLANNED` |
+| `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
 ## Stop Conditions
 
-- Adenda no aprobada.
 - Path/hunk CA2 en el candidate.
 - Dependencia de columna/RPC no presente en produccion.
 - Target/environment ambiguo.
