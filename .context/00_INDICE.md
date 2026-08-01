@@ -15,6 +15,10 @@
 - [Arquitectura del pipeline](arquitectura_pipeline.md)
 - [Estructura frontend](estructura_frontend.md)
 - [Estimacion EST-001](estimaciones/est_001.md)
+- [Hitos Sprint 1](hitos/_index.md)
+- [Adenda cliente 001 sanitizada](backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+- [Plan de cierre Hito 1 CA1-only](operaciones/plan_cierre_hito1_ca1_only.md)
+- [Evidencia cliente Sprint 1](evidencias_cliente/sprint_1/_index.md)
 - [Matriz de adopcion DB](operaciones/matriz_adopcion_db.md)
 - [Reconciliacion DB-as-Code F6](operaciones/reconciliacion_db_as_code_f6.md)
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
@@ -41,9 +45,18 @@
 ## Alcance Y Trabajo
 
 - [HITO-001](hitos/hito_001.md)
+- [HITO-002](hitos/hito_002.md)
+- [HITO-003](hitos/hito_003.md)
+- [HITO-004](hitos/hito_004.md)
+- [HITO-005](hitos/hito_005.md)
 - [Backlog REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [Seguimiento detallado de Hito 1](backlog_tareas/req_est_001_sprint_1/seguimiento_detallado_hito_1.md)
+- [TASK-H2-001](backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
+- [TASK-H3-001](backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md)
+- [TASK-H4-001](backlog_tareas/req_est_001_sprint_1/tarea_004_hito_4.md)
+- [TASK-H5-001](backlog_tareas/req_est_001_sprint_1/tarea_005_hito_5.md)
+- [Anexo cliente CA2/RLS](evidencias_cliente/sprint_1/anexo_h1_ca2_seguridad_rls.md)
 - [Backlog diferido F9.5](backlog_tareas/req_est_001_sprint_1/backlog_f9_5_known_findings.md)
 - [Backlog diferido leads/email](backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md)
 - [INTAKE-002 pendiente de estimacion](backlog_tareas/intake/INTAKE-002.md)
@@ -57,6 +70,8 @@
 - [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md)
 - [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md)
 - [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md)
+- [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+- [Changelog 2026-08-01](changelog/2026-08-01.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)
@@ -75,9 +90,9 @@
 | Arquitectura decidida | [ADR aceptada](decisiones/_index.md) | La decision vigente debe estar aceptada y enlazada desde el vault. |
 | Comportamiento implementado | Git y migrations, referenciados desde las notas de `.context/` | El codigo y las migrations son autoridad tecnica, no fuentes documentales paralelas. |
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
-| Estado de tareas | [Nota canonica TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | La tarea es la unica autoridad de su avance y criterios. |
+| Estado de tareas | TASK canonica de cada Hito, enlazada desde [REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md) | Cada tarea es la unica autoridad de su avance y criterios; solo una puede estar activa. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
-| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md), [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0004 sustituye la identidad F9.4/F9.5; ADR-0005 fija el corte leads/email local; aliases historicos no autorizan trabajo nuevo. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), ADR-0004/0005, [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0006 acepta la estructura documental, pero la adenda no cambia alcance hasta aprobacion cliente; aliases historicos no autorizan trabajo nuevo. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | [Changelog no autoritativo](changelog/2026-07-24.md) | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |

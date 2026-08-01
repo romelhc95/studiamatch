@@ -9,5 +9,6 @@ Las ADR registran decisiones humanas durables. No sustituyen el contrato, el est
 | `ADR-0003` | Macrofases, subfases y aliases historicos | `ACCEPTED` | [ADR-0003](./ADR-0003_taxonomia_macrofases_subfases.md) |
 | `ADR-0004` | Simplificacion contractual de Hito 1 | `ACCEPTED` | [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) |
 | `ADR-0005` | Corte seguridad, funcionalidad y estabilidad de Hito 1 | `ACCEPTED` | [ADR-0005](./ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) |
+| `ADR-0006` | Incorporacion de adenda y mapa de cinco hitos | `ACCEPTED` | [ADR-0006](./ADR-0006_incorporacion_adenda_sprint_1.md) |
 
 Usar la [plantilla ADR](./_plantilla_adr.md) para decisiones nuevas y enlazarlas desde este indice.

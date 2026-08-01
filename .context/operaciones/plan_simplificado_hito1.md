@@ -1,5 +1,11 @@
 # Plan Simplificado De Hito 1
 
+> Nota de rebaseline propuesta: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+> plantea cerrar Hito 1 con CA1-only y trasladar CA2 a Hito 2. Mientras la
+> adenda no sea aprobada, este plan conserva su autoridad historica y no se
+> ejecuta la ruta productiva propuesta en
+> [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md).
+
 ## Estado Y Autoridad
 
 - ID documental: `PLAN-H1-SIMPLIFICADO-001`.

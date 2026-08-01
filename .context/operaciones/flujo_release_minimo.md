@@ -4,6 +4,22 @@
 
 El release es manual, secuencial y fail-closed. Un estado documental no sustituye una verificacion Git, DB, CI o runtime.
 
+## Candidate CA1-Only Propuesto
+
+La [adenda draft](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
+propone una ruta selectiva para Hito 1. Solo entra en vigor tras aprobacion
+cliente:
+
+1. PR CA1 a `desarrollo` sin mezclar el worktree terminal F9.7.
+2. Congelar patch-id, commit/tree y allowlist CA1.
+3. Reconstruir el patch sobre baseline productivo sin mergear `desarrollo`.
+4. Demostrar cero cambios `db/**`, `supabase/**`, `web/**` y CA2.
+5. PR CA1-only a `certificacion`, canary y QA.
+6. PR `certificacion -> main`, canary Production y habilitacion de schedules.
+
+El flujo actual F9/CA2 de las secciones siguientes permanece vigente hasta que
+la adenda sea aprobada y una nueva subfase active el plan CA1-only.
+
 ## Secuencia
 
 1. Crear una rama `feat/*` desde `desarrollo` verificado.

@@ -1,5 +1,11 @@
 # PLAN-F9.7-CIERRE-001 - Cierre Definitivo De F9.7
 
+> Disposicion propuesta: los artifacts locales/terminales de este plan se
+> preservan como WIP CA2 no promocionable si el cliente aprueba la adenda
+> CA1-only. Hasta entonces, el plan conserva su historia y F9.7 sigue
+> `IN_PROGRESS`; esta nota no autoriza incluirlos en el PR documental ni en el
+> candidate productivo CA1-only.
+
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-F9.7-CIERRE-001` |

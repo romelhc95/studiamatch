@@ -8,6 +8,7 @@
 | Hito | [HITO-001](../../hitos/hito_001.md) |
 | Fase vigente | Macrofase `F9` en progreso; [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) divide el corte local en seis work packages; PR #258 cerro localmente `CORR-WP-F9.7-04-02` y `WP-F9.7-04..06`; PR #259 reconcilio el replay; PR #260 documento post-merge; PR #261 fue mergeado por humano en `desarrollo@ee0e320d55b70dedd72c5a09429ed84a34bf7543` / tree `218bfcc7e99bdef3569fc730bba21228dee53540`; PR #262 fue mergeado por humano en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; PR #263 queda en `778267948fc3461987a41dc9184b151c9ff19243` / tree `4e6609926ea6f4a3342cac43e71307fd5cd24aba`; [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) queda `CERTIFIED_LOCAL_PR_O_SUCCESSOR` en `771b8b1366e302eae52e4263577e0f6967679d7b` / tree `99f315c6820966e94213665df43cd21f9f4ef730`, `application_authorized=false`, `capabilities=[]`, sin Pro/backfill/H-00/aplicacion parcial; frontend sin leads, Edge tombstone Git-only y Free/Pro `UNCHANGED_NOT_ATTESTED`; `GO_FOR_FREE` bloqueado; F9.7 permanece `IN_PROGRESS` hasta `GO_F9.7_COMPLETE` en Free |
 | Criterios | `H1-CA1`, `H1-CA2P`, `H1-CA7P` |
+| Adenda propuesta | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), pendiente de aprobacion cliente |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
@@ -18,6 +19,27 @@ El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una v
 ## Objetivo Contractual
 
 Preparar la orquestacion FG2/FG3, el schema editorial y de calidad, y la seguridad base sin saltar gates, exponer credenciales ni promover cambios no certificados.
+
+## Rebaseline Propuesta CA1-Only
+
+La decision humana de F9.7 preparo una adenda para cerrar Hito 1 con `H1-CA1`
+en produccion y trasladar CA2 completo a Hito 2. Mientras la adenda permanezca
+`DRAFT_PENDING_CLIENT_APPROVAL`, los tres criterios originales conservan su
+estado contractual y esta TASK continua `IN_PROGRESS`.
+
+Si el cliente aprueba la adenda:
+
+- `H1-CA1` permanece en esta TASK hasta `COMPLETED_PRODUCTION`;
+- `H1-CA2P` se preserva como antecedente y su alcance pendiente pasa a
+  [TASK-H2-001](./tarea_002_hito_2.md) como `H2-CA2`;
+- `H1-CA7P` se preserva como antecedente y su alcance pendiente pasa a
+  [TASK-H4-001](./tarea_004_hito_4.md) como `H4-CA7`;
+- los avances CA2 locales no se promueven con el candidate CA1-only;
+- produccion conserva su comportamiento actual para leads/email.
+
+El plan ejecutable futuro es
+[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). Esta
+documentacion no activa ese plan, no cambia Free/Pro y no cierra Hito 1.
 
 ## Arbol De Criterios
 
