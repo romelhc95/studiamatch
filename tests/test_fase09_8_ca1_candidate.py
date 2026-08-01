@@ -84,6 +84,7 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "needs.fase09-8-ca1.result" in workflow
     assert "Run focused F9.8 CA1 tests" in workflow
     assert "tests.test_fase09_8_ca1_candidate" in workflow
+    assert "! grep -q" not in workflow
     assert "git', 'diff', '--name-only'" in workflow
     assert "'.github/workflows/security-audit.yml'" in workflow
     assert "len(baseline) != 33" in workflow

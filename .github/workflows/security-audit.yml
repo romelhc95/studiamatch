@@ -1290,15 +1290,15 @@ jobs:
           grep -q "Production-Scheduled-FG1" .github/workflows/fg1_inventory.yml
           grep -q "Production-Scheduled-FG2" .github/workflows/production_pipeline.yml
           grep -q "Production-Scheduled-FG3" .github/workflows/fg3_integrity.yml
-          ! grep -q "scripts/maintenance/" .github/workflows/production_pipeline.yml
-          ! grep -q "requirements-db-migrate.txt" .github/workflows/production_pipeline.yml
-          ! grep -q "pages/projects" .github/workflows/production_pipeline.yml
+          if grep -q "scripts/maintenance/" .github/workflows/production_pipeline.yml; then exit 1; fi
+          if grep -q "requirements-db-migrate.txt" .github/workflows/production_pipeline.yml; then exit 1; fi
+          if grep -q "pages/projects" .github/workflows/production_pipeline.yml; then exit 1; fi
       - name: Validate CA1-only code gates
         run: |
           set -euo pipefail
           grep -q "config/institution_sources.json is required" scripts/core/discovery_institutions.py
-          ! grep -q "LEGACY_SOURCES" scripts/core/discovery_institutions.py
-          ! grep -q "status.*pending.*discovered" scripts/core/universal_harvester.py
+          if grep -q "LEGACY_SOURCES" scripts/core/discovery_institutions.py; then exit 1; fi
+          if grep -q "status.*pending.*discovered" scripts/core/universal_harvester.py; then exit 1; fi
           grep -q "is_safe_public_url" scripts/core/integrity_ping.py
           grep -q "parsed.scheme != 'https'" scripts/core/integrity_ping.py
           grep -q "allow_redirects=False" scripts/core/integrity_ping.py
