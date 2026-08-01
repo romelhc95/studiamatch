@@ -10,7 +10,8 @@
 | Autoridad habilitante | [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md) |
 
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
-ejecuta por si mismo: la implementacion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.8`.
+ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge y la siguiente
+ejecucion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.9`.
 
 ## Objetivo
 
