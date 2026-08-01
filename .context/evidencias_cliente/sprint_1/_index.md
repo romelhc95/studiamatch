@@ -3,8 +3,9 @@
 Este indice reserva y gobierna evidencia sanitizada. No mantiene estado vivo y
 no convierte una evidencia planeada en resultado. `EVID-H1-001` es la excepcion
 contractual de aprobacion de adenda y puede estar `VERIFIED` antes del candidate;
-`EVID-H1-002..016` solo se promueven a `VERIFIED` cuando exista candidate real,
-ambiente, observacion o conformidad segun corresponda.
+`EVID-H1-002..005` quedan `VERIFIED` por el candidate CA1-only F9.8 replay-validado
+post-merge; `EVID-H1-006..016` solo se promueven a `VERIFIED` cuando exista
+candidate real, ambiente, observacion o conformidad segun corresponda.
 
 ## Estados
 
@@ -18,7 +19,7 @@ ambiente, observacion o conformidad segun corresponda.
 
 | Hito | Documento | Estado |
 |---|---|---|
-| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_EVID-H1-001_VERIFIED` |
+| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F9_8_CLOSED_F9_9_NEXT` |
 | Hito 2 | Se crea con candidate real | `PLANNED` |
 | Hito 3 | Se crea con candidate real | `PLANNED` |
 | Hito 4 | Se crea con candidate real | `PLANNED` |

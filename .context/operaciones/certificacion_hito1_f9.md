@@ -1,8 +1,9 @@
 # Certificacion Hito 1 - Macrofase F9
 
 > Rebaseline vigente: la adenda CA1-only/CA2-a-Hito-2 esta
-> `APPROVED_EFFECTIVE`. F9 conserva `IN_PROGRESS` con F9.8 activa para candidate
-> local CA1-only. La ruta schema/backfill/free_certified queda
+> `APPROVED_EFFECTIVE`. F9 conserva `IN_PROGRESS` con F9.9 activa para candidate
+> selectivo en Certification. F9.8 quedo cerrada por replay post-merge del
+> candidate local CA1-only. La ruta schema/backfill/free_certified queda
 > `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2 de Hito 2. Ver
 > [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md).
 
@@ -17,13 +18,13 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
-- Estado de certificacion: F9.7 cerrada por rebaseline; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill, Certification ni Production.
-- Subfase activa: F9.8 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera local CA1-only.
-- Subfase autorizada: ninguna operacion remota. Este rebaseline no habilita F9.8, Supabase, schema/RLS, writers, Certification ni Production.
-- Ultima subfase cerrada: F9.6 `COMPLETED` como `H00_ALREADY_REMEDIATED_NO_DML`.
-- Siguiente accion: `Ejecuta las tareas pendientes de la Fase F9.8`, si el usuario decide implementar y validar localmente el candidate CA1-only.
+- Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge del candidate CA1-only; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill, Certification ni Production.
+- Subfase activa: F9.9 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera local CA1-only.
+- Subfase autorizada: ninguna operacion remota. Este cierre documental no habilita F9.9, Supabase, schema/RLS, writers, Certification ni Production.
+- Ultima subfase cerrada: F9.8 `COMPLETED_VERIFIED_POST_MERGE` con candidate local CA1-only replay-validado en Docker/Linux.
+- Siguiente accion: `Ejecuta las tareas pendientes de la Fase F9.9`, si el usuario decide ejecutar candidate selectivo, PR a `certificacion`, canary y QA.
 
-Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
+Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`. Candidate CA1-only replay-validado: `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`.
 
 ## Subfases
 
@@ -36,8 +37,8 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS` | PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`; no queda repeticion Free pendiente |
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
 | `F9.7` | Rebaseline documental de adenda y cierre CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | `EVID-H1-001` verificada de forma sanitizada; PR #268 mergeado en `desarrollo@f8b8987` / tree `3d044210`; no hubo aplicacion remota, DDL/DML, backfill, Certification ni Production |
-| `F9.8` | Implementacion y validacion local del candidate CA1-only | `IN_PROGRESS` | Requiere frase exacta `Ejecuta las tareas pendientes de la Fase F9.8`; diff futuro debe respetar la frontera CA1-only |
-| `F9.9` | Candidate selectivo, Certification, canary y QA | `PENDING` | Sin autorizacion ejecutable en este paquete |
+| `F9.8` | Implementacion y validacion local del candidate CA1-only | `COMPLETED_VERIFIED_POST_MERGE` | PR #270/#271; replay post-merge Docker/Linux sobre `5b28246`: 53 focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PG17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS; `EVID-H1-002..005` `VERIFIED` |
+| `F9.9` | Candidate selectivo, Certification, canary y QA | `IN_PROGRESS` | Requiere frase exacta `Ejecuta las tareas pendientes de la Fase F9.9`; sin autorizacion ejecutable en este paquete |
 | `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `PENDING` | `USER_PERSONAL_UAT` ocurre despues de canary, validaciones tecnicas Certification y QA, y antes de readiness para F10 |
 
 La [definicion remota F9.4 anterior](./preflight_free_f9_4.md), el [registro F9.5](./preflight_free_f9_5.md) y la ruta schema/backfill/free_certified son historia no autorizable para Hito 1. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
@@ -95,6 +96,29 @@ El [contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.
 Supabase Free/Pro permanecen `UNCHANGED_NOT_ATTESTED` en este rebaseline; `certificacion` es la rama/release para canary y QA de F9.9. En F9.10, despues de canary, validaciones tecnicas Certification y QA, debe cumplirse `USER_PERSONAL_UAT`: candidate commit/tree inmutable y `PASS` personal explicito del usuario antes de readiness F10. Este hold no agrega criterio contractual, subfase ni transicion nueva.
 
 El backfill editorial queda trasladado a `H2-CA2`; para Hito 1 CA1-only no se planifica, ejecuta ni certifica.
+
+## Cierre F9.8 - Candidate Local CA1-Only
+
+F9.8 termina `COMPLETED_VERIFIED_POST_MERGE`. El candidate CA1-only implementado
+por PR #270 y PR #271 fue fusionado en `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`
+(merge M, tree `d1fe60a403aa213e8a1beb51d49af12aba727cfd`) y replay-validado en
+Docker/Linux dentro de `studiamatch-dev` sobre un checkout limpio.
+
+- Diff `638c51c..M` = exactamente 2 paths de CI (`.github/workflows/f9-7-contract.yml`,
+  `tests/test_fase09_8_ca1_candidate.py`), cero paths CA2.
+- `EVID-H1-002` (diff CA1-only cero CA2), `EVID-H1-003` (validacion local PASS),
+  `EVID-H1-004` (secret scan sin blockers) y `EVID-H1-005` (PR #271 Approved/Merged)
+  quedan `VERIFIED`. `EVID-H1-006..016` permanecen `PLANNED` hasta F9.9/F9.10/F10.
+- Replay post-merge: 53 pruebas focused F9.8 PASS; focused FG1/FG2/FG3 y jobs CI
+  (fase06, fase07-g1b, fase08, fase09) PASS; F9.7 congelado candidate `258ef3a`
+  226 passed/5 skipped + attestation ACL 7 passed; runners `run_fase09_7_postgres.sh`
+  y `run_fase09_7_leads_email_security_hold_postgres.sh` PASS (exit 0); actionlint
+  1.7.7 + ShellCheck 0.9.0 0 issues; LF enforcement y credential scan PASS;
+  Context Graph `PASS (85 files, 730 links)`.
+- No hubo red remota, DDL/DML, backfill, Certification, canaries, schedules
+  observados ni Production. Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`.
+- F9.9 queda como subfase activa y requiere la frase exacta
+  `Ejecuta las tareas pendientes de la Fase F9.9`; este PR documental no la ejecuta.
 
 ## Identidades Historicas
 
