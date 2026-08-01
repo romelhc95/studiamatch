@@ -322,14 +322,17 @@ class SyncVectorWorker:
         existing = self.db.select_service_raise(
             'courses',
             filters=f"url=eq.{url_encoded}",
-            columns='id,is_active,publication_status,manual_updated_at',
+            columns='id,is_active,publication_status,manual_updated_at,last_404_at',
         )
         existing_course = existing[0] if existing else {}
         manually_disabled = (
             existing_course.get('publication_status') == 'despublicado'
             or (
                 existing_course.get('is_active') is False
-                and existing_course.get('manual_updated_at') is not None
+                and (
+                    existing_course.get('manual_updated_at') is not None
+                    or existing_course.get('last_404_at') is not None
+                )
             )
         )
         if manually_disabled:

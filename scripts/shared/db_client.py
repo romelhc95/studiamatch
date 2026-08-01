@@ -173,9 +173,28 @@ class DatabaseClient:
         print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {(res.text or '')[:200]}")
         return None
 
-    def _patch_api(self, table, filters, data, raise_on_error=False):
+    def _patch_api(self, table, filters, data, raise_on_error=False, return_representation=False):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = _request_with_retry(requests.patch, url, headers=self._get_headers(use_service_role=True), json=data)
+        headers = self._get_headers(True)
+        if return_representation:
+            headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.patch, url, headers=headers, json=data)
+        if return_representation:
+            if res.status_code not in (200, 201):
+                raise DatabaseAPIError(
+                    f"DB patch representation failed for {table}: HTTP {res.status_code}"
+                )
+            try:
+                payload = res.json()
+            except ValueError as exc:
+                raise DatabaseAPIError(
+                    f"DB patch representation invalid JSON for {table}"
+                ) from exc
+            if not isinstance(payload, list):
+                raise DatabaseAPIError(
+                    f"DB patch representation invalid payload for {table}"
+                )
+            return payload
         if res.status_code in [200, 204]:
             return {"status": "success"}
         if raise_on_error:
@@ -342,6 +361,26 @@ class DatabaseClient:
     def patch_raise(self, table, filters, data):
         """Update privileged data and raise when persistence is not proven."""
         return self._patch_api(table, filters, data, raise_on_error=True)
+
+    def patch_exact_one_raise(self, table, filters, data, expected_id):
+        """Patch and prove exactly one returned row matches the intended id."""
+        rows = self._patch_api(
+            table,
+            filters,
+            data,
+            raise_on_error=True,
+            return_representation=True,
+        )
+        if len(rows) != 1:
+            raise DatabaseAPIError(
+                f"DB patch expected exactly one row for {table}, got {len(rows)}"
+            )
+        returned_id = rows[0].get("id") if isinstance(rows[0], dict) else None
+        if returned_id != expected_id:
+            raise DatabaseAPIError(
+                f"DB patch returned unexpected id for {table}: {returned_id}"
+            )
+        return rows[0]
 
     def upsert(self, table, data, on_conflict=None):
         """Upsert records via Supabase REST API."""

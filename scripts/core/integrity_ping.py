@@ -5,7 +5,9 @@ import time
 import logging
 import ipaddress
 import socket
-from urllib.parse import urlparse
+import ssl
+from http.client import HTTPSConnection
+from urllib.parse import urljoin, urlparse
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -19,27 +21,89 @@ logger = setup_lima_logging("IntegrityPing")
 
 HTTP_GONE_STATUSES = {404, 410}
 HTTP_TRANSIENT_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+HTTPS_PORT = 443
+
+
+class FixedIPHTTPSConnection(HTTPSConnection):
+    def __init__(self, host, fixed_ip, timeout=10, context=None):
+        super().__init__(host, port=HTTPS_PORT, timeout=timeout, context=context)
+        self.fixed_ip = fixed_ip
+
+    def connect(self):
+        raw_sock = socket.create_connection((self.fixed_ip, self.port), self.timeout)
+        peer_ip = ipaddress.ip_address(raw_sock.getpeername()[0])
+        expected_ip = ipaddress.ip_address(self.fixed_ip)
+        if peer_ip != expected_ip:
+            raw_sock.close()
+            raise RuntimeError("connected peer does not match pinned DNS result")
+        self.sock = self._context.wrap_socket(raw_sock, server_hostname=self.host)
+
+
+class PinnedHTTPResponse:
+    def __init__(self, status_code, headers, url, body=b''):
+        self.status_code = status_code
+        self.headers = {str(k).lower(): v for k, v in headers.items()}
+        self.url = url
+        self.content = body
+
+    @property
+    def is_redirect(self):
+        return 300 <= self.status_code < 400 and bool(self.headers.get('location'))
+
+    @property
+    def is_permanent_redirect(self):
+        return self.status_code in (301, 308) and bool(self.headers.get('location'))
+
+
+def is_safe_public_ip(value):
+    try:
+        ip = ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    if getattr(ip, 'ipv4_mapped', None):
+        ip = ip.ipv4_mapped
+    return ip.is_global and not (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def resolve_public_host(host):
+    addresses = []
+    for info in socket.getaddrinfo(host, HTTPS_PORT, type=socket.SOCK_STREAM):
+        resolved = info[4][0]
+        if not is_safe_public_ip(resolved):
+            raise RuntimeError(f"unsafe resolved IP for {host}")
+        if resolved not in addresses:
+            addresses.append(resolved)
+    if not addresses:
+        raise RuntimeError(f"no DNS results for {host}")
+    return addresses
 
 
 def is_safe_public_url(url):
     parsed = urlparse(str(url or '').strip())
     if parsed.scheme != 'https' or not parsed.netloc:
         return False
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
+    if port not in (None, HTTPS_PORT):
+        return False
     host = parsed.hostname or ''
     if host in ('localhost',) or host.endswith('.localhost'):
         return False
     try:
-        ip = ipaddress.ip_address(host)
-        return not (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        )
+        ipaddress.ip_address(host)
     except ValueError:
         pass
+    else:
+        return is_safe_public_ip(host)
     if host.startswith(('127.', '10.', '192.168.', '169.254.')):
         return False
     if host.startswith('172.'):
@@ -50,20 +114,43 @@ def is_safe_public_url(url):
         except (IndexError, ValueError):
             pass
     try:
-        for info in socket.getaddrinfo(host, None):
-            resolved = ipaddress.ip_address(info[4][0])
-            if (
-                resolved.is_private
-                or resolved.is_loopback
-                or resolved.is_link_local
-                or resolved.is_multicast
-                or resolved.is_reserved
-                or resolved.is_unspecified
-            ):
-                return False
-    except (OSError, ValueError):
+        resolve_public_host(host)
+    except (OSError, RuntimeError, ValueError):
         return False
     return True
+
+
+def request_pinned_public_url(url, method='HEAD', timeout=10):
+    parsed = urlparse(str(url or '').strip())
+    if parsed.scheme != 'https' or not parsed.hostname:
+        raise RuntimeError(f"unsafe URL target: {url}")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise RuntimeError(f"unsupported HTTPS port: {url}") from exc
+    if port not in (None, HTTPS_PORT):
+        raise RuntimeError(f"unsupported HTTPS port: {url}")
+    addresses = resolve_public_host(parsed.hostname)
+    fixed_ip = addresses[0]
+    context = ssl.create_default_context()
+    connection = FixedIPHTTPSConnection(
+        parsed.hostname,
+        fixed_ip=fixed_ip,
+        timeout=timeout,
+        context=context,
+    )
+    path = parsed.path or '/'
+    if parsed.query:
+        path = f"{path}?{parsed.query}"
+    headers = {'Host': parsed.netloc, 'User-Agent': 'StudIAMatch-IntegrityPing/1.0'}
+    try:
+        connection.request(method, path, headers=headers)
+        response = connection.getresponse()
+        response_headers = {k.lower(): v for k, v in response.getheaders()}
+        body = b'' if method == 'HEAD' else response.read(1024)
+        return PinnedHTTPResponse(response.status, response_headers, url, body)
+    finally:
+        connection.close()
 
 
 def fetch_public_url(url, method='HEAD', max_redirects=5):
@@ -71,18 +158,11 @@ def fetch_public_url(url, method='HEAD', max_redirects=5):
     for _ in range(max_redirects + 1):
         if not is_safe_public_url(current_url):
             raise RuntimeError(f"unsafe URL target: {current_url}")
-        request = requests.head if method == 'HEAD' else requests.get
-        response = request(
-            current_url,
-            timeout=10,
-            allow_redirects=False,
-            stream=(method != 'HEAD'),
-        )
+        response = request_pinned_public_url(current_url, method=method, timeout=10)
         if response.is_redirect or response.is_permanent_redirect:
-            location = response.headers.get('Location')
+            location = response.headers.get('location')
             if not location:
                 return response
-            from urllib.parse import urljoin
             current_url = urljoin(current_url, location)
             continue
         return response
@@ -90,11 +170,13 @@ def fetch_public_url(url, method='HEAD', max_redirects=5):
 
 
 def patch_course_exact_one(db, course_id, data):
-    existing = db.select_service_raise('courses', filters=f"id=eq.{course_id}", columns='id')
-    if len(existing) != 1:
-        raise RuntimeError(f"course patch target must match exactly one row: {course_id}")
-    result = db.patch_raise('courses', filters=f"id=eq.{course_id}", data=data)
-    if not result or result.get('status') != 'success':
+    result = db.patch_exact_one_raise(
+        'courses',
+        filters=f"id=eq.{course_id}",
+        data=data,
+        expected_id=course_id,
+    )
+    if not result:
         raise RuntimeError(f"course patch failed: {course_id}")
 
 def run_integrity_ping():
@@ -171,7 +253,7 @@ def run_integrity_ping():
 
         try:
             response = fetch_public_url(course_url, method='HEAD')
-            if response.status_code == 405:
+            if response.status_code in (405, 501):
                 response = fetch_public_url(course_url, method='GET')
             final_url = getattr(response, 'url', course_url)
             if not is_safe_public_url(final_url):
@@ -195,7 +277,7 @@ def run_integrity_ping():
             elif response.status_code in HTTP_TRANSIENT_STATUSES:
                 failed += 1
                 logger.warning(f"[Transient HTTP {response.status_code}] {course['name']}")
-            elif 200 <= response.status_code < 400:
+            elif 200 <= response.status_code < 300:
                 if course.get('last_404_at'):
                     patch_course_exact_one(db, course_id, {"last_404_at": None})
                     recovered += 1

@@ -32,6 +32,8 @@ def test_sync_paginates_all_pending_records_and_keeps_mock_inactive() -> None:
     assert "select_all_pipeline('enriched_programs'" in code
     assert "get_pending_enriched(limit=None)" in code
     assert "not enriched.get('is_mock_data', True)" in code
+    assert "manual_updated_at,last_404_at" in code
+    assert "existing_course.get('last_404_at') is not None" in code
     assert "sys.exit(1 if failed or partial else 0)" in code
     assert "res.status_code not in (200, 206)" in db_client
     assert "SelectAllPipeline failed" in db_client
@@ -43,10 +45,17 @@ def test_fg3_integrity_ping_is_safe_and_fail_closed() -> None:
     assert "ipaddress.ip_address" in code
     assert "socket.getaddrinfo" in code
     assert "parsed.scheme != 'https'" in code
-    assert "allow_redirects=False" in code
+    assert "request_pinned_public_url" in code
     assert "HTTP_GONE_STATUSES = {404, 410}" in code
     assert "HTTP_TRANSIENT_STATUSES" in code
     assert "def patch_course_exact_one" in code
+    assert "request_pinned_public_url" in code
+    assert "FixedIPHTTPSConnection" in code
+    assert "server_hostname=self.host" in code
+    assert "getpeername" in code
+    assert "response.status_code in (405, 501)" in code
+    assert "200 <= response.status_code < 300" in code
+    assert "patch_exact_one_raise" in code
     assert "sys.exit(run_integrity_ping())" in code
     assert "failed or partial" in code
 
@@ -83,11 +92,39 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "F9.8 CA1 Pipeline Candidate Contract" in workflow
     assert "needs.fase09-8-ca1.result" in workflow
     assert "Run focused F9.8 CA1 tests" in workflow
-    assert "tests.test_fase09_8_ca1_candidate" in workflow
+    assert "tests/test_fase09_8_ca1_candidate.py tests/test_fase09_8_runtime_security.py" in workflow
     assert "! grep -q" not in workflow
-    assert "git', 'diff', '--name-only'" in workflow
-    assert "'.github/workflows/security-audit.yml'" in workflow
-    assert "len(baseline) != 33" in workflow
+    assert "git grep -a -q -E \"$F97_CREDENTIAL_PATTERN\" \"$F97_CANDIDATE_TREE\" -- ." in workflow
+    assert "git rev-list \"$F97_BASELINE_COMMIT..$F97_CANDIDATE_COMMIT\"" in workflow
+    assert "'.github/workflows/security-audit.yml'" not in workflow.split("f98_ca1_allowed =", 1)[1].split("}", 1)[0]
+    assert "len(baseline) != 32" in workflow
     assert "F9.8 CA1 protected-path drift is within the explicit allowlist" in workflow
-    assert "F97: ${{ needs.fase09-7-remediation.result }}" not in workflow
+    assert "F97: ${{ needs.fase09-7-remediation.result }}" in workflow
+    assert "fase09-7-remediation" in workflow.split("needs:", 1)[1]
+    assert "tests/test_fase09_8_runtime_security.py" in workflow
     assert "fase10-promotion-contract" in workflow
+
+
+def test_f9_7_bridge_preserves_frozen_candidate_and_transition_boundary() -> None:
+    workflow = source(".github/workflows/f9-7-contract.yml")
+    assert "F97_FROZEN_COMMIT: 258ef3a98c7c1010efe58522bb1eca892e26390e" in workflow
+    assert "F97_FROZEN_TREE: 2cb182ab9ece141bd8e84d7bbf9c91d771f603de" in workflow
+    assert "Validate F9.8 transition boundary" in workflow
+    assert "F98_BASE_COMMIT" in workflow
+    assert "github.event.pull_request.base.sha" in workflow
+    assert "d9c7f180495c985a1e9a0ada4a42525fda60a870" in workflow
+    assert "F98_TRANSITION_PASS" in workflow
+    assert "HISTORICAL_F97_PASS" in workflow
+    assert "git checkout --detach \"$F97_CANDIDATE_COMMIT\"" in workflow
+    allowed = workflow.split("allowed = {", 1)[1].split("}", 1)[0]
+    assert allowed.count(".github/workflows/fg1_inventory.yml") == 1
+    assert allowed.count(".github/workflows/fg3_integrity.yml") == 1
+    assert allowed.count(".github/workflows/production_pipeline.yml") == 1
+    assert allowed.count("scripts/core/discovery_institutions.py") == 1
+    assert allowed.count("scripts/core/integrity_ping.py") == 1
+    assert allowed.count("scripts/core/sync_vector_worker.py") == 1
+    assert allowed.count("scripts/core/universal_harvester.py") == 1
+    assert allowed.count("scripts/shared/db_client.py") == 1
+    assert "status != 'M'" in workflow
+    assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in workflow
+    assert "paths_to_check" in workflow
