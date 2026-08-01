@@ -228,11 +228,11 @@ class SyncVectorWorker:
                 logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
 
         location = enriched.get('location', 'Nacional')
-        
+
         # Add location if specific
         if location and location not in ["Nacional", "Nacional/No especificado"]:
             base_slug = f"{base_slug}-{slugify(location)}"
-        
+
         # Add a short unique identifier from the original ID to guarantee uniqueness
         # while keeping the URL readable
         short_id = str(e_id).split('-')[0]
@@ -251,7 +251,7 @@ class SyncVectorWorker:
         # Fase 73: Parse start_date and determine expiration
         start_date_text = enriched.get('start_date')
         parsed_date, is_expired = parse_start_date(start_date_text)
-        
+
         # Determine is_active: False if expired (90d grace already in parse_start_date)
         course_is_active = not is_expired
         if is_expired:
