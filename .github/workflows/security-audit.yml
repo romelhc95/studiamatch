@@ -1333,13 +1333,13 @@ jobs:
           grep -q "request_pinned_public_url" scripts/core/integrity_ping.py
           grep -q "FixedIPHTTPSConnection" scripts/core/integrity_ping.py
           grep -q "patch_course_exact_one" scripts/core/integrity_ping.py
-          grep -q "get_pending_enriched(limit=None)" scripts/core/sync_vector_worker.py
+          grep -q "get_pending_enriched(limit=args.limit, institution_id=args.institution_id)" scripts/core/sync_vector_worker.py
           grep -q "failed or partial" scripts/core/integrity_ping.py
           grep -q "failed or partial" scripts/core/sync_vector_worker.py
       - name: Run focused F9.8 CA1 tests
         run: |
           set -euo pipefail
-          python3 -m pytest -q tests/test_fase09_8_ca1_candidate.py tests/test_fase09_8_runtime_security.py
+          python3 -m pytest -q tests/test_fase09_8_ca1_candidate.py tests/test_fase09_8_runtime_security.py tests/test_fase09_9_certification_canary.py
 
   fase09-9-ca1-reactivation:
     name: F9.9 CA1 Reactivation Functional Gate

@@ -5,6 +5,7 @@ import re
 import sys
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple, Generator
+from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 import html
@@ -340,7 +341,12 @@ class CleansingWorker:
             if re.search(pattern, clean_url, re.IGNORECASE): return re.sub(pattern, '', clean_url, flags=re.IGNORECASE).rstrip('/') + '/'
         return clean_url
 
-    def stream_pending_staging(self, batch_size: int = 100, max_iterations: int = 10000) -> Generator[Dict[str, Any], None, None]:
+    def stream_pending_staging(
+        self,
+        batch_size: int = 100,
+        max_iterations: int = 10000,
+        institution_id: Optional[str] = None,
+    ) -> Generator[Dict[str, Any], None, None]:
         """Streams pending staging records using lock RPC if available, falls back to simple select."""
         seen_ids: set = set()
         iterations = 0
@@ -354,7 +360,7 @@ class CleansingWorker:
             try:
                 # Try atomic lock via RPC first (PG17-safe, UPDATE+RETURNING atomico)
                 if not rpc_fallback:
-                    locked = self.db.rpc('lock_staging_records', {"inst_id": None, "batch_size": batch_size})
+                    locked = self.db.rpc('lock_staging_records', {"inst_id": institution_id, "batch_size": batch_size})
                     if locked and len(locked) > 0:
                         rpc_failures = 0
                         current_ids = {r['id'] for r in locked if isinstance(r, dict)}
@@ -373,7 +379,10 @@ class CleansingWorker:
                         logger.warning(f"RPC lock_staging_records failed {rpc_failures} consecutive times. Switching to fallback-only mode.")
                         rpc_fallback = True
                 # Fallback: simple select (no lock)
-                batch = self.db.select_pipeline_raise('staging_raw', filters="status=eq.pending", limit=batch_size)
+                filters = "status=eq.pending"
+                if institution_id:
+                    filters = f"{filters}&institution_id=eq.{quote(str(institution_id), safe='')}"
+                batch = self.db.select_pipeline_raise('staging_raw', filters=filters, limit=batch_size)
                 if not batch: break
                 for record in batch: yield record
             except Exception as e:
@@ -538,14 +547,26 @@ class CleansingWorker:
         return processed_count
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run cleansing worker")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum staging records to consume")
+    args = parser.parse_args()
+
     worker = CleansingWorker()
     guard = TimeGuard(max_seconds=3500, logger=logger)
     logger.info("--- Starting Station 1.5: High Fidelity Smart Sync ---")
     total_processed, batch_accumulator = 0, []
-    for record in worker.stream_pending_staging(batch_size=200):
+    total_seen = 0
+    batch_size = min(200, args.limit) if args.limit is not None else 200
+    for record in worker.stream_pending_staging(batch_size=batch_size, institution_id=args.institution_id):
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break
+        if args.limit is not None and total_seen >= args.limit:
+            logger.info(f"Cleansing canary limit reached: {args.limit} staging records")
+            break
+        total_seen += 1
         # Fase 100: saltar registros de instituciones sin pipeline habilitado
         inst_id = record.get('institution_id')
         if inst_id and str(inst_id) not in worker.ready_inst_ids:

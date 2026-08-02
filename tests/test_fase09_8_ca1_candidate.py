@@ -110,9 +110,11 @@ def test_sync_paginates_all_pending_records_and_keeps_mock_inactive() -> None:
     code = source("scripts/core/sync_vector_worker.py")
     db_client = source("scripts/shared/db_client.py")
     assert "select_all_pipeline('enriched_programs'" in code
-    assert "get_pending_enriched(limit=None)" in code
-    assert "not enriched.get('is_mock_data', True)" in code
-    assert "manual_updated_at,last_404_at" in code
+    assert "get_pending_enriched(limit=args.limit, institution_id=args.institution_id)" in code
+    assert "is_real_enrichment = enriched.get('is_mock_data') is False" in code
+    assert "not is_real_enrichment" in code
+    assert "publication_status" not in code
+    assert "manual_updated_at" not in code
     assert "existing_course.get('last_404_at') is not None" in code
     assert "sys.exit(1 if failed or partial else 0)" in code
     assert "res.status_code not in (200, 206)" in db_client
@@ -136,7 +138,7 @@ def test_fg3_integrity_ping_is_safe_and_fail_closed() -> None:
     assert "response.status_code in (405, 501)" in code
     assert "200 <= response.status_code < 300" in code
     assert "patch_exact_one_raise" in code
-    assert "sys.exit(run_integrity_ping())" in code
+    assert "sys.exit(run_integrity_ping(institution_id=args.institution_id, limit=args.limit))" in code
     assert "failed or partial" in code
 
 

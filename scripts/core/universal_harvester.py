@@ -68,7 +68,7 @@ class HarvesterPartialError(HarvesterRunError):
 
 
 class UniversalHarvester:
-    def __init__(self, institution, global_start=None):
+    def __init__(self, institution, global_start=None, max_discovered_urls=None):
         import time
         self.institution = institution
         self.db = get_db_client()
@@ -76,6 +76,9 @@ class UniversalHarvester:
         self.course_urls = set()
         self._resumable_urls = []
         self._discovered_rows_by_url = {}
+        self._discovery_fetch_attempts = 0
+        self._discovery_fetch_successes = 0
+        self.max_discovered_urls = max_discovered_urls
         self.impersonate = "chrome110"
         self.error_count = 0
         self.BLOCK_THRESHOLD = 5
@@ -120,6 +123,16 @@ class UniversalHarvester:
         # ⏱️ TIME GUARD CONFIG
         self.global_start = global_start or time.time()
         self.MAX_RUN_TIME = 20400
+
+    def _can_discover_more(self):
+        return self.max_discovered_urls is None or len(self.course_urls) < self.max_discovered_urls
+
+    def _limit_urls(self, urls):
+        urls = list(urls)
+        if self.max_discovered_urls is None or len(urls) <= self.max_discovered_urls:
+            return urls
+        logger.info(f"Canary URL limit applied: {self.max_discovered_urls}/{len(urls)} URLs")
+        return urls[:self.max_discovered_urls]
 
     @staticmethod
     def _normalize_jsonb_list(value):
@@ -351,8 +364,10 @@ class UniversalHarvester:
         if self.check_time_guard(): return []
         logger.info(f"Checking Sitemap: {sitemap_url}")
         links = []
+        self._discovery_fetch_attempts += 1
         resp = await self._safe_request(session, sitemap_url)
         if not resp or resp.status_code != 200: return links
+        self._discovery_fetch_successes += 1
         try:
             root = ET.fromstring(resp.content)
             for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
@@ -371,7 +386,7 @@ class UniversalHarvester:
         queue = [(start_url, 0)]
         self.visited_urls.add(start_url)
         async with AsyncSession() as session:
-            while queue and len(self.course_urls) < 500:
+            while queue and len(self.course_urls) < 500 and self._can_discover_more():
                 if self.circuit_open or self.check_time_guard(): break
                 current_batch = [queue.pop(0) for _ in range(min(len(queue), 3))]
                 tasks = []
@@ -382,6 +397,8 @@ class UniversalHarvester:
                 for links, next_depth in results:
                     if self.check_time_guard(): break
                     for link in links:
+                        if not self._can_discover_more():
+                            break
                         if self._is_valid_crawl_url(link):
                             normalized = normalize_url(link)
                             if normalized not in self.course_urls and normalized not in existing_urls:
@@ -440,8 +457,10 @@ class UniversalHarvester:
         links = []
         if self.circuit_open or self.check_time_guard(): return list(set(links)), depth + 1
         try:
+            self._discovery_fetch_attempts += 1
             response = await self._safe_request(session, url)
             if response and response.status_code == 200:
+                self._discovery_fetch_successes += 1
                 html = response.text
                 parser = 'xml' if html.strip().startswith('<?xml') or '<urlset' in html else 'html.parser'
                 soup = BeautifulSoup(html, parser)
@@ -550,7 +569,7 @@ class UniversalHarvester:
         self._discovered_rows_by_url = {}
         statuses = "discovered,pending,processing,processed,discarded,skipped,error"
         try:
-            data = self.db.select_pipeline_raise(
+            data = self.db.select_all_pipeline(
                 "staging_raw",
                 filters=(
                     f"institution_id=eq.{quote(str(inst_id), safe='')}"
@@ -618,6 +637,8 @@ class UniversalHarvester:
         for url in clean_seeds:
             if self.check_time_guard():
                 break
+            if not self._can_discover_more():
+                break
             normalized = normalize_url(url)
             if normalized not in existing_urls and self._is_valid_crawl_url(normalized):
                 row = self._save_discovered_url(normalized)
@@ -625,7 +646,7 @@ class UniversalHarvester:
                     new_urls.append(normalized)
                     self.course_urls.add(normalized)
         logger.info(f"Total Discovery (hardcoded): {len(new_urls)} NEW from {len(clean_seeds)} seeds.")
-        return new_urls
+        return self._limit_urls(new_urls)
 
     async def discover_paginated_catalog(self, browser=None):
         """Discovery mode: iterate catalog_url_patterns with pagination (replaces PUCP harvester)."""
@@ -640,12 +661,19 @@ class UniversalHarvester:
                 for page_num in range(1, self.catalog_max_pages + 1):
                     if self.check_time_guard():
                         break
+                    if not self._can_discover_more():
+                        break
                     url = pattern.replace('{page}', str(page_num))
                     links = []
                     if browser and self.site_type in ('spa_js_heavy', 'ecommerce'):
                         page = await browser.new_page(user_agent=get_random_user_agent())
                         try:
-                            await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                            self._discovery_fetch_attempts += 1
+                            page_response = await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                            if not page_response or page_response.status != 200:
+                                status = getattr(page_response, "status", None)
+                                raise HarvesterPartialError(f"catalog page returned HTTP {status} for {url}")
+                            self._discovery_fetch_successes += 1
                             await asyncio.sleep(2)
                             if self.catalog_link_selector:
                                 els = await page.query_selector_all(self.catalog_link_selector)
@@ -658,9 +686,11 @@ class UniversalHarvester:
                         finally:
                             await page.close()
                     else:
+                        self._discovery_fetch_attempts += 1
                         resp = await self._safe_request(session, url)
                         if not resp or resp.status_code != 200:
                             continue
+                        self._discovery_fetch_successes += 1
                         soup = BeautifulSoup(resp.text, 'html.parser')
                         if self.catalog_link_selector:
                             for a in soup.select(self.catalog_link_selector):
@@ -668,6 +698,8 @@ class UniversalHarvester:
                                 if href:
                                     links.append(urljoin(url, href))
                     for link in links:
+                        if not self._can_discover_more():
+                            break
                         full_url = normalize_url(link)
                         if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
                             row = self._save_discovered_url(full_url)
@@ -676,7 +708,7 @@ class UniversalHarvester:
                                 self.course_urls.add(full_url)
                     logger.debug(f"  Page {page_num}: {len(links)} links found")
         logger.info(f"Total Paginated Catalog: {len(new_urls)} NEW URLs")
-        return new_urls
+        return self._limit_urls(new_urls)
 
     async def discover_catalog_links(self, browser):
         """Discovery mode: Playwright scroll + link extraction (replaces SmartData/New Horizons).
@@ -700,8 +732,15 @@ class UniversalHarvester:
             for catalog_url in catalog_urls:
                 if self.check_time_guard():
                     break
+                if not self._can_discover_more():
+                    break
                 logger.info(f"  Navigating to catalog page: {catalog_url}")
-                await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
+                self._discovery_fetch_attempts += 1
+                page_response = await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
+                if not page_response or page_response.status != 200:
+                    status = getattr(page_response, "status", None)
+                    raise HarvesterPartialError(f"catalog page returned HTTP {status} for {catalog_url}")
+                self._discovery_fetch_successes += 1
                 await self._dismiss_popups(page)
                 for iteration in range(1, self.catalog_scroll_iterations + 1):
                     if self.check_time_guard():
@@ -712,6 +751,8 @@ class UniversalHarvester:
                     if self.catalog_link_selector:
                         els = await page.query_selector_all(self.catalog_link_selector)
                         for el in els:
+                            if not self._can_discover_more():
+                                break
                             href = await el.get_attribute('href')
                             if href:
                                 full_url = normalize_url(urljoin(catalog_url, href))
@@ -731,7 +772,7 @@ class UniversalHarvester:
         finally:
             await page.close()
         logger.info(f"Total Catalog Links: {len(new_urls)} NEW URLs")
-        return new_urls
+        return self._limit_urls(new_urls)
 
     # ─────────────────────────────────────────────────────────
     # Fase 62A: Discovery routing
@@ -746,15 +787,15 @@ class UniversalHarvester:
         if discovery_mode == 'hardcoded_urls':
             hardcoded_result = await self.discover_hardcoded_urls()
             if hardcoded_result is not None:
-                return self._merge_resumable_urls(hardcoded_result)
+                return self._limit_urls(self._merge_resumable_urls(hardcoded_result))
         elif discovery_mode == 'paginated_catalog':
             cat_result = await self.discover_paginated_catalog(browser)
             if cat_result is not None:
-                return self._merge_resumable_urls(cat_result)
+                return self._limit_urls(self._merge_resumable_urls(cat_result))
         elif discovery_mode == 'catalog_link_extraction':
             cat_result = await self.discover_catalog_links(browser)
             if cat_result is not None:
-                return self._merge_resumable_urls(cat_result)
+                return self._limit_urls(self._merge_resumable_urls(cat_result))
 
         # sitemap_bfs (default)
         logger.info(f"Starting sitemap/BFS discovery for {self.institution.get('name')}")
@@ -763,6 +804,7 @@ class UniversalHarvester:
             sitemap_links = await self._fetch_sitemap(session, sitemap_url)
         for link in sitemap_links:
             if self.check_time_guard(): break
+            if not self._can_discover_more(): break
             if self._is_valid_crawl_url(link):
                 normalized = normalize_url(link)
                 if normalized not in self.course_urls and normalized not in existing_urls:
@@ -773,7 +815,7 @@ class UniversalHarvester:
             logger.info(f"🚀 [FAST PATH] Found {len(self.course_urls)} courses via Sitemap. Skipping slow BFS crawl.")
         elif not self.circuit_open:
             await self._bfs_crawl(start_url, existing_urls)
-        final_urls = self._merge_resumable_urls([url for url in list(self.course_urls) if url not in existing_urls])
+        final_urls = self._limit_urls(self._merge_resumable_urls([url for url in list(self.course_urls) if url not in existing_urls]))
         logger.info(f"Total Discovery: {len(final_urls)} NEW potential courses.")
         return final_urls
 
@@ -783,7 +825,8 @@ class UniversalHarvester:
 
     async def scrape_course_detail(self, session, page, url):
         """Playwright-based extraction for spa_js_heavy and ecommerce sites."""
-        if self.circuit_open: return None
+        if self.circuit_open:
+            raise HarvesterPartialError(f"circuit is open before scraping {url}")
         logger.info(f"Scraping {url}")
         try:
             response = await self._safe_request(session, url)
@@ -895,7 +938,8 @@ class UniversalHarvester:
 
     async def _scrape_http(self, session, url):
         """Fase 62A: HTTP-only extraction for traditional_ssr sites (faster, no Playwright overhead)."""
-        if self.circuit_open: return None
+        if self.circuit_open:
+            raise HarvesterPartialError(f"circuit is open before scraping {url}")
         logger.info(f"Scraping (HTTP) {url}")
         try:
             response = await self._safe_request(session, url)
@@ -1176,6 +1220,7 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("institution", help="JSON string of the institution")
     parser.add_argument("--global-start", type=float, help="Timestamp when the master orchestrator started")
+    parser.add_argument("--max-urls", type=int, default=None, help="Maximum discovered URLs to harvest in this run")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -1183,7 +1228,7 @@ async def main():
     MAX_RUN_TIME = 20400
 
     inst = json.loads(args.institution)
-    harvester = UniversalHarvester(inst, global_start=global_start)
+    harvester = UniversalHarvester(inst, global_start=global_start, max_discovered_urls=args.max_urls)
     browser = None
     pw = None
 
@@ -1223,6 +1268,15 @@ async def main():
             urls = await harvester.discover_courses(browser)
         else:
             urls = await harvester.discover_courses()
+
+        if (
+            pipeline_enabled
+            and not urls
+            and harvester._discovery_fetch_attempts > 0
+            and harvester._discovery_fetch_successes == 0
+        ):
+            logger.error(f"FG2 discovery failed closed for {inst['name']}: all discovery fetches failed.")
+            return 1
 
         if not pipeline_enabled:
             logger.info(f"🔍 DISCOVERY-ONLY complete for {inst['name']}: {len(urls)} URLs discovered; detail scraping skipped.")
