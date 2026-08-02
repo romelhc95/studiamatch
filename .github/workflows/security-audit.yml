@@ -1434,7 +1434,7 @@ jobs:
             echo "Runtime and harness changed together after bootstrap" >&2
             exit 1
           fi
-          if [ "$F99_RUNTIME_CHANGED" = "true" ]; then
+          if [ "$F99_BASE_HAS_HARNESS" = "true" ]; then
             F99_EXPECTED_DECISION="GO_TO_PREPARE_CERTIFICATION_PR"
           else
             F99_EXPECTED_DECISION="NO_GO_KNOWN_T_H1_CA1_002B"
