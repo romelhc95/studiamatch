@@ -148,11 +148,21 @@ class SyncVectorWorker:
             return "\n".join(lines) if lines else None
         return str(curriculum_summary).strip() or None
 
-    def get_pending_enriched(self, limit=500):
-        filters = "status=eq.pending"
+    def get_pending_enriched(self, limit=500, institution_id=None):
+        if not self.ready_inst_ids:
+            logger.info("No pipeline-enabled institutions available for sync.")
+            return []
+        if institution_id:
+            if str(institution_id) not in self.ready_inst_ids:
+                logger.warning(f"Institution {institution_id} is not pipeline-enabled for sync.")
+                return []
+            filters = f"status=eq.pending&institution_id=eq.{quote(str(institution_id), safe='')}"
+        else:
+            ready_ids = ",".join(quote(str(inst_id), safe='') for inst_id in sorted(self.ready_inst_ids))
+            filters = f"status=eq.pending&institution_id=in.({ready_ids})"
         if limit is None:
-            return self.db.select_all_pipeline('enriched_programs', filters=filters)
-        return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit)
+            return self.db.select_all_pipeline('enriched_programs', filters=filters, order="id.asc")
+        return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit, order="id.asc")
 
     def sync_to_production(self, enriched):
         e_id = enriched['id']
@@ -163,12 +173,6 @@ class SyncVectorWorker:
         inst_id = enriched.get('institution_id')
         if inst_id and str(inst_id) not in self.ready_inst_ids:
             logger.warning(f"⏭️ SKIP enriched {e_id}: institution {inst_id} pipeline_gate=false")
-            self.update_enriched_status(
-                e_id,
-                "skipped",
-                error_msg="pipeline_gate=false",
-                existing_metadata=enriched.get('metadata'),
-            )
             return False
 
         # Fase 75: Post-sync noise validation (per-institution, no global)
@@ -260,10 +264,11 @@ class SyncVectorWorker:
         # Fase 63: Load profile defaults for this institution
         profile = self._get_profile(enriched.get('institution_id'))
         production_enabled = self._gate_enabled(profile, 'production_enabled') if profile else False
-        course_is_active = course_is_active and production_enabled and not enriched.get('is_mock_data', True)
+        is_real_enrichment = enriched.get('is_mock_data') is False
+        course_is_active = course_is_active and production_enabled and is_real_enrichment
         if not production_enabled:
             logger.info(f"🚧 [NOT PUBLIC] {name} — production_enabled=false, syncing inactive")
-        elif enriched.get('is_mock_data', True):
+        elif not is_real_enrichment:
             logger.info(f"🚧 [NOT PUBLIC] {name} — mock enrichment, syncing inactive")
         defaults = profile.get('field_defaults', {}) if profile else {}
         section_mode_map = profile.get('section_mode_map', {}) if profile else {}
@@ -311,7 +316,7 @@ class SyncVectorWorker:
             "is_verified": True,
             "last_scraped_at": datetime.now(timezone.utc).isoformat(),
             "provider_used": enriched.get('provider_used', 'mock'),
-            "is_mock_data": enriched.get('is_mock_data', True)
+            "is_mock_data": not is_real_enrichment,
         }
 
         # Generate Embedding (Placeholder for OpenAI call)
@@ -322,18 +327,26 @@ class SyncVectorWorker:
         existing = self.db.select_service_raise(
             'courses',
             filters=f"url=eq.{url_encoded}",
-            columns='id,is_active,publication_status,manual_updated_at,last_404_at',
+            columns='id,institution_id,is_active,last_404_at',
         )
         existing_course = existing[0] if existing else {}
-        manually_disabled = (
-            existing_course.get('publication_status') == 'despublicado'
-            or (
-                existing_course.get('is_active') is False
-                and (
-                    existing_course.get('manual_updated_at') is not None
-                    or existing_course.get('last_404_at') is not None
-                )
+        existing_inst_id = existing_course.get('institution_id')
+        if (
+            existing_course
+            and existing_inst_id
+            and str(existing_inst_id) != str(enriched['institution_id'])
+        ):
+            logger.error(f"Cross-institution URL collision for {url}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="cross_institution_url_collision",
+                existing_metadata=enriched.get('metadata'),
             )
+            return False
+        manually_disabled = (
+            existing_course.get('is_active') is False
+            or existing_course.get('last_404_at') is not None
         )
         if manually_disabled:
             logger.info(f"⏭️ [SKIP] {name} — manually deactivated, skipping sync")
@@ -343,8 +356,8 @@ class SyncVectorWorker:
             return True
 
         if (
-            enriched.get('is_mock_data') is True
-            and existing_course.get('publication_status') == 'publicado'
+            not is_real_enrichment
+            and existing_course
         ):
             logger.info(
                 f"⏭️ [SKIP] {name} — mock enrichment cannot overwrite a published course"
@@ -372,8 +385,14 @@ class SyncVectorWorker:
                     roi_payload["roi_months"] = roi_months
                 course_id = synced_course.get('id')
                 if course_id:
-                    roi_res = self.db.patch('courses', filters=f"id=eq.{course_id}", data=roi_payload)
-                    if not roi_res or roi_res.get("status") != "success":
+                    try:
+                        self.db.patch_exact_one_raise(
+                            'courses',
+                            filters=f"id=eq.{quote(str(course_id), safe='')}",
+                            data=roi_payload,
+                            expected_id=course_id,
+                        )
+                    except Exception:
                         logger.error(f"Error updating ROI fields for course {course_id}")
                         self.update_enriched_status(
                             e_id,
@@ -403,12 +422,23 @@ class SyncVectorWorker:
             metadata = dict(existing_metadata or {})
             metadata["error"] = error_msg
             payload["metadata"] = metadata
-        self.db.patch_raise('enriched_programs', filters=f"id=eq.{e_id}", data=payload)
+        self.db.patch_exact_one_raise(
+            'enriched_programs',
+            filters=f"id=eq.{quote(str(e_id), safe='')}",
+            data=payload,
+            expected_id=e_id,
+        )
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run sync vector worker")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum enriched records to sync")
+    args = parser.parse_args()
+
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched(limit=None)
+    pending = worker.get_pending_enriched(limit=args.limit, institution_id=args.institution_id)
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     failed = 0

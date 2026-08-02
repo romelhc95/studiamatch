@@ -1,0 +1,260 @@
+name: F9.9 - Certification Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      institution_slug:
+        description: Exact institution slug to canary in Certification
+        required: true
+        type: string
+      fg1_source_slug:
+        description: Optional FG1 source slug; defaults to institution_slug
+        required: false
+        type: string
+      max_harvest_urls:
+        description: Maximum URLs FG2 may discover/harvest
+        required: true
+        default: '5'
+        type: string
+      max_staging_records:
+        description: Maximum staging rows cleansing may consume
+        required: true
+        default: '5'
+        type: string
+      max_enrichment_records:
+        description: Maximum cleansed rows enrichment may consume
+        required: true
+        default: '3'
+        type: string
+      max_sync_records:
+        description: Maximum enriched rows sync may publish
+        required: true
+        default: '3'
+        type: string
+      max_integrity_courses:
+        description: Maximum active courses FG3 may ping
+        required: true
+        default: '3'
+        type: string
+      run_fg1:
+        description: Run FG1 inventory canary
+        required: true
+        default: true
+        type: boolean
+      run_fg2:
+        description: Run FG2 pipeline canary
+        required: true
+        default: true
+        type: boolean
+      run_fg3:
+        description: Run FG3 integrity canary
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: f9-9-certification-canary-${{ github.ref }}-${{ inputs.institution_slug }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  certification_canary:
+    name: Certification Canary
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'certificacion' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment:
+      name: Certification
+    env:
+      CANARY_EXPECTED_ENVIRONMENT: Certification
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      PYTHONIOENCODING: utf-8
+      PYTHONPATH: .
+      INPUT_INSTITUTION_SLUG: ${{ inputs.institution_slug }}
+      INPUT_FG1_SOURCE_SLUG: ${{ inputs.fg1_source_slug }}
+      INPUT_MAX_HARVEST_URLS: ${{ inputs.max_harvest_urls }}
+      INPUT_MAX_STAGING_RECORDS: ${{ inputs.max_staging_records }}
+      INPUT_MAX_ENRICHMENT_RECORDS: ${{ inputs.max_enrichment_records }}
+      INPUT_MAX_SYNC_RECORDS: ${{ inputs.max_sync_records }}
+      INPUT_MAX_INTEGRITY_COURSES: ${{ inputs.max_integrity_courses }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Guard Certification target and limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REF_NAME" = "certificacion"
+          case "$INPUT_INSTITUTION_SLUG" in
+            ''|*[!a-z0-9-]*) echo "Invalid institution_slug" >&2; exit 1 ;;
+          esac
+          if [ -n "$INPUT_FG1_SOURCE_SLUG" ] && [ "$INPUT_FG1_SOURCE_SLUG" != "$INPUT_INSTITUTION_SLUG" ]; then
+            echo "fg1_source_slug must be empty or equal to institution_slug" >&2
+            exit 1
+          fi
+          for value in "$INPUT_MAX_HARVEST_URLS" "$INPUT_MAX_STAGING_RECORDS" "$INPUT_MAX_ENRICHMENT_RECORDS" "$INPUT_MAX_SYNC_RECORDS" "$INPUT_MAX_INTEGRITY_COURSES"; do
+            case "$value" in
+              ''|*[!0-9]*) echo "Invalid numeric limit: $value" >&2; exit 1 ;;
+            esac
+            if [ "$value" -lt 1 ] || [ "$value" -gt 50 ]; then
+              echo "Limit out of allowed canary range 1..50: $value" >&2
+              exit 1
+            fi
+          done
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install CA1 dependencies
+        run: pip install --require-hashes -r requirements-pipeline.txt
+
+      - name: Install Playwright Chromium
+        if: ${{ inputs.run_fg2 }}
+        run: playwright install chromium
+
+      - name: Build pre-canary manifest
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/certification_canary_manifest.py \
+            --institution-slug "$INPUT_INSTITUTION_SLUG" \
+            --stage pre \
+            --output artifacts/f9_9_canary_pre.json \
+            --github-env "$GITHUB_ENV" \
+            --require-pipeline-enabled \
+            --max-staging-records "$INPUT_MAX_STAGING_RECORDS" \
+            --max-enrichment-records "$INPUT_MAX_ENRICHMENT_RECORDS" \
+            --max-sync-records "$INPUT_MAX_SYNC_RECORDS" \
+            --max-integrity-courses "$INPUT_MAX_INTEGRITY_COURSES"
+
+      - name: FG1 one-source inventory canary
+        if: ${{ inputs.run_fg1 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          source_slug="$INPUT_FG1_SOURCE_SLUG"
+          if [ -z "$source_slug" ]; then
+            source_slug="$CANARY_INSTITUTION_SLUG"
+          fi
+          python scripts/core/discovery_institutions.py --source-slug "$source_slug" --no-insert
+
+      - name: Stop mutable canary until cleanup is approved
+        if: ${{ inputs.run_fg2 || inputs.run_fg3 }}
+        run: |
+          set -euo pipefail
+          echo "::error::F9.9 mutable Certification canary is blocked until cleanup/restoration is implemented, idempotent, and approved."
+          exit 1
+
+      - name: FG2 bounded harvest canary
+        if: ${{ inputs.run_fg2 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          JOB_START_TIME="$(date +%s)"
+          export JOB_START_TIME
+          python3 scripts/core/master_orchestrator.py \
+            --institution-slug "$CANARY_INSTITUTION_SLUG" \
+            --limit 1 \
+            --max-urls "$INPUT_MAX_HARVEST_URLS" \
+            --skip-cleansing
+
+      - name: FG2 bounded cleansing canary
+        if: ${{ inputs.run_fg2 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/cleansing_worker.py \
+            --institution-id "$CANARY_INSTITUTION_ID" \
+            --limit "$INPUT_MAX_STAGING_RECORDS"
+
+      - name: FG2 bounded enrichment canary
+        if: ${{ inputs.run_fg2 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/enrichment_worker.py \
+            --institution-id "$CANARY_INSTITUTION_ID" \
+            --limit "$INPUT_MAX_ENRICHMENT_RECORDS"
+
+      - name: FG2 bounded sync canary
+        if: ${{ inputs.run_fg2 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/sync_vector_worker.py \
+            --institution-id "$CANARY_INSTITUTION_ID" \
+            --limit "$INPUT_MAX_SYNC_RECORDS"
+
+      - name: FG3 bounded integrity canary
+        if: ${{ inputs.run_fg3 }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/integrity_ping.py \
+            --institution-id "$CANARY_INSTITUTION_ID" \
+            --limit "$INPUT_MAX_INTEGRITY_COURSES"
+
+      - name: Build post-canary manifest
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          python scripts/core/certification_canary_manifest.py \
+            --institution-slug "$INPUT_INSTITUTION_SLUG" \
+            --stage post \
+            --output artifacts/f9_9_canary_post.json \
+            --max-staging-records "$INPUT_MAX_STAGING_RECORDS" \
+            --max-enrichment-records "$INPUT_MAX_ENRICHMENT_RECORDS" \
+            --max-sync-records "$INPUT_MAX_SYNC_RECORDS" \
+            --max-integrity-courses "$INPUT_MAX_INTEGRITY_COURSES"
+
+      - name: Print sanitized manifests
+        if: always()
+        run: |
+          set -euo pipefail
+          python -m json.tool artifacts/f9_9_canary_pre.json
+          python -m json.tool artifacts/f9_9_canary_post.json
+
+      - name: Upload sanitized canary manifests
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f9-9-certification-canary-manifests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/f9_9_canary_*.json
+          if-no-files-found: error
+          retention-days: 30

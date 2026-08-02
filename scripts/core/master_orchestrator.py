@@ -5,6 +5,7 @@ import os
 import json
 import time
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 # Add root directory to sys.path for shared imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,7 +36,7 @@ def run_script(script_path, args=None, timeout=None):
     cmd = [sys.executable, script_path]
     if args:
         cmd.extend(args)
-    
+
     logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
     try:
@@ -48,7 +49,7 @@ def run_script(script_path, args=None, timeout=None):
     except subprocess.TimeoutExpired:
         logger.error(f"[STAGE TIMEOUT] {script_path}")
         return False
-    
+
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
         return True
@@ -56,13 +57,14 @@ def run_script(script_path, args=None, timeout=None):
         logger.error(f"❌ [STAGE FAILED] {script_path} (Exit Code: {result.returncode})")
         return False
 
-def get_institutions(limit=10, excluded_slugs=None, now=None):
+def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
     """Return eligible institutions after all gates, then apply the limit."""
     if limit <= 0:
         return []
     client = _get_db()
     current_time = now or datetime.now(timezone.utc)
     excluded = set(excluded_slugs or [])
+    selected_slug = only_slug.strip() if only_slug else None
     all_insts = client.select_service_raise(
         'institutions',
         columns="id,name,slug,website_url,last_harvest_at",
@@ -84,7 +86,10 @@ def get_institutions(limit=10, excluded_slugs=None, now=None):
     eligible = []
     for institution in all_insts:
         profile = profile_by_institution.get(str(institution.get('id')))
-        if institution.get('slug') in excluded:
+        slug = institution.get('slug')
+        if selected_slug and slug != selected_slug:
+            continue
+        if slug in excluded:
             continue
         if not profile or not profile.get('discovery_enabled'):
             continue
@@ -110,7 +115,7 @@ def get_institutions(limit=10, excluded_slugs=None, now=None):
             and current_time - last_harvest < timedelta(days=3)
             and client.count_pipeline_raise(
                 'staging_raw',
-                filters=f"institution_id=eq.{institution['id']}",
+                filters=f"institution_id=eq.{quote(str(institution['id']), safe='')}",
             ) > 50
         ):
             logger.info(
@@ -126,14 +131,16 @@ def get_institutions(limit=10, excluded_slugs=None, now=None):
 
 def main(argv=None):
     import argparse
-    
+
     # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
     env_start = os.getenv("JOB_START_TIME")
     global_start = float(env_start) if env_start else time.time()
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
+    parser.add_argument("--institution-slug", help="Optional exact institution slug for a one-institution run")
+    parser.add_argument("--max-urls", type=int, default=None, help="Maximum discovered URLs per institution")
     parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
     args = parser.parse_args(argv)
 
@@ -148,11 +155,16 @@ def main(argv=None):
         institutions = get_institutions(
             limit=args.limit,
             excluded_slugs=excluded_slugs,
+            only_slug=args.institution_slug,
         )
     except Exception as exc:
         logger.error(f"Failed to select eligible institutions: {exc}")
         return 1
-    
+
+    if args.institution_slug and not institutions:
+        logger.error(f"No eligible institution found for slug: {args.institution_slug}")
+        return 1
+
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
     for inst in institutions:
@@ -166,10 +178,13 @@ def main(argv=None):
 
         logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
         inst_json = json.dumps(dict(inst))
+        harvester_args = [inst_json, "--global-start", str(global_start)]
+        if args.max_urls is not None:
+            harvester_args.extend(["--max-urls", str(args.max_urls)])
         # Pass global start to sub-process
         if not run_script(
             "scripts/core/universal_harvester.py",
-            [inst_json, "--global-start", str(global_start)],
+            harvester_args,
             timeout=remaining,
         ):
             failures.append(f"harvester:{inst.get('slug')}")

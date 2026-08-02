@@ -319,9 +319,8 @@ class FakeSyncDB:
     def select_service_raise(self, table, filters=None, columns="*", limit=None, order=None):
         return [{
             "id": "course-id",
+            "institution_id": "institution-id",
             "is_active": True,
-            "publication_status": "publicado",
-            "manual_updated_at": None,
         }]
 
     def upsert(self, table, data, on_conflict=None):
@@ -331,6 +330,10 @@ class FakeSyncDB:
     def patch_raise(self, table, filters=None, data=None):
         self.patches.append((table, filters, data))
         return {"status": "success"}
+
+    def patch_exact_one_raise(self, table, filters=None, data=None, expected_id=None):
+        self.patches.append((table, filters, data, expected_id))
+        return {"id": expected_id, **(data or {})}
 
 
 def _sync_worker(database):
@@ -373,7 +376,7 @@ class SyncVectorWorkerTests(unittest.TestCase):
         self.assertEqual(database.upserts, [])
         self.assertEqual(
             database.patches,
-            [("enriched_programs", "id=eq.enriched-id", {"status": "synced"})],
+            [("enriched_programs", "id=eq.enriched-id", {"status": "synced"}, "enriched-id")],
         )
         self.assertEqual(record["metadata"], metadata)
 

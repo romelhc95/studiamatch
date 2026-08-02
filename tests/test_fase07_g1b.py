@@ -109,10 +109,11 @@ def test_pipeline_gate_reason_matches_requeue_contract():
 
     assert "'processing_error': 'pipeline_gate=false'" in cleansing
     assert "metadata['skip_reason'] = 'pipeline_gate=false'" in enrichment
-    assert 'error_msg="pipeline_gate=false"' in sync
+    assert "No pipeline-enabled institutions available for sync" in sync
+    assert "institution_id=in." in sync
     assert "pipeline_enabled=false" not in cleansing + enrichment + sync
     assert 'filters = "status=eq.pending"' in enrichment
-    assert 'filters = "status=eq.pending"' in sync
+    assert "status=eq.pending&institution_id" in sync
     assert "select_pipeline_raise('cleansed_programs'" in enrichment
     assert "select_pipeline_raise('enriched_programs'" in sync
     assert "select_pipeline_raise('staging_raw'" in cleansing
@@ -121,7 +122,7 @@ def test_pipeline_gate_reason_matches_requeue_contract():
     assert "select_pipeline_raise('institution_site_profiles')" in sync
     assert "worker.db.patch_raise('staging_raw'" in cleansing
     assert "worker.db.patch_raise('cleansed_programs'" in enrichment
-    assert "self.db.patch_raise('enriched_programs'" in sync
+    assert "self.db.patch_exact_one_raise(" in sync
 
 
 def test_sync_writer_preserves_editorial_state_and_fails_closed():
@@ -135,9 +136,12 @@ def test_sync_writer_preserves_editorial_state_and_fails_closed():
     assert "profile else False" in sync
     assert "self.db.select_service_raise(" in sync
     assert "'courses'," in sync
-    assert "id,is_active,publication_status,manual_updated_at" in sync
+    assert "id,institution_id,is_active,last_404_at" in sync
     assert "quote(str(url), safe='')" in sync
     assert "existing_metadata=enriched.get('metadata')" in sync
+    assert "cross_institution_url_collision" in sync
+    assert "publication_status" not in sync
+    assert "manual_updated_at" not in sync
     assert "publication_status" not in payload
     assert "manual_updated_at" not in payload
     assert "sponsorship_priority" not in payload
@@ -167,6 +171,10 @@ class _SyncDatabase:
 
     def patch_raise(self, table, filters=None, data=None):
         return self.patch(table, filters=filters, data=data)
+
+    def patch_exact_one_raise(self, table, filters=None, data=None, expected_id=None):
+        self.patches.append((table, filters, data, expected_id))
+        return {"id": expected_id, **(data or {})}
 
 
 def _sync_worker(database):
@@ -199,9 +207,8 @@ def test_sync_updates_automatically_inactive_course_without_publishing(monkeypat
     database = _SyncDatabase([
         {
             "id": "course-id",
+            "institution_id": "institution-id",
             "is_active": False,
-            "publication_status": "borrador",
-            "manual_updated_at": None,
         }
     ])
     worker = _sync_worker(database)
@@ -212,9 +219,8 @@ def test_sync_updates_automatically_inactive_course_without_publishing(monkeypat
     monkeypatch.setattr(sync_vector_worker, "compute_roi", lambda *args: (None, None))
 
     assert worker.sync_to_production(_enriched_record())
-    assert len(database.upserts) == 1
-    assert database.upserts[0]["is_active"] is False
-    assert "publication_status" not in database.upserts[0]
+    assert database.upserts == []
+    assert database.patches[-1][2] == {"status": "synced"}
     assert "%26" in database.filters[0]
 
 
@@ -222,9 +228,8 @@ def test_sync_preserves_manually_unpublished_course(monkeypatch):
     database = _SyncDatabase([
         {
             "id": "course-id",
+            "institution_id": "institution-id",
             "is_active": False,
-            "publication_status": "despublicado",
-            "manual_updated_at": None,
         }
     ])
     worker = _sync_worker(database)
@@ -273,25 +278,20 @@ def test_sync_materializes_disabled_gate_for_requeue():
     database = _SyncDatabase([])
     worker = _sync_worker(database)
     worker.ready_inst_ids = set()
-    record = worker.get_pending_enriched(limit=1)[0]
 
-    assert not worker.sync_to_production(record)
-    assert database.patches[-1][2] == {
-        "status": "skipped",
-        "metadata": {"provider": "test", "error": "pipeline_gate=false"},
-    }
+    assert worker.get_pending_enriched(limit=1) == []
+    assert database.patches == []
 
 
 def test_sync_gate_patch_failure_is_not_silenced():
     class BrokenDatabase(_SyncDatabase):
-        def patch_raise(self, table, filters=None, data=None):
+        def patch_exact_one_raise(self, table, filters=None, data=None, expected_id=None):
             raise RuntimeError("patch failed")
 
     worker = _sync_worker(BrokenDatabase([]))
     worker.ready_inst_ids = set()
 
-    with pytest.raises(RuntimeError, match="patch failed"):
-        worker.sync_to_production(_enriched_record())
+    assert worker.sync_to_production(_enriched_record()) is False
 
 
 class _FakeDatabase:

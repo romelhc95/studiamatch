@@ -7,7 +7,7 @@ import html
 import time
 import requests
 from datetime import datetime
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 from dotenv import load_dotenv
 
 try:
@@ -37,7 +37,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 # API Keys & Credits
-CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
+CF_API_TOKEN = os.getenv("CF_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
 
@@ -77,11 +77,13 @@ class EnrichmentWorker:
             return bool(profile.get(gate_name))
         return bool(profile.get('pipeline_ready'))
 
-    def get_pending_cleansed(self, limit=None):
+    def get_pending_cleansed(self, limit=None, institution_id=None):
         """Obtiene pendientes; el loop materializa skips para gates deshabilitados."""
         try:
             filters = "status=eq.pending"
-            res = self.db.select_pipeline_raise('cleansed_programs', filters=filters, limit=limit)
+            if institution_id:
+                filters = f"{filters}&institution_id=eq.{quote(str(institution_id), safe='')}"
+            res = self.db.select_pipeline_raise('cleansed_programs', filters=filters, limit=limit, order="id.asc")
             if res and len(res) > 0:
                 return res
         except Exception as e:
@@ -740,7 +742,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             start_date_raw = enriched.get("start_date")
             if start_date_raw and str(start_date_raw).strip().lower() in ('none', 'null', 'nan', ''):
                 enriched["start_date"] = None
-            
+
             def normalize(val):
                 if isinstance(val, (list, dict)):
                     return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])
@@ -935,6 +937,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Run AI Enrichment Worker")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of records to process")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
     args = parser.parse_args()
 
     worker = EnrichmentWorker()
@@ -951,7 +954,8 @@ if __name__ == "__main__":
     # Fase 89: Pipeline Loop Guard — un intento por ID durante la sesion.
     attempted_ids: set = set()
 
-    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
+    cohort_label = args.institution_id or 'all institutions'
+    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'}, Cohorte: {cohort_label})")
 
     while not guard.should_exit:
         fetch_limit = batch_size
@@ -960,7 +964,7 @@ if __name__ == "__main__":
             if remaining <= 0: break
             fetch_limit = min(batch_size, remaining)
 
-        records = worker.get_pending_cleansed(limit=fetch_limit)
+        records = worker.get_pending_cleansed(limit=fetch_limit, institution_id=args.institution_id)
 
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")
