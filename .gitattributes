@@ -11,4 +11,6 @@ db/migrations/20260728_fase09_7_*.sql text eol=lf
 db/migrations/20260729_fase09_7_*.sql text eol=lf
 tests/sql/fase09_7_*.sql text eol=lf
 tests/test_fase09_7_*.py text eol=lf
+tests/e2e/ca1/** text eol=lf
+tests/test_fase09_9_ca1_reactivation.py text eol=lf
 web/src/app/compare/CompareContent.tsx text eol=lf

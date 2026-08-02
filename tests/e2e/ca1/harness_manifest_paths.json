@@ -1,0 +1,12 @@
+{
+  "schema": "studiamatch.ca1_harness_paths.v1",
+  "paths": [
+    "tests/e2e/ca1/ca1_functional_gate.py",
+    "tests/e2e/ca1/harness_manifest_paths.json",
+    "tests/e2e/ca1/stubs/curl_cffi/__init__.py",
+    "tests/e2e/ca1/stubs/curl_cffi/requests.py",
+    "tests/e2e/ca1/stubs/playwright/__init__.py",
+    "tests/e2e/ca1/stubs/playwright/async_api.py",
+    "tests/test_fase09_9_ca1_reactivation.py"
+  ]
+}

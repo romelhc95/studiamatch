@@ -1341,10 +1341,274 @@ jobs:
           set -euo pipefail
           python3 -m pytest -q tests/test_fase09_8_ca1_candidate.py tests/test_fase09_8_runtime_security.py
 
+  fase09-9-ca1-reactivation:
+    name: F9.9 CA1 Reactivation Functional Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Resolve target-aware F9.9 candidate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            F99_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+            F99_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
+          else
+            case "${{ github.ref }}" in
+              refs/heads/desarrollo|refs/heads/certificacion|refs/heads/main) ;;
+              *) echo "F9.9 only supports permanent branch pushes" >&2; exit 1 ;;
+            esac
+            F99_BASE_COMMIT="${{ github.event.before }}"
+            F99_CANDIDATE_COMMIT="${{ github.sha }}"
+          fi
+          printf '%s' "$F99_BASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          printf '%s' "$F99_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          test "$F99_BASE_COMMIT" != "0000000000000000000000000000000000000000"
+          git cat-file -e "$F99_BASE_COMMIT^{commit}"
+          git cat-file -e "$F99_CANDIDATE_COMMIT^{commit}"
+          git merge-base --is-ancestor "$F99_BASE_COMMIT" "$F99_CANDIDATE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$F99_CANDIDATE_COMMIT"
+          F99_CANDIDATE_TREE="$(git rev-parse "$F99_CANDIDATE_COMMIT^{tree}")"
+          if git cat-file -e "$F99_BASE_COMMIT:tests/e2e/ca1/ca1_functional_gate.py" 2>/dev/null; then
+            F99_BASE_HAS_HARNESS=true
+            F99_HARNESS_COMMIT="$F99_BASE_COMMIT"
+          else
+            F99_BASE_HAS_HARNESS=false
+            F99_HARNESS_COMMIT="$F99_CANDIDATE_COMMIT"
+          fi
+          export F99_BASE_COMMIT F99_CANDIDATE_COMMIT
+          python3 - <<'PY' > /tmp/f99-classification.env
+          import os
+          import subprocess
+
+          base = subprocess.check_output(['git', 'rev-parse', os.environ['F99_BASE_COMMIT']], text=True).strip()
+          head = subprocess.check_output(['git', 'rev-parse', os.environ['F99_CANDIDATE_COMMIT']], text=True).strip()
+          runtime_paths = {
+              '.github/workflows/fg1_inventory.yml',
+              '.github/workflows/fg3_integrity.yml',
+              '.github/workflows/production_pipeline.yml',
+              'scripts/core/cleansing_worker.py',
+              'scripts/core/discovery_institutions.py',
+              'scripts/core/integrity_ping.py',
+              'scripts/core/sync_vector_worker.py',
+              'scripts/core/universal_harvester.py',
+              'scripts/shared/db_client.py',
+          }
+          harness_paths = {'tests/test_fase09_9_ca1_reactivation.py'}
+          rows = subprocess.check_output(['git', 'diff', '--name-status', base, head], text=True).splitlines()
+          runtime_changed = False
+          harness_changed = False
+          denied_changed = False
+          for row in rows:
+              parts = row.split('\t')
+              status = parts[0]
+              paths = parts[1:]
+              if any(path in runtime_paths for path in paths):
+                  runtime_changed = True
+              if any(path.startswith('tests/e2e/ca1/') or path in harness_paths for path in paths):
+                  harness_changed = True
+              if any(path.startswith(('db/', 'supabase/', 'web/', 'scripts/maintenance/')) for path in paths):
+                  denied_changed = True
+              if status.startswith(('R', 'C')) and any(path in runtime_paths for path in paths):
+                  raise SystemExit('CA1 runtime rename/copy is forbidden')
+          if runtime_changed and denied_changed:
+              raise SystemExit('CA1 runtime candidate also touches denied paths')
+          print(f'F99_RUNTIME_CHANGED={str(runtime_changed).lower()}')
+          print(f'F99_HARNESS_CHANGED={str(harness_changed).lower()}')
+          PY
+          cat /tmp/f99-classification.env >> "$GITHUB_ENV"
+          . /tmp/f99-classification.env
+          if [ "$F99_RUNTIME_CHANGED" = "true" ] && [ "$F99_BASE_HAS_HARNESS" != "true" ]; then
+            echo "base lacks trusted harness for runtime validation" >&2
+            exit 1
+          fi
+          if [ "$F99_RUNTIME_CHANGED" = "true" ] && [ "$F99_HARNESS_CHANGED" = "true" ] && [ "$F99_BASE_HAS_HARNESS" = "true" ]; then
+            echo "Runtime and harness changed together after bootstrap" >&2
+            exit 1
+          fi
+          if [ "$F99_RUNTIME_CHANGED" = "true" ]; then
+            F99_EXPECTED_DECISION="GO_TO_PREPARE_CERTIFICATION_PR"
+          else
+            F99_EXPECTED_DECISION="NO_GO_KNOWN_T_H1_CA1_002B"
+          fi
+          {
+            echo "F99_BASE_COMMIT=$F99_BASE_COMMIT"
+            echo "F99_CANDIDATE_COMMIT=$F99_CANDIDATE_COMMIT"
+            echo "F99_CANDIDATE_TREE=$F99_CANDIDATE_TREE"
+            echo "F99_BASE_HAS_HARNESS=$F99_BASE_HAS_HARNESS"
+            echo "F99_HARNESS_COMMIT=$F99_HARNESS_COMMIT"
+            echo "F99_EXPECTED_DECISION=$F99_EXPECTED_DECISION"
+          } >> "$GITHUB_ENV"
+      - name: Install pinned F9.9 test dependencies
+        run: >-
+          pip install --require-hashes
+          -r requirements-test.txt
+      - name: Run F9.9 harness contract tests
+        run: |
+          set -euo pipefail
+          python3 -m pytest -q tests/test_fase09_9_ca1_reactivation.py
+      - name: Build CA1 E2E runner image
+        run: |
+          set -euo pipefail
+          docker build --pull -t studiamatch-ca1-e2e-runner -f - . <<'DOCKERFILE'
+          FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
+          WORKDIR /deps
+          COPY requirements-pipeline.txt requirements-test.txt ./
+          RUN python -m pip install --no-cache-dir --require-hashes -r requirements-pipeline.txt -r requirements-test.txt
+          DOCKERFILE
+      - name: Run hermetic F9.9 CA1 E2E
+        run: |
+          set -euo pipefail
+          runtime_dir="$RUNNER_TEMP/f99-ca1-runtime"
+          harness_dir="$RUNNER_TEMP/f99-ca1-harness"
+          evidence_dir="$RUNNER_TEMP/f99-ca1-evidence"
+          network="f99-ca1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          rm -rf -- "$runtime_dir" "$harness_dir" "$evidence_dir"
+          mkdir -p "$runtime_dir" "$harness_dir" "$evidence_dir"
+          echo "F99_EVIDENCE_SAFE=false" >> "$GITHUB_ENV"
+          git -c core.autocrlf=false -c core.eol=lf archive --format=tar "$F99_CANDIDATE_COMMIT" | tar -xf - -C "$runtime_dir"
+          git -c core.autocrlf=false -c core.eol=lf archive --format=tar "$F99_HARNESS_COMMIT" -- tests/e2e/ca1 tests/test_fase09_9_ca1_reactivation.py | tar -xf - -C "$harness_dir"
+          runtime_manifest_json="$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          import os
+
+          commit = os.environ['F99_CANDIDATE_COMMIT']
+          paths = [
+              '.github/workflows/fg1_inventory.yml',
+              '.github/workflows/fg3_integrity.yml',
+              '.github/workflows/production_pipeline.yml',
+              'scripts/core/cleansing_worker.py',
+              'scripts/core/discovery_institutions.py',
+              'scripts/core/integrity_ping.py',
+              'scripts/core/sync_vector_worker.py',
+              'scripts/core/universal_harvester.py',
+              'scripts/shared/db_client.py',
+          ]
+          rows = []
+          for path in paths:
+              raw = subprocess.check_output(['git', 'ls-tree', commit, '--', path], text=True).strip()
+              meta, actual_path = raw.split('\t', 1)
+              mode, kind, blob = meta.split(' ')
+              if kind != 'blob' or actual_path != path:
+                  raise SystemExit(f'invalid runtime manifest entry for {path}')
+              rows.append({'path': path, 'mode': mode, 'blob': blob})
+          print(json.dumps(rows, separators=(',', ':')))
+          PY
+          )"
+          harness_manifest_json="$(python3 - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+
+          import os
+
+          commit = os.environ['F99_HARNESS_COMMIT']
+          manifest = json.loads(subprocess.check_output(['git', 'show', f'{commit}:tests/e2e/ca1/harness_manifest_paths.json'], text=True))
+          rows = []
+          for path in manifest['paths']:
+              raw = subprocess.check_output(['git', 'ls-tree', commit, '--', path], text=True).strip()
+              meta, actual_path = raw.split('\t', 1)
+              mode, kind, blob = meta.split(' ')
+              content = subprocess.check_output(['git', 'show', f'{commit}:{path}'])
+              rows.append({'path': actual_path, 'mode': mode, 'blob': blob, 'sha256': hashlib.sha256(content).hexdigest()})
+          print(json.dumps({'schema': manifest['schema'], 'source_commit': commit, 'paths': rows}, separators=(',', ':')))
+          PY
+          )"
+          docker network create --internal "$network"
+          cleanup() {
+            docker rm -f f99-ca1-e2e-runner >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          set +e
+          docker run --name f99-ca1-e2e-runner --network "$network" \
+            --volume "$runtime_dir:/app" \
+            --volume "$harness_dir:/harness" \
+            --volume "$evidence_dir:/evidence" \
+            --env CA1_RUN_ID="f99-ca1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --env CA1_EVIDENCE_DIR=/evidence \
+            --env CA1_APP_DIR=/app \
+            --env CA1_ENV_EXAMPLE_VERSIONED=synthetic_versioned \
+            --env CA1_ENV_EXAMPLE_SCAN_PASS=synthetic_scan_pass \
+            --env CA1_TLS_VERIFIED=synthetic_tls_verified \
+            studiamatch-ca1-e2e-runner \
+            python3 /harness/tests/e2e/ca1/ca1_functional_gate.py \
+              --candidate-commit "$F99_CANDIDATE_COMMIT" \
+              --candidate-tree "$F99_CANDIDATE_TREE" \
+              --runtime-commit "$F99_CANDIDATE_COMMIT" \
+              --runtime-tree "$F99_CANDIDATE_TREE" \
+              --runtime-manifest-json "$runtime_manifest_json" \
+              --harness-manifest-json "$harness_manifest_json" \
+              --expected-decision "$F99_EXPECTED_DECISION" \
+              --evidence-dir /evidence
+          e2e_exit=$?
+          set -e
+          cleanup
+          cleanup
+          missing_artifacts=false
+          for name in summary.json junit.xml redacted-logs.json; do
+            if [ ! -s "$evidence_dir/$name" ]; then
+              missing_artifacts=true
+            fi
+          done
+          set +e
+          git grep -a -q -E "$F97_CREDENTIAL_PATTERN" "$F99_CANDIDATE_TREE" -- .
+          candidate_secret_rc=$?
+          set -e
+          if [ "$candidate_secret_rc" -eq 0 ]; then
+            echo "::error::Credential detected in candidate tree while processing F9.9 artifacts"
+            rm -rf -- "$evidence_dir"
+            exit 1
+          fi
+          if [ "$candidate_secret_rc" -ne 1 ]; then
+            echo "::error::F9.9 candidate credential scan failed"
+            rm -rf -- "$evidence_dir"
+            exit 1
+          fi
+          if [ "$missing_artifacts" = "true" ]; then
+            echo "::error::F9.9 evidence artifacts missing"
+            rm -rf -- "$evidence_dir"
+            exit 1
+          fi
+          set +e
+          grep -R -E -q "$F97_CREDENTIAL_PATTERN" "$evidence_dir"
+          evidence_secret_rc=$?
+          set -e
+          if [ "$evidence_secret_rc" -eq 0 ]; then
+            echo "::error::Credential detected in F9.9 evidence artifacts"
+            rm -rf -- "$evidence_dir"
+            exit 1
+          fi
+          if [ "$evidence_secret_rc" -ne 1 ]; then
+            echo "::error::F9.9 evidence credential scan failed"
+            rm -rf -- "$evidence_dir"
+            exit 1
+          fi
+          echo "F99_EVIDENCE_SAFE=true" >> "$GITHUB_ENV"
+          exit "$e2e_exit"
+      - name: Upload F9.9 CA1 evidence
+        if: always() && env.F99_EVIDENCE_SAFE == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f99-ca1-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/f99-ca1-evidence
+          if-no-files-found: error
+          retention-days: 14
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase10-promotion-contract]
+    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase10-promotion-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -1364,6 +1628,7 @@ jobs:
           F95: ${{ needs.fase09-5-rls.result }}
           F97: ${{ needs.fase09-7-remediation.result }}
           F98: ${{ needs.fase09-8-ca1.result }}
+          F99: ${{ needs.fase09-9-ca1-reactivation.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
           exec >> "$GITHUB_STEP_SUMMARY"
@@ -1432,6 +1697,11 @@ jobs:
             exit 1
           fi
           echo "✅ **fase09-8-ca1**: passed"
+          if [ "$F99" != "success" ]; then
+            echo "❌ **fase09-9-ca1-reactivation**: $F99 (BLOCKING)"
+            exit 1
+          fi
+          echo "✅ **fase09-9-ca1-reactivation**: passed"
           if [ "$F10" != "success" ]; then
             echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)"
             exit 1
@@ -1453,4 +1723,4 @@ jobs:
           fi
           echo "✅ **frontend-build**: passed"
           echo ""
-          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F9.8/F10, credential, Python, Context Graph and frontend gates are green."
+          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F9.8/F9.9/F10, credential, Python, Context Graph and frontend gates are green."
