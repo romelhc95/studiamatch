@@ -57,6 +57,26 @@ def test_certification_canary_workflow_passes_cohort_limits_to_all_stages() -> N
     assert "--limit \"$INPUT_MAX_INTEGRITY_COURSES\"" in workflow
 
 
+def test_certification_canary_workflow_has_actionlint_safe_shell_and_artifacts() -> None:
+    workflow = source(".github/workflows/f9_9_certification_canary.yml")
+
+    assert 'export JOB_START_TIME="$(' not in workflow
+    assert 'JOB_START_TIME="$(date +%s)"' in workflow
+    assert "export JOB_START_TIME" in workflow
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in workflow
+    assert "path: artifacts/f9_9_canary_*.json" in workflow
+    assert "retention-days: 30" in workflow
+
+
+def test_certification_canary_blocks_mutable_stages_until_cleanup_is_approved() -> None:
+    workflow = source(".github/workflows/f9_9_certification_canary.yml")
+
+    blocker = workflow.split("Stop mutable canary until cleanup is approved", 1)[1].split("FG2 bounded harvest canary", 1)[0]
+    assert "inputs.run_fg2 || inputs.run_fg3" in blocker
+    assert "cleanup/restoration is implemented, idempotent, and approved" in blocker
+    assert "exit 1" in blocker
+
+
 def test_runtime_scripts_keep_default_schedules_but_accept_canary_cohort_flags() -> None:
     discovery = source("scripts/core/discovery_institutions.py")
     orchestrator = source("scripts/core/master_orchestrator.py")
@@ -89,3 +109,13 @@ def test_canary_manifest_is_sanitized_and_does_not_print_internal_ids() -> None:
     assert "CANARY_INSTITUTION_ID" in manifest
     assert '"institution_id"' not in manifest
     assert "print(json" not in manifest
+
+
+def test_security_audit_f99_runtime_manifest_includes_canary_runtime() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+    runtime_manifest = workflow.split("runtime_paths = {", 1)[1].split("harness_paths =", 1)[0]
+
+    assert ".github/workflows/f9_9_certification_canary.yml" in runtime_manifest
+    assert "scripts/core/certification_canary_manifest.py" in runtime_manifest
+    assert "scripts/core/enrichment_worker.py" in runtime_manifest
+    assert "scripts/core/master_orchestrator.py" in runtime_manifest

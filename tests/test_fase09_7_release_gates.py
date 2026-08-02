@@ -35,6 +35,7 @@ ACTIONLINT_CONFIG = """paths:
 WORKFLOW_PATHS = (
     ".github/workflows/db-sync-to-pro.yml",
     ".github/workflows/f9-7-contract.yml",
+    ".github/workflows/f9_9_certification_canary.yml",
     ".github/workflows/fg1_inventory.yml",
     ".github/workflows/fg3_integrity.yml",
     ".github/workflows/opencode.yml",
@@ -477,7 +478,7 @@ def test_actionlint_config_mutations_are_rejected(mutator):
         _validate_actionlint_config(mutator(ACTIONLINT_CONFIG))
 
 
-def test_actionlint_workflow_inventory_is_exactly_seven_tracked_files():
+def test_actionlint_workflow_inventory_is_exactly_eight_tracked_files():
     observed = tuple(
         sorted(
             subprocess.check_output(

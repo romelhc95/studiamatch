@@ -152,6 +152,13 @@ jobs:
           fi
           python scripts/core/discovery_institutions.py --source-slug "$source_slug" --no-insert
 
+      - name: Stop mutable canary until cleanup is approved
+        if: ${{ inputs.run_fg2 || inputs.run_fg3 }}
+        run: |
+          set -euo pipefail
+          echo "::error::F9.9 mutable Certification canary is blocked until cleanup/restoration is implemented, idempotent, and approved."
+          exit 1
+
       - name: FG2 bounded harvest canary
         if: ${{ inputs.run_fg2 }}
         env:
@@ -160,7 +167,8 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
-          export JOB_START_TIME="$(date +%s)"
+          JOB_START_TIME="$(date +%s)"
+          export JOB_START_TIME
           python3 scripts/core/master_orchestrator.py \
             --institution-slug "$CANARY_INSTITUTION_SLUG" \
             --limit 1 \
@@ -241,3 +249,12 @@ jobs:
           set -euo pipefail
           python -m json.tool artifacts/f9_9_canary_pre.json
           python -m json.tool artifacts/f9_9_canary_post.json
+
+      - name: Upload sanitized canary manifests
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: f9-9-certification-canary-manifests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/f9_9_canary_*.json
+          if-no-files-found: error
+          retention-days: 30

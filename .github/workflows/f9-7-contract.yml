@@ -146,16 +146,21 @@ jobs:
 
           base = os.environ['F98_BASE_COMMIT']
           head = os.environ['F98_HEAD_COMMIT']
-          allowed = {
-              '.github/workflows/fg1_inventory.yml',
-              '.github/workflows/fg3_integrity.yml',
-              '.github/workflows/production_pipeline.yml',
-              'scripts/core/discovery_institutions.py',
-              'scripts/core/integrity_ping.py',
-              'scripts/core/sync_vector_worker.py',
-              'scripts/core/universal_harvester.py',
-              'scripts/shared/db_client.py',
+          allowed_statuses = {
+              '.github/workflows/fg1_inventory.yml': {'M'},
+              '.github/workflows/fg3_integrity.yml': {'M'},
+              '.github/workflows/production_pipeline.yml': {'M'},
+              'scripts/core/certification_canary_manifest.py': {'A'},
+              'scripts/core/cleansing_worker.py': {'M'},
+              'scripts/core/discovery_institutions.py': {'M'},
+              'scripts/core/enrichment_worker.py': {'M'},
+              'scripts/core/integrity_ping.py': {'M'},
+              'scripts/core/master_orchestrator.py': {'M'},
+              'scripts/core/sync_vector_worker.py': {'M'},
+              'scripts/core/universal_harvester.py': {'M'},
+              'scripts/shared/db_client.py': {'M'},
           }
+          allowed = set(allowed_statuses)
           protected = {
               '.github/workflows/fg1_inventory.yml',
               '.github/workflows/production_pipeline.yml',
@@ -203,10 +208,21 @@ jobs:
               ):
                   failed.append(f'f97-drift:{path}')
               if path in allowed or old_path in allowed:
-                  if status != 'M':
+                  expected_statuses = allowed_statuses.get(path) or allowed_statuses.get(old_path) or set()
+                  if status not in expected_statuses:
                       failed.append(f'status:{status}:{path}')
                   base_meta = subprocess.check_output(['git', 'ls-tree', base, '--', path]).decode().strip()
                   head_meta = subprocess.check_output(['git', 'ls-tree', head, '--', path]).decode().strip()
+                  if status == 'A' and path in allowed:
+                      if base_meta:
+                          failed.append(f'base-present:{path}')
+                      if not head_meta:
+                          failed.append(f'missing:{path}')
+                          continue
+                      head_mode, head_kind, _head_oid, _head_path = head_meta.split(None, 3)
+                      if (head_mode, head_kind, _head_path) != ('100644', 'blob', path):
+                          failed.append(f'head-kind:{path}')
+                      continue
                   if not base_meta or not head_meta:
                       failed.append(f'missing:{path}')
                       continue

@@ -11,16 +11,21 @@ HEAD_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 OTHER_SHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 
-CA1_ALLOWED = {
-    ".github/workflows/fg1_inventory.yml",
-    ".github/workflows/fg3_integrity.yml",
-    ".github/workflows/production_pipeline.yml",
-    "scripts/core/discovery_institutions.py",
-    "scripts/core/integrity_ping.py",
-    "scripts/core/sync_vector_worker.py",
-    "scripts/core/universal_harvester.py",
-    "scripts/shared/db_client.py",
+CA1_ALLOWED_STATUSES = {
+    ".github/workflows/fg1_inventory.yml": {"M"},
+    ".github/workflows/fg3_integrity.yml": {"M"},
+    ".github/workflows/production_pipeline.yml": {"M"},
+    "scripts/core/certification_canary_manifest.py": {"A"},
+    "scripts/core/cleansing_worker.py": {"M"},
+    "scripts/core/discovery_institutions.py": {"M"},
+    "scripts/core/enrichment_worker.py": {"M"},
+    "scripts/core/integrity_ping.py": {"M"},
+    "scripts/core/master_orchestrator.py": {"M"},
+    "scripts/core/sync_vector_worker.py": {"M"},
+    "scripts/core/universal_harvester.py": {"M"},
+    "scripts/shared/db_client.py": {"M"},
 }
+CA1_ALLOWED = set(CA1_ALLOWED_STATUSES)
 
 
 def source(relative: str) -> str:
@@ -80,7 +85,8 @@ def transition_path_policy(changes: list[tuple[str, ...]]) -> bool:
         if any(p.startswith(protected_prefixes) for p in paths_to_check) and not any(p in CA1_ALLOWED for p in paths_to_check):
             return False
         if path in CA1_ALLOWED or old_path in CA1_ALLOWED:
-            if status != "M":
+            expected_statuses = CA1_ALLOWED_STATUSES.get(path) or CA1_ALLOWED_STATUSES.get(old_path) or set()
+            if status not in expected_statuses:
                 return False
     return True
 
@@ -178,7 +184,11 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "! grep -q" not in workflow
     assert "git grep -a -q -E \"$F97_CREDENTIAL_PATTERN\" \"$F97_CANDIDATE_TREE\" -- ." in workflow
     assert "git rev-list \"$F97_BASELINE_COMMIT..$F97_CANDIDATE_COMMIT\"" in workflow
-    assert "'.github/workflows/security-audit.yml'" not in workflow.split("f98_ca1_allowed =", 1)[1].split("}", 1)[0]
+    allowed = workflow.split("f98_ca1_allowed_statuses = {", 1)[1].split("f98_ca1_allowed = set", 1)[0]
+    assert "'.github/workflows/security-audit.yml'" not in allowed
+    assert "'scripts/core/certification_canary_manifest.py': {'A'}" in allowed
+    assert "'scripts/core/enrichment_worker.py': {'M'}" in allowed
+    assert "'scripts/core/master_orchestrator.py': {'M'}" in allowed
     assert "len(baseline) != 32" in workflow
     assert "F9.8 CA1 protected-path drift is within the explicit allowlist" in workflow
     assert "F97: ${{ needs.fase09-7-remediation.result }}" in workflow
@@ -210,16 +220,23 @@ def test_f9_7_bridge_preserves_frozen_candidate_and_transition_boundary() -> Non
     assert "F98_TRANSITION_PASS" in workflow
     assert "HISTORICAL_F97_PASS" in workflow
     assert "git checkout --detach \"$F97_CANDIDATE_COMMIT\"" in workflow
-    allowed = workflow.split("allowed = {", 1)[1].split("}", 1)[0]
+    allowed = workflow.split("allowed_statuses = {", 1)[1].split("allowed = set(allowed_statuses)", 1)[0]
     assert allowed.count(".github/workflows/fg1_inventory.yml") == 1
     assert allowed.count(".github/workflows/fg3_integrity.yml") == 1
     assert allowed.count(".github/workflows/production_pipeline.yml") == 1
+    assert allowed.count("scripts/core/certification_canary_manifest.py") == 1
+    assert allowed.count("scripts/core/cleansing_worker.py") == 1
     assert allowed.count("scripts/core/discovery_institutions.py") == 1
+    assert allowed.count("scripts/core/enrichment_worker.py") == 1
     assert allowed.count("scripts/core/integrity_ping.py") == 1
+    assert allowed.count("scripts/core/master_orchestrator.py") == 1
     assert allowed.count("scripts/core/sync_vector_worker.py") == 1
     assert allowed.count("scripts/core/universal_harvester.py") == 1
     assert allowed.count("scripts/shared/db_client.py") == 1
-    assert "status != 'M'" in workflow
+    assert "'scripts/core/certification_canary_manifest.py': {'A'}" in workflow
+    assert "'scripts/core/enrichment_worker.py': {'M'}" in workflow
+    assert "status not in expected_statuses" in workflow
+    assert "base-present:{path}" in workflow
     assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in workflow
     assert "paths_to_check" in workflow
 
@@ -430,6 +447,12 @@ def test_transition_policy_blocks_ca1_plus_db_path() -> None:
         ("M", "scripts/core/integrity_ping.py"),
         ("M", "db/migrations/ca2.sql"),
     ])
+
+
+def test_transition_policy_accepts_canary_helper_addition_and_blocks_wrong_status() -> None:
+    assert transition_path_policy([("A", "scripts/core/certification_canary_manifest.py")])
+    assert not transition_path_policy([("M", "scripts/core/certification_canary_manifest.py")])
+    assert not transition_path_policy([("A", "scripts/core/enrichment_worker.py")])
 
 
 def test_transition_policy_blocks_rename_copy_delete_and_mode_drift() -> None:
