@@ -4,6 +4,7 @@ import sys
 import os
 import requests
 import json
+from urllib.parse import quote
 
 # Add root directory to sys.path for shared imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,25 +32,25 @@ def run_script(script_path, args=None):
 
 def get_institutions(limit=10):
     """Fetch institutions to harvest, prioritizing discovery_enabled first, then round-robin."""
-    try:
-        all_insts = db.select('institutions',
-                             columns="id,name,slug,website_url,last_harvest_at",
-                             order="last_harvest_at.asc.nullsfirst")
+    all_insts = db.select_service_raise(
+        'institutions',
+        columns="id,name,slug,website_url,last_harvest_at",
+        order="last_harvest_at.asc.nullsfirst",
+    )
 
-        profiles = db.select_pipeline('institution_site_profiles',
-                                     columns="institution_id,discovery_enabled")
-        enabled = {p['institution_id']: p.get('discovery_enabled', False)
-                   for p in profiles}
+    profiles = db.select_pipeline_raise(
+        'institution_site_profiles',
+        columns="institution_id,discovery_enabled",
+    )
+    enabled = {p['institution_id']: p.get('discovery_enabled', False)
+               for p in profiles}
 
-        all_insts.sort(key=lambda i: (
-            not enabled.get(i['id'], False),
-            i.get('last_harvest_at') or ''
-        ))
+    all_insts.sort(key=lambda i: (
+        not enabled.get(i['id'], False),
+        i.get('last_harvest_at') or ''
+    ))
 
-        return all_insts[:limit]
-    except Exception as e:
-        logger.error(f"Failed to fetch institutions: {e}")
-    return []
+    return all_insts[:limit]
 
 def main():
     import argparse
@@ -76,6 +77,7 @@ def main():
     
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
+    failed = 0
     for inst in institutions:
         inst_id = inst['id']
         inst_name = inst['name']
@@ -91,7 +93,10 @@ def main():
                 
                 if (now_dt - last_dt) < timedelta(days=3):
                     # Quick count in staging_raw
-                    count = db.count_pipeline('staging_raw', filters=f"institution_id=eq.{inst_id}")
+                    count = db.count_pipeline_raise(
+                        'staging_raw',
+                        filters=f"institution_id=eq.{quote(str(inst_id), safe='')}",
+                    )
                     
                     if count > 50:
                         logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
@@ -102,17 +107,24 @@ def main():
         logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
         inst_json = json.dumps(dict(inst))
         # Pass global start to sub-process
-        run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)])
+        if not run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)]):
+            failed += 1
+
+    if failed:
+        logger.error(f"Harvesting failed for {failed} institutions; stopping before downstream phases.")
+        return 1
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:
         logger.info("--- PHASE 1.5: CLEANSING ---")
         if not run_script("scripts/core/cleansing_worker.py"):
-            logger.warning("Cleansing step failed, but continuing pipeline...")
+            logger.error("Cleansing step failed; stopping pipeline.")
+            return 1
     else:
         logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
 
     logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
