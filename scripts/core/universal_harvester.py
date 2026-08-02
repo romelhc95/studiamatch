@@ -47,6 +47,26 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 
+DISCOVERED_STATUS = "discovered"
+PROTECTED_STAGING_STATUSES = frozenset({
+    "pending",
+    "processing",
+    "processed",
+    "discarded",
+    "skipped",
+    "error",
+})
+KNOWN_STAGING_STATUSES = PROTECTED_STAGING_STATUSES | {DISCOVERED_STATUS}
+
+
+class HarvesterRunError(RuntimeError):
+    """Raised when FG2 cannot prove a safe complete outcome."""
+
+
+class HarvesterPartialError(HarvesterRunError):
+    """Raised for a per-URL failure that must preserve the source state."""
+
+
 class UniversalHarvester:
     def __init__(self, institution, global_start=None):
         import time
@@ -54,6 +74,8 @@ class UniversalHarvester:
         self.db = get_db_client()
         self.visited_urls = set()
         self.course_urls = set()
+        self._resumable_urls = []
+        self._discovered_rows_by_url = {}
         self.impersonate = "chrome110"
         self.error_count = 0
         self.BLOCK_THRESHOLD = 5
@@ -272,14 +294,16 @@ class UniversalHarvester:
     def _generate_hash(self, text):
         return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
-    async def _check_if_changed(self, url, html_content, effective_url=None, canonical_url=None):
+    async def _check_if_changed(self, url, html_content, effective_url=None, canonical_url=None, force_changed=False):
         content_hash = self._generate_hash(html_content)
+        if force_changed:
+            return True, content_hash
         try:
             ids = [url, effective_url, canonical_url]
             ids = [normalize_url(i) for i in ids if i]
             data = self.db.select_pipeline_raise(
                 "staging_raw",
-                filters=f"url=eq.{quote(url, safe='')}",
+                filters=f"url=eq.{quote(normalize_url(url), safe='')}",
                 columns="content_hash",
             )
             if data and len(data) > 0:
@@ -291,6 +315,17 @@ class UniversalHarvester:
                 "Backend read failed while checking staging content hash"
             ) from exc
         return True, content_hash
+
+    def _is_html_response(self, response):
+        headers = getattr(response, "headers", {}) or {}
+        content_type = ""
+        if isinstance(headers, dict):
+            content_type = headers.get("content-type") or headers.get("Content-Type") or ""
+        if content_type and "html" not in str(content_type).lower():
+            return False
+        text = getattr(response, "text", "") or ""
+        lowered = text[:1000].lower()
+        return "<html" in lowered or "<!doctype html" in lowered
 
     async def _safe_request(self, session, url):
         try:
@@ -332,7 +367,7 @@ class UniversalHarvester:
             logger.warning(f"Failed to parse sitemap {sitemap_url}: {e}")
         return list(set(links))
 
-    async def _bfs_crawl(self, start_url):
+    async def _bfs_crawl(self, start_url, existing_urls):
         queue = [(start_url, 0)]
         self.visited_urls.add(start_url)
         async with AsyncSession() as session:
@@ -348,9 +383,11 @@ class UniversalHarvester:
                     if self.check_time_guard(): break
                     for link in links:
                         if self._is_valid_crawl_url(link):
-                            if link not in self.course_urls:
-                                self.course_urls.add(link)
-                                self._save_discovered_url(link)
+                            normalized = normalize_url(link)
+                            if normalized not in self.course_urls and normalized not in existing_urls:
+                                row = self._save_discovered_url(normalized)
+                                if row["status"] == DISCOVERED_STATUS:
+                                    self.course_urls.add(normalized)
                             if self._is_valid_crawl_url(link) and link not in self.visited_urls:
                                 queue.append((link, next_depth))
 
@@ -416,25 +453,147 @@ class UniversalHarvester:
             pass
         return list(set(links)), depth + 1
 
-    async def _load_existing_urls(self):
-        inst_id = self.institution.get('id')
-        data = self.db.select_pipeline_raise(
+    def _merge_resumable_urls(self, urls):
+        final_urls = []
+        for url in self._resumable_urls + list(urls):
+            normalized = normalize_url(url)
+            if normalized not in final_urls:
+                final_urls.append(normalized)
+        return final_urls
+
+    def _remember_discovered_row(self, row):
+        normalized = normalize_url(row.get('url') or '')
+        self._discovered_rows_by_url[normalized] = {
+            "id": row.get('id'),
+            "url": normalized,
+            "status": row.get('status'),
+        }
+
+    def _select_staging_rows_by_url(self, url):
+        try:
+            rows = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=f"url=eq.{quote(normalize_url(url), safe='')}",
+                columns="id,url,status,institution_id",
+            )
+        except Exception as exc:
+            raise HarvesterRunError("failed to verify URL ownership") from exc
+        if not isinstance(rows, list):
+            raise HarvesterRunError("malformed URL ownership payload")
+        return rows
+
+    def _discovered_row_for_url(self, url):
+        normalized = normalize_url(url)
+        row = self._discovered_rows_by_url.get(normalized)
+        if row:
+            return row
+        rows = self.db.select_pipeline_raise(
             "staging_raw",
             filters=(
-                f"institution_id=eq.{inst_id}"
-                "&status=in.(processed,discarded,discovered)"
+                f"institution_id=eq.{quote(str(self.institution['id']), safe='')}"
+                f"&url=eq.{quote(normalized, safe='')}"
+                "&status=eq.discovered"
             ),
-            columns="url",
+            columns="id,url,status",
+            limit=2,
         )
+        if len(rows) != 1:
+            raise HarvesterRunError(f"expected exactly one discovered row for {normalized}, got {len(rows)}")
+        self._remember_discovered_row(rows[0])
+        return self._discovered_rows_by_url[normalized]
+
+    def _validate_pending_payload(self, row, item):
+        if not isinstance(item, dict):
+            raise HarvesterPartialError("pending payload is malformed")
+        url = normalize_url(item.get("url") or "")
+        if url != normalize_url(row.get("url") or ""):
+            raise HarvesterPartialError("pending payload URL does not match discovered row")
+        if item.get("institution_id") != self.institution.get("id"):
+            raise HarvesterPartialError("pending payload institution mismatch")
+        if item.get("status") != "pending":
+            raise HarvesterPartialError("pending payload status is not pending")
+        raw_html = item.get("raw_html")
+        raw_name = item.get("raw_name")
+        content_hash = item.get("content_hash")
+        if not isinstance(raw_html, str) or not raw_html.strip():
+            raise HarvesterPartialError("pending payload raw_html is empty")
+        if "<html" not in raw_html[:1000].lower() and "<!doctype html" not in raw_html[:1000].lower():
+            raise HarvesterPartialError("pending payload raw_html is not HTML")
+        if not isinstance(raw_name, str) or not raw_name.strip():
+            raise HarvesterPartialError("pending payload raw_name is empty")
+        if not isinstance(content_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", content_hash):
+            raise HarvesterPartialError("pending payload content_hash is invalid")
+        if content_hash != self._generate_hash(raw_html):
+            raise HarvesterPartialError("pending payload content_hash does not match raw_html")
+
+    def _promote_discovered_to_pending(self, row, item):
+        self._validate_pending_payload(row, item)
+        expected_id = row["id"]
+        filters = (
+            f"id=eq.{quote(str(expected_id), safe='')}"
+            f"&institution_id=eq.{quote(str(self.institution['id']), safe='')}"
+            "&status=eq.discovered"
+        )
+        promoted = self.db.patch_exact_one_raise("staging_raw", filters, item, expected_id)
+        if promoted.get("status") != "pending":
+            raise HarvesterRunError("pending promotion did not persist pending status")
+        if promoted.get("institution_id") != self.institution.get("id"):
+            raise HarvesterRunError("pending promotion changed institution")
+        self._discovered_rows_by_url.pop(normalize_url(item["url"]), None)
+        return promoted
+
+    async def _load_existing_urls(self, pipeline_enabled=None):
+        inst_id = self.institution.get('id')
+        if pipeline_enabled is None:
+            pipeline_enabled = self._gate_enabled('pipeline_enabled')
+        self._resumable_urls = []
+        self._discovered_rows_by_url = {}
+        statuses = "discovered,pending,processing,processed,discarded,skipped,error"
         try:
-            if data:
-                existing = {row['url'] for row in data}
-                logger.info(f"Loaded {len(existing)} existing URLs from DB to skip (incl. discovered).")
-                self.visited_urls.update(existing)
-                return existing
-        except Exception as e:
-            logger.warning(f"Could not load existing URLs from DB: {e}")
-        return set()
+            data = self.db.select_pipeline_raise(
+                "staging_raw",
+                filters=(
+                    f"institution_id=eq.{quote(str(inst_id), safe='')}"
+                    f"&status=in.({statuses})"
+                ),
+                columns="id,url,status",
+                order="url.asc,id.asc",
+            )
+        except Exception as exc:
+            raise HarvesterRunError("failed to load existing URLs from DB") from exc
+        if not isinstance(data, list):
+            raise HarvesterRunError("malformed existing URL payload")
+
+        existing = set()
+        for index, row in enumerate(data):
+            if not isinstance(row, dict):
+                raise HarvesterRunError(f"malformed existing URL row at {index}")
+            row_id = row.get('id')
+            url = row.get('url')
+            status = row.get('status')
+            if not isinstance(row_id, str) or not row_id:
+                raise HarvesterRunError(f"malformed staging id at {index}")
+            if not isinstance(url, str) or not url:
+                raise HarvesterRunError(f"malformed staging URL at {index}")
+            if status not in KNOWN_STAGING_STATUSES:
+                raise HarvesterRunError(f"unknown staging status in URL inventory: {status}")
+            normalized = normalize_url(url)
+            if normalized in existing:
+                raise HarvesterRunError(f"duplicate URL in staging inventory: {normalized}")
+            existing.add(normalized)
+            if status == DISCOVERED_STATUS:
+                self._remember_discovered_row({"id": row_id, "url": normalized, "status": status})
+                if pipeline_enabled:
+                    self._resumable_urls.append(normalized)
+
+        logger.info(
+            "Loaded %s known staging URLs (%s resumable discovered, %s protected).",
+            len(existing),
+            len(self._resumable_urls),
+            len(existing) - len(self._resumable_urls),
+        )
+        self.visited_urls.update(existing)
+        return existing
 
     # ─────────────────────────────────────────────────────────
     # Fase 62B: Discovery Modes
@@ -459,10 +618,12 @@ class UniversalHarvester:
         for url in clean_seeds:
             if self.check_time_guard():
                 break
-            if url not in existing_urls and self._is_valid_crawl_url(url):
-                new_urls.append(url)
-                self.course_urls.add(url)
-                self._save_discovered_url(url)
+            normalized = normalize_url(url)
+            if normalized not in existing_urls and self._is_valid_crawl_url(normalized):
+                row = self._save_discovered_url(normalized)
+                if row["status"] == DISCOVERED_STATUS:
+                    new_urls.append(normalized)
+                    self.course_urls.add(normalized)
         logger.info(f"Total Discovery (hardcoded): {len(new_urls)} NEW from {len(clean_seeds)} seeds.")
         return new_urls
 
@@ -509,9 +670,10 @@ class UniversalHarvester:
                     for link in links:
                         full_url = normalize_url(link)
                         if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                            new_urls.append(full_url)
-                            self.course_urls.add(full_url)
-                            self._save_discovered_url(full_url)
+                            row = self._save_discovered_url(full_url)
+                            if row["status"] == DISCOVERED_STATUS:
+                                new_urls.append(full_url)
+                                self.course_urls.add(full_url)
                     logger.debug(f"  Page {page_num}: {len(links)} links found")
         logger.info(f"Total Paginated Catalog: {len(new_urls)} NEW URLs")
         return new_urls
@@ -554,9 +716,10 @@ class UniversalHarvester:
                             if href:
                                 full_url = normalize_url(urljoin(catalog_url, href))
                                 if self._is_valid_crawl_url(full_url) and full_url not in existing_urls:
-                                    new_urls.append(full_url)
-                                    self.course_urls.add(full_url)
-                                    self._save_discovered_url(full_url)
+                                    row = self._save_discovered_url(full_url)
+                                    if row["status"] == DISCOVERED_STATUS:
+                                        new_urls.append(full_url)
+                                        self.course_urls.add(full_url)
                     if iteration % 5 == 0:
                         logger.info(f"  Scroll {iteration}/{self.catalog_scroll_iterations}: {len(new_urls)} new URLs so far")
                     has_footer = await page.evaluate('() => document.querySelector("footer") !== null && window.scrollY + window.innerHeight >= document.body.scrollHeight')
@@ -583,15 +746,15 @@ class UniversalHarvester:
         if discovery_mode == 'hardcoded_urls':
             hardcoded_result = await self.discover_hardcoded_urls()
             if hardcoded_result is not None:
-                return hardcoded_result
+                return self._merge_resumable_urls(hardcoded_result)
         elif discovery_mode == 'paginated_catalog':
             cat_result = await self.discover_paginated_catalog(browser)
             if cat_result is not None:
-                return cat_result
+                return self._merge_resumable_urls(cat_result)
         elif discovery_mode == 'catalog_link_extraction':
             cat_result = await self.discover_catalog_links(browser)
             if cat_result is not None:
-                return cat_result
+                return self._merge_resumable_urls(cat_result)
 
         # sitemap_bfs (default)
         logger.info(f"Starting sitemap/BFS discovery for {self.institution.get('name')}")
@@ -601,14 +764,16 @@ class UniversalHarvester:
         for link in sitemap_links:
             if self.check_time_guard(): break
             if self._is_valid_crawl_url(link):
-                if link not in self.course_urls and link not in existing_urls:
-                    self.course_urls.add(link)
-                    self._save_discovered_url(link)
+                normalized = normalize_url(link)
+                if normalized not in self.course_urls and normalized not in existing_urls:
+                    row = self._save_discovered_url(normalized)
+                    if row["status"] == DISCOVERED_STATUS:
+                        self.course_urls.add(normalized)
         if len(self.course_urls) > 50:
             logger.info(f"🚀 [FAST PATH] Found {len(self.course_urls)} courses via Sitemap. Skipping slow BFS crawl.")
         elif not self.circuit_open:
-            await self._bfs_crawl(start_url)
-        final_urls = [url for url in list(self.course_urls) if url not in existing_urls]
+            await self._bfs_crawl(start_url, existing_urls)
+        final_urls = self._merge_resumable_urls([url for url in list(self.course_urls) if url not in existing_urls])
         logger.info(f"Total Discovery: {len(final_urls)} NEW potential courses.")
         return final_urls
 
@@ -622,14 +787,26 @@ class UniversalHarvester:
         logger.info(f"Scraping {url}")
         try:
             response = await self._safe_request(session, url)
-            if not response or response.status_code != 200: return None
+            if not response:
+                raise HarvesterPartialError(f"request failed for {url}")
+            if response.status_code != 200:
+                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {url}")
+            if not self._is_html_response(response):
+                raise HarvesterPartialError(f"non-HTML content for {url}")
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             if eff_url and not self._is_valid_crawl_url(eff_url):
-                logger.info(f"Skipping {url} - Redirected to excluded URL: {eff_url}")
-                self.db.upsert('staging_raw', {"url": url, "institution_id": self.institution['id'], "status": "discarded", "metadata": {"discard_reason": "post_scrape_exclusion"}}, on_conflict="url")
-                return None
-            has_changed, content_hash = await self._check_if_changed(url, response.text, eff_url, can_url)
+                raise HarvesterPartialError(f"redirected to excluded URL: {eff_url}")
+            if can_url and not self._is_valid_crawl_url(can_url):
+                raise HarvesterPartialError(f"canonical URL is excluded: {can_url}")
+            discovered_row = self._discovered_row_for_url(url)
+            has_changed, _ = await self._check_if_changed(
+                url,
+                response.text[:200000],
+                eff_url,
+                can_url,
+                force_changed=discovered_row["status"] == DISCOVERED_STATUS,
+            )
             if not has_changed:
                 logger.info(f"Skipping {url} - No changes.")
                 return None
@@ -643,10 +820,15 @@ class UniversalHarvester:
             wait_sec = self.detail_wait_ms / 1000
             await asyncio.sleep(random.uniform(wait_sec * 0.5, wait_sec * 1.5))
 
-            raw_html = await page.content()
+            raw_html = (await page.content())[:200000]
+            if not raw_html.strip():
+                raise HarvesterPartialError(f"empty rendered HTML for {url}")
+            content_hash = self._generate_hash(raw_html)
             json_ld = await self._extract_json_ld(page)
             og_tags = await self._extract_og_tags(page)
             title = await self._extract_title(page, og_tags, json_ld)
+            if not str(title or '').strip():
+                raise HarvesterPartialError(f"empty raw_name for {url}")
             description = await self._extract_description(page, og_tags, json_ld)
 
             # Fase 62C: Section keywords extraction from rendered HTML
@@ -692,7 +874,7 @@ class UniversalHarvester:
                 "raw_description": description,
                 "raw_json_ld": json_ld,
                 "raw_og_tags": og_tags,
-                "raw_html": raw_html[:200000],
+                "raw_html": raw_html,
                 "content_hash": content_hash,
                 "institution_id": self.institution['id'],
                 "status": "pending",
@@ -706,9 +888,10 @@ class UniversalHarvester:
             }
         except DatabaseAPIError:
             raise
+        except HarvesterRunError:
+            raise
         except Exception as e:
-            logger.error(f"Error scraping {url}: {e}")
-            return None
+            raise HarvesterPartialError(f"parser/browser error scraping {url}: {e}") from e
 
     async def _scrape_http(self, session, url):
         """Fase 62A: HTTP-only extraction for traditional_ssr sites (faster, no Playwright overhead)."""
@@ -716,19 +899,34 @@ class UniversalHarvester:
         logger.info(f"Scraping (HTTP) {url}")
         try:
             response = await self._safe_request(session, url)
-            if not response or response.status_code != 200: return None
+            if not response:
+                raise HarvesterPartialError(f"request failed for {url}")
+            if response.status_code != 200:
+                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {url}")
+            if not self._is_html_response(response):
+                raise HarvesterPartialError(f"non-HTML content for {url}")
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             if eff_url and not self._is_valid_crawl_url(eff_url):
-                logger.info(f"Skipping {url} - Redirected to excluded URL: {eff_url}")
-                self.db.upsert('staging_raw', {"url": url, "institution_id": self.institution['id'], "status": "discarded", "metadata": {"discard_reason": "post_scrape_exclusion"}}, on_conflict="url")
-                return None
-            has_changed, content_hash = await self._check_if_changed(url, response.text, eff_url, can_url)
+                raise HarvesterPartialError(f"redirected to excluded URL: {eff_url}")
+            if can_url and not self._is_valid_crawl_url(can_url):
+                raise HarvesterPartialError(f"canonical URL is excluded: {can_url}")
+            raw_html = response.text[:50000]
+            if not raw_html.strip():
+                raise HarvesterPartialError(f"empty HTML payload for {url}")
+            discovered_row = self._discovered_row_for_url(url)
+            has_changed, _ = await self._check_if_changed(
+                url,
+                raw_html,
+                eff_url,
+                can_url,
+                force_changed=discovered_row["status"] == DISCOVERED_STATUS,
+            )
             if not has_changed:
                 logger.info(f"Skipping {url} - No changes.")
                 return None
 
-            html = response.text
+            html = raw_html
             soup = BeautifulSoup(html, 'html.parser')
 
             # Extract JSON-LD
@@ -752,6 +950,8 @@ class UniversalHarvester:
                 if title_tag:
                     title = title_tag.string or ''
             title = title.strip()
+            if not title:
+                raise HarvesterPartialError(f"empty raw_name for {url}")
 
             # Extract description
             desc = og_tags.get('og:description') or (json_ld.get('description') if isinstance(json_ld, dict) else None) or ''
@@ -771,17 +971,18 @@ class UniversalHarvester:
                 "raw_description": desc,
                 "raw_json_ld": json_ld,
                 "raw_og_tags": og_tags,
-                "raw_html": html[:50000],
-                "content_hash": content_hash,
+                "raw_html": raw_html,
+                "content_hash": self._generate_hash(raw_html),
                 "institution_id": self.institution['id'],
                 "status": "pending",
                 "metadata": json.dumps({"extracted_sections": sections, "field_defaults": self.field_defaults}),
             }
         except DatabaseAPIError:
             raise
+        except HarvesterRunError:
+            raise
         except Exception as e:
-            logger.error(f"Error scraping (HTTP) {url}: {e}")
-            return None
+            raise HarvesterPartialError(f"parser error scraping {url}: {e}") from e
 
     # ─────────────────────────────────────────────────────────
     # Fase 62C: Section keywords extraction from headings
@@ -924,14 +1125,48 @@ class UniversalHarvester:
         return desc
 
     def _save_discovered_url(self, url):
-        self.db.upsert("staging_raw", {"url": url, "institution_id": self.institution['id'], "status": "discovered"}, on_conflict="url")
+        normalized = normalize_url(url)
+        for row in self._select_staging_rows_by_url(normalized):
+            owner = row.get("institution_id")
+            status = row.get("status")
+            if owner != self.institution.get('id'):
+                raise HarvesterRunError(f"cross-institution URL collision for {normalized}")
+            if status == DISCOVERED_STATUS:
+                stored = {"id": row["id"], "url": normalized, "status": DISCOVERED_STATUS}
+                self._remember_discovered_row(stored)
+                return stored
+            if status in PROTECTED_STAGING_STATUSES:
+                return {"id": row["id"], "url": normalized, "status": status}
+            raise HarvesterRunError(f"unknown staging status for {normalized}: {status}")
+
+        inserted = self.db.insert("staging_raw", {
+            "url": normalized,
+            "institution_id": self.institution['id'],
+            "status": DISCOVERED_STATUS,
+        })
+        if inserted is None:
+            raise HarvesterRunError(f"failed to insert discovered URL {normalized}")
+        rows = self.db.select_pipeline_raise(
+            "staging_raw",
+            filters=(
+                f"institution_id=eq.{quote(str(self.institution['id']), safe='')}"
+                f"&url=eq.{quote(normalized, safe='')}"
+                "&status=eq.discovered"
+            ),
+            columns="id,url,status",
+            limit=2,
+        )
+        if len(rows) != 1:
+            raise HarvesterRunError(f"failed to verify discovered URL {normalized}")
+        stored = {"id": rows[0]["id"], "url": normalize_url(rows[0]["url"]), "status": rows[0]["status"]}
+        self._remember_discovered_row(stored)
+        return stored
 
     def _save_to_staging(self, item):
-        try:
-            self.db.upsert("staging_raw", item, on_conflict="url")
-            logger.info(f"Harvested to Staging: {item['url']}")
-        except Exception as e:
-            logger.error(f"Failed DB save: {e}")
+        row = self._discovered_row_for_url(item.get("url"))
+        promoted = self._promote_discovered_to_pending(row, item)
+        logger.info(f"Harvested to Staging: {item['url']}")
+        return promoted
 
 
 async def main():
@@ -949,93 +1184,104 @@ async def main():
 
     inst = json.loads(args.institution)
     harvester = UniversalHarvester(inst, global_start=global_start)
-
-    # Fase 75: Require profile
-    if not harvester.profile:
-        logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
-                     f"Crea un perfil antes de ejecutar el pipeline.")
-        return
-    if not harvester._gate_enabled('discovery_enabled'):
-        logger.info(f"⏭️ SKIP {inst['name']}: discovery_enabled=false.")
-        return
-    pipeline_enabled = harvester._gate_enabled('pipeline_enabled')
-    if not pipeline_enabled:
-        logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_enabled=false. "
-                    f"Harvester will discover URLs into staging_raw for review. "
-                    f"Cleansing/enrichment/sync will skip until pipeline_enabled=true.")
-
-    # Fase 62A: Determine if Playwright is needed based on site_type and discovery_mode
-    need_browser = (
-        harvester.site_type in ('spa_js_heavy', 'ecommerce') or
-        harvester.discovery_mode == 'catalog_link_extraction'
-    )
-    extraction_needs_browser = harvester.site_type in ('spa_js_heavy', 'ecommerce')
-
-    urls = []
     browser = None
     pw = None
 
-    if need_browser:
-        pw = await async_playwright().start()
-        launch_kwargs = {"headless": True}
-        if harvester.requires_stealth:
-            launch_kwargs["slow_mo"] = 50
-        browser = await pw.chromium.launch(**launch_kwargs)
-        if harvester.requires_cf_bypass and harvester.warmup_url:
-            await harvester._warmup_browser(browser)
-        urls = await harvester.discover_courses(browser)
-    else:
-        urls = await harvester.discover_courses()
+    try:
+        # Fase 75: Require profile
+        if not harvester.profile:
+            logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
+                         f"Crea un perfil antes de ejecutar el pipeline.")
+            return 1
+        if not harvester._gate_enabled('discovery_enabled'):
+            logger.info(f"⏭️ SKIP {inst['name']}: discovery_enabled=false.")
+            return 0
+        if harvester.circuit_open:
+            logger.error(f"Circuit is open for {inst['name']}; failing closed.")
+            return 1
+        pipeline_enabled = harvester._gate_enabled('pipeline_enabled')
+        if not pipeline_enabled:
+            logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_enabled=false. "
+                        f"Harvester will discover URLs into staging_raw for review. "
+                        f"Cleansing/enrichment/sync will skip until pipeline_enabled=true.")
 
-    if not pipeline_enabled:
-        logger.info(f"🔍 DISCOVERY-ONLY complete for {inst['name']}: {len(urls)} URLs discovered; detail scraping skipped.")
+        # Fase 62A: Determine if Playwright is needed based on site_type and discovery_mode
+        need_browser = (
+            harvester.site_type in ('spa_js_heavy', 'ecommerce') or
+            harvester.discovery_mode == 'catalog_link_extraction'
+        )
+        extraction_needs_browser = harvester.site_type in ('spa_js_heavy', 'ecommerce')
+
+        if need_browser:
+            pw = await async_playwright().start()
+            launch_kwargs = {"headless": True}
+            if harvester.requires_stealth:
+                launch_kwargs["slow_mo"] = 50
+            browser = await pw.chromium.launch(**launch_kwargs)
+            if harvester.requires_cf_bypass and harvester.warmup_url:
+                await harvester._warmup_browser(browser)
+            urls = await harvester.discover_courses(browser)
+        else:
+            urls = await harvester.discover_courses()
+
+        if not pipeline_enabled:
+            logger.info(f"🔍 DISCOVERY-ONLY complete for {inst['name']}: {len(urls)} URLs discovered; detail scraping skipped.")
+            return 0
+
+        failures = []
+        promoted_count = 0
+        async with AsyncSession() as session:
+            for i, url in enumerate(urls):
+                elapsed_total = time.time() - global_start
+                if elapsed_total > MAX_RUN_TIME:
+                    failures.append((url, "time guard reached"))
+                    logger.warning(f"⚠️ [TIME GUARD] Límite de ejecución alcanzado ({elapsed_total/3600:.2f}h).")
+                    break
+
+                logger.info(f"Processing {i + 1}/{len(urls)}: {url}")
+                page = None
+                try:
+                    if extraction_needs_browser and browser:
+                        page = await browser.new_page(user_agent=get_random_user_agent())
+                        if harvester.requires_stealth and STEALTH_AVAILABLE:
+                            stealth = Stealth()
+                            await stealth.apply_stealth_async(page)
+                        item = await harvester.scrape_course_detail(session, page, url)
+                    else:
+                        item = await harvester._scrape_http(session, url)
+                    if item:
+                        item["status"] = "pending"
+                        harvester._save_to_staging(item)
+                        promoted_count += 1
+                except Exception as exc:
+                    failures.append((url, str(exc)))
+                    logger.error(f"Partial harvesting failure for {url}: {exc}")
+                finally:
+                    if page:
+                        await page.close()
+
+        if failures:
+            logger.error(f"FG2 finished PARTIAL/FAIL for {inst['name']}: {len(failures)} failures, {promoted_count} promoted.")
+            return 1
+
+        duration = int(time.time() - start_time)
+        harvester.db.patch_exact_one_raise("institutions", filters=f"id=eq.{quote(str(inst['id']), safe='')}", data={
+            "last_harvest_at": datetime.now().isoformat(),
+            "last_harvest_duration_sec": duration
+        }, expected_id=inst['id'])
+        logger.info(f"✅ Telemetry updated for {inst['name']}: {duration}s")
+        return 0
+    except Exception as exc:
+        logger.error(f"FG2 failed closed for {inst.get('name')}: {exc}")
+        return 1
+    finally:
         if browser:
             await browser.close()
         if pw:
             await pw.stop()
-        return
-
-    async with AsyncSession() as session:
-        for i, url in enumerate(urls):
-            elapsed_total = time.time() - global_start
-            if elapsed_total > MAX_RUN_TIME:
-                logger.warning(f"⚠️ [TIME GUARD] Límite de ejecución alcanzado ({elapsed_total/3600:.2f}h). Realizando cierre elegante...")
-                break
-
-            logger.info(f"Processing {i + 1}/{len(urls)}: {url}")
-
-            if extraction_needs_browser and browser:
-                page = await browser.new_page(user_agent=get_random_user_agent())
-                if harvester.requires_stealth and STEALTH_AVAILABLE:
-                    stealth = Stealth()
-                    await stealth.apply_stealth_async(page)
-                item = await harvester.scrape_course_detail(session, page, url)
-                await page.close()
-            else:
-                item = await harvester._scrape_http(session, url)
-
-            if item:
-                item["status"] = "pending"
-                harvester._save_to_staging(item)
-
-    if browser:
-        await browser.close()
-    if pw:
-        await pw.stop()
-
-    # Telemetry
-    duration = int(time.time() - start_time)
-    try:
-        harvester.db.patch("institutions", filters=f"id=eq.{inst['id']}", data={
-            "last_harvest_at": datetime.now().isoformat(),
-            "last_harvest_duration_sec": duration
-        })
-        logger.info(f"✅ Telemetry updated for {inst['name']}: {duration}s")
-    except Exception as e:
-        logger.error(f"Failed to update telemetry: {e}")
 
 
 if __name__ == "__main__":
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))

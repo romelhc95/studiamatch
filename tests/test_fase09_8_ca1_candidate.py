@@ -95,10 +95,15 @@ def test_fg1_inventory_is_config_driven_and_fail_closed() -> None:
 
 def test_harvester_does_not_promote_discovered_before_valid_content() -> None:
     code = source("scripts/core/universal_harvester.py")
-    assert '"status": "discovered"' in code
+    assert 'DISCOVERED_STATUS = "discovered"' in code
+    assert "PROTECTED_STAGING_STATUSES" in code
+    assert "_resumable_urls" in code
+    assert "_validate_pending_payload" in code
+    assert "_promote_discovered_to_pending" in code
+    assert "patch_exact_one_raise" in code
+    assert '"&status=eq.discovered"' in code
     assert 'item["status"] = "pending"' in code
     assert 'data={"status": "pending"}' not in code
-    assert 'status=eq.discovered' not in code
 
 
 def test_sync_paginates_all_pending_records_and_keeps_mock_inactive() -> None:
@@ -178,6 +183,14 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "fase09-7-remediation" in workflow.split("needs:", 1)[1]
     assert "tests/test_fase09_8_runtime_security.py" in workflow
     assert "fase10-promotion-contract" in workflow
+
+
+def test_f99_gate_expects_go_after_trusted_harness_baseline() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+    assert 'if [ "$F99_BASE_HAS_HARNESS" = "true" ]; then' in workflow
+    assert 'F99_EXPECTED_DECISION="GO_TO_PREPARE_CERTIFICATION_PR"' in workflow
+    assert 'F99_EXPECTED_DECISION="NO_GO_KNOWN_T_H1_CA1_002B"' in workflow
+    assert 'if [ "$F99_RUNTIME_CHANGED" = "true" ]; then\n            F99_EXPECTED_DECISION' not in workflow
 
 
 def test_f9_7_bridge_preserves_frozen_candidate_and_transition_boundary() -> None:
