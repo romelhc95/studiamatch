@@ -37,7 +37,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 # API Keys & Credits
-CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
+CF_API_TOKEN = os.getenv("CF_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
 
@@ -742,7 +742,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             start_date_raw = enriched.get("start_date")
             if start_date_raw and str(start_date_raw).strip().lower() in ('none', 'null', 'nan', ''):
                 enriched["start_date"] = None
-            
+
             def normalize(val):
                 if isinstance(val, (list, dict)):
                     return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])

@@ -36,7 +36,7 @@ def run_script(script_path, args=None, timeout=None):
     cmd = [sys.executable, script_path]
     if args:
         cmd.extend(args)
-    
+
     logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
     try:
@@ -49,7 +49,7 @@ def run_script(script_path, args=None, timeout=None):
     except subprocess.TimeoutExpired:
         logger.error(f"[STAGE TIMEOUT] {script_path}")
         return False
-    
+
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
         return True
@@ -131,11 +131,11 @@ def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
 
 def main(argv=None):
     import argparse
-    
+
     # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
     env_start = os.getenv("JOB_START_TIME")
     global_start = float(env_start) if env_start else time.time()
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
@@ -160,7 +160,7 @@ def main(argv=None):
     except Exception as exc:
         logger.error(f"Failed to select eligible institutions: {exc}")
         return 1
-    
+
     if args.institution_slug and not institutions:
         logger.error(f"No eligible institution found for slug: {args.institution_slug}")
         return 1
