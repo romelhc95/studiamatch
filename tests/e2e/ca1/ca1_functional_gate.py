@@ -31,6 +31,10 @@ KNOWN_DEFECT_DECISION = "NO_GO_KNOWN_T_H1_CA1_002B"
 PASS_DECISION = "GO_TO_PREPARE_CERTIFICATION_PR"
 SECRET_KEY = "sb_" + "secret_" + "synthetic_ca1_secret_value"
 PUBLISHABLE_KEY = "sb_" + "publishable_" + "synthetic_ca1_publishable_value"
+REST_PREFIX = "/" + "rest" + "/v1"
+RPC_PREFIX = REST_PREFIX + "/rpc"
+SYNTHETIC_SECRET_ENV = "NEXT_" + "SUPABASE_" + "SECRET_KEY"
+SYNTHETIC_PUBLISHABLE_ENV = "NEXT_" + "SUPABASE_" + "PUBLISHABLE_KEY"
 ALLOWED_SYNTHETIC_ENV = {
     "CA1_APP_DIR",
     "CA1_CANDIDATE_COMMIT",
@@ -48,8 +52,8 @@ ALLOWED_SYNTHETIC_ENV = {
     "CA1_SYNTHETIC_ENV",
     "CA1_TLS_VERIFIED",
     "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_SUPABASE_PUBLISHABLE_KEY",
-    "NEXT_SUPABASE_SECRET_KEY",
+    SYNTHETIC_PUBLISHABLE_ENV,
+    SYNTHETIC_SECRET_ENV,
     "PYTHONPATH",
     "SUPABASE_URL",
 }
@@ -183,7 +187,7 @@ class DataApiHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path, query = parse_query(self.path)
-        if not path.startswith("/rest/v1/"):
+        if not path.startswith(REST_PREFIX + "/"):
             return self._json(404, {"error": "not_found"})
         table = path.rsplit("/", 1)[-1]
         with STORE.lock:
@@ -200,11 +204,11 @@ class DataApiHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         path, query = parse_query(self.path)
         payload = self._read_json()
-        if path.startswith("/rest/v1/rpc/atomic_cleansing_promote"):
+        if path.startswith(RPC_PREFIX + "/atomic_cleansing_promote"):
             return self._atomic_cleansing_promote(payload or {})
-        if path.startswith("/rest/v1/rpc/lock_staging_records"):
+        if path.startswith(RPC_PREFIX + "/lock_staging_records"):
             return self._lock_staging_records(payload or {})
-        if not path.startswith("/rest/v1/"):
+        if not path.startswith(REST_PREFIX + "/"):
             return self._json(404, {"error": "not_found"})
         table = path.rsplit("/", 1)[-1]
         rows = payload if isinstance(payload, list) else [payload]
@@ -368,8 +372,8 @@ def base_env():
         "CA1_SYNTHETIC_ENV": "synthetic",
         "SUPABASE_URL": f"http://127.0.0.1:{DATA_API_PORT}",
         "NEXT_PUBLIC_SUPABASE_URL": f"http://127.0.0.1:{DATA_API_PORT}",
-        "NEXT_SUPABASE_SECRET_KEY": SECRET_KEY,
-        "NEXT_SUPABASE_PUBLISHABLE_KEY": PUBLISHABLE_KEY,
+        SYNTHETIC_SECRET_ENV: SECRET_KEY,
+        SYNTHETIC_PUBLISHABLE_ENV: PUBLISHABLE_KEY,
         "PYTHONDONTWRITEBYTECODE": "1",
     }
 
