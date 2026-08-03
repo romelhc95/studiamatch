@@ -148,6 +148,58 @@ Supabase ni Cloudflare en este paquete.
 - `USER_PERSONAL_UAT` debe ejecutarse despues del merge selectivo F9.10 en `certificacion`, ligado al SHA/tree final congelado. Checklist sanitizado minimo: confirmar que el paquete entregado es CA1-only; confirmar que `EVID-H1-008` sigue como `DEVIATION_ACCEPTED_FAIL_CLOSED` y no como PASS; revisar que Production, schedules y F10 sigan bloqueados; aceptar explicitamente `USER_PERSONAL_UAT=PASS` para ese SHA/tree sin registrar PII, secretos, slugs de cohortes ni identificadores internos.
 - El canary Production que podra acreditar `EVID-H1-010` debe ejecutarse en F10.8 con `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true` y limites `5/5/3/3/3`. Runs FG2-only o FG3-only son diagnosticos y no acreditan `EVID-H1-010`. `EVID-H1-013` exige FG1 manual equivalente PASS y cron mensual activo; un waiver requiere decision humana separada con responsable y fecha.
 
+### Correccion F9.10 Posterior A PR #283 - 2026-08-03
+
+- PR #283 quedo aprobado/fusionado en `desarrollo@5cfd93f626b3362c5c148b1d680ae948ce0218ea` / tree `8e6ab8a39de9b9ce1c3a9faf4d0d42e2c5c9c163`; head final `9b4f5e3f06a31b630cc644c54e63ce26d0f96ffb`, mergeado por `romelhc95-approver`.
+- CI del PR #283: `security-audit`, `F10 Main Boundary And Production Canary`, `F9.9 Pre-Main Repository Controls`, credential scan, lint, typecheck, frontend build, Python check y contratos F6-F10 en `success`.
+- CI post-merge de `desarrollo@5cfd93f626b3362c5c148b1d680ae948ce0218ea`: `Security Audit Gate` run `30856264196` PASS y `F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract` run `30856264217` PASS.
+- Refs revalidadas antes de esta correccion: `desarrollo@5cfd93f626b3362c5c148b1d680ae948ce0218ea` / tree `8e6ab8a39de9b9ce1c3a9faf4d0d42e2c5c9c163`, `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` / tree `b2edda7c538b7e74abe0bcaf59715e9d3f4b9327`, `main@d8f1ea0b210f2a1cf95e73751621cf8b4fcf0f93` / tree `0c7d31a392612001b786e2ef680cc0be3d1b4c18`.
+- Este paquete correctivo no abre PR a `certificacion` ni `main`. Tampoco ejecuta workflow dispatch, canary, Supabase, Cloudflare, DDL/DML, backup/restore real, writers, schedules, environments/secrets ni aprobacion de runs antiguos.
+
+La proyeccion selectiva calculada desde `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` hacia los blobs de `desarrollo@5cfd93f626b3362c5c148b1d680ae948ce0218ea` contiene exactamente 23 paths. El digest de control `projection_digest_sha256` es `2459cedda5542c81eb5bafca460148ebb6b65551c865fdcbe174ccee02edfb36`, calculado sobre JSON ordenado por `path` con claves `blob`, `kind`, `mode`, `path`, `status`, `sort_keys=true` y separadores compactos. Este digest congela PR #283 como fuente, pero no sustituye el re-freeze obligatorio despues del merge de este PR correctivo.
+
+| Status | Mode | Blob | Path |
+|---|---|---|---|
+| `A` | `100644` | `15c7b1ce5a2c0f00a05d85f2d3766769c66aaa55` | `.context/arquitectura/05_despliegue_ambientes.md` |
+| `A` | `100644` | `145a3965a96d1791a09a42b14cc6e440175a7144` | `.context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md` |
+| `A` | `100644` | `a68f68ca54f4489fa25d6ed947f06459bb037271` | `.context/estado_del_proyecto.md` |
+| `M` | `100644` | `4544abfbd04ed73f3efac7311b9eceec8c8f3294` | `.context/evidencias_cliente/sprint_1/paquete_hito_001.md` |
+| `A` | `100644` | `d7b8629650444ffd18cfa87c6d109c88b5a623f7` | `.context/operaciones/certificacion_hito1_f9.md` |
+| `A` | `100644` | `b67c290a81bcda6a8292bdbea0c88d20c6463324` | `.context/operaciones/flujo_release_minimo.md` |
+| `M` | `100644` | `8d8a73a4b1d1eaf9db7b3c234c0ecdca2ab177b7` | `.context/operaciones/plan_cierre_hito1_ca1_only.md` |
+| `A` | `100644` | `b81652d02e0fdaccd2eeb8b273f23db7ca4b5611` | `.gitattributes` |
+| `M` | `100644` | `b4ad7e59b66e60cb1a64bc8d68c812611c75be32` | `.github/scripts/production_control_preflight.sh` |
+| `A` | `100644` | `d4a3ea305081e789b86a04370736d810e93f4480` | `.github/workflows/f9-7-contract.yml` |
+| `A` | `100644` | `8959c4b8f90afe0d75f23bb6e0f99d51321f1c45` | `.github/workflows/production_canary.yml` |
+| `M` | `100755` | `8435c79855d7f3dc05eb5f6174d2ae82f0c477e4` | `.github/workflows/security-audit.yml` |
+| `M` | `100644` | `44cc4dbb925f94b67ad343ea2d8bb09f7bd3f7c0` | `scripts/core/cleansing_worker.py` |
+| `M` | `100644` | `85d94e148e65263d7314fc3e57ac8e1da41265dc` | `scripts/core/enrichment_worker.py` |
+| `A` | `100644` | `12e42b91b8d2a9d71611d8d175ae22c76a858fd1` | `scripts/core/production_canary_manifest.py` |
+| `A` | `100644` | `2a48f77f613098f626b709d7c795b24da7a3f86c` | `scripts/core/production_canary_state.py` |
+| `M` | `100644` | `95179835ef7c9dffadd8c697ed395f02f0398c3e` | `scripts/core/sync_vector_worker.py` |
+| `M` | `100644` | `3bf3a6f03fcfa245469e8603e80e49f6c679601f` | `scripts/core/universal_harvester.py` |
+| `M` | `100644` | `29cc1616b18a0c079017449b754f599280199d11` | `tests/test_fase09_10_pre_main_controls.py` |
+| `A` | `100644` | `bd960428eb987ab28d5cfe38c19a34a15616b548` | `tests/test_fase09_7_release_gates.py` |
+| `M` | `100644` | `741d44cefea8578831c8d4705ba73c1617474cbc` | `tests/test_fase10_main_boundary.py` |
+| `A` | `100644` | `9e43a19aa8b62d270b5f5cbc72edb978331349c3` | `tests/test_fase10_production_canary.py` |
+| `M` | `100644` | `4f43932220f3e1c5045a1bed82b585deb777ae46` | `tests/test_supabase_credentials_contract.py` |
+
+La proyeccion virtual `main@d8f1ea0b210f2a1cf95e73751621cf8b4fcf0f93 -> certificacion` despues de aplicar exactamente los 23 objetos anteriores sobre `bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` contiene 40 blobs y digest `future_main_boundary_digest_sha256=479e55e90f5cdf341b565335d088dc07bc7e65bc95ea9dc5b784fd9b1daa8a47`. Este valor es referencia de sanity-check, no autorizacion F10.7: debe recalcularse con el SHA/tree final de `certificacion` despues del replay selectivo y antes del PR `certificacion -> main`.
+
+Blockers resueltos por esta definicion:
+
+- CI: `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` es el baseline exacto; cualquier drift de base invalida la segunda F9.10 y exige nuevo rebaseline.
+- Seguridad: la proyeccion aprobada es por paths exactos, status, mode y blob; no acepta prefijos amplios, `db/**`, `supabase/**`, `web/**`, `.env*`, datos operativos ni CA2.
+- Canary: `EVID-H1-010` queda reservado a F10.8 con FG1+FG2+FG3, `mutable_authorized=true`, limites `5/5/3/3/3`, host Pro allowlisted, snapshot privado, restore y segundo restore NOOP; runs parciales no acreditan cierre.
+- Rollback: un canary con perdida de snapshot privado, restore fallido, runner perdido o artifacts no sanitizados falla y deja schedules apagados hasta autorizacion nueva.
+
+Blockers restantes antes de la segunda autorizacion F9.10:
+
+- Fusionar este PR correctivo en `desarrollo`, obtener CI/review humano PASS y ejecutar replay post-merge.
+- Congelar el nuevo `desarrollo@<SHA>` / tree final y recalcular la proyeccion exacta si cualquier `path`, `status`, `mode`, `blob` o digest de los 23 paths cambia.
+- Abrir PR a `certificacion` solo con nueva autorizacion decimal F9.10 y sin merge/cherry-pick completo de `desarrollo`.
+- Obtener CI/review humano post-merge de `certificacion`, SHA/tree final y `USER_PERSONAL_UAT=PASS` antes de readiness F10.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
