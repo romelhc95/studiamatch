@@ -1,17 +1,36 @@
 name: DB Sync to Production
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
+      operation:
+        description: "report runs dry-run only; apply requires separate DDL authorization"
+        required: true
+        default: report
+        type: choice
+        options:
+          - report
+          - apply
       candidate_sha:
         description: "Immutable main commit approved for Production"
         required: true
         type: string
       apply_authorized:
-        description: "Production environment approval was granted"
+        description: "Production environment approval was granted for this manual apply"
         required: true
         default: false
         type: boolean
+      backup_pitr_verified:
+        description: "Backup/PITR was verified immediately before this manual apply"
+        required: true
+        default: false
+        type: boolean
+      ddl_authorization_id:
+        description: "Separate approved DDL authorization ID"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -24,14 +43,69 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  detect:
-    name: "Detect pending migrations"
-    if: github.ref_name == 'main' && inputs.apply_authorized
+  report:
+    name: "Report pending migrations"
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment:
       name: Production
     outputs:
       pending_count: ${{ steps.check.outputs.count }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable candidate
+        env:
+          CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: pip install --require-hashes -r requirements-db-migrate.txt
+      - name: Report pending migrations dry-run
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST" > report.txt
+          count=$(grep -c "PENDIENTE" report.txt || true)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          cat report.txt
+      - name: Confirm report-only mode
+        run: |
+          set -euo pipefail
+          echo "DB sync push/report mode is dry-run only. No migration apply is performed by this job."
+
+  apply:
+    name: "Apply pending migrations"
+    needs: report
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_name == 'main' &&
+      inputs.operation == 'apply' &&
+      inputs.apply_authorized &&
+      inputs.backup_pitr_verified &&
+      inputs.ddl_authorization_id != '' &&
+      fromJSON(needs.report.outputs.pending_count) > 0
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -42,43 +116,24 @@ jobs:
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
+          set -euo pipefail
+          printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$CANDIDATE_SHA" origin/main
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt
-      - name: Check pending migrations
-        id: check
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+      - name: Verify explicit DDL authorization
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          DDL_AUTHORIZATION_ID: ${{ inputs.ddl_authorization_id }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
-          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST" > report.txt
-          count=$(grep -c "PENDIENTE" report.txt || true)
-          echo "count=$count" >> $GITHUB_OUTPUT
-          cat report.txt
-
-  apply:
-    name: "Apply pending migrations"
-    needs: detect
-    if: github.ref_name == 'main' && needs.detect.outputs.pending_count > 0
-    runs-on: ubuntu-latest
-    environment:
-      name: Production
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: ${{ inputs.candidate_sha }}
-          fetch-depth: 0
-          persist-credentials: false
+          set -euo pipefail
+          printf '%s' "$DDL_AUTHORIZATION_ID" | grep -Eq '^DDL-[A-Z0-9][A-Z0-9_-]{3,}$'
+          auth_file=".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md"
+          test -f "$auth_file"
+          grep -F "APPROVED_FOR_PRODUCTION_DDL" "$auth_file"
+          grep -F "$CANDIDATE_SHA" "$auth_file"
+          grep -F "Backup/PITR" "$auth_file"
+          grep -F "VERIFIED" "$auth_file"
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -86,6 +141,11 @@ jobs:
           cache: 'pip'
       - name: Install dependencies
         run: pip install --require-hashes -r requirements-db-migrate.txt
+      - name: Verify production controls before migrations
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh DB-SYNC --enforce
       - name: Apply migrations to Pro
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -97,8 +157,14 @@ jobs:
 
   verify:
     name: "Verify target schema"
-    needs: [detect, apply]
-    if: always() && github.ref_name == 'main' && needs.detect.result == 'success' && (needs.apply.result == 'success' || needs.apply.result == 'skipped')
+    needs: [report, apply]
+    if: >-
+      always() &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_name == 'main' &&
+      inputs.operation == 'apply' &&
+      needs.report.result == 'success' &&
+      needs.apply.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -126,19 +192,25 @@ jobs:
         run: python3 scripts/maintenance/check_db_parity.py --env pro --target-only
       - name: Report target schema result
         run: |
+          set -euo pipefail
           if [ "${{ steps.parity.outcome }}" = "failure" ]; then
-            echo "❌ Target schema check FAILED — Pro no tiene la configuracion/schema minima"
+            echo "Target schema check FAILED: Pro does not match the minimum schema contract"
             exit 1
           fi
-          echo "✅ Target schema check PASSED"
+          echo "Target schema check PASSED"
 
   defer-fg2:
     name: "FG2 deferred to scheduled production window"
     needs: verify
-    if: success() && github.ref_name == 'main'
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_name == 'main' &&
+      inputs.operation == 'apply' &&
+      needs.verify.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Confirm deferred production scraping
         run: |
-          echo "✅ DB sync/parity completed. FG2 is intentionally NOT dispatched immediately."
+          set -euo pipefail
+          echo "DB sync/parity completed. FG2 is intentionally NOT dispatched immediately."
           echo "Production FG2 will run on its scheduled window or by explicit workflow_dispatch."

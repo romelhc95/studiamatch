@@ -109,7 +109,7 @@ puede presentarse como mitigado sin evidencia.
 ## Aprobaciones
 
 - Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
-- Revision tecnica: pendiente.
+- Revision tecnica: controles pre-main de repositorio implementados como candidate local/CI; pendiente review/merge y QA independiente.
 - QA: pendiente.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.

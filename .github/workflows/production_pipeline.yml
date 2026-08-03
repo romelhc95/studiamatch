@@ -13,11 +13,35 @@ permissions:
   contents: read
 
 jobs:
+  production_control_preflight:
+    name: "FG2 Production Control Preflight"
+    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG2') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    outputs:
+      writer: ${{ steps.preflight.outputs.writer }}
+      allow_writer: ${{ steps.preflight.outputs.allow_writer }}
+      automation_enabled: ${{ steps.preflight.outputs.automation_enabled }}
+      writers_paused: ${{ steps.preflight.outputs.writers_paused }}
+      reason: ${{ steps.preflight.outputs.reason }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve production controls
+        id: preflight
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG2-HARVEST
+
   # 🚉 STATION 1: Massive Discovery & Harvesting
   # -------------------------------------------------------------
   phase_1_harvesting:
     name: "1. Massive Harvesting"
-    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref) && (github.event_name != 'schedule' || (github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'))
+    needs: production_control_preflight
+    if: needs.production_control_preflight.outputs.allow_writer == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 350
     environment:
@@ -39,7 +63,12 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install chromium
       - name: Set Job Start Time
-        run: echo "JOB_START_TIME=$(date +%s)" >> $GITHUB_ENV
+        run: echo "JOB_START_TIME=$(date +%s)" >> "$GITHUB_ENV"
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG2-HARVEST --enforce
       - name: Run Master Orchestrator (Harvesting Only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -54,7 +83,8 @@ jobs:
   # -------------------------------------------------------------
   phase_1_5_cleansing:
     name: "1.5. High Fidelity Cleansing"
-    needs: phase_1_harvesting
+    needs: [production_control_preflight, phase_1_harvesting]
+    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_harvesting.result == 'success'
     timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
@@ -73,6 +103,11 @@ jobs:
           cache: 'pip'
       - name: Install Dependencies
         run: pip install --require-hashes -r requirements-pipeline.txt
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG2-CLEANSING --enforce
       - name: Run Cleansing Worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -86,7 +121,8 @@ jobs:
   # -------------------------------------------------------------
   phase_2_enrichment:
     name: "2. AI Enrichment (14 Pillars)"
-    needs: phase_1_5_cleansing
+    needs: [production_control_preflight, phase_1_5_cleansing]
+    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_1_5_cleansing.result == 'success'
     timeout-minutes: 350
     runs-on: ubuntu-latest
     environment:
@@ -105,6 +141,11 @@ jobs:
           cache: 'pip'
       - name: Install Dependencies
         run: pip install --require-hashes -r requirements-pipeline.txt
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG2-ENRICHMENT --enforce
       - name: Multicloud AI Enrichment
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -121,7 +162,8 @@ jobs:
   # -------------------------------------------------------------
   phase_3_sync:
     name: "3. Integrity & Sync"
-    needs: phase_2_enrichment
+    needs: [production_control_preflight, phase_2_enrichment]
+    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_2_enrichment.result == 'success'
     timeout-minutes: 60
     runs-on: ubuntu-latest
     environment:
@@ -140,6 +182,11 @@ jobs:
           cache: 'pip'
       - name: Install Dependencies
         run: pip install --require-hashes -r requirements-pipeline.txt
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG2-SYNC --enforce
       - name: Sync to Production Courses
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -151,7 +198,8 @@ jobs:
 
   phase_4_audit:
     name: "4. CA1 Audit Boundary"
-    needs: phase_3_sync
+    needs: [production_control_preflight, phase_3_sync]
+    if: needs.production_control_preflight.outputs.allow_writer == 'true' && needs.phase_3_sync.result == 'success'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     permissions:

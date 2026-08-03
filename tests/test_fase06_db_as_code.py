@@ -367,11 +367,18 @@ def test_pro_workflow_uses_manifest_for_detect_and_apply():
 
     assert normalized.count(command) == 2
     assert "MIGRATION_MANIFEST: db/manifests/fase08_candidate.json" in workflow
-    assert "push:" not in workflow
+    assert "push:" in workflow
+    assert "Report pending migrations dry-run" in workflow
     assert "candidate_sha:" in workflow
     assert "apply_authorized:" in workflow
+    assert "backup_pitr_verified:" in workflow
+    assert "ddl_authorization_id:" in workflow
     assert workflow.count("persist-credentials: false") == 3
-    assert "git merge-base --is-ancestor" in workflow
+    assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in workflow
+    assert "github.event_name == 'workflow_dispatch'" in workflow
+    assert "inputs.operation == 'apply'" in workflow
+    assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in workflow
+    assert "APPROVED_FOR_PRODUCTION_DDL" in workflow
 
 
 def test_free_glob_path_rejects_fase06_without_manifest():
