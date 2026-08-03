@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_9_PRE_MAIN_CONTROLS_IMPLEMENTED_QA_PENDING` |
+| Estado | `F9_9_QA_VERIFIED_F9_10_PENDING` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -11,9 +11,9 @@
 
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
 ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
-PR #277 y una desviacion Certification fail-closed. El paquete posterior de
-controles pre-main es repositorio/CI solamente; Production, schedules, F9.10 y
-F10 permanecen bloqueados hasta autorizaciones separadas.
+PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
+QA independiente `PASS`. Production, schedules y F10 permanecen bloqueados hasta
+autorizaciones separadas.
 
 ## Objetivo
 
@@ -104,7 +104,7 @@ Condiciones de la desviacion:
 - La validacion positiva se desplaza a F10: canary Production acotado y observacion programada posterior, ambos sujetos a controles pre-main.
 - La desviacion expira al completar la observacion Production en F10 o ante el primer fallo que demuestre que el problema no era exclusivo del egress observado en Certification.
 
-La definicion QA obligatoria para `EVID-H1-015` vive en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Esa nota define el paquete de revision; no ejecuta QA ni cambia el estado pendiente.
+La definicion QA obligatoria para `EVID-H1-015` vive en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Su resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](./qa_desviacion_f9_9_resultado.md) queda en `PASS`; no declara Certification PASS ni autoriza Production, schedules, F9.10/F10, Supabase, Cloudflare o DDL/DML.
 
 ## Controles Pre-Main F9.9
 
@@ -129,6 +129,13 @@ writers productivos ambiguos:
 No se ejecutan workflows remotos, no se configuran environments reales, no se
 habilitan schedules, no se abre PR a `main`, no hay DDL/DML y no se accede a
 Supabase ni Cloudflare en este paquete.
+
+### Cierre Controles Pre-Main Y QA - 2026-08-03
+
+- PR #280 aprobado/fusionado en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`.
+- CI post-merge sobre `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954`: `Security Audit Gate` run `30813990225` PASS y `F9.7 Local Contract` run `30813989772` PASS.
+- QA independiente de la desviacion: [resultado sanitizado](./qa_desviacion_f9_9_resultado.md) `PASS`; `EVID-H1-015=VERIFIED`.
+- `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` aun no contiene los controles pre-main de PR #280; F9.10 debe reconstruirlos selectivamente antes de cualquier readiness F10.
 
 ## Work Packages Internos
 
@@ -305,7 +312,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
 | `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_REVERIFY_MAIN_CANDIDATE` |
-| `EVID-H1-015` | QA independiente | PASS | `PENDING` |
+| `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
 ## Stop Conditions

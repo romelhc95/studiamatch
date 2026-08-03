@@ -3,13 +3,13 @@
 | Campo | Valor |
 |---|---|
 | ID | `QA-F9.9-DEVIATION-001` |
-| Estado | `DEFINED_PENDING_REVIEW` |
+| Estado | `REVIEWED_PASS` |
 | Evidencia objetivo | `EVID-H1-015` |
 | Subfase | `F9.9` |
 | Candidate runtime | `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` |
 | Decision relacionada | [ADR-0007](../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md) |
 
-Esta nota define la revision QA independiente de la desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`. No ejecuta la revision, no cambia `EVID-H1-015=PENDING`, no declara resultado positivo de Certification y no autoriza F9.10, F10, Production, schedules, Supabase, Cloudflare, DDL/DML, backup/restore, writers ni nuevas ejecuciones Certification.
+Esta nota define la revision QA independiente de la desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`. El resultado sanitizado queda registrado en [QA-F9.9-DEVIATION-001-RESULT](./qa_desviacion_f9_9_resultado.md) como `PASS`, lo que permite marcar `EVID-H1-015=VERIFIED`. No declara resultado positivo de Certification y no autoriza F9.10, F10, Production, schedules, Supabase, Cloudflare, DDL/DML, backup/restore, writers ni nuevas ejecuciones Certification.
 
 ## Alcance
 

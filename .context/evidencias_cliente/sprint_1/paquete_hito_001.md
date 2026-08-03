@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_WITH_F9_9_DEVIATION_DOCUMENTED` |
+| Estado | `DRAFT_WITH_F9_9_QA_VERIFIED` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
 | Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local) y `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277) |
@@ -26,17 +26,17 @@ credenciales.
 Candidate local F9.8 CA1-only implementado y replay-validado post-merge en
 Docker/Linux. PR #277 promovio el candidate selectivo a Certification y quedo
 aprobado/fusionado; los canaries Certification posteriores se aceptan solo como
-evidencia fail-closed (`DEVIATION_ACCEPTED_FAIL_CLOSED`), no como PASS. Produccion
-observada, conformidad, PR a main, canary Production, schedules y QA siguen
-pendientes. El resultado final debera indicar claramente que se entrego CA1 y
-que CA2 se traslado a Hito 2.
+evidencia fail-closed (`DEVIATION_ACCEPTED_FAIL_CLOSED`), no como PASS. QA
+independiente verifico esa desviacion. Produccion observada, conformidad, PR a
+main, canary Production y schedules siguen pendientes. El resultado final debera
+indicar claramente que se entrego CA1 y que CA2 se traslado a Hito 2.
 
 ## Alcance Entregado
 
 | Elemento | Resultado | Evidencia |
 |---|---|---|
 | Schedules FG2/FG3 | `LOCAL_CANDIDATE` | Workflows con kill switch y environments dedicados; observacion Production pendiente |
-| Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_OBSERVED_PENDING_QA` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; revision QA independiente pendiente |
+| Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_QA_VERIFIED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; QA independiente `PASS` |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
 | Development/Certification/Production | `CERTIFICATION_DEVIATION_DOCUMENTED` | PR #277 Approved/Merged; Production y main pendientes |
 | Cero cambios CA2 | `CERTIFICATION_BOUNDARY_PASS_MAIN_PENDING` | Gate selectivo F9.9 PASS; reverify requerido contra candidate main |
@@ -61,16 +61,16 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - Base commit/tree: `d9c7f180495c985a1e9a0ada4a42525fda60a870` / `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - Candidate commit/tree: `5b282461149b7319685cf090534e28051e5eb32c` / `d1fe60a403aa213e8a1beb51d49af12aba727cfd`.
 - Patch-id y hashes: patch-id estable `ba0f680c09d1d91684f772e326d077676a05370e`; candidate F9.7 congelado `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
-- Merge desarrollo/certificacion/main: `desarrollo@df18dc0c4c516e998071498d1db8792f7891f766`; `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `main` pendiente.
+- Merge desarrollo/certificacion/main: controles pre-main PR #280 en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`; `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `main` pendiente.
 
 ## Validaciones
 
 - Local/container: `PASS` para py_compile CA1, assertions focused F9.8 CA1 y replay post-merge Docker/Linux (53 focused + focused jobs CI + F9.7 congelado 226+7 + runners PG17).
-- CI: PR #277 PASS (`security-audit`, boundary selectivo, credential scan, Python, typecheck, lint); F10/main pendiente.
+- CI: PR #277 PASS (`security-audit`, boundary selectivo, credential scan, Python, typecheck, lint); PR #280 y CI post-merge PASS en `desarrollo`; F10/main pendiente.
 - Security: `LOCAL_PASS` sin blockers; residual SSRF DNS TOCTOU documentado como riesgo no bloqueante.
-- QA independiente: pendiente.
+- QA independiente: `PASS` segun [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Certification: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS.
-- Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md) pendiente de ejecucion.
+- Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); resultado `PASS` sanitizado en [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Production: pendiente.
 - Schedule observado: pendiente.
 
@@ -91,9 +91,9 @@ Condiciones:
 
 - No se declara resultado positivo de Certification.
 - `F99_CERTIFICATION_CANARY_MUTABLE_APPROVED` quedo restaurado a `false`.
-- Las cohortes intentadas quedaron documentadas como sin markers F9.9 residuales; QA debe verificar el bundle primario.
-- Los artifacts disponibles reportaron conteos no-cohorte sin cambio; no se afirma digest de contenido no-cohorte hasta QA.
-- FG2 downstream, FG3, QA, canary Production, schedules y conformidad siguen pendientes.
+- Las cohortes intentadas quedaron documentadas como sin markers F9.9 residuales y QA verifico el bundle primario disponible.
+- Los artifacts disponibles reportaron conteos no-cohorte sin cambio; no se afirma digest de contenido no-cohorte fuera del nivel demostrado por QA.
+- FG2 downstream, FG3, canary Production, schedules y conformidad siguen pendientes.
 - La desviacion expira con observacion Production completada en F10 o ante un fallo que descarte que el problema fuese el egress observado en Certification.
 
 ## Exclusiones Confirmadas
@@ -109,8 +109,8 @@ puede presentarse como mitigado sin evidencia.
 ## Aprobaciones
 
 - Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
-- Revision tecnica: controles pre-main de repositorio implementados como candidate local/CI; pendiente review/merge y QA independiente.
-- QA: pendiente.
+- Revision tecnica: controles pre-main de repositorio aprobados/fusionados en PR #280 con CI post-merge PASS.
+- QA: `PASS` para la desviacion F9.9; no autoriza Production ni `main`.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.
 
@@ -132,5 +132,5 @@ puede presentarse como mitigado sin evidencia.
 | `EVID-H1-012` | `PLANNED` |
 | `EVID-H1-013` | `PLANNED` |
 | `EVID-H1-014` | `PENDING_REVERIFY_MAIN_CANDIDATE` |
-| `EVID-H1-015` | `PENDING` |
+| `EVID-H1-015` | `VERIFIED` |
 | `EVID-H1-016` | `PLANNED` |
