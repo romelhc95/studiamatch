@@ -19,8 +19,8 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado y desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill ni Production.
-- Subfase activa: F9.9 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 externo.
-- Subfase autorizada: documentacion de desviacion y controles pre-main. No habilita codigo, workflows, Supabase, schema/RLS, writers, nuevas ejecuciones Certification ni Production.
+- Subfase activa: F9.9 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
+- Subfase autorizada en este paquete: reconciliacion documental de la desviacion, definicion QA y allowlist futura de controles pre-main. No habilita codigo, workflows, Supabase, schema/RLS, writers, nuevas ejecuciones Certification ni Production.
 - Ultima subfase cerrada: F9.8 `COMPLETED_VERIFIED_POST_MERGE` con candidate local CA1-only replay-validado en Docker/Linux.
 - Siguiente accion: QA independiente de la desviacion y cierre de controles pre-main bajo autorizacion decimal vigente; F9.10 y F10 siguen bloqueadas.
 
@@ -38,7 +38,7 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
 | `F9.7` | Rebaseline documental de adenda y cierre CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | `EVID-H1-001` verificada de forma sanitizada; PR #268 mergeado en `desarrollo@f8b8987` / tree `3d044210`; no hubo aplicacion remota, DDL/DML, backfill, Certification ni Production |
 | `F9.8` | Implementacion y validacion local del candidate CA1-only | `COMPLETED_VERIFIED_POST_MERGE` | PR #270/#271; replay post-merge Docker/Linux sobre `5b28246`: 53 focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PG17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS; `EVID-H1-002..005` `VERIFIED` |
-| `F9.9` | Candidate selectivo, Certification, canary y QA | `IN_PROGRESS` | PR #277 fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; QA independiente y controles pre-main pendientes |
+| `F9.9` | Candidate selectivo, Certification, canary, QA y controles pre-main | `IN_PROGRESS` | PR #277 fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; QA independiente y controles pre-main pendientes |
 | `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `PENDING` | `USER_PERSONAL_UAT` ocurre despues de canary, validaciones tecnicas Certification y QA, y antes de readiness para F10 |
 
 La [definicion remota F9.4 anterior](./preflight_free_f9_4.md), el [registro F9.5](./preflight_free_f9_5.md) y la ruta schema/backfill/free_certified son historia no autorizable para Hito 1. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
@@ -132,9 +132,11 @@ formaliza la desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`:
 - Run `30782109395`: fail-closed por source slug no configurado; cleanup e idempotencia exitosos.
 - Run `30782242009`: FG1 PASS; FG2 fail-closed por HTTP 403; cleanup e idempotencia exitosos.
 - Run `30782360475`: FG1 PASS; FG2 fail-closed por HTTP 403; cleanup e idempotencia exitosos.
-- La ventana mutable quedo restaurada a `false`; las cohortes intentadas quedaron sin markers F9.9 residuales; los artifacts disponibles no reportaron drift no-cohorte.
+- La ventana mutable quedo restaurada a `false`; las cohortes intentadas quedaron documentadas como sin markers F9.9 residuales; los artifacts disponibles reportaron conteos no-cohorte sin cambio y requieren revision QA antes de afirmar aislamiento de contenido.
 
-Esta evidencia no es un resultado positivo de Certification, no valida FG2 downstream ni FG3, y no habilita F10. La validacion positiva queda desplazada a canary Production acotado y observacion programada posterior, con controles pre-main obligatorios.
+Esta evidencia no es un resultado positivo de Certification, no valida FG2 downstream ni FG3, y no habilita F10. La validacion positiva queda desplazada a F10 mediante canary Production acotado y observacion programada posterior, con controles pre-main obligatorios.
+
+La revision independiente de la desviacion queda definida en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Esa definicion no ejecuta QA ni cambia `EVID-H1-015=PENDING`.
 
 ## Identidades Historicas
 
@@ -216,7 +218,7 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 | PR a `desarrollo` si el candidate nace temporal | Cada subfase aplicable; comprobacion final F9.10 |
 | Promocion nueva a `certificacion` | F9.10 con review/CI |
 | Canary Certification desde candidate exacto | F9.9/F9.10 |
-| QA independiente | F9.10 |
+| QA independiente | F9.9/F9.10: definicion y revision de desviacion en F9.9; confirmacion final de readiness en F9.10 |
 | Readiness F10 | F9.10; sustituye `FREE_CERTIFIED` para Hito 1 CA1-only |
 
 ## Gates Humanos Preservados Y Sustituidos
@@ -233,6 +235,6 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 
 ## Criterio De Salida De La Macrofase F9
 
-F9 solo termina para Hito 1 CA1-only cuando el candidate selectivo permanece inmutable, `EVID-H1-008` conserva su desviacion aceptada o un canary Certification positivo la sustituye, `EVID-H1-009..016` quedan listos para F10 segun sus umbrales, QA independiente, certificacion final y `USER_PERSONAL_UAT` pasan, y se declara readiness para F10. Solo entonces puede iniciar la ejecucion de F10 Produccion.
+F9 solo termina para Hito 1 CA1-only cuando el candidate selectivo permanece inmutable, `EVID-H1-008` conserva su desviacion aceptada o un canary Certification positivo la sustituye, QA independiente y controles pre-main pasan, certificacion final y `USER_PERSONAL_UAT` pasan, y se declara readiness para F10. `EVID-H1-009..013/016` pertenecen a F10/F11 y no son precondicion para iniciar F10; solo entonces puede iniciar la ejecucion de F10 Produccion.
 
 Ver [Estado](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).

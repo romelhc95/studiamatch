@@ -36,7 +36,7 @@ que CA2 se traslado a Hito 2.
 | Elemento | Resultado | Evidencia |
 |---|---|---|
 | Schedules FG2/FG3 | `LOCAL_CANDIDATE` | Workflows con kill switch y environments dedicados; observacion Production pendiente |
-| Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_OBSERVED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot |
+| Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_OBSERVED_PENDING_QA` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; revision QA independiente pendiente |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
 | Development/Certification/Production | `CERTIFICATION_DEVIATION_DOCUMENTED` | PR #277 Approved/Merged; Production y main pendientes |
 | Cero cambios CA2 | `CERTIFICATION_BOUNDARY_PASS_MAIN_PENDING` | Gate selectivo F9.9 PASS; reverify requerido contra candidate main |
@@ -61,7 +61,7 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - Base commit/tree: `d9c7f180495c985a1e9a0ada4a42525fda60a870` / `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - Candidate commit/tree: `5b282461149b7319685cf090534e28051e5eb32c` / `d1fe60a403aa213e8a1beb51d49af12aba727cfd`.
 - Patch-id y hashes: patch-id estable `ba0f680c09d1d91684f772e326d077676a05370e`; candidate F9.7 congelado `258ef3a98c7c1010efe58522bb1eca892e26390e` / tree `2cb182ab9ece141bd8e84d7bbf9c91d771f603de`.
-- Merge desarrollo/certificacion/main: `desarrollo@456becf94a2bab3d8091c7036509cfb80791a3f9`; `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `main` pendiente.
+- Merge desarrollo/certificacion/main: `desarrollo@df18dc0c4c516e998071498d1db8792f7891f766`; `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `main` pendiente.
 
 ## Validaciones
 
@@ -70,6 +70,7 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - Security: `LOCAL_PASS` sin blockers; residual SSRF DNS TOCTOU documentado como riesgo no bloqueante.
 - QA independiente: pendiente.
 - Canary Certification: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS.
+- Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md) pendiente de ejecucion.
 - Canary Production: pendiente.
 - Schedule observado: pendiente.
 
@@ -90,10 +91,10 @@ Condiciones:
 
 - No se declara resultado positivo de Certification.
 - `F99_CERTIFICATION_CANARY_MUTABLE_APPROVED` quedo restaurado a `false`.
-- Las cohortes intentadas quedaron sin markers F9.9 residuales.
-- Los artifacts disponibles reportaron cero drift no-cohorte.
+- Las cohortes intentadas quedaron documentadas como sin markers F9.9 residuales; QA debe verificar el bundle primario.
+- Los artifacts disponibles reportaron conteos no-cohorte sin cambio; no se afirma digest de contenido no-cohorte hasta QA.
 - FG2 downstream, FG3, QA, canary Production, schedules y conformidad siguen pendientes.
-- La desviacion expira con observacion Production completada o ante un fallo que descarte que el problema fuese egress externo Certification.
+- La desviacion expira con observacion Production completada en F10 o ante un fallo que descarte que el problema fuese el egress observado en Certification.
 
 ## Exclusiones Confirmadas
 

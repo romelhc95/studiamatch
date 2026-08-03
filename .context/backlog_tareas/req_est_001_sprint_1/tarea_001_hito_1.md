@@ -59,7 +59,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado | QA independiente de la desviacion, controles pre-main, certificacion final F9.10, UAT, canary Production y produccion observada F10 |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado | QA independiente de la desviacion, controles pre-main de repositorio, certificacion final F9.10, UAT, y canary/observacion Production dentro de F10 |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -211,10 +211,11 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - PR #277 fue aprobado y fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`.
 - `EVID-H1-006=VERIFIED` por equivalencia/boundary selectivo y CI `security-audit` PASS.
 - `EVID-H1-007=VERIFIED` por PR #277 `APPROVED/MERGED`.
-- `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`: los canaries Certification observaron salida no cero ante inventario invalido o HTTP 403 externo; cleanup e idempotencia pasaron cuando hubo snapshot.
+- `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`: los canaries Certification observaron salida no cero ante inventario invalido o HTTP 403 observado desde GitHub-hosted runners; cleanup e idempotencia pasaron cuando hubo snapshot.
 - La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
 - `EVID-H1-014=PENDING_REVERIFY_MAIN_CANDIDATE`, `EVID-H1-015=PENDING` y `EVID-H1-009..013/016=PLANNED`.
-- F9.9 permanece `IN_PROGRESS` hasta QA independiente de la desviacion, controles pre-main y definicion de readiness para F9.10/F10.
+- La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); no ejecuta la revision ni cambia `EVID-H1-015`.
+- F9.9 permanece `IN_PROGRESS` hasta QA independiente de la desviacion, controles pre-main de repositorio y definicion de readiness para F9.10. F10 conserva el canary Production y la observacion.
 
 ## Exclusiones Historicas Preservadas
 

@@ -14,7 +14,7 @@ fija una ruta selectiva para Hito 1 CA1-only:
 3. Reconstruir el patch sobre baseline productivo sin mergear `desarrollo`.
 4. Demostrar cero cambios `db/**`, `supabase/**`, `web/**` y CA2.
 5. PR CA1-only a `certificacion`, canary y QA.
-6. PR `certificacion -> main`, canary Production y habilitacion de schedules.
+6. F9.10 declara readiness y luego F10 ejecuta PR `certificacion -> main`, canary Production y habilitacion de schedules.
 
 El flujo schema/backfill/free_certified anterior queda `SUPERSEDED_FOR_HITO_1` y
 se conserva solo como antecedente CA2 de Hito 2.
@@ -26,8 +26,8 @@ se conserva solo como antecedente CA2 de Hito 2.
 3. F9.8 ejecuta auditorias y congela diff, patch-id, commit/tree y hashes CA1.
 4. F9.9 reconstruye el candidate selectivo sobre el baseline de `certificacion`, sin mezclar `desarrollo` completo.
 5. F9.9 demuestra equivalencia y cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill y superficies CA2.
-6. F9.9 abre PR a `certificacion`, ejecuta canary y QA.
-7. F9.10 realiza certificacion final y `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA.
+6. F9.9 abre PR a `certificacion`, ejecuta canary, define/cierra QA independiente y controles pre-main de repositorio.
+7. F9.10 realiza certificacion final y `USER_PERSONAL_UAT` despues de canary Certification, validaciones tecnicas Certification y QA.
 8. F9.10 declara readiness para F10 solo con candidate commit/tree inmutable, CI y review humano.
 9. F10 abre PR a `main`, ejecuta canary Production con schedules apagados.
 10. F10 habilita schedules gradualmente, observa FG2/FG3 y FG1 soporte.
@@ -57,7 +57,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.6 cierra H-00 como `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE`.
 - F9.7 queda cerrada por rebaseline contractual; v3, PR-O v1/hold actual y PR-O sucesor permanecen historia no ejecutable de Hito 1.
 - F9.8 implementa y valida localmente el candidate CA1-only.
-- F9.9 ejecuta candidate selectivo, Certification, canary y QA.
+- F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio.
 - F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
 - La macrofase F10 Produccion permanece bloqueada hasta readiness F9.10.
 
