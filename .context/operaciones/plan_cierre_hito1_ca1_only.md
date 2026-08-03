@@ -3,15 +3,16 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_8_COMPLETED_POST_MERGE_F9_9_NEXT` |
+| Estado | `F9_9_DEVIATION_ACCEPTED_PRE_MAIN_CONTROLS_PENDING` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
 | Autoridad habilitante | [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md) |
 
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
-ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge y la siguiente
-ejecucion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.9`.
+ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
+PR #277 y una desviacion Certification fail-closed; Production, schedules,
+F9.10 y F10 permanecen bloqueados hasta autorizaciones separadas.
 
 ## Objetivo
 
@@ -75,6 +76,31 @@ usa una frontera por patch:
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
+
+## Desviacion Certification F9.9 Aceptada
+
+La decision [ADR-0007](../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
+registra `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`. Esta desviacion acepta la
+evidencia de comportamiento fail-closed ante HTTP 403 externo desde egress
+compartido de GitHub-hosted runners, pero prohibe declarar un resultado positivo de Certification.
+
+Evidencia sanitizada:
+
+| Run | Resultado |
+|---|---|
+| `30777088545` | Cancelado esperando aprobacion; sin ejecucion ni secretos. |
+| `30781870451` | FAIL por duplicado normalizado en inventario; cleanup e idempotencia exitosos. |
+| `30782109395` | FAIL por source slug no configurado; cleanup e idempotencia exitosos. |
+| `30782242009` | FG1 PASS; FG2 FAIL por HTTP 403; cleanup e idempotencia exitosos. |
+| `30782360475` | FG1 PASS; FG2 FAIL por HTTP 403; cleanup e idempotencia exitosos. |
+
+Condiciones de la desviacion:
+
+- Solo cubre egress externo Certification; no cubre credenciales, RLS, target Supabase, secretos, CA2, cleanup fallido ni mutaciones fuera de alcance.
+- La ventana mutable quedo restaurada a `false` y no se ejecuta Production en esta documentacion.
+- Los stages FG2 downstream y FG3 siguen sin validacion positiva.
+- La validacion positiva se desplaza a canary Production acotado y observacion programada posterior, ambos sujetos a controles pre-main.
+- La desviacion expira al completar la observacion Production o ante el primer fallo que demuestre que el problema no era exclusivo del egress Certification.
 
 ## Work Packages Internos
 
@@ -192,19 +218,36 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 
 - Patch equivalente sobre baseline de certificacion.
 - Cero paths CA2.
-- Canary FG1/FG2/FG3, cleanup y QA.
+- `EVID-H1-006/007=VERIFIED` por PR #277 y CI; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, nunca `PASS`.
+- QA independiente debe revisar la desviacion antes de readiness.
 - Evidencia de target sin exponer identificadores.
 - `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA.
 
 ### Production / F10
 
+- Antes de cualquier PR a `main` deben cerrarse como checklist bloqueante:
+  - `db-sync-to-pro.yml`: push a `main` solo dry-run/report-only; apply automatico prohibido; apply solo por `workflow_dispatch`, confirmacion explicita, aprobacion Production, backup/PITR verificado, autorizacion DDL separada, Actions pinneadas por SHA y dependencias hash-locked.
+  - Environments `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` con reviewer humano, branch policy `main`, secrets minimos separados y `AUTOMATION_ENABLED=false` inicial.
+  - Gate de automatizacion con preflight asociado al environment programado, sin depender ambiguamente de variable de environment en job-level `if`, y output explicito por writer.
+  - `PRODUCTION_WRITERS_PAUSED` efectivo y fail-closed antes de cada estacion mutante y tambien para migraciones.
+  - Gate main/F10 con boundary CA1-only, cero CA2, credential scan, workflows validos, tests obligatorios, candidate commit/tree/digest inmutables, review humano y aprobacion SDLC.
+  - Rollback con backup/restore ensayados, responsable, RTO/RPO, cancelacion de jobs, schedules off, rollback de datos, migracion compensatoria si existiera DDL y revert de codigo solo por PR forward-only.
 - PR `certificacion -> main`.
 - Candidate/tree inmutable y aprobacion humana.
 - Backup/rollback operativo proporcionado por el ambiente vigente.
-- Canary acotado antes de schedules.
+- Canary Production acotado, solo `workflow_dispatch`, SHA exacto de `main`, environment Production con aprobacion, host Pro allowlisted, una cohorte, limites acotados, snapshot privado, restore exacto, segundo restore NOOP y artifacts sanitizados.
 - Cero mutaciones fuera de cohorte y cero cambios CA2.
 - FG2/FG3 automaticos observados; FG1 manual equivalente con cron mensual
   activo y primera ventana natural como observacion post-cierre.
+
+### Observacion Production
+
+- No inicia antes de un canary Production PASS.
+- FG2 programado a `05:00 UTC` y FG3 a `11:00 UTC`.
+- Requiere tres pares consecutivos FG2 -> FG3, seis runs completos; puede exceder 72 horas.
+- Un run skipped, cancelled, timeout, partial, `401/403/429/5xx` o false-green no cuenta.
+- Ante cualquier fallo: `PRODUCTION_WRITERS_PAUSED=true`, automation false, cancelar jobs activos, preservar evidencia y reiniciar la secuencia despues de remediar.
+- FG1 mensual no se considera observado en 72 horas; exige FG1 manual equivalente PASS y cron activo, o waiver explicita con responsable y fecha de primera ventana natural.
 
 ## Kill Switch Y Rollback
 
@@ -223,16 +266,16 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-003` | Validacion local | PASS | `VERIFIED` |
 | `EVID-H1-004` | Seguridad/secret scan | Sin blockers | `VERIFIED` |
 | `EVID-H1-005` | PR desarrollo | Approved/Merged | `VERIFIED` |
-| `EVID-H1-006` | Equivalencia patch | PASS | `PLANNED` |
-| `EVID-H1-007` | PR certificacion | Approved/Merged | `PLANNED` |
-| `EVID-H1-008` | Canary Certification | PASS | `PLANNED` |
+| `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
+| `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
+| `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
 | `EVID-H1-009` | PR main | Approved/Merged | `PLANNED` |
 | `EVID-H1-010` | Canary Production | PASS | `PLANNED` |
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PLANNED` |
-| `EVID-H1-015` | QA independiente | PASS | `PLANNED` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_REVERIFY_MAIN_CANDIDATE` |
+| `EVID-H1-015` | QA independiente | PASS | `PENDING` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
 ## Stop Conditions
@@ -242,10 +285,12 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Target/environment ambiguo.
 - Secret o dato sensible en diff/log.
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
-- CI, QA, canary, smoke o schedule fallido.
+- CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
+- PR a `main`, Production o schedules antes de cerrar los controles pre-main.
 
 ## Criterio De Salida
 
 `H1-CA1=COMPLETED_PRODUCTION` y `HITO-001=COMPLETED_PRODUCTION_CA1_ONLY`
-solo despues de las 16 evidencias verificadas. CA2 queda
+solo despues de que `EVID-H1-008` conserve su desviacion aceptada y
+`EVID-H1-009..016` queden verificadas segun sus umbrales futuros. CA2 queda
 `DEFERRED_TO_HITO_2` sin cambio funcional productivo.
