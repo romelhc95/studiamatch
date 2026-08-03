@@ -152,6 +152,8 @@ El paquete pre-main implementa controles de repositorio antes de cualquier ruta 
 - Cada estacion mutante FG1/FG2/FG3 revalida
   `.github/scripts/production_control_preflight.sh` inmediatamente antes de escribir.
 - `security-audit.yml` agrega tests bloqueantes de controles pre-main y boundary F10.
+- `f9-7-contract.yml` conserva el candidate F9.7 congelado y solo amplia el gate de
+  transicion para reconocer la modificacion autorizada de `db-sync-to-pro.yml`.
 
 Este paquete no ejecuta Production, schedules, canaries, Supabase, Cloudflare,
 DDL/DML, backup/restore, writers remotos ni PR a `main`. F9.10 permanece bloqueada

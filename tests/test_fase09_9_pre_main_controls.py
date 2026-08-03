@@ -114,3 +114,18 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
     assert "--dry-run --manifest" in report_section
     assert "Apply migrations to Pro" not in report_section
     assert not re.search(r"if:\s*github\.ref_name == 'main' && inputs\.apply_authorized", workflow)
+
+
+def test_db_sync_workflow_change_is_allowed_by_transition_gates() -> None:
+    security_audit = source(".github/workflows/security-audit.yml")
+    f9_7_contract = source(".github/workflows/f9-7-contract.yml")
+
+    security_allowlist = security_audit.split(
+        "f98_ca1_allowed_statuses = {", 1
+    )[1].split("f98_ca1_allowed = set", 1)[0]
+    transition_allowlist = f9_7_contract.split("allowed_statuses = {", 1)[1].split(
+        "allowed = set(allowed_statuses)", 1
+    )[0]
+
+    for allowlist in (security_allowlist, transition_allowlist):
+        assert "'.github/workflows/db-sync-to-pro.yml': {'M'}" in allowlist

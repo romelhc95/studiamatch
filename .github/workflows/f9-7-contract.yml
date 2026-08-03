@@ -148,6 +148,7 @@ jobs:
           head = os.environ['F98_HEAD_COMMIT']
           allowed_statuses = {
               '.github/workflows/fg1_inventory.yml': {'M'},
+              '.github/workflows/db-sync-to-pro.yml': {'M'},
               '.github/workflows/fg3_integrity.yml': {'M'},
               '.github/workflows/production_pipeline.yml': {'M'},
               'scripts/core/certification_canary_manifest.py': {'A'},

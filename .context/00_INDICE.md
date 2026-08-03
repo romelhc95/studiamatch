@@ -75,6 +75,7 @@
 - [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md)
 - [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
 - [Changelog 2026-08-01](changelog/2026-08-01.md)
+- [Changelog 2026-08-03](changelog/2026-08-03.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)

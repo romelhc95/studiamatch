@@ -327,6 +327,7 @@ Paths permitidos para ese paquete posterior:
 - `.github/workflows/db-sync-to-pro.yml` para separar reporte dry-run en push a `main` del apply manual.
 - `.github/workflows/fg1_inventory.yml`, `.github/workflows/production_pipeline.yml` y `.github/workflows/fg3_integrity.yml` para preflight environment-bound, outputs explicitos y gate de `AUTOMATION_ENABLED`.
 - `.github/workflows/security-audit.yml` para gate main/F10 object-based, boundary CA1-only y checks documentales.
+- `.github/workflows/f9-7-contract.yml` solo para ampliar el gate de transicion y permitir la modificacion de `.github/workflows/db-sync-to-pro.yml` dentro de este paquete F9.9.
 - `.github/workflows/opencode.yml` solo para pinning de Actions por SHA confiable si se resuelve externamente sin inventar SHAs.
 - `.github/actionlint.yaml` solo para ajustar suppressions si los workflows dejan de necesitarlas.
 - `.github/scripts/production_control_preflight.sh` como script local fail-closed sin secretos ni red.
