@@ -39,6 +39,7 @@ WORKFLOW_PATHS = (
     ".github/workflows/fg1_inventory.yml",
     ".github/workflows/fg3_integrity.yml",
     ".github/workflows/opencode.yml",
+    ".github/workflows/production_canary.yml",
     ".github/workflows/production_pipeline.yml",
     ".github/workflows/security-audit.yml",
 )
@@ -478,7 +479,7 @@ def test_actionlint_config_mutations_are_rejected(mutator):
         _validate_actionlint_config(mutator(ACTIONLINT_CONFIG))
 
 
-def test_actionlint_workflow_inventory_is_exactly_eight_tracked_files():
+def test_actionlint_workflow_inventory_is_exactly_nine_tracked_files():
     observed = tuple(
         sorted(
             subprocess.check_output(
@@ -492,9 +493,10 @@ def test_actionlint_workflow_inventory_is_exactly_eight_tracked_files():
 
 
 def test_actionlint_legacy_sc2086_workflow_blobs_remain_at_baseline():
+    candidate = os.environ.get("F97_CANDIDATE_COMMIT", "258ef3a98c7c1010efe58522bb1eca892e26390e")
     for path, _finding in LEGACY_ACTIONLINT_IGNORES:
         baseline_blob = _git_bytes(["cat-file", "blob", f"{F97_BASELINE_COMMIT}:{path}"]).stdout
-        candidate_blob = _git_bytes(["cat-file", "blob", f"HEAD:{path}"]).stdout
+        candidate_blob = _git_bytes(["cat-file", "blob", f"{candidate}:{path}"]).stdout
         assert candidate_blob == baseline_blob
 
 
@@ -568,12 +570,17 @@ def test_gitattributes_lf_scope_is_explicit_and_index_blobs_are_lf():
         "*.sh text eol=lf",
         ".github/workflows/security-audit.yml text eol=lf",
         ".github/workflows/f9-7-contract.yml text eol=lf",
+        ".github/workflows/production_canary.yml text eol=lf",
         ".github/actionlint.yaml text eol=lf",
         "db/migrations/20260727_fase09_7_*.sql text eol=lf",
         "db/migrations/20260728_fase09_7_*.sql text eol=lf",
         "db/migrations/20260729_fase09_7_*.sql text eol=lf",
         "tests/sql/fase09_7_*.sql text eol=lf",
         "tests/test_fase09_7_*.py text eol=lf",
+        "scripts/core/production_canary_manifest.py text eol=lf",
+        "scripts/core/production_canary_state.py text eol=lf",
+        "tests/test_fase09_10_pre_main_controls.py text eol=lf",
+        "tests/test_fase10_production_canary.py text eol=lf",
         "web/src/app/compare/CompareContent.tsx text eol=lf",
     }
     lines = set(source.splitlines())
@@ -1176,6 +1183,7 @@ def test_f9_7_contract_workflow_triggers_cover_wp04_paths_and_protected_inventor
         ".githooks/**",
         ".github/scripts/fase09_7_firewall_guard.sh",
         ".github/actionlint.yaml",
+        ".github/workflows/production_canary.yml",
         "tests/test_fase09_7_release_gates.py",
         "config/**",
         *PROTECTED_PATHS,

@@ -219,11 +219,14 @@ jobs:
               'scripts/maintenance/taxonomy_roi_audit.py',
           )
           f98_ca1_allowed_statuses = {
+              '.gitattributes': {'M'},
               '.github/workflows/fg1_inventory.yml': {'M'},
               '.github/workflows/db-sync-to-pro.yml': {'M'},
               '.github/workflows/production_pipeline.yml': {'M'},
               '.github/workflows/fg3_integrity.yml': {'M'},
               'scripts/core/certification_canary_manifest.py': {'A'},
+              'scripts/core/production_canary_manifest.py': {'A'},
+              'scripts/core/production_canary_state.py': {'A'},
               'scripts/core/cleansing_worker.py': {'M'},
               'scripts/core/discovery_institutions.py': {'M'},
               'scripts/core/enrichment_worker.py': {'M'},
@@ -1643,6 +1646,230 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          fetch-depth: 0
+      - name: Resolve object-based F10 main boundary
+        env:
+          F10_EVENT_NAME: ${{ github.event_name }}
+          F10_REF_NAME: ${{ github.ref_name }}
+          F10_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+          F10_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          F10_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          F10_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          F10_REPOSITORY: ${{ github.repository }}
+          F10_BASE_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.repo.full_name || github.repository }}
+          F10_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          # F10_BOUNDARY_OBJECT_GATE_START
+          import hashlib
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+
+          ZERO_SHA = "0" * 40
+          SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+          PERMANENT_BRANCHES = {"desarrollo", "certificacion", "main"}
+          ALLOWED_STATUSES = {"A", "M"}
+          ALLOWED_EXACT_PATHS = {
+              ".env.example",
+              ".gitattributes",
+              ".github/actionlint.yaml",
+              ".github/scripts/production_control_preflight.sh",
+              ".github/workflows/db-sync-to-pro.yml",
+              ".github/workflows/f9-7-contract.yml",
+              ".github/workflows/f9_9_certification_canary.yml",
+              ".github/workflows/fg1_inventory.yml",
+              ".github/workflows/fg3_integrity.yml",
+              ".github/workflows/production_canary.yml",
+              ".github/workflows/production_pipeline.yml",
+              ".github/workflows/security-audit.yml",
+              "requirements-db-migrate.txt",
+              "requirements-fg1.txt",
+              "requirements-fg3.txt",
+              "requirements-pipeline.txt",
+              "requirements-test.txt",
+              "scripts/core/certification_canary_manifest.py",
+              "scripts/core/certification_canary_state.py",
+              "scripts/core/cleansing_worker.py",
+              "scripts/core/discovery_institutions.py",
+              "scripts/core/enrichment_worker.py",
+              "scripts/core/integrity_ping.py",
+              "scripts/core/master_orchestrator.py",
+              "scripts/core/production_canary_manifest.py",
+              "scripts/core/production_canary_state.py",
+              "scripts/core/sync_vector_worker.py",
+              "scripts/core/universal_harvester.py",
+              "scripts/shared/db_client.py",
+              "scripts/shared/roi_engine.py",
+              "tests/test_fase09_10_pre_main_controls.py",
+              "tests/test_fase09_9_certification_canary.py",
+              "tests/test_fase09_7_release_gates.py",
+              "tests/test_fase10_main_boundary.py",
+              "tests/test_fase10_production_canary.py",
+              "tests/test_supabase_credentials_contract.py",
+          }
+          ALLOWED_PREFIXES = (
+              ".context/",
+              "config/",
+              "tests/e2e/ca1/",
+          )
+          DENIED_PREFIXES = (
+              "db/",
+              "supabase/",
+              "web/",
+              "scripts/maintenance/",
+          )
+
+          def fail(message):
+              print(f"::error::{message}")
+              raise SystemExit(1)
+
+          def git_text(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+
+          def git_text_or_fail(message, *args):
+              try:
+                  return git_text(*args)
+              except subprocess.CalledProcessError:
+                  fail(message)
+
+          def git_bytes(*args):
+              return subprocess.check_output(["git", *args])
+
+          def validate_sha(name, value):
+              if not SHA_RE.fullmatch(value or "") or value == ZERO_SHA:
+                  fail(f"{name} is not a supported commit SHA")
+
+          event_name = os.environ.get("F10_EVENT_NAME", "")
+          ref_name = os.environ.get("F10_REF_NAME", "")
+          base_ref = os.environ.get("F10_BASE_REF", "")
+          head_ref = os.environ.get("F10_HEAD_REF", "")
+          base = os.environ.get("F10_BASE_SHA", "")
+          head = os.environ.get("F10_HEAD_SHA", "")
+          repository = os.environ.get("F10_REPOSITORY", "")
+          base_repo = os.environ.get("F10_BASE_REPO", "")
+          head_repo = os.environ.get("F10_HEAD_REPO", "")
+
+          if event_name not in {"pull_request", "push"}:
+              fail(f"unsupported event for F10 boundary: {event_name}")
+          if event_name == "pull_request":
+              if base_ref not in PERMANENT_BRANCHES:
+                  fail(f"unsupported pull request target for F10 boundary: {base_ref}")
+              if base_ref == "main" and head_ref != "certificacion":
+                  fail("PRs to main must come only from certificacion")
+              if base_ref != "main" and head_ref == "main":
+                  fail("main cannot be used as a non-production source branch")
+          elif ref_name not in PERMANENT_BRANCHES:
+              fail(f"unsupported push target for F10 boundary: {ref_name}")
+
+          validate_sha("F10_BASE_SHA", base)
+          validate_sha("F10_HEAD_SHA", head)
+          if base == head:
+              fail("F10 boundary requires distinct base and head commits")
+          if event_name == "pull_request" and base_ref == "main":
+              if not repository or base_repo != repository or head_repo != repository:
+                  fail("PRs to main must originate from certificacion in the same repository")
+              certificacion_tip = git_text_or_fail(
+                  "unable to resolve protected certificacion branch tip",
+                  "rev-parse",
+                  "--verify",
+                  "refs/remotes/origin/certificacion^{commit}",
+              )
+              if certificacion_tip != head:
+                  fail("PRs to main must use the protected certificacion branch tip")
+
+          for commit in (base, head):
+              subprocess.check_call(["git", "cat-file", "-e", f"{commit}^{{commit}}"])
+          subprocess.check_call(["git", "merge-base", "--is-ancestor", base, head])
+          if git_text("rev-parse", "HEAD") != head:
+              fail("checked out commit does not match F10 head SHA")
+          head_tree = git_text("rev-parse", f"{head}^{{tree}}")
+          if git_text("rev-parse", f"{head_tree}^{{tree}}") != head_tree:
+              fail("unable to resolve immutable F10 head tree")
+
+          def allowed_path(path):
+              return path in ALLOWED_EXACT_PATHS or path.startswith(ALLOWED_PREFIXES)
+
+          def denied_path(path):
+              return path.startswith(DENIED_PREFIXES) or path.startswith(".env") and path != ".env.example"
+
+          def tree_entry(commit, path):
+              raw = git_bytes("ls-tree", "-z", commit, "--", path)
+              if not raw:
+                  return None
+              record = raw.rstrip(b"\0")
+              metadata, actual_path = record.split(b"\t", 1)
+              mode, kind, blob = metadata.decode("ascii").split(" ")
+              return {
+                  "path": actual_path.decode("utf-8", "surrogateescape"),
+                  "mode": mode,
+                  "kind": kind,
+                  "blob": blob,
+              }
+
+          raw_status = git_bytes(
+              "diff",
+              "--name-status",
+              "-z",
+              "--find-renames",
+              "--find-copies",
+              base,
+              head,
+              "--",
+          )
+          fields = raw_status.split(b"\0")
+          index = 0
+          manifest = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              status_code = status[:1]
+              index += 1
+              old_path = None
+              if status_code in {"R", "C"}:
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              paths = [item for item in (old_path, path) if item]
+              if status_code not in ALLOWED_STATUSES:
+                  fail(f"unsupported F10 boundary status {status} for {path}")
+              for item in paths:
+                  if denied_path(item):
+                      fail(f"denied F10 boundary path: {item}")
+                  if not allowed_path(item):
+                      fail(f"path is outside F10 CA1-only boundary: {item}")
+              head_entry = tree_entry(head, path)
+              base_entry = tree_entry(base, path)
+              if status_code == "A":
+                  if base_entry is not None:
+                      fail(f"added path already exists in base: {path}")
+                  if head_entry is None:
+                      fail(f"added path missing from head: {path}")
+                  if (head_entry["mode"], head_entry["kind"], head_entry["path"]) != ("100644", "blob", path):
+                      fail(f"invalid added blob mode or path: {path}")
+              else:
+                  if base_entry is None or head_entry is None:
+                      fail(f"modified path missing from base or head: {path}")
+                  if base_entry["path"] != path or head_entry["path"] != path:
+                      fail(f"tree path mismatch for {path}")
+                  if base_entry["kind"] != "blob" or head_entry["kind"] != "blob":
+                      fail(f"non-blob F10 boundary object: {path}")
+                  if base_entry["mode"] != head_entry["mode"] or base_entry["mode"] not in {"100644", "100755"}:
+                      fail(f"mode drift is not allowed for F10 boundary path: {path}")
+              manifest.append({"path": path, "mode": head_entry["mode"], "blob": head_entry["blob"]})
+
+          manifest = sorted(manifest, key=lambda item: item["path"])
+          if base_ref == "main" and not manifest:
+              fail("main promotion boundary cannot be empty")
+          manifest_digest = hashlib.sha256(
+              json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+          ).hexdigest()
+          print(f"F10_MAIN_BOUNDARY_PASS paths={len(manifest)} manifest_digest={manifest_digest}")
+          # F10_BOUNDARY_OBJECT_GATE_END
+          PY
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
@@ -1652,10 +1879,56 @@ jobs:
       - name: Run F9.9 pre-main controls tests
         run: python3 -m pytest -q tests/test_fase09_9_pre_main_controls.py tests/test_fase10_main_boundary.py
 
+  f10-main-boundary:
+    name: F10 Main Boundary And Production Canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Resolve object-based F10 main boundary
+        env:
+          F10_EVENT_NAME: ${{ github.event_name }}
+          F10_REF_NAME: ${{ github.ref_name }}
+          F10_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+          F10_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+          F10_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          F10_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          F10_REPOSITORY: ${{ github.repository }}
+          F10_BASE_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.repo.full_name || github.repository }}
+          F10_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/security-audit.yml").read_text(encoding="utf-8")
+          pre_main_job = workflow.split("  fase09-9-pre-main-controls:", 1)[1].split("  f10-main-boundary:", 1)[0]
+          block = pre_main_job.split("# F10_BOUNDARY_OBJECT_GATE_START", 1)[1].split(
+              "# F10_BOUNDARY_OBJECT_GATE_END", 1
+          )[0]
+          code = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in block.splitlines()
+          ).strip()
+          exec(compile(code + "\n", "f10-main-boundary-object-gate", "exec"))
+          PY
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install pinned F10 boundary test dependencies
+        run: pip install --require-hashes -r requirements-test.txt
+      - name: Run F10 main boundary tests
+        run: python3 -m pytest -q tests/test_fase09_10_pre_main_controls.py tests/test_fase10_main_boundary.py tests/test_fase10_production_canary.py
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase09-9-pre-main-controls, fase10-promotion-contract]
+    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase09-9-pre-main-controls, f10-main-boundary, fase10-promotion-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -1677,6 +1950,7 @@ jobs:
           F98: ${{ needs.fase09-8-ca1.result }}
           F99: ${{ needs.fase09-9-ca1-reactivation.result }}
           F99_PRE_MAIN: ${{ needs.fase09-9-pre-main-controls.result }}
+          F10_MAIN: ${{ needs.f10-main-boundary.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
           exec >> "$GITHUB_STEP_SUMMARY"
@@ -1755,6 +2029,11 @@ jobs:
             exit 1
           fi
           echo "✅ **fase09-9-pre-main-controls**: passed"
+          if [ "$F10_MAIN" != "success" ]; then
+            echo "❌ **f10-main-boundary**: $F10_MAIN (BLOCKING)"
+            exit 1
+          fi
+          echo "✅ **f10-main-boundary**: passed"
           if [ "$F10" != "success" ]; then
             echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)"
             exit 1

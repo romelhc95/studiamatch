@@ -1,8 +1,8 @@
 # Certificacion Hito 1 - Macrofase F9
 
 > Rebaseline vigente: la adenda CA1-only/CA2-a-Hito-2 esta
-> `APPROVED_EFFECTIVE`. F9 conserva `IN_PROGRESS`; F9.9 queda cerrada con desviacion
-> Certification fail-closed y QA independiente `PASS`. F9.8 quedo cerrada por replay post-merge del
+> `APPROVED_EFFECTIVE`. F9 conserva `IN_PROGRESS`; F9.10 ejecuta readiness de
+> repositorio despues de F9.9, PR #282 y QA independiente `PASS`. F9.8 quedo cerrada por replay post-merge del
 > candidate local CA1-only. La ruta schema/backfill/free_certified queda
 > `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2 de Hito 2. Ver
 > [ADR-0006](../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md).
@@ -18,11 +18,11 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
-- Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 mergeados en desarrollo y QA independiente `PASS`; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill ni Production.
-- Subfase activa: F9.10 `ACTIVE_AWAITING_AUTHORIZATION`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
-- Subfase autorizada en este paquete: cierre documental de F9.9. No habilita Supabase, schema/RLS, writers remotos, nuevas ejecuciones Certification, Production, schedules ni `main`.
+- Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 mergeados en desarrollo, PR #282 mergeado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` y QA independiente `PASS`; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill ni Production.
+- Subfase activa: F9.10 `ACTIVE_AUTHORIZED_IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
+- Subfase autorizada en este paquete: readiness F9.10 de repositorio, pruebas y documentacion. No habilita Supabase, schema/RLS, writers remotos, ejecuciones Production, schedules ni `main`.
 - Ultima subfase cerrada: F9.9 `COMPLETED_QA_VERIFIED`.
-- Siguiente accion: F9.10 debe reconstruir selectivamente los controles pre-main sobre `certificacion`, confirmar QA/readiness y obtener `USER_PERSONAL_UAT`; F10 sigue bloqueada.
+- Siguiente accion: F9.10 debe cerrar validaciones locales, PR a `desarrollo`, reconstruccion selectiva sobre `certificacion`, confirmar QA/readiness y obtener `USER_PERSONAL_UAT`; F10 sigue bloqueada.
 
 Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`. Candidate CA1-only replay-validado: `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`.
 
@@ -39,7 +39,7 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 | `F9.7` | Rebaseline documental de adenda y cierre CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | `EVID-H1-001` verificada de forma sanitizada; PR #268 mergeado en `desarrollo@f8b8987` / tree `3d044210`; no hubo aplicacion remota, DDL/DML, backfill, Certification ni Production |
 | `F9.8` | Implementacion y validacion local del candidate CA1-only | `COMPLETED_VERIFIED_POST_MERGE` | PR #270/#271; replay post-merge Docker/Linux sobre `5b28246`: 53 focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PG17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS; `EVID-H1-002..005` `VERIFIED` |
 | `F9.9` | Candidate selectivo, Certification, canary, QA y controles pre-main | `COMPLETED_QA_VERIFIED` | PR #277 fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; PR #280 fusionado en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954`; QA independiente `PASS`; `EVID-H1-015=VERIFIED` |
-| `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `ACTIVE_AWAITING_AUTHORIZATION` | Debe reconstruir selectivamente controles pre-main en `certificacion`, confirmar candidate/tree, validaciones tecnicas y QA; `USER_PERSONAL_UAT` ocurre antes de readiness para F10 |
+| `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `ACTIVE_AUTHORIZED_IN_PROGRESS` | Define gate `main`, canary Production manual SHA-bound, rollback/snapshot privado y subfases F10.x; debe pasar PRs SDLC, validaciones tecnicas y `USER_PERSONAL_UAT` antes de readiness F10 |
 
 La [definicion remota F9.4 anterior](./preflight_free_f9_4.md), el [registro F9.5](./preflight_free_f9_5.md) y la ruta schema/backfill/free_certified son historia no autorizable para Hito 1. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
 
@@ -161,6 +161,12 @@ autorizacion ejecutable hasta una frase decimal exacta y F10 sigue bloqueada has
 readiness inequivoca.
 
 PR #280 quedo aprobado/fusionado en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`; los runs post-merge `30813990225` (`Security Audit Gate`) y `30813989772` (`F9.7 Local Contract`) terminaron `PASS`. Estos controles aun deben reconstruirse selectivamente sobre `certificacion` dentro de F9.10 antes de cualquier readiness F10.
+
+## Readiness F9.10 En Ejecucion
+
+PR #282 reconstruyo selectivamente los controles pre-main sobre `certificacion` y quedo aprobado/fusionado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b`. CI post-merge `Security Audit Gate` run `30824041279` termino `PASS`. El run `30824041542` de `F9.9 - Certification Canary` termino `PASS` en modalidad read-only/sanitizada: FG1 `--no-insert`, FG2/FG3 skipped y conteos sin cambios; no reemplaza `USER_PERSONAL_UAT` ni reclasifica `EVID-H1-008`.
+
+La ejecucion F9.10 actual agrega controles antes de F10: `f10-main-boundary` en CI, canary Production manual `workflow_dispatch` main-only con `candidate_sha`, preflight `PRODUCTION-CANARY` (automation off + writers paused), snapshot privado/restore idempotente, artifacts sin slug/SHA/run/digest privado, `DB-SYNC` permitido solo con writers pausados y subfases F10.6-F10.9/F11.1. El boundary `main -> certificacion` reconoce por allowlist exacta los objetos CA1 historicos `requirements-db-migrate.txt`, `scripts/core/certification_canary_state.py`, `scripts/shared/roi_engine.py` y `tests/test_fase09_9_certification_canary.py`, sin admitir prefijos amplios ni CA2. No ejecuta Production, schedules, Supabase, Cloudflare, DDL/DML ni PR a `main`.
 
 ## Identidades Historicas
 

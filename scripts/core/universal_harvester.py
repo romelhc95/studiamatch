@@ -58,6 +58,38 @@ PROTECTED_STAGING_STATUSES = frozenset({
 })
 KNOWN_STAGING_STATUSES = PROTECTED_STAGING_STATUSES | {DISCOVERED_STATUS}
 
+CANARY_RUN_METADATA_KEYS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99_certification_canary_run_id"),
+)
+
+
+def _active_canary_marker():
+    for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return metadata_key, run_id
+    return None, None
+
+
+def _mark_canary_metadata(metadata):
+    payload = dict(metadata or {})
+    metadata_key, run_id = _active_canary_marker()
+    if metadata_key and run_id:
+        payload[metadata_key] = run_id
+    return payload
+
+
+def _mark_canary_notes(notes):
+    metadata_key, run_id = _active_canary_marker()
+    if not run_id:
+        return notes
+    label = "F10 production" if metadata_key == "f10_production_canary_run_id" else "F9.9 certification"
+    marker = f"{label} canary run {run_id}"
+    if notes:
+        return f"{notes}\n{marker}"
+    return marker
+
 
 class HarvesterRunError(RuntimeError):
     """Raised when FG2 cannot prove a safe complete outcome."""
@@ -224,6 +256,7 @@ class UniversalHarvester:
         profile['institution_id'] = inst_id
         profile['auto_generated'] = True
         profile['pipeline_ready'] = False
+        profile['notes'] = _mark_canary_notes(profile.get('notes'))
 
         existing = self.db.select_pipeline_raise(
             'institution_site_profiles',
@@ -921,13 +954,13 @@ class UniversalHarvester:
                 "content_hash": content_hash,
                 "institution_id": self.institution['id'],
                 "status": "pending",
-                "metadata": json.dumps({
+                "metadata": json.dumps(_mark_canary_metadata({
                     "extracted_sections": sections,
                     "field_defaults": self.field_defaults,
                     "woocommerce_price": woocommerce_price,
                     "woocommerce_start_date": woocommerce_start_date,
                     "woocommerce_category": woocommerce_category,
-                }),
+                })),
             }
         except DatabaseAPIError:
             raise
@@ -1019,7 +1052,7 @@ class UniversalHarvester:
                 "content_hash": self._generate_hash(raw_html),
                 "institution_id": self.institution['id'],
                 "status": "pending",
-                "metadata": json.dumps({"extracted_sections": sections, "field_defaults": self.field_defaults}),
+                "metadata": json.dumps(_mark_canary_metadata({"extracted_sections": sections, "field_defaults": self.field_defaults})),
             }
         except DatabaseAPIError:
             raise
@@ -1183,11 +1216,15 @@ class UniversalHarvester:
                 return {"id": row["id"], "url": normalized, "status": status}
             raise HarvesterRunError(f"unknown staging status for {normalized}: {status}")
 
-        inserted = self.db.insert("staging_raw", {
+        discovered_data = {
             "url": normalized,
             "institution_id": self.institution['id'],
             "status": DISCOVERED_STATUS,
-        })
+        }
+        discovered_metadata = _mark_canary_metadata({})
+        if discovered_metadata:
+            discovered_data["metadata"] = json.dumps(discovered_metadata)
+        inserted = self.db.insert("staging_raw", discovered_data)
         if inserted is None:
             raise HarvesterRunError(f"failed to insert discovered URL {normalized}")
         rows = self.db.select_pipeline_raise(

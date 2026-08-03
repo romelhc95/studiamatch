@@ -33,11 +33,13 @@ flowchart LR
 | Nodo | Estado documentable |
 |---|---|
 | F9.7 | `COMPLETED_BY_CONTRACT_REBASELINE` |
-| F9.8 | Activa para candidate local CA1-only; no ejecutada por este PR |
+| F9.8 | `COMPLETED_VERIFIED_POST_MERGE`; candidate local CA1-only replay-validado |
+| F9.9 | `COMPLETED_QA_VERIFIED`; Certification conserva desviacion fail-closed aceptada |
+| F9.10 | `ACTIVE_AUTHORIZED_IN_PROGRESS`; controles main/canary/rollback en validacion local |
 | Supabase Free/Pro | `UNCHANGED_NOT_ATTESTED`; sin certificacion nueva |
 | Backfill | Trasladado a Hito 2; prohibido en Hito 1 CA1-only |
-| Validaciones tecnicas Certification | Pendientes; obligatorias antes de UAT |
-| `USER_PERSONAL_UAT` | Hold futuro de F9.10 |
+| Validaciones tecnicas Certification | PR #282 y CI post-merge registrados; candidate F9.10 final aun debe pasar PRs SDLC y revalidacion |
+| `USER_PERSONAL_UAT` | Pendiente; debe ligarse a SHA/tree final de Certification antes de readiness F10 |
 | Readiness F10 | No alcanzado |
 | Production | Bloqueado |
 | Hitos 2 a 5 | `PENDING`, sin subfase ejecutable |
