@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_9_DEVIATION_ACCEPTED_PRE_MAIN_CONTROLS_PENDING` |
+| Estado | `F9_9_PRE_MAIN_CONTROLS_IMPLEMENTED_QA_PENDING` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -11,8 +11,9 @@
 
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
 ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
-PR #277 y una desviacion Certification fail-closed; Production, schedules,
-F9.10 y F10 permanecen bloqueados hasta autorizaciones separadas.
+PR #277 y una desviacion Certification fail-closed. El paquete posterior de
+controles pre-main es repositorio/CI solamente; Production, schedules, F9.10 y
+F10 permanecen bloqueados hasta autorizaciones separadas.
 
 ## Objetivo
 
@@ -104,6 +105,30 @@ Condiciones de la desviacion:
 - La desviacion expira al completar la observacion Production en F10 o ante el primer fallo que demuestre que el problema no era exclusivo del egress observado en Certification.
 
 La definicion QA obligatoria para `EVID-H1-015` vive en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Esa nota define el paquete de revision; no ejecuta QA ni cambia el estado pendiente.
+
+## Controles Pre-Main F9.9
+
+Este paquete implementa controles de repositorio para que F10 no pueda iniciar con
+writers productivos ambiguos:
+
+- `.github/workflows/db-sync-to-pro.yml` ejecuta report/dry-run en `push` a
+  `main`; el apply queda limitado a `workflow_dispatch` con `operation=apply`,
+  `apply_authorized=true`, `backup_pitr_verified=true`, autorizacion `DDL-*`,
+  aprobacion del environment `Production`, candidate SHA igual a `origin/main`,
+  registro versionado `.context/operaciones/ddl_authorizations/<DDL-ID>.md` y
+  preflight `PRODUCTION_WRITERS_PAUSED`.
+- `.github/scripts/production_control_preflight.sh` centraliza el gate fail-closed
+  de `AUTOMATION_ENABLED` y `PRODUCTION_WRITERS_PAUSED`, sin leer secretos ni red.
+- `fg1_inventory.yml`, `production_pipeline.yml` y `fg3_integrity.yml` resuelven
+  el gate en un job con environment asociado y usan outputs explicitos; los jobs
+  mutantes revalidan el preflight inmediatamente antes del writer.
+- `security-audit.yml` agrega el job bloqueante `F9.9 Pre-Main Repository Controls`
+  con `tests/test_fase09_9_pre_main_controls.py` y
+  `tests/test_fase10_main_boundary.py`.
+
+No se ejecutan workflows remotos, no se configuran environments reales, no se
+habilitan schedules, no se abre PR a `main`, no hay DDL/DML y no se accede a
+Supabase ni Cloudflare en este paquete.
 
 ## Work Packages Internos
 
@@ -293,15 +318,16 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
 - PR a `main`, Production o schedules antes de cerrar los controles pre-main.
 
-## Allowlist Futura De Controles Pre-Main F9.9
+## Allowlist De Controles Pre-Main F9.9
 
-Esta allowlist solo habilita un paquete posterior de repositorio despues de mergear esta reconciliacion y recibir de nuevo la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F9.9`. No autoriza ejecucion remota, cambios de environments, secrets, Production, schedules, Supabase, Cloudflare, DDL/DML, backup/restore ni writers.
+Esta allowlist habilita este paquete de repositorio tras la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F9.9`. No autoriza ejecucion remota, cambios de environments, secrets, Production, schedules, Supabase, Cloudflare, DDL/DML, backup/restore ni writers.
 
 Paths permitidos para ese paquete posterior:
 
 - `.github/workflows/db-sync-to-pro.yml` para separar reporte dry-run en push a `main` del apply manual.
 - `.github/workflows/fg1_inventory.yml`, `.github/workflows/production_pipeline.yml` y `.github/workflows/fg3_integrity.yml` para preflight environment-bound, outputs explicitos y gate de `AUTOMATION_ENABLED`.
 - `.github/workflows/security-audit.yml` para gate main/F10 object-based, boundary CA1-only y checks documentales.
+- `.github/workflows/f9-7-contract.yml` solo para ampliar el gate de transicion y permitir la modificacion de `.github/workflows/db-sync-to-pro.yml` dentro de este paquete F9.9.
 - `.github/workflows/opencode.yml` solo para pinning de Actions por SHA confiable si se resuelve externamente sin inventar SHAs.
 - `.github/actionlint.yaml` solo para ajustar suppressions si los workflows dejan de necesitarlas.
 - `.github/scripts/production_control_preflight.sh` como script local fail-closed sin secretos ni red.

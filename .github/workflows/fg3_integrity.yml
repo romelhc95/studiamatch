@@ -13,9 +13,33 @@ permissions:
   contents: read
 
 jobs:
+  production_control_preflight:
+    name: "FG3 Production Control Preflight"
+    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG3') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    outputs:
+      writer: ${{ steps.preflight.outputs.writer }}
+      allow_writer: ${{ steps.preflight.outputs.allow_writer }}
+      automation_enabled: ${{ steps.preflight.outputs.automation_enabled }}
+      writers_paused: ${{ steps.preflight.outputs.writers_paused }}
+      reason: ${{ steps.preflight.outputs.reason }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve production controls
+        id: preflight
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG3
+
   integrity:
     name: "3. Daily Integrity Ping"
-    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref) && (github.event_name != 'schedule' || (github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'))
+    needs: production_control_preflight
+    if: needs.production_control_preflight.outputs.allow_writer == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -33,6 +57,11 @@ jobs:
           cache: 'pip'
       - name: Install Dependencies
         run: pip install --require-hashes -r requirements-fg3.txt
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG3 --enforce
       - name: Run Integrity Ping
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -220,6 +220,7 @@ jobs:
           )
           f98_ca1_allowed_statuses = {
               '.github/workflows/fg1_inventory.yml': {'M'},
+              '.github/workflows/db-sync-to-pro.yml': {'M'},
               '.github/workflows/production_pipeline.yml': {'M'},
               '.github/workflows/fg3_integrity.yml': {'M'},
               'scripts/core/certification_canary_manifest.py': {'A'},
@@ -1327,9 +1328,18 @@ jobs:
           grep -q "AUTOMATION_ENABLED" .github/workflows/fg1_inventory.yml
           grep -q "AUTOMATION_ENABLED" .github/workflows/production_pipeline.yml
           grep -q "AUTOMATION_ENABLED" .github/workflows/fg3_integrity.yml
-          grep -q "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'" .github/workflows/fg1_inventory.yml
-          grep -q "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'" .github/workflows/production_pipeline.yml
-          grep -q "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'" .github/workflows/fg3_integrity.yml
+          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/fg1_inventory.yml
+          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/production_pipeline.yml
+          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/fg3_integrity.yml
+          grep -q "production_control_preflight:" .github/workflows/fg1_inventory.yml
+          grep -q "production_control_preflight:" .github/workflows/production_pipeline.yml
+          grep -q "production_control_preflight:" .github/workflows/fg3_integrity.yml
+          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/fg1_inventory.yml
+          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/production_pipeline.yml
+          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/fg3_integrity.yml
+          grep -q "production_control_preflight.sh FG1 --enforce" .github/workflows/fg1_inventory.yml
+          grep -q "production_control_preflight.sh FG2-HARVEST --enforce" .github/workflows/production_pipeline.yml
+          grep -q "production_control_preflight.sh FG3 --enforce" .github/workflows/fg3_integrity.yml
           grep -q "group: studiamatch-fg2" .github/workflows/fg3_integrity.yml
           grep -q "Production-Scheduled-FG1" .github/workflows/fg1_inventory.yml
           grep -q "Production-Scheduled-FG2" .github/workflows/production_pipeline.yml
@@ -1624,10 +1634,28 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  fase09-9-pre-main-controls:
+    name: F9.9 Pre-Main Repository Controls
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install pinned F9.9 pre-main test dependencies
+        run: pip install --require-hashes -r requirements-test.txt
+      - name: Run F9.9 pre-main controls tests
+        run: python3 -m pytest -q tests/test_fase09_9_pre_main_controls.py tests/test_fase10_main_boundary.py
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase10-promotion-contract]
+    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase09-9-pre-main-controls, fase10-promotion-contract]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -1648,6 +1676,7 @@ jobs:
           F97: ${{ needs.fase09-7-remediation.result }}
           F98: ${{ needs.fase09-8-ca1.result }}
           F99: ${{ needs.fase09-9-ca1-reactivation.result }}
+          F99_PRE_MAIN: ${{ needs.fase09-9-pre-main-controls.result }}
           F10: ${{ needs.fase10-promotion-contract.result }}
         run: |
           exec >> "$GITHUB_STEP_SUMMARY"
@@ -1721,6 +1750,11 @@ jobs:
             exit 1
           fi
           echo "✅ **fase09-9-ca1-reactivation**: passed"
+          if [ "$F99_PRE_MAIN" != "success" ]; then
+            echo "❌ **fase09-9-pre-main-controls**: $F99_PRE_MAIN (BLOCKING)"
+            exit 1
+          fi
+          echo "✅ **fase09-9-pre-main-controls**: passed"
           if [ "$F10" != "success" ]; then
             echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)"
             exit 1

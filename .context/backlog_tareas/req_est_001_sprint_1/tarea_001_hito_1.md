@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda activa con PR #277 fusionado en Certification, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada y controles pre-main pendientes bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda activa con PR #277 fusionado en Certification, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada y controles pre-main de repositorio implementados como candidate local/CI bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -59,7 +59,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado | QA independiente de la desviacion, controles pre-main de repositorio, certificacion final F9.10, UAT, y canary/observacion Production dentro de F10 |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main de repositorio implementados como candidate local/CI | QA independiente de la desviacion, certificacion final F9.10, UAT, y canary/observacion Production dentro de F10 |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -215,7 +215,7 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
 - `EVID-H1-014=PENDING_REVERIFY_MAIN_CANDIDATE`, `EVID-H1-015=PENDING` y `EVID-H1-009..013/016=PLANNED`.
 - La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); no ejecuta la revision ni cambia `EVID-H1-015`.
-- F9.9 permanece `IN_PROGRESS` hasta QA independiente de la desviacion, controles pre-main de repositorio y definicion de readiness para F9.10. F10 conserva el canary Production y la observacion.
+- F9.9 permanece `IN_PROGRESS` hasta QA independiente de la desviacion y definicion de readiness para F9.10. Los controles pre-main de repositorio quedan implementados como candidate local/CI; F10 conserva el canary Production y la observacion.
 
 ## Exclusiones Historicas Preservadas
 

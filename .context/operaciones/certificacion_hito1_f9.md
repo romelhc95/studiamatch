@@ -18,11 +18,11 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 
 - Macrofase F9: `IN_PROGRESS`.
 - Base funcional contractual: F6-F8.
-- Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado y desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill ni Production.
+- Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada y controles pre-main de repositorio implementados como candidate local/CI; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill ni Production.
 - Subfase activa: F9.9 `IN_PROGRESS`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
-- Subfase autorizada en este paquete: reconciliacion documental de la desviacion, definicion QA y allowlist futura de controles pre-main. No habilita codigo, workflows, Supabase, schema/RLS, writers, nuevas ejecuciones Certification ni Production.
+- Subfase autorizada en este paquete: implementacion de controles pre-main de repositorio dentro de la allowlist vigente. No habilita Supabase, schema/RLS, writers remotos, nuevas ejecuciones Certification ni Production.
 - Ultima subfase cerrada: F9.8 `COMPLETED_VERIFIED_POST_MERGE` con candidate local CA1-only replay-validado en Docker/Linux.
-- Siguiente accion: QA independiente de la desviacion y cierre de controles pre-main bajo autorizacion decimal vigente; F9.10 y F10 siguen bloqueadas.
+- Siguiente accion tras merge de este paquete: QA independiente de la desviacion y cierre documental de sus resultados; F9.10 y F10 siguen bloqueadas.
 
 Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`. Candidate CA1-only replay-validado: `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`.
 
@@ -38,7 +38,7 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 | `F9.6` | P0 H-00 Free-only | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa remediada en la cohorte pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; nunca Pro |
 | `F9.7` | Rebaseline documental de adenda y cierre CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | `EVID-H1-001` verificada de forma sanitizada; PR #268 mergeado en `desarrollo@f8b8987` / tree `3d044210`; no hubo aplicacion remota, DDL/DML, backfill, Certification ni Production |
 | `F9.8` | Implementacion y validacion local del candidate CA1-only | `COMPLETED_VERIFIED_POST_MERGE` | PR #270/#271; replay post-merge Docker/Linux sobre `5b28246`: 53 focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PG17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS; `EVID-H1-002..005` `VERIFIED` |
-| `F9.9` | Candidate selectivo, Certification, canary, QA y controles pre-main | `IN_PROGRESS` | PR #277 fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; QA independiente y controles pre-main pendientes |
+| `F9.9` | Candidate selectivo, Certification, canary, QA y controles pre-main | `IN_PROGRESS` | PR #277 fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; controles pre-main de repositorio implementados como candidate local/CI; QA independiente pendiente |
 | `F9.10` | Certificacion final, `USER_PERSONAL_UAT` y readiness F10 | `PENDING` | `USER_PERSONAL_UAT` ocurre despues de canary, validaciones tecnicas Certification y QA, y antes de readiness para F10 |
 
 La [definicion remota F9.4 anterior](./preflight_free_f9_4.md), el [registro F9.5](./preflight_free_f9_5.md) y la ruta schema/backfill/free_certified son historia no autorizable para Hito 1. Cada subfase pendiente conserva alcance, stop conditions, PR/review y autorizacion exacta propios.
@@ -137,6 +137,27 @@ formaliza la desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`:
 Esta evidencia no es un resultado positivo de Certification, no valida FG2 downstream ni FG3, y no habilita F10. La validacion positiva queda desplazada a F10 mediante canary Production acotado y observacion programada posterior, con controles pre-main obligatorios.
 
 La revision independiente de la desviacion queda definida en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Esa definicion no ejecuta QA ni cambia `EVID-H1-015=PENDING`.
+
+## Controles Pre-Main F9.9
+
+El paquete pre-main implementa controles de repositorio antes de cualquier ruta F10:
+
+- `db-sync-to-pro.yml` queda report-only/dry-run para `push` a `main`; el apply
+  automatico no existe y el apply manual exige `operation=apply`, autorizacion DDL
+  versionada bajo `.context/operaciones/ddl_authorizations/`, candidate SHA igual
+  a `origin/main`, backup/PITR verificado, environment `Production` y preflight de writers.
+- `fg1_inventory.yml`, `production_pipeline.yml` y `fg3_integrity.yml` reemplazan
+  el uso ambiguo de `vars.AUTOMATION_ENABLED` en `job.if` por un preflight con
+  environment asociado y outputs explicitos.
+- Cada estacion mutante FG1/FG2/FG3 revalida
+  `.github/scripts/production_control_preflight.sh` inmediatamente antes de escribir.
+- `security-audit.yml` agrega tests bloqueantes de controles pre-main y boundary F10.
+- `f9-7-contract.yml` conserva el candidate F9.7 congelado y solo amplia el gate de
+  transicion para reconocer la modificacion autorizada de `db-sync-to-pro.yml`.
+
+Este paquete no ejecuta Production, schedules, canaries, Supabase, Cloudflare,
+DDL/DML, backup/restore, writers remotos ni PR a `main`. F9.10 permanece bloqueada
+hasta QA independiente y readiness inequivoca.
 
 ## Identidades Historicas
 

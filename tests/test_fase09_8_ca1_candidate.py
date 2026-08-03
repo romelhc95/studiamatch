@@ -156,8 +156,10 @@ def test_scheduled_workflows_have_kill_switch_and_dedicated_environments() -> No
     }
     for text in workflows.values():
         assert "AUTOMATION_ENABLED" in text
-        assert "github.event_name != 'schedule'" in text
-        assert "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'" in text
+        assert "PRODUCTION_WRITERS_PAUSED" in text
+        assert "production_control_preflight:" in text
+        assert "needs.production_control_preflight.outputs.allow_writer == 'true'" in text
+        assert "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'" not in text
 
     assert "Production-Scheduled-FG1" in workflows["fg1"]
     assert "Production-Scheduled-FG2" in workflows["fg2"]
@@ -195,6 +197,7 @@ def test_security_audit_aggregates_f9_8_ca1_gate_additively() -> None:
     assert "fase09-7-remediation" in workflow.split("needs:", 1)[1]
     assert "tests/test_fase09_8_runtime_security.py" in workflow
     assert "fase10-promotion-contract" in workflow
+    assert "fase09-9-pre-main-controls" in workflow
 
 
 def test_f99_gate_expects_go_after_trusted_harness_baseline() -> None:
