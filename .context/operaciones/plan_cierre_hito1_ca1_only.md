@@ -70,9 +70,10 @@ usa una frontera por patch:
 2. Congela diff, patch-id, commit/tree y hashes CA1 aprobados.
 3. F9.9 reconstruye solo ese patch sobre el baseline de Certification.
 4. F9.9 prueba equivalencia, ausencia CA2, canary y QA.
-5. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
-6. F10 ejecuta PR a `main`, canary Production con schedules apagados.
-7. F10 habilita schedules gradualmente y observa la operacion.
+5. F9.9 cierra QA independiente y controles pre-main de repositorio antes de readiness.
+6. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
+7. F10 ejecuta PR a `main`, canary Production con schedules apagados.
+8. F10 habilita schedules gradualmente y observa la operacion.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -81,7 +82,7 @@ copiar CA2 invalida el candidate y obliga a reconstruirlo.
 
 La decision [ADR-0007](../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 registra `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`. Esta desviacion acepta la
-evidencia de comportamiento fail-closed ante HTTP 403 externo desde egress
+evidencia de comportamiento fail-closed ante HTTP 403 observado desde egress
 compartido de GitHub-hosted runners, pero prohibe declarar un resultado positivo de Certification.
 
 Evidencia sanitizada:
@@ -96,11 +97,13 @@ Evidencia sanitizada:
 
 Condiciones de la desviacion:
 
-- Solo cubre egress externo Certification; no cubre credenciales, RLS, target Supabase, secretos, CA2, cleanup fallido ni mutaciones fuera de alcance.
+- Solo cubre egress observado en Certification; no cubre credenciales, RLS, target Supabase, secretos, CA2, cleanup fallido ni mutaciones fuera de alcance.
 - La ventana mutable quedo restaurada a `false` y no se ejecuta Production en esta documentacion.
 - Los stages FG2 downstream y FG3 siguen sin validacion positiva.
-- La validacion positiva se desplaza a canary Production acotado y observacion programada posterior, ambos sujetos a controles pre-main.
-- La desviacion expira al completar la observacion Production o ante el primer fallo que demuestre que el problema no era exclusivo del egress Certification.
+- La validacion positiva se desplaza a F10: canary Production acotado y observacion programada posterior, ambos sujetos a controles pre-main.
+- La desviacion expira al completar la observacion Production en F10 o ante el primer fallo que demuestre que el problema no era exclusivo del egress observado en Certification.
+
+La definicion QA obligatoria para `EVID-H1-015` vive en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Esa nota define el paquete de revision; no ejecuta QA ni cambia el estado pendiente.
 
 ## Work Packages Internos
 
@@ -220,6 +223,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Cero paths CA2.
 - `EVID-H1-006/007=VERIFIED` por PR #277 y CI; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, nunca `PASS`.
 - QA independiente debe revisar la desviacion antes de readiness.
+- La revision QA debe seguir [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md) y puede terminar `PASS`, `FAIL` o `BLOCKED`.
 - Evidencia de target sin exponer identificadores.
 - `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA.
 
@@ -232,6 +236,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
   - `PRODUCTION_WRITERS_PAUSED` efectivo y fail-closed antes de cada estacion mutante y tambien para migraciones.
   - Gate main/F10 con boundary CA1-only, cero CA2, credential scan, workflows validos, tests obligatorios, candidate commit/tree/digest inmutables, review humano y aprobacion SDLC.
   - Rollback con backup/restore ensayados, responsable, RTO/RPO, cancelacion de jobs, schedules off, rollback de datos, migracion compensatoria si existiera DDL y revert de codigo solo por PR forward-only.
+- El primer gate operativo Production de F10 es el canary manual acotado; no es precondicion para cerrar F9.9 ni para iniciar F10.
 - PR `certificacion -> main`.
 - Candidate/tree inmutable y aprobacion humana.
 - Backup/rollback operativo proporcionado por el ambiente vigente.
@@ -287,6 +292,24 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
 - CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
 - PR a `main`, Production o schedules antes de cerrar los controles pre-main.
+
+## Allowlist Futura De Controles Pre-Main F9.9
+
+Esta allowlist solo habilita un paquete posterior de repositorio despues de mergear esta reconciliacion y recibir de nuevo la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F9.9`. No autoriza ejecucion remota, cambios de environments, secrets, Production, schedules, Supabase, Cloudflare, DDL/DML, backup/restore ni writers.
+
+Paths permitidos para ese paquete posterior:
+
+- `.github/workflows/db-sync-to-pro.yml` para separar reporte dry-run en push a `main` del apply manual.
+- `.github/workflows/fg1_inventory.yml`, `.github/workflows/production_pipeline.yml` y `.github/workflows/fg3_integrity.yml` para preflight environment-bound, outputs explicitos y gate de `AUTOMATION_ENABLED`.
+- `.github/workflows/security-audit.yml` para gate main/F10 object-based, boundary CA1-only y checks documentales.
+- `.github/workflows/opencode.yml` solo para pinning de Actions por SHA confiable si se resuelve externamente sin inventar SHAs.
+- `.github/actionlint.yaml` solo para ajustar suppressions si los workflows dejan de necesitarlas.
+- `.github/scripts/production_control_preflight.sh` como script local fail-closed sin secretos ni red.
+- `tests/test_fase09_9_pre_main_controls.py` y `tests/test_fase10_main_boundary.py` para pruebas estaticas de controles.
+- Ajustes minimos a tests existentes que congelan comportamiento antiguo, preservando evidencia historica F9.7/F9.8 por commit.
+- `.context/**` enlazado para documentar resultados y mantener el Context Graph.
+
+Paths y acciones excluidos para ese paquete posterior: `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/db_migrate.py`, manifests DB, datos operativos, `.env*`, artifacts privados, cambios remotos GitHub, dispatches, canaries, schedules, PR a `main`, DDL/DML, backup/restore y cualquier cambio CA2.
 
 ## Criterio De Salida
 
