@@ -6,11 +6,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*_args, **_kwargs):
+        return False
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from shared.db_client import get_db_client
+
+def get_db_client():
+    from shared.db_client import get_db_client as _get_db_client
+
+    return _get_db_client()
 
 
 MANIFEST_SCHEMA = "f10-production-canary-manifest.v1"
