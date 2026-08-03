@@ -35,10 +35,10 @@ flowchart LR
 | F9.7 | `COMPLETED_BY_CONTRACT_REBASELINE` |
 | F9.8 | `COMPLETED_VERIFIED_POST_MERGE`; candidate local CA1-only replay-validado |
 | F9.9 | `COMPLETED_QA_VERIFIED`; Certification conserva desviacion fail-closed aceptada |
-| F9.10 | `ACTIVE_AUTHORIZED_IN_PROGRESS`; controles main/canary/rollback en validacion local |
+| F9.10 | `ACTIVE_AUTHORIZED_IN_PROGRESS`; PR #283 mergeado en `desarrollo`, correccion repository-only y proyeccion exacta a Certification en curso |
 | Supabase Free/Pro | `UNCHANGED_NOT_ATTESTED`; sin certificacion nueva |
 | Backfill | Trasladado a Hito 2; prohibido en Hito 1 CA1-only |
-| Validaciones tecnicas Certification | PR #282 y CI post-merge registrados; candidate F9.10 final aun debe pasar PRs SDLC y revalidacion |
+| Validaciones tecnicas Certification | PR #282 y CI post-merge registrados; baseline vigente `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b`; candidate F9.10 final aun debe pasar replay selectivo, PRs SDLC y revalidacion |
 | `USER_PERSONAL_UAT` | Pendiente; debe ligarse a SHA/tree final de Certification antes de readiness F10 |
 | Readiness F10 | No alcanzado |
 | Production | Bloqueado |

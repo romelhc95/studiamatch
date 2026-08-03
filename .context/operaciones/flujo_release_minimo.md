@@ -27,13 +27,15 @@ se conserva solo como antecedente CA2 de Hito 2.
 4. F9.9 reconstruye el candidate selectivo sobre el baseline de `certificacion`, sin mezclar `desarrollo` completo.
 5. F9.9 demuestra equivalencia y cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill y superficies CA2.
 6. F9.9 abre PR a `certificacion`, ejecuta canary, define/cierra QA independiente e implementa controles pre-main de repositorio.
-7. F9.10 realiza certificacion final, gate `f10-main-boundary`, rollback definido y `USER_PERSONAL_UAT` despues de canary Certification/read-only, validaciones tecnicas Certification y QA.
-8. F9.10 declara readiness para F10 solo con candidate commit/tree inmutable, CI, review humano y sin blockers pendientes.
-9. F10.6 ejecuta control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
-10. F10.7 abre PR a `main` y mergea solo con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado.
-11. F10.8 ejecuta canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados.
-12. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
-13. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
+7. F9.10 registra PR #283 en `desarrollo`, corrige el contrato repository-only, congela la proyeccion exacta a `certificacion` por path/status/mode/blob/digest y exige re-freeze despues del PR correctivo.
+8. F9.10 reconstruye selectivamente sobre `certificacion` solo con autorizacion decimal nueva, sin merge/cherry-pick completo de `desarrollo`.
+9. F9.10 realiza certificacion final, gate `f10-main-boundary`, rollback definido y `USER_PERSONAL_UAT` despues de canary Certification/read-only, validaciones tecnicas Certification y QA.
+10. F9.10 declara readiness para F10 solo con candidate commit/tree inmutable, CI, review humano y sin blockers pendientes.
+11. F10.6 ejecuta control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
+12. F10.7 abre PR a `main` y mergea solo con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado.
+13. F10.8 ejecuta canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados.
+14. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
+15. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
 
 ## Stop Conditions
 
@@ -60,7 +62,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.7 queda cerrada por rebaseline contractual; v3, PR-O v1/hold actual y PR-O sucesor permanecen historia no ejecutable de Hito 1.
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
-- F9.10 realiza certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
+- F9.10 realiza correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
 - La macrofase F10 Produccion permanece bloqueada hasta readiness F9.10.
 
 ## Subfases F10 CA1-Only
