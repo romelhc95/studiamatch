@@ -3,15 +3,18 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_8_COMPLETED_POST_MERGE_F9_9_NEXT` |
+| Estado | `F9_10_PRE_MAIN_CONTROLS_CANDIDATE` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
 | Autoridad habilitante | [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md) |
 
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
-ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge y la siguiente
-ejecucion requiere la frase exacta `Ejecuta las tareas pendientes de la Fase F9.9`.
+ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 promovio
+el candidate selectivo a `certificacion`, registro la desviacion
+`DEVIATION_ACCEPTED_FAIL_CLOSED`, cerro QA independiente `PASS` y fusiono
+controles pre-main en `desarrollo` mediante PR #280. F9.10 reconstruye esos
+controles sobre `certificacion` antes de cualquier readiness F10.
 
 ## Objetivo
 
@@ -69,9 +72,10 @@ usa una frontera por patch:
 2. Congela diff, patch-id, commit/tree y hashes CA1 aprobados.
 3. F9.9 reconstruye solo ese patch sobre el baseline de Certification.
 4. F9.9 prueba equivalencia, ausencia CA2, canary y QA.
-5. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
-6. F10 ejecuta PR a `main`, canary Production con schedules apagados.
-7. F10 habilita schedules gradualmente y observa la operacion.
+5. F9.9 cierra QA independiente y controles pre-main de repositorio antes de readiness.
+6. F9.10 reconstruye controles pre-main sobre `certificacion`, confirma QA/readiness tecnica y prepara `USER_PERSONAL_UAT`.
+7. F10 ejecuta PR a `main`, canary Production con schedules apagados.
+8. F10 habilita schedules gradualmente y observa la operacion.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -223,16 +227,16 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-003` | Validacion local | PASS | `VERIFIED` |
 | `EVID-H1-004` | Seguridad/secret scan | Sin blockers | `VERIFIED` |
 | `EVID-H1-005` | PR desarrollo | Approved/Merged | `VERIFIED` |
-| `EVID-H1-006` | Equivalencia patch | PASS | `PLANNED` |
-| `EVID-H1-007` | PR certificacion | Approved/Merged | `PLANNED` |
-| `EVID-H1-008` | Canary Certification | PASS | `PLANNED` |
+| `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
+| `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
+| `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
 | `EVID-H1-009` | PR main | Approved/Merged | `PLANNED` |
 | `EVID-H1-010` | Canary Production | PASS | `PLANNED` |
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PLANNED` |
-| `EVID-H1-015` | QA independiente | PASS | `PLANNED` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_REVERIFY_MAIN_CANDIDATE` |
+| `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
 ## Stop Conditions
@@ -242,10 +246,43 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Target/environment ambiguo.
 - Secret o dato sensible en diff/log.
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
-- CI, QA, canary, smoke o schedule fallido.
+- CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
+- PR a `main`, Production o schedules antes de cerrar los controles pre-main.
+
+## Allowlist De Controles Pre-Main F9.10
+
+Esta allowlist habilita la reconstruccion selectiva sobre `certificacion` tras la
+frase decimal exacta `Ejecuta las tareas pendientes de la Fase F9.10`. No
+autoriza ejecucion remota, cambios de environments, secrets, Production,
+schedules, Supabase, Cloudflare, DDL/DML, backup/restore ni writers.
+
+Paths permitidos para este paquete F9.10:
+
+- `.github/workflows/db-sync-to-pro.yml` para separar reporte dry-run en push a
+  `main` del apply manual.
+- `.github/workflows/fg1_inventory.yml`, `.github/workflows/production_pipeline.yml`
+  y `.github/workflows/fg3_integrity.yml` para preflight environment-bound,
+  outputs explicitos y gate de `AUTOMATION_ENABLED`.
+- `.github/workflows/security-audit.yml` para el gate F9.10 exact-baseline,
+  boundary CA1-only y checks documentales.
+- `.github/scripts/production_control_preflight.sh` como script local fail-closed
+  sin secretos ni red.
+- `tests/test_fase09_10_pre_main_controls.py` y
+  `tests/test_fase10_main_boundary.py` para pruebas estaticas de controles.
+- `.context/operaciones/plan_cierre_hito1_ca1_only.md` y
+  `.context/evidencias_cliente/sprint_1/paquete_hito_001.md` para documentar el
+  estado F9.10 del branch `certificacion`.
+
+Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`,
+`scripts/maintenance/**`, datos operativos, `.env*`, artifacts privados, cambios
+remotos GitHub, dispatches, canaries, schedules, PR a `main`, DDL/DML,
+backup/restore y cualquier cambio CA2.
 
 ## Criterio De Salida
 
-`H1-CA1=COMPLETED_PRODUCTION` y `HITO-001=COMPLETED_PRODUCTION_CA1_ONLY`
-solo despues de las 16 evidencias verificadas. CA2 queda
-`DEFERRED_TO_HITO_2` sin cambio funcional productivo.
+F9.10 no cierra Hito 1 por si sola. La readiness F10 requiere que los controles
+pre-main queden aprobados/fusionados en `certificacion`, que el candidate/tree
+permanezca inmutable y que `USER_PERSONAL_UAT` reciba `PASS` personal explicito
+del usuario. `H1-CA1=COMPLETED_PRODUCTION` y
+`HITO-001=COMPLETED_PRODUCTION_CA1_ONLY` solo ocurren despues de F10/F11 segun
+sus umbrales; CA2 queda `DEFERRED_TO_HITO_2` sin cambio funcional productivo.

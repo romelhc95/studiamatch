@@ -14,6 +14,8 @@ env:
   CI: true
   F99_CERTIFICATION_BASELINE: e4ad815624184b692219ca9490347880af8de6b6
   F99_CA1_SOURCE_COMMIT: 456becf94a2bab3d8091c7036509cfb80791a3f9
+  F910_CERTIFICATION_BASELINE: 920ac9c7514f2e5f2e0315bf4cccb95940f3de17
+  F910_PRE_MAIN_SOURCE_COMMIT: 841a432633862eb3fbf27ccb1a6277f3bc398f08
 
 jobs:
   credential-scan:
@@ -102,7 +104,7 @@ jobs:
 
   f99-certification-selective:
     name: F9.9 Certification Selective Candidate
-    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -248,10 +250,130 @@ jobs:
                   getattr(module, name)()
           PY
 
+  f910-pre-main-controls:
+    name: F9.10 Pre-Main Repository Controls
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '920ac9c7514f2e5f2e0315bf4cccb95940f3de17') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '920ac9c7514f2e5f2e0315bf4cccb95940f3de17') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Validate F9.10 transition boundary
+        env:
+          F910_BASELINE: ${{ env.F910_CERTIFICATION_BASELINE }}
+          F910_SOURCE_COMMIT: ${{ env.F910_PRE_MAIN_SOURCE_COMMIT }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            F910_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+            F910_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
+          else
+            test "${{ github.ref }}" = "refs/heads/certificacion"
+            F910_BASE_COMMIT="${{ github.event.before }}"
+            F910_CANDIDATE_COMMIT="${{ github.sha }}"
+          fi
+          test "$F910_BASE_COMMIT" = "$F910_BASELINE"
+          printf '%s' "$F910_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          git fetch --no-tags origin certificacion desarrollo
+          git cat-file -e "$F910_SOURCE_COMMIT^{commit}"
+          git cat-file -e "$F910_BASELINE^{commit}"
+          git cat-file -e "$F910_CANDIDATE_COMMIT^{commit}"
+          test "$(git rev-parse HEAD)" = "$F910_CANDIDATE_COMMIT"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F910_BASELINE"]
+          source = os.environ["F910_SOURCE_COMMIT"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          allowed_statuses = {
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": {"M"},
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": {"M"},
+              ".github/scripts/production_control_preflight.sh": {"A"},
+              ".github/workflows/db-sync-to-pro.yml": {"M"},
+              ".github/workflows/fg1_inventory.yml": {"M"},
+              ".github/workflows/fg3_integrity.yml": {"M"},
+              ".github/workflows/production_pipeline.yml": {"M"},
+              ".github/workflows/security-audit.yml": {"M"},
+              "tests/test_fase09_10_pre_main_controls.py": {"A"},
+              "tests/test_fase10_main_boundary.py": {"A"},
+          }
+          source_equal_paths = {
+              ".github/scripts/production_control_preflight.sh",
+              ".github/workflows/db-sync-to-pro.yml",
+              ".github/workflows/fg1_inventory.yml",
+              ".github/workflows/fg3_integrity.yml",
+              ".github/workflows/production_pipeline.yml",
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies",
+              base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          changed = []
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              old_path = None
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              paths = [path] + ([old_path] if old_path else [])
+              changed.append((status, path))
+              if any(p and p.startswith(denied_prefixes) for p in paths):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              expected = allowed_statuses.get(path)
+              if not expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              if status not in expected:
+                  failures.append(f"status:{status}:{path}")
+          for path in sorted(source_equal_paths):
+              source_blob = subprocess.check_output(["git", "cat-file", "blob", f"{source}:{path}"])
+              head_blob = subprocess.check_output(["git", "cat-file", "blob", f"{head}:{path}"])
+              if source_blob != head_blob:
+                  failures.append(f"source-drift:{path}")
+          if not changed:
+              failures.append("empty-f910-candidate")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F9.10 pre-main transition boundary passed")
+          PY
+      - name: Run F9.10 pre-main controls tests
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          for path in (Path('tests/test_fase09_10_pre_main_controls.py'), Path('tests/test_fase10_main_boundary.py')):
+              spec = importlib.util.spec_from_file_location(path.stem, path)
+              module = importlib.util.module_from_spec(spec)
+              assert spec.loader is not None
+              spec.loader.exec_module(module)
+              for name in sorted(dir(module)):
+                  if name.startswith('test_'):
+                      getattr(module, name)()
+          PY
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -261,7 +383,10 @@ jobs:
           TC: ${{ needs.typecheck.result }}
           PC: ${{ needs.python-check.result }}
           F99: ${{ needs.f99-certification-selective.result }}
-          F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
+          F910: ${{ needs.f910-pre-main-controls.result }}
+          CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
+          F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
+          F910_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '920ac9c7514f2e5f2e0315bf4cccb95940f3de17') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '920ac9c7514f2e5f2e0315bf4cccb95940f3de17') }}
         run: |
           {
             echo "### Security Audit Results"
@@ -279,14 +404,25 @@ jobs:
               exit 1
             fi
             echo "✅ **python-check**: passed"
-            if [ "$F99_REQUIRED" = "true" ]; then
-              if [ "$F99" != "success" ]; then
-                echo "❌ **f99-certification-selective**: $F99 (BLOCKING)"
+            if [ "$CERTIFICATION_TRANSITION" = "true" ]; then
+              if [ "$F99_REQUIRED" = "true" ]; then
+                if [ "$F99" != "success" ]; then
+                  echo "❌ **f99-certification-selective**: $F99 (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f99-certification-selective**: passed"
+              elif [ "$F910_REQUIRED" = "true" ]; then
+                if [ "$F910" != "success" ]; then
+                  echo "❌ **f910-pre-main-controls**: $F910 (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f910-pre-main-controls**: passed"
+              else
+                echo "❌ **certification-transition**: unsupported baseline (BLOCKING)"
                 exit 1
               fi
-              echo "✅ **f99-certification-selective**: passed"
             else
-              echo "✅ **f99-certification-selective**: skipped outside certificacion"
+              echo "✅ **certification-transition**: skipped outside certificacion"
             fi
             # Lint and typecheck are informational (pre-existing tech debt)
             if [ "$LINT" = "success" ]; then
@@ -304,5 +440,5 @@ jobs:
               echo "⚠️ **typecheck**: $TC"
             fi
             echo ""
-            echo "✅ **Security audit PASSED** — credential scan, Python check and F9.9 selective boundary clean. Lint/typecheck issues are tracked separately."
+            echo "✅ **Security audit PASSED** — credential scan, Python check and certification transition boundary clean. Lint/typecheck issues are tracked separately."
           } >> "$GITHUB_STEP_SUMMARY"
