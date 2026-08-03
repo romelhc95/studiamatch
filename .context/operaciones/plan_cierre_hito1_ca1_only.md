@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_9_QA_VERIFIED_F9_10_PENDING` |
+| Estado | `F9_10_READINESS_CONTROLS_IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -136,6 +136,17 @@ Supabase ni Cloudflare en este paquete.
 - CI post-merge sobre `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954`: `Security Audit Gate` run `30813990225` PASS y `F9.7 Local Contract` run `30813989772` PASS.
 - QA independiente de la desviacion: [resultado sanitizado](./qa_desviacion_f9_9_resultado.md) `PASS`; `EVID-H1-015=VERIFIED`.
 - `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` aun no contiene los controles pre-main de PR #280; F9.10 debe reconstruirlos selectivamente antes de cualquier readiness F10.
+
+### Readiness F9.10 En Ejecucion - 2026-08-03
+
+- PR #282 reconstruyo selectivamente los controles pre-main sobre `certificacion` y quedo aprobado/fusionado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` / tree `b2edda7c538b7e74abe0bcaf59715e9d3f4b9327`.
+- CI post-merge `Security Audit Gate` run `30824041279` PASS sobre `bc227629b8df1fcabca47ea7be3ea1d5b4c7667b`.
+- `F9.9 - Certification Canary` run `30824041542` PASS se acepta solo como evidencia read-only/sanitizada: FG1 uso `--no-insert`, FG2/FG3 quedaron skipped, no hubo DML, y los conteos pre/post/after-cleanup no cambiaron. Artifact sanitizado `f9-9-certification-canary-manifests-30824041542-1`, digest `sha256:ff6f4caeb20df0afa3e1778dd363f3e3f2f7a01ecfb4362a098401a868f88f4b`.
+- Esta evidencia no sustituye `USER_PERSONAL_UAT`, no cambia `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, no valida Production y no habilita schedules.
+- F9.10 agrega controles de repositorio previos a F10: gate CI dedicado para boundary `main`, canary Production manual SHA-bound con snapshot privado/restore idempotente, preflight `PRODUCTION-CANARY` con automation off + writers paused, correccion `DB-SYNC` vs writers y rollback documentado.
+- El gate `f10-main-boundary` conserva una allowlist exacta para objetos CA1 historicos ya presentes en `certificacion` que deben poder promoverse a `main`: `requirements-db-migrate.txt` como dependencia operativa hash-locked, `scripts/core/certification_canary_state.py` y `tests/test_fase09_9_certification_canary.py` como controles/evidencia F9.9, y `scripts/shared/roi_engine.py` solo como separacion de identidad backend requerida por `sync_vector_worker.py`. Esta clasificacion no permite CA2, prefijos amplios ni nuevos cambios fuera de allowlist.
+- `USER_PERSONAL_UAT` debe ejecutarse despues del merge selectivo F9.10 en `certificacion`, ligado al SHA/tree final congelado. Checklist sanitizado minimo: confirmar que el paquete entregado es CA1-only; confirmar que `EVID-H1-008` sigue como `DEVIATION_ACCEPTED_FAIL_CLOSED` y no como PASS; revisar que Production, schedules y F10 sigan bloqueados; aceptar explicitamente `USER_PERSONAL_UAT=PASS` para ese SHA/tree sin registrar PII, secretos, slugs de cohortes ni identificadores internos.
+- El canary Production que podra acreditar `EVID-H1-010` debe ejecutarse en F10.8 con `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true` y limites `5/5/3/3/3`. Runs FG2-only o FG3-only son diagnosticos y no acreditan `EVID-H1-010`. `EVID-H1-013` exige FG1 manual equivalente PASS y cron mensual activo; un waiver requiere decision humana separada con responsable y fecha.
 
 ## Work Packages Internos
 
@@ -294,6 +305,14 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Mutaciones canary usan manifest/evidencia acotada para restauracion.
 - Un incidente mantiene schedules apagados hasta nueva aprobacion.
 
+### Rollback F10 Requerido Antes De Produccion
+
+- `PRODUCTION_WRITERS_PAUSED=true` antes de cualquier DDL manual y ante incidente de canary/schedule.
+- `AUTOMATION_ENABLED=false` en `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` hasta habilitacion gradual aprobada.
+- Canary Production conserva snapshot privado en runner, restaura siempre, ejecuta segundo restore `--expect-noop` y sube solo resumen sanitizado sin slug de cohorte, SHA/run ID ni digest privado de filas.
+- Ante fallo: cancelar jobs activos, preservar artifacts sanitizados, no reintentar automaticamente, documentar incidente y reabrir solo con autorizacion decimal futura.
+- Revert de codigo solo por PR forward-only; DDL compensatorio o restore de datos requiere autorizacion separada y evidencia Backup/PITR.
+
 ## Evidencia De Salida
 
 | ID | Evidencia | Umbral | Estado |
@@ -343,6 +362,39 @@ Paths permitidos para ese paquete posterior:
 - `.context/**` enlazado para documentar resultados y mantener el Context Graph.
 
 Paths y acciones excluidos para ese paquete posterior: `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/db_migrate.py`, manifests DB, datos operativos, `.env*`, artifacts privados, cambios remotos GitHub, dispatches, canaries, schedules, PR a `main`, DDL/DML, backup/restore y cualquier cambio CA2.
+
+## Allowlist De Controles Pre-Main F9.10
+
+Esta allowlist habilita el paquete F9.10 tras la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F9.10`. No autoriza ejecutar Production, Supabase, Cloudflare, DDL/DML, backup/restore real, schedules, PR a `main`, environments/secrets remotos ni canaries remotos.
+
+Paths permitidos para este paquete:
+
+- `.github/scripts/production_control_preflight.sh` para separar `DB-SYNC` manual con writers pausados de FG1/FG2/FG3 con writers activos.
+- `.github/workflows/f9-7-contract.yml` solo para ampliar el gate de transicion y permitir exactamente las altas de `scripts/core/production_canary_manifest.py` y `scripts/core/production_canary_state.py` dentro de este paquete F9.10.
+- `.github/workflows/security-audit.yml` para agregar el gate bloqueante `f10-main-boundary`.
+- `.github/workflows/production_canary.yml` para definir el canary Production manual, main-only, SHA-bound, environment `Production`, preflight `PRODUCTION-CANARY`, snapshot privado, restore always y segundo restore NOOP.
+- `.gitattributes` solo para fijar LF de los nuevos archivos F9.10 y evitar drift CRLF en el package.
+- `scripts/core/production_canary_manifest.py` y `scripts/core/production_canary_state.py` para evidencia sanitizada y rollback acotado.
+- `scripts/core/universal_harvester.py`, `scripts/core/cleansing_worker.py`, `scripts/core/enrichment_worker.py` y `scripts/core/sync_vector_worker.py` solo para marcadores env-gated de canary que permiten limpiar filas creadas durante FG2/FG3.
+- `tests/test_fase09_10_pre_main_controls.py`, `tests/test_fase10_main_boundary.py` y `tests/test_fase10_production_canary.py` para pruebas estaticas y conductuales offline de los controles.
+- `tests/test_supabase_credentials_contract.py` solo para inventariar los tres consumidores Supabase nuevos de F9.10.
+- `tests/test_fase09_7_release_gates.py` solo para actualizar el inventario exacto de workflows de ocho a nueve por `production_canary.yml`.
+- `.context/**` enlazado para registrar PR #282, run `30824041542`, rollback, subfases F10.x y blockers pendientes.
+
+El allowlist exacto interno de `f10-main-boundary` tambien reconoce objetos CA1 historicos ya fusionados en `certificacion`: `requirements-db-migrate.txt`, `scripts/core/certification_canary_state.py`, `scripts/shared/roi_engine.py` y `tests/test_fase09_9_certification_canary.py`. Estos paths no amplian la allowlist de edicion F9.10; solo evitan un falso bloqueo al promover el manifest CA1 existente `certificacion -> main` en F10.7.
+
+Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/db_migrate.py`, manifests DB, datos operativos fuera de snapshot privado efimero, `.env*`, cambios remotos GitHub, dispatches, canaries reales, schedules, PR a `main`, DDL/DML, backup/restore real y cualquier cambio CA2.
+
+## Subfases F10 Propuestas
+
+| ID | Estado | Alcance |
+|---|---|---|
+| `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
+| `F10.6` | `PENDING` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
+| `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. |
+| `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
+| `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
+| `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida
 

@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda `COMPLETED_QA_VERIFIED` con PR #277 fusionado en Certification, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 fusionados en `desarrollo` y QA independiente `PASS`. F9.10 queda `ACTIVE_AWAITING_AUTHORIZATION` para certificacion final, `USER_PERSONAL_UAT` y readiness F10. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda `COMPLETED_QA_VERIFIED` con PR #277 fusionado en Certification, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 fusionados en `desarrollo` y QA independiente `PASS`. F9.10 queda `ACTIVE_AUTHORIZED_IN_PROGRESS` para certificacion final, `USER_PERSONAL_UAT` y readiness F10: PR #282 fue fusionado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b`, `Security Audit Gate` run `30824041279` termino `PASS` y run `30824041542` quedo registrado solo como evidencia read-only/sanitizada sin DML, sin Production y sin sustituir `USER_PERSONAL_UAT`. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -216,7 +216,7 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
 - `EVID-H1-014=PENDING_REVERIFY_MAIN_CANDIDATE`, `EVID-H1-015=VERIFIED` y `EVID-H1-009..013/016=PLANNED`.
 - La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); el resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md) verifica fail-closed sin declarar Certification PASS.
-- F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 debe reconstruir selectivamente controles pre-main sobre `certificacion`, confirmar candidate/readiness y obtener `USER_PERSONAL_UAT`; F10 conserva el canary Production y la observacion.
+- F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 debe cerrar controles pre-main, validar el boundary real `main -> certificacion`, confirmar candidate/readiness y obtener `USER_PERSONAL_UAT`; F10 conserva el canary Production y la observacion.
 
 ## Exclusiones Historicas Preservadas
 

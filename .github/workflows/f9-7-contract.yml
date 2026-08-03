@@ -66,6 +66,7 @@ on:
       - '.github/scripts/fase09_7_firewall_guard.sh'
       - 'AGENTS.md'
       - '.github/workflows/security-audit.yml'
+      - '.github/workflows/production_canary.yml'
       - '.github/workflows/fg1_inventory.yml'
       - '.github/workflows/fg3_integrity.yml'
       - '.github/workflows/production_pipeline.yml'
@@ -147,11 +148,14 @@ jobs:
           base = os.environ['F98_BASE_COMMIT']
           head = os.environ['F98_HEAD_COMMIT']
           allowed_statuses = {
+              '.gitattributes': {'M'},
               '.github/workflows/fg1_inventory.yml': {'M'},
               '.github/workflows/db-sync-to-pro.yml': {'M'},
               '.github/workflows/fg3_integrity.yml': {'M'},
               '.github/workflows/production_pipeline.yml': {'M'},
               'scripts/core/certification_canary_manifest.py': {'A'},
+              'scripts/core/production_canary_manifest.py': {'A'},
+              'scripts/core/production_canary_state.py': {'A'},
               'scripts/core/cleansing_worker.py': {'M'},
               'scripts/core/discovery_institutions.py': {'M'},
               'scripts/core/enrichment_worker.py': {'M'},
@@ -184,7 +188,7 @@ jobs:
           }
           protected_prefixes = ('scripts/core/', 'scripts/shared/', 'config/')
           denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')
-          denied_exact = {'.gitattributes'}
+          denied_exact = set()
           raw = subprocess.check_output([
               'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies', base, head, '--'
           ])
@@ -252,6 +256,7 @@ jobs:
           git checkout --detach "$F97_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
           F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
+          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
           test "$F97_CANDIDATE_TREE" = "$F97_FROZEN_TREE"
           git diff --quiet
           git diff --cached --quiet

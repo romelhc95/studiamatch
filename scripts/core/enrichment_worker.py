@@ -32,6 +32,38 @@ from shared.db_client import get_db_client
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("EnrichmentWorker")
+CANARY_RUN_METADATA_KEYS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99_certification_canary_run_id"),
+)
+
+
+def _active_canary_marker():
+    for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return metadata_key, run_id
+    return None, None
+
+
+def _mark_canary_metadata(metadata):
+    payload = dict(metadata or {})
+    metadata_key, run_id = _active_canary_marker()
+    if metadata_key and run_id:
+        payload[metadata_key] = run_id
+    return payload
+
+
+def _metadata_dict(metadata):
+    if isinstance(metadata, dict):
+        return metadata
+    if isinstance(metadata, str):
+        try:
+            parsed = json.loads(metadata)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -70,6 +102,42 @@ class EnrichmentWorker:
             if str(p.get('institution_id')) == str(institution_id):
                 return p
         return {}
+
+    def _verify_canary_enriched_row(self, cleansed_id):
+        metadata_key, run_id = _active_canary_marker()
+        if not metadata_key or not run_id:
+            return
+        rows = self.db.select_pipeline_raise(
+            'enriched_programs',
+            filters=f"cleansed_id=eq.{quote(str(cleansed_id), safe='')}",
+            columns='id,metadata',
+            limit=2,
+        )
+        if len(rows) != 1 or _metadata_dict(rows[0].get('metadata')).get(metadata_key) != run_id:
+            raise RuntimeError("canary provenance marker missing from enriched_programs")
+
+    def _ensure_canary_enriched_metadata(self, cleansed_id, metadata):
+        metadata_key, run_id = _active_canary_marker()
+        if not metadata_key or not run_id:
+            return
+        rows = self.db.select_pipeline_raise(
+            'enriched_programs',
+            filters=f"cleansed_id=eq.{quote(str(cleansed_id), safe='')}",
+            columns='id,metadata',
+            limit=2,
+        )
+        if len(rows) != 1:
+            raise RuntimeError("canary enriched row cannot be uniquely identified")
+        row = rows[0]
+        merged_metadata = _metadata_dict(row.get('metadata'))
+        merged_metadata.update(metadata or {})
+        merged_metadata[metadata_key] = run_id
+        self.db.patch_exact_one_raise(
+            'enriched_programs',
+            filters=f"id=eq.{quote(str(row['id']), safe='')}",
+            data={'metadata': merged_metadata},
+            expected_id=row['id'],
+        )
 
     @staticmethod
     def _gate_enabled(profile, gate_name):
@@ -774,6 +842,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 metadata['extraction_trace'] = woo_data['extraction_trace']
             if pre_extracted.get('program_family'):
                 metadata['program_family'] = pre_extracted.get('program_family')
+            metadata = _mark_canary_metadata(metadata)
 
             save_data = {
                 "cleansed_id": c_id,
@@ -839,6 +908,8 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     filters=f"id=eq.{c_id}",
                     data={"status": "enriched"},
                 )
+            self._ensure_canary_enriched_metadata(c_id, metadata)
+            self._verify_canary_enriched_row(c_id)
             return True
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")

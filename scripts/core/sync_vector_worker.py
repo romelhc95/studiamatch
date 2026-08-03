@@ -28,6 +28,25 @@ from shared.roi_engine import (
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("SyncVectorWorker")
+CANARY_PROVIDER_MARKERS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10-production-canary"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99-certification-canary"),
+)
+
+
+def _active_canary_provider_marker():
+    for variable_name, marker_prefix in CANARY_PROVIDER_MARKERS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return marker_prefix, run_id
+    return None, None
+
+
+def _mark_canary_provider(provider_used):
+    marker_prefix, run_id = _active_canary_provider_marker()
+    if not marker_prefix or not run_id:
+        return provider_used
+    return f"{provider_used}|{marker_prefix}:{run_id}"
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -55,6 +74,20 @@ class SyncVectorWorker:
             re.compile(r'matr[ií]cul', re.IGNORECASE),
             re.compile(r'inscr[ií]b', re.IGNORECASE),
         ]
+
+    def _verify_canary_course_marker(self, synced_url):
+        marker_prefix, run_id = _active_canary_provider_marker()
+        if not marker_prefix or not run_id:
+            return
+        rows = self.db.select_service_raise(
+            'courses',
+            filters=f"url=eq.{quote(str(synced_url), safe='')}",
+            columns='id,provider_used',
+            limit=2,
+        )
+        marker = f"{marker_prefix}:{run_id}"
+        if len(rows) != 1 or marker not in str(rows[0].get('provider_used') or '').split('|'):
+            raise RuntimeError("canary provenance marker missing from courses")
 
     def _load_profiles(self):
         try:
@@ -315,7 +348,7 @@ class SyncVectorWorker:
             "is_active": course_is_active,
             "is_verified": True,
             "last_scraped_at": datetime.now(timezone.utc).isoformat(),
-            "provider_used": enriched.get('provider_used', 'mock'),
+            "provider_used": _mark_canary_provider(enriched.get('provider_used', 'mock')),
             "is_mock_data": not is_real_enrichment,
         }
 
@@ -401,6 +434,17 @@ class SyncVectorWorker:
                             existing_metadata=enriched.get('metadata'),
                         )
                         return False
+            try:
+                self._verify_canary_course_marker(url)
+            except Exception:
+                logger.error(f"Canary provenance marker missing for course URL: {url}")
+                self.update_enriched_status(
+                    e_id,
+                    "error",
+                    error_msg="canary_course_marker_missing",
+                    existing_metadata=enriched.get('metadata'),
+                )
+                return False
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
             return True

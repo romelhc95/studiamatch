@@ -32,6 +32,52 @@ from shared.db_client import get_db_client, DatabaseClient
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("CleansingWorker")
+CANARY_RUN_METADATA_KEYS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99_certification_canary_run_id"),
+)
+
+
+def _active_canary_marker():
+    for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return metadata_key, run_id
+    return None, None
+
+
+def _mark_canary_metadata(metadata):
+    payload = dict(metadata or {})
+    metadata_key, run_id = _active_canary_marker()
+    if metadata_key and run_id:
+        payload[metadata_key] = run_id
+    return payload
+
+
+def _metadata_dict(metadata):
+    if isinstance(metadata, dict):
+        return metadata
+    if isinstance(metadata, str):
+        try:
+            parsed = json.loads(metadata)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _verify_canary_cleansed_row(db, item):
+    metadata_key, run_id = _active_canary_marker()
+    if not metadata_key or not run_id:
+        return
+    rows = db.select_pipeline_raise(
+        'cleansed_programs',
+        filters=f"url=eq.{quote(str(item['url']), safe='')}",
+        columns='id,metadata',
+        limit=2,
+    )
+    if len(rows) != 1 or _metadata_dict(rows[0].get('metadata')).get(metadata_key) != run_id:
+        raise RuntimeError("canary provenance marker missing from cleansed_programs")
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -482,7 +528,7 @@ class CleansingWorker:
                 discard_reason = discard_reason_dates
 
             if discard_reason:
-                for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": {"discard_reason": discard_reason}})
+                for m in members: staging_updates.append({"id": m['id'], "status": "discarded", "metadata": _mark_canary_metadata({"discard_reason": discard_reason})})
                 continue
 
             clean_name = clean_course_name(final_raw_name)
@@ -499,8 +545,8 @@ class CleansingWorker:
                 "effective_url": main_raw.get('effective_url'), "canonical_url": main_raw.get('canonical_url'),
                 "clean_name": clean_name, "clean_description": combined_full_text[:15000],
                 "modality": mode, "location": ", ".join(locations), "base_price": price, "currency": "PEN", "status": "pending",
-                "metadata": {"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members],
-                             "regex_price": price, "regex_start_date": regex_start_date}
+                "metadata": _mark_canary_metadata({"raw_name": final_raw_name, "price_status": p_status, "cleansed_at": datetime.now().isoformat(), "locations_list": locations, "sibling_urls": [m['url'] for m in members],
+                                                   "regex_price": price, "regex_start_date": regex_start_date})
             })
             for m in members: staging_updates.append({"id": m['id'], "status": "processed"})
             processed_count += len(members)
@@ -521,7 +567,7 @@ class CleansingWorker:
                         self.db.patch_raise(
                             'staging_raw',
                             filters=f"id=eq.{update['id']}",
-                            data={"status": update['status'], "metadata": update.get('metadata', {})},
+                            data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
                         )
                 logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
             else:
@@ -533,16 +579,18 @@ class CleansingWorker:
                     self.db.patch_raise(
                         'staging_raw',
                         filters=f"id=eq.{update['id']}",
-                        data={"status": update['status'], "metadata": update.get('metadata', {})},
+                        data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
                     )
                 logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
+            for item in cleansed_batch:
+                _verify_canary_cleansed_row(self.db, item)
         else:
             # No cleansed batch, just update staging_raw statuses
             for update in staging_updates:
                 self.db.patch_raise(
                     'staging_raw',
                     filters=f"id=eq.{update['id']}",
-                    data={"status": update['status'], "metadata": update.get('metadata', {})},
+                    data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
                 )
         return processed_count
 
