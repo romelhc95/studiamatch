@@ -18,6 +18,7 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
     compute_roi,
     duration_months_to_hours,
@@ -28,6 +29,18 @@ from shared.roi_engine import (
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("SyncVectorWorker")
+CANARY_PROVIDER_MARKER = "f99-certification-canary"
+
+
+def _canary_run_id():
+    return os.getenv("F99_CERTIFICATION_CANARY_RUN_ID", "").strip()
+
+
+def _mark_canary_provider(provider_used):
+    run_id = _canary_run_id()
+    if not run_id:
+        return provider_used
+    return f"{provider_used}|{CANARY_PROVIDER_MARKER}:{run_id}"
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -43,6 +56,20 @@ class SyncVectorWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
+
+    def _verify_canary_course_marker(self, validated_url):
+        run_id = _canary_run_id()
+        if not run_id:
+            return
+        rows = self.db.select_service_raise(
+            'courses',
+            filters=f"url=eq.{quote(str(validated_url), safe='')}",
+            columns='id,provider_used',
+            limit=2,
+        )
+        marker = f"{CANARY_PROVIDER_MARKER}:{run_id}"
+        if len(rows) != 1 or marker not in str(rows[0].get('provider_used') or '').split('|'):
+            raise RuntimeError("canary provenance marker missing from courses")
         # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado.
         # NOTA: Ya no se cargan globalmente — se obtienen por institución vía
         # _get_noise_patterns_for_inst() para que patrones de una institución
@@ -148,12 +175,18 @@ class SyncVectorWorker:
             return "\n".join(lines) if lines else None
         return str(curriculum_summary).strip() or None
 
-    def get_pending_enriched(self, limit=500):
+    def get_pending_enriched(self, limit=500, institution_id=None):
         if not self.ready_inst_ids:
             logger.info("No pipeline-enabled institutions available for sync.")
             return []
-        ready_ids = ",".join(quote(str(inst_id), safe='') for inst_id in sorted(self.ready_inst_ids))
-        filters = f"status=eq.pending&institution_id=in.({ready_ids})"
+        if institution_id:
+            if str(institution_id) not in self.ready_inst_ids:
+                logger.warning(f"Institution {institution_id} is not pipeline-enabled for sync.")
+                return []
+            filters = f"status=eq.pending&institution_id=eq.{quote(str(institution_id), safe='')}"
+        else:
+            ready_ids = ",".join(quote(str(inst_id), safe='') for inst_id in sorted(self.ready_inst_ids))
+            filters = f"status=eq.pending&institution_id=in.({ready_ids})"
         if limit is None:
             return self.db.select_all_pipeline('enriched_programs', filters=filters, order="id.asc")
         return self.db.select_pipeline_raise('enriched_programs', filters=filters, limit=limit, order="id.asc")
@@ -162,6 +195,26 @@ class SyncVectorWorker:
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
+        if not isinstance(url, str) or url.strip().lower() in {'', 'none', 'null'}:
+            logger.error(f"Invalid enriched URL for {e_id}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="invalid_enriched_url",
+                existing_metadata=enriched.get('metadata'),
+            )
+            return False
+        url = url.strip()
+        if not is_safe_public_url(url):
+            logger.error(f"Unsafe enriched URL for {e_id}: {url}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="invalid_enriched_url",
+                existing_metadata=enriched.get('metadata'),
+            )
+            return False
+        validated_url = url
 
         # Fase 100: skip si la institucion no tiene pipeline habilitado
         inst_id = enriched.get('institution_id')
@@ -216,11 +269,9 @@ class SyncVectorWorker:
 
         # Fallback: if slugify returns empty (non-ASCII names), use last URL segment
         if not base_slug:
-            url = enriched.get('url', '')
-            if url:
-                last_segment = urlparse(url).path.strip('/').split('/')[-1]
-                base_slug = slugify(last_segment)
-                logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
+            last_segment = urlparse(validated_url).path.strip('/').split('/')[-1]
+            base_slug = slugify(last_segment)
+            logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
             if not base_slug:
                 base_slug = 'curso'
                 logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
@@ -270,7 +321,7 @@ class SyncVectorWorker:
         # Apply section_mode_map: derive mode from URL path
         resolved_mode = enriched.get('modality') or defaults.get('mode')
         if not enriched.get('modality') and section_mode_map:
-            course_url = enriched.get('url', '')
+            course_url = validated_url
             for path_key, mode_val in section_mode_map.items():
                 if path_key in course_url:
                     resolved_mode = mode_val
@@ -289,7 +340,7 @@ class SyncVectorWorker:
             "institution_id": enriched['institution_id'],
             "name": name,
             "slug": full_slug,
-            "url": url,
+            "url": validated_url,
             "price_pen": enriched.get('total_cost_est'),
             "price_status": defaults.get('price_status', 'publicado') if not enriched.get('total_cost_est') else 'publicado',
             "mode": resolved_mode,
@@ -309,7 +360,7 @@ class SyncVectorWorker:
             "is_active": course_is_active,
             "is_verified": True,
             "last_scraped_at": datetime.now(timezone.utc).isoformat(),
-            "provider_used": enriched.get('provider_used', 'mock'),
+            "provider_used": _mark_canary_provider(enriched.get('provider_used', 'mock')),
             "is_mock_data": not is_real_enrichment,
         }
 
@@ -321,9 +372,22 @@ class SyncVectorWorker:
         existing = self.db.select_service_raise(
             'courses',
             filters=f"url=eq.{url_encoded}",
-            columns='id,is_active,last_404_at',
+            columns='id,institution_id,is_active,last_404_at',
         )
         existing_course = existing[0] if existing else {}
+        existing_inst_id = existing_course.get('institution_id')
+        if (
+            existing_course
+            and str(existing_inst_id) != str(enriched['institution_id'])
+        ):
+            logger.error(f"Cross-institution URL collision for {url}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="cross_institution_url_collision",
+                existing_metadata=enriched.get('metadata'),
+            )
+            return False
         manually_disabled = (
             existing_course.get('is_active') is False
             or existing_course.get('last_404_at') is not None
@@ -381,6 +445,17 @@ class SyncVectorWorker:
                             existing_metadata=enriched.get('metadata'),
                         )
                         return False
+            try:
+                self._verify_canary_course_marker(validated_url)
+            except Exception:
+                logger.error(f"Canary provenance marker missing for course URL: {validated_url}")
+                self.update_enriched_status(
+                    e_id,
+                    "error",
+                    error_msg="canary_course_marker_missing",
+                    existing_metadata=enriched.get('metadata'),
+                )
+                return False
             logger.info(f"Successfully synced to production courses: {name}")
             self.update_enriched_status(e_id, "synced")
             return True
@@ -410,9 +485,15 @@ class SyncVectorWorker:
         )
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run sync vector worker")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum enriched records to sync")
+    args = parser.parse_args()
+
     worker = SyncVectorWorker()
     guard = TimeGuard(max_seconds=1800, logger=logger)
-    pending = worker.get_pending_enriched(limit=None)
+    pending = worker.get_pending_enriched(limit=args.limit, institution_id=args.institution_id)
     logger.info(f"Found {len(pending)} pending enriched records.")
     synced = 0
     failed = 0

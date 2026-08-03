@@ -179,7 +179,11 @@ def patch_course_exact_one(db, course_id, data):
     if not result:
         raise RuntimeError(f"course patch failed: {course_id}")
 
-def run_integrity_ping():
+def _append_filter(base_filter, extra_filter):
+    return f"{base_filter}&{extra_filter}" if base_filter else extra_filter
+
+
+def run_integrity_ping(institution_id=None, limit=None):
     db = get_db_client()
     guard = TimeGuard(max_seconds=3600, logger=logger)
     logger.info("Iniciando Ping de Integridad Nivel 3...")
@@ -190,9 +194,17 @@ def run_integrity_ping():
     res = db.count_service_raise('courses')
     logger.info(f"[CHECK] Cursos en DB: {res}")
 
+    institution_filter = ""
+    if institution_id:
+        institution_filter = f"institution_id=eq.{quote(str(institution_id), safe='')}"
+
+    missing_filter = "is_active=eq.true&or=(syllabus.is.null,objectives.is.null)"
+    if institution_filter:
+        missing_filter = _append_filter(missing_filter, institution_filter)
+
     res = db.select_service_raise(
         'courses',
-        filters="is_active=eq.true&or=(syllabus.is.null,objectives.is.null)",
+        filters=missing_filter,
     )
     missing = len(res)
     logger.info(f"[ALERT] Cursos sin enriquecer: {missing}")
@@ -206,12 +218,24 @@ def run_integrity_ping():
 
     # Fase 73: Expiration check — desactivar cursos con start_date expirado (>90d)
     grace_cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
-    expired = db.select_all_service(
-        'courses',
-        filters=f"start_date=lt.{grace_cutoff}&is_active=eq.true",
-        columns="id,name,start_date,start_date_text",
-        order="id.asc",
-    )
+    expired_filter = f"start_date=lt.{grace_cutoff}&is_active=eq.true"
+    if institution_filter:
+        expired_filter = _append_filter(expired_filter, institution_filter)
+    if limit is None:
+        expired = db.select_all_service(
+            'courses',
+            filters=expired_filter,
+            columns="id,name,start_date,start_date_text",
+            order="id.asc",
+        )
+    else:
+        expired = db.select_service_raise(
+            'courses',
+            filters=expired_filter,
+            columns="id,name,start_date,start_date_text",
+            limit=limit,
+            order="id.asc",
+        )
     expired_count = len(expired)
     partial = False
     if expired_count > 0:
@@ -225,13 +249,28 @@ def run_integrity_ping():
     else:
         logger.info("[OK] 0 cursos con fecha expirada")
 
-    courses = db.select_all_service(
-        'courses',
-        filters="is_active=eq.true",
-        columns="id,name,url,last_404_at",
-        batch_size=1000,
-        order="id.asc",
-    )
+    course_filter = "is_active=eq.true"
+    if institution_filter:
+        course_filter = _append_filter(course_filter, institution_filter)
+    active_limit = None if limit is None else max(limit - expired_count, 0)
+    if active_limit == 0:
+        courses = []
+    elif active_limit is None:
+        courses = db.select_all_service(
+            'courses',
+            filters=course_filter,
+            columns="id,name,url,last_404_at",
+            batch_size=1000,
+            order="id.asc",
+        )
+    else:
+        courses = db.select_service_raise(
+            'courses',
+            filters=course_filter,
+            columns="id,name,url,last_404_at",
+            limit=active_limit,
+            order="id.asc",
+        )
     total = len(courses)
     deactivated = 0
     flagged = 0
@@ -303,4 +342,9 @@ def run_integrity_ping():
     return 1 if failed or partial else 0
 
 if __name__ == "__main__":
-    sys.exit(run_integrity_ping())
+    import argparse
+    parser = argparse.ArgumentParser(description="Run FG3 integrity ping")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum active courses to ping")
+    args = parser.parse_args()
+    sys.exit(run_integrity_ping(institution_id=args.institution_id, limit=args.limit))

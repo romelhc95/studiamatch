@@ -2,8 +2,9 @@ import subprocess
 import logging
 import sys
 import os
-import requests
 import json
+import time
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 # Add root directory to sys.path for shared imports
@@ -11,18 +12,44 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
 from shared.utils import setup_lima_logging
 
-db = get_db_client()
+db = None
 logger = setup_lima_logging("MasterOrchestrator")
+MAX_RUN_SECONDS = 20400
+CIRCUIT_COOLDOWN = timedelta(hours=24)
 
-def run_script(script_path, args=None):
+
+def _get_db():
+    global db
+    if db is None:
+        db = get_db_client()
+    return db
+
+
+def _parse_timestamp(value):
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def run_script(script_path, args=None, timeout=None):
     cmd = [sys.executable, script_path]
     if args:
         cmd.extend(args)
-    
+
     logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
-    result = subprocess.run(cmd, capture_output=False, env=os.environ.copy())
-    
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=False,
+            env=os.environ.copy(),
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        logger.error(f"[STAGE TIMEOUT] {script_path}")
+        return False
+
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
         return True
@@ -30,101 +57,153 @@ def run_script(script_path, args=None):
         logger.error(f"❌ [STAGE FAILED] {script_path} (Exit Code: {result.returncode})")
         return False
 
-def get_institutions(limit=10):
-    """Fetch institutions to harvest, prioritizing discovery_enabled first, then round-robin."""
-    all_insts = db.select_service_raise(
+def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
+    """Return eligible institutions after all gates, then apply the limit."""
+    if limit <= 0:
+        return []
+    client = _get_db()
+    current_time = now or datetime.now(timezone.utc)
+    excluded = set(excluded_slugs or [])
+    selected_slug = only_slug.strip() if only_slug else None
+    all_insts = client.select_service_raise(
         'institutions',
         columns="id,name,slug,website_url,last_harvest_at",
         order="last_harvest_at.asc.nullsfirst",
     )
-
-    profiles = db.select_pipeline_raise(
+    profiles = client.select_pipeline_raise(
         'institution_site_profiles',
-        columns="institution_id,discovery_enabled",
+        columns=(
+            "institution_id,discovery_enabled,circuit_open,"
+            "circuit_opened_at"
+        ),
     )
-    enabled = {p['institution_id']: p.get('discovery_enabled', False)
-               for p in profiles}
+    profile_by_institution = {
+        str(profile.get('institution_id')): profile
+        for profile in profiles
+        if isinstance(profile, dict) and profile.get('institution_id')
+    }
 
-    all_insts.sort(key=lambda i: (
-        not enabled.get(i['id'], False),
-        i.get('last_harvest_at') or ''
-    ))
+    eligible = []
+    for institution in all_insts:
+        profile = profile_by_institution.get(str(institution.get('id')))
+        slug = institution.get('slug')
+        if selected_slug and slug != selected_slug:
+            continue
+        if slug in excluded:
+            continue
+        if not profile or not profile.get('discovery_enabled'):
+            continue
+        if profile.get('circuit_open'):
+            try:
+                opened_at = _parse_timestamp(profile.get('circuit_opened_at'))
+            except (TypeError, ValueError):
+                opened_at = None
+            if opened_at is None or current_time - opened_at < CIRCUIT_COOLDOWN:
+                logger.info(
+                    f"[CIRCUIT OPEN] Skipping {institution.get('name')}"
+                )
+                continue
 
-    return all_insts[:limit]
+        try:
+            last_harvest = _parse_timestamp(institution.get('last_harvest_at'))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"Invalid freshness timestamp for {institution.get('name')}"
+            ) from exc
+        if (
+            last_harvest
+            and current_time - last_harvest < timedelta(days=3)
+            and client.count_pipeline_raise(
+                'staging_raw',
+                filters=f"institution_id=eq.{quote(str(institution['id']), safe='')}",
+            ) > 50
+        ):
+            logger.info(
+                f"[FRESHNESS GUARD] Skipping {institution.get('name')}"
+            )
+            continue
 
-def main():
+        eligible.append(institution)
+        if len(eligible) >= limit:
+            break
+
+    return eligible
+
+def main(argv=None):
     import argparse
-    import time
-    
+
     # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
     env_start = os.getenv("JOB_START_TIME")
     global_start = float(env_start) if env_start else time.time()
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
     parser.add_argument("--exclude", type=str, help="Slugs of institutions to exclude (comma separated)")
+    parser.add_argument("--institution-slug", help="Optional exact institution slug for a one-institution run")
+    parser.add_argument("--max-urls", type=int, default=None, help="Maximum discovered URLs per institution")
     parser.add_argument("--skip-cleansing", action="store_true", help="Skip the cleansing phase (Station 1.5)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    excluded_slugs = args.exclude.split(',') if args.exclude else []
+    excluded_slugs = {
+        slug.strip() for slug in args.exclude.split(',') if slug.strip()
+    } if args.exclude else set()
+    failures = []
 
     # 🚉 PHASE 1: Discovery & Harvesting
     logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
-    institutions = get_institutions(limit=args.limit)
-    
-    # Filter out excluded
-    institutions = [i for i in institutions if i['slug'] not in excluded_slugs]
-    
+    try:
+        institutions = get_institutions(
+            limit=args.limit,
+            excluded_slugs=excluded_slugs,
+            only_slug=args.institution_slug,
+        )
+    except Exception as exc:
+        logger.error(f"Failed to select eligible institutions: {exc}")
+        return 1
+
+    if args.institution_slug and not institutions:
+        logger.error(f"No eligible institution found for slug: {args.institution_slug}")
+        return 1
+
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
 
-    failed = 0
     for inst in institutions:
         inst_id = inst['id']
         inst_name = inst['name']
-        last_harvest = inst['last_harvest_at']
-        
-        # 🛡️ FRESHNESS GUARD: Skip if already dense (>50 urls) and updated in the last 3 days (72h)
-        if last_harvest:
-            try:
-                # Handle ISO format from DB
-                from datetime import datetime, timezone, timedelta
-                last_dt = datetime.fromisoformat(last_harvest.replace('Z', '+00:00'))
-                now_dt = datetime.now(timezone.utc)
-                
-                if (now_dt - last_dt) < timedelta(days=3):
-                    # Quick count in staging_raw
-                    count = db.count_pipeline_raise(
-                        'staging_raw',
-                        filters=f"institution_id=eq.{quote(str(inst_id), safe='')}",
-                    )
-                    
-                    if count > 50:
-                        logger.info(f"🛡️ [FRESHNESS GUARD] Skipping {inst_name}: Dense catalog ({count} URLs) updated recently ({last_dt.strftime('%Y-%m-%d %H:%M')}).")
-                        continue
-            except Exception as e:
-                logger.warning(f"Failed to check freshness for {inst_name}: {e}")
+        remaining = MAX_RUN_SECONDS - (time.time() - global_start)
+        if remaining <= 0:
+            logger.error("[TIME BUDGET] Global harvesting budget exhausted")
+            failures.append("global_time_budget")
+            break
 
         logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
         inst_json = json.dumps(dict(inst))
+        harvester_args = [inst_json, "--global-start", str(global_start)]
+        if args.max_urls is not None:
+            harvester_args.extend(["--max-urls", str(args.max_urls)])
         # Pass global start to sub-process
-        if not run_script("scripts/core/universal_harvester.py", [inst_json, "--global-start", str(global_start)]):
-            failed += 1
-
-    if failed:
-        logger.error(f"Harvesting failed for {failed} institutions; stopping before downstream phases.")
-        return 1
+        if not run_script(
+            "scripts/core/universal_harvester.py",
+            harvester_args,
+            timeout=remaining,
+        ):
+            failures.append(f"harvester:{inst.get('slug')}")
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:
         logger.info("--- PHASE 1.5: CLEANSING ---")
-        if not run_script("scripts/core/cleansing_worker.py"):
-            logger.error("Cleansing step failed; stopping pipeline.")
-            return 1
+        remaining = MAX_RUN_SECONDS - (time.time() - global_start)
+        if remaining <= 0:
+            logger.error("[TIME BUDGET] No budget remains for cleansing")
+            failures.append("cleansing:time_budget")
+        elif not run_script("scripts/core/cleansing_worker.py", timeout=remaining):
+            logger.warning("Cleansing step failed, but continuing pipeline...")
+            failures.append("cleansing")
     else:
         logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
 
     logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
-    return 0
+    return 1 if failures else 0
 
 if __name__ == "__main__":
     sys.exit(main())
