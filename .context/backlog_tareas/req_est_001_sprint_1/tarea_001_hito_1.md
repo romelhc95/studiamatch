@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda activa para candidate selectivo, PR a `certificacion`, canary y QA bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` en progreso; F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 queda `COMPLETED_VERIFIED_POST_MERGE` y F9.9 queda activa con PR #277 fusionado en Certification, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` documentada y controles pre-main pendientes bajo [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -38,9 +38,9 @@ La decision humana de F9.7 adopta la adenda aprobada para cerrar Hito 1 con
 El plan ejecutable futuro es
 [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md). F9.8
 quedo cerrada por replay post-merge del candidate CA1-only (PR #270/#271,
-`desarrollo@5b282461149b7319685cf090534e28051e5eb32c`); F9.9 queda activa como
-definicion, pero su ejecucion requiere la frase exacta
-`Ejecuta las tareas pendientes de la Fase F9.9`.
+`desarrollo@5b282461149b7319685cf090534e28051e5eb32c`). F9.9 promovio el
+candidate selectivo a `certificacion` mediante PR #277 y registra una desviacion
+fail-closed aceptada; no hay canary Certification positivo ni cierre de Hito 1.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -59,7 +59,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge | Candidate selectivo/Certification/QA F9.9, certificacion final F9.10, UAT y produccion observada F10 |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado | QA independiente de la desviacion, controles pre-main, certificacion final F9.10, UAT, canary Production y produccion observada F10 |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -203,6 +203,19 @@ y replay-validado en Docker/Linux (contenedor `studiamatch-dev`, checkout limpio
 - F9.9 queda como subfase activa; su ejecucion requiere la frase exacta
   `Ejecuta las tareas pendientes de la Fase F9.9`.
 
+## Desviacion F9.9 - Certification Fail-Closed
+
+F9.9 documento la promocion selectiva a `certificacion` y la desviacion aceptada
+en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md):
+
+- PR #277 fue aprobado y fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`.
+- `EVID-H1-006=VERIFIED` por equivalencia/boundary selectivo y CI `security-audit` PASS.
+- `EVID-H1-007=VERIFIED` por PR #277 `APPROVED/MERGED`.
+- `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`: los canaries Certification observaron salida no cero ante inventario invalido o HTTP 403 externo; cleanup e idempotencia pasaron cuando hubo snapshot.
+- La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
+- `EVID-H1-014=PENDING_REVERIFY_MAIN_CANDIDATE`, `EVID-H1-015=PENDING` y `EVID-H1-009..013/016=PLANNED`.
+- F9.9 permanece `IN_PROGRESS` hasta QA independiente de la desviacion, controles pre-main y definicion de readiness para F9.10/F10.
+
 ## Exclusiones Historicas Preservadas
 
 - Vault historico, revisiones, evidencias y candidates previos.
@@ -224,7 +237,7 @@ H-00 no forma parte del paquete promocionable. F9.6 verifico la remediacion hist
 
 1. `EVID-H1-001..016` completos, con `EVID-H1-001` ya verificado y las demas evidencias generadas por candidate/ambientes/observacion/conformidad.
 2. Candidate CA1-only inmutable con cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill, admin, Home, Resultados, cards, filtros y campos CA2.
-3. Tests CA1, CI, seguridad, QA, canary Certification, `USER_PERSONAL_UAT`, readiness F10, canary Production y observacion en PASS.
+3. Tests CA1, CI, seguridad, QA, desviacion Certification aceptada o canary Certification positivo, `USER_PERSONAL_UAT`, readiness F10, canary Production y observacion en estado aprobado segun [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md).
 4. Hitos 2 a 5 permanecen `PENDING` hasta activacion individual.
 
 Ver [Arquitectura](../../arquitectura_pipeline.md), [Estimacion](../../estimaciones/est_001.md) y [Release minimo](../../operaciones/flujo_release_minimo.md).

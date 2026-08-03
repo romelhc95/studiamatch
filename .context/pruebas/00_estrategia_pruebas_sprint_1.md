@@ -58,9 +58,9 @@ Version o herramienta | Fecha UTC | Procedimiento | Resultado observado |
 Outcome | Warnings o skips | Evidencia | Revisor
 ```
 
-`Outcome` admite `PASS`, `FAIL`, `BLOCKED` o `SKIPPED`. `VERIFIED` indica que
-el resultado fue contrastado; no significa necesariamente `PASS` ni
-`APPROVED_FOR_CLIENT`.
+`Outcome` admite `PASS`, `FAIL`, `BLOCKED`, `SKIPPED` o
+`DEVIATION_ACCEPTED_FAIL_CLOSED`. `VERIFIED` indica que el resultado fue
+contrastado; no significa necesariamente `PASS` ni `APPROVED_FOR_CLIENT`.
 
 Para pasar de `PLANNED` a `VERIFIED` se requieren candidate commit/tree
 inmutables, ambiente identificado sin datos sensibles, procedimiento
