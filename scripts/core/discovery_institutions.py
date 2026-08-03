@@ -3,6 +3,7 @@ import json
 import pathlib
 import re
 import sys
+import unicodedata
 from urllib.parse import quote, urlparse
 
 from dotenv import load_dotenv
@@ -16,7 +17,14 @@ load_dotenv()
 
 db = get_db_client()
 
-def load_sources():
+
+def source_slug(name):
+    normalized = unicodedata.normalize('NFKD', str(name or ''))
+    ascii_name = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r'[^a-z0-9]+', '-', ascii_name.lower()).strip('-')
+
+
+def load_sources(only_source_slug=None):
     """Load institution sources from the versioned JSON config, fail-closed."""
     config_path = pathlib.Path(__file__).parent.parent.parent / "config" / "institution_sources.json"
     if not config_path.exists():
@@ -33,13 +41,17 @@ def load_sources():
         parsed = urlparse(url)
         if not name or parsed.scheme not in ('http', 'https') or not parsed.netloc:
             raise RuntimeError(f"institution source #{index} must include name and http(s) url")
+    if only_source_slug:
+        sources = [source for source in sources if source_slug(source.get('name')) == only_source_slug]
+        if not sources:
+            raise RuntimeError(f"source_slug not found in config/institution_sources.json: {only_source_slug}")
     print(f"INFO: Loaded {len(sources)} institutions from config/institution_sources.json")
     return sources
 
-def run_discovery():
+def run_discovery(source_slug_filter=None, allow_insert=True):
     print("INFO: Iniciando Descubrimiento de Instituciones Nivel 1...")
 
-    sources = load_sources()
+    sources = load_sources(source_slug_filter)
 
     found = 0
     failed = 0
@@ -55,6 +67,10 @@ def run_discovery():
 
         if isinstance(res_check_data, list):
             if len(res_check_data) == 0:
+                if not allow_insert:
+                    print(f"ERROR: {inst['name']} no existe en el catálogo y --no-insert está activo")
+                    failed += 1
+                    continue
                 # 2. Es una institución nueva: Insertar
                 slug = inst['name'].lower().replace(' ', '-').replace('.', '')
                 data = {
@@ -80,8 +96,13 @@ def run_discovery():
     return 1 if failed else 0
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Run FG1 institution discovery")
+    parser.add_argument("--source-slug", help="Optional source slug for a one-source canary run")
+    parser.add_argument("--no-insert", action="store_true", help="Fail instead of inserting missing institutions")
+    args = parser.parse_args()
     try:
-        sys.exit(run_discovery())
+        sys.exit(run_discovery(args.source_slug, allow_insert=not args.no_insert))
     except Exception as exc:
         print(f"ERROR: {exc}")
         sys.exit(1)

@@ -12,6 +12,8 @@ concurrency:
 
 env:
   CI: true
+  F99_CERTIFICATION_BASELINE: e4ad815624184b692219ca9490347880af8de6b6
+  F99_CA1_SOURCE_COMMIT: 456becf94a2bab3d8091c7036509cfb80791a3f9
 
 jobs:
   credential-scan:
@@ -21,8 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Scan for hardcoded credentials
         run: |
-          FOUND=0
           PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
+          raw_findings="$(mktemp)"
           find . -type f \
             ! -path './.git/*' \
             ! -path '*/node_modules/*' \
@@ -34,8 +36,9 @@ jobs:
             ! -name '*.woff*' ! -name '*.ttf' ! -name '*.eot' \
             ! -name '*.mp4' ! -name '*.mov' ! -name '*.avi' \
             ! -name '*.pdf' ! -name '*.zip' ! -name '*.tar.gz' \
-            -exec grep -nE "$PATTERNS" {} + 2>/dev/null | head -50 | tee -a credential_findings.txt
-          if [ -s credential_findings.txt ]; then
+            -exec grep -nE "$PATTERNS" {} + > "$raw_findings" 2>/dev/null || true
+          if [ -s "$raw_findings" ]; then
+            awk -F: '{ print $1 ":" $2 ": [REDACTED credential-like value]" }' "$raw_findings" | head -50 | tee -a credential_findings.txt
             echo "❌ CREDENTIAL SCAN FAILED: Hardcoded credentials detected!"
             exit 1
           fi
@@ -97,10 +100,158 @@ jobs:
           find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
           echo "✅ All Python scripts compile successfully"
 
+  f99-certification-selective:
+    name: F9.9 Certification Selective Candidate
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F9.9 selective CA1 boundary
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            F99_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+            F99_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
+          else
+            test "${{ github.ref }}" = "refs/heads/certificacion"
+            F99_BASE_COMMIT="${{ github.event.before }}"
+            F99_CANDIDATE_COMMIT="${{ github.sha }}"
+          fi
+          test "$F99_BASE_COMMIT" = "$F99_CERTIFICATION_BASELINE"
+          printf '%s' "$F99_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          git cat-file -e "$F99_CA1_SOURCE_COMMIT^{commit}"
+          git cat-file -e "$F99_CERTIFICATION_BASELINE^{commit}"
+          git cat-file -e "$F99_CANDIDATE_COMMIT^{commit}"
+          test "$(git rev-parse HEAD)" = "$F99_CANDIDATE_COMMIT"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ['F99_CERTIFICATION_BASELINE']
+          source = os.environ['F99_CA1_SOURCE_COMMIT']
+          head = os.environ.get('F99_CANDIDATE_COMMIT') or subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          # F9.9 bootstrap exception: this seed PR introduces the certificacion
+          # boundary gate itself. Reuse is constrained by the exact baseline check.
+          allowed_statuses = {
+              '.github/workflows/f9_9_certification_canary.yml': {'A', 'M'},
+              '.github/workflows/security-audit.yml': {'M'},
+              'scripts/core/certification_canary_manifest.py': {'A', 'M'},
+              'scripts/core/certification_canary_state.py': {'A', 'M'},
+              'scripts/core/cleansing_worker.py': {'M'},
+              'scripts/core/discovery_institutions.py': {'M'},
+              'scripts/core/enrichment_worker.py': {'M'},
+              'scripts/core/integrity_ping.py': {'M'},
+              'scripts/core/master_orchestrator.py': {'M'},
+              'scripts/core/sync_vector_worker.py': {'M'},
+              'scripts/core/universal_harvester.py': {'M'},
+              'tests/test_fase09_9_certification_canary.py': {'A', 'M'},
+          }
+          runtime_paths = {
+              '.github/workflows/f9_9_certification_canary.yml',
+              'scripts/core/certification_canary_manifest.py',
+              'scripts/core/certification_canary_state.py',
+              'scripts/core/cleansing_worker.py',
+              'scripts/core/discovery_institutions.py',
+              'scripts/core/enrichment_worker.py',
+              'scripts/core/integrity_ping.py',
+              'scripts/core/master_orchestrator.py',
+              'scripts/core/sync_vector_worker.py',
+              'scripts/core/universal_harvester.py',
+          }
+          harness_paths = {'tests/test_fase09_9_certification_canary.py'}
+          source_equal_paths = sorted(runtime_paths - {
+              '.github/workflows/f9_9_certification_canary.yml',
+              'scripts/core/certification_canary_manifest.py',
+              'scripts/core/certification_canary_state.py',
+              'scripts/core/cleansing_worker.py',
+              'scripts/core/enrichment_worker.py',
+              'scripts/core/sync_vector_worker.py',
+              'scripts/core/universal_harvester.py',
+          })
+          denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')
+          denied_exact = {'supabase/functions/send-lead-emails/index.ts'}
+          raw = subprocess.check_output([
+              'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies',
+              base, head, '--',
+          ])
+          fields = raw.split(b'\0')
+          index = 0
+          failures = []
+          changed = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode('ascii')
+              index += 1
+              old_path = None
+              if status.startswith(('R', 'C')):
+                  old_path = fields[index].decode('utf-8', 'surrogateescape')
+                  index += 1
+              path = fields[index].decode('utf-8', 'surrogateescape')
+              index += 1
+              paths = [path] + ([old_path] if old_path else [])
+              changed.append((status, path))
+              if any(p and (p.startswith(denied_prefixes) or p in denied_exact) for p in paths):
+                  failures.append(f'denied-path:{status}:{path}')
+                  continue
+              expected = allowed_statuses.get(path)
+              if not expected:
+                  failures.append(f'unexpected-path:{status}:{path}')
+                  continue
+              if status not in expected:
+                  failures.append(f'status:{status}:{path}')
+                  continue
+              base_meta = subprocess.check_output(['git', 'ls-tree', base, '--', path], text=True).strip()
+              head_meta = subprocess.check_output(['git', 'ls-tree', head, '--', path], text=True).strip()
+              if status == 'A':
+                  if base_meta:
+                      failures.append(f'base-present:{path}')
+                  if not head_meta:
+                      failures.append(f'missing-head:{path}')
+                  elif head_meta.split(None, 3)[:2] != ['100644', 'blob']:
+                      failures.append(f'head-kind:{path}')
+              elif status == 'M':
+                  if not base_meta or not head_meta:
+                      failures.append(f'missing:{path}')
+                  elif base_meta.split(None, 3)[:2] != head_meta.split(None, 3)[:2]:
+                      failures.append(f'mode-kind:{path}')
+          for path in source_equal_paths:
+              source_blob = subprocess.check_output(['git', 'cat-file', 'blob', f'{source}:{path}'])
+              head_blob = subprocess.check_output(['git', 'cat-file', 'blob', f'{head}:{path}'])
+              if source_blob != head_blob:
+                  failures.append(f'source-drift:{path}')
+          if not changed:
+              failures.append('empty-candidate')
+          if failures:
+              for failure in failures:
+                  print(f'::error::{failure}')
+              sys.exit(1)
+          print('F9.9 selective CA1 boundary passed')
+          PY
+      - name: Run F9.9 canary contract tests
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('tests/test_fase09_9_certification_canary.py')
+          spec = importlib.util.spec_from_file_location('f99_canary_tests', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          for name in sorted(dir(module)):
+              if name.startswith('test_'):
+                  getattr(module, name)()
+          PY
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -109,36 +260,49 @@ jobs:
           LINT: ${{ needs.lint.result }}
           TC: ${{ needs.typecheck.result }}
           PC: ${{ needs.python-check.result }}
+          F99: ${{ needs.f99-certification-selective.result }}
+          F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
         run: |
-          echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          # Credential scan and Python check are HARD requirements
-          if [ "$CS" != "success" ]; then
-            echo "❌ **credential-scan**: $CS (BLOCKING)" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-          echo "✅ **credential-scan**: passed" >> $GITHUB_STEP_SUMMARY
-          if [ "$PC" != "success" ]; then
-            echo "❌ **python-check**: $PC (BLOCKING)" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-          echo "✅ **python-check**: passed" >> $GITHUB_STEP_SUMMARY
-          # Lint and typecheck are informational (pre-existing tech debt)
-          if [ "$LINT" = "success" ]; then
-            echo "✅ **lint**: passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "$LINT" = "failure" ]; then
-            echo "⚠️ **lint**: has errors (non-blocking, tracked separately)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **lint**: $LINT" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ "$TC" = "success" ]; then
-            echo "✅ **typecheck**: passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "$TC" = "failure" ]; then
-            echo "⚠️ **typecheck**: has errors (non-blocking, tracked separately)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **typecheck**: $TC" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Security audit PASSED** — credential scan and Python check clean. Lint/typecheck issues are tracked separately." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Security Audit Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|---|---|"
+            # Credential scan and Python check are HARD requirements
+            if [ "$CS" != "success" ]; then
+              echo "❌ **credential-scan**: $CS (BLOCKING)"
+              exit 1
+            fi
+            echo "✅ **credential-scan**: passed"
+            if [ "$PC" != "success" ]; then
+              echo "❌ **python-check**: $PC (BLOCKING)"
+              exit 1
+            fi
+            echo "✅ **python-check**: passed"
+            if [ "$F99_REQUIRED" = "true" ]; then
+              if [ "$F99" != "success" ]; then
+                echo "❌ **f99-certification-selective**: $F99 (BLOCKING)"
+                exit 1
+              fi
+              echo "✅ **f99-certification-selective**: passed"
+            else
+              echo "✅ **f99-certification-selective**: skipped outside certificacion"
+            fi
+            # Lint and typecheck are informational (pre-existing tech debt)
+            if [ "$LINT" = "success" ]; then
+              echo "✅ **lint**: passed"
+            elif [ "$LINT" = "failure" ]; then
+              echo "⚠️ **lint**: has errors (non-blocking, tracked separately)"
+            else
+              echo "⚠️ **lint**: $LINT"
+            fi
+            if [ "$TC" = "success" ]; then
+              echo "✅ **typecheck**: passed"
+            elif [ "$TC" = "failure" ]; then
+              echo "⚠️ **typecheck**: has errors (non-blocking, tracked separately)"
+            else
+              echo "⚠️ **typecheck**: $TC"
+            fi
+            echo ""
+            echo "✅ **Security audit PASSED** — credential scan, Python check and F9.9 selective boundary clean. Lint/typecheck issues are tracked separately."
+          } >> "$GITHUB_STEP_SUMMARY"
