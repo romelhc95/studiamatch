@@ -27,6 +27,7 @@
 - [Certificacion G1b F7](operaciones/certificacion_g1b_f7.md)
 - [Certificacion local Hito 1 F8](operaciones/certificacion_hito1_f8.md)
 - [Certificacion Hito 1 - macrofase F9](operaciones/certificacion_hito1_f9.md)
+- [Resultado QA F9.9](operaciones/qa_desviacion_f9_9_resultado.md)
 - [Plan simplificado de Hito 1 - vigente](operaciones/plan_simplificado_hito1.md)
 - [Plan de corte seguridad/funcionalidad/estabilidad Hito 1](operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
 - [Cierre definitivo F9.7 por work packages](operaciones/cierre_definitivo_f9_7.md)

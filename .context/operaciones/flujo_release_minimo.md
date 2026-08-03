@@ -57,7 +57,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.6 cierra H-00 como `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE`.
 - F9.7 queda cerrada por rebaseline contractual; v3, PR-O v1/hold actual y PR-O sucesor permanecen historia no ejecutable de Hito 1.
 - F9.8 implementa y valida localmente el candidate CA1-only.
-- F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 no inicia hasta que QA/readiness queden inequivocos.
+- F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
 - La macrofase F10 Produccion permanece bloqueada hasta readiness F9.10.
 

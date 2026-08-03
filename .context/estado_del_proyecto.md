@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-03-F9.9-PRE-MAIN-CONTROLS`.
+Snapshot: `SNAPSHOT-2026-08-03-F9.9-QA-PASS-F9.10-PENDING`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases. El estado vivo de la tarea activa pertenece a la propia tarea.
 
@@ -17,7 +17,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F6` | Reconciliacion DB-as-Code | `COMPLETED` | Base funcional contractual Hito 1, forward-only y validada localmente; ningun cambio remoto aplicado. |
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 CA1-only | `IN_PROGRESS` | F9.8 queda cerrada por replay post-merge en Docker/Linux; F9.9 documento PR #277 fusionado en `certificacion`, equivalencia/boundary PASS y desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED` por HTTP 403 observado desde GitHub-hosted runners. El paquete pre-main F9.9 versiona controles de repositorio; F9.9 sigue abierta: no hay canary positivo, QA independiente aprobada, F9.10, Production ni schedules. |
+| `F9` | Certificacion Hito 1 CA1-only | `IN_PROGRESS` | F9.9 queda cerrada documentalmente con PR #277 en `certificacion`, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 mergeados en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` y QA independiente `PASS`; no hay canary Certification positivo, Production ni schedules. F9.10 queda como siguiente subfase antes de readiness F10. |
 | `F10` | Produccion CA1-only | `PENDING` | Bloqueada hasta readiness F9.10; contempla PR a `main`, canary Production, habilitacion gradual de schedules y observacion. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
@@ -33,8 +33,8 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.6` | `COMPLETED` | `H00_ALREADY_REMEDIATED_NO_DML`: cohorte con PII directa remediada, conservada como pseudonimizada; Gate B DELETE `SUPERSEDED_NON_AUTHORIZABLE`; Pro prohibido |
 | `F9.7` | `COMPLETED_BY_CONTRACT_REBASELINE` | Adenda `ADENDA-REQ-EST-001-001` aprobada y efectiva; `EVID-H1-001` registra atestacion sanitizada. Cierra solo el paquete documental de rebaseline; preserva los artifacts terminales F9.7 como WIP CA2 no promocionable y antecedente historico. Cero aplicacion remota, DDL/DML, backfill, Certification o Production. |
 | `F9.8` | `COMPLETED_VERIFIED_POST_MERGE` | Candidate local CA1-only implementado (PR #270/#271) y validado por replay post-merge en Docker/Linux sobre `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`: 53 pruebas focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PostgreSQL 17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS. `EVID-H1-002..005` quedan `VERIFIED`; `EVID-H1-006..016` permanecen `PLANNED`. No hubo red remota, DDL/DML, backfill, Certification ni Production. |
-| `F9.9` | `IN_PROGRESS` | Candidate selectivo PR #277 aprobado/fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED` por fail-closed ante HTTP 403 observado desde GitHub-hosted runners. Controles pre-main de repositorio implementados como candidate local/CI; quedan pendientes QA independiente de la desviacion y definicion de readiness para F9.10. La validacion positiva Production pertenece a F10. |
-| `F9.10` | `PENDING` | Certificacion final, `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA, y readiness para F10. Sin autorizacion ejecutable en este paquete. |
+| `F9.9` | `COMPLETED_QA_VERIFIED` | Candidate selectivo PR #277 aprobado/fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; controles pre-main PR #280 aprobados/fusionados en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`; QA independiente `PASS` y `EVID-H1-015=VERIFIED`. No valida success path, FG3, Production ni schedules. |
+| `F9.10` | `ACTIVE_AWAITING_AUTHORIZATION` | Certificacion final, confirmacion de QA, promocion selectiva a Certification de controles pre-main, `USER_PERSONAL_UAT` despues de validaciones tecnicas y readiness para F10. Sin autorizacion ejecutable en este paquete. |
 
 Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
 
@@ -43,11 +43,11 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F9.9; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
-- Subfase autorizada en este paquete: implementacion de controles pre-main de repositorio dentro de la allowlist de [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md). No autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore, writers remotos, backfill, Edge, nuevas ejecuciones Certification, Production, merge a `main`, migraciones ni habilitacion/cancelacion de schedules.
+- Subfase activa: F9.10; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
+- Subfase autorizada en este paquete: cierre documental F9.9 por merge PR #280 y QA independiente `PASS`. No autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore, writers remotos, backfill, Edge, nuevas ejecuciones Certification, Production, merge a `main`, migraciones ni habilitacion/cancelacion de schedules.
 - Autorizacion documental anterior: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY`, completada y fusionada por el rebaseline PR #269 en `desarrollo@d9c7f180495c985a1e9a0ada4a42525fda60a870` / tree `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
-- Siguiente accion futura tras merge de este paquete: QA independiente de la desviacion `QA-F9.9-DEVIATION-001` y cierre documental de sus resultados. F9.10 y F10 permanecen bloqueadas hasta que el Context Graph declare readiness inequivoca.
+- Siguiente accion futura: definir/ejecutar F9.10 con frase decimal exacta; F10 permanece bloqueada hasta readiness inequivoca. `certificacion` todavia no contiene los controles pre-main de PR #280 y no debe promoverse a `main` sin reconstruccion selectiva.
 
 ## Alcance Inmediato
 

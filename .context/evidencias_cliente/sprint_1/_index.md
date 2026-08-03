@@ -5,9 +5,10 @@ no convierte una evidencia planeada en resultado. `EVID-H1-001` es la excepcion
 contractual de aprobacion de adenda y puede estar `VERIFIED` antes del candidate;
 `EVID-H1-002..005` quedan `VERIFIED` por el candidate CA1-only F9.8 replay-validado
 post-merge; `EVID-H1-006/007` quedan `VERIFIED` por PR #277 y CI; `EVID-H1-008`
-queda `DEVIATION_ACCEPTED_FAIL_CLOSED`, no `PASS`. `EVID-H1-009..016` solo se
-promueven a `VERIFIED` cuando exista PR main, canary Production, observacion,
-QA o conformidad segun corresponda.
+queda `DEVIATION_ACCEPTED_FAIL_CLOSED`, no `PASS`; `EVID-H1-015` queda
+`VERIFIED` por QA independiente de la desviacion. `EVID-H1-009..014/016` solo se
+promueven a `VERIFIED` cuando exista PR main, canary Production, observacion o
+conformidad segun corresponda.
 
 ## Estados
 
@@ -24,7 +25,7 @@ QA o conformidad segun corresponda.
 
 | Hito | Documento | Estado |
 |---|---|---|
-| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F9_9_DEVIATION_DOCUMENTED` |
+| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F9_9_QA_VERIFIED` |
 | Hito 2 | Se crea con candidate real | `PLANNED` |
 | Hito 3 | Se crea con candidate real | `PLANNED` |
 | Hito 4 | Se crea con candidate real | `PLANNED` |
