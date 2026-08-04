@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-04-F10.6-CONTROL-PLANE-ACTIVE`.
+Snapshot: `SNAPSHOT-2026-08-04-F10.7-ACTIVE-PENDING-AUTHORIZATION`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases. El estado vivo de la tarea activa pertenece a la propia tarea.
 
@@ -18,7 +18,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED` | F9.10 cerro readiness de repositorio y certificacion final CA1-only: PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `Security Audit Gate` run `30865604732` PASS, run automatico `30865604729` cancelado con cero pasos, boundary final `main -> certificacion` de 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`, `USER_PERSONAL_UAT=PASS`, `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; sin Production, schedules, DDL/DML, Supabase ni Cloudflare. |
-| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` queda activa para control-plane exclusivamente. F10 permanece bloqueada para F10.7 PR a `main`, F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final hasta sus autorizaciones decimales separadas. |
+| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` cerro control-plane: environments programados fail-closed, branch policy `main`, reviewer humano y runs antiguos resueltos sin aprobacion ni pasos. `F10.7` queda activa pendiente de autorizacion separada para PR `certificacion -> main`; F10 permanece bloqueada para ejecutar F10.7, F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final hasta sus frases decimales exactas. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
 ## Subfases F9
@@ -41,8 +41,8 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | ID | Estado | Identidad vigente |
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
-| `F10.6` | `ACTIVE_PENDING_AUTHORIZATION` | Control-plane: environments programados, variables fail-closed, resolucion de runs antiguos y branch policy. No autoriza por si mismo Production, schedules, canary, Supabase, Cloudflare, DDL/DML, writers ni PR a `main`; requiere frase exacta `Ejecuta las tareas pendientes de la Fase F10.6`. |
-| `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. |
+| `F10.6` | `COMPLETED_CONTROL_PLANE` | Environments `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true` y secrets minimos por nombre. `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`. Runs antiguos `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No hubo aprobacion, retry, dispatch, schedule ejecutado, writer, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`. |
+| `F10.7` | `ACTIVE_PENDING_AUTHORIZATION` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. Requiere frase exacta `Ejecuta las tareas pendientes de la Fase F10.7`; no queda autorizado por F10.6. |
 | `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 
@@ -53,11 +53,11 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F10.6; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
-- Subfase autorizada por este cierre: solo registro documental de cierre F9.10 y activacion de F10.6. No ejecuta F10.6 ni autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore real, writers remotos, backfill, Edge, Production, PR/merge a `main`, migraciones, habilitacion/cancelacion de schedules ni aprobacion de runs.
+- Subfase activa: F10.7; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
+- Subfase completada en este cierre: F10.6 control-plane. La cancelacion autorizada de los runs antiguos `30681941694`, `29678093566` y `29677885934` no aprobo deployments, no reintento workflows y no ejecuto pasos. F10.7 queda pendiente de frase decimal exacta; F10.6 no autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore real, writers remotos, backfill, Edge, Production canary, schedules ni PR/merge a `main`.
 - Autorizacion documental anterior: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY`, completada y fusionada por el rebaseline PR #269 en `desarrollo@d9c7f180495c985a1e9a0ada4a42525fda60a870` / tree `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
-- Siguiente accion futura: solicitar la frase exacta `Ejecuta las tareas pendientes de la Fase F10.6` para el control-plane. F10.6 debe verificar/configurar environments programados, variables fail-closed, runs antiguos resueltos y branch policy antes de F10.7. PR a `main`, canary Production y schedules siguen bloqueados hasta sus subfases propias.
+- Siguiente accion futura: solicitar la frase exacta `Ejecuta las tareas pendientes de la Fase F10.7` para preparar el PR `certificacion -> main`. Canary Production y schedules siguen bloqueados hasta F10.8 y F10.9.
 
 ## Alcance Inmediato
 

@@ -14,7 +14,7 @@ fija una ruta selectiva para Hito 1 CA1-only:
 3. Reconstruir el patch sobre baseline productivo sin mergear `desarrollo`.
 4. Demostrar cero cambios `db/**`, `supabase/**`, `web/**` y CA2.
 5. PR CA1-only a `certificacion`, canary y QA.
-6. F9.10 ya declaro readiness despues de controles `main`, canary Production definido, rollback, validaciones y `USER_PERSONAL_UAT=PASS`; F10.6 queda activa para control-plane antes del PR `certificacion -> main`, canary Production y habilitacion gradual de schedules.
+6. F9.10 ya declaro readiness despues de controles `main`, canary Production definido, rollback, validaciones y `USER_PERSONAL_UAT=PASS`; F10.6 completo control-plane antes del PR `certificacion -> main`, canary Production y habilitacion gradual de schedules.
 
 El flujo schema/backfill/free_certified anterior queda `SUPERSEDED_FOR_HITO_1` y
 se conserva solo como antecedente CA2 de Hito 2.
@@ -30,9 +30,9 @@ se conserva solo como antecedente CA2 de Hito 2.
 7. F9.10 registro PR #283/#284 en `desarrollo`, reconstruyo target-aware sobre `certificacion` mediante PR #285 y congelo el boundary final por path/status/mode/blob/digest.
 8. F9.10 realizo certificacion final: `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `30865604732=PASS`, run `30865604729` cancelado con cero pasos, boundary 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5` y `USER_PERSONAL_UAT=PASS`.
 9. F9.10 declara readiness para F10 con candidate commit/tree inmutable, CI, review humano y sin blockers pendientes para F10.6.
-10. F10.6 ejecuta control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
-11. F10.6 debe cerrar documentalmente y activar F10.7 antes de cualquier PR a `main`.
-12. F10.7 abre PR a `main` y mergea solo con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado.
+10. F10.6 ejecuto control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
+11. F10.6 cierra documentalmente y activa F10.7 antes de cualquier PR a `main`.
+12. F10.7 abre PR a `main` y mergea solo con gate `f10-main-boundary`, review humano, autorizacion decimal separada y candidate SHA/tree congelado.
 13. F10.8 ejecuta canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados.
 14. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
 15. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
@@ -63,15 +63,15 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicia en F10.6; F10.7-F10.9 permanecen bloqueadas hasta autorizacion decimal propia.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 queda activa pendiente de autorizacion decimal propia y F10.8-F10.9 permanecen bloqueadas.
 
 ## Subfases F10 CA1-Only
 
 | ID | Estado | Alcance |
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia sustituida; no autoriza ejecucion. |
-| `F10.6` | `ACTIVE_PENDING_AUTHORIZATION` | Control-plane y limpieza de runs antiguos antes de promover a `main`. |
-| `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`. |
+| `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
+| `F10.7` | `ACTIVE_PENDING_AUTHORIZATION` | PR `certificacion -> main` con gate `f10-main-boundary`; requiere autorizacion decimal separada. |
 | `F10.8` | `PENDING` | Canary Production manual, acotado y restaurable. |
 | `F10.9` | `PENDING` | Schedules graduales y observacion 72h + tres pares FG2 -> FG3 completos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |

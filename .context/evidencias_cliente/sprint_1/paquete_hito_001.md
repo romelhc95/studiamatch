@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_WITH_F9_10_READY_FOR_F10_6` |
+| Estado | `DRAFT_WITH_F10_6_CONTROL_PLANE_DONE` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
 | Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), controles F9.10 PR #282 y candidate final `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242` (PR #285) |
@@ -32,8 +32,10 @@ Certification y F9.10 define el gate `main`, canary Production y rollback sin
 ejecutarlos. PR #285 quedo aprobado/fusionado en `certificacion`, CI post-merge
 PASS, el run automatico F9.9 quedo cancelado con cero pasos, el boundary final
 `main -> certificacion` fue congelado y `USER_PERSONAL_UAT=PASS` fue emitido
-para el SHA/tree final. Produccion observada, conformidad, PR a main, canary
-Production y schedules siguen pendientes. El resultado final debera
+para el SHA/tree final. F10.6 cerro control-plane con environments programados
+fail-closed y runs legacy schedule cancelados con cero pasos. Produccion
+observada, conformidad, PR a main, canary Production y schedules siguen
+pendientes. El resultado final debera
 indicar claramente que se entrego CA1 y que CA2 se traslado a Hito 2.
 
 ## Alcance Entregado
@@ -43,7 +45,7 @@ indicar claramente que se entrego CA1 y que CA2 se traslado a Hito 2.
 | Schedules FG2/FG3 | `LOCAL_CANDIDATE_WITH_F10_GATES_DEFINED` | Workflows con kill switch y environments dedicados; gate main/canary Production definidos; observacion Production pendiente |
 | Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_QA_VERIFIED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; QA independiente `PASS` |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
-| Development/Certification/Production | `F9_10_READINESS_DONE_F10_6_PENDING` | PR #277/#282/#285 Approved/Merged; PR #283/#284 mergeados en `desarrollo`; Production y main pendientes |
+| Development/Certification/Production | `F10_6_CONTROL_PLANE_DONE` | PR #277/#282/#285 Approved/Merged; PR #283/#284/#286 mergeados en `desarrollo`; environments programados fail-closed; Production canary y main pendientes |
 | Cero cambios CA2 | `MAIN_BOUNDARY_PASS_PRE_MAIN` | Boundary final 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; cero rutas prohibidas |
 
 FG1 se valida en un anexo tecnico interno como soporte de inventario. No forma
@@ -76,6 +78,7 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - QA independiente: `PASS` segun [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Certification: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS.
 - F9.10 readiness: run `30824041542` PASS read-only/sanitizado; PR #283 CI post-merge PASS (`30856264196`, `30856264217`); PR #285 CI post-merge `30865604732` PASS; run `30865604729` cancelado con cero pasos; boundary `main -> certificacion` = 32 objetos, digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`. No DML y no Production. El canary Production futuro queda definido con artifacts sin slug/SHA/run/digest privado.
+- F10.6 control-plane: `Production-Scheduled-FG1/FG2/FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, variables fail-closed y secrets minimos por nombre; `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`; runs `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No se aprobaron runs, no hubo retry, dispatch, schedule ejecutado, writer, Production canary, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`.
 - Readiness main-boundary: el manifest real `main -> certificacion` queda congelado para F10.7; cualquier drift antes del PR a `main` exige recalculo y detencion.
 - `EVID-H1-010` futuro requiere canary Production completo `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`, limites `5/5/3/3/3`, snapshot privado, restore y segundo restore NOOP. Runs parciales FG2-only/FG3-only seran diagnosticos, no evidencia de cierre.
 - `USER_PERSONAL_UAT=PASS` queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos.
@@ -120,7 +123,7 @@ puede presentarse como mitigado sin evidencia.
 - Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
 - Revision tecnica: controles pre-main de repositorio aprobados/fusionados en PR #280 con CI post-merge PASS.
 - QA: `PASS` para la desviacion F9.9; no autoriza Production ni `main`.
-- Readiness F9.10: completada; F10.6 queda activa pendiente de autorizacion exacta.
+- Readiness F9.10: completada; F10.6 control-plane completada y F10.7 queda activa pendiente de autorizacion exacta.
 - UAT personal: `PASS` registrado para SHA/tree final de Certification; no autoriza Production, schedules ni PR a `main`.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.

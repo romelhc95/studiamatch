@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_6_CONTROL_PLANE_ACTIVE` |
+| Estado | `F10_6_CONTROL_PLANE_DONE_F10_7_ACTIVE` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -13,9 +13,9 @@ Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
 ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
 QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
-`USER_PERSONAL_UAT=PASS`; F10.6 queda activa solo como control-plane. Production,
-schedules, F10.7 y posteriores permanecen bloqueados hasta autorizaciones
-separadas.
+`USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. Production,
+schedules, F10.8 y posteriores permanecen bloqueados hasta autorizaciones
+separadas; F10.7 queda activa pendiente de autorizacion para PR a `main`.
 
 ## Objetivo
 
@@ -255,10 +255,11 @@ boundary final `main -> certificacion` de 32 objetos documentado abajo.
 | `A` | `100644` | `7cc10e90b426429403ad494bb766fbf99bc222ea` | `tests/test_fase10_main_boundary.py` |
 | `A` | `100644` | `3c9c1e140db81f2bce697100aa98e4530b31f09e` | `tests/test_fase10_production_canary.py` |
 
-Con este freeze F9.10 termina como `COMPLETED_READINESS_F10` y F10.6 queda
-`ACTIVE_PENDING_AUTHORIZATION`. El siguiente paso requiere la frase exacta
-`Ejecuta las tareas pendientes de la Fase F10.6` y no concede por si mismo PR a
-`main`, canary Production, schedules ni cambios remotos.
+Con este freeze F9.10 termino como `COMPLETED_READINESS_F10`; F10.6 quedo
+`COMPLETED_CONTROL_PLANE` despues de verificar environments fail-closed y
+cancelar runs legacy con cero pasos. El siguiente paso requiere la frase exacta
+`Ejecuta las tareas pendientes de la Fase F10.7` y no concede por si mismo
+canary Production, schedules ni cambios remotos fuera del PR autorizado.
 
 ## Work Packages Internos
 
@@ -409,6 +410,14 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Ante cualquier fallo: `PRODUCTION_WRITERS_PAUSED=true`, automation false, cancelar jobs activos, preservar evidencia y reiniciar la secuencia despues de remediar.
 - FG1 mensual no se considera observado en 72 horas; exige FG1 manual equivalente PASS y cron activo, o waiver explicita con responsable y fecha de primera ventana natural.
 
+### Cierre Control-Plane F10.6
+
+- `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` existen con branch policy exacta `main`, reviewer humano autorizado y self-review bloqueado.
+- `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true` estan configuradas en `Production`, `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3`.
+- Los secrets requeridos existen por nombre en cada environment programado; sus valores no se leyeron ni documentaron.
+- Runs legacy schedule `30681941694`, `29678093566` y `29677885934` quedaron `cancelled`; todos sus jobs conservaron `steps=[]` y no quedaron pending deployments.
+- No hubo aprobacion, retry, dispatch, schedule ejecutado, writer, Production canary, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`.
+
 ## Kill Switch Y Rollback
 
 - `AUTOMATION_ENABLED=false` detiene nuevas ejecuciones.
@@ -502,8 +511,8 @@ Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, 
 | ID | Estado | Alcance |
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
-| `F10.6` | `ACTIVE_PENDING_AUTHORIZATION` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
-| `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. |
+| `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
+| `F10.7` | `ACTIVE_PENDING_AUTHORIZATION` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado; requiere autorizacion decimal separada. |
 | `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |

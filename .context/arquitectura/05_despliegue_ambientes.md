@@ -37,12 +37,13 @@ flowchart LR
 | F9.8 | `COMPLETED_VERIFIED_POST_MERGE`; candidate local CA1-only replay-validado |
 | F9.9 | `COMPLETED_QA_VERIFIED`; Certification conserva desviacion fail-closed aceptada |
 | F9.10 | `COMPLETED_READINESS_F10`; PR #285 mergeado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760`, boundary 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5` |
-| F10.6 | `ACTIVE_PENDING_AUTHORIZATION`; control-plane pendiente de frase decimal exacta |
+| F10.6 | `COMPLETED_CONTROL_PLANE`; environments programados fail-closed, branch policy `main`, reviewer humano, secrets minimos por nombre y runs legacy schedule cancelados con cero pasos |
+| F10.7 | `ACTIVE_PENDING_AUTHORIZATION`; PR `certificacion -> main` pendiente de frase decimal exacta |
 | Supabase Free/Pro | `UNCHANGED_NOT_ATTESTED`; sin certificacion nueva |
 | Backfill | Trasladado a Hito 2; prohibido en Hito 1 CA1-only |
 | Validaciones tecnicas Certification | PR #282/#285 y CI post-merge registrados; candidate final `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242` |
 | `USER_PERSONAL_UAT` | `PASS` registrado para SHA/tree final de Certification |
-| Readiness F10 | Alcanzado para activar F10.6; F10.7-F10.9 siguen bloqueadas |
+| Readiness F10 | F10.6 completada; F10.7 queda activa pendiente de autorizacion y F10.8-F10.9 siguen bloqueadas |
 | Production | Bloqueado |
 | Hitos 2 a 5 | `PENDING`, sin subfase ejecutable |
 
