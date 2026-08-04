@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` activa. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #285 quedo aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`; `Security Audit Gate` post-merge `30865604732` termino `PASS`; run automatico `30865604729` quedo `cancelled` con cero pasos; boundary final `main -> certificacion` contiene 32 objetos y digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`; `EVID-H1-008` permanece `DEVIATION_ACCEPTED_FAIL_CLOSED`. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` activa pendiente de autorizacion. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #285 quedo aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`; `Security Audit Gate` post-merge `30865604732` termino `PASS`; run automatico `30865604729` quedo `cancelled` con cero pasos; boundary final `main -> certificacion` contiene 32 objetos y digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`; `EVID-H1-008` permanece `DEVIATION_ACCEPTED_FAIL_CLOSED`. F10.6 verifico control-plane, resolvio runs antiguos y mantuvo Production/schedules/writers bloqueados. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -43,8 +43,10 @@ candidate selectivo a `certificacion` mediante PR #277, registra una desviacion
 fail-closed aceptada, fusiono controles pre-main en PR #280 y obtuvo QA
 independiente `PASS`. F9.10 quedo cerrada despues de PR #285, CI post-merge,
 boundary final, run F9.9 cancelado sin pasos y `USER_PERSONAL_UAT=PASS`.
-F10.6 queda activa para control-plane; no hay Production, schedules ni PR a
-`main` autorizados por este cierre.
+F10.6 quedo completada para control-plane: environments programados
+fail-closed, variables verificadas, runs antiguos cancelados con cero pasos y
+sin aprobacion de deployments. F10.7 queda activa pendiente de autorizacion; no
+hay Production canary, schedules ni PR a `main` autorizados por este cierre.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -63,7 +65,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; `USER_PERSONAL_UAT=PASS`; boundary final `main -> certificacion` PASS documental | F10.6 control-plane, F10.7 PR a `main`, F10.8 canary Production, F10.9 observacion y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; `USER_PERSONAL_UAT=PASS`; boundary final `main -> certificacion` PASS documental; F10.6 control-plane completado fail-closed | F10.7 PR a `main`, F10.8 canary Production, F10.9 observacion y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 

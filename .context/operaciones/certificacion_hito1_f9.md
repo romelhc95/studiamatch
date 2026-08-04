@@ -1,8 +1,9 @@
 # Certificacion Hito 1 - Macrofase F9
 
 > Rebaseline vigente: la adenda CA1-only/CA2-a-Hito-2 esta
-> `APPROVED_EFFECTIVE`. F9 queda `COMPLETED_READINESS_F10`; F10.6 queda activa
-> para control-plane despues de PR #285, boundary final y `USER_PERSONAL_UAT=PASS`.
+> `APPROVED_EFFECTIVE`. F9 queda `COMPLETED_READINESS_F10`; F10.6 quedo
+> completada como control-plane y F10.7 queda activa pendiente de autorizacion
+> despues de PR #285, boundary final y `USER_PERSONAL_UAT=PASS`.
 > F9.8 quedo cerrada por replay post-merge del
 > candidate local CA1-only. La ruta schema/backfill/free_certified queda
 > `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2 de Hito 2. Ver
@@ -20,10 +21,10 @@ La taxonomia y los alias historicos se fijan en [ADR-0003](../decisiones/ADR-000
 - Macrofase F9: `COMPLETED_READINESS_F10`.
 - Base funcional contractual: F6-F8.
 - Estado de certificacion: F9.7 cerrada por rebaseline; F9.8 cerrada por replay post-merge; F9.9 PR #277 fusionado, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 mergeados en desarrollo, PR #282 mergeado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` y QA independiente `PASS`; PR #283/#284 mergeados en `desarrollo`; PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`; CI post-merge `30865604732=PASS`; run `30865604729=cancelled` con cero pasos; boundary final 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`; Free/Pro permanecen `UNCHANGED_NOT_ATTESTED`; no hubo DDL/DML, backfill, Production ni schedules.
-- Subfase activa: F10.6 `ACTIVE_PENDING_AUTHORIZATION`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
-- Subfase autorizada por este cierre: solo documentacion de cierre F9.10 y activacion F10.6. No habilita Supabase, schema/RLS, writers remotos, ejecuciones Production, schedules, canaries ni `main`.
+- Subfase activa: F10.7 `ACTIVE_PENDING_AUTHORIZATION`; [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y la desviacion aceptada por HTTP 403 observado desde GitHub-hosted runners.
+- Subfase completada por el cierre F10.6: solo control-plane, cancelacion autorizada de runs antiguos con cero pasos, environments fail-closed y activacion documental de F10.7. No habilita Supabase, schema/RLS, writers remotos, ejecuciones Production, schedules, canaries ni `main`.
 - Ultima subfase cerrada: F9.10 `COMPLETED_READINESS_F10`.
-- Siguiente accion: F10.6 debe ejecutarse solo con frase decimal exacta para verificar/configurar control-plane; F10.7 PR a `main`, F10.8 canary Production y F10.9 schedules/observacion siguen bloqueadas.
+- Siguiente accion: F10.7 requiere frase decimal exacta para preparar PR `certificacion -> main`; F10.8 canary Production y F10.9 schedules/observacion siguen bloqueadas.
 
 Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`. Candidate CA1-only replay-validado: `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`.
 
@@ -283,8 +284,8 @@ La anterior [definicion F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AU
 F9 termino para Hito 1 CA1-only con candidate selectivo inmutable,
 `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, QA independiente, controles
 pre-main, certificacion final, boundary `main -> certificacion` y
-`USER_PERSONAL_UAT=PASS`. `EVID-H1-009..013/016` pertenecen a F10/F11 y no son
-precondicion para iniciar F10.6; PR a `main`, canary Production y schedules
-siguen bloqueados hasta F10.7-F10.9.
+`USER_PERSONAL_UAT=PASS`. `EVID-H1-009..013/016` pertenecen a F10/F11; F10.6
+cerro control-plane sin ejecutar Production. PR a `main`, canary Production y
+schedules siguen bloqueados hasta sus autorizaciones F10.7-F10.9.
 
 Ver [Estado](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [Release minimo](./flujo_release_minimo.md) y [Matriz DB](./matriz_adopcion_db.md).
