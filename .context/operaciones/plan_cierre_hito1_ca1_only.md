@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F9_10_READINESS_CONTROLS_IN_PROGRESS` |
+| Estado | `F10_6_CONTROL_PLANE_ACTIVE` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -12,8 +12,10 @@
 Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
 ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
-QA independiente `PASS`. Production, schedules y F10 permanecen bloqueados hasta
-autorizaciones separadas.
+QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
+`USER_PERSONAL_UAT=PASS`; F10.6 queda activa solo como control-plane. Production,
+schedules, F10.7 y posteriores permanecen bloqueados hasta autorizaciones
+separadas.
 
 ## Objetivo
 
@@ -145,7 +147,7 @@ Supabase ni Cloudflare en este paquete.
 - Esta evidencia no sustituye `USER_PERSONAL_UAT`, no cambia `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, no valida Production y no habilita schedules.
 - F9.10 agrega controles de repositorio previos a F10: gate CI dedicado para boundary `main`, canary Production manual SHA-bound con snapshot privado/restore idempotente, preflight `PRODUCTION-CANARY` con automation off + writers paused, correccion `DB-SYNC` vs writers y rollback documentado.
 - El gate `f10-main-boundary` conserva una allowlist exacta para objetos CA1 historicos ya presentes en `certificacion` que deben poder promoverse a `main`: `requirements-db-migrate.txt` como dependencia operativa hash-locked, `scripts/core/certification_canary_state.py` y `tests/test_fase09_9_certification_canary.py` como controles/evidencia F9.9, y `scripts/shared/roi_engine.py` solo como separacion de identidad backend requerida por `sync_vector_worker.py`. Esta clasificacion no permite CA2, prefijos amplios ni nuevos cambios fuera de allowlist.
-- `USER_PERSONAL_UAT` debe ejecutarse despues del merge selectivo F9.10 en `certificacion`, ligado al SHA/tree final congelado. Checklist sanitizado minimo: confirmar que el paquete entregado es CA1-only; confirmar que `EVID-H1-008` sigue como `DEVIATION_ACCEPTED_FAIL_CLOSED` y no como PASS; revisar que Production, schedules y F10 sigan bloqueados; aceptar explicitamente `USER_PERSONAL_UAT=PASS` para ese SHA/tree sin registrar PII, secretos, slugs de cohortes ni identificadores internos.
+- `USER_PERSONAL_UAT` fue ejecutado despues del merge selectivo F9.10 en `certificacion`, ligado al SHA/tree final congelado. Checklist sanitizado completado: paquete CA1-only confirmado; `EVID-H1-008` sigue como `DEVIATION_ACCEPTED_FAIL_CLOSED` y no como PASS; Production, schedules y F10 seguian bloqueados al momento del hold; `USER_PERSONAL_UAT=PASS` aceptado explicitamente para ese SHA/tree sin registrar PII, secretos, slugs de cohortes ni identificadores internos.
 - El canary Production que podra acreditar `EVID-H1-010` debe ejecutarse en F10.8 con `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true` y limites `5/5/3/3/3`. Runs FG2-only o FG3-only son diagnosticos y no acreditan `EVID-H1-010`. `EVID-H1-013` exige FG1 manual equivalente PASS y cron mensual activo; un waiver requiere decision humana separada con responsable y fecha.
 
 ### Correccion F9.10 Posterior A PR #283 - 2026-08-03
@@ -193,12 +195,70 @@ Blockers resueltos por esta definicion:
 - Canary: `EVID-H1-010` queda reservado a F10.8 con FG1+FG2+FG3, `mutable_authorized=true`, limites `5/5/3/3/3`, host Pro allowlisted, snapshot privado, restore y segundo restore NOOP; runs parciales no acreditan cierre.
 - Rollback: un canary con perdida de snapshot privado, restore fallido, runner perdido o artifacts no sanitizados falla y deja schedules apagados hasta autorizacion nueva.
 
-Blockers restantes antes de la segunda autorizacion F9.10:
+Blockers de esta definicion: `SUPERSEDED_BY_F9_10_FINAL_FREEZE_2026_08_04`.
+La proyeccion de 23 paths queda historica porque PR #285 aplico una
+reconstruccion target-aware de 15 paths sobre `certificacion` y produjo el
+boundary final `main -> certificacion` de 32 objetos documentado abajo.
 
-- Fusionar este PR correctivo en `desarrollo`, obtener CI/review humano PASS y ejecutar replay post-merge.
-- Congelar el nuevo `desarrollo@<SHA>` / tree final y recalcular la proyeccion exacta si cualquier `path`, `status`, `mode`, `blob` o digest de los 23 paths cambia.
-- Abrir PR a `certificacion` solo con nueva autorizacion decimal F9.10 y sin merge/cherry-pick completo de `desarrollo`.
-- Obtener CI/review humano post-merge de `certificacion`, SHA/tree final y `USER_PERSONAL_UAT=PASS` antes de readiness F10.
+### Cierre F9.10 Y Readiness F10 - 2026-08-04
+
+- PR #285 quedo aprobado por `romelhc95-approver` y fusionado en
+  `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree
+  `419b25f69e4eef4d7277a7439ca45efc1eaac242`.
+- CI post-merge `Security Audit Gate` run `30865604732` termino `PASS`.
+- Run automatico `F9.9 - Certification Canary` `30865604729` quedo
+  `cancelled` con job `Certification Canary` sin pasos ejecutados (`steps=[]`);
+  no hubo aprobacion de environment, retry, Production, schedules ni DML.
+- `USER_PERSONAL_UAT=PASS` fue emitido por el usuario para el SHA/tree final,
+  confirmando paquete CA1-only, `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED` y
+  Production/schedules/F10 bloqueados al momento del hold.
+- Boundary final `main@d8f1ea0b210f2a1cf95e73751621cf8b4fcf0f93` / tree
+  `0c7d31a392612001b786e2ef680cc0be3d1b4c18` hacia `certificacion` contiene
+  32 objetos y `main_boundary_digest_sha256=34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`.
+- Filtro de rutas prohibidas y busqueda CA2 no encontraron implementacion en
+  `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, `.env*`,
+  leads/email, Edge, backfill o superficies CA2; los terminos CA2 restantes son
+  exclusiones documentales/gates.
+
+| Status | Mode | Blob | Path |
+|---|---|---|---|
+| `A` | `100644` | `fb9b14ec04301fdafa35544d2984aa0aac045222` | `.context/evidencias_cliente/sprint_1/paquete_hito_001.md` |
+| `A` | `100644` | `c6433840c6966b5275f9ca23a5a8fd8e709db338` | `.context/operaciones/plan_cierre_hito1_ca1_only.md` |
+| `A` | `100644` | `430babc1a17c02f2d86e6451a4991ef2cd10c46d` | `.gitattributes` |
+| `A` | `100644` | `b4ad7e59b66e60cb1a64bc8d68c812611c75be32` | `.github/scripts/production_control_preflight.sh` |
+| `M` | `100644` | `3f6e39c8d24492f83b30b12b7b268af3a2b6b33d` | `.github/workflows/db-sync-to-pro.yml` |
+| `A` | `100644` | `147b19537bc52416adb9931cdb7ec9b66976a6a5` | `.github/workflows/f9_9_certification_canary.yml` |
+| `M` | `100644` | `7700a9923a28503f2d45d0e8266bb307023b8f42` | `.github/workflows/fg1_inventory.yml` |
+| `M` | `100644` | `1191404cfd9aad537eda3846797192c36df565cf` | `.github/workflows/fg3_integrity.yml` |
+| `A` | `100644` | `8959c4b8f90afe0d75f23bb6e0f99d51321f1c45` | `.github/workflows/production_canary.yml` |
+| `M` | `100644` | `b8fffaec1244797d2e27ff69bb2012d27f689e6a` | `.github/workflows/production_pipeline.yml` |
+| `M` | `100755` | `3fefa46857960841873dbd735de3c53a4d415a0e` | `.github/workflows/security-audit.yml` |
+| `A` | `100644` | `310875d24631062e8cd8e92d8342366de87cc260` | `requirements-db-migrate.txt` |
+| `A` | `100644` | `01508b0cc631180cda560f0f4c6ba77d5359d296` | `requirements-fg1.txt` |
+| `A` | `100644` | `7704ae22a36d20d5c39af234808273c18c4194f2` | `requirements-fg3.txt` |
+| `A` | `100644` | `38bbc3f369b949602b1dd668d2e6f16805cdb586` | `requirements-pipeline.txt` |
+| `A` | `100644` | `5ce27cd6d8458178dcbc8438d3ab2132f90c1f51` | `scripts/core/certification_canary_manifest.py` |
+| `A` | `100644` | `430083ee8f393fcb7e81220019ba20d2aa125754` | `scripts/core/certification_canary_state.py` |
+| `M` | `100644` | `c7dc5bae98faed54a0d67282fd0eee95744147bd` | `scripts/core/cleansing_worker.py` |
+| `M` | `100644` | `95d76e6dd25bf0f8f68fc470524ab0735a05ecde` | `scripts/core/discovery_institutions.py` |
+| `M` | `100644` | `1217cbb777a8740e922c632c2fe439174026ec28` | `scripts/core/enrichment_worker.py` |
+| `M` | `100644` | `337bfddc0b3d32f06e00e6d054de151b95e02032` | `scripts/core/integrity_ping.py` |
+| `M` | `100644` | `699a40ec809e67516be7763a3911e9f2a2e96348` | `scripts/core/master_orchestrator.py` |
+| `A` | `100644` | `12e42b91b8d2a9d71611d8d175ae22c76a858fd1` | `scripts/core/production_canary_manifest.py` |
+| `A` | `100644` | `2a48f77f613098f626b709d7c795b24da7a3f86c` | `scripts/core/production_canary_state.py` |
+| `M` | `100644` | `e4cd7b0b3d7796369b3c126b0c9e240e4487509e` | `scripts/core/sync_vector_worker.py` |
+| `M` | `100644` | `3507bb0bd254bc0d705f301b8858a93f119ac0be` | `scripts/core/universal_harvester.py` |
+| `M` | `100644` | `b9e939cdf787458304d9056e65a3d0971d725d35` | `scripts/shared/db_client.py` |
+| `M` | `100644` | `7acac703f5f8aa710db516d4a2eabd773d0bd2cd` | `scripts/shared/roi_engine.py` |
+| `A` | `100644` | `a9612d33c6e03db07a83afc1c1da7319e8726774` | `tests/test_fase09_10_pre_main_controls.py` |
+| `A` | `100644` | `b4b368cf5aa8cb98e6c02c3b5f8c1290ca380183` | `tests/test_fase09_9_certification_canary.py` |
+| `A` | `100644` | `7cc10e90b426429403ad494bb766fbf99bc222ea` | `tests/test_fase10_main_boundary.py` |
+| `A` | `100644` | `3c9c1e140db81f2bce697100aa98e4530b31f09e` | `tests/test_fase10_production_canary.py` |
+
+Con este freeze F9.10 termina como `COMPLETED_READINESS_F10` y F10.6 queda
+`ACTIVE_PENDING_AUTHORIZATION`. El siguiente paso requiere la frase exacta
+`Ejecuta las tareas pendientes de la Fase F10.6` y no concede por si mismo PR a
+`main`, canary Production, schedules ni cambios remotos.
 
 ## Work Packages Internos
 
@@ -382,7 +442,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_REVERIFY_MAIN_CANDIDATE` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `VERIFIED_PRE_MAIN_CANDIDATE` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
@@ -442,7 +502,7 @@ Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, 
 | ID | Estado | Alcance |
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
-| `F10.6` | `PENDING` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
+| `F10.6` | `ACTIVE_PENDING_AUTHORIZATION` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. |
 | `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |

@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-03-F9.10-READINESS-CONTROLS-IN-PROGRESS`.
+Snapshot: `SNAPSHOT-2026-08-04-F10.6-CONTROL-PLANE-ACTIVE`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases. El estado vivo de la tarea activa pertenece a la propia tarea.
 
@@ -17,8 +17,8 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F6` | Reconciliacion DB-as-Code | `COMPLETED` | Base funcional contractual Hito 1, forward-only y validada localmente; ningun cambio remoto aplicado. |
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
-| `F9` | Certificacion Hito 1 CA1-only | `IN_PROGRESS` | F9.9 queda cerrada documentalmente con PR #277 en `certificacion`, desviacion `DEVIATION_ACCEPTED_FAIL_CLOSED`, controles pre-main PR #280 mergeados en `desarrollo`, PR #282 mergeado en `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` y QA independiente `PASS`; PR #283 quedo fusionado en `desarrollo@5cfd93f626b3362c5c148b1d680ae948ce0218ea` con CI post-merge PASS. F9.10 ejecuta correccion repository-only para congelar proyeccion exacta antes de cualquier PR a `certificacion`. No hay canary Certification positivo, Production ni schedules. |
-| `F10` | Produccion CA1-only | `PENDING` | Bloqueada hasta readiness F9.10; contempla PR a `main`, canary Production, habilitacion gradual de schedules y observacion. |
+| `F9` | Certificacion Hito 1 CA1-only | `COMPLETED` | F9.10 cerro readiness de repositorio y certificacion final CA1-only: PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `Security Audit Gate` run `30865604732` PASS, run automatico `30865604729` cancelado con cero pasos, boundary final `main -> certificacion` de 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`, `USER_PERSONAL_UAT=PASS`, `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; sin Production, schedules, DDL/DML, Supabase ni Cloudflare. |
+| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` queda activa para control-plane exclusivamente. F10 permanece bloqueada para F10.7 PR a `main`, F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final hasta sus autorizaciones decimales separadas. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
 ## Subfases F9
@@ -34,7 +34,17 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F9.7` | `COMPLETED_BY_CONTRACT_REBASELINE` | Adenda `ADENDA-REQ-EST-001-001` aprobada y efectiva; `EVID-H1-001` registra atestacion sanitizada. Cierra solo el paquete documental de rebaseline; preserva los artifacts terminales F9.7 como WIP CA2 no promocionable y antecedente historico. Cero aplicacion remota, DDL/DML, backfill, Certification o Production. |
 | `F9.8` | `COMPLETED_VERIFIED_POST_MERGE` | Candidate local CA1-only implementado (PR #270/#271) y validado por replay post-merge en Docker/Linux sobre `desarrollo@5b282461149b7319685cf090534e28051e5eb32c`: 53 pruebas focused PASS, focused FG1/FG2/FG3 y jobs CI PASS, F9.7 congelado 226+7 PASS, runners PostgreSQL 17 PASS, actionlint/ShellCheck 0 issues, LF y credential scan PASS. `EVID-H1-002..005` quedan `VERIFIED`; `EVID-H1-006..016` permanecen `PLANNED`. No hubo red remota, DDL/DML, backfill, Certification ni Production. |
 | `F9.9` | `COMPLETED_QA_VERIFIED` | Candidate selectivo PR #277 aprobado/fusionado en `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17`; `EVID-H1-006/007=VERIFIED`; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; controles pre-main PR #280 aprobados/fusionados en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`; QA independiente `PASS` y `EVID-H1-015=VERIFIED`. No valida success path, FG3, Production ni schedules. |
-| `F9.10` | `ACTIVE_AUTHORIZED_IN_PROGRESS` | Readiness de repositorio autorizada por frase decimal exacta: gate CI `f10-main-boundary`, canary Production definido pero no ejecutado, rollback/snapshot privado, correccion `DB-SYNC` vs writers, registro sanitizado de PR #282/run `30824041542`, PR #283 mergeado en `desarrollo`, proyeccion selectiva pendiente de replay sobre `certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b`, subfases F10.x y validaciones locales. `USER_PERSONAL_UAT` sigue pendiente antes de readiness F10. |
+| `F9.10` | `COMPLETED_READINESS_F10` | PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760`; tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`; CI post-merge `30865604732=PASS`; run `30865604729=CANCELLED_ZERO_STEPS`; boundary `main@d8f1ea0b210f2a1cf95e73751621cf8b4fcf0f93 -> certificacion` = 32 objetos, digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`. |
+
+## Subfases F10
+
+| ID | Estado | Identidad vigente |
+|---|---|---|
+| `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
+| `F10.6` | `ACTIVE_PENDING_AUTHORIZATION` | Control-plane: environments programados, variables fail-closed, resolucion de runs antiguos y branch policy. No autoriza por si mismo Production, schedules, canary, Supabase, Cloudflare, DDL/DML, writers ni PR a `main`; requiere frase exacta `Ejecuta las tareas pendientes de la Fase F10.6`. |
+| `F10.7` | `PENDING` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado. |
+| `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
+| `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 
 Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
 
@@ -43,11 +53,11 @@ Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F9.10; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
-- Subfase autorizada en este paquete: readiness F9.10 de repositorio y documentacion. Permite cambios en allowlist F9.10, pruebas locales y PRs SDLC a `desarrollo`/`certificacion` para controles. No autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore real, writers remotos, backfill, Edge, ejecuciones Production, merge a `main`, migraciones, habilitacion/cancelacion de schedules ni aprobacion de runs antiguos de `main`.
+- Subfase activa: F10.6; [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fija la frontera CA1-only y conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
+- Subfase autorizada por este cierre: solo registro documental de cierre F9.10 y activacion de F10.6. No ejecuta F10.6 ni autoriza Supabase Free/Pro, Cloudflare, DDL/DML, backup/restore real, writers remotos, backfill, Edge, Production, PR/merge a `main`, migraciones, habilitacion/cancelacion de schedules ni aprobacion de runs.
 - Autorizacion documental anterior: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY`, completada y fusionada por el rebaseline PR #269 en `desarrollo@d9c7f180495c985a1e9a0ada4a42525fda60a870` / tree `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
-- Siguiente accion futura: completar este PR correctivo F9.10 repository-only a `desarrollo`, congelar SHA/tree final post-merge, recalcular la proyeccion exacta aprobada, pedir una segunda autorizacion F9.10 antes de abrir PR a `certificacion`, ejecutar `USER_PERSONAL_UAT` sobre candidate inmutable y solo entonces readiness F10. F10 permanece bloqueada hasta readiness inequivoca.
+- Siguiente accion futura: solicitar la frase exacta `Ejecuta las tareas pendientes de la Fase F10.6` para el control-plane. F10.6 debe verificar/configurar environments programados, variables fail-closed, runs antiguos resueltos y branch policy antes de F10.7. PR a `main`, canary Production y schedules siguen bloqueados hasta sus subfases propias.
 
 ## Alcance Inmediato
 
