@@ -57,26 +57,37 @@ PROTECTED_STAGING_STATUSES = frozenset({
     "error",
 })
 KNOWN_STAGING_STATUSES = PROTECTED_STAGING_STATUSES | {DISCOVERED_STATUS}
-CANARY_RUN_METADATA_KEY = "f99_certification_canary_run_id"
+
+CANARY_RUN_METADATA_KEYS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99_certification_canary_run_id"),
+)
+F10_CANARY_NOTE_PREFIX = "F10 production canary run"
+F99_CANARY_NOTE_PREFIX = "F9.9 certification canary run"
 
 
-def _canary_run_id():
-    return os.getenv("F99_CERTIFICATION_CANARY_RUN_ID", "").strip()
+def _active_canary_marker():
+    for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return metadata_key, run_id
+    return None, None
 
 
 def _mark_canary_metadata(metadata):
     payload = dict(metadata or {})
-    run_id = _canary_run_id()
-    if run_id:
-        payload[CANARY_RUN_METADATA_KEY] = run_id
+    metadata_key, run_id = _active_canary_marker()
+    if metadata_key and run_id:
+        payload[metadata_key] = run_id
     return payload
 
 
 def _mark_canary_notes(notes):
-    run_id = _canary_run_id()
+    metadata_key, run_id = _active_canary_marker()
     if not run_id:
         return notes
-    marker = f"F9.9 certification canary run {run_id}"
+    prefix = F10_CANARY_NOTE_PREFIX if metadata_key == "f10_production_canary_run_id" else F99_CANARY_NOTE_PREFIX
+    marker = f"{prefix} {run_id}"
     if notes:
         return f"{notes}\n{marker}"
     return marker

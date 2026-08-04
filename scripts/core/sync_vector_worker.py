@@ -29,18 +29,25 @@ from shared.roi_engine import (
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("SyncVectorWorker")
-CANARY_PROVIDER_MARKER = "f99-certification-canary"
+CANARY_PROVIDER_MARKERS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10-production-canary"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99-certification-canary"),
+)
 
 
-def _canary_run_id():
-    return os.getenv("F99_CERTIFICATION_CANARY_RUN_ID", "").strip()
+def _active_canary_provider_marker():
+    for variable_name, marker_prefix in CANARY_PROVIDER_MARKERS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return marker_prefix, run_id
+    return None, None
 
 
 def _mark_canary_provider(provider_used):
-    run_id = _canary_run_id()
-    if not run_id:
+    marker_prefix, run_id = _active_canary_provider_marker()
+    if not marker_prefix or not run_id:
         return provider_used
-    return f"{provider_used}|{CANARY_PROVIDER_MARKER}:{run_id}"
+    return f"{provider_used}|{marker_prefix}:{run_id}"
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -56,20 +63,6 @@ class SyncVectorWorker:
             str(p['institution_id']) for p in self.profiles
             if isinstance(p, dict) and self._gate_enabled(p, 'pipeline_enabled')
         }
-
-    def _verify_canary_course_marker(self, validated_url):
-        run_id = _canary_run_id()
-        if not run_id:
-            return
-        rows = self.db.select_service_raise(
-            'courses',
-            filters=f"url=eq.{quote(str(validated_url), safe='')}",
-            columns='id,provider_used',
-            limit=2,
-        )
-        marker = f"{CANARY_PROVIDER_MARKER}:{run_id}"
-        if len(rows) != 1 or marker not in str(rows[0].get('provider_used') or '').split('|'):
-            raise RuntimeError("canary provenance marker missing from courses")
         # Fase 79C: Noise patterns cargados desde DB con fallback hardcodeado.
         # NOTA: Ya no se cargan globalmente — se obtienen por institución vía
         # _get_noise_patterns_for_inst() para que patrones de una institución
@@ -82,6 +75,20 @@ class SyncVectorWorker:
             re.compile(r'matr[ií]cul', re.IGNORECASE),
             re.compile(r'inscr[ií]b', re.IGNORECASE),
         ]
+
+    def _verify_canary_course_marker(self, validated_url):
+        marker_prefix, run_id = _active_canary_provider_marker()
+        if not marker_prefix or not run_id:
+            return
+        rows = self.db.select_service_raise(
+            'courses',
+            filters=f"url=eq.{quote(str(validated_url), safe='')}",
+            columns='id,provider_used',
+            limit=2,
+        )
+        marker = f"{marker_prefix}:{run_id}"
+        if len(rows) != 1 or marker not in str(rows[0].get('provider_used') or '').split('|'):
+            raise RuntimeError("canary provenance marker missing from courses")
 
     def _load_profiles(self):
         try:

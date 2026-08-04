@@ -15,9 +15,16 @@ def test_production_control_preflight_is_fail_closed_and_output_based() -> None:
     script = source(".github/scripts/production_control_preflight.sh")
 
     assert "set -euo pipefail" in script
+    assert "PRODUCTION-CANARY" in script
     assert 'allow_writer="false"' in script
     assert "production_writers_paused_or_unset" in script
     assert "automation_disabled" in script
+    assert "production_canary_requires_manual_dispatch" in script
+    assert "production_canary_automation_not_disabled" in script
+    assert "production_canary_writers_not_paused" in script
+    assert "production_canary_allowed" in script
+    assert "db_sync_requires_manual_dispatch" in script
+    assert "production_db_sync_allowed" in script
     assert "--enforce" in script
     assert '"$reason" != "automation_disabled"' in script
     assert '"$reason" != "non_main_schedule_blocked"' in script
@@ -119,11 +126,29 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
 def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "F910_CERTIFICATION_BASELINE: 920ac9c7514f2e5f2e0315bf4cccb95940f3de17" in workflow
-    assert "F910_PRE_MAIN_SOURCE_COMMIT: 841a432633862eb3fbf27ccb1a6277f3bc398f08" in workflow
+    assert "F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b" in workflow
+    assert "F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab" in workflow
     assert "f910-pre-main-controls:" in workflow
     assert "F9.10 Pre-Main Repository Controls" in workflow
     assert "git fetch --no-tags origin certificacion desarrollo" in workflow
     assert "unsupported baseline" in workflow
     assert '"db/", "supabase/", "web/", "scripts/maintenance/"' in workflow
+    assert '".github/workflows/f9-7-contract.yml"' in workflow
+    assert '"tests/test_fase09_7_release_gates.py"' in workflow
+    assert '".github/workflows/production_canary.yml": {"A"}' in workflow
+    assert '"scripts/core/production_canary_manifest.py": {"A"}' in workflow
+    assert '"scripts/core/production_canary_state.py": {"A"}' in workflow
+    assert '"tests/test_fase10_production_canary.py": {"A"}' in workflow
+    assert 'expected_modes[".github/workflows/security-audit.yml"] = "100755"' in workflow
     assert "tests/test_fase09_10_pre_main_controls.py" in workflow
+
+
+def test_production_canary_workflow_is_present_but_never_scheduled() -> None:
+    workflow = source(".github/workflows/production_canary.yml")
+
+    assert "workflow_dispatch:" in workflow
+    assert "schedule:" not in workflow
+    assert "github.ref_name == 'main'" in workflow
+    assert "candidate_sha:" in workflow
+    assert "PRODUCTION-CANARY --enforce" in workflow
+    assert "mutable_authorized:" in workflow

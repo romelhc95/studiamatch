@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_WITH_F9_10_PRE_MAIN_CONTROLS` |
+| Estado | `DRAFT_WITH_F9_10_TARGET_AWARE_CONTROLS` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
 | Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (PR #270/#271), replay post-merge PASS |
@@ -28,9 +28,11 @@ Docker/Linux (PR #270/#271, `desarrollo@5b282461149b7319685cf090534e28051e5eb32c
 PR #277 promovio el candidate selectivo a Certification y quedo
 aprobado/fusionado; los canaries Certification posteriores se aceptan solo como
 `DEVIATION_ACCEPTED_FAIL_CLOSED`, no como PASS. PR #280 agrego controles
-pre-main en `desarrollo` y QA independiente verifico la desviacion como `PASS`.
-F9.10 reconstruye esos controles sobre `certificacion`; Produccion observada,
-conformidad cliente y PR a `main` siguen pendientes en F10/F11.
+pre-main en `desarrollo`, PR #282 los reconstruyo sobre Certification y QA
+independiente verifico la desviacion como `PASS`. F9.10 reconstruye ahora los
+deltas F10 posteriores de forma target-aware sobre `certificacion@bc227629`,
+sin copiar blobs completos de workers. Produccion observada, conformidad
+cliente y PR a `main` siguen pendientes en F10/F11.
 
 ## Alcance Entregado
 
@@ -38,7 +40,7 @@ conformidad cliente y PR a `main` siguen pendientes en F10/F11.
 |---|---|---|
 | Schedules FG2/FG3 | `LOCAL_CANDIDATE` | Workflows con kill switch y environments dedicados; runs pendientes |
 | Gates/circuit breaker | `LOCAL_REPLAY_PASS` | Tests focused locales y replay post-merge PASS; ejecucion remota pendiente |
-| Secrets solo CI | `CI_SECURITY_PASS` | PR #277/#280 CI y credential scans PASS; F9.10 revalida controles pre-main |
+| Secrets solo CI | `CI_SECURITY_PASS` | PR #277/#280/#282 CI y credential scans PASS; F9.10 revalida controles pre-main y canary Production manual |
 | Development/Certification/Production | `CERTIFICATION_DEVIATION_DOCUMENTED` | PR #277 Approved/Merged; Production y main pendientes |
 | Cero cambios CA2 | `LOCAL_REPLAY_PASS` | Diff `638c51c..M` = 2 paths CI, cero CA2 |
 
@@ -67,11 +69,11 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 ## Validaciones
 
 - Local/container: `PASS` para py_compile CA1, assertions focused F9.8 CA1 y replay post-merge Docker/Linux (53 focused + focused jobs CI + F9.7 congelado 226+7 + runners PG17).
-- CI: PR #277/#280 PASS; F9.10 pre-main pendiente de PR/checks sobre `certificacion`.
+- CI: PR #277/#280/#282 PASS; F9.10 target-aware pendiente de PR/checks sobre `certificacion`.
 - Security: `LOCAL_PASS` sin blockers; residual SSRF DNS TOCTOU documentado como riesgo no bloqueante.
 - QA independiente: `PASS` para la desviacion F9.9.
 - Canary Certification: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS.
-- Canary Production: pendiente.
+- Canary Production: workflow manual `main`-only preparado para F10; ejecucion pendiente y no autorizada en F9.10.
 - Schedule observado: pendiente.
 
 ## Exclusiones Confirmadas
@@ -87,7 +89,7 @@ puede presentarse como mitigado sin evidencia.
 ## Aprobaciones
 
 - Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
-- Revision tecnica: pendiente para F9.10.
+- Revision tecnica: pendiente para el PR F9.10 target-aware.
 - QA: `EVID-H1-015=VERIFIED` para la desviacion F9.9; confirmacion final F9.10 pendiente.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.
