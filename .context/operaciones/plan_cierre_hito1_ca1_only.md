@@ -261,6 +261,45 @@ cancelar runs legacy con cero pasos. El siguiente paso requiere la frase exacta
 `Ejecuta las tareas pendientes de la Fase F10.7` y no concede por si mismo
 canary Production, schedules ni cambios remotos fuera del PR autorizado.
 
+### Rebaseline F10.7 Cycle 1 - 2026-08-04
+
+La investigacion read-only de F10.7 verifico que el estado final de
+`certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` no contiene
+`.github/workflows/f9-7-contract.yml` ni el job bloqueante `f10-main-boundary`.
+El PR directo `certificacion -> main` queda bloqueado porque el gate main/F10
+documentado en F9.10 no estaria presente en la rama candidata.
+
+La decision [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md)
+reclasifica el freeze de 32 objetos y `USER_PERSONAL_UAT=PASS` como
+`SUPERSEDED_FOR_F10_7_PROMOTION`. Siguen siendo evidencia historica de F9.10,
+pero F10.7 Cycle 2 debe producir una nueva autoridad de promocion.
+
+Cycle 2, cuando sea autorizado nuevamente con la frase decimal exacta, debe:
+
+- reconstruir en `desarrollo` y luego selectivamente en `certificacion` solo
+  `.github/workflows/security-audit.yml`, `.github/workflows/opencode.yml` y
+  `tests/test_fase10_main_boundary.py`;
+- no promover `.github/workflows/f9-7-contract.yml`;
+- agregar `f10-main-boundary` como gate bloqueante y agregado por
+  `security-audit` para PR `certificacion -> main`;
+- endurecer `opencode.yml` o deshabilitar el workflow secret-bearing si no puede
+  pinnearse con SHA confiable;
+- prevenir y verificar que Cloudflare Pages no despliegue automaticamente al
+  recibir un push en `main`;
+- cancelar con cero pasos el run automatico `F9.9 - Certification Canary` tras
+  reconstruir `certificacion`;
+- recalcular el boundary `main -> certificacion`; bajo el alcance de tres paths
+  el conteo esperado es 33 por la entrada nueva `.github/workflows/opencode.yml`;
+- registrar variables no secretas aprobadas de SHA, tree, count y digest del
+  freeze, obtener `USER_PERSONAL_UAT=PASS` nuevo y solo entonces abrir el PR a
+  `main`;
+- cancelar `DB Sync to Production` tras el merge a `main` antes de aprobacion o
+  pasos, verificando `steps=[]` y cero pending deployments.
+
+Cycle 1 no autoriza PR a `certificacion`, PR a `main`, workflow dispatch,
+aprobacion de environments, Supabase, Cloudflare deployment, DDL/DML,
+backup/restore, writers, schedules ni canary Production.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
@@ -390,7 +429,10 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
   - Environments `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` con reviewer humano, branch policy `main`, secrets minimos separados y `AUTOMATION_ENABLED=false` inicial.
   - Gate de automatizacion con preflight asociado al environment programado, sin depender ambiguamente de variable de environment en job-level `if`, y output explicito por writer.
   - `PRODUCTION_WRITERS_PAUSED` efectivo y fail-closed antes de cada estacion mutante y tambien para migraciones.
-  - Gate main/F10 con boundary CA1-only, cero CA2, credential scan, workflows validos, tests obligatorios, candidate commit/tree/digest inmutables, review humano y aprobacion SDLC.
+  - Gate main/F10 reconstruido en `certificacion` con boundary CA1-only, cero CA2, credential scan, workflows validos, tests obligatorios, candidate commit/tree/count/digest inmutables, variables no secretas aprobadas, review humano y aprobacion SDLC.
+  - `opencode.yml` endurecido o deshabilitado sin secreto accesible por comentario no confiable; cualquier ejecucion historica no confiable exige rotacion de la credencial antes de continuar.
+  - Cloudflare Pages con auto-deploy de `main` prevenido y verificado antes del PR a `main`; si un deployment arranca, F10.7 se detiene como incidente.
+  - Freeze F10.7 nuevo y UAT nuevo; el freeze F9.10 de 32 objetos no puede reutilizarse como autoridad de promocion.
   - Rollback con backup/restore ensayados, responsable, RTO/RPO, cancelacion de jobs, schedules off, rollback de datos, migracion compensatoria si existiera DDL y revert de codigo solo por PR forward-only.
 - El primer gate operativo Production de F10 es el canary manual acotado; no es precondicion para cerrar F9.9 ni para iniciar F10.
 - PR `certificacion -> main`.
@@ -446,12 +488,12 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
 | `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
 | `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
-| `EVID-H1-009` | PR main | Approved/Merged | `PLANNED` |
+| `EVID-H1-009` | PR main | Approved/Merged | `PLANNED_REBASELINE_REQUIRED` |
 | `EVID-H1-010` | Canary Production | PASS | `PLANNED` |
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `VERIFIED_PRE_MAIN_CANDIDATE` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_F10_7_REFREEZE` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
 
@@ -464,6 +506,10 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
 - CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
 - PR a `main`, Production o schedules antes de cerrar los controles pre-main.
+- Uso del freeze F9.10 de 32 objetos como autoridad F10.7 sin re-freeze y UAT nuevo.
+- Promocion de `.github/workflows/f9-7-contract.yml` a `certificacion -> main`.
+- OpenCode secret-bearing sin pinning/allowlist o sin deshabilitacion segura.
+- Cloudflare Pages auto-deploy de `main` no prevenido o no verificable.
 
 ## Allowlist De Controles Pre-Main F9.9
 
@@ -506,13 +552,26 @@ El allowlist exacto interno de `f10-main-boundary` tambien reconoce objetos CA1 
 
 Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/db_migrate.py`, manifests DB, datos operativos fuera de snapshot privado efimero, `.env*`, cambios remotos GitHub, dispatches, canaries reales, schedules, PR a `main`, DDL/DML, backup/restore real y cualquier cambio CA2.
 
+## Allowlist De Rebaseline F10.7
+
+Cycle 1 queda limitado a `.context/**` y solo documenta [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), el bloqueo de promocion directa, la invalidez del freeze F9.10 como autoridad F10.7 y los requisitos de Cycle 2.
+
+Cycle 2, tras repetir la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.7`, permite un paquete de controles con alcance maximo:
+
+- `.github/workflows/security-audit.yml` para reconstruir `f10-main-boundary`, hacerlo target-aware, agregarlo al agregador `security-audit` y validar SHA/tree/count/digest aprobados.
+- `.github/workflows/opencode.yml` para pinning por SHA confiable, allowlist de actores o deshabilitacion segura del workflow con secreto.
+- `tests/test_fase10_main_boundary.py` para pruebas offline de source branch, same-repo, branch-tip, path/status/mode/blob, variables aprobadas y regresiones de F10.
+- `.context/**` solo para registrar la evidencia de Cycle 2, nuevo freeze, UAT nuevo, cancelaciones cero-pasos y cierre de `EVID-H1-009`.
+
+Cycle 2 excluye `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requirements, runtime scripts, datos operativos, `.env*`, artifacts privados, workflow dispatch, canaries, schedules, DDL/DML, backup/restore, Cloudflare deployment y cualquier cambio CA2. Si la correccion exige un path adicional, debe detenerse y pedir una nueva decision humana.
+
 ## Subfases F10 Propuestas
 
 | ID | Estado | Alcance |
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
-| `F10.7` | `ACTIVE_PENDING_AUTHORIZATION` | PR `certificacion -> main` con gate `f10-main-boundary`, review humano y candidate SHA/tree congelado; requiere autorizacion decimal separada. |
+| `F10.7` | `ACTIVE_PENDING_CYCLE2_AUTHORIZATION` | Cycle 1 documental consumido para rebaseline; Cycle 2 requiere nueva frase decimal exacta, reconstruccion de gate main, hardening OpenCode, prevencion Cloudflare auto-deploy, re-freeze 33 objetos esperado, UAT nuevo y PR `certificacion -> main`. |
 | `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |

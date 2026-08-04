@@ -183,6 +183,11 @@ queda como antecedente superado por PR #285. El cierre final F9.10 congela
 de 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`,
 run `30865604729` cancelado con cero pasos y `USER_PERSONAL_UAT=PASS`. No
 ejecuta Production, schedules, Supabase, Cloudflare, DDL/DML ni PR a `main`.
+La investigacion posterior de F10.7 documentada en
+[ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md)
+verifico que el final de `certificacion` carece de `f10-main-boundary`; por eso
+el freeze F9.10 queda como evidencia historica y debe regenerarse para promocion
+F10.7.
 
 ## Identidades Historicas
 

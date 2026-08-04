@@ -75,6 +75,8 @@
 - [ADR-0004](decisiones/ADR-0004_simplificacion_contractual_hito1.md)
 - [ADR-0005](decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md)
 - [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+- [ADR-0007](decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
+- [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md)
 - [Changelog 2026-08-01](changelog/2026-08-01.md)
 - [Changelog 2026-08-03](changelog/2026-08-03.md)
 - [Changelog 2026-08-04](changelog/2026-08-04.md)
@@ -100,7 +102,7 @@
 | Estado DB aplicado | [Observacion remota, ledger y postcondicion](sistema_db_supabase.md), registrados en la [matriz DB](operaciones/matriz_adopcion_db.md) | La adopcion se decide por evidencia aplicada, no por narrativa ni stems aislados. |
 | Estado de tareas | TASK canonica de cada Hito, enlazada desde [REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md) | Cada tarea es la unica autoridad de su avance y criterios; solo una puede estar activa. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
-| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), ADR-0004/0005, [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0006 adopta la rebaseline CA1-only efectiva; aliases historicos no autorizan trabajo nuevo. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), ADR-0004/0005, [ADR-0006](decisiones/ADR-0006_incorporacion_adenda_sprint_1.md), [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [macrofase F9](operaciones/certificacion_hito1_f9.md) | F0-F11 son macrofases; ADR-0006 adopta la rebaseline CA1-only efectiva; ADR-0008 divide F10.7 en dos ciclos sin renombrar la subfase; aliases historicos no autorizan trabajo nuevo. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | [Changelog no autoritativo](changelog/2026-07-24.md) | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |

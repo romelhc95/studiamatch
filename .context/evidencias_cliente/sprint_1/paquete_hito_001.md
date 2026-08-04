@@ -79,9 +79,9 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - Canary Certification: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS.
 - F9.10 readiness: run `30824041542` PASS read-only/sanitizado; PR #283 CI post-merge PASS (`30856264196`, `30856264217`); PR #285 CI post-merge `30865604732` PASS; run `30865604729` cancelado con cero pasos; boundary `main -> certificacion` = 32 objetos, digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`. No DML y no Production. El canary Production futuro queda definido con artifacts sin slug/SHA/run/digest privado.
 - F10.6 control-plane: `Production-Scheduled-FG1/FG2/FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, variables fail-closed y secrets minimos por nombre; `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`; runs `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No se aprobaron runs, no hubo retry, dispatch, schedule ejecutado, writer, Production canary, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`.
-- Readiness main-boundary: el manifest real `main -> certificacion` queda congelado para F10.7; cualquier drift antes del PR a `main` exige recalculo y detencion.
+- Readiness main-boundary: el manifest real `main -> certificacion` de 32 objetos queda preservado como evidencia F9.10, pero [ADR-0008](../../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) lo marca `SUPERSEDED_FOR_F10_7_PROMOTION` porque `certificacion` no contiene el gate `f10-main-boundary`. F10.7 Cycle 2 debe reconstruir controles, re-freezear y obtener UAT nuevo.
 - `EVID-H1-010` futuro requiere canary Production completo `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`, limites `5/5/3/3/3`, snapshot privado, restore y segundo restore NOOP. Runs parciales FG2-only/FG3-only seran diagnosticos, no evidencia de cierre.
-- `USER_PERSONAL_UAT=PASS` queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos.
+- `USER_PERSONAL_UAT=PASS` queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos; para promocion F10.7 queda superseded y debe repetirse contra el nuevo SHA/tree.
 - Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); resultado `PASS` sanitizado en [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Production: pendiente.
 - Schedule observado: pendiente.
@@ -123,8 +123,8 @@ puede presentarse como mitigado sin evidencia.
 - Aprobacion contractual de adenda: `EVID-H1-001=VERIFIED`.
 - Revision tecnica: controles pre-main de repositorio aprobados/fusionados en PR #280 con CI post-merge PASS.
 - QA: `PASS` para la desviacion F9.9; no autoriza Production ni `main`.
-- Readiness F9.10: completada; F10.6 control-plane completada y F10.7 queda activa pendiente de autorizacion exacta.
-- UAT personal: `PASS` registrado para SHA/tree final de Certification; no autoriza Production, schedules ni PR a `main`.
+- Readiness F9.10: completada; F10.6 control-plane completada y F10.7 Cycle 1 rebaseline documenta bloqueos nuevos antes de Cycle 2.
+- UAT personal: `PASS` registrado para SHA/tree final de Certification; para F10.7 promotion queda `SUPERSEDED_FOR_F10_7_PROMOTION` y no autoriza Production, schedules ni PR a `main`.
 - Aprobacion de release: pendiente.
 - Conformidad cliente: pendiente.
 
@@ -140,11 +140,11 @@ puede presentarse como mitigado sin evidencia.
 | `EVID-H1-006` | `VERIFIED` |
 | `EVID-H1-007` | `VERIFIED` |
 | `EVID-H1-008` | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
-| `EVID-H1-009` | `PLANNED` |
+| `EVID-H1-009` | `PLANNED_REBASELINE_REQUIRED` |
 | `EVID-H1-010` | `PLANNED` |
 | `EVID-H1-011` | `PLANNED` |
 | `EVID-H1-012` | `PLANNED` |
 | `EVID-H1-013` | `PLANNED` |
-| `EVID-H1-014` | `VERIFIED_PRE_MAIN_CANDIDATE` |
+| `EVID-H1-014` | `PENDING_F10_7_REFREEZE` |
 | `EVID-H1-015` | `VERIFIED` |
 | `EVID-H1-016` | `PLANNED` |
