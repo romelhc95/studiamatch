@@ -18,7 +18,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED` | F9.10 cerro readiness de repositorio y certificacion final CA1-only: PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `Security Audit Gate` run `30865604732` PASS, run automatico `30865604729` cancelado con cero pasos, boundary final `main -> certificacion` de 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`, `USER_PERSONAL_UAT=PASS`, `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; sin Production, schedules, DDL/DML, Supabase ni Cloudflare. |
-| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` queda activa para control-plane exclusivamente. F10.7 PR a `main`, F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final permanecen pendientes y requieren autorizaciones decimales separadas. |
+| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` queda activa para control-plane exclusivamente. F10 permanece bloqueada para F10.7 PR a `main`, F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final hasta sus autorizaciones decimales separadas. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
 ## Subfases F9

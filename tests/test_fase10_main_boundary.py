@@ -363,7 +363,7 @@ def test_real_main_to_certificacion_manifest_is_within_f10_boundary() -> None:
             assert base_mode == head_mode and head_mode in {"100644", "100755"}, path
         manifest.append({"path": path, "mode": head_mode, "blob": head_blob})
     assert missing == []
-    assert len(manifest) == 27
+    assert len(manifest) == 32
     assert any(item["path"] == "scripts/core/certification_canary_state.py" for item in manifest)
 
 
