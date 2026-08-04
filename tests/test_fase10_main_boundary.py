@@ -15,6 +15,8 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
 
     assert "f910-pre-main-controls:" in workflow
     assert "F9.10 Pre-Main Repository Controls" in workflow
+    assert "bc227629b8df1fcabca47ea7be3ea1d5b4c7667b" in workflow
+    assert "bfe46ab31b150051f2842e6d8c196a2bfd431fab" in workflow
     assert "needs.f910-pre-main-controls.result" in workflow
     assert "F910: ${{ needs.f910-pre-main-controls.result }}" in workflow
     assert "CERTIFICATION_TRANSITION" in workflow
@@ -64,3 +66,13 @@ def test_pre_main_controls_do_not_touch_denied_runtime_surfaces() -> None:
     assert "Allowlist De Controles Pre-Main F9.10" in plan
     assert "`db/**`, `supabase/**`, `web/**`" in plan
     assert "Production o schedules antes de cerrar los controles pre-main" in plan
+
+
+def test_production_canary_is_manual_main_only_before_schedules() -> None:
+    workflow = source(".github/workflows/production_canary.yml")
+
+    assert "workflow_dispatch:" in workflow
+    assert "schedule:" not in workflow
+    assert "github.ref_name == 'main'" in workflow
+    assert 'test "$GITHUB_REF_NAME" = "main"' in workflow
+    assert "Production-Scheduled" not in workflow

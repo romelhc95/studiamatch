@@ -267,8 +267,20 @@ Paths permitidos para este paquete F9.10:
   boundary CA1-only y checks documentales.
 - `.github/scripts/production_control_preflight.sh` como script local fail-closed
   sin secretos ni red.
+- `.github/workflows/production_canary.yml` como workflow manual `main`-only,
+  SHA-bound y con schedules apagados.
+- `scripts/core/production_canary_manifest.py` y
+  `scripts/core/production_canary_state.py` para evidencia sanitizada y
+  snapshot/restore privado del canary Production.
+- `scripts/core/universal_harvester.py`, `cleansing_worker.py`,
+  `enrichment_worker.py` y `sync_vector_worker.py` solo para marcadores de
+  procedencia F10 env-gated, preservando los controles runtime existentes de
+  Certification.
 - `tests/test_fase09_10_pre_main_controls.py` y
   `tests/test_fase10_main_boundary.py` para pruebas estaticas de controles.
+- `tests/test_fase10_production_canary.py` para pruebas offline portables del
+  canary Production y sus helpers.
+- `.gitattributes` minimo para fijar LF en los archivos de control agregados.
 - `.context/operaciones/plan_cierre_hito1_ca1_only.md` y
   `.context/evidencias_cliente/sprint_1/paquete_hito_001.md` para documentar el
   estado F9.10 del branch `certificacion`.
@@ -276,7 +288,16 @@ Paths permitidos para este paquete F9.10:
 Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`,
 `scripts/maintenance/**`, datos operativos, `.env*`, artifacts privados, cambios
 remotos GitHub, dispatches, canaries, schedules, PR a `main`, DDL/DML,
-backup/restore y cualquier cambio CA2.
+backup/restore y cualquier cambio CA2. Tambien quedan excluidos los seis
+documentos nuevos no existentes en Certification, `.github/workflows/f9-7-contract.yml`
+y `tests/test_fase09_7_release_gates.py`.
+
+La reconstruccion autorizada para este paquete parte de
+`certificacion@bc227629b8df1fcabca47ea7be3ea1d5b4c7667b` y usa
+`desarrollo@bfe46ab31b150051f2842e6d8c196a2bfd431fab` solo como fuente de
+deltas F10. No copia blobs completos de workers: conserva `max_records`, locks,
+validaciones de cohorte, colisiones cross-institution, URL safety,
+`pipeline_enabled` y tests F9.9/F9.10 ya certificados.
 
 ## Criterio De Salida
 
