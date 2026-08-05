@@ -538,7 +538,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Secret o dato sensible en diff/log.
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
 - CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
-- Production canary o schedules antes de cerrar F10.8/F10.9.
+- Production o schedules antes de cerrar los controles pre-main, F10.8 y F10.9.
 - Uso del freeze F9.10 de 32 objetos como autoridad F10.7 sin digest post-merge y evidencia nueva.
 - Promocion no verificada de `.github/workflows/f9-7-contract.yml` a `certificacion -> main`.
 - OpenCode secret-bearing sin pinning/allowlist o sin deshabilitacion segura.
