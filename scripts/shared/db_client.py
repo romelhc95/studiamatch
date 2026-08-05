@@ -131,7 +131,16 @@ class DatabaseClient:
             return build_supabase_headers(self._publishable_key, kind="publishable")
         raise SupabaseCredentialError("No modern Supabase API key is configured")
 
-    def _select_api(self, table, filters, columns, limit, order, use_service_role=False):
+    def _select_api(
+        self,
+        table,
+        filters,
+        columns,
+        limit,
+        order,
+        use_service_role=False,
+        raise_on_error=False,
+    ):
         if columns == "count":
             url = f"{self.supabase_url}/rest/v1/{table}?select=count"
         else:
@@ -150,6 +159,10 @@ class DatabaseClient:
             if columns == "count":
                 return data
             return data
+        if raise_on_error:
+            raise RuntimeError(
+                f"DB select failed for {table}: HTTP {res.status_code}"
+            )
         return []
 
     def _insert_api(self, table, data):
@@ -160,11 +173,34 @@ class DatabaseClient:
         print(f"DB_CLIENT_API_ERROR (Insert): {res.status_code} - {(res.text or '')[:200]}")
         return None
 
-    def _patch_api(self, table, filters, data):
+    def _patch_api(self, table, filters, data, raise_on_error=False, return_representation=False):
         url = f"{self.supabase_url}/rest/v1/{table}?{filters}"
-        res = _request_with_retry(requests.patch, url, headers=self._get_headers(use_service_role=True), json=data)
+        headers = self._get_headers(True)
+        if return_representation:
+            headers["Prefer"] = "return=representation"
+        res = _request_with_retry(requests.patch, url, headers=headers, json=data)
+        if return_representation:
+            if res.status_code not in (200, 201):
+                raise DatabaseAPIError(
+                    f"DB patch representation failed for {table}: HTTP {res.status_code}"
+                )
+            try:
+                payload = res.json()
+            except ValueError as exc:
+                raise DatabaseAPIError(
+                    f"DB patch representation invalid JSON for {table}"
+                ) from exc
+            if not isinstance(payload, list):
+                raise DatabaseAPIError(
+                    f"DB patch representation invalid payload for {table}"
+                )
+            return payload
         if res.status_code in [200, 204]:
             return {"status": "success"}
+        if raise_on_error:
+            raise RuntimeError(
+                f"DB patch failed for {table}: HTTP {res.status_code}"
+            )
         print(f"DB_CLIENT_API_ERROR (Patch): {res.status_code} - {(res.text or '')[:200]}")
         return {"status": "error"}
 
@@ -199,6 +235,32 @@ class DatabaseClient:
         """Select with the configured secret key for explicit backend tooling."""
         return self._select_api(table, filters, columns, limit, order, use_service_role=True)
 
+    def select_service_raise(
+        self, table, filters=None, columns="*", limit=None, order=None
+    ):
+        """Select privileged data and raise when the Data API request fails."""
+        return self._select_api(
+            table,
+            filters,
+            columns,
+            limit,
+            order,
+            use_service_role=True,
+            raise_on_error=True,
+        )
+
+    def select_raise(self, table, filters=None, columns="*", limit=None, order=None):
+        """Select public data and raise when the Data API request fails."""
+        return self._select_api(
+            table,
+            filters,
+            columns,
+            limit,
+            order,
+            use_service_role=False,
+            raise_on_error=True,
+        )
+
     def select_pipeline(self, table, filters=None, columns="*", limit=None, order=None):
         """
         Select records with Secret key (bypasses RLS). For pipeline tables only.
@@ -214,6 +276,25 @@ class DatabaseClient:
                 f"Allowed: {sorted(self.PIPELINE_TABLES)}"
             )
         return self._select_api(table, filters, columns, limit, order, use_service_role=True)
+
+    def select_pipeline_raise(
+        self, table, filters=None, columns="*", limit=None, order=None
+    ):
+        """Select pipeline data and raise instead of returning a false empty queue."""
+        if table not in self.PIPELINE_TABLES:
+            raise ValueError(
+                f"select_pipeline_raise() called on non-pipeline table '{table}'. "
+                f"Allowed: {sorted(self.PIPELINE_TABLES)}"
+            )
+        return self._select_api(
+            table,
+            filters,
+            columns,
+            limit,
+            order,
+            use_service_role=True,
+            raise_on_error=True,
+        )
 
     def count_pipeline(self, table, filters=None):
         """
@@ -242,6 +323,31 @@ class DatabaseClient:
                         pass
         return 0
 
+    def count_pipeline_raise(self, table, filters=None):
+        """Return a pipeline count and raise when the Data API cannot prove it."""
+        if table not in self.PIPELINE_TABLES:
+            raise ValueError(
+                f"count_pipeline_raise() called on non-pipeline table '{table}'. "
+                f"Allowed: {sorted(self.PIPELINE_TABLES)}"
+            )
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code not in (200, 206):
+            raise RuntimeError(
+                f"DB count failed for {table}: HTTP {res.status_code}"
+            )
+        content_range = res.headers.get("Content-Range", "")
+        if "/" not in content_range:
+            raise RuntimeError(f"DB count missing Content-Range for {table}")
+        try:
+            return int(content_range.split("/", 1)[1])
+        except ValueError as exc:
+            raise RuntimeError(f"DB count invalid for {table}") from exc
+
     def insert(self, table, data):
         """Insert a record via Supabase REST API."""
         if isinstance(data, list):
@@ -251,6 +357,30 @@ class DatabaseClient:
     def patch(self, table, filters, data):
         """Update records via Supabase REST API."""
         return self._patch_api(table, filters, data)
+
+    def patch_raise(self, table, filters, data):
+        """Update privileged data and raise when persistence is not proven."""
+        return self._patch_api(table, filters, data, raise_on_error=True)
+
+    def patch_exact_one_raise(self, table, filters, data, expected_id):
+        """Patch and prove exactly one returned row matches the intended id."""
+        rows = self._patch_api(
+            table,
+            filters,
+            data,
+            raise_on_error=True,
+            return_representation=True,
+        )
+        if len(rows) != 1:
+            raise DatabaseAPIError(
+                f"DB patch expected exactly one row for {table}, got {len(rows)}"
+            )
+        returned_id = rows[0].get("id") if isinstance(rows[0], dict) else None
+        if returned_id != expected_id:
+            raise DatabaseAPIError(
+                f"DB patch returned unexpected id for {table}: {returned_id}"
+            )
+        return rows[0]
 
     def upsert(self, table, data, on_conflict=None):
         """Upsert records via Supabase REST API."""
@@ -342,16 +472,17 @@ class DatabaseClient:
             headers["Range"] = f"{offset}-{offset + limit - 1}"
             headers["Prefer"] = "count=exact"
             res = _request_with_retry(requests.get, url, headers=headers)
-            if res.status_code == 200:
-                batch = res.json()
-                if not batch:
-                    break
-                all_results.extend(batch)
-                offset += len(batch)
-                if len(batch) < limit:
-                    break
-            else:
-                print(f"DB_CLIENT_API_ERROR (SelectAllPipeline {table}): {res.status_code} - {(res.text or '')[:200]}")
+            if res.status_code not in (200, 206):
+                raise DatabaseAPIError(
+                    f"SelectAllPipeline failed for {table}: "
+                    f"unexpected HTTP status {res.status_code}"
+                )
+            batch = res.json()
+            if not batch:
+                break
+            all_results.extend(batch)
+            offset += len(batch)
+            if len(batch) < limit:
                 break
         return all_results
 
@@ -393,6 +524,34 @@ class DatabaseClient:
                 except ValueError:
                     pass
         return 0
+
+    def count_service_raise(self, table, filters=None):
+        """Return an exact service count or raise when it cannot be proven."""
+        url = f"{self.supabase_url}/rest/v1/{table}?select=id&limit=0"
+        if filters:
+            url += f"&{filters}"
+        headers = self._get_headers(use_service_role=True)
+        headers["Prefer"] = "count=exact"
+        res = _request_with_retry(requests.get, url, headers=headers)
+        if res.status_code not in (200, 206):
+            raise DatabaseAPIError(
+                f"DB service count failed for {table}: HTTP {res.status_code}"
+            )
+        content_range = res.headers.get("Content-Range", "")
+        parts = content_range.split("/")
+        if len(parts) != 2 or not parts[1]:
+            raise DatabaseAPIError(
+                f"DB service count missing Content-Range for {table}"
+            )
+        try:
+            count = int(parts[1])
+        except ValueError as exc:
+            raise DatabaseAPIError(
+                f"DB service count invalid for {table}"
+            ) from exc
+        if count < 0:
+            raise DatabaseAPIError(f"DB service count invalid for {table}")
+        return count
 
     def delete(self, table, filters):
         """Delete records via Supabase REST API."""

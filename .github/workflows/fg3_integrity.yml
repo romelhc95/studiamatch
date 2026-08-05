@@ -2,37 +2,70 @@ name: FG3 - Daily Integrity Management
 
 on:
   schedule:
-    - cron: '0 5 * * *' # ⛔ DESACTIVADO temporalmente hasta redefinir flujo
+    - cron: '0 11 * * *' # Runs after the FG2 production window
   workflow_dispatch:      # Manual
 
 concurrency:
-  group: studiamatch-fg3-${{ github.ref }}
+  group: studiamatch-fg2-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
+  production_control_preflight:
+    name: "FG3 Production Control Preflight"
+    if: contains(fromJSON('["refs/heads/main","refs/heads/certificacion","refs/heads/desarrollo"]'), github.ref)
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG3') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+    outputs:
+      writer: ${{ steps.preflight.outputs.writer }}
+      allow_writer: ${{ steps.preflight.outputs.allow_writer }}
+      automation_enabled: ${{ steps.preflight.outputs.automation_enabled }}
+      writers_paused: ${{ steps.preflight.outputs.writers_paused }}
+      reason: ${{ steps.preflight.outputs.reason }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Resolve production controls
+        id: preflight
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG3
+
   integrity:
     name: "3. Daily Integrity Ping"
+    needs: production_control_preflight
+    if: needs.production_control_preflight.outputs.allow_writer == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     environment:
-      name: ${{ (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
+      name: ${{ (github.event_name == 'schedule' && github.ref_name == 'main' && 'Production-Scheduled-FG3') || (github.ref_name == 'main' && 'Production') || (github.ref_name == 'certificacion' && 'Certification') || 'Development' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
           cache: 'pip'
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        run: pip install --require-hashes -r requirements-fg3.txt
+      - name: Verify production controls before mutating station
+        env:
+          AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
+          PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
+        run: bash .github/scripts/production_control_preflight.sh FG3 --enforce
       - name: Run Integrity Ping
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         working-directory: scripts/core
         run: python integrity_ping.py

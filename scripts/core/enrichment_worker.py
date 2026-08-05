@@ -7,7 +7,7 @@ import html
 import time
 import requests
 from datetime import datetime
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 from dotenv import load_dotenv
 
 try:
@@ -32,12 +32,44 @@ from shared.db_client import get_db_client
 # Setup logging
 load_dotenv()
 logger = setup_lima_logging("EnrichmentWorker")
+CANARY_RUN_METADATA_KEYS = (
+    ("F10_PRODUCTION_CANARY_RUN_ID", "f10_production_canary_run_id"),
+    ("F99_CERTIFICATION_CANARY_RUN_ID", "f99_certification_canary_run_id"),
+)
+
+
+def _active_canary_marker():
+    for variable_name, metadata_key in CANARY_RUN_METADATA_KEYS:
+        run_id = os.getenv(variable_name, "").strip()
+        if run_id:
+            return metadata_key, run_id
+    return None, None
+
+
+def _mark_canary_metadata(metadata):
+    payload = dict(metadata or {})
+    metadata_key, run_id = _active_canary_marker()
+    if metadata_key and run_id:
+        payload[metadata_key] = run_id
+    return payload
+
+
+def _metadata_dict(metadata):
+    if isinstance(metadata, dict):
+        return metadata
+    if isinstance(metadata, str):
+        try:
+            parsed = json.loads(metadata)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 # API Keys & Credits
-CF_API_TOKEN = os.getenv("CF_API_TOKEN") 
+CF_API_TOKEN = os.getenv("CF_API_TOKEN")
 CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
 
@@ -60,10 +92,10 @@ class EnrichmentWorker:
 
     def _load_profiles(self):
         try:
-            return self.db.select_pipeline('institution_site_profiles') or []
+            return self.db.select_pipeline_raise('institution_site_profiles') or []
         except Exception as e:
-            logger.warning(f"Error loading site profiles: {e}")
-            return []
+            logger.error(f"Error loading site profiles: {e}")
+            raise
 
     def _get_profile(self, institution_id):
         for p in self.profiles:
@@ -71,25 +103,69 @@ class EnrichmentWorker:
                 return p
         return {}
 
+    def _verify_canary_enriched_row(self, cleansed_id):
+        metadata_key, run_id = _active_canary_marker()
+        if not metadata_key or not run_id:
+            return
+        rows = self.db.select_pipeline_raise(
+            'enriched_programs',
+            filters=f"cleansed_id=eq.{quote(str(cleansed_id), safe='')}",
+            columns='id,metadata',
+            limit=2,
+        )
+        if len(rows) != 1 or _metadata_dict(rows[0].get('metadata')).get(metadata_key) != run_id:
+            raise RuntimeError("canary provenance marker missing from enriched_programs")
+
+    def _ensure_canary_enriched_metadata(self, cleansed_id, metadata):
+        metadata_key, run_id = _active_canary_marker()
+        if not metadata_key or not run_id:
+            return
+        rows = self.db.select_pipeline_raise(
+            'enriched_programs',
+            filters=f"cleansed_id=eq.{quote(str(cleansed_id), safe='')}",
+            columns='id,metadata',
+            limit=2,
+        )
+        if len(rows) != 1:
+            raise RuntimeError("canary enriched row cannot be uniquely identified")
+        row = rows[0]
+        merged_metadata = _metadata_dict(row.get('metadata'))
+        merged_metadata.update(metadata or {})
+        merged_metadata[metadata_key] = run_id
+        self.db.patch_exact_one_raise(
+            'enriched_programs',
+            filters=f"id=eq.{quote(str(row['id']), safe='')}",
+            data={'metadata': merged_metadata},
+            expected_id=row['id'],
+        )
+
     @staticmethod
     def _gate_enabled(profile, gate_name):
         if gate_name in profile:
             return bool(profile.get(gate_name))
         return bool(profile.get('pipeline_ready'))
 
-    def get_pending_cleansed(self, limit=None):
-        """Obtiene registros de cleansed_programs para IA, solo de instituciones con pipeline habilitado."""
+    def get_pending_cleansed(self, limit=None, institution_id=None):
+        """Obtiene pendientes; el loop materializa skips para gates deshabilitados."""
         try:
-            # Fase 100: filtrar solo instituciones con pipeline_enabled=true
-            if not self.ready_inst_ids:
-                return []
-            inst_ids = ",".join(sorted(self.ready_inst_ids))
-            filters = f"status=eq.pending&institution_id=in.({inst_ids})"
-            res = self.db.select_pipeline('cleansed_programs', filters=filters, limit=limit)
+            filters = "status=eq.pending"
+            if institution_id:
+                if str(institution_id) not in self.ready_inst_ids:
+                    logger.warning(f"Institution {institution_id} is not pipeline-enabled for enrichment.")
+                    return []
+                filters = f"{filters}&institution_id=eq.{quote(str(institution_id), safe='')}"
+            else:
+                if not self.ready_inst_ids:
+                    logger.warning("No pipeline-enabled institutions available for enrichment.")
+                    return []
+                ready_ids = ",".join(quote(str(inst_id), safe='') for inst_id in sorted(self.ready_inst_ids))
+                filters = f"{filters}&institution_id=in.({ready_ids})"
+            res = self.db.select_pipeline_raise('cleansed_programs', filters=filters, limit=limit, order="id.asc")
             if res and len(res) > 0:
                 return res
         except Exception as e:
-            logger.warning(f"Error obteniendo cleansed_programs: {e}")
+            logger.error(f"Error obteniendo cleansed_programs: {e}")
+            raise
 
         logger.info("No hay registros pendientes en cleansed_programs.")
         return []
@@ -553,7 +629,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
         pre_extracted = {}
         extraction_trace = []
         try:
-            sr = self.db.select_pipeline('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata,raw_html,url')
+            sr = self.db.select_pipeline_raise('staging_raw', filters=f"id=eq.{staging_id}", columns='metadata,raw_html,url')
             if sr and sr[0].get('metadata'):
                 meta = sr[0]['metadata']
                 if isinstance(meta, str):
@@ -743,7 +819,7 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             start_date_raw = enriched.get("start_date")
             if start_date_raw and str(start_date_raw).strip().lower() in ('none', 'null', 'nan', ''):
                 enriched["start_date"] = None
-            
+
             def normalize(val):
                 if isinstance(val, (list, dict)):
                     return json.dumps(val) if isinstance(val, dict) else ", ".join([str(v) for v in val if v])
@@ -756,7 +832,9 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 # Buscar el ID de la primera categoría válida
                 cat_name = suggested_cats[0] if isinstance(suggested_cats, list) else suggested_cats
                 safe_cat = re.sub(r'[^a-zA-ZáéíóúñÁÉÍÓÚÑ\s]', '', cat_name[:5]).strip()
-                res_cat = self.db.select('categories', filters=f"name=ilike.*{safe_cat}*") if safe_cat else None
+                res_cat = self.db.select_service_raise(
+                    'categories', filters=f"name=ilike.*{safe_cat}*"
+                ) if safe_cat else None
                 if res_cat: cat_id = res_cat[0]['id']
 
             # Sanitize duration_months: LLM may return 3.5 (float) but DB column is INT
@@ -767,6 +845,13 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                     duration_months_val = int(float(duration_months_raw))
                 except (ValueError, TypeError):
                     duration_months_val = 0
+
+            metadata = {}
+            if woo_data.get('extraction_trace'):
+                metadata['extraction_trace'] = woo_data['extraction_trace']
+            if pre_extracted.get('program_family'):
+                metadata['program_family'] = pre_extracted.get('program_family')
+            metadata = _mark_canary_metadata(metadata)
 
             save_data = {
                 "cleansed_id": c_id,
@@ -789,53 +874,55 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
                 "brochure_url": brochure_url,
                 "status": "pending",
                 "provider_used": provider_name or "mock",
-                "is_mock_data": is_mock
+                "is_mock_data": is_mock,
+                "metadata": metadata,
             }
 
             # 🛡️ Guardar en enriched_programs con toda la metadata de 14 pilares
-            try:
-                # Try atomic RPC promotion first
-                metadata = {}
-                if woo_data.get('extraction_trace'):
-                    metadata['extraction_trace'] = woo_data['extraction_trace']
-                if pre_extracted.get('program_family'):
-                    metadata['program_family'] = pre_extracted.get('program_family')
-                rpc_data = [{
-                    "cleansed_id": str(c_id),
-                    "institution_id": str(cleansed['institution_id']),
-                    "url": cleansed['url'],
-                    "official_name": save_data.get("official_name"),
-                    "duration_text": save_data.get("duration_text"),
-                    "duration_months": save_data.get("duration_months"),
-                    "total_cost_est": save_data.get("total_cost_est"),
-                    "requirements": save_data.get("requirements"),
-                    "graduate_profile": save_data.get("graduate_profile"),
-                    "curriculum_summary": save_data.get("curriculum_summary"),
-                    "modality": save_data.get("modality"),
-                    "primary_campus": save_data.get("primary_campus"),
-                    "degree_type": save_data.get("degree_type"),
-                    "start_date": save_data.get("start_date"),
-                    "categories": save_data.get("categories"),
-                    "difficulty_level": save_data.get("difficulty_level"),
-                    "ai_summary": save_data.get("ai_summary"),
-                    "provider_used": save_data.get("provider_used", "mock"),
-                    "is_mock_data": save_data.get("is_mock_data", True),
-                    "metadata": metadata or None
-                }]
-                rpc_result = self.db.rpc('atomic_enrichment_promote', {
-                    "p_enriched_data": rpc_data,
-                    "p_cleansed_id": str(c_id)
-                })
-                if rpc_result:
-                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}&status=eq.pending", data={"status": "enriched"})
-                else:
-                    # Fallback: traditional upsert (uses cleansed_id unique constraint) + patch
-                    self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
-                    self.db.patch('cleansed_programs', filters=f"id=eq.{c_id}", data={"status": "enriched"})
-            except Exception as e:
-                logger.warning(f"No se pudo guardar en enriched_programs ({e}). El registro quedará pendiente para reintento.")
+            rpc_data = [{
+                "cleansed_id": str(c_id),
+                "institution_id": str(cleansed['institution_id']),
+                "url": cleansed['url'],
+                "official_name": save_data.get("official_name"),
+                "duration_text": save_data.get("duration_text"),
+                "duration_months": save_data.get("duration_months"),
+                "total_cost_est": save_data.get("total_cost_est"),
+                "requirements": save_data.get("requirements"),
+                "graduate_profile": save_data.get("graduate_profile"),
+                "curriculum_summary": save_data.get("curriculum_summary"),
+                "modality": save_data.get("modality"),
+                "primary_campus": save_data.get("primary_campus"),
+                "degree_type": save_data.get("degree_type"),
+                "start_date": save_data.get("start_date"),
+                "categories": save_data.get("categories"),
+                "difficulty_level": save_data.get("difficulty_level"),
+                "ai_summary": save_data.get("ai_summary"),
+                "brochure_url": save_data.get("brochure_url"),
+                "provider_used": save_data.get("provider_used", "mock"),
+                "is_mock_data": save_data.get("is_mock_data", True),
+                "metadata": save_data.get("metadata"),
+            }]
+            # RPC errors fail closed. Only a falsey normal response permits the
+            # idempotent upsert fallback.
+            rpc_result = self.db.rpc_raise('atomic_enrichment_promote', {
+                "p_enriched_data": rpc_data,
+                "p_cleansed_id": str(c_id)
+            })
+            if not rpc_result:
+                upsert_result = self.db.upsert('enriched_programs', save_data, on_conflict="cleansed_id")
+                if not upsert_result:
+                    raise RuntimeError("Fallback upsert failed for enriched_programs")
+                self.db.patch_raise(
+                    'cleansed_programs',
+                    filters=f"id=eq.{c_id}",
+                    data={"status": "enriched"},
+                )
+            self._ensure_canary_enriched_metadata(c_id, metadata)
+            self._verify_canary_enriched_row(c_id)
+            return True
         except Exception as e:
             logger.error(f"Error en enriquecimiento: {e}")
+            raise
 
     def _generate_smart_mock(self, name, description, inst_id=None, extracted_sections=None):
         # Use clean_name from cleansing (already cleaned, not generic institution name)
@@ -910,10 +997,27 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             "ai_summary": ai_summary,
         }
 
+
+def process_enrichment_records(worker, records, attempted_ids=None):
+    """Attempt each record ID once per session and count proven persistence."""
+    if attempted_ids is None:
+        attempted_ids = set()
+    successful = 0
+    for record in records:
+        record_id = record.get('id') if isinstance(record, dict) else None
+        if record_id in attempted_ids:
+            continue
+        attempted_ids.add(record_id)
+        if worker.enrich_record(record) is not True:
+            raise RuntimeError(f"Enrichment persistence was not proven for {record_id}")
+        successful += 1
+    return successful
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Run AI Enrichment Worker")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of records to process")
+    parser.add_argument("--institution-id", help="Optional exact institution UUID for a cohort-limited run")
     args = parser.parse_args()
 
     worker = EnrichmentWorker()
@@ -927,12 +1031,11 @@ if __name__ == "__main__":
 
     total_processed = 0
     batch_size = 10
-    # Fase 89: Pipeline Loop Guard — tracking de IDs intentados para evitar loops infinitos
+    # Fase 89: Pipeline Loop Guard — un intento por ID durante la sesion.
     attempted_ids: set = set()
-    attempted_counts: dict = {}  # contador de reintentos por registro (hasta max_attempts)
-    max_attempts = 3  # máximo de intentos por registro por sesión
 
-    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'})")
+    cohort_label = args.institution_id or 'all institutions'
+    logger.info(f"🚀 Iniciando Enriquecimiento Masivo (Límite: {args.limit or 'Sin Límite'}, Cohorte: {cohort_label})")
 
     while not guard.should_exit:
         fetch_limit = batch_size
@@ -941,23 +1044,19 @@ if __name__ == "__main__":
             if remaining <= 0: break
             fetch_limit = min(batch_size, remaining)
 
-        records = worker.get_pending_cleansed(limit=fetch_limit)
+        records = worker.get_pending_cleansed(limit=fetch_limit, institution_id=args.institution_id)
 
         if not records or len(records) == 0:
             logger.info("✅ No hay más registros pendientes por enriquecer.")
             break
 
-        # Fase 89: Filtrar registros ya intentados o que excedieron max_attempts
+        # Fase 89: Filtrar registros ya intentados durante esta sesion.
         new_records = []
         for r in records:
             if not isinstance(r, dict):
                 continue
             rid = r.get('id')
             if not rid:
-                continue
-            current_attempts = attempted_counts.get(rid, 0)
-            if current_attempts >= max_attempts:
-                logger.warning(f"⏩ SKIP registro {rid}: excedió max_attempts={max_attempts}")
                 continue
             if rid in attempted_ids:
                 continue
@@ -983,21 +1082,13 @@ if __name__ == "__main__":
                     # Fase 100: saltar institucion sin pipeline habilitado
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
-                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_enabled=false")
-                        worker.db.patch('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped'})
+                        logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_gate=false")
                         continue
                     # Fase 77: Early-exit dinámico
                     if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():
                         logger.warning("🚨 Todos los providers degradados dinámicamente. Restantes a smart mock.")
                         worker._mock_only = True
-                    # Fase 89: Marcar intento antes de procesar (evita loop infinito)
-                    attempted_ids.add(rid)
-                    attempted_counts[rid] = attempted_counts.get(rid, 0) + 1
-                    try:
-                        worker.enrich_record(r)
-                    except Exception as e:
-                        logger.error(f"Error inesperado en enrich_record {rid}: {e}")
-                    total_processed += 1
+                    total_processed += process_enrichment_records(worker, [r], attempted_ids)
                     guard.tick(every=50)
                     time.sleep(1.5)
 

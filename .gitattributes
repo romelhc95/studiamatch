@@ -1,0 +1,10 @@
+* text=auto
+.gitattributes text eol=lf
+.githooks/* text eol=lf
+*.sh text eol=lf
+.github/scripts/*.sh text eol=lf
+.github/workflows/*.yml text eol=lf
+scripts/core/production_canary_*.py text eol=lf
+tests/test_fase09_10_pre_main_controls.py text eol=lf
+tests/test_fase10_main_boundary.py text eol=lf
+tests/test_fase10_production_canary.py text eol=lf
