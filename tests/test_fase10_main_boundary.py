@@ -22,6 +22,10 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert '".github/workflows/f9-7-contract.yml"' in workflow
     assert "needs.f10-main-boundary.result" in workflow
     assert "MAIN_PROMOTION" in workflow
+    assert "f107-certification-gate-update:" in workflow
+    assert "F10.7 Certification Gate Update" in workflow
+    assert "5cd27c6f6c35808865b7084673a83f9f690d3760" in workflow
+    assert "f107-certification-gate-update" in workflow
     assert "f910-pre-main-controls:" in workflow
     assert "F9.10 Pre-Main Repository Controls" in workflow
     assert "bc227629b8df1fcabca47ea7be3ea1d5b4c7667b" in workflow
