@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` registrada como entrega tecnica post-main. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #291 quedo aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; `Security Audit` post-main run `30969158679` termino `PASS`; Cloudflare Pages termino `SUCCESS`; `DB Sync to Production` run `30969158711` quedo cancelado con jobs `steps=[]`; boundary post-merge contiene 32 objetos y digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`. F10.8 canary Production, F10.9 schedules/observacion y F11.1 conformidad siguen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` registrada como entrega tecnica post-main. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #291 quedo aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; `Security Audit` post-main run `30969158679` termino `PASS`; Cloudflare Pages termino `SUCCESS`; `DB Sync to Production` run `30969158711` quedo cancelado con jobs `steps=[]`; boundary post-merge contiene 32 objetos y digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`. Remediacion local PR #292 actualizo `tests/test_fase10_main_boundary.py` para topologia post-main y valido 36 focused tests en Docker. F10.8 canary Production, F10.9 schedules/observacion y F11.1 conformidad siguen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -48,8 +48,10 @@ fail-closed, variables verificadas, runs antiguos cancelados con cero pasos y
 sin aprobacion de deployments. F10.7 quedo registrada como entrega tecnica
 post-main por PR #291: `main@64e4ed895d43121c5683e26a355993f18e528a5c`,
 boundary 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`,
-Cloudflare Pages `SUCCESS` y DB Sync cancelado con `steps=[]`. No hay Production
-canary, schedules ni cierre contractual autorizados por esta entrega tecnica.
+Cloudflare Pages `SUCCESS` y DB Sync cancelado con `steps=[]`. La remediacion
+local PR #292 actualizo el test de topologia post-main y valido 36 focused tests
+en Docker sin cambiar workflows ni producto. No hay Production canary, schedules
+ni cierre contractual autorizados por esta entrega tecnica.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -68,7 +70,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS` | F10.8 canary Production, F10.9 observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; remediacion local PR #292 validada para topologia post-main | F10.8 canary Production, F10.9 observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -225,6 +227,27 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - `EVID-H1-009=VERIFIED` y `EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY` quedan registrados posteriormente por F10.7; `EVID-H1-015=VERIFIED`; `EVID-H1-010..013/016` permanecen pendientes.
 - La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); el resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md) verifica fail-closed sin declarar Certification PASS.
 - F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 queda `COMPLETED_READINESS_F10` con boundary real `main -> certificacion`, candidate/readiness y `USER_PERSONAL_UAT=PASS`; F10 conserva el control-plane, entrega tecnica F10.7 a `main`, canary Production y observacion.
+
+## Remediacion CI F10.7 Local Validada
+
+F10.7 conserva `COMPLETED_TECHNICAL_DELIVERY`. La remediacion local corrigio el
+contrato de prueba que bloqueaba PR #292 despues de la promocion tecnica de PR
+#291. La entrega tecnica, su boundary, Cloudflare Pages `SUCCESS` y DB Sync
+`CANCELLED_ZERO_STEPS` permanecen como evidencia registrada; esta remediacion no
+los reabrio ni los sustituyo.
+
+`tests/test_fase10_main_boundary.py` acepta ahora la topologia post-main en la
+que `main@64e4ed895d43121c5683e26a355993f18e528a5c` tiene como padre a
+`certificacion@1edc65aa848d32dabfa62aa60b53f4bff9b5716e` y conserva el tree
+`7d43590c19ca15171d468bf8c823a5e93b47d8cc`, manteniendo la validacion del
+boundary de 32 objetos y el fallback pre-main cuando aplique. Validacion local
+Docker: `python3 -m pytest -q tests/test_fase09_10_pre_main_controls.py tests/test_fase10_main_boundary.py tests/test_fase10_production_canary.py` = 36 PASS.
+
+Quedan expresamente prohibidos en esta remediacion: cambios de producto,
+deployments, workflow dispatch, reruns manuales, Supabase Free/Pro, DDL/DML,
+writers, schedules, Production canary, sincronizacion o modificacion de ramas
+protegidas, y cambios en `.github/workflows/**` salvo que una validacion local
+demuestre necesidad estricta y se solicite otra decision.
 
 ## Exclusiones Historicas Preservadas
 

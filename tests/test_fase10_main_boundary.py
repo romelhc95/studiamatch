@@ -119,6 +119,22 @@ def _tree_entry(repo: Path, commit: str, path: str) -> tuple[str, str, str] | No
     return mode, kind, blob
 
 
+def _is_ancestor(base: str, head: str) -> bool:
+    return (
+        _git(ROOT, "merge-base", "--is-ancestor", base, head, check=False).returncode
+        == 0
+    )
+
+
+def _commit_parents(commit: str) -> list[str]:
+    raw = _git(ROOT, "show", "-s", "--format=%P", commit).stdout.strip()
+    return raw.split() if raw else []
+
+
+def _commit_tree(commit: str) -> str:
+    return _git(ROOT, "rev-parse", f"{commit}^{{tree}}").stdout.strip()
+
+
 def _base_env(
     base: str,
     head: str,
@@ -325,9 +341,25 @@ def test_real_main_to_certificacion_manifest_is_within_f10_boundary() -> None:
     allowed_exact = _extract_allowed_exact_paths()
     allowed_prefixes = (".context/", "config/", "tests/e2e/ca1/")
     denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
-    base = _git(ROOT, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}").stdout.strip()
-    head = _git(ROOT, "rev-parse", "--verify", "refs/remotes/origin/certificacion^{commit}").stdout.strip()
-    _git(ROOT, "merge-base", "--is-ancestor", base, head)
+    main = _git(
+        ROOT, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}"
+    ).stdout.strip()
+    certificacion = _git(
+        ROOT, "rev-parse", "--verify", "refs/remotes/origin/certificacion^{commit}"
+    ).stdout.strip()
+    if _is_ancestor(main, certificacion):
+        base = main
+        head = certificacion
+    else:
+        assert _is_ancestor(certificacion, main)
+        assert _commit_tree(main) == _commit_tree(certificacion)
+        parents = _commit_parents(main)
+        assert parents, main
+        assert certificacion in parents or any(
+            _is_ancestor(certificacion, parent) for parent in parents
+        )
+        base = parents[0]
+        head = main
     raw = _git(
         ROOT,
         "diff",
