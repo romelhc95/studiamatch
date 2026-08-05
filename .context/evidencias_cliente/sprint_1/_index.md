@@ -6,9 +6,10 @@ contractual de aprobacion de adenda y puede estar `VERIFIED` antes del candidate
 `EVID-H1-002..005` quedan `VERIFIED` por el candidate CA1-only F9.8 replay-validado
 post-merge; `EVID-H1-006/007` quedan `VERIFIED` por PR #277 y CI; `EVID-H1-008`
 queda `DEVIATION_ACCEPTED_FAIL_CLOSED`, no `PASS`; `EVID-H1-015` queda
-`VERIFIED` por QA independiente de la desviacion. `EVID-H1-009..014/016` solo se
-promueven a `VERIFIED` cuando exista PR main, canary Production, observacion o
-conformidad segun corresponda.
+`VERIFIED` por QA independiente de la desviacion; `EVID-H1-009` queda `VERIFIED`
+por PR #291 y `EVID-H1-014` queda `VERIFIED_POST_MERGE_BOUNDARY`. `EVID-H1-010..013/016`
+solo se promueven cuando exista canary Production, observacion o conformidad
+segun corresponda.
 
 ## Estados
 
@@ -16,6 +17,7 @@ conformidad segun corresponda.
 - `PLANNED`: evidencia requerida, aun no ejecutada.
 - `PENDING`: evidencia iniciada o condicionada, pendiente de revision/ejecucion adicional.
 - `VERIFIED`: resultado contrastado con candidate y ambiente.
+- `VERIFIED_POST_MERGE_BOUNDARY`: boundary post-merge contrastado, sin cerrar runtime ni conformidad.
 - `DEVIATION_ACCEPTED_FAIL_CLOSED`: resultado negativo aceptado por decision humana como evidencia de control fail-closed; no equivale a `PASS` ni cierra el Hito.
 - `PENDING_REVERIFY_MAIN_CANDIDATE`: evidencia previa suficiente para Certification pero pendiente de reverificacion contra el candidate `main`.
 - `APPROVED_FOR_CLIENT`: revisado y aprobado para entrega.
@@ -25,7 +27,7 @@ conformidad segun corresponda.
 
 | Hito | Documento | Estado |
 |---|---|---|
-| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F9_9_QA_VERIFIED` |
+| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F10_7_TECHNICAL_DELIVERY_RECORDED` |
 | Hito 2 | Se crea con candidate real | `PLANNED` |
 | Hito 3 | Se crea con candidate real | `PLANNED` |
 | Hito 4 | Se crea con candidate real | `PLANNED` |
@@ -34,6 +36,7 @@ conformidad segun corresponda.
 ## Anexos
 
 - [Riesgos CA2/RLS trasladados a Hito 2](./anexo_h1_ca2_seguridad_rls.md).
+- [Registro de entrega tecnica Hito 1 - 2026-08-04](./registro_entrega_tecnica_hito_001_2026-08-04.md).
 
 ## Reglas De Sanitizacion
 

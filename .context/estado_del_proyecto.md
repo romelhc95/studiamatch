@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-04-F10.7-CYCLE1-REBASELINE`.
+Snapshot: `SNAPSHOT-2026-08-05-F10.7-CI-REMEDIATION-VALIDATED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases. El estado vivo de la tarea activa pertenece a la propia tarea.
 
@@ -18,7 +18,7 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 | `F7` | G1b minimo | `COMPLETED` | Base funcional contractual Hito 1; gates y postcondiciones locales validados. |
 | `F8` | Hito 1 funcional | `COMPLETED` | Base funcional contractual Hito 1 y PostgreSQL 17 validados; sin aplicacion DB remota. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED` | F9.10 cerro readiness de repositorio y certificacion final CA1-only: PR #285 aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `Security Audit Gate` run `30865604732` PASS, run automatico `30865604729` cancelado con cero pasos, boundary final `main -> certificacion` de 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`, `USER_PERSONAL_UAT=PASS`, `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`; sin Production, schedules, DDL/DML, Supabase ni Cloudflare. |
-| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` cerro control-plane. `F10.7` entro en Cycle 1 documental: [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) registra que `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` carece del gate `f10-main-boundary`; el freeze de 32 objetos y su UAT quedan `SUPERSEDED_FOR_F10_7_PROMOTION` hasta reconstruccion, nuevo freeze y UAT nuevo. F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final siguen bloqueados. |
+| `F10` | Produccion CA1-only | `IN_PROGRESS` | `F10.6` cerro control-plane. `F10.7` registro entrega tecnica post-main: PR #291 aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c`, boundary CA1-only de 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`, Security Audit `30969158679=PASS`, Cloudflare Pages `SUCCESS` y DB Sync `30969158711=CANCELLED_ZERO_STEPS`. La remediacion local de CI de PR #292 actualizo el contrato de prueba post-main y valido 36 focused tests en Docker. F10.8 canary Production, F10.9 schedules/observacion y F11.1 cierre final siguen bloqueados. |
 | `F11` | Cierre final | `PENDING` | Bloqueada hasta completar produccion observada; incluye cierre documental final y limpieza fisica solo si se autoriza expresamente. |
 
 ## Subfases F9
@@ -42,23 +42,23 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Environments `Production-Scheduled-FG1`, `Production-Scheduled-FG2` y `Production-Scheduled-FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true` y secrets minimos por nombre. `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`. Runs antiguos `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No hubo aprobacion, retry, dispatch, schedule ejecutado, writer, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`. |
-| `F10.7` | `ACTIVE_PENDING_CYCLE2_AUTHORIZATION` | Cycle 1 documental rebaselined por [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md). Cycle 2 requiere repetir exactamente `Ejecuta las tareas pendientes de la Fase F10.7`; debe reconstruir `security-audit.yml`/`opencode.yml`/`tests/test_fase10_main_boundary.py`, impedir auto-deploy Cloudflare, re-freezear `main -> certificacion` con variables SHA/tree/count/digest aprobadas, obtener UAT nuevo y solo entonces abrir PR `certificacion -> main`. |
-| `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
+| `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) documento el rebaseline inicial; [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) registra la entrega tecnica post-main. PR #291 promovio `certificacion@1edc65aa848d32dabfa62aa60b53f4bff9b5716e` a `main@64e4ed895d43121c5683e26a355993f18e528a5c`; tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; boundary 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; Cloudflare Pages `SUCCESS`; DB Sync `30969158711` cancelado con `steps=[]`. Remediacion local PR #292: `tests/test_fase10_main_boundary.py` acepta topologias pre-main y post-main sin cambiar workflows ni producto; 36 focused tests PASS en Docker. |
+| `F10.8` | `PENDING_AUTHORIZATION` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 
-Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
+Base documental post-main: `desarrollo@4c214a789251b5c708186dd5645a01f07714c272` / tree `1496933c636eafa7601a062d2352a490a706585e`.
 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-- Subfase activa: F10.7; [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [PLAN-H1-CA1-ONLY-001](operaciones/plan_cierre_hito1_ca1_only.md) fijan el rebaseline de Cycle 1. F10.7 conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
-- Subfase completada antes de este rebaseline: F10.6 control-plane. La cancelacion autorizada de los runs antiguos `30681941694`, `29678093566` y `29677885934` no aprobo deployments, no reintento workflows y no ejecuto pasos. F10.7 Cycle 1 consume la frase decimal solo para documentacion; Cycle 2 requiere repetir la frase exacta y no queda autorizado por esta fusion documental. No hay autorizacion de Supabase Free/Pro, Cloudflare deployment, DDL/DML, backup/restore real, writers remotos, backfill, Edge, Production canary, schedules ni PR/merge a `main`.
-- Compatibilidad contractual F9.10: `F10 permanece bloqueada` para promocion a `main`, canary Production, schedules, writers, Supabase Free/Pro, Cloudflare deployment y DDL/DML hasta completar F10.7 Cycle 2 y las subfases F10.8/F10.9 correspondientes. Este PR solo mantiene F10.7 activo para rebaseline documental.
+- Subfase tecnica registrada: F10.7 `COMPLETED_TECHNICAL_DELIVERY`; [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) documenta el rebaseline inicial y [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) registra la entrega tecnica post-main. F10.7 conserva [PLAN-F9.7-CIERRE-001](operaciones/cierre_definitivo_f9_7.md), [PR-O v1 superseded](operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](operaciones/pr_o_f9_7_successor_private_executor.md) como historia no ejecutable de Hito 1.
+- Subfase completada antes de F10.8: F10.6 control-plane. PR #291 fue aprobado/fusionado a `main`, Cloudflare Pages termino `SUCCESS` para el arbol promovido y `DB Sync to Production` `30969158711` quedo `CANCELLED_ZERO_STEPS`. La remediacion local PR #292 actualizo solo `tests/test_fase10_main_boundary.py` para la topologia post-main y valido focused tests en Docker. No hay autorizacion de Supabase Free/Pro, DDL/DML, backup/restore real, writers remotos, backfill, Edge, Production canary ni schedules.
+- Compatibilidad contractual: `F10 permanece bloqueada` para canary Production, schedules, writers, Supabase Free/Pro y DDL/DML hasta completar F10.8/F10.9 y F11.1. Este registro no completa Hito 1 contractual.
 - Autorizacion documental anterior: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY`, completada y fusionada por el rebaseline PR #269 en `desarrollo@d9c7f180495c985a1e9a0ada4a42525fda60a870` / tree `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
-- Siguiente accion futura: despues de fusionar este Cycle 1 documental, detenerse y solicitar de nuevo la frase exacta `Ejecuta las tareas pendientes de la Fase F10.7` para iniciar Cycle 2. Canary Production y schedules siguen bloqueados hasta F10.8 y F10.9.
+- Siguiente accion futura: detenerse y solicitar la frase exacta de la subfase correspondiente antes de iniciar F10.8. Canary Production y schedules siguen bloqueados hasta F10.8 y F10.9.
 
 ## Alcance Inmediato
 

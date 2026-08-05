@@ -7,6 +7,9 @@ Enlaces canonicos: [Indice](../00_INDICE.md) | [Sistema DB](../sistema_db_supaba
 La adenda CA1-only aprobada no cambia ninguna adopcion DB. CA2 local se
 clasifica como preparacion de Hito 2; Free y Pro conservan los estados
 observados de esta matriz. El release CA1-only debe probar diff DB vacio.
+F10.7 promovio tecnicamente a `main`, pero `DB Sync to Production` run
+`30969158711` quedo cancelado con jobs `steps=[]`; por tanto no agrega adopcion,
+DDL/DML, verificacion de esquema ni postcondicion DB nueva.
 
 ## Evidencia
 
@@ -34,7 +37,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 |---|---|---|---|---|---|---|
 | Cuatro estaciones y gates | Free | Evidencia identificable | Efectiva | Base Git disponible | `ledger_applied` | Conservar como contrato; no copiar filas |
 | Cuatro estaciones y gates | Pro | Evidencia parcial y auxiliar | Efectiva con drift | Base Git disponible | `ledger_applied` solo para postcondiciones verificadas | No inferir paridad por stems |
-| Hito 1 CA1-only (`H1-CA1`) | Free/Pro | Sin nueva evidencia de adopcion por este rebaseline | Sin cambios DB requeridos para CA1-only documental | Candidate futuro debe demostrar diff DB vacio | `source_unavailable` para cambios nuevos | No DDL/DML, no backfill y no promocion DB en Hito 1 CA1-only |
+| Hito 1 CA1-only (`H1-CA1`) | Free/Pro | Sin nueva evidencia de adopcion por F10.7; DB Sync `30969158711` cancelado cero-pasos | Sin cambios DB requeridos para CA1-only documental ni entrega tecnica post-main | Boundary F10.7 demuestra promocion Git; no contiene package DB nuevo | `source_unavailable` para cambios nuevos | No DDL/DML, no backfill y no promocion DB en Hito 1 CA1-only |
 | Antecedente CA2 (`H1-CA2P`, `H1-CA7P`) | Free | Gate B FAIL; origen ACL atestado read-only | Fuentes observadas reparables; snapshot actual no observado | Candidate v3 local F6-F8 + closure + retiro de trigger; hold actual y [PR-O v1](./pr_o_f9_7_v3_hold.md) `SUPERSEDED_NON_PROMOTABLE`; [PR-O executor privado](./pr_o_f9_7_successor_private_executor.md) `CERTIFIED_LOCAL_PR_O_SUCCESSOR`; runbooks no ejecutables | `observed_effective_unledgered` | `SUPERSEDED_FOR_HITO_1`; antecedente de Hito 2, sin GO_FOR_FREE |
 | Antecedente CA2 (`H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | No promover en Hito 1; Hito 2 requiere package y evidencia nueva |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |

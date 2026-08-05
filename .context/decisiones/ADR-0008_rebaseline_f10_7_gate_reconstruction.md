@@ -4,10 +4,16 @@
 |---|---|
 | ID | `ADR-0008` |
 | Estado | `ACCEPTED` |
+| Estado posterior | Consumida por [ADR-0009](./ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) |
 | Decision humana | `USER_OWNER_APPROVED_F10_7_CYCLE1_2026-08-04` |
 | Contexto relacionado | `REQ-EST-001`, `HITO-001`, `TASK-H1-001`, `F10.7`, `PLAN-H1-CA1-ONLY-001` |
 
 ## Contexto
+
+Nota posterior: [ADR-0009](./ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md)
+registra que F10.7 completo la entrega tecnica post-main por PR #291. Esta ADR
+permanece como decision de rebaseline que habilito esa correccion, no como estado
+vivo posterior.
 
 F10.6 dejo el control-plane fail-closed y activo F10.7 para preparar el PR `certificacion -> main`. Durante la investigacion read-only de F10.7 se verifico que `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` no contiene `.github/workflows/f9-7-contract.yml` ni el job `f10-main-boundary` requerido para bloquear la promocion a `main`.
 

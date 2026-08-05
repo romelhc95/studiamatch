@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_6_CONTROL_PLANE_DONE_F10_7_ACTIVE` |
+| Estado | `F10_7_TECHNICAL_DELIVERY_RECORDED` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -13,9 +13,10 @@ Este plan queda vigente por adenda aprobada y rebaseline del Context Graph. No
 ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
 QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
-`USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. Production,
+`USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. F10.7 quedo
+registrada como entrega tecnica post-main por PR #291. Production canary,
 schedules, F10.8 y posteriores permanecen bloqueados hasta autorizaciones
-separadas; F10.7 queda activa pendiente de autorizacion para PR a `main`.
+separadas.
 
 ## Objetivo
 
@@ -75,8 +76,9 @@ usa una frontera por patch:
 4. F9.9 prueba equivalencia, ausencia CA2, canary y QA.
 5. F9.9 cierra QA independiente y controles pre-main de repositorio antes de readiness.
 6. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
-7. F10 ejecuta PR a `main`, canary Production con schedules apagados.
-8. F10 habilita schedules gradualmente y observa la operacion.
+7. F10.7 ejecuta PR a `main` y registra entrega tecnica post-merge.
+8. F10.8 ejecuta canary Production con schedules apagados.
+9. F10.9 habilita schedules gradualmente y observa la operacion.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -274,7 +276,8 @@ reclasifica el freeze de 32 objetos y `USER_PERSONAL_UAT=PASS` como
 `SUPERSEDED_FOR_F10_7_PROMOTION`. Siguen siendo evidencia historica de F9.10,
 pero F10.7 Cycle 2 debe producir una nueva autoridad de promocion.
 
-Cycle 2, cuando sea autorizado nuevamente con la frase decimal exacta, debe:
+El plan definido para Cycle 2, condicionado a nueva autorizacion decimal exacta,
+fue:
 
 - reconstruir en `desarrollo` y luego selectivamente en `certificacion` solo
   `.github/workflows/security-audit.yml`, `.github/workflows/opencode.yml` y
@@ -296,9 +299,39 @@ Cycle 2, cuando sea autorizado nuevamente con la frase decimal exacta, debe:
 - cancelar `DB Sync to Production` tras el merge a `main` antes de aprobacion o
   pasos, verificando `steps=[]` y cero pending deployments.
 
-Cycle 1 no autoriza PR a `certificacion`, PR a `main`, workflow dispatch,
+Cycle 1 no autorizo PR a `certificacion`, PR a `main`, workflow dispatch,
 aprobacion de environments, Supabase, Cloudflare deployment, DDL/DML,
-backup/restore, writers, schedules ni canary Production.
+backup/restore, writers, schedules ni canary Production. La ejecucion posterior
+de F10.7 queda registrada en la seccion siguiente.
+
+### Entrega Tecnica F10.7 Post-Main - 2026-08-04
+
+F10.7 queda registrada como entrega tecnica post-main, no como cierre contractual
+completo del Hito 1.
+
+- PR #288 remediado y mergeado a `desarrollo`; commit `989cc05` y CI run
+  `30944457900=PASS`.
+- PR #289 abierto y mergeado a `certificacion`; CI PR run `30964692610=PASS` y
+  post-merge `Security Audit Gate` `30964892097=PASS`.
+- PR #290 cerrado como superseded por proteccion `require_last_push_approval`.
+- PR #291 creado por `RELEASE_AUTHOR_RECORDED_PRIVATELY`, aprobado por
+  `APPROVING_REVIEWER_RECORDED_PRIVATELY` y mergeado a
+  `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree
+  `7d43590c19ca15171d468bf8c823a5e93b47d8cc`.
+- Boundary post-merge `main@d8f1ea0b210f2a1cf95e73751621cf8b4fcf0f93 -> main@64e4ed895d43121c5683e26a355993f18e528a5c`: 32 objetos,
+  digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`.
+- Security Audit post-main run `30969158679=PASS`; job `F10 Main Boundary`
+  `92189531095=PASS`.
+- Cloudflare Pages termino `SUCCESS` para el commit de `main`; se acepta como
+  publicacion tecnica del arbol promovido, no como canary Production.
+- `DB Sync to Production` run `30969158711=CANCELLED_ZERO_STEPS`; jobs `Report
+  pending migrations`, `Apply pending migrations`, `Verify target schema` y `FG2
+  deferred to scheduled production window` con `steps=[]`.
+- Sin runs `waiting` ni `in_progress` al cierre de verificacion.
+
+Estados resultantes: `EVID-H1-009=VERIFIED`,
+`EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY`, `EVID-H1-010..013=PENDING` y
+`EVID-H1-016=CLIENT_CONFORMITY_PENDING`.
 
 ## Work Packages Internos
 
@@ -488,14 +521,14 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
 | `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
 | `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
-| `EVID-H1-009` | PR main | Approved/Merged | `PLANNED_REBASELINE_REQUIRED` |
-| `EVID-H1-010` | Canary Production | PASS | `PLANNED` |
-| `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PLANNED` |
-| `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PLANNED` |
-| `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PLANNED` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `PENDING_F10_7_REFREEZE` |
+| `EVID-H1-009` | PR main | Approved/Merged | `VERIFIED` |
+| `EVID-H1-010` | Canary Production | PASS | `PENDING` |
+| `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PENDING` |
+| `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PENDING` |
+| `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PENDING` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `VERIFIED_POST_MERGE_BOUNDARY` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
-| `EVID-H1-016` | Conformidad cliente | APPROVED | `PLANNED` |
+| `EVID-H1-016` | Conformidad cliente | APPROVED | `CLIENT_CONFORMITY_PENDING` |
 
 ## Stop Conditions
 
@@ -505,11 +538,11 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Secret o dato sensible en diff/log.
 - SSRF, mock publicado, mutacion no probada o salida parcial verde.
 - CI, QA, canary positivo, smoke o schedule fallido, salvo la desviacion F9.9 registrada explicitamente como `DEVIATION_ACCEPTED_FAIL_CLOSED`.
-- PR a `main`, Production o schedules antes de cerrar los controles pre-main.
-- Uso del freeze F9.10 de 32 objetos como autoridad F10.7 sin re-freeze y UAT nuevo.
-- Promocion de `.github/workflows/f9-7-contract.yml` a `certificacion -> main`.
+- Production o schedules antes de cerrar los controles pre-main, F10.8 y F10.9.
+- Uso del freeze F9.10 de 32 objetos como autoridad F10.7 sin digest post-merge y evidencia nueva.
+- Promocion no verificada de `.github/workflows/f9-7-contract.yml` a `certificacion -> main`.
 - OpenCode secret-bearing sin pinning/allowlist o sin deshabilitacion segura.
-- Cloudflare Pages auto-deploy de `main` no prevenido o no verificable.
+- Cloudflare Pages de `main` no observado, no documentado o usado como sustituto de canary Production.
 
 ## Allowlist De Controles Pre-Main F9.9
 
@@ -552,18 +585,18 @@ El allowlist exacto interno de `f10-main-boundary` tambien reconoce objetos CA1 
 
 Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/db_migrate.py`, manifests DB, datos operativos fuera de snapshot privado efimero, `.env*`, cambios remotos GitHub, dispatches, canaries reales, schedules, PR a `main`, DDL/DML, backup/restore real y cualquier cambio CA2.
 
-## Allowlist De Rebaseline F10.7
+## Allowlist Historica De Rebaseline F10.7
 
-Cycle 1 queda limitado a `.context/**` y solo documenta [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), el bloqueo de promocion directa, la invalidez del freeze F9.10 como autoridad F10.7 y los requisitos de Cycle 2.
+Cycle 1 quedo limitado a `.context/**` y solo documento [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), el bloqueo de promocion directa, la invalidez del freeze F9.10 como autoridad F10.7 y los requisitos de Cycle 2.
 
-Cycle 2, tras repetir la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.7`, permite un paquete de controles con alcance maximo:
+Cycle 2, tras repetir la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.7`, permitio un paquete de controles con alcance maximo:
 
 - `.github/workflows/security-audit.yml` para reconstruir `f10-main-boundary`, hacerlo target-aware, agregarlo al agregador `security-audit` y validar SHA/tree/count/digest aprobados.
 - `.github/workflows/opencode.yml` para pinning por SHA confiable, allowlist de actores o deshabilitacion segura del workflow con secreto.
 - `tests/test_fase10_main_boundary.py` para pruebas offline de source branch, same-repo, branch-tip, path/status/mode/blob, variables aprobadas y regresiones de F10.
 - `.context/**` solo para registrar la evidencia de Cycle 2, nuevo freeze, UAT nuevo, cancelaciones cero-pasos y cierre de `EVID-H1-009`.
 
-Cycle 2 excluye `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requirements, runtime scripts, datos operativos, `.env*`, artifacts privados, workflow dispatch, canaries, schedules, DDL/DML, backup/restore, Cloudflare deployment y cualquier cambio CA2. Si la correccion exige un path adicional, debe detenerse y pedir una nueva decision humana.
+Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requirements, runtime scripts, datos operativos, `.env*`, artifacts privados, workflow dispatch, canaries, schedules, DDL/DML, backup/restore y cualquier cambio CA2. Cloudflare Pages `SUCCESS` post-main se registra como side effect tecnico observado, no como canary Production.
 
 ## Subfases F10 Propuestas
 
@@ -571,14 +604,15 @@ Cycle 2 excluye `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
-| `F10.7` | `ACTIVE_PENDING_CYCLE2_AUTHORIZATION` | Cycle 1 documental consumido para rebaseline; Cycle 2 requiere nueva frase decimal exacta, reconstruccion de gate main, hardening OpenCode, prevencion Cloudflare auto-deploy, re-freeze 33 objetos esperado, UAT nuevo y PR `certificacion -> main`. |
-| `F10.8` | `PENDING` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
+| `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
+| `F10.8` | `PENDING_AUTHORIZATION` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida
 
 `H1-CA1=COMPLETED_PRODUCTION` y `HITO-001=COMPLETED_PRODUCTION_CA1_ONLY`
-solo despues de que `EVID-H1-008` conserve su desviacion aceptada y
-`EVID-H1-009..016` queden verificadas segun sus umbrales futuros. CA2 queda
+solo despues de que `EVID-H1-008` conserve su desviacion aceptada,
+`EVID-H1-009` y `EVID-H1-014` conserven la entrega tecnica verificada y
+`EVID-H1-010..013/016` queden verificadas segun sus umbrales futuros. CA2 queda
 `DEFERRED_TO_HITO_2` sin cambio funcional productivo.
