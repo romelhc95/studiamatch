@@ -12,5 +12,6 @@ Las ADR registran decisiones humanas durables. No sustituyen el contrato, el est
 | `ADR-0006` | Incorporacion de adenda y mapa de cinco hitos | `ACCEPTED` | [ADR-0006](./ADR-0006_incorporacion_adenda_sprint_1.md) |
 | `ADR-0007` | Desviacion fail-closed del canary Certification F9.9 | `ACCEPTED` | [ADR-0007](./ADR-0007_desviacion_canary_certification_f9_9.md) |
 | `ADR-0008` | Rebaseline de F10.7 para reconstruccion de gate main | `ACCEPTED` | [ADR-0008](./ADR-0008_rebaseline_f10_7_gate_reconstruction.md) |
+| `ADR-0009` | Reconciliacion de entrega tecnica post-main F10.7 | `ACCEPTED` | [ADR-0009](./ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) |
 
 Usar la [plantilla ADR](./_plantilla_adr.md) para decisiones nuevas y enlazarlas desde este indice.

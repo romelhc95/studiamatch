@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` activa en rebaseline Cycle 1. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #285 quedo aprobado/fusionado en `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`; `Security Audit Gate` post-merge `30865604732` termino `PASS`; run automatico `30865604729` quedo `cancelled` con cero pasos; boundary historico `main -> certificacion` contiene 32 objetos y digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS` queda valido para F9.10 pero `SUPERSEDED_FOR_F10_7_PROMOTION` por [ADR-0008](../../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md). F10.6 verifico control-plane, resolvio runs antiguos y mantuvo Production/schedules/writers bloqueados. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` registrada como entrega tecnica post-main. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #291 quedo aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; `Security Audit` post-main run `30969158679` termino `PASS`; Cloudflare Pages termino `SUCCESS`; `DB Sync to Production` run `30969158711` quedo cancelado con jobs `steps=[]`; boundary post-merge contiene 32 objetos y digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`. F10.8 canary Production, F10.9 schedules/observacion y F11.1 conformidad siguen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base documental rebaseline: `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
+Base documental post-main: `desarrollo@4c214a789251b5c708186dd5645a01f07714c272` / tree `1496933c636eafa7601a062d2352a490a706585e`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -45,12 +45,11 @@ independiente `PASS`. F9.10 quedo cerrada despues de PR #285, CI post-merge,
 boundary final, run F9.9 cancelado sin pasos y `USER_PERSONAL_UAT=PASS`.
 F10.6 quedo completada para control-plane: environments programados
 fail-closed, variables verificadas, runs antiguos cancelados con cero pasos y
-sin aprobacion de deployments. F10.7 Cycle 1 documenta que el candidate de
-`certificacion` no contiene el gate `f10-main-boundary`; por tanto el freeze y
-UAT de F9.10 quedan superseded para promocion a `main` hasta reconstruir gates,
-prevenir auto-deploy Cloudflare, re-freezear y obtener UAT nuevo. Cycle 2
-requiere repetir la frase decimal exacta; no hay Production canary, schedules ni
-PR a `main` autorizados por este cierre.
+sin aprobacion de deployments. F10.7 quedo registrada como entrega tecnica
+post-main por PR #291: `main@64e4ed895d43121c5683e26a355993f18e528a5c`,
+boundary 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`,
+Cloudflare Pages `SUCCESS` y DB Sync cancelado con `steps=[]`. No hay Production
+canary, schedules ni cierre contractual autorizados por esta entrega tecnica.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -69,7 +68,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; freeze/UAT F9.10 preservados como historia | F10.7 Cycle 2 debe reconstruir gate main, harden OpenCode, impedir auto-deploy Cloudflare, re-freezear `main -> certificacion`, obtener UAT nuevo y luego PR a `main`; F10.8 canary Production, F10.9 observacion y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS` | F10.8 canary Production, F10.9 observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -223,9 +222,9 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - `EVID-H1-007=VERIFIED` por PR #277 `APPROVED/MERGED`.
 - `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`: los canaries Certification observaron salida no cero ante inventario invalido o HTTP 403 observado desde GitHub-hosted runners; cleanup e idempotencia pasaron cuando hubo snapshot.
 - La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
-- `EVID-H1-014=PENDING_REVERIFY_MAIN_CANDIDATE`, `EVID-H1-015=VERIFIED` y `EVID-H1-009..013/016=PLANNED`.
+- `EVID-H1-009=VERIFIED` y `EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY` quedan registrados posteriormente por F10.7; `EVID-H1-015=VERIFIED`; `EVID-H1-010..013/016` permanecen pendientes.
 - La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); el resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md) verifica fail-closed sin declarar Certification PASS.
-- F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 queda `COMPLETED_READINESS_F10` con boundary real `main -> certificacion`, candidate/readiness y `USER_PERSONAL_UAT=PASS`; F10 conserva el control-plane, PR a `main`, canary Production y observacion.
+- F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 queda `COMPLETED_READINESS_F10` con boundary real `main -> certificacion`, candidate/readiness y `USER_PERSONAL_UAT=PASS`; F10 conserva el control-plane, entrega tecnica F10.7 a `main`, canary Production y observacion.
 
 ## Exclusiones Historicas Preservadas
 

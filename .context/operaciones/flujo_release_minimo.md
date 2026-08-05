@@ -14,7 +14,7 @@ fija una ruta selectiva para Hito 1 CA1-only:
 3. Reconstruir el patch sobre baseline productivo sin mergear `desarrollo`.
 4. Demostrar cero cambios `db/**`, `supabase/**`, `web/**` y CA2.
 5. PR CA1-only a `certificacion`, canary y QA.
-6. F9.10 ya declaro readiness despues de controles `main`, canary Production definido, rollback, validaciones y `USER_PERSONAL_UAT=PASS`; F10.6 completo control-plane antes del PR `certificacion -> main`, canary Production y habilitacion gradual de schedules.
+6. F9.10 ya declaro readiness despues de controles `main`, canary Production definido, rollback, validaciones y `USER_PERSONAL_UAT=PASS`; F10.6 completo control-plane y F10.7 promovio tecnicamente a `main` antes del canary Production y la habilitacion gradual de schedules.
 
 El flujo schema/backfill/free_certified anterior queda `SUPERSEDED_FOR_HITO_1` y
 se conserva solo como antecedente CA2 de Hito 2.
@@ -32,7 +32,7 @@ se conserva solo como antecedente CA2 de Hito 2.
 9. F9.10 declara readiness para F10 con candidate commit/tree inmutable, CI, review humano y sin blockers pendientes para F10.6.
 10. F10.6 ejecuto control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
 11. F10.6 cierra documentalmente y activa F10.7 antes de cualquier PR a `main`.
-12. F10.7 Cycle 1 documenta el rebaseline; Cycle 2, tras repetir la frase decimal exacta, reconstruye `f10-main-boundary`, endurece OpenCode, previene auto-deploy Cloudflare, re-freezea `main -> certificacion`, obtiene UAT nuevo y solo entonces abre PR a `main`.
+12. F10.7 documento rebaseline, reconstruyo controles, promovio por PR #291 a `main@64e4ed895d43121c5683e26a355993f18e528a5c` y registro boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`.
 13. F10.8 ejecuta canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados.
 14. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
 15. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
@@ -48,7 +48,7 @@ se conserva solo como antecedente CA2 de Hito 2.
 - Fallo de test, Context Graph, canary o smoke.
 - Diferencia no explicada entre [Matriz DB](matriz_adopcion_db.md), frontera CA1-only y ambiente real.
 - Reutilizar el freeze F9.10 de 32 objetos como autoridad F10.7 sin nuevo digest, variables aprobadas y UAT nuevo.
-- Permitir deployment automatico de Cloudflare Pages en `main` antes de autorizacion Production separada.
+- Tener un deployment Cloudflare Pages de `main` no observado, no documentado o usado como sustituto de canary Production.
 
 ## Schedules
 
@@ -65,7 +65,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda activa en dos ciclos segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), y F10.8-F10.9 permanecen bloqueadas.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8-F10.9 permanecen bloqueadas.
 
 ## Subfases F10 CA1-Only
 
@@ -73,8 +73,8 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 |---|---|---|
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia sustituida; no autoriza ejecucion. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
-| `F10.7` | `ACTIVE_PENDING_CYCLE2_AUTHORIZATION` | Cycle 1 rebaseline documental; Cycle 2 requiere nueva autorizacion decimal, gate main reconstruido, Cloudflare auto-deploy prevenido, freeze/UAT nuevo y PR `certificacion -> main`. |
-| `F10.8` | `PENDING` | Canary Production manual, acotado y restaurable. |
+| `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
+| `F10.8` | `PENDING_AUTHORIZATION` | Canary Production manual, acotado y restaurable. |
 | `F10.9` | `PENDING` | Schedules graduales y observacion 72h + tres pares FG2 -> FG3 completos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 
