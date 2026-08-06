@@ -65,7 +65,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8-F10.9 permanecen bloqueadas.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 esta activa pero bloqueada por variable faltante en `Production`; F10.9 permanece bloqueada.
 
 ## Subfases F10 CA1-Only
 
@@ -74,7 +74,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia sustituida; no autoriza ejecucion. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `PENDING_AUTHORIZATION` | Canary Production manual, acotado y restaurable. |
+| `F10.8` | `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE` | Canary Production manual no acreditado; dos runs fail-closed cero-mutacion; falta `F10_PRODUCTION_CANARY_SUPABASE_HOST` en `Production` y un unico retry autorizado. |
 | `F10.9` | `PENDING` | Schedules graduales y observacion 72h + tres pares FG2 -> FG3 completos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 

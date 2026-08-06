@@ -27,7 +27,7 @@ segun corresponda.
 
 | Hito | Documento | Estado |
 |---|---|---|
-| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F10_7_TECHNICAL_DELIVERY_RECORDED` |
+| Hito 1 | [Paquete Hito 1](./paquete_hito_001.md) | `DRAFT_WITH_F10_8_BLOCKED_ENVIRONMENT_VARIABLE` |
 | Hito 2 | Se crea con candidate real | `PLANNED` |
 | Hito 3 | Se crea con candidate real | `PLANNED` |
 | Hito 4 | Se crea con candidate real | `PLANNED` |
