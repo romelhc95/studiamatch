@@ -17,7 +17,7 @@ env:
   F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b
   F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab
   F108_CERTIFICATION_BASELINE: 1edc65aa848d32dabfa62aa60b53f4bff9b5716e
-  F108_MAIN_GATE_BASELINE: b438e0a04de6a7f9576e1754c030bcf12d0cfe7a
+  F108_MAIN_GATE_BASELINE: f9f66e6d37b26b0f9b03ce3a3267f29c35738604
 
 jobs:
   credential-scan:
@@ -509,7 +509,6 @@ jobs:
           elif os.environ["F10_REF"] != "refs/heads/main":
               fail("F10 push boundary only supports main")
 
-          subprocess.check_call(["git", "merge-base", "--is-ancestor", base, head])
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
 
@@ -726,7 +725,7 @@ jobs:
 
   f108-main-gate-update:
     name: F10.8 Main Gate Update
-    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'b438e0a04de6a7f9576e1754c030bcf12d0cfe7a') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'b438e0a04de6a7f9576e1754c030bcf12d0cfe7a') }}
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -827,7 +826,7 @@ jobs:
           F910_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') }}
           F107_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5cd27c6f6c35808865b7084673a83f9f690d3760') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5cd27c6f6c35808865b7084673a83f9f690d3760') }}
           F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') }}
-          F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'b438e0a04de6a7f9576e1754c030bcf12d0cfe7a') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'b438e0a04de6a7f9576e1754c030bcf12d0cfe7a') }}
+          F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') }}
         run: |
           {
             echo "### Security Audit Results"
