@@ -71,6 +71,11 @@ def _ensure_production_supabase_target():
             raise RuntimeError(f"{variable_name} does not match the Production Supabase host allowlist")
 
 
+def _mask_github_value(value):
+    if os.getenv("GITHUB_ACTIONS") == "true" and value not in (None, ""):
+        print(f"::add-mask::{value}")
+
+
 def _canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
@@ -127,14 +132,14 @@ def _has_any_canary_marker(table, row):
 
 
 def _ensure_clean_prestate(tables):
-    dirty = [
-        f"{table}:{_row_id(row)}"
+    dirty_count = sum(
+        1
         for table, rows in tables.items()
         for row in rows
         if _has_any_canary_marker(table, row)
-    ]
-    if dirty:
-        raise RuntimeError(f"Canary pre-state contains dirty canary leftovers: {', '.join(dirty[:10])}")
+    )
+    if dirty_count:
+        raise RuntimeError("Canary pre-state contains dirty canary leftovers")
 
 
 def _digest_rows(rows):
@@ -157,7 +162,7 @@ def _row_map(rows):
     for row in rows:
         row_id = _row_id(row)
         if row_id in result:
-            raise RuntimeError(f"Duplicate row id in canary state: {row_id}")
+            raise RuntimeError("Duplicate row id in canary state")
         result[row_id] = row
     return result
 
@@ -194,7 +199,7 @@ def _resolve_institution(db, slug):
         limit=2,
     )
     if len(rows) != 1:
-        raise RuntimeError(f"Expected exactly one institution for slug: {slug}")
+        raise RuntimeError("Expected exactly one institution for canary cohort")
     return rows[0]
 
 
@@ -295,6 +300,8 @@ def capture_snapshot(args):
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
 
     tables = {
         table: _select_table_rows(db, table, institution_id)
@@ -340,7 +347,7 @@ def _delete_extra_rows(db, table, rows, snapshot_generated_at, canary_run_id):
             or created_at <= snapshot_time
         ):
             raise RuntimeError(
-                f"Refusing to delete pre-existing or unverified extra row from {table}: {row_id}"
+                "Refusing to delete pre-existing or unverified extra canary row"
             )
         result = db.delete(table, filters=f"id=eq.{quote(row_id, safe='')}")
         if not result:
@@ -389,6 +396,8 @@ def restore_snapshot(args):
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
     summary = {
         "schema": SUMMARY_SCHEMA,
         "operation": "restore",

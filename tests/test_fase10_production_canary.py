@@ -199,10 +199,13 @@ def _helper_namespace(relative: str, names: set[str]) -> dict[str, object]:
 
 def test_production_canary_workflow_is_manual_main_only_and_sha_locked() -> None:
     workflow = source(".github/workflows/production_canary.yml")
+    dispatch_inputs = workflow.split("workflow_dispatch:", 1)[1].split("concurrency:", 1)[0]
 
     assert "workflow_dispatch:" in workflow
     assert "schedule:" not in workflow
-    assert workflow.split("workflow_dispatch:", 1)[1].split("concurrency:", 1)[0].count("description:") == 10
+    assert dispatch_inputs.count("description:") == 8
+    assert "institution_slug:" not in dispatch_inputs
+    assert "fg1_source_slug:" not in dispatch_inputs
     assert "name: Production" in workflow
     assert "github.ref_name == 'main'" in workflow
     assert 'test "$GITHUB_REF_NAME" = "main"' in workflow
@@ -215,10 +218,15 @@ def test_production_canary_workflow_is_manual_main_only_and_sha_locked() -> None
 def test_production_canary_requires_target_allowlist_and_mutable_authorization() -> None:
     workflow = source(".github/workflows/production_canary.yml")
 
-    assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ vars.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
+    assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
+    assert "F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}" in workflow
+    assert "vars.F10_PRODUCTION_CANARY_SUPABASE_HOST" not in workflow
     assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow
     assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST is required" in workflow
+    assert "Production Supabase target does not match allowlist" in workflow
+    assert "::add-mask::$canary_secret_slug" in workflow
+    assert "::add-mask::$canary_secret_host" in workflow
     assert "mutable_stages:" in workflow
     assert "default: fg2_fg3" in workflow
     assert "Invalid mutable_stages value" in workflow
@@ -246,17 +254,25 @@ def test_production_canary_uses_private_snapshot_and_idempotent_restore() -> Non
     assert "production_canary_state.py restore" in workflow
     assert "--expect-noop" in workflow
     upload_section = workflow.split("Upload sanitized canary manifests", 1)[1]
+    print_section = workflow.split("Print sanitized manifests", 1)[1].split("Upload sanitized canary manifests", 1)[0]
     assert "name: f10-production-canary-manifests" in upload_section
+    assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in print_section
+    assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in upload_section
     assert "${{ github.run_id }}" not in upload_section
     assert "${{ github.run_attempt }}" not in upload_section
     assert "path: artifacts/f10_production_canary_*.json" in workflow
     assert "private_snapshot.json" not in upload_section
+    assert "if-no-files-found: ignore" in upload_section
+    assert "CANARY_SNAPSHOT_COMPLETED=true" in workflow
+    assert "Skipping mutable restore because no snapshot was captured." in workflow
 
 
 def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     workflow = source(".github/workflows/production_canary.yml")
 
     run_blocks = "\n".join(block for block in workflow.split("\n      - name:") if "run: |" in block)
+    assert "${{ inputs.institution_slug }}" not in workflow
+    assert "${{ inputs.fg1_source_slug }}" not in workflow
     assert "${{ inputs.institution_slug }}" not in run_blocks
     assert "${{ inputs.fg1_source_slug }}" not in run_blocks
     assert "${{ inputs.max_harvest_urls }}" not in run_blocks
@@ -265,6 +281,7 @@ def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     assert "${{ inputs.max_sync_records }}" not in run_blocks
     assert "${{ inputs.max_integrity_courses }}" not in run_blocks
     assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
+    assert "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug" in workflow
 
 
 def test_production_canary_manifests_are_sanitized() -> None:
@@ -277,8 +294,11 @@ def test_production_canary_manifests_are_sanitized() -> None:
     assert '"sha": os.getenv("GITHUB_SHA")' not in manifest
     assert '"run_id": os.getenv("GITHUB_RUN_ID")' not in manifest
     assert "CANARY_INSTITUTION_ID" in manifest
+    assert "::add-mask::" in manifest
+    assert manifest.index('_mask_github_value(institution_id)') < manifest.index('profile = _load_profile')
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST" in manifest
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST" in state
+    assert "::add-mask::" in state
     assert '"private_digest"' not in state
     assert '"cohort": {"institution_slug": "redacted"}' in state
     assert '"institution_name"' not in state
@@ -320,6 +340,82 @@ def test_production_canary_manifest_uses_fake_db_and_sanitizes_artifact(
     assert manifest["profile_gates"]["production_enabled"] is True
     assert manifest["counts"]["staging_pending"] == 1
     assert "CANARY_INSTITUTION_ID=inst-1" in env_file.read_text(encoding="utf-8")
+
+
+def test_production_canary_target_mismatch_fails_before_db_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_production_canary_env(monkeypatch)
+    monkeypatch.setenv("SUPABASE_URL", "https://wrong.example.supabase.co")
+    monkeypatch.setenv("NEXT_PUBLIC_SUPABASE_URL", "https://wrong.example.supabase.co")
+
+    def fail_get_db_client():
+        raise AssertionError("db client should not be created before target validation")
+
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", fail_get_db_client)
+    args = SimpleNamespace(
+        institution_slug="private-demo",
+        stage="pre",
+        github_env=None,
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=5,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_manifest.build_manifest(args)
+
+    message = str(excinfo.value)
+    assert "allowlist" in message
+    assert "wrong.example" not in message
+    assert "private-demo" not in message
+
+
+def test_production_canary_state_target_mismatch_fails_before_db_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    monkeypatch.setenv("SUPABASE_URL", "https://wrong.example.supabase.co")
+    monkeypatch.setenv("NEXT_PUBLIC_SUPABASE_URL", "https://wrong.example.supabase.co")
+
+    def fail_get_db_client():
+        raise AssertionError("db client should not be created before target validation")
+
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", fail_get_db_client)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+
+    message = str(excinfo.value)
+    assert "allowlist" in message
+    assert "wrong.example" not in message
+
+
+def test_production_canary_institution_lookup_errors_do_not_include_slug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", lambda: fake)
+    args = SimpleNamespace(
+        institution_slug="private-missing",
+        stage="pre",
+        github_env=None,
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=5,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_manifest.build_manifest(args)
+
+    message = str(excinfo.value)
+    assert "canary cohort" in message
+    assert "private-missing" not in message
 
 
 def test_production_canary_snapshot_restore_and_second_noop_are_offline_and_sanitized(

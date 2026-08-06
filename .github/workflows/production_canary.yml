@@ -7,14 +7,6 @@ on:
         description: Exact main commit approved for the Production canary
         required: true
         type: string
-      institution_slug:
-        description: Exact institution slug to canary in Production
-        required: true
-        type: string
-      fg1_source_slug:
-        description: Optional FG1 source slug; defaults to institution_slug
-        required: false
-        type: string
       max_harvest_urls:
         description: Maximum URLs FG2 may discover/harvest
         required: true
@@ -52,7 +44,7 @@ on:
         type: boolean
 
 concurrency:
-  group: f10-production-canary-${{ github.ref }}-${{ inputs.institution_slug }}
+  group: f10-production-canary-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -69,15 +61,14 @@ jobs:
     env:
       CANARY_EXPECTED_ENVIRONMENT: Production
       F10_PRODUCTION_CANARY_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-      F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ vars.F10_PRODUCTION_CANARY_SUPABASE_HOST }}
+      F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}
+      F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}
       AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
       PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PYTHONIOENCODING: utf-8
       PYTHONPATH: .
       INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-      INPUT_INSTITUTION_SLUG: ${{ inputs.institution_slug }}
-      INPUT_FG1_SOURCE_SLUG: ${{ inputs.fg1_source_slug }}
       INPUT_MAX_HARVEST_URLS: ${{ inputs.max_harvest_urls }}
       INPUT_MAX_STAGING_RECORDS: ${{ inputs.max_staging_records }}
       INPUT_MAX_ENRICHMENT_RECORDS: ${{ inputs.max_enrichment_records }}
@@ -102,6 +93,20 @@ jobs:
           test "$(git rev-parse HEAD)" = "$INPUT_CANDIDATE_SHA"
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "$INPUT_CANDIDATE_SHA"
+          {
+            echo "CANARY_TARGET_PREFLIGHT_PASSED=false"
+            echo "CANARY_PRE_MANIFEST_COMPLETED=false"
+            echo "CANARY_SNAPSHOT_COMPLETED=false"
+          } >> "$GITHUB_ENV"
+
+          canary_secret_slug="${F10_PRODUCTION_CANARY_INSTITUTION_SLUG:-}"
+          canary_secret_host="${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}"
+          if [ -n "$canary_secret_slug" ]; then
+            echo "::add-mask::$canary_secret_slug"
+          fi
+          if [ -n "$canary_secret_host" ]; then
+            echo "::add-mask::$canary_secret_host"
+          fi
 
           normalize_bool() {
             case "${1:-}" in
@@ -126,13 +131,9 @@ jobs:
             printf '%s' "$value"
           }
 
-          case "$INPUT_INSTITUTION_SLUG" in
-            ''|*[!a-z0-9-]*) echo "Invalid institution_slug" >&2; exit 1 ;;
+          case "$canary_secret_slug" in
+            ''|*[!a-z0-9-]*) echo "Invalid canary cohort secret" >&2; exit 1 ;;
           esac
-          if [ -n "$INPUT_FG1_SOURCE_SLUG" ] && [ "$INPUT_FG1_SOURCE_SLUG" != "$INPUT_INSTITUTION_SLUG" ]; then
-            echo "fg1_source_slug must be empty or equal to institution_slug" >&2
-            exit 1
-          fi
           if [ -z "$F10_PRODUCTION_CANARY_SUPABASE_HOST" ]; then
             echo "F10_PRODUCTION_CANARY_SUPABASE_HOST is required" >&2
             exit 1
@@ -153,8 +154,8 @@ jobs:
           fi
 
           {
-            echo "CANARY_REQUESTED_INSTITUTION_SLUG=$INPUT_INSTITUTION_SLUG"
-            echo "CANARY_FG1_SOURCE_SLUG=$INPUT_FG1_SOURCE_SLUG"
+            echo "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug"
+            echo "CANARY_FG1_SOURCE_SLUG=$canary_secret_slug"
             echo "CANARY_MAX_HARVEST_URLS=$(resolve_number "$INPUT_MAX_HARVEST_URLS" 5)"
             echo "CANARY_MAX_STAGING_RECORDS=$(resolve_number "$INPUT_MAX_STAGING_RECORDS" 5)"
             echo "CANARY_MAX_ENRICHMENT_RECORDS=$(resolve_number "$INPUT_MAX_ENRICHMENT_RECORDS" 3)"
@@ -167,6 +168,42 @@ jobs:
             echo "CANARY_STATE_DIR=$RUNNER_TEMP/f10_production_canary_state"
             echo "CANARY_PRIVATE_SNAPSHOT=$RUNNER_TEMP/f10_production_canary_state/private_snapshot.json"
           } >> "$GITHUB_ENV"
+
+      - name: Guard Production Supabase target
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}" ]; then
+            echo "::add-mask::$F10_PRODUCTION_CANARY_SUPABASE_HOST"
+          fi
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse
+
+          expected_host = os.environ.get("F10_PRODUCTION_CANARY_SUPABASE_HOST", "").strip().lower()
+          if not expected_host:
+              raise RuntimeError("Production Supabase target allowlist is not configured")
+          for variable_name in ("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"):
+              parsed = urlparse(os.environ.get(variable_name, ""))
+              try:
+                  port = parsed.port
+              except ValueError as exc:
+                  raise RuntimeError("Production Supabase target URL is invalid") from exc
+              host = (parsed.hostname or "").lower()
+              if (
+                  parsed.scheme != "https"
+                  or parsed.username
+                  or parsed.password
+                  or port not in (None, 443)
+                  or host != expected_host
+              ):
+                  raise RuntimeError("Production Supabase target does not match allowlist")
+          print("Production Supabase target preflight passed")
+          PY
+          echo "CANARY_TARGET_PREFLIGHT_PASSED=true" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -204,6 +241,7 @@ jobs:
             --max-enrichment-records "$CANARY_MAX_ENRICHMENT_RECORDS" \
             --max-sync-records "$CANARY_MAX_SYNC_RECORDS" \
             --max-integrity-courses "$CANARY_MAX_INTEGRITY_COURSES"
+          echo "CANARY_PRE_MANIFEST_COMPLETED=true" >> "$GITHUB_ENV"
 
       - name: Capture private mutable canary pre-state
         env:
@@ -225,6 +263,7 @@ jobs:
             --summary-output artifacts/f10_production_canary_snapshot.json
           test "$(stat -c '%a' "$CANARY_STATE_DIR")" = "700"
           test "$(stat -c '%a' "$CANARY_PRIVATE_SNAPSHOT")" = "600"
+          echo "CANARY_SNAPSHOT_COMPLETED=true" >> "$GITHUB_ENV"
 
       - name: FG1 one-source inventory canary
         env:
@@ -338,6 +377,10 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
+          if [ "${CANARY_SNAPSHOT_COMPLETED:-false}" != "true" ]; then
+            echo "Skipping post-canary manifest because no snapshot was captured."
+            exit 0
+          fi
           if [ -z "${CANARY_REQUESTED_INSTITUTION_SLUG:-}" ]; then
             echo "Skipping post-canary manifest because canary inputs were not normalized."
             exit 0
@@ -359,6 +402,10 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
+          if [ "${CANARY_SNAPSHOT_COMPLETED:-false}" != "true" ]; then
+            echo "Skipping mutable restore because no snapshot was captured."
+            exit 0
+          fi
           if [ "${CANARY_RUN_FG2:-false}" != "true" ] && [ "${CANARY_RUN_FG3:-false}" != "true" ]; then
             echo "Skipping mutable restore because FG2 and FG3 are disabled."
             exit 0
@@ -378,6 +425,10 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
+          if [ "${CANARY_SNAPSHOT_COMPLETED:-false}" != "true" ]; then
+            echo "Skipping idempotence check because no snapshot was captured."
+            exit 0
+          fi
           if [ "${CANARY_RUN_FG2:-false}" != "true" ] && [ "${CANARY_RUN_FG3:-false}" != "true" ]; then
             echo "Skipping idempotence check because FG2 and FG3 are disabled."
             exit 0
@@ -398,6 +449,10 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
+          if [ "${CANARY_SNAPSHOT_COMPLETED:-false}" != "true" ]; then
+            echo "Skipping after-cleanup manifest because no snapshot was captured."
+            exit 0
+          fi
           if [ -z "${CANARY_REQUESTED_INSTITUTION_SLUG:-}" ]; then
             echo "Skipping after-cleanup manifest because canary inputs were not normalized."
             exit 0
@@ -412,19 +467,25 @@ jobs:
             --max-integrity-courses "${CANARY_MAX_INTEGRITY_COURSES:-3}"
 
       - name: Print sanitized manifests
-        if: always()
+        if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'
         run: |
           set -euo pipefail
-          for manifest in artifacts/f10_production_canary_*.json; do
+          shopt -s nullglob
+          manifests=(artifacts/f10_production_canary_*.json)
+          if [ "${#manifests[@]}" -eq 0 ]; then
+            echo "Skipping sanitized manifest print because no manifests were produced."
+            exit 0
+          fi
+          for manifest in "${manifests[@]}"; do
             test -s "$manifest"
             python -m json.tool "$manifest"
           done
 
       - name: Upload sanitized canary manifests
-        if: always()
+        if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: f10-production-canary-manifests
           path: artifacts/f10_production_canary_*.json
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 30

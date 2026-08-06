@@ -343,7 +343,7 @@ PR #292 quedo aprobado/fusionado en
 `31022879169=PASS`. Esta reconciliacion no modifica `main`, no ejecuta workflow
 dispatch, no accede a Supabase y no habilita schedules.
 
-F10.8 queda activa como `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE` con autoridad
+F10.8 queda activa como `IN_PROGRESS_REMEDIATION_REQUIRED` con autoridad
 de canary congelada:
 
 | Campo | Valor |
@@ -363,14 +363,16 @@ Los intentos F10.8 realizados no acreditan `EVID-H1-010`:
 |---|---|---|
 | `31058586387` | `FAIL_CLOSED_INVALID_SLUG_ZERO_MUTATIONS` | Actor separado y environment `Production` aprobado; guard fallo por slug invalido; FG1/FG2/FG3 skipped; sin Supabase, snapshot, mutacion ni artifacts. |
 | `31061221460` | `FAIL_CLOSED_MISSING_PRODUCTION_HOST_ZERO_MUTATIONS` | Actor separado y environment `Production` aprobado; guard fallo por variable `F10_PRODUCTION_CANARY_SUPABASE_HOST` ausente; FG1/FG2/FG3 skipped; sin Supabase, snapshot, mutacion ni artifacts. |
+| `31068745673` | `FAIL_CLOSED_TARGET_ALLOWLIST_MISMATCH_ZERO_MUTATIONS` | Actor separado y environment `Production` aprobado; guard PASS; fallo en manifest pre-canary antes de crear cliente DB; sin Supabase, snapshot, FG1/FG2/FG3, mutacion, artifacts ni pending deployments. Logs mostraron identificadores operativos privados; no se detectaron credenciales. |
 
-La unica remediacion pendiente autorizable dentro de F10.8 es configurar la
-variable no secreta `F10_PRODUCTION_CANARY_SUPABASE_HOST` en el environment
-`Production` con valor privado fuera de Git y ejecutar un unico nuevo
-`workflow_dispatch` con `mutable_stages=fg2_fg3`, `mutable_authorized=true`,
-`max_harvest_urls=5`, `max_staging_records=5`, `max_enrichment_records=3`,
-`max_sync_records=3` y `max_integrity_courses=3`. `fg1_source_slug` debe quedar
-vacio o ser igual al `institution_slug` privado.
+La remediacion pendiente autorizable dentro de F10.8 es corregir el workflow para
+que el host allowlist y la cohorte privada sean secrets de environment, no inputs
+o variables visibles; enmascarar identificadores operativos antes de propagarlos;
+validar el target antes de instalar dependencias o crear cliente DB; y evitar
+cascadas de manifests, restore y artifacts cuando no exista snapshot. El retry de
+canary queda consumido: no hay nuevo `workflow_dispatch` hasta promover esta
+remediacion a `main`, congelar nuevo SHA/tree, registrar UAT nuevo y emitir una
+autorizacion decimal separada.
 
 Stop conditions especificas antes o durante F10.8:
 
@@ -386,6 +388,8 @@ Stop conditions especificas antes o durante F10.8:
   cancelacion, artifacts no sanitizados o run no aprobado por `Production`.
 - Cualquier intento de habilitar schedules, ejecutar DDL/DML, backfill, Edge,
   cambios CA2, ramas protegidas o workflow distinto del canary aprobado.
+- Cualquier intento de repetir F10.8 canary antes de cerrar la remediacion y
+  promover un nuevo SHA/tree a `main`.
 
 Ante cualquier stop condition, F10.8 queda bloqueada, no se reintenta
 automaticamente, `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`
@@ -663,7 +667,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE` | Canary Production manual no acreditado; runs `31058586387` y `31061221460` fallaron fail-closed cero-mutacion; falta configurar `F10_PRODUCTION_CANARY_SUPABASE_HOST` en `Production` y reintentar una sola vez. |
+| `F10.8` | `IN_PROGRESS_REMEDIATION_REQUIRED` | Canary Production manual no acreditado; runs `31058586387`, `31061221460` y `31068745673` fallaron fail-closed cero-mutacion; retry consumido y remediacion de workflow requerida antes de otra autorizacion de canary. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
