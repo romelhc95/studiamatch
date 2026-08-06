@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_WITH_F10_7_TECHNICAL_DELIVERY_RECORDED` |
+| Estado | `DRAFT_WITH_F10_8_BLOCKED_ENVIRONMENT_VARIABLE` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
 | Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), candidate final `certificacion@1edc65aa848d32dabfa62aa60b53f4bff9b5716e` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`, merge `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291) |
@@ -33,8 +33,10 @@ ejecutarlos. F10.6 cerro control-plane con environments programados fail-closed 
 runs legacy schedule cancelados con cero pasos. F10.7 reconstruyo los controles,
 promovio el paquete CA1-only por PR #291 a `main@64e4ed895d43121c5683e26a355993f18e528a5c`,
 verifico boundary post-merge de 32 objetos y registro Cloudflare Pages `SUCCESS`
-como publicacion tecnica del arbol promovido. Produccion observada, conformidad,
-canary Production y schedules siguen pendientes. El resultado final debera indicar
+como publicacion tecnica del arbol promovido. F10.8 registro UAT nuevo contra
+`main`, pero los runs `31058586387` y `31061221460` fallaron fail-closed antes de
+FG1/FG2/FG3 y con cero mutaciones; canary Production acreditable, schedules,
+produccion observada y conformidad siguen pendientes. El resultado final debera indicar
 claramente que se entrego CA1 y que CA2 se traslado a Hito 2.
 
 ## Alcance Entregado
@@ -79,8 +81,9 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - F9.10 readiness: run `30824041542` PASS read-only/sanitizado; PR #283 CI post-merge PASS (`30856264196`, `30856264217`); PR #285 CI post-merge `30865604732` PASS; run `30865604729` cancelado con cero pasos; boundary `main -> certificacion` = 32 objetos, digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`. No DML y no Production. El canary Production futuro queda definido con artifacts sin slug/SHA/run/digest privado.
 - F10.6 control-plane: `Production-Scheduled-FG1/FG2/FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, variables fail-closed y secrets minimos por nombre; `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`; runs `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No se aprobaron runs, no hubo retry, dispatch, schedule ejecutado, writer, Production canary, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`.
 - Entrega tecnica F10.7: PR #291 aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c`; `Security Audit` post-main run `30969158679` PASS con `F10 Main Boundary`; Cloudflare Pages `SUCCESS`; `DB Sync to Production` run `30969158711` cancelado con jobs `steps=[]`. Boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; [ADR-0009](../../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) registra que esto es entrega tecnica, no cierre contractual completo.
+- F10.8 intentos fail-closed: `USER_PERSONAL_UAT=PASS` nuevo contra `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; run `31058586387=FAIL_CLOSED_INVALID_SLUG_ZERO_MUTATIONS`; run `31061221460=FAIL_CLOSED_MISSING_PRODUCTION_HOST_ZERO_MUTATIONS`; ambos se detuvieron en guard antes de FG1/FG2/FG3, sin Supabase, snapshot, mutacion ni artifacts. Falta configurar `F10_PRODUCTION_CANARY_SUPABASE_HOST` en `Production` fuera de Git y reintentar una sola vez.
 - `EVID-H1-010` futuro requiere canary Production completo `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`, limites `5/5/3/3/3`, snapshot privado, restore y segundo restore NOOP. Runs parciales FG2-only/FG3-only seran diagnosticos, no evidencia de cierre.
-- `USER_PERSONAL_UAT=PASS` queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos; para promocion F10.7 queda superseded y debe repetirse contra el nuevo SHA/tree.
+- `USER_PERSONAL_UAT=PASS` historico queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos; para F10.8 se registro un UAT nuevo contra `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`.
 - Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); resultado `PASS` sanitizado en [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Production: pendiente.
 - Schedule observado: pendiente.

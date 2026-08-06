@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada y `F10.7` registrada como entrega tecnica post-main. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #291 quedo aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; `Security Audit` post-main run `30969158679` termino `PASS`; Cloudflare Pages termino `SUCCESS`; `DB Sync to Production` run `30969158711` quedo cancelado con jobs `steps=[]`; boundary post-merge contiene 32 objetos y digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`. Remediacion local PR #292 actualizo `tests/test_fase10_main_boundary.py` para topologia post-main y valido 36 focused tests en Docker. F10.8 canary Production, F10.9 schedules/observacion y F11.1 conformidad siguen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.6` completada, `F10.7` registrada como entrega tecnica post-main y `F10.8` activa como `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE`. F9.7 queda `COMPLETED_BY_CONTRACT_REBASELINE`, F9.8 `COMPLETED_VERIFIED_POST_MERGE`, F9.9 `COMPLETED_QA_VERIFIED` y F9.10 `COMPLETED_READINESS_F10`. PR #291 quedo aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; `Security Audit` post-main run `30969158679` termino `PASS`; Cloudflare Pages termino `SUCCESS`; `DB Sync to Production` run `30969158711` quedo cancelado con jobs `steps=[]`; boundary post-merge contiene 32 objetos y digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`. Remediacion local PR #292 actualizo `tests/test_fase10_main_boundary.py`, valido 36 focused tests en Docker y quedo mergeada en `desarrollo@a5eea3ae970e895bd8cde3da694284d7a720f81f`; post-merge `Security Audit=31022879108 PASS` y `F9.7 Local Contract=31022879169 PASS`. F10.8 registro `USER_PERSONAL_UAT=PASS` contra `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`; runs `31058586387=FAIL_CLOSED_INVALID_SLUG_ZERO_MUTATIONS` y `31061221460=FAIL_CLOSED_MISSING_PRODUCTION_HOST_ZERO_MUTATIONS`; `EVID-H1-010=PENDING`. F10.9 schedules/observacion y F11.1 conformidad siguen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base documental post-main: `desarrollo@4c214a789251b5c708186dd5645a01f07714c272` / tree `1496933c636eafa7601a062d2352a490a706585e`.
+Base documental post-main: `desarrollo@a5eea3ae970e895bd8cde3da694284d7a720f81f` / tree `968d25851c802eee5a082b8cffca2eda33f7e77e`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -49,9 +49,14 @@ sin aprobacion de deployments. F10.7 quedo registrada como entrega tecnica
 post-main por PR #291: `main@64e4ed895d43121c5683e26a355993f18e528a5c`,
 boundary 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`,
 Cloudflare Pages `SUCCESS` y DB Sync cancelado con `steps=[]`. La remediacion
-local PR #292 actualizo el test de topologia post-main y valido 36 focused tests
-en Docker sin cambiar workflows ni producto. No hay Production canary, schedules
-ni cierre contractual autorizados por esta entrega tecnica.
+local PR #292 actualizo el test de topologia post-main, valido 36 focused tests
+en Docker, fue mergeada en `desarrollo@a5eea3ae970e895bd8cde3da694284d7a720f81f`
+y tuvo validaciones post-merge `31022879108=PASS` y `31022879169=PASS`. F10.8
+queda activa como `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE`: UAT personal nuevo
+registrado contra `main`, dos canaries fallaron fail-closed antes de FG1/FG2/FG3
+y falta configurar la variable `F10_PRODUCTION_CANARY_SUPABASE_HOST` en el
+environment `Production`. No hay Production canary acreditado, schedules ni
+cierre contractual autorizados por esta entrega tecnica.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -70,7 +75,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; remediacion local PR #292 validada para topologia post-main | F10.8 canary Production, F10.9 observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; remediacion local PR #292 validada para topologia post-main; F10.8 bloqueado por variable faltante en `Production` tras fail-closed cero-mutacion | Configurar `F10_PRODUCTION_CANARY_SUPABASE_HOST`, reintentar F10.8 canary Production, F10.9 observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -248,6 +253,36 @@ deployments, workflow dispatch, reruns manuales, Supabase Free/Pro, DDL/DML,
 writers, schedules, Production canary, sincronizacion o modificacion de ramas
 protegidas, y cambios en `.github/workflows/**` salvo que una validacion local
 demuestre necesidad estricta y se solicite otra decision.
+
+## F10.8 Bloqueada Por Environment Variable
+
+F10.8 queda activa como `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE`. El candidate
+congelado es
+`main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree
+`7d43590c19ca15171d468bf8c823a5e93b47d8cc`; el workflow `production_canary.yml`
+vigente en `main` tiene blob `8959c4b8f90afe0d75f23bb6e0f99d51321f1c45`.
+
+`USER_PERSONAL_UAT=PASS` nuevo queda registrado contra ese SHA/tree. Run
+`31058586387` fue `FAIL_CLOSED_INVALID_SLUG_ZERO_MUTATIONS`: fallo en el guard,
+sin FG1/FG2/FG3, sin snapshot, sin Supabase y sin artifacts. Run `31061221460`
+fue `FAIL_CLOSED_MISSING_PRODUCTION_HOST_ZERO_MUTATIONS`: actor separado,
+aprobacion `Production` completada, checkout PASS y bloqueo en el guard por
+variable `F10_PRODUCTION_CANARY_SUPABASE_HOST` ausente; no hubo FG1/FG2/FG3,
+snapshot, acceso Supabase, mutacion ni artifact. `EVID-H1-010` permanece
+`PENDING`.
+
+La unica remediacion pendiente autorizable dentro de F10.8 es configurar en el
+environment `Production` la variable no secreta `F10_PRODUCTION_CANARY_SUPABASE_HOST`
+con valor privado fuera de Git y reintentar una sola vez el canary con cohorte
+privada ya validada, `mutable_stages=fg2_fg3`, `mutable_authorized=true` y
+limites `5/5/3/3/3`.
+
+Stop conditions de F10.8: candidato distinto de `origin/main`, slug o host no
+aprobado, environment ambiguo, UAT ausente, secreto en logs/artifacts, snapshot
+privado ausente, restore fallido, segundo restore no-NOOP, mutacion fuera de
+cohorte, salida parcial verde, cancelacion/timeout o cualquier intento de activar
+schedules, DDL/DML, backfill, Edge o cambios CA2. Ante stop condition, no se
+reintenta automaticamente y F10.9 permanece bloqueada.
 
 ## Exclusiones Historicas Preservadas
 

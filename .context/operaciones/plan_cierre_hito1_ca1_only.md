@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_7_TECHNICAL_DELIVERY_RECORDED` |
+| Estado | `F10_8_BLOCKED_ENVIRONMENT_VARIABLE` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -14,9 +14,10 @@ ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
 QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
 `USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. F10.7 quedo
-registrada como entrega tecnica post-main por PR #291. Production canary,
-schedules, F10.8 y posteriores permanecen bloqueados hasta autorizaciones
-separadas.
+registrada como entrega tecnica post-main por PR #291 y remediada localmente por
+PR #292. F10.8 queda bloqueada por variable faltante en el environment
+`Production`; schedules y fases posteriores permanecen bloqueados hasta
+autorizaciones separadas.
 
 ## Objetivo
 
@@ -333,6 +334,63 @@ Estados resultantes: `EVID-H1-009=VERIFIED`,
 `EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY`, `EVID-H1-010..013=PENDING` y
 `EVID-H1-016=CLIENT_CONFORMITY_PENDING`.
 
+### Readiness Pre-Canary F10.8 - 2026-08-05
+
+PR #292 quedo aprobado/fusionado en
+`desarrollo@a5eea3ae970e895bd8cde3da694284d7a720f81f` / tree
+`968d25851c802eee5a082b8cffca2eda33f7e77e`. Sus validaciones post-merge fueron
+`Security Audit Gate` `31022879108=PASS` y `F9.7 Local Contract`
+`31022879169=PASS`. Esta reconciliacion no modifica `main`, no ejecuta workflow
+dispatch, no accede a Supabase y no habilita schedules.
+
+F10.8 queda activa como `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE` con autoridad
+de canary congelada:
+
+| Campo | Valor |
+|---|---|
+| `candidate_sha` | `64e4ed895d43121c5683e26a355993f18e528a5c` |
+| `candidate_tree` | `7d43590c19ca15171d468bf8c823a5e93b47d8cc` |
+| Workflow | `.github/workflows/production_canary.yml` |
+| Workflow blob en `main` | `8959c4b8f90afe0d75f23bb6e0f99d51321f1c45` |
+| Cohorte | `institution_slug` seleccionado privadamente; no registrar en Git |
+| UAT | `USER_PERSONAL_UAT=PASS` nuevo contra este SHA/tree antes del GO operativo |
+| Environment | `Production`, aprobacion humana separada durante el workflow |
+
+El `USER_PERSONAL_UAT=PASS` nuevo queda registrado contra el SHA/tree congelado.
+Los intentos F10.8 realizados no acreditan `EVID-H1-010`:
+
+| Run | Estado | Resultado |
+|---|---|---|
+| `31058586387` | `FAIL_CLOSED_INVALID_SLUG_ZERO_MUTATIONS` | Actor separado y environment `Production` aprobado; guard fallo por slug invalido; FG1/FG2/FG3 skipped; sin Supabase, snapshot, mutacion ni artifacts. |
+| `31061221460` | `FAIL_CLOSED_MISSING_PRODUCTION_HOST_ZERO_MUTATIONS` | Actor separado y environment `Production` aprobado; guard fallo por variable `F10_PRODUCTION_CANARY_SUPABASE_HOST` ausente; FG1/FG2/FG3 skipped; sin Supabase, snapshot, mutacion ni artifacts. |
+
+La unica remediacion pendiente autorizable dentro de F10.8 es configurar la
+variable no secreta `F10_PRODUCTION_CANARY_SUPABASE_HOST` en el environment
+`Production` con valor privado fuera de Git y ejecutar un unico nuevo
+`workflow_dispatch` con `mutable_stages=fg2_fg3`, `mutable_authorized=true`,
+`max_harvest_urls=5`, `max_staging_records=5`, `max_enrichment_records=3`,
+`max_sync_records=3` y `max_integrity_courses=3`. `fg1_source_slug` debe quedar
+vacio o ser igual al `institution_slug` privado.
+
+Stop conditions especificas antes o durante F10.8:
+
+- `candidate_sha` distinto de `origin/main` o tree no verificable.
+- `institution_slug` no seleccionado privadamente, no elegible, no
+  `pipeline_ready`/`production_enabled` o expuesto en Git/logs/artifacts.
+- `USER_PERSONAL_UAT=PASS` nuevo ausente para `main@64e4ed895d43121c5683e26a355993f18e528a5c`.
+- Host Supabase Production no allowlisted, environment ambiguo, secrets faltantes
+  por nombre o secretos impresos.
+- Snapshot privado ausente, permisos no restrictivos, restore fallido o segundo
+  restore no-NOOP.
+- Mutacion fuera de cohorte, limite excedido, salida parcial verde, timeout,
+  cancelacion, artifacts no sanitizados o run no aprobado por `Production`.
+- Cualquier intento de habilitar schedules, ejecutar DDL/DML, backfill, Edge,
+  cambios CA2, ramas protegidas o workflow distinto del canary aprobado.
+
+Ante cualquier stop condition, F10.8 queda bloqueada, no se reintenta
+automaticamente, `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`
+permanecen vigentes, `EVID-H1-010=PENDING` y F10.9 no puede iniciar.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
@@ -605,7 +663,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `PENDING_AUTHORIZATION` | Canary Production manual, acotado, SHA-bound, snapshot privado, restore idempotente y artifacts sanitizados. |
+| `F10.8` | `IN_PROGRESS_BLOCKED_ENVIRONMENT_VARIABLE` | Canary Production manual no acreditado; runs `31058586387` y `31061221460` fallaron fail-closed cero-mutacion; falta configurar `F10_PRODUCTION_CANARY_SUPABASE_HOST` en `Production` y reintentar una sola vez. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
