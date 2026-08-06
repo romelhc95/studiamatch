@@ -4,11 +4,11 @@ import ast
 import json
 import os
 import stat
-import tempfile
-from contextlib import contextmanager
-from pathlib import Path
 from types import SimpleNamespace
+from pathlib import Path
 from urllib.parse import unquote
+
+import pytest
 
 from scripts.core import production_canary_manifest, production_canary_state
 
@@ -18,23 +18,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def source(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
-
-
-@contextmanager
-def temporary_env(values: dict[str, str], *, delete: tuple[str, ...] = ()):  # noqa: ANN201
-    keys = set(values) | set(delete)
-    previous = {key: os.environ.get(key) for key in keys}
-    try:
-        for key in delete:
-            os.environ.pop(key, None)
-        os.environ.update(values)
-        yield
-    finally:
-        for key, value in previous.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
 
 
 class FakeProductionCanaryDB:
@@ -96,7 +79,7 @@ class FakeProductionCanaryDB:
     def delete(self, table: str, filters: str) -> list[dict[str, object]]:
         deleted = [row for row in self.tables[table] if self._matches(row, filters)]
         self.tables[table] = [row for row in self.tables[table] if not self._matches(row, filters)]
-        return [dict(row) for row in deleted]
+        return deleted
 
     def patch_exact_one_raise(self, table: str, filters: str, data: dict[str, object], expected_id: object) -> None:
         if self.patch_fails:
@@ -107,8 +90,8 @@ class FakeProductionCanaryDB:
         matches[0].update(data)
 
 
-def _production_canary_env(*, run_id: str = "run-1") -> dict[str, str]:
-    return {
+def _set_production_canary_env(monkeypatch: pytest.MonkeyPatch, *, run_id: str = "run-1") -> None:
+    values = {
         "GITHUB_ACTIONS": "true",
         "GITHUB_EVENT_NAME": "workflow_dispatch",
         "GITHUB_REF_NAME": "main",
@@ -120,6 +103,8 @@ def _production_canary_env(*, run_id: str = "run-1") -> dict[str, str]:
         "NEXT_PUBLIC_SUPABASE_URL": "https://prod.example.supabase.co",
         "F10_PRODUCTION_CANARY_RUN_ID": run_id,
     }
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
 
 
 def _fake_tables() -> dict[str, list[dict[str, object]]]:
@@ -190,28 +175,6 @@ def _restore_args(tmp_path: Path, *, expect_noop: bool = False) -> SimpleNamespa
     )
 
 
-def _with_fake_clients(fake: FakeProductionCanaryDB):  # noqa: ANN201
-    original_manifest_client = production_canary_manifest.get_db_client
-    original_state_client = production_canary_state.get_db_client
-    production_canary_manifest.get_db_client = lambda: fake
-    production_canary_state.get_db_client = lambda: fake
-
-    def restore() -> None:
-        production_canary_manifest.get_db_client = original_manifest_client
-        production_canary_state.get_db_client = original_state_client
-
-    return restore
-
-
-def _expect_runtime_error(message: str, func, *args, **kwargs) -> None:  # noqa: ANN001, ANN201
-    try:
-        func(*args, **kwargs)
-    except RuntimeError as exc:
-        assert message in str(exc)
-    else:
-        raise AssertionError(f"Expected RuntimeError containing {message!r}")
-
-
 def _helper_namespace(relative: str, names: set[str]) -> dict[str, object]:
     tree = ast.parse(source(relative))
     selected = []
@@ -236,10 +199,13 @@ def _helper_namespace(relative: str, names: set[str]) -> dict[str, object]:
 
 def test_production_canary_workflow_is_manual_main_only_and_sha_locked() -> None:
     workflow = source(".github/workflows/production_canary.yml")
+    dispatch_inputs = workflow.split("workflow_dispatch:", 1)[1].split("concurrency:", 1)[0]
 
     assert "workflow_dispatch:" in workflow
     assert "schedule:" not in workflow
-    assert workflow.split("workflow_dispatch:", 1)[1].split("concurrency:", 1)[0].count("description:") == 10
+    assert dispatch_inputs.count("description:") == 8
+    assert "institution_slug:" not in dispatch_inputs
+    assert "fg1_source_slug:" not in dispatch_inputs
     assert "name: Production" in workflow
     assert "github.ref_name == 'main'" in workflow
     assert 'test "$GITHUB_REF_NAME" = "main"' in workflow
@@ -252,10 +218,15 @@ def test_production_canary_workflow_is_manual_main_only_and_sha_locked() -> None
 def test_production_canary_requires_target_allowlist_and_mutable_authorization() -> None:
     workflow = source(".github/workflows/production_canary.yml")
 
-    assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ vars.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
+    assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
+    assert "F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}" in workflow
+    assert "vars.F10_PRODUCTION_CANARY_SUPABASE_HOST" not in workflow
     assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow
     assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST is required" in workflow
+    assert "Production Supabase target does not match allowlist" in workflow
+    assert "::add-mask::$canary_secret_slug" in workflow
+    assert "::add-mask::$canary_secret_host" in workflow
     assert "mutable_stages:" in workflow
     assert "default: fg2_fg3" in workflow
     assert "Invalid mutable_stages value" in workflow
@@ -283,17 +254,25 @@ def test_production_canary_uses_private_snapshot_and_idempotent_restore() -> Non
     assert "production_canary_state.py restore" in workflow
     assert "--expect-noop" in workflow
     upload_section = workflow.split("Upload sanitized canary manifests", 1)[1]
+    print_section = workflow.split("Print sanitized manifests", 1)[1].split("Upload sanitized canary manifests", 1)[0]
     assert "name: f10-production-canary-manifests" in upload_section
+    assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in print_section
+    assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in upload_section
     assert "${{ github.run_id }}" not in upload_section
     assert "${{ github.run_attempt }}" not in upload_section
     assert "path: artifacts/f10_production_canary_*.json" in workflow
     assert "private_snapshot.json" not in upload_section
+    assert "if-no-files-found: ignore" in upload_section
+    assert "CANARY_SNAPSHOT_COMPLETED=true" in workflow
+    assert "Skipping mutable restore because no snapshot was captured." in workflow
 
 
 def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     workflow = source(".github/workflows/production_canary.yml")
 
     run_blocks = "\n".join(block for block in workflow.split("\n      - name:") if "run: |" in block)
+    assert "${{ inputs.institution_slug }}" not in workflow
+    assert "${{ inputs.fg1_source_slug }}" not in workflow
     assert "${{ inputs.institution_slug }}" not in run_blocks
     assert "${{ inputs.fg1_source_slug }}" not in run_blocks
     assert "${{ inputs.max_harvest_urls }}" not in run_blocks
@@ -302,6 +281,7 @@ def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     assert "${{ inputs.max_sync_records }}" not in run_blocks
     assert "${{ inputs.max_integrity_courses }}" not in run_blocks
     assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
+    assert "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug" in workflow
 
 
 def test_production_canary_manifests_are_sanitized() -> None:
@@ -314,106 +294,184 @@ def test_production_canary_manifests_are_sanitized() -> None:
     assert '"sha": os.getenv("GITHUB_SHA")' not in manifest
     assert '"run_id": os.getenv("GITHUB_RUN_ID")' not in manifest
     assert "CANARY_INSTITUTION_ID" in manifest
+    assert "::add-mask::" in manifest
+    assert manifest.index('_mask_github_value(institution_id)') < manifest.index('profile = _load_profile')
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST" in manifest
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST" in state
+    assert "::add-mask::" in state
     assert '"private_digest"' not in state
     assert '"cohort": {"institution_slug": "redacted"}' in state
     assert '"institution_name"' not in state
 
 
-def test_production_canary_scripts_reject_local_cli() -> None:
-    with temporary_env({}, delete=("GITHUB_ACTIONS",)):
-        _expect_runtime_error("GitHub Actions", production_canary_manifest._ensure_github_production_context)
-        _expect_runtime_error("GitHub Actions", production_canary_state._ensure_github_production_context)
+def test_production_canary_scripts_reject_local_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+    with pytest.raises(RuntimeError, match="GitHub Actions"):
+        production_canary_manifest._ensure_github_production_context()
+    with pytest.raises(RuntimeError, match="GitHub Actions"):
+        production_canary_state._ensure_github_production_context()
 
 
-def test_production_canary_manifest_uses_fake_db_and_sanitizes_artifact() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        env_file = tmp_path / "github.env"
-        fake = FakeProductionCanaryDB(_fake_tables())
-        restore_clients = _with_fake_clients(fake)
-        try:
-            with temporary_env(_production_canary_env()):
-                args = SimpleNamespace(
-                    institution_slug="demo",
-                    stage="pre",
-                    github_env=str(env_file),
-                    require_pipeline_enabled=True,
-                    require_production_enabled=True,
-                    max_staging_records=5,
-                    max_enrichment_records=3,
-                    max_sync_records=3,
-                    max_integrity_courses=3,
-                )
-                manifest = production_canary_manifest.build_manifest(args)
-        finally:
-            restore_clients()
+def test_production_canary_manifest_uses_fake_db_and_sanitizes_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", lambda: fake)
+    env_file = tmp_path / "github.env"
+    args = SimpleNamespace(
+        institution_slug="demo",
+        stage="pre",
+        github_env=str(env_file),
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=5,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
 
-        assert manifest["cohort"] == {"institution_slug": "redacted"}
-        assert "sha" not in manifest["github"]
-        assert "run_id" not in manifest["github"]
-        assert manifest["profile_gates"]["production_enabled"] is True
-        assert manifest["counts"]["staging_pending"] == 1
-        assert "CANARY_INSTITUTION_ID=inst-1" in env_file.read_text(encoding="utf-8")
+    manifest = production_canary_manifest.build_manifest(args)
+
+    assert manifest["cohort"] == {"institution_slug": "redacted"}
+    assert "sha" not in manifest["github"]
+    assert "run_id" not in manifest["github"]
+    assert manifest["profile_gates"]["production_enabled"] is True
+    assert manifest["counts"]["staging_pending"] == 1
+    assert "CANARY_INSTITUTION_ID=inst-1" in env_file.read_text(encoding="utf-8")
 
 
-def test_production_canary_snapshot_restore_and_second_noop_are_offline_and_sanitized() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        fake = FakeProductionCanaryDB(_fake_tables())
-        restore_clients = _with_fake_clients(fake)
-        try:
-            with temporary_env(_production_canary_env()):
-                production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
-                private_snapshot = tmp_path / "private" / "snapshot.json"
-                public_summary = tmp_path / "artifacts" / "snapshot.json"
-                assert stat.S_IMODE(private_snapshot.parent.stat().st_mode) == 0o700
-                assert stat.S_IMODE(private_snapshot.stat().st_mode) == 0o600
-                assert "digest" in private_snapshot.read_text(encoding="utf-8")
-                assert "digest" not in public_summary.read_text(encoding="utf-8")
+def test_production_canary_target_mismatch_fails_before_db_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_production_canary_env(monkeypatch)
+    monkeypatch.setenv("SUPABASE_URL", "https://wrong.example.supabase.co")
+    monkeypatch.setenv("NEXT_PUBLIC_SUPABASE_URL", "https://wrong.example.supabase.co")
 
-                fake.tables["staging_raw"].append(
-                    {
-                        "id": "stage-new",
-                        "institution_id": "inst-1",
-                        "status": "discovered",
-                        "metadata": {"f10_production_canary_run_id": "run-1"},
-                        "created_at": "2999-01-01T00:00:00+00:00",
-                    }
-                )
-                fake.tables["courses"][0]["provider_used"] = "changed|f10-production-canary:run-1"
+    def fail_get_db_client():
+        raise AssertionError("db client should not be created before target validation")
 
-                production_canary_state.restore_snapshot(_restore_args(tmp_path))
-                production_canary_state.restore_snapshot(_restore_args(tmp_path, expect_noop=True))
-        finally:
-            restore_clients()
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", fail_get_db_client)
+    args = SimpleNamespace(
+        institution_slug="private-demo",
+        stage="pre",
+        github_env=None,
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=5,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
 
-        assert [row["id"] for row in fake.tables["staging_raw"]] == ["stage-1", "stage-2"]
-        assert fake.tables["courses"][0]["provider_used"] == "baseline"
-        noop_summary = json.loads((tmp_path / "artifacts" / "restore_noop.json").read_text(encoding="utf-8"))
-        assert noop_summary["expect_noop"] is True
-        assert noop_summary["after_matches_snapshot"] is True
-        assert noop_summary["non_cohort_attestations_match"] is True
-        assert "digest" not in json.dumps(noop_summary)
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_manifest.build_manifest(args)
+
+    message = str(excinfo.value)
+    assert "allowlist" in message
+    assert "wrong.example" not in message
+    assert "private-demo" not in message
 
 
-def test_production_canary_restore_detects_non_cohort_content_mutation_with_same_count() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        fake = FakeProductionCanaryDB(_fake_tables())
-        restore_clients = _with_fake_clients(fake)
-        try:
-            with temporary_env(_production_canary_env()):
-                production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
-                fake.tables["staging_raw"][1]["status"] = "same-count-drift"
-                _expect_runtime_error("Non-cohort row content changed", production_canary_state.restore_snapshot, _restore_args(tmp_path))
-        finally:
-            restore_clients()
+def test_production_canary_state_target_mismatch_fails_before_db_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    monkeypatch.setenv("SUPABASE_URL", "https://wrong.example.supabase.co")
+    monkeypatch.setenv("NEXT_PUBLIC_SUPABASE_URL", "https://wrong.example.supabase.co")
+
+    def fail_get_db_client():
+        raise AssertionError("db client should not be created before target validation")
+
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", fail_get_db_client)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+
+    message = str(excinfo.value)
+    assert "allowlist" in message
+    assert "wrong.example" not in message
 
 
-def test_production_canary_restore_rejects_wrong_marker_or_invalid_timestamp() -> None:
-    cases = [
+def test_production_canary_institution_lookup_errors_do_not_include_slug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", lambda: fake)
+    args = SimpleNamespace(
+        institution_slug="private-missing",
+        stage="pre",
+        github_env=None,
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=5,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
+
+    with pytest.raises(RuntimeError) as excinfo:
+        production_canary_manifest.build_manifest(args)
+
+    message = str(excinfo.value)
+    assert "canary cohort" in message
+    assert "private-missing" not in message
+
+
+def test_production_canary_snapshot_restore_and_second_noop_are_offline_and_sanitized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    private_snapshot = tmp_path / "private" / "snapshot.json"
+    public_summary = tmp_path / "artifacts" / "snapshot.json"
+    assert stat.S_IMODE(private_snapshot.parent.stat().st_mode) == 0o700
+    assert stat.S_IMODE(private_snapshot.stat().st_mode) == 0o600
+    assert "digest" in private_snapshot.read_text(encoding="utf-8")
+    assert "digest" not in public_summary.read_text(encoding="utf-8")
+
+    fake.tables["staging_raw"].append(
+        {
+            "id": "stage-new",
+            "institution_id": "inst-1",
+            "status": "discovered",
+            "metadata": {"f10_production_canary_run_id": "run-1"},
+            "created_at": "2999-01-01T00:00:00+00:00",
+        }
+    )
+    fake.tables["courses"][0]["provider_used"] = "changed|f10-production-canary:run-1"
+
+    production_canary_state.restore_snapshot(_restore_args(tmp_path))
+    production_canary_state.restore_snapshot(_restore_args(tmp_path, expect_noop=True))
+
+    assert [row["id"] for row in fake.tables["staging_raw"]] == ["stage-1", "stage-2"]
+    assert fake.tables["courses"][0]["provider_used"] == "baseline"
+    noop_summary = json.loads((tmp_path / "artifacts" / "restore_noop.json").read_text(encoding="utf-8"))
+    assert noop_summary["expect_noop"] is True
+    assert noop_summary["after_matches_snapshot"] is True
+    assert noop_summary["non_cohort_attestations_match"] is True
+    assert "digest" not in json.dumps(noop_summary)
+
+
+def test_production_canary_restore_detects_non_cohort_content_mutation_with_same_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    fake.tables["staging_raw"][1]["status"] = "same-count-drift"
+
+    with pytest.raises(RuntimeError, match="Non-cohort row content changed"):
+        production_canary_state.restore_snapshot(_restore_args(tmp_path))
+
+
+@pytest.mark.parametrize(
+    ("extra_row", "message"),
+    [
         (
             {
                 "id": "wrong-marker",
@@ -434,47 +492,48 @@ def test_production_canary_restore_rejects_wrong_marker_or_invalid_timestamp() -
             },
             "Invalid production canary timestamp",
         ),
-    ]
-    for extra_row, message in cases:
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            fake = FakeProductionCanaryDB(_fake_tables())
-            restore_clients = _with_fake_clients(fake)
-            try:
-                with temporary_env(_production_canary_env()):
-                    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
-                    fake.tables["staging_raw"].append(extra_row)
-                    _expect_runtime_error(message, production_canary_state.restore_snapshot, _restore_args(tmp_path))
-            finally:
-                restore_clients()
+    ],
+)
+def test_production_canary_restore_rejects_wrong_marker_or_invalid_timestamp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    extra_row: dict[str, object],
+    message: str,
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    fake.tables["staging_raw"].append(extra_row)
+
+    with pytest.raises(RuntimeError, match=message):
+        production_canary_state.restore_snapshot(_restore_args(tmp_path))
 
 
-def test_production_canary_restore_fails_if_existing_row_disappears() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        fake = FakeProductionCanaryDB(_fake_tables())
-        restore_clients = _with_fake_clients(fake)
-        try:
-            with temporary_env(_production_canary_env()):
-                production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
-                fake.tables["courses"] = [row for row in fake.tables["courses"] if row["id"] != "course-1"]
-                _expect_runtime_error("cannot recreate missing courses rows", production_canary_state.restore_snapshot, _restore_args(tmp_path))
-        finally:
-            restore_clients()
+def test_production_canary_restore_fails_if_existing_row_disappears(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    fake.tables["courses"] = [row for row in fake.tables["courses"] if row["id"] != "course-1"]
+
+    with pytest.raises(RuntimeError, match="cannot recreate missing courses rows"):
+        production_canary_state.restore_snapshot(_restore_args(tmp_path))
 
 
-def test_production_canary_restore_fails_closed_on_partial_patch_failure() -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        fake = FakeProductionCanaryDB(_fake_tables(), patch_fails=True)
-        restore_clients = _with_fake_clients(fake)
-        try:
-            with temporary_env(_production_canary_env()):
-                production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
-                fake.tables["courses"][0]["provider_used"] = "changed|f10-production-canary:run-1"
-                _expect_runtime_error("synthetic patch failure", production_canary_state.restore_snapshot, _restore_args(tmp_path))
-        finally:
-            restore_clients()
+def test_production_canary_restore_fails_closed_on_partial_patch_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables(), patch_fails=True)
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    fake.tables["courses"][0]["provider_used"] = "changed|f10-production-canary:run-1"
+
+    with pytest.raises(RuntimeError, match="synthetic patch failure"):
+        production_canary_state.restore_snapshot(_restore_args(tmp_path))
 
 
 def test_runtime_scripts_add_env_gated_production_canary_markers() -> None:
@@ -493,26 +552,27 @@ def test_runtime_scripts_add_env_gated_production_canary_markers() -> None:
     assert "f10-production-canary" in sync
 
 
-def test_runtime_canary_marker_helpers_propagate_f10_run_id() -> None:
-    with temporary_env({"F10_PRODUCTION_CANARY_RUN_ID": "run-1"}, delete=("F99_CERTIFICATION_CANARY_RUN_ID",)):
-        harvester = _helper_namespace(
-            "scripts/core/universal_harvester.py",
-            {"_active_canary_marker", "_mark_canary_metadata"},
-        )
-        cleansing = _helper_namespace(
-            "scripts/core/cleansing_worker.py",
-            {"_active_canary_marker", "_mark_canary_metadata"},
-        )
-        enrichment = _helper_namespace(
-            "scripts/core/enrichment_worker.py",
-            {"_active_canary_marker", "_mark_canary_metadata"},
-        )
-        sync = _helper_namespace(
-            "scripts/core/sync_vector_worker.py",
-            {"_active_canary_provider_marker", "_mark_canary_provider"},
-        )
+def test_runtime_canary_marker_helpers_propagate_f10_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("F10_PRODUCTION_CANARY_RUN_ID", "run-1")
+    monkeypatch.delenv("F99_CERTIFICATION_CANARY_RUN_ID", raising=False)
+    harvester = _helper_namespace(
+        "scripts/core/universal_harvester.py",
+        {"_active_canary_marker", "_mark_canary_metadata"},
+    )
+    cleansing = _helper_namespace(
+        "scripts/core/cleansing_worker.py",
+        {"_active_canary_marker", "_mark_canary_metadata"},
+    )
+    enrichment = _helper_namespace(
+        "scripts/core/enrichment_worker.py",
+        {"_active_canary_marker", "_mark_canary_metadata"},
+    )
+    sync = _helper_namespace(
+        "scripts/core/sync_vector_worker.py",
+        {"_active_canary_provider_marker", "_mark_canary_provider"},
+    )
 
-        assert harvester["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
-        assert cleansing["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
-        assert enrichment["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
-        assert sync["_mark_canary_provider"]("baseline") == "baseline|f10-production-canary:run-1"
+    assert harvester["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
+    assert cleansing["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
+    assert enrichment["_mark_canary_metadata"]({}) == {"f10_production_canary_run_id": "run-1"}
+    assert sync["_mark_canary_provider"]("baseline") == "baseline|f10-production-canary:run-1"
