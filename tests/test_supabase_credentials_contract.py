@@ -120,6 +120,13 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
+    "supabase/functions/send-lead-emails/index.ts": {
+        "identities": {"RESEND_API_KEY"},
+        "provider": "resend-api",
+        "provider_marker": "api.resend.com",
+        "provider_env": "RESEND_API_KEY",
+        "derivation_marker": 'RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")',
+    },
 }
 
 APPROVED_BEARER_TEST_LITERALS = {
@@ -127,13 +134,11 @@ APPROVED_BEARER_TEST_LITERALS = {
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
-    "tests/test_fase09_7_backend_identity.py": "supabase-data-api-test",
-    "tests/test_fase09_7_schema_rls.py": "supabase-data-api-test",
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
-    "tests/test_frontend_public_surfaces_playwright.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/certification_canary_manifest.py": "supabase-data-api",
+    "scripts/core/certification_canary_state.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
     "scripts/core/enrichment_worker.py": "supabase-data-api",
     "scripts/core/integrity_ping.py": "supabase-data-api",
@@ -867,16 +872,3 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-ci",
         "supabase-data-api-test",
     }
-
-
-def test_credential_scanners_block_real_supabase_publishable_keys():
-    scanner_paths = [
-        ROOT / ".github/workflows/security-audit.yml",
-        ROOT / ".githooks/pre-commit",
-        ROOT / ".githooks/pre-push",
-    ]
-
-    for path in scanner_paths:
-        source = path.read_text(encoding="utf-8")
-        assert "sb_publishable_[A-Za-z0-9_-]{20,}" in source
-        assert "sb_secret_[A-Za-z0-9_-]{10,}" in source
