@@ -17,7 +17,7 @@ env:
   F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b
   F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab
   F108_CERTIFICATION_BASELINE: 1edc65aa848d32dabfa62aa60b53f4bff9b5716e
-  F108_MAIN_GATE_BASELINE: f9f66e6d37b26b0f9b03ce3a3267f29c35738604
+  F108_MAIN_GATE_BASELINE: f6fb25b2f00f283081de3180238da808117137cf
 
 jobs:
   credential-scan:
@@ -470,6 +470,7 @@ jobs:
               "tests/test_fase09_9_certification_canary.py",
               "tests/test_fase10_main_boundary.py",
               "tests/test_fase10_production_canary.py",
+              "tests/test_supabase_credentials_contract.py",
           }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/f9-7-contract.yml", ".github/workflows/opencode.yml"}
@@ -725,7 +726,7 @@ jobs:
 
   f108-main-gate-update:
     name: F10.8 Main Gate Update
-    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') }}
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -826,7 +827,7 @@ jobs:
           F910_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') }}
           F107_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5cd27c6f6c35808865b7084673a83f9f690d3760') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5cd27c6f6c35808865b7084673a83f9f690d3760') }}
           F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') }}
-          F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f9f66e6d37b26b0f9b03ce3a3267f29c35738604') }}
+          F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
         run: |
           {
             echo "### Security Audit Results"
