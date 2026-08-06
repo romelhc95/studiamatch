@@ -141,6 +141,6 @@ def test_production_canary_files_are_in_release_gate_allowlist() -> None:
     assert "'scripts/core/production_canary_manifest.py': {'A'}" in release_gate
     assert "'scripts/core/production_canary_state.py': {'A'}" in release_gate
     assert "'.gitattributes': {'M'}" in release_gate
-    assert "'scripts/core/production_canary_manifest.py': {'A'}" in f97_contract
-    assert "'scripts/core/production_canary_state.py': {'A'}" in f97_contract
+    assert "'scripts/core/production_canary_manifest.py': {'A', 'M'}" in f97_contract
+    assert "'scripts/core/production_canary_state.py': {'A', 'M'}" in f97_contract
     assert "'.gitattributes': {'M'}" in f97_contract
