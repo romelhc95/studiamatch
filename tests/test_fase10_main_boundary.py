@@ -19,6 +19,7 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 main PR must use the protected certificacion tip" in workflow
     assert "merge-base" not in workflow
     assert "EXPECTED_COUNT = 9" in workflow
+    assert '"tests/test_supabase_credentials_contract.py"' in workflow
     assert '".github/workflows/opencode.yml"' in workflow
     assert '".github/workflows/f9-7-contract.yml"' in workflow
     assert "needs.f10-main-boundary.result" in workflow
@@ -37,7 +38,7 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F910_REQUIRED" in workflow
     assert "f108-main-gate-update:" in workflow
     assert "F10.8 Main Gate Update" in workflow
-    assert "f9f66e6d37b26b0f9b03ce3a3267f29c35738604" in workflow
+    assert "f6fb25b2f00f283081de3180238da808117137cf" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:
