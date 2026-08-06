@@ -32,6 +32,7 @@ SOURCE_PATTERNS = (
     "supabase/functions/**/*.ts",
     ".github/workflows/*.yml",
     ".github/workflows/*.yaml",
+    ".github/scripts/*.sh",
     ".githooks/*",
     "db/migrations/*.py",
     "*.py",
@@ -119,29 +120,26 @@ APPROVED_BEARERS = {
         "provider_env": "SUPABASE_MGMT_TOKEN",
         "derivation_marker": "MGMT_TOKEN = os.environ.get('SUPABASE_MGMT_TOKEN', '')",
     },
-    "supabase/functions/send-lead-emails/index.ts": {
-        "identities": {"RESEND_API_KEY"},
-        "provider": "resend-api",
-        "provider_marker": "api.resend.com",
-        "provider_env": "RESEND_API_KEY",
-        "derivation_marker": 'RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")',
-    },
-    ".github/workflows/production_pipeline.yml": {
-        "identities": {"CF_API_TOKEN"},
-        "provider": "cloudflare-api",
-        "provider_marker": "api.cloudflare.com",
-        "provider_env": "CF_API_TOKEN",
-        "derivation_marker": "CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}",
-    },
+}
+
+APPROVED_BEARER_TEST_LITERALS = {
+    "tests/test_frontend_public_surfaces_playwright.py": {"blocked"},
 }
 
 DIRECT_SUPABASE_CONSUMERS = {
+    "tests/test_fase09_7_backend_identity.py": "supabase-data-api-test",
+    "tests/test_fase09_7_schema_rls.py": "supabase-data-api-test",
+    "tests/test_fase10_production_canary.py": "supabase-data-api-test",
+    "tests/test_frontend_public_surfaces_playwright.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
+    "scripts/core/certification_canary_manifest.py": "supabase-data-api",
     "scripts/core/discovery_institutions.py": "supabase-data-api",
     "scripts/core/enrichment_worker.py": "supabase-data-api",
     "scripts/core/integrity_ping.py": "supabase-data-api",
     "scripts/core/master_orchestrator.py": "supabase-data-api",
+    "scripts/core/production_canary_manifest.py": "supabase-data-api",
+    "scripts/core/production_canary_state.py": "supabase-data-api",
     "scripts/core/sync_vector_worker.py": "supabase-data-api",
     "scripts/core/universal_harvester.py": "supabase-data-api",
     "scripts/shared/supabase_credentials.py": "supabase-data-api",
@@ -206,6 +204,8 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx": "supabase-data-api",
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
+    ".github/workflows/f9_9_certification_canary.yml": "supabase-ci",
+    ".github/workflows/production_canary.yml": "supabase-ci",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
     ".github/workflows/fg1_inventory.yml": "supabase-ci",
     ".github/workflows/fg3_integrity.yml": "supabase-ci",
@@ -812,6 +812,16 @@ def test_every_bearer_is_approved_by_path_identity_provider_and_origin():
         observed_paths.add(relative)
         approval = APPROVED_BEARERS.get(relative)
         if approval is None:
+            approved_test_literals = APPROVED_BEARER_TEST_LITERALS.get(relative, set())
+            identities = {next(group for group in match.groupdict().values() if group) for match in matches}
+            contexts = [
+                source[max(0, match.start() - 240):match.end() + 240]
+                for match in matches
+            ]
+            if identities <= approved_test_literals and all(
+                "Authorization" in context for context in contexts
+            ):
+                continue
             findings.append(f"{relative}: path is not approved for Bearer auth")
             continue
         if not approval["provider"] or approval["provider_marker"] not in source:
@@ -857,3 +867,16 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-ci",
         "supabase-data-api-test",
     }
+
+
+def test_credential_scanners_block_real_supabase_publishable_keys():
+    scanner_paths = [
+        ROOT / ".github/workflows/security-audit.yml",
+        ROOT / ".githooks/pre-commit",
+        ROOT / ".githooks/pre-push",
+    ]
+
+    for path in scanner_paths:
+        source = path.read_text(encoding="utf-8")
+        assert "sb_publishable_[A-Za-z0-9_-]{20,}" in source
+        assert "sb_secret_[A-Za-z0-9_-]{10,}" in source
