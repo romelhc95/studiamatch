@@ -17,7 +17,7 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 Main Boundary" in workflow
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
-    assert "EXPECTED_COUNT = 32" in workflow
+    assert "EXPECTED_COUNT = 9" in workflow
     assert '".github/workflows/opencode.yml"' in workflow
     assert '".github/workflows/f9-7-contract.yml"' in workflow
     assert "needs.f10-main-boundary.result" in workflow
@@ -34,6 +34,9 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F910: ${{ needs.f910-pre-main-controls.result }}" in workflow
     assert "CERTIFICATION_TRANSITION" in workflow
     assert "F910_REQUIRED" in workflow
+    assert "f108-main-gate-update:" in workflow
+    assert "F10.8 Main Gate Update" in workflow
+    assert "b438e0a04de6a7f9576e1754c030bcf12d0cfe7a" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:
