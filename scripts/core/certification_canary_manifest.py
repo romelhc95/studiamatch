@@ -5,6 +5,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -16,15 +17,48 @@ from shared.db_client import get_db_client
 MANIFEST_SCHEMA = "f9.9-certification-canary-manifest.v1"
 
 
+def _mask_github_value(value):
+    if os.getenv("GITHUB_ACTIONS") == "true" and value:
+        print(f"::add-mask::{value}")
+
+
+def _public_cohort():
+    return {
+        "institution_slug": "redacted",
+        "institution_name": "redacted",
+    }
+
+
 def _ensure_github_certification_context():
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
-    if os.getenv("GITHUB_EVENT_NAME") != "workflow_dispatch":
-        raise RuntimeError("Certification canary must run from workflow_dispatch")
+    if os.getenv("GITHUB_EVENT_NAME") not in {"workflow_dispatch", "push"}:
+        raise RuntimeError("Certification canary must run from workflow_dispatch or certificacion push")
     if os.getenv("GITHUB_REF_NAME") != "certificacion":
         raise RuntimeError("Certification canary must run from the certificacion branch")
     if os.getenv("CANARY_EXPECTED_ENVIRONMENT") != "Certification":
         raise RuntimeError("Certification canary expected environment mismatch")
+
+
+def _ensure_certification_supabase_target():
+    expected_host = os.getenv("F99_CERTIFICATION_CANARY_SUPABASE_HOST", "").strip().lower()
+    if not expected_host:
+        raise RuntimeError("Certification canary expected Supabase host is not configured")
+    for variable_name in ("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"):
+        parsed = urlparse(os.getenv(variable_name, ""))
+        host = (parsed.hostname or "").lower()
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise RuntimeError(f"{variable_name} has invalid Supabase URL port") from exc
+        if (
+            parsed.scheme != "https"
+            or parsed.username
+            or parsed.password
+            or port not in (None, 443)
+            or host != expected_host
+        ):
+            raise RuntimeError(f"{variable_name} does not match the expected Certification Supabase host")
 
 
 def _resolve_institution(db, slug):
@@ -35,7 +69,7 @@ def _resolve_institution(db, slug):
         limit=2,
     )
     if len(rows) != 1:
-        raise RuntimeError(f"Expected exactly one institution for slug: {slug}")
+        raise RuntimeError("Expected exactly one institution for configured Certification canary cohort")
     return rows[0]
 
 
@@ -65,6 +99,8 @@ def _count_service(db, table, filters):
 def _write_github_env(env_path, institution_id, institution_slug):
     if not env_path:
         return
+    _mask_github_value(institution_id)
+    _mask_github_value(institution_slug)
     with open(env_path, "a", encoding="utf-8") as handle:
         handle.write(f"CANARY_INSTITUTION_ID={institution_id}\n")
         handle.write(f"CANARY_INSTITUTION_SLUG={institution_slug}\n")
@@ -73,9 +109,13 @@ def _write_github_env(env_path, institution_id, institution_slug):
 def build_manifest(args):
     _ensure_github_certification_context()
     load_dotenv()
+    _ensure_certification_supabase_target()
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
+    _mask_github_value(institution.get("name"))
     profile = _load_profile(db, institution_id)
 
     if args.require_pipeline_enabled and not profile.get("pipeline_enabled"):
@@ -101,10 +141,7 @@ def build_manifest(args):
             "sha": os.getenv("GITHUB_SHA"),
             "run_id": os.getenv("GITHUB_RUN_ID"),
         },
-        "cohort": {
-            "institution_slug": institution["slug"],
-            "institution_name": institution.get("name"),
-        },
+        "cohort": _public_cohort(),
         "profile_gates": {
             "discovery_enabled": bool(profile.get("discovery_enabled")),
             "pipeline_enabled": bool(profile.get("pipeline_enabled")),
@@ -126,7 +163,7 @@ def build_manifest(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Build a sanitized F9.9 Certification canary manifest")
     parser.add_argument("--institution-slug", required=True)
-    parser.add_argument("--stage", choices=("pre", "post"), required=True)
+    parser.add_argument("--stage", choices=("pre", "post", "after-cleanup"), required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--github-env")
     parser.add_argument("--require-pipeline-enabled", action="store_true")
