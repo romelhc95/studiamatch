@@ -43,9 +43,110 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  detect-db-changes:
+    name: "Detect DB changes"
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      candidate_sha: ${{ steps.resolve.outputs.candidate_sha }}
+      db_changed: ${{ steps.detect.outputs.db_changed }}
+    steps:
+      - name: Resolve immutable candidate
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          DISPATCH_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || '' }}
+        run: |
+          set -euo pipefail
+          candidate="$PUSH_SHA"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            candidate="$DISPATCH_SHA"
+          fi
+          printf '%s' "$candidate" | grep -Eq '^[0-9a-f]{40}$'
+          test "$candidate" != "0000000000000000000000000000000000000000"
+          echo "candidate_sha=$candidate" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.resolve.outputs.candidate_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable candidate
+        env:
+          CANDIDATE_SHA: ${{ steps.resolve.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+      - name: Detect db path changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CANDIDATE_SHA: ${{ steps.resolve.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "db_changed=true" >> "$GITHUB_OUTPUT"
+            echo "DB Sync manual dispatch requires report/preflight path." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          printf '%s' "$BEFORE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          test "$BEFORE_SHA" != "0000000000000000000000000000000000000000"
+          git cat-file -e "$BEFORE_SHA^{commit}"
+          git merge-base --is-ancestor "$BEFORE_SHA" "$CANDIDATE_SHA"
+          set +e
+          git diff --quiet "$BEFORE_SHA" "$CANDIDATE_SHA" -- db/
+          diff_status="$?"
+          set -e
+          if [ "$diff_status" -eq 0 ]; then
+            echo "db_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No db/** changes detected; DB Sync report/apply/verify remain skipped." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$diff_status" -eq 1 ]; then
+            echo "db_changed=true" >> "$GITHUB_OUTPUT"
+            echo "db/** changes detected; DB Sync dry-run report remains required." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "git diff failed with status $diff_status" >&2
+            exit "$diff_status"
+          fi
+
+  db-contract-preflight:
+    name: "DB contract preflight"
+    needs: detect-db-changes
+    if: >-
+      github.ref_name == 'main' &&
+      needs.detect-db-changes.outputs.db_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable candidate
+        env:
+          CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
+      - name: Validate manifest and CLI offline
+        run: |
+          set -euo pipefail
+          test -f "$MIGRATION_MANIFEST"
+          python3 scripts/maintenance/db_migrate.py --env pro --validate-only --manifest "$MIGRATION_MANIFEST"
+
   report:
     name: "Report pending migrations"
-    if: github.ref_name == 'main'
+    needs: [detect-db-changes, db-contract-preflight]
+    if: >-
+      always() &&
+      github.ref_name == 'main' &&
+      needs.detect-db-changes.outputs.db_changed == 'true' &&
+      needs.db-contract-preflight.result == 'success'
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -54,12 +155,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Verify immutable candidate
         env:
-          CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
@@ -77,14 +178,12 @@ jobs:
         id: check
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST" > report.txt
           count=$(grep -c "PENDIENTE" report.txt || true)
+          printf '%s' "$count" | grep -Eq '^[0-9]+$'
           echo "count=$count" >> "$GITHUB_OUTPUT"
           cat report.txt
       - name: Confirm report-only mode
@@ -94,7 +193,7 @@ jobs:
 
   apply:
     name: "Apply pending migrations"
-    needs: report
+    needs: [detect-db-changes, report]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref_name == 'main' &&
@@ -109,12 +208,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Verify immutable candidate
         env:
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
@@ -124,7 +223,7 @@ jobs:
       - name: Verify explicit DDL authorization
         env:
           DDL_AUTHORIZATION_ID: ${{ inputs.ddl_authorization_id }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           printf '%s' "$DDL_AUTHORIZATION_ID" | grep -Eq '^DDL-[A-Z0-9][A-Z0-9_-]{3,}$'
@@ -149,15 +248,12 @@ jobs:
       - name: Apply migrations to Pro
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python3 scripts/maintenance/db_migrate.py --env pro --manifest "$MIGRATION_MANIFEST"
 
   verify:
     name: "Verify target schema"
-    needs: [report, apply]
+    needs: [detect-db-changes, report, apply]
     if: >-
       always() &&
       github.event_name == 'workflow_dispatch' &&
@@ -171,7 +267,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Python
@@ -185,10 +281,7 @@ jobs:
         id: parity
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: python3 scripts/maintenance/check_db_parity.py --env pro --target-only
       - name: Report target schema result
         run: |
