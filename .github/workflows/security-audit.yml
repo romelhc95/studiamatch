@@ -102,6 +102,8 @@ jobs:
           find scripts/maintenance -name '*.py' -exec python3 -m py_compile {} \;
           echo "Checking scripts/shared/*.py..."
           find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
+          echo "Checking F10.8 DB Sync workflow contract..."
+          python3 tests/test_fase10_8_db_sync.py
           echo "✅ All Python scripts compile successfully"
 
   f99-certification-selective:

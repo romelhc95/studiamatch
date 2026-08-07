@@ -373,7 +373,10 @@ def test_pro_workflow_uses_manifest_for_detect_and_apply():
     assert "apply_authorized:" in workflow
     assert "backup_pitr_verified:" in workflow
     assert "ddl_authorization_id:" in workflow
-    assert workflow.count("persist-credentials: false") == 3
+    assert workflow.count("persist-credentials: false") == 5
+    assert "detect-db-changes:" in workflow
+    assert "db-contract-preflight:" in workflow
+    assert "--validate-only --manifest \"$MIGRATION_MANIFEST\"" in workflow
     assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in workflow
     assert "github.event_name == 'workflow_dispatch'" in workflow
     assert "inputs.operation == 'apply'" in workflow
