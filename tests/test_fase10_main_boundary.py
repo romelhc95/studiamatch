@@ -17,7 +17,9 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 Main Boundary" in workflow
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
-    assert "EXPECTED_COUNT = 32" in workflow
+    assert "merge-base" not in workflow
+    assert "EXPECTED_COUNT = 13" in workflow
+    assert '"tests/test_supabase_credentials_contract.py"' in workflow
     assert '".github/workflows/opencode.yml"' in workflow
     assert '".github/workflows/f9-7-contract.yml"' in workflow
     assert "needs.f10-main-boundary.result" in workflow
@@ -34,6 +36,18 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F910: ${{ needs.f910-pre-main-controls.result }}" in workflow
     assert "CERTIFICATION_TRANSITION" in workflow
     assert "F910_REQUIRED" in workflow
+    assert "f108-main-gate-update:" in workflow
+    assert "F10.8 Main Gate Update" in workflow
+    assert "f6fb25b2f00f283081de3180238da808117137cf" in workflow
+    assert "F108_MAIN_BOUNDARY_COUNT_BASELINE: 3af1a22c41cb7044cbba1703d99c21324ff010c6" in workflow
+    assert "f108-main-boundary-count:" in workflow
+    assert "F10.8 Main Boundary Count" in workflow
+    assert "F108_BOUNDARY_COUNT_REQUIRED" in workflow
+    assert "needs.f108-main-boundary-count.result" in workflow
+    count_gate = workflow.split("f108-main-boundary-count:", 1)[1].split("f108-main-gate-update:", 1)[0]
+    assert '".github/workflows/security-audit.yml": ("M", "100755")' in count_gate
+    assert '"tests/test_fase10_main_boundary.py": ("M", "100644")' in count_gate
+    assert 'denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")' in count_gate
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:

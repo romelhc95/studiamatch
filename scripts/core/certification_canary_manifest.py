@@ -17,6 +17,18 @@ from shared.db_client import get_db_client
 MANIFEST_SCHEMA = "f9.9-certification-canary-manifest.v1"
 
 
+def _mask_github_value(value):
+    if os.getenv("GITHUB_ACTIONS") == "true" and value:
+        print(f"::add-mask::{value}")
+
+
+def _public_cohort():
+    return {
+        "institution_slug": "redacted",
+        "institution_name": "redacted",
+    }
+
+
 def _ensure_github_certification_context():
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
@@ -57,7 +69,7 @@ def _resolve_institution(db, slug):
         limit=2,
     )
     if len(rows) != 1:
-        raise RuntimeError(f"Expected exactly one institution for slug: {slug}")
+        raise RuntimeError("Expected exactly one institution for configured Certification canary cohort")
     return rows[0]
 
 
@@ -87,6 +99,8 @@ def _count_service(db, table, filters):
 def _write_github_env(env_path, institution_id, institution_slug):
     if not env_path:
         return
+    _mask_github_value(institution_id)
+    _mask_github_value(institution_slug)
     with open(env_path, "a", encoding="utf-8") as handle:
         handle.write(f"CANARY_INSTITUTION_ID={institution_id}\n")
         handle.write(f"CANARY_INSTITUTION_SLUG={institution_slug}\n")
@@ -99,6 +113,9 @@ def build_manifest(args):
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
+    _mask_github_value(institution.get("name"))
     profile = _load_profile(db, institution_id)
 
     if args.require_pipeline_enabled and not profile.get("pipeline_enabled"):
@@ -124,10 +141,7 @@ def build_manifest(args):
             "sha": os.getenv("GITHUB_SHA"),
             "run_id": os.getenv("GITHUB_RUN_ID"),
         },
-        "cohort": {
-            "institution_slug": institution["slug"],
-            "institution_name": institution.get("name"),
-        },
+        "cohort": _public_cohort(),
         "profile_gates": {
             "discovery_enabled": bool(profile.get("discovery_enabled")),
             "pipeline_enabled": bool(profile.get("pipeline_enabled")),
