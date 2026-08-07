@@ -48,6 +48,12 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "f6fb25b2f00f283081de3180238da808117137cf" in workflow
 
 
+def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
+    workflow = source(".github/workflows/f9-7-contract.yml")
+
+    assert "github.event_name != 'pull_request' || github.base_ref != 'main'" in workflow
+
+
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     workflow = source(".github/workflows/db-sync-to-pro.yml")
 

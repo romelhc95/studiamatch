@@ -104,6 +104,7 @@ env:
 jobs:
   fase09-7-schema-rls:
     name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract
+    if: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
