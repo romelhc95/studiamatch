@@ -52,6 +52,12 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F108_F97_SCOPE_REQUIRED" in workflow
     assert "needs.f108-f97-main-scope.result" in workflow
     assert '".github/workflows/f9-7-contract.yml": ("M", "100644")' in workflow
+    assert "f108-fg1-source-slug:" in workflow
+    assert "F10.8 FG1 Source Slug" in workflow
+    assert "7b948c3ea5fe5057f17cf7aa11124c116f93c2f2" in workflow
+    assert "F108_FG1_SOURCE_REQUIRED" in workflow
+    assert "needs.f108-fg1-source-slug.result" in workflow
+    assert "F10.8 FG1 source slug boundary passed" in workflow
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
