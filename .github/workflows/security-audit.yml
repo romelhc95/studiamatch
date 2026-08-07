@@ -20,6 +20,7 @@ env:
   F108_CERTIFICATION_REDACTION_BASELINE: f8bba3c75601b21fa456133b36df9e222db4c685
   F108_MAIN_BOUNDARY_COUNT_BASELINE: 3af1a22c41cb7044cbba1703d99c21324ff010c6
   F108_MAIN_GATE_BASELINE: f6fb25b2f00f283081de3180238da808117137cf
+  F108_DB_SYNC_CERTIFICATION_BASELINE: 94026de77fe9c1a01c66eae78bea8b09858daf96
 
 jobs:
   credential-scan:
@@ -966,10 +967,89 @@ jobs:
           print("F10.8 main gate update boundary passed")
           PY
 
+  f108-db-sync-certification:
+    name: F10.8 DB Sync Certification
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '94026de77fe9c1a01c66eae78bea8b09858daf96') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '94026de77fe9c1a01c66eae78bea8b09858daf96') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F10.8 DB Sync certification diff
+        env:
+          F108_DB_SYNC_BASELINE: ${{ env.F108_DB_SYNC_CERTIFICATION_BASELINE }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          test "$base" = "$F108_DB_SYNC_BASELINE"
+          test "$(git rev-parse HEAD)" = "$head"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F108_DB_SYNC_BASELINE"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          expected = {
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/")
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          seen = {}
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+                  failures.append(f"unsupported-status:{status}:{old_path}")
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              if path.startswith(denied_prefixes):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              if path not in expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              expected_status, expected_mode = expected[path]
+              if status != expected_status:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              mode, kind = meta.split(None, 3)[:2]
+              if (mode, kind) != (expected_mode, "blob"):
+                  failures.append(f"mode-kind:{path}:{mode}:{kind}")
+              seen[path] = status
+          if set(seen) != set(expected):
+              failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F10.8 DB Sync certification boundary passed")
+          PY
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-certification-canary-redaction, f108-main-boundary-count, f108-main-gate-update]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-certification-canary-redaction, f108-main-boundary-count, f108-main-gate-update, f108-db-sync-certification]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -986,6 +1066,7 @@ jobs:
           F108_CERT_REDACTION: ${{ needs.f108-certification-canary-redaction.result }}
           F108_BOUNDARY_COUNT: ${{ needs.f108-main-boundary-count.result }}
           F108_MAIN_GATE: ${{ needs.f108-main-gate-update.result }}
+          F108_DB_SYNC: ${{ needs.f108-db-sync-certification.result }}
           CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
           MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
@@ -995,6 +1076,7 @@ jobs:
           F108_CERT_REDACTION_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f8bba3c75601b21fa456133b36df9e222db4c685') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f8bba3c75601b21fa456133b36df9e222db4c685') }}
           F108_BOUNDARY_COUNT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '3af1a22c41cb7044cbba1703d99c21324ff010c6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '3af1a22c41cb7044cbba1703d99c21324ff010c6') }}
           F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
+          F108_DB_SYNC_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '94026de77fe9c1a01c66eae78bea8b09858daf96') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '94026de77fe9c1a01c66eae78bea8b09858daf96') }}
         run: |
           {
             echo "### Security Audit Results"
@@ -1055,6 +1137,12 @@ jobs:
                   exit 1
                 fi
                 echo "✅ **f108-main-gate-update**: passed"
+              elif [ "$F108_DB_SYNC_REQUIRED" = "true" ]; then
+                if [ "$F108_DB_SYNC" != "success" ]; then
+                  echo "❌ **f108-db-sync-certification**: $F108_DB_SYNC (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f108-db-sync-certification**: passed"
               else
                 echo "❌ **certification-transition**: unsupported baseline (BLOCKING)"
                 exit 1
