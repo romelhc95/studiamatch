@@ -290,3 +290,22 @@ def test_security_audit_freezes_selective_certification_identity() -> None:
     assert "scripts/core/enrichment_worker.py" in source_equal_exclusions
     assert "scripts/core/sync_vector_worker.py" in source_equal_exclusions
     assert "scripts/core/universal_harvester.py" in source_equal_exclusions
+
+
+def test_security_audit_accepts_certification_canary_redaction_boundary() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+
+    assert "F108_CERTIFICATION_REDACTION_BASELINE: f8bba3c75601b21fa456133b36df9e222db4c685" in workflow
+    assert "f108-certification-canary-redaction:" in workflow
+    assert "F10.8 Certification Canary Redaction" in workflow
+    assert "F108_CERT_REDACTION_REQUIRED" in workflow
+    assert "needs.f108-certification-canary-redaction.result" in workflow
+    redaction_gate = workflow.split("f108-certification-canary-redaction:", 1)[1].split(
+        "f108-main-gate-update:", 1
+    )[0]
+    assert '".github/workflows/f9_9_certification_canary.yml": ("M", "100644")' in redaction_gate
+    assert '".github/workflows/security-audit.yml": ("M", "100755")' in redaction_gate
+    assert '"scripts/core/certification_canary_manifest.py": ("M", "100644")' in redaction_gate
+    assert '"scripts/core/certification_canary_state.py": ("M", "100644")' in redaction_gate
+    assert '"tests/test_fase09_9_certification_canary.py": ("M", "100644")' in redaction_gate
+    assert 'denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")' in redaction_gate
