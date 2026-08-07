@@ -63,6 +63,7 @@ jobs:
       F10_PRODUCTION_CANARY_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}
       F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}
+      F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG }}
       AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}
       PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -101,6 +102,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
           canary_secret_slug="${F10_PRODUCTION_CANARY_INSTITUTION_SLUG:-}"
+          canary_fg1_source_slug="${F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG:-}"
           canary_secret_host="${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}"
           case "${F10_PRODUCTION_CANARY_RUN_ID:-}" in
             ''|*[!0-9-]*) echo "Invalid canary run id" >&2; exit 1 ;;
@@ -108,12 +110,18 @@ jobs:
           case "$canary_secret_slug" in
             ''|*[!a-z0-9-]*) echo "Invalid canary cohort secret" >&2; exit 1 ;;
           esac
+          case "$canary_fg1_source_slug" in
+            ''|*[!a-z0-9-]*) echo "Invalid canary FG1 source secret" >&2; exit 1 ;;
+          esac
           case "$canary_secret_host" in
             ''|*[!A-Za-z0-9.-]*) echo "Invalid Production Supabase host allowlist" >&2; exit 1 ;;
           esac
           echo "::add-mask::$F10_PRODUCTION_CANARY_RUN_ID"
           if [ -n "$canary_secret_slug" ]; then
             echo "::add-mask::$canary_secret_slug"
+          fi
+          if [ -n "$canary_fg1_source_slug" ]; then
+            echo "::add-mask::$canary_fg1_source_slug"
           fi
           if [ -n "$canary_secret_host" ]; then
             echo "::add-mask::$canary_secret_host"
@@ -194,7 +202,7 @@ jobs:
 
           {
             echo "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug"
-            echo "CANARY_FG1_SOURCE_SLUG=$canary_secret_slug"
+            echo "CANARY_FG1_SOURCE_SLUG=$canary_fg1_source_slug"
             echo "CANARY_MAX_HARVEST_URLS=$max_harvest_urls"
             echo "CANARY_MAX_STAGING_RECORDS=$max_staging_records"
             echo "CANARY_MAX_ENRICHMENT_RECORDS=$max_enrichment_records"
