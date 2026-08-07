@@ -5,14 +5,6 @@ on:
     branches: [certificacion]
   workflow_dispatch:
     inputs:
-      institution_slug:
-        description: Exact institution slug to canary in Certification
-        required: true
-        type: string
-      fg1_source_slug:
-        description: Optional FG1 source slug; defaults to institution_slug
-        required: false
-        type: string
       max_harvest_urls:
         description: Maximum URLs FG2 may discover/harvest
         required: true
@@ -55,7 +47,7 @@ on:
         type: boolean
 
 concurrency:
-  group: f9-9-certification-canary-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.institution_slug || vars.F99_CERTIFICATION_CANARY_INSTITUTION_SLUG || github.sha }}
+  group: f9-9-certification-canary-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -75,8 +67,6 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       PYTHONIOENCODING: utf-8
       PYTHONPATH: .
-      WORKFLOW_INPUT_INSTITUTION_SLUG: ${{ inputs.institution_slug }}
-      WORKFLOW_INPUT_FG1_SOURCE_SLUG: ${{ inputs.fg1_source_slug }}
       WORKFLOW_INPUT_MAX_HARVEST_URLS: ${{ inputs.max_harvest_urls }}
       WORKFLOW_INPUT_MAX_STAGING_RECORDS: ${{ inputs.max_staging_records }}
       WORKFLOW_INPUT_MAX_ENRICHMENT_RECORDS: ${{ inputs.max_enrichment_records }}
@@ -85,8 +75,8 @@ jobs:
       WORKFLOW_INPUT_RUN_FG1: ${{ inputs.run_fg1 }}
       WORKFLOW_INPUT_RUN_FG2: ${{ inputs.run_fg2 }}
       WORKFLOW_INPUT_RUN_FG3: ${{ inputs.run_fg3 }}
-      CONFIG_INSTITUTION_SLUG: ${{ vars.F99_CERTIFICATION_CANARY_INSTITUTION_SLUG }}
-      CONFIG_FG1_SOURCE_SLUG: ${{ vars.F99_CERTIFICATION_CANARY_FG1_SOURCE_SLUG }}
+      CONFIG_INSTITUTION_SLUG: ${{ secrets.F99_CERTIFICATION_CANARY_INSTITUTION_SLUG }}
+      CONFIG_FG1_SOURCE_SLUG: ${{ secrets.F99_CERTIFICATION_CANARY_FG1_SOURCE_SLUG }}
       CONFIG_MAX_HARVEST_URLS: ${{ vars.F99_CERTIFICATION_CANARY_MAX_HARVEST_URLS }}
       CONFIG_MAX_STAGING_RECORDS: ${{ vars.F99_CERTIFICATION_CANARY_MAX_STAGING_RECORDS }}
       CONFIG_MAX_ENRICHMENT_RECORDS: ${{ vars.F99_CERTIFICATION_CANARY_MAX_ENRICHMENT_RECORDS }}
@@ -96,11 +86,21 @@ jobs:
       CONFIG_RUN_FG2: ${{ vars.F99_CERTIFICATION_CANARY_RUN_FG2 }}
       CONFIG_RUN_FG3: ${{ vars.F99_CERTIFICATION_CANARY_RUN_FG3 }}
       CONFIG_MUTABLE_APPROVED: ${{ vars.F99_CERTIFICATION_CANARY_MUTABLE_APPROVED }}
-      F99_CERTIFICATION_CANARY_SUPABASE_HOST: ${{ vars.F99_CERTIFICATION_CANARY_SUPABASE_HOST }}
+      F99_CERTIFICATION_CANARY_SUPABASE_HOST: ${{ secrets.F99_CERTIFICATION_CANARY_SUPABASE_HOST }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+
+      - name: Mask Certification private identifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          for value in "$CONFIG_INSTITUTION_SLUG" "$CONFIG_FG1_SOURCE_SLUG" "$F99_CERTIFICATION_CANARY_SUPABASE_HOST"; do
+            if [ -n "$value" ]; then
+              printf '::add-mask::%s\n' "$value"
+            fi
+          done
 
       - name: Guard Certification target and limits
         shell: bash
@@ -135,9 +135,9 @@ jobs:
             printf '%s' "$value"
           }
 
+          institution_slug="$CONFIG_INSTITUTION_SLUG"
+          fg1_source_slug="$CONFIG_FG1_SOURCE_SLUG"
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            institution_slug="$WORKFLOW_INPUT_INSTITUTION_SLUG"
-            fg1_source_slug="$WORKFLOW_INPUT_FG1_SOURCE_SLUG"
             max_harvest_urls="$(resolve_number "$WORKFLOW_INPUT_MAX_HARVEST_URLS" 5)"
             max_staging_records="$(resolve_number "$WORKFLOW_INPUT_MAX_STAGING_RECORDS" 5)"
             max_enrichment_records="$(resolve_number "$WORKFLOW_INPUT_MAX_ENRICHMENT_RECORDS" 3)"
@@ -147,8 +147,6 @@ jobs:
             run_fg2="$(normalize_bool "$WORKFLOW_INPUT_RUN_FG2")"
             run_fg3="$(normalize_bool "$WORKFLOW_INPUT_RUN_FG3")"
           else
-            institution_slug="$CONFIG_INSTITUTION_SLUG"
-            fg1_source_slug="$CONFIG_FG1_SOURCE_SLUG"
             max_harvest_urls="$(resolve_number "$CONFIG_MAX_HARVEST_URLS" 5)"
             max_staging_records="$(resolve_number "$CONFIG_MAX_STAGING_RECORDS" 5)"
             max_enrichment_records="$(resolve_number "$CONFIG_MAX_ENRICHMENT_RECORDS" 3)"

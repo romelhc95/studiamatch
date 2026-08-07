@@ -31,6 +31,18 @@ CANARY_PROVIDER_MARKER = "f99-certification-canary"
 CANARY_PROFILE_NOTE_PREFIX = "F9.9 certification canary run "
 
 
+def _mask_github_value(value):
+    if os.getenv("GITHUB_ACTIONS") == "true" and value:
+        print(f"::add-mask::{value}")
+
+
+def _public_cohort():
+    return {
+        "institution_slug": "redacted",
+        "institution_name": "redacted",
+    }
+
+
 def _ensure_github_certification_context():
     if os.getenv("GITHUB_ACTIONS") != "true":
         return
@@ -119,14 +131,14 @@ def _has_any_canary_marker(table, row):
 
 
 def _ensure_clean_prestate(tables):
-    dirty = [
-        f"{table}:{_row_id(row)}"
+    dirty_count = sum(
+        1
         for table, rows in tables.items()
         for row in rows
         if _has_any_canary_marker(table, row)
-    ]
-    if dirty:
-        raise RuntimeError(f"Canary pre-state contains dirty canary leftovers: {', '.join(dirty[:10])}")
+    )
+    if dirty_count:
+        raise RuntimeError("Canary pre-state contains dirty canary leftovers")
 
 
 def _digest_rows(rows):
@@ -149,7 +161,7 @@ def _row_map(rows):
     for row in rows:
         row_id = _row_id(row)
         if row_id in result:
-            raise RuntimeError(f"Duplicate row id in canary state: {row_id}")
+            raise RuntimeError("Duplicate row id in canary state")
         result[row_id] = row
     return result
 
@@ -183,7 +195,7 @@ def _resolve_institution(db, slug):
         limit=2,
     )
     if len(rows) != 1:
-        raise RuntimeError(f"Expected exactly one institution for slug: {slug}")
+        raise RuntimeError("Expected exactly one institution for configured Certification canary cohort")
     return rows[0]
 
 
@@ -239,7 +251,6 @@ def _sanitize_snapshot(snapshot):
         table_summaries[table] = {
             "row_count": len(rows),
             "status_counts": status_counts,
-            "private_digest": _digest_rows(rows),
         }
     return {
         "schema": SUMMARY_SCHEMA,
@@ -247,7 +258,7 @@ def _sanitize_snapshot(snapshot):
         "generated_at": snapshot["generated_at"],
         "canary_run_id": snapshot.get("canary_run_id"),
         "github": snapshot["github"],
-        "cohort": snapshot["cohort"],
+        "cohort": _public_cohort(),
         "tables": table_summaries,
         "non_cohort_counts": snapshot["non_cohort_counts"],
     }
@@ -266,6 +277,9 @@ def capture_snapshot(args):
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
+    _mask_github_value(institution.get("name"))
 
     tables = {
         table: _select_table_rows(db, table, institution_id)
@@ -311,9 +325,7 @@ def _delete_extra_rows(db, table, rows, snapshot_generated_at, canary_run_id):
             or not snapshot_time
             or created_at <= snapshot_time
         ):
-            raise RuntimeError(
-                f"Refusing to delete pre-existing or unverified extra row from {table}: {row_id}"
-            )
+            raise RuntimeError(f"Refusing to delete pre-existing or unverified extra row from {table}")
         result = db.delete(table, filters=f"id=eq.{quote(row_id, safe='')}")
         if not result:
             raise RuntimeError(f"Failed to delete canary-created row from {table}")
@@ -361,6 +373,9 @@ def restore_snapshot(args):
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
+    _mask_github_value(institution_id)
+    _mask_github_value(institution["slug"])
+    _mask_github_value(institution.get("name"))
     summary = {
         "schema": SUMMARY_SCHEMA,
         "operation": "restore",
@@ -372,7 +387,7 @@ def restore_snapshot(args):
             "sha": os.getenv("GITHUB_SHA"),
             "run_id": os.getenv("GITHUB_RUN_ID"),
         },
-        "cohort": snapshot["cohort"],
+        "cohort": _public_cohort(),
         "tables": {},
         "non_cohort_counts_match": True,
         "after_matches_snapshot": True,
