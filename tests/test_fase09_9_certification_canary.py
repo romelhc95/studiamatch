@@ -198,3 +198,12 @@ def test_security_audit_f99_runtime_manifest_includes_canary_runtime() -> None:
     assert "scripts/core/certification_canary_state.py" in runtime_manifest
     assert "scripts/core/enrichment_worker.py" in runtime_manifest
     assert "scripts/core/master_orchestrator.py" in runtime_manifest
+
+
+def test_f97_contract_allows_certification_canary_redaction_without_skipping() -> None:
+    workflow = source(".github/workflows/f9-7-contract.yml")
+
+    assert "name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract" in workflow
+    assert "scripts/core/certification_canary_manifest.py': {'A', 'M'}" in workflow
+    assert "scripts/core/certification_canary_state.py': {'A', 'M'}" in workflow
+    assert "f97-drift:{path}" in workflow
