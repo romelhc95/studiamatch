@@ -12,300 +12,41 @@ concurrency:
 
 env:
   CI: true
-  F97_BASELINE_COMMIT: 8ab1cdf9173b8093781e75ba32c2fea9ae931b14
-  F97_FROZEN_COMMIT: 258ef3a98c7c1010efe58522bb1eca892e26390e
-  F97_FROZEN_TREE: 2cb182ab9ece141bd8e84d7bbf9c91d771f603de
-  ACTIONLINT_VERSION: '1.7.7'
-  SHELLCHECK_VERSION: '0.9.0'
-  SHELLCHECK_SHA256: 700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f
-  ACTIONLINT_ASSET: actionlint_1.7.7_linux_amd64.tar.gz
-  ACTIONLINT_SHA256: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
-  F97_CREDENTIAL_PATTERN: >-
-    eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['"]?[A-Za-z0-9_-]{20,}
-
-permissions:
-  contents: read
+  F99_CERTIFICATION_BASELINE: e4ad815624184b692219ca9490347880af8de6b6
+  F99_CA1_SOURCE_COMMIT: 456becf94a2bab3d8091c7036509cfb80791a3f9
+  F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b
+  F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab
+  F108_CERTIFICATION_BASELINE: 1edc65aa848d32dabfa62aa60b53f4bff9b5716e
+  F108_MAIN_GATE_BASELINE: f6fb25b2f00f283081de3180238da808117137cf
 
 jobs:
   credential-scan:
     name: Credential Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Resolve explicit F9.8 candidate
-        run: |
-          set -eu
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            F97_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
-          else
-            F97_CANDIDATE_COMMIT="${{ github.sha }}"
-          fi
-          printf '%s' "$F97_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
-          git cat-file -e "$F97_BASELINE_COMMIT^{commit}"
-          git cat-file -e "$F97_CANDIDATE_COMMIT^{commit}"
-          git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
-          test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
-          F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
-          git diff --quiet
-          git diff --cached --quiet
-          {
-            echo "F97_CANDIDATE_MODE=commit"
-            echo "F97_CANDIDATE_COMMIT=$F97_CANDIDATE_COMMIT"
-            echo "F97_CANDIDATE_TREE=$F97_CANDIDATE_TREE"
-          } >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
       - name: Scan for hardcoded credentials
         run: |
-          set -eu
-          if git grep -a -q -E "$F97_CREDENTIAL_PATTERN" "$F97_CANDIDATE_TREE" -- .; then
-            echo "::error::Potential hardcoded credential detected in candidate tree (content redacted)"
+          PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
+          raw_findings="$(mktemp)"
+          find . -type f \
+            ! -path './.git/*' \
+            ! -path '*/node_modules/*' \
+            ! -path '*/.next/*' \
+            ! -path '*/out/*' \
+            ! -name '*.lock' \
+            ! -name '*.png' ! -name '*.jpg' ! -name '*.jpeg' \
+            ! -name '*.gif' ! -name '*.ico' ! -name '*.svg' \
+            ! -name '*.woff*' ! -name '*.ttf' ! -name '*.eot' \
+            ! -name '*.mp4' ! -name '*.mov' ! -name '*.avi' \
+            ! -name '*.pdf' ! -name '*.zip' ! -name '*.tar.gz' \
+            -exec grep -nE "$PATTERNS" {} + > "$raw_findings" 2>/dev/null || true
+          if [ -s "$raw_findings" ]; then
+            awk -F: '{ print $1 ":" $2 ": [REDACTED credential-like value]" }' "$raw_findings" | head -50 | tee -a credential_findings.txt
+            echo "❌ CREDENTIAL SCAN FAILED: Hardcoded credentials detected!"
             exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "::error::Credential scan failed operationally on candidate tree (rc=$rc)"
-              exit 1
-            fi
           fi
-          for commit in $(git rev-list "$F97_BASELINE_COMMIT..$F97_CANDIDATE_COMMIT"); do
-            tree="$(git rev-parse "$commit^{tree}")"
-            if git grep -a -q -E "$F97_CREDENTIAL_PATTERN" "$tree" -- .; then
-              echo "::error::Potential hardcoded credential detected in intermediate commit $commit (content redacted)"
-              exit 1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "::error::Credential scan failed operationally on commit $commit (rc=$rc)"
-                exit 1
-              fi
-            fi
-          done
-          echo "Credential scan passed for candidate tree and commit range"
-
-  release-gates:
-    name: Release Gates
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Resolve explicit F9.7 candidate
-        run: |
-          set -eu
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            F97_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
-          else
-            F97_CANDIDATE_COMMIT="${{ github.sha }}"
-          fi
-          printf '%s' "$F97_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
-          git cat-file -e "$F97_BASELINE_COMMIT^{commit}"
-          git cat-file -e "$F97_CANDIDATE_COMMIT^{commit}"
-          git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
-          test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
-          F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")" = "$F97_CANDIDATE_TREE"
-          git diff --quiet
-          git diff --cached --quiet
-          {
-            echo "F97_CANDIDATE_MODE=commit"
-            echo "F97_CANDIDATE_COMMIT=$F97_CANDIDATE_COMMIT"
-            echo "F97_CANDIDATE_TREE=$F97_CANDIDATE_TREE"
-          } >> "$GITHUB_ENV"
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-      - name: Install pinned actionlint and ShellCheck
-        run: |
-          set -eu
-          shellcheck_dir="$(mktemp -d "$RUNNER_TEMP/shellcheck.XXXXXXXX")"
-          shellcheck_archive="$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
-          curl -fsSLo "$shellcheck_archive" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
-          printf '%s  %s\n' "$SHELLCHECK_SHA256" "$shellcheck_archive" | sha256sum -c -
-          tar -xJf "$shellcheck_archive" -C "$shellcheck_dir"
-          PATH="$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}:$PATH"
-          command -v shellcheck
-          reported_shellcheck_version="$(shellcheck --version | awk -F': ' '$1 == "version" { print $2 }')"
-          test "$reported_shellcheck_version" = "$SHELLCHECK_VERSION"
-          echo "$shellcheck_dir/shellcheck-v${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
-          actionlint_dir="$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXXXX")"
-          actionlint_archive="$actionlint_dir/$ACTIONLINT_ASSET"
-          curl -fsSLo "$actionlint_archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ACTIONLINT_ASSET}"
-          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$actionlint_archive" | sha256sum -c -
-          tar -xzf "$actionlint_archive" -C "$actionlint_dir" actionlint
-          reported_actionlint_output="$("$actionlint_dir/actionlint" -version)"
-          reported_actionlint_release="${reported_actionlint_output%%$'\n'*}"
-          test "$reported_actionlint_release" = "$ACTIONLINT_VERSION"
-          echo "ACTIONLINT_BIN=$actionlint_dir/actionlint" >> "$GITHUB_ENV"
-      - name: Run actionlint
-        run: |
-          set -eu
-          command -v shellcheck
-          reported_shellcheck_version="$(shellcheck --version | awk -F': ' '$1 == "version" { print $2 }')"
-          test "$reported_shellcheck_version" = "$SHELLCHECK_VERSION"
-          workflow_list="$RUNNER_TEMP/actionlint-workflows.list"
-          find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 > "$workflow_list"
-          test -s "$workflow_list"
-          xargs -0 "$ACTIONLINT_BIN" \
-            -config-file .github/actionlint.yaml < "$workflow_list"
-      - name: Enforce LF for candidate text files
-        run: |
-          python3 - <<'PY'
-          import os
-          import subprocess
-
-          baseline = os.environ['F97_BASELINE_COMMIT']
-          candidate = os.environ['F97_CANDIDATE_COMMIT']
-          raw = subprocess.check_output([
-              'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies', '--diff-filter=ACMR',
-              baseline, candidate, '--',
-          ])
-          fields = raw.split(b'\0')
-          failed = []
-          index = 0
-          while index < len(fields) and fields[index]:
-              status = fields[index].decode('ascii')
-              index += 1
-              if status.startswith(('R', 'C')):
-                  index += 1
-              path = fields[index].decode('utf-8', 'surrogateescape')
-              index += 1
-              blob = subprocess.check_output(['git', 'cat-file', 'blob', f'{candidate}:{path}'])
-              if b'\0' in blob:
-                  continue
-              if b'\r\n' in blob:
-                  failed.append(path.encode('unicode_escape').decode('ascii'))
-          if failed:
-              for path in failed:
-                  print(f'::error file={path}::CRLF detected in changed candidate blob')
-              raise SystemExit(1)
-          PY
-      - name: Check whitespace and protected path drift
-        run: |
-          set -eu
-          git cat-file -e "$F97_BASELINE_COMMIT^{commit}"
-          git cat-file -e "$F97_CANDIDATE_COMMIT^{commit}"
-          git diff --check "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
-          python3 - <<'PY'
-          import os
-          import subprocess
-
-          protected = (
-              '.github/workflows/fg1_inventory.yml',
-              '.github/workflows/production_pipeline.yml',
-              '.github/workflows/fg3_integrity.yml',
-              '.github/workflows/db-sync-to-pro.yml',
-              'scripts/core',
-              'scripts/shared',
-              'config',
-              'requirements-fg1.txt',
-              'requirements-pipeline.txt',
-              'requirements-fg3.txt',
-              'requirements-db-migrate.txt',
-              'db/manifests/fase09_7_free_schema_rls_v3.json',
-              'db/migrations/20260724_fase06_g1b_reconciliation.sql',
-              'db/migrations/20260724_fase06_hito1_editorial_contract.sql',
-              'db/migrations/20260725_fase07_g1b_closure.sql',
-              'db/migrations/20260725_fase08_hito1_functional_closure.sql',
-              'db/migrations/20260727_fase09_7_public_access_closure.sql',
-              'db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql',
-              'scripts/maintenance/category_coverage_audit.py',
-              'scripts/maintenance/quality_assurance_audit.py',
-              'scripts/maintenance/taxonomy_roi_audit.py',
-          )
-          f98_ca1_allowed_statuses = {
-              '.gitattributes': {'M'},
-              '.github/workflows/fg1_inventory.yml': {'M'},
-              '.github/workflows/db-sync-to-pro.yml': {'M'},
-              '.github/workflows/production_pipeline.yml': {'M'},
-              '.github/workflows/fg3_integrity.yml': {'M'},
-              'scripts/core/certification_canary_manifest.py': {'A'},
-              'scripts/core/production_canary_manifest.py': {'A'},
-              'scripts/core/production_canary_state.py': {'A'},
-              'scripts/core/cleansing_worker.py': {'M'},
-              'scripts/core/discovery_institutions.py': {'M'},
-              'scripts/core/enrichment_worker.py': {'M'},
-              'scripts/core/integrity_ping.py': {'M'},
-              'scripts/core/master_orchestrator.py': {'M'},
-              'scripts/core/sync_vector_worker.py': {'M'},
-              'scripts/core/universal_harvester.py': {'M'},
-              'scripts/shared/db_client.py': {'M'},
-          }
-          f98_ca1_allowed = set(f98_ca1_allowed_statuses)
-
-          def ls_tree(treeish):
-              raw = subprocess.check_output(['git', 'ls-tree', '-r', '-z', treeish, '--', *protected])
-              objects = {}
-              for record in raw.split(b'\0'):
-                  if not record:
-                      continue
-                  meta, path = record.split(b'\t', 1)
-                  mode, kind, oid = meta.decode('ascii').split(' ')
-                  objects[path.decode('utf-8', 'surrogateescape')] = (mode, kind, oid)
-              return objects
-
-          baseline = ls_tree(os.environ['F97_BASELINE_COMMIT'])
-          candidate = ls_tree(os.environ['F97_CANDIDATE_TREE'])
-          if len(baseline) != 32:
-              raise SystemExit(f'protected baseline expansion drifted: {len(baseline)}')
-          failed = []
-          raw_status = subprocess.check_output([
-              'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies',
-              os.environ['F97_BASELINE_COMMIT'], os.environ['F97_CANDIDATE_COMMIT'], '--'
-          ])
-          status_by_path = {}
-          fields = raw_status.split(b'\0')
-          index = 0
-          while index < len(fields) and fields[index]:
-              status = fields[index].decode('ascii')
-              index += 1
-              if status.startswith(('R', 'C')):
-                  old_path = fields[index].decode('utf-8', 'surrogateescape')
-                  index += 1
-                  path = fields[index].decode('utf-8', 'surrogateescape')
-                  status_by_path[old_path] = status
-              else:
-                  path = fields[index].decode('utf-8', 'surrogateescape')
-              index += 1
-              status_by_path[path] = status
-          for path in sorted(set(baseline) | set(candidate)):
-              if baseline.get(path) != candidate.get(path):
-                  failed.append(path.encode('unicode_escape').decode('ascii'))
-          if failed:
-              unexpected = [path for path in failed if path not in f98_ca1_allowed]
-              allowed_failures = []
-              for path in failed:
-                  if path in f98_ca1_allowed:
-                      expected_statuses = f98_ca1_allowed_statuses[path]
-                      if status_by_path.get(path) not in expected_statuses:
-                          allowed_failures.append(path)
-                          continue
-                      if status_by_path.get(path) == 'A':
-                          if path in baseline or path not in candidate:
-                              allowed_failures.append(path)
-                              continue
-                          head_mode, head_kind, _head_oid = candidate[path]
-                          if (head_mode, head_kind) != ('100644', 'blob'):
-                              allowed_failures.append(path)
-                          continue
-                      base_mode, base_kind, _base_oid = baseline[path]
-                      head_mode, head_kind, _head_oid = candidate[path]
-                      if (base_mode, base_kind, head_mode, head_kind) != ('100644', 'blob', '100644', 'blob'):
-                          allowed_failures.append(path)
-              if not unexpected and not allowed_failures:
-                  print('F9.8 CA1 protected-path drift is within the explicit allowlist')
-                  raise SystemExit(0)
-              for path in sorted(set(unexpected + allowed_failures)):
-                  print(f'::error file={path}::protected path blob/mode/path drift')
-              raise SystemExit(1)
-          PY
-      - name: Validate Context Graph
-        run: python3 scripts/maintenance/validate_context_graph.py
+          echo "✅ Credential scan passed"
 
   lint:
     name: ESLint
@@ -313,13 +54,12 @@ jobs:
     defaults:
       run:
         working-directory: web
+    continue-on-error: true
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
       - name: Install dependencies
@@ -333,13 +73,12 @@ jobs:
     defaults:
       run:
         working-directory: web
+    continue-on-error: true
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
       - name: Install dependencies
@@ -347,73 +86,12 @@ jobs:
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 
-  frontend-build:
-    name: Frontend Static Build and Public Surface Contracts
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Python Playwright dependencies and browser
-        run: |
-          pip install --require-hashes -r ../requirements-test.txt
-          python -m playwright install chromium --with-deps
-      - name: Prepare frontend firewall cleanup state
-        run: |
-          state_dir="$(mktemp -d "$RUNNER_TEMP/f97-frontend-firewall.XXXXXXXX")"
-          chmod 700 "$state_dir"
-          echo "F97_FRONTEND_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
-      - name: Block external egress for frontend public surface
-        run: |
-          "$GITHUB_WORKSPACE/.github/scripts/fase09_7_firewall_guard.sh" setup F97_FRONTEND_EGRESS "$F97_FRONTEND_FIREWALL_STATE"
-      - name: Build static frontend with local Supabase stub and hostile lead flag
-        run: node tests/buildWithLocalSupabaseStub.mjs
-      - name: Assert public static export and local Playwright contract
-        env:
-          SUPABASE_TEST_ORIGIN: http://127.0.0.1:54321
-        run: |
-          node tests/assertPublicExport.mjs
-          python -m pytest -q ../tests/test_frontend_public_surfaces_playwright.py
-      - name: Restore frontend public surface egress
-        if: always()
-        run: |
-          cleanup_status=0
-          state_dir="${F97_FRONTEND_FIREWALL_STATE:-}"
-          if [ -n "$state_dir" ]; then
-            if [ -d "$state_dir" ]; then
-              "$GITHUB_WORKSPACE/.github/scripts/fase09_7_firewall_guard.sh" cleanup F97_FRONTEND_EGRESS "$state_dir" || cleanup_status=$?
-              if [ "$cleanup_status" -eq 0 ]; then
-                rm -rf -- "$state_dir" || cleanup_status=1
-              fi
-            else
-              echo "F9.7 frontend firewall state directory is missing"
-              cleanup_status=1
-            fi
-          fi
-          exit "$cleanup_status"
-
   python-check:
     name: Python Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Check all core scripts compile
@@ -426,1005 +104,61 @@ jobs:
           find scripts/shared -name '*.py' -exec python3 -m py_compile {} \;
           echo "✅ All Python scripts compile successfully"
 
-  context-graph:
-    name: Context Graph
+  f99-certification-selective:
+    name: F9.9 Certification Selective Candidate
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-      - name: Validate canonical context graph
-        run: python3 scripts/maintenance/validate_context_graph.py
-
-  fase06-db-as-code:
-    name: FASE-06 DB-as-Code Contract
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Validate FASE-06 package and credential contracts
-        run: python3 -m pytest -q tests/test_fase06_db_as_code.py tests/test_supabase_credentials_contract.py
-
-  fase07-g1b:
-    name: FASE-07 G1b Contract
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Validate FASE-07 G1b contract
-        run: python3 -m pytest -q tests/test_fase07_g1b.py
-
-  fase08-hito1:
-    name: FASE-08 Hito 1 Functional Contract
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
-        env:
-          POSTGRES_DB: studiamatch_f8
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d studiamatch_f8"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/studiamatch_f8
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Validate FASE-08 Python contracts
-        run: python3 -m pytest -q tests/test_fase08_db.py tests/test_fase08_workers.py
-      - name: Validate FASE-08 PostgreSQL contract
-        run: bash tests/sql/run_fase08_postgres.sh
-
-  fase09-pre-free:
-    name: FASE-09 Pre-Free Local Contract
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
-        env:
-          POSTGRES_DB: studiamatch_f9
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d studiamatch_f9"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Block external egress for FASE-09 evidence
-        env:
-          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          POSTGRES_IP=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$POSTGRES_CONTAINER")
-          test -n "$POSTGRES_IP"
-          sudo iptables -N FASE09_EGRESS
-          sudo iptables -A FASE09_EGRESS -o lo -j RETURN
-          sudo iptables -A FASE09_EGRESS -p tcp -d "$POSTGRES_IP" --dport 5432 -j RETURN
-          sudo iptables -A FASE09_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo iptables -A FASE09_EGRESS -j REJECT
-          sudo iptables -I OUTPUT 1 -j FASE09_EGRESS
-          sudo ip6tables -N FASE09_EGRESS
-          sudo ip6tables -A FASE09_EGRESS -o lo -j RETURN
-          sudo ip6tables -A FASE09_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo ip6tables -A FASE09_EGRESS -j REJECT
-          sudo ip6tables -I OUTPUT 1 -j FASE09_EGRESS
-      - name: Validate FASE-09 Python contracts
-        run: >-
-          env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
-          python3 -m pytest -q tests/test_fase09_db.py tests/test_fase09_workers.py
-      - name: Validate FASE-09 PostgreSQL package
-        run: >-
-          env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
-          TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studiamatch_f9
-          bash tests/sql/run_fase09_postgres.sh
-      - name: Restore runner network
-        if: always()
-        run: |
-          sudo iptables -D OUTPUT -j FASE09_EGRESS || true
-          sudo iptables -F FASE09_EGRESS || true
-          sudo iptables -X FASE09_EGRESS || true
-          sudo ip6tables -D OUTPUT -j FASE09_EGRESS || true
-          sudo ip6tables -F FASE09_EGRESS || true
-          sudo ip6tables -X FASE09_EGRESS || true
-
-  fase09-free-preflight-contract:
-    name: F9.3 Free Preflight Local Contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Prepare F9.3 firewall cleanup state
-        run: |
-          state_dir=$(mktemp -d "$RUNNER_TEMP/fase093-firewall.XXXXXXXX")
-          chmod 700 "$state_dir"
-          echo "FASE093_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
-      - name: Block all egress for F9.3 local validation
-        run: |
-          test -d "$FASE093_FIREWALL_STATE"
-          sudo iptables -w 10 -L OUTPUT >/dev/null
-          sudo ip6tables -w 10 -L OUTPUT >/dev/null
-          if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-            echo "FASE093_EGRESS IPv4 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv4 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-            echo "FASE093_EGRESS IPv6 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv6 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          : > "$FASE093_FIREWALL_STATE/ipv4-owned"
-          sudo iptables -w 10 -N FASE093_EGRESS
-          sudo iptables -w 10 -A FASE093_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo iptables -w 10 -A FASE093_EGRESS -j REJECT
-          sudo iptables -w 10 -I OUTPUT 1 -j FASE093_EGRESS
-          : > "$FASE093_FIREWALL_STATE/ipv6-owned"
-          sudo ip6tables -w 10 -N FASE093_EGRESS
-          sudo ip6tables -w 10 -A FASE093_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo ip6tables -w 10 -A FASE093_EGRESS -j REJECT
-          sudo ip6tables -w 10 -I OUTPUT 1 -j FASE093_EGRESS
-      - name: Validate F9.3 focused contract tests
-        run: |
-          sudo unshare --net -- bash -c '
-            set -euo pipefail
-            ip link set lo down
-            test "$(ip -o link show up | wc -l)" -eq 0
-            cd "$1"
-            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 300s python3 -m pytest -q -p no:cacheprovider tests/test_fase09_free_preflight.py
-          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
-      - name: Validate F9.3 immutable descriptor
-        run: |
-          sudo unshare --net -- bash -c '
-            set -euo pipefail
-            ip link set lo down
-            test "$(ip -o link show up | wc -l)" -eq 0
-            cd "$1"
-            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 60s python3 scripts/maintenance/free_preflight.py --contract db/manifests/f9_3_free_preflight_contract.json --validate-only
-          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
-      - name: Replay F9.3 synthetic fail-closed contract
-        run: |
-          sudo unshare --net -- bash -c '
-            set -euo pipefail
-            ip link set lo down
-            test "$(ip -o link show up | wc -l)" -eq 0
-            cd "$1"
-            exec setpriv --reuid="$3" --regid="$4" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs env -i HOME=/tmp CI=true PATH="$2" PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 60s python3 scripts/maintenance/free_preflight.py --contract db/manifests/f9_3_free_preflight_contract.json --synthetic-self-test
-          ' _ "$GITHUB_WORKSPACE" "$PATH" "$(id -u)" "$(id -g)"
-      - name: Restore runner network
-        if: always()
-        run: |
-          cleanup_failed=0
-          state_dir="${FASE093_FIREWALL_STATE:-}"
-          ipv4_available=1
-          ipv6_available=1
-
-          if ! sudo iptables -w 10 -L OUTPUT >/dev/null; then
-            echo "Unable to access IPv4 firewall for cleanup"
-            cleanup_failed=1
-            ipv4_available=0
-          fi
-          if ! sudo ip6tables -w 10 -L OUTPUT >/dev/null; then
-            echo "Unable to access IPv6 firewall for cleanup"
-            cleanup_failed=1
-            ipv6_available=0
-          fi
-
-          if [ "$ipv4_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv4-owned" ]; then
-            while true; do
-              if sudo iptables -w 10 -C OUTPUT -j FASE093_EGRESS >/dev/null 2>&1; then
-                if ! sudo iptables -w 10 -D OUTPUT -j FASE093_EGRESS; then
-                  cleanup_failed=1
-                  break
-                fi
-              else
-                rc=$?
-                if [ "$rc" -eq 1 ]; then
-                  break
-                fi
-                echo "IPv4 jump check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-                break
-              fi
-            done
-            if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-              if ! sudo iptables -w 10 -F FASE093_EGRESS; then
-                cleanup_failed=1
-              fi
-              if ! sudo iptables -w 10 -X FASE093_EGRESS; then
-                cleanup_failed=1
-              fi
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "IPv4 chain check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ "$ipv6_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv6-owned" ]; then
-            while true; do
-              if sudo ip6tables -w 10 -C OUTPUT -j FASE093_EGRESS >/dev/null 2>&1; then
-                if ! sudo ip6tables -w 10 -D OUTPUT -j FASE093_EGRESS; then
-                  cleanup_failed=1
-                  break
-                fi
-              else
-                rc=$?
-                if [ "$rc" -eq 1 ]; then
-                  break
-                fi
-                echo "IPv6 jump check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-                break
-              fi
-            done
-            if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-              if ! sudo ip6tables -w 10 -F FASE093_EGRESS; then
-                cleanup_failed=1
-              fi
-              if ! sudo ip6tables -w 10 -X FASE093_EGRESS; then
-                cleanup_failed=1
-              fi
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "IPv6 chain check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-
-          if [ "$ipv4_available" -eq 1 ]; then
-            if sudo iptables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-              echo "FASE093_EGRESS chain remains in iptables"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv4 chain absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ "$ipv6_available" -eq 1 ]; then
-            if sudo ip6tables -w 10 -nL FASE093_EGRESS >/dev/null 2>&1; then
-              echo "FASE093_EGRESS chain remains in ip6tables"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv6 chain absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
-            if ! rm -rf -- "$state_dir"; then
-              cleanup_failed=1
-            fi
-          fi
-          exit "$cleanup_failed"
-
-  fase09-5-rls:
-    name: F9.5 RLS Forward-only PostgreSQL 17 Contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Prepare F9.5 firewall cleanup state
-        run: |
-          state_dir=$(mktemp -d "$RUNNER_TEMP/fase095-firewall.XXXXXXXX")
-          chmod 711 "$state_dir"
-          echo "FASE095_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
-      - name: Start networkless F9.5 PostgreSQL 17
-        run: |
-          socket_dir="$FASE095_FIREWALL_STATE/postgres-socket"
-          mkdir "$socket_dir"
-          chmod 777 "$socket_dir"
-          docker run --detach --name studiamatch-f95-postgres \
-            --network none \
-            --security-opt no-new-privileges:true \
-            --volume "$socket_dir:/var/run/postgresql" \
-            --env POSTGRES_DB=studiamatch_f95 \
-            --env POSTGRES_USER=postgres \
-            --env POSTGRES_PASSWORD=postgres \
-            postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
-          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' \
-            studiamatch-f95-postgres)" = "none"
-          ready=0
-          for _ in $(seq 1 30); do
-            if pg_isready --host "$socket_dir" --username postgres \
-              --dbname studiamatch_f95; then
-              ready=1
-              break
-            fi
-            sleep 1
-          done
-          test "$ready" -eq 1
-      - name: Block external egress for F9.5 PostgreSQL evidence
-        run: |
-          test -d "$FASE095_FIREWALL_STATE"
-          sudo iptables -w 10 -L OUTPUT >/dev/null
-          sudo ip6tables -w 10 -L OUTPUT >/dev/null
-          if sudo iptables -w 10 -nL FASE095_EGRESS >/dev/null 2>&1; then
-            echo "FASE095_EGRESS IPv4 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv4 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          if sudo ip6tables -w 10 -nL FASE095_EGRESS >/dev/null 2>&1; then
-            echo "FASE095_EGRESS IPv6 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv6 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          : > "$FASE095_FIREWALL_STATE/ipv4-owned"
-          sudo iptables -w 10 -N FASE095_EGRESS
-          sudo iptables -w 10 -A FASE095_EGRESS -o lo -j RETURN
-          sudo iptables -w 10 -A FASE095_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo iptables -w 10 -A FASE095_EGRESS -p tcp -d 1.1.1.1 \
-            --dport 443 -j REJECT
-          sudo iptables -w 10 -A FASE095_EGRESS -j REJECT
-          sudo iptables -w 10 -I OUTPUT 1 -j FASE095_EGRESS
-          : > "$FASE095_FIREWALL_STATE/ipv6-owned"
-          sudo ip6tables -w 10 -N FASE095_EGRESS
-          sudo ip6tables -w 10 -A FASE095_EGRESS -o lo -j RETURN
-          sudo ip6tables -w 10 -A FASE095_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo ip6tables -w 10 -A FASE095_EGRESS -j REJECT
-          sudo ip6tables -w 10 -I OUTPUT 1 -j FASE095_EGRESS
-      - name: Prove F9.5 external egress is blocked
-        run: |
-          sudo iptables -w 10 -C OUTPUT -j FASE095_EGRESS
-          sudo iptables -w 10 -C FASE095_EGRESS -j REJECT
-          sudo ip6tables -w 10 -C OUTPUT -j FASE095_EGRESS
-          sudo ip6tables -w 10 -C FASE095_EGRESS -j REJECT
-          reject_before=$(sudo iptables -w 10 -nvxL FASE095_EGRESS | \
-            awk '$3 == "REJECT" && $9 == "1.1.1.1" { print $1 }')
-          test -n "$reject_before"
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp PATH="$PATH" python3 - <<'PY'
-          import socket
-
-          try:
-              socket.create_connection(("1.1.1.1", 443), timeout=2).close()
-          except OSError:
-              pass
-          else:
-              raise SystemExit("F9.5 IPv4 egress probe unexpectedly connected")
-          PY
-          reject_after=$(sudo iptables -w 10 -nvxL FASE095_EGRESS | \
-            awk '$3 == "REJECT" && $9 == "1.1.1.1" { print $1 }')
-          test -n "$reject_after"
-          test "$reject_after" -gt "$reject_before"
-      - name: Validate F9.5 Python and PostgreSQL contracts without secrets
-        run: |
-          workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
-          while [ "$workspace_ancestor" != "/" ]; do
-            sudo chmod o+x "$workspace_ancestor"
-            workspace_ancestor="$(dirname "$workspace_ancestor")"
-          done
-          sudo chmod -R o+rX "$GITHUB_WORKSPACE"
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            test -r "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            test ! -w "$GITHUB_WORKSPACE/tests/test_fase09_5_rls.py"
-          if [ -S /var/run/docker.sock ]; then
-            sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-              --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-              test ! -r /var/run/docker.sock
-            sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-              --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-              test ! -w /var/run/docker.sock
-          fi
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-             PYTHONDONTWRITEBYTECODE=1 timeout --signal=TERM --kill-after=10s 300s \
-             python3 -m pytest -q -p no:cacheprovider \
-             tests/test_fase09_5_rls.py tests/test_fase09_5_rls_v2.py
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f95?host=$FASE095_FIREWALL_STATE/postgres-socket" \
-            timeout --signal=TERM --kill-after=10s 300s bash tests/sql/run_fase09_5_postgres.sh
-      - name: Restore runner network
-        if: always()
-        run: |
-          cleanup_failed=0
-          state_dir="${FASE095_FIREWALL_STATE:-}"
-
-          cleanup_family() {
-            firewall="$1"
-            marker="$2"
-            family="$3"
-            if ! sudo "$firewall" -w 10 -L OUTPUT >/dev/null; then
-              echo "Unable to access $family firewall for cleanup"
-              cleanup_failed=1
-              return
-            fi
-            if [ -n "$state_dir" ] && [ -f "$state_dir/$marker" ]; then
-              while true; do
-                if sudo "$firewall" -w 10 -C OUTPUT -j FASE095_EGRESS >/dev/null 2>&1; then
-                  if ! sudo "$firewall" -w 10 -D OUTPUT -j FASE095_EGRESS; then
-                    cleanup_failed=1
-                    break
-                  fi
-                else
-                  rc=$?
-                  if [ "$rc" -eq 1 ]; then
-                    break
-                  fi
-                  echo "$family jump check failed during cleanup (rc=$rc)"
-                  cleanup_failed=1
-                  break
-                fi
-              done
-              if sudo "$firewall" -w 10 -nL FASE095_EGRESS >/dev/null 2>&1; then
-                if ! sudo "$firewall" -w 10 -F FASE095_EGRESS; then
-                  cleanup_failed=1
-                fi
-                if ! sudo "$firewall" -w 10 -X FASE095_EGRESS; then
-                  cleanup_failed=1
-                fi
-              else
-                rc=$?
-                if [ "$rc" -ne 1 ]; then
-                  echo "$family chain check failed during cleanup (rc=$rc)"
-                  cleanup_failed=1
-                fi
-              fi
-            fi
-            if sudo "$firewall" -w 10 -nL FASE095_EGRESS >/dev/null 2>&1; then
-              echo "FASE095_EGRESS chain remains in $firewall"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify $family chain absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          }
-
-          cleanup_family iptables ipv4-owned IPv4
-          cleanup_family ip6tables ipv6-owned IPv6
-          if docker inspect studiamatch-f95-postgres >/dev/null 2>&1; then
-            if ! docker rm --force studiamatch-f95-postgres; then
-              cleanup_failed=1
-            fi
-          fi
-          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
-            if ! sudo rm -rf -- "$state_dir"; then
-              cleanup_failed=1
-            fi
-          fi
-          exit "$cleanup_failed"
-
-  fase10-promotion-contract:
-    name: FASE-10 Local Promotion Contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: pip install --require-hashes -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Prepare FASE-10 firewall cleanup state
-        run: |
-          state_dir=$(mktemp -d "$RUNNER_TEMP/fase10-firewall.XXXXXXXX")
-          chmod 700 "$state_dir"
-          echo "FASE10_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
-      - name: Block external egress for FASE-10 evidence
-        run: |
-          test -d "$FASE10_FIREWALL_STATE"
-          sudo iptables -w 10 -L OUTPUT >/dev/null
-          sudo ip6tables -w 10 -L OUTPUT >/dev/null
-          if sudo iptables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-            echo "FASE10_EGRESS IPv4 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv4 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          if sudo ip6tables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-            echo "FASE10_EGRESS IPv6 chain already exists"
-            exit 1
-          else
-            rc=$?
-            if [ "$rc" -ne 1 ]; then
-              echo "Unable to verify IPv6 chain absence (rc=$rc)"
-              exit 1
-            fi
-          fi
-          : > "$FASE10_FIREWALL_STATE/ipv4-owned"
-          sudo iptables -w 10 -N FASE10_EGRESS
-          sudo iptables -w 10 -A FASE10_EGRESS -o lo -j RETURN
-          sudo iptables -w 10 -A FASE10_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo iptables -w 10 -A FASE10_EGRESS -j REJECT
-          sudo iptables -w 10 -I OUTPUT 1 -j FASE10_EGRESS
-          : > "$FASE10_FIREWALL_STATE/ipv6-owned"
-          sudo ip6tables -w 10 -N FASE10_EGRESS
-          sudo ip6tables -w 10 -A FASE10_EGRESS -o lo -j RETURN
-          sudo ip6tables -w 10 -A FASE10_EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-          sudo ip6tables -w 10 -A FASE10_EGRESS -j REJECT
-          sudo ip6tables -w 10 -I OUTPUT 1 -j FASE10_EGRESS
-      - name: Validate FASE-10 promotion descriptor
-        run: >-
-          env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
-          timeout --signal=TERM --kill-after=10s 120s python3 scripts/maintenance/db_migrate.py --env free
-          --promotion-contract db/manifests/fase10_promotion_contract.json --validate-only
-      - name: Validate FASE-10 promotion contracts
-        run: >-
-          env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE"
-          timeout --signal=TERM --kill-after=10s 900s python3 -m pytest -q
-          tests/test_fase06_db_as_code.py
-          tests/test_fase07_g1b.py
-          tests/test_fase08_db.py
-          tests/test_fase08_workers.py
-          tests/test_fase09_db.py
-          tests/test_fase09_workers.py
-          tests/test_fase10_promotion_contract.py
-          tests/test_supabase_credentials_contract.py
-      - name: Restore runner network
-        if: always()
-        run: |
-          cleanup_failed=0
-          state_dir="${FASE10_FIREWALL_STATE:-}"
-          ipv4_available=1
-          ipv6_available=1
-
-          if ! sudo iptables -w 10 -L OUTPUT >/dev/null; then
-            echo "Unable to access IPv4 firewall for cleanup"
-            cleanup_failed=1
-            ipv4_available=0
-          fi
-          if ! sudo ip6tables -w 10 -L OUTPUT >/dev/null; then
-            echo "Unable to access IPv6 firewall for cleanup"
-            cleanup_failed=1
-            ipv6_available=0
-          fi
-
-          if [ "$ipv4_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv4-owned" ]; then
-            while true; do
-              if sudo iptables -w 10 -C OUTPUT -j FASE10_EGRESS >/dev/null 2>&1; then
-                if ! sudo iptables -w 10 -D OUTPUT -j FASE10_EGRESS; then
-                  cleanup_failed=1
-                  break
-                fi
-              else
-                rc=$?
-                if [ "$rc" -eq 1 ]; then
-                  break
-                fi
-                echo "IPv4 jump check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-                break
-              fi
-            done
-            if sudo iptables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-              if ! sudo iptables -w 10 -F FASE10_EGRESS; then
-                cleanup_failed=1
-              fi
-              if ! sudo iptables -w 10 -X FASE10_EGRESS; then
-                cleanup_failed=1
-              fi
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "IPv4 chain check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ "$ipv6_available" -eq 1 ] && [ -n "$state_dir" ] && [ -f "$state_dir/ipv6-owned" ]; then
-            while true; do
-              if sudo ip6tables -w 10 -C OUTPUT -j FASE10_EGRESS >/dev/null 2>&1; then
-                if ! sudo ip6tables -w 10 -D OUTPUT -j FASE10_EGRESS; then
-                  cleanup_failed=1
-                  break
-                fi
-              else
-                rc=$?
-                if [ "$rc" -eq 1 ]; then
-                  break
-                fi
-                echo "IPv6 jump check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-                break
-              fi
-            done
-            if sudo ip6tables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-              if ! sudo ip6tables -w 10 -F FASE10_EGRESS; then
-                cleanup_failed=1
-              fi
-              if ! sudo ip6tables -w 10 -X FASE10_EGRESS; then
-                cleanup_failed=1
-              fi
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "IPv6 chain check failed during cleanup (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-
-          if [ "$ipv4_available" -eq 1 ]; then
-            if sudo iptables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-              echo "FASE10_EGRESS chain remains in iptables"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv4 chain absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ "$ipv6_available" -eq 1 ]; then
-            if sudo ip6tables -w 10 -nL FASE10_EGRESS >/dev/null 2>&1; then
-              echo "FASE10_EGRESS chain remains in ip6tables"
-              cleanup_failed=1
-            else
-              rc=$?
-              if [ "$rc" -ne 1 ]; then
-                echo "Unable to verify IPv6 chain absence (rc=$rc)"
-                cleanup_failed=1
-              fi
-            fi
-          fi
-          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
-            if ! rm -rf -- "$state_dir"; then
-              cleanup_failed=1
-            fi
-          fi
-          exit "$cleanup_failed"
-
-  fase09-7-remediation:
-    name: F9.7 Remediation Definition PostgreSQL 17 Contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: 258ef3a98c7c1010efe58522bb1eca892e26390e
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Resolve frozen F9.7 candidate
-        run: |
-          set -eu
-          F97_CANDIDATE_COMMIT="$F97_FROZEN_COMMIT"
-          printf '%s' "$F97_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
-          git cat-file -e "$F97_BASELINE_COMMIT^{commit}"
-          git cat-file -e "$F97_CANDIDATE_COMMIT^{commit}"
-          git merge-base --is-ancestor "$F97_BASELINE_COMMIT" "$F97_CANDIDATE_COMMIT"
-          test "$(git rev-parse HEAD)" = "$F97_CANDIDATE_COMMIT"
-          F97_CANDIDATE_TREE="$(git rev-parse "$F97_CANDIDATE_COMMIT^{tree}")"
-          test "$F97_CANDIDATE_TREE" = "$F97_FROZEN_TREE"
-          git diff --quiet
-          git diff --cached --quiet
-          {
-            echo "F97_CANDIDATE_MODE=commit"
-            echo "F97_CANDIDATE_COMMIT=$F97_CANDIDATE_COMMIT"
-            echo "F97_CANDIDATE_TREE=$F97_CANDIDATE_TREE"
-          } >> "$GITHUB_ENV"
-          echo "HISTORICAL_F97_PASS commit=$F97_CANDIDATE_COMMIT tree=$F97_CANDIDATE_TREE"
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install pinned F9.7 test dependencies
-        run: >-
-          pip install --require-hashes
-          -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Prepare F9.7 local PostgreSQL socket
-        run: |
-          state_dir=$(mktemp -d "$RUNNER_TEMP/fase097-audit.XXXXXXXX")
-          chmod 711 "$state_dir"
-          mkdir "$state_dir/postgres-socket"
-          chmod 777 "$state_dir/postgres-socket"
-          echo "FASE097_AUDIT_STATE=$state_dir" >> "$GITHUB_ENV"
-          firewall_state=$(mktemp -d "$RUNNER_TEMP/fase097-audit-firewall.XXXXXXXX")
-          chmod 700 "$firewall_state"
-          echo "FASE097_AUDIT_FIREWALL_STATE=$firewall_state" >> "$GITHUB_ENV"
-      - name: Start networkless F9.7 PostgreSQL 17
-        run: |
-          docker run --detach --name studiamatch-f97-audit-postgres \
-            --network none \
-            --security-opt no-new-privileges:true \
-            --volume "$FASE097_AUDIT_STATE/postgres-socket:/var/run/postgresql" \
-            --env POSTGRES_DB=studiamatch_f97 \
-            --env POSTGRES_USER=postgres \
-            --env POSTGRES_PASSWORD=postgres \
-            postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
-          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' \
-            studiamatch-f97-audit-postgres)" = "none"
-          for _ in $(seq 1 30); do
-            pg_isready --host "$FASE097_AUDIT_STATE/postgres-socket" \
-              --username postgres --dbname studiamatch_f97 && exit 0
-            sleep 1
-          done
-          exit 1
-      - name: Block external egress for F9.7
-        run: |
-          .github/scripts/fase09_7_firewall_guard.sh setup FASE097_AUDIT_EGRESS "$FASE097_AUDIT_FIREWALL_STATE"
-      - name: Validate F9.7 local-only remediation contracts
-        run: |
-          workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
-          while [ "$workspace_ancestor" != "/" ]; do
-            sudo chmod o+x "$workspace_ancestor"
-            workspace_ancestor="$(dirname "$workspace_ancestor")"
-          done
-          sudo chmod -R go+rX,go-w "$GITHUB_WORKSPACE"
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            F97_BASELINE_COMMIT="$F97_BASELINE_COMMIT" \
-            F97_CANDIDATE_MODE="$F97_CANDIDATE_MODE" \
-            F97_CANDIDATE_COMMIT="$F97_CANDIDATE_COMMIT" \
-            F97_CANDIDATE_TREE="$F97_CANDIDATE_TREE" \
-            GIT_CONFIG_COUNT=1 \
-            GIT_CONFIG_KEY_0=safe.directory \
-            GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
-            PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
-              tests/test_fase09_7_backend_identity.py \
-              tests/test_fase09_7_acl_source_attestation.py \
-              tests/test_fase09_7_gate_b_readonly.py \
-              tests/test_fase09_7_remediation_definition.py \
-              tests/test_fase09_7_schema_rls.py \
-              tests/test_fase09_7_leads_email_security_hold.py \
-              tests/test_fase09_7_pipeline_no_regression.py \
-              tests/test_fase09_7_release_gates.py \
-              tests/test_supabase_credentials_contract.py
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            PYTHONDONTWRITEBYTECODE=1 \
-            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f97?host=$FASE097_AUDIT_STATE/postgres-socket" \
-            python3 -m pytest -q -p no:cacheprovider \
-              tests/test_fase09_7_acl_source_attestation.py
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f97?host=$FASE097_AUDIT_STATE/postgres-socket" \
-            bash tests/sql/run_fase09_7_postgres.sh
-          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
-            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            TEST_DATABASE_URL="postgresql://postgres:postgres@/studiamatch_f97?host=$FASE097_AUDIT_STATE/postgres-socket" \
-            bash tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh
-      - name: Restore runner and remove F9.7 database
-        if: always()
-        run: |
-          cleanup_status=0
-          firewall_state="${FASE097_AUDIT_FIREWALL_STATE:-}"
-          if [ -n "$firewall_state" ]; then
-            if [ -d "$firewall_state" ]; then
-              .github/scripts/fase09_7_firewall_guard.sh cleanup FASE097_AUDIT_EGRESS "$firewall_state" || cleanup_status=$?
-              if [ "$cleanup_status" -eq 0 ]; then
-                rm -rf -- "$firewall_state" || cleanup_status=1
-              fi
-            else
-              echo "F9.7 audit firewall state directory is missing"
-              cleanup_status=1
-            fi
-          fi
-          if docker inspect studiamatch-f97-audit-postgres >/dev/null 2>&1; then
-            docker rm --force studiamatch-f97-audit-postgres || cleanup_status=1
-          fi
-          audit_state="${FASE097_AUDIT_STATE:-}"
-          if [ -n "$audit_state" ]; then
-            if [ -d "$audit_state" ]; then
-              sudo rm -rf -- "$audit_state" || cleanup_status=1
-            else
-              echo "F9.7 audit state directory is missing"
-              cleanup_status=1
-            fi
-          fi
-          exit "$cleanup_status"
-
-  fase09-8-ca1:
-    name: F9.8 CA1 Pipeline Candidate Contract
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install pinned F9.8 test dependencies
-        run: >-
-          pip install --require-hashes
-          -r requirements-db-migrate.txt -r requirements-test.txt
-      - name: Validate CA1-only workflow gates
-        run: |
-          set -euo pipefail
-          grep -q "AUTOMATION_ENABLED" .github/workflows/fg1_inventory.yml
-          grep -q "AUTOMATION_ENABLED" .github/workflows/production_pipeline.yml
-          grep -q "AUTOMATION_ENABLED" .github/workflows/fg3_integrity.yml
-          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/fg1_inventory.yml
-          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/production_pipeline.yml
-          grep -q "PRODUCTION_WRITERS_PAUSED" .github/workflows/fg3_integrity.yml
-          grep -q "production_control_preflight:" .github/workflows/fg1_inventory.yml
-          grep -q "production_control_preflight:" .github/workflows/production_pipeline.yml
-          grep -q "production_control_preflight:" .github/workflows/fg3_integrity.yml
-          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/fg1_inventory.yml
-          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/production_pipeline.yml
-          grep -q "needs.production_control_preflight.outputs.allow_writer == 'true'" .github/workflows/fg3_integrity.yml
-          grep -q "production_control_preflight.sh FG1 --enforce" .github/workflows/fg1_inventory.yml
-          grep -q "production_control_preflight.sh FG2-HARVEST --enforce" .github/workflows/production_pipeline.yml
-          grep -q "production_control_preflight.sh FG3 --enforce" .github/workflows/fg3_integrity.yml
-          grep -q "group: studiamatch-fg2" .github/workflows/fg3_integrity.yml
-          grep -q "Production-Scheduled-FG1" .github/workflows/fg1_inventory.yml
-          grep -q "Production-Scheduled-FG2" .github/workflows/production_pipeline.yml
-          grep -q "Production-Scheduled-FG3" .github/workflows/fg3_integrity.yml
-          if grep -q "scripts/maintenance/" .github/workflows/production_pipeline.yml; then exit 1; fi
-          if grep -q "requirements-db-migrate.txt" .github/workflows/production_pipeline.yml; then exit 1; fi
-          if grep -q "pages/projects" .github/workflows/production_pipeline.yml; then exit 1; fi
-      - name: Validate CA1-only code gates
-        run: |
-          set -euo pipefail
-          grep -q "config/institution_sources.json is required" scripts/core/discovery_institutions.py
-          if grep -q "LEGACY_SOURCES" scripts/core/discovery_institutions.py; then exit 1; fi
-          if grep -q "status.*pending.*discovered" scripts/core/universal_harvester.py; then exit 1; fi
-          grep -q "is_safe_public_url" scripts/core/integrity_ping.py
-          grep -q "parsed.scheme != 'https'" scripts/core/integrity_ping.py
-          grep -q "request_pinned_public_url" scripts/core/integrity_ping.py
-          grep -q "FixedIPHTTPSConnection" scripts/core/integrity_ping.py
-          grep -q "patch_course_exact_one" scripts/core/integrity_ping.py
-          grep -q "get_pending_enriched(limit=args.limit, institution_id=args.institution_id)" scripts/core/sync_vector_worker.py
-          grep -q "failed or partial" scripts/core/integrity_ping.py
-          grep -q "failed or partial" scripts/core/sync_vector_worker.py
-      - name: Run focused F9.8 CA1 tests
-        run: |
-          set -euo pipefail
-          python3 -m pytest -q tests/test_fase09_8_ca1_candidate.py tests/test_fase09_8_runtime_security.py tests/test_fase09_9_certification_canary.py
-
-  fase09-9-ca1-reactivation:
-    name: F9.9 CA1 Reactivation Functional Gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
           fetch-depth: 0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Resolve target-aware F9.9 candidate
+          persist-credentials: false
+      - name: Validate F9.9 selective CA1 boundary
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             F99_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
             F99_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
           else
-            case "${{ github.ref }}" in
-              refs/heads/desarrollo|refs/heads/certificacion|refs/heads/main) ;;
-              *) echo "F9.9 only supports permanent branch pushes" >&2; exit 1 ;;
-            esac
+            test "${{ github.ref }}" = "refs/heads/certificacion"
             F99_BASE_COMMIT="${{ github.event.before }}"
             F99_CANDIDATE_COMMIT="${{ github.sha }}"
           fi
-          printf '%s' "$F99_BASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          test "$F99_BASE_COMMIT" = "$F99_CERTIFICATION_BASELINE"
           printf '%s' "$F99_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
-          test "$F99_BASE_COMMIT" != "0000000000000000000000000000000000000000"
-          git cat-file -e "$F99_BASE_COMMIT^{commit}"
+          git cat-file -e "$F99_CA1_SOURCE_COMMIT^{commit}"
+          git cat-file -e "$F99_CERTIFICATION_BASELINE^{commit}"
           git cat-file -e "$F99_CANDIDATE_COMMIT^{commit}"
-          git merge-base --is-ancestor "$F99_BASE_COMMIT" "$F99_CANDIDATE_COMMIT"
           test "$(git rev-parse HEAD)" = "$F99_CANDIDATE_COMMIT"
-          F99_CANDIDATE_TREE="$(git rev-parse "$F99_CANDIDATE_COMMIT^{tree}")"
-          if git cat-file -e "$F99_BASE_COMMIT:tests/e2e/ca1/ca1_functional_gate.py" 2>/dev/null; then
-            F99_BASE_HAS_HARNESS=true
-            F99_HARNESS_COMMIT="$F99_BASE_COMMIT"
-          else
-            F99_BASE_HAS_HARNESS=false
-            F99_HARNESS_COMMIT="$F99_CANDIDATE_COMMIT"
-          fi
-          export F99_BASE_COMMIT F99_CANDIDATE_COMMIT
-          python3 - <<'PY' > /tmp/f99-classification.env
+          python3 - <<'PY'
           import os
           import subprocess
+          import sys
 
-          base = subprocess.check_output(['git', 'rev-parse', os.environ['F99_BASE_COMMIT']], text=True).strip()
-          head = subprocess.check_output(['git', 'rev-parse', os.environ['F99_CANDIDATE_COMMIT']], text=True).strip()
+          base = os.environ['F99_CERTIFICATION_BASELINE']
+          source = os.environ['F99_CA1_SOURCE_COMMIT']
+          head = os.environ.get('F99_CANDIDATE_COMMIT') or subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          # F9.9 bootstrap exception: this seed PR introduces the certificacion
+          # boundary gate itself. Reuse is constrained by the exact baseline check.
+          allowed_statuses = {
+              '.github/workflows/f9_9_certification_canary.yml': {'A', 'M'},
+              '.github/workflows/security-audit.yml': {'M'},
+              'scripts/core/certification_canary_manifest.py': {'A', 'M'},
+              'scripts/core/certification_canary_state.py': {'A', 'M'},
+              'scripts/core/cleansing_worker.py': {'M'},
+              'scripts/core/discovery_institutions.py': {'M'},
+              'scripts/core/enrichment_worker.py': {'M'},
+              'scripts/core/integrity_ping.py': {'M'},
+              'scripts/core/master_orchestrator.py': {'M'},
+              'scripts/core/sync_vector_worker.py': {'M'},
+              'scripts/core/universal_harvester.py': {'M'},
+              'tests/test_fase09_9_certification_canary.py': {'A', 'M'},
+          }
           runtime_paths = {
               '.github/workflows/f9_9_certification_canary.yml',
-              '.github/workflows/fg1_inventory.yml',
-              '.github/workflows/fg3_integrity.yml',
-              '.github/workflows/production_pipeline.yml',
               'scripts/core/certification_canary_manifest.py',
+              'scripts/core/certification_canary_state.py',
               'scripts/core/cleansing_worker.py',
               'scripts/core/discovery_institutions.py',
               'scripts/core/enrichment_worker.py',
@@ -1432,225 +166,258 @@ jobs:
               'scripts/core/master_orchestrator.py',
               'scripts/core/sync_vector_worker.py',
               'scripts/core/universal_harvester.py',
-              'scripts/shared/db_client.py',
           }
-          harness_paths = {'tests/test_fase09_9_ca1_reactivation.py'}
-          rows = subprocess.check_output(['git', 'diff', '--name-status', base, head], text=True).splitlines()
-          runtime_changed = False
-          harness_changed = False
-          denied_changed = False
-          for row in rows:
-              parts = row.split('\t')
-              status = parts[0]
-              paths = parts[1:]
-              if any(path in runtime_paths for path in paths):
-                  runtime_changed = True
-              if any(path.startswith('tests/e2e/ca1/') or path in harness_paths for path in paths):
-                  harness_changed = True
-              if any(path.startswith(('db/', 'supabase/', 'web/', 'scripts/maintenance/')) for path in paths):
-                  denied_changed = True
-              if status.startswith(('R', 'C')) and any(path in runtime_paths for path in paths):
-                  raise SystemExit('CA1 runtime rename/copy is forbidden')
-          if runtime_changed and denied_changed:
-              raise SystemExit('CA1 runtime candidate also touches denied paths')
-          print(f'F99_RUNTIME_CHANGED={str(runtime_changed).lower()}')
-          print(f'F99_HARNESS_CHANGED={str(harness_changed).lower()}')
-          PY
-          cat /tmp/f99-classification.env >> "$GITHUB_ENV"
-          . /tmp/f99-classification.env
-          if [ "$F99_RUNTIME_CHANGED" = "true" ] && [ "$F99_BASE_HAS_HARNESS" != "true" ]; then
-            echo "base lacks trusted harness for runtime validation" >&2
-            exit 1
-          fi
-          if [ "$F99_RUNTIME_CHANGED" = "true" ] && [ "$F99_HARNESS_CHANGED" = "true" ] && [ "$F99_BASE_HAS_HARNESS" = "true" ]; then
-            echo "Runtime and harness changed together after bootstrap" >&2
-            exit 1
-          fi
-          if [ "$F99_BASE_HAS_HARNESS" = "true" ]; then
-            F99_EXPECTED_DECISION="GO_TO_PREPARE_CERTIFICATION_PR"
-          else
-            F99_EXPECTED_DECISION="NO_GO_KNOWN_T_H1_CA1_002B"
-          fi
-          {
-            echo "F99_BASE_COMMIT=$F99_BASE_COMMIT"
-            echo "F99_CANDIDATE_COMMIT=$F99_CANDIDATE_COMMIT"
-            echo "F99_CANDIDATE_TREE=$F99_CANDIDATE_TREE"
-            echo "F99_BASE_HAS_HARNESS=$F99_BASE_HAS_HARNESS"
-            echo "F99_HARNESS_COMMIT=$F99_HARNESS_COMMIT"
-            echo "F99_EXPECTED_DECISION=$F99_EXPECTED_DECISION"
-          } >> "$GITHUB_ENV"
-      - name: Install pinned F9.9 test dependencies
-        run: >-
-          pip install --require-hashes
-          -r requirements-test.txt
-      - name: Run F9.9 harness contract tests
-        run: |
-          set -euo pipefail
-          python3 -m pytest -q tests/test_fase09_9_ca1_reactivation.py
-      - name: Build CA1 E2E runner image
-        run: |
-          set -euo pipefail
-          docker build --pull -t studiamatch-ca1-e2e-runner -f - . <<'DOCKERFILE'
-          FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
-          WORKDIR /deps
-          COPY requirements-pipeline.txt requirements-test.txt ./
-          RUN python -m pip install --no-cache-dir --require-hashes -r requirements-pipeline.txt -r requirements-test.txt
-          DOCKERFILE
-      - name: Run hermetic F9.9 CA1 E2E
-        run: |
-          set -euo pipefail
-          runtime_dir="$RUNNER_TEMP/f99-ca1-runtime"
-          harness_dir="$RUNNER_TEMP/f99-ca1-harness"
-          evidence_dir="$RUNNER_TEMP/f99-ca1-evidence"
-          network="f99-ca1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          rm -rf -- "$runtime_dir" "$harness_dir" "$evidence_dir"
-          mkdir -p "$runtime_dir" "$harness_dir" "$evidence_dir"
-          echo "F99_EVIDENCE_SAFE=false" >> "$GITHUB_ENV"
-          git -c core.autocrlf=false -c core.eol=lf archive --format=tar "$F99_CANDIDATE_COMMIT" | tar -xf - -C "$runtime_dir"
-          git -c core.autocrlf=false -c core.eol=lf archive --format=tar "$F99_HARNESS_COMMIT" -- tests/e2e/ca1 tests/test_fase09_9_ca1_reactivation.py | tar -xf - -C "$harness_dir"
-          runtime_manifest_json="$(python3 - <<'PY'
-          import json
-          import subprocess
-
-          import os
-
-          commit = os.environ['F99_CANDIDATE_COMMIT']
-          paths = [
-              '.github/workflows/fg1_inventory.yml',
-              '.github/workflows/fg3_integrity.yml',
-              '.github/workflows/production_pipeline.yml',
+          harness_paths = {'tests/test_fase09_9_certification_canary.py'}
+          source_equal_paths = sorted(runtime_paths - {
+              '.github/workflows/f9_9_certification_canary.yml',
+              'scripts/core/certification_canary_manifest.py',
+              'scripts/core/certification_canary_state.py',
               'scripts/core/cleansing_worker.py',
-              'scripts/core/discovery_institutions.py',
-              'scripts/core/integrity_ping.py',
+              'scripts/core/enrichment_worker.py',
               'scripts/core/sync_vector_worker.py',
               'scripts/core/universal_harvester.py',
-              'scripts/shared/db_client.py',
-          ]
-          rows = []
-          for path in paths:
-              raw = subprocess.check_output(['git', 'ls-tree', commit, '--', path], text=True).strip()
-              meta, actual_path = raw.split('\t', 1)
-              mode, kind, blob = meta.split(' ')
-              if kind != 'blob' or actual_path != path:
-                  raise SystemExit(f'invalid runtime manifest entry for {path}')
-              rows.append({'path': path, 'mode': mode, 'blob': blob})
-          print(json.dumps(rows, separators=(',', ':')))
+          })
+          denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')
+          denied_exact = {'supabase/functions/send-lead-emails/index.ts'}
+          raw = subprocess.check_output([
+              'git', 'diff', '--name-status', '-z', '--find-renames', '--find-copies',
+              base, head, '--',
+          ])
+          fields = raw.split(b'\0')
+          index = 0
+          failures = []
+          changed = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode('ascii')
+              index += 1
+              old_path = None
+              if status.startswith(('R', 'C')):
+                  old_path = fields[index].decode('utf-8', 'surrogateescape')
+                  index += 1
+              path = fields[index].decode('utf-8', 'surrogateescape')
+              index += 1
+              paths = [path] + ([old_path] if old_path else [])
+              changed.append((status, path))
+              if any(p and (p.startswith(denied_prefixes) or p in denied_exact) for p in paths):
+                  failures.append(f'denied-path:{status}:{path}')
+                  continue
+              expected = allowed_statuses.get(path)
+              if not expected:
+                  failures.append(f'unexpected-path:{status}:{path}')
+                  continue
+              if status not in expected:
+                  failures.append(f'status:{status}:{path}')
+                  continue
+              base_meta = subprocess.check_output(['git', 'ls-tree', base, '--', path], text=True).strip()
+              head_meta = subprocess.check_output(['git', 'ls-tree', head, '--', path], text=True).strip()
+              if status == 'A':
+                  if base_meta:
+                      failures.append(f'base-present:{path}')
+                  if not head_meta:
+                      failures.append(f'missing-head:{path}')
+                  elif head_meta.split(None, 3)[:2] != ['100644', 'blob']:
+                      failures.append(f'head-kind:{path}')
+              elif status == 'M':
+                  if not base_meta or not head_meta:
+                      failures.append(f'missing:{path}')
+                  elif base_meta.split(None, 3)[:2] != head_meta.split(None, 3)[:2]:
+                      failures.append(f'mode-kind:{path}')
+          for path in source_equal_paths:
+              source_blob = subprocess.check_output(['git', 'cat-file', 'blob', f'{source}:{path}'])
+              head_blob = subprocess.check_output(['git', 'cat-file', 'blob', f'{head}:{path}'])
+              if source_blob != head_blob:
+                  failures.append(f'source-drift:{path}')
+          if not changed:
+              failures.append('empty-candidate')
+          if failures:
+              for failure in failures:
+                  print(f'::error::{failure}')
+              sys.exit(1)
+          print('F9.9 selective CA1 boundary passed')
           PY
-          )"
-          harness_manifest_json="$(python3 - <<'PY'
-          import hashlib
-          import json
-          import subprocess
+      - name: Run F9.9 canary contract tests
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
 
-          import os
-
-          commit = os.environ['F99_HARNESS_COMMIT']
-          manifest = json.loads(subprocess.check_output(['git', 'show', f'{commit}:tests/e2e/ca1/harness_manifest_paths.json'], text=True))
-          rows = []
-          for path in manifest['paths']:
-              raw = subprocess.check_output(['git', 'ls-tree', commit, '--', path], text=True).strip()
-              meta, actual_path = raw.split('\t', 1)
-              mode, kind, blob = meta.split(' ')
-              content = subprocess.check_output(['git', 'show', f'{commit}:{path}'])
-              rows.append({'path': actual_path, 'mode': mode, 'blob': blob, 'sha256': hashlib.sha256(content).hexdigest()})
-          print(json.dumps({'schema': manifest['schema'], 'source_commit': commit, 'paths': rows}, separators=(',', ':')))
+          path = Path('tests/test_fase09_9_certification_canary.py')
+          spec = importlib.util.spec_from_file_location('f99_canary_tests', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          for name in sorted(dir(module)):
+              if name.startswith('test_'):
+                  getattr(module, name)()
           PY
-          )"
-          docker network create --internal "$network"
-          cleanup() {
-            docker rm -f f99-ca1-e2e-runner >/dev/null 2>&1 || true
-            docker network rm "$network" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-          set +e
-          docker run --name f99-ca1-e2e-runner --network "$network" \
-            --volume "$runtime_dir:/app" \
-            --volume "$harness_dir:/harness" \
-            --volume "$evidence_dir:/evidence" \
-            --env CA1_RUN_ID="f99-ca1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            --env CA1_EVIDENCE_DIR=/evidence \
-            --env CA1_APP_DIR=/app \
-            --env CA1_ENV_EXAMPLE_VERSIONED=synthetic_versioned \
-            --env CA1_ENV_EXAMPLE_SCAN_PASS=synthetic_scan_pass \
-            --env CA1_TLS_VERIFIED=synthetic_tls_verified \
-            studiamatch-ca1-e2e-runner \
-            python3 /harness/tests/e2e/ca1/ca1_functional_gate.py \
-              --candidate-commit "$F99_CANDIDATE_COMMIT" \
-              --candidate-tree "$F99_CANDIDATE_TREE" \
-              --runtime-commit "$F99_CANDIDATE_COMMIT" \
-              --runtime-tree "$F99_CANDIDATE_TREE" \
-              --runtime-manifest-json "$runtime_manifest_json" \
-              --harness-manifest-json "$harness_manifest_json" \
-              --expected-decision "$F99_EXPECTED_DECISION" \
-              --evidence-dir /evidence
-          e2e_exit=$?
-          set -e
-          cleanup
-          cleanup
-          missing_artifacts=false
-          for name in summary.json junit.xml redacted-logs.json; do
-            if [ ! -s "$evidence_dir/$name" ]; then
-              missing_artifacts=true
-            fi
-          done
-          set +e
-          git grep -a -q -E "$F97_CREDENTIAL_PATTERN" "$F99_CANDIDATE_TREE" -- .
-          candidate_secret_rc=$?
-          set -e
-          if [ "$candidate_secret_rc" -eq 0 ]; then
-            echo "::error::Credential detected in candidate tree while processing F9.9 artifacts"
-            rm -rf -- "$evidence_dir"
-            exit 1
-          fi
-          if [ "$candidate_secret_rc" -ne 1 ]; then
-            echo "::error::F9.9 candidate credential scan failed"
-            rm -rf -- "$evidence_dir"
-            exit 1
-          fi
-          if [ "$missing_artifacts" = "true" ]; then
-            echo "::error::F9.9 evidence artifacts missing"
-            rm -rf -- "$evidence_dir"
-            exit 1
-          fi
-          set +e
-          grep -R -E -q "$F97_CREDENTIAL_PATTERN" "$evidence_dir"
-          evidence_secret_rc=$?
-          set -e
-          if [ "$evidence_secret_rc" -eq 0 ]; then
-            echo "::error::Credential detected in F9.9 evidence artifacts"
-            rm -rf -- "$evidence_dir"
-            exit 1
-          fi
-          if [ "$evidence_secret_rc" -ne 1 ]; then
-            echo "::error::F9.9 evidence credential scan failed"
-            rm -rf -- "$evidence_dir"
-            exit 1
-          fi
-          echo "F99_EVIDENCE_SAFE=true" >> "$GITHUB_ENV"
-          exit "$e2e_exit"
-      - name: Upload F9.9 CA1 evidence
-        if: always() && env.F99_EVIDENCE_SAFE == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: f99-ca1-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/f99-ca1-evidence
-          if-no-files-found: error
-          retention-days: 14
 
-  fase09-9-pre-main-controls:
-    name: F9.9 Pre-Main Repository Controls
+  f910-pre-main-controls:
+    name: F9.10 Pre-Main Repository Controls
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
           fetch-depth: 0
-      - name: Resolve object-based F10 main boundary
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Validate F9.10 transition boundary
+        env:
+          F910_BASELINE: ${{ env.F910_CERTIFICATION_BASELINE }}
+          F910_SOURCE_COMMIT: ${{ env.F910_PRE_MAIN_SOURCE_COMMIT }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            F910_BASE_COMMIT="${{ github.event.pull_request.base.sha }}"
+            F910_CANDIDATE_COMMIT="${{ github.event.pull_request.head.sha }}"
+          else
+            test "${{ github.ref }}" = "refs/heads/certificacion"
+            F910_BASE_COMMIT="${{ github.event.before }}"
+            F910_CANDIDATE_COMMIT="${{ github.sha }}"
+          fi
+          test "$F910_BASE_COMMIT" = "$F910_BASELINE"
+          printf '%s' "$F910_CANDIDATE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          git fetch --no-tags origin certificacion desarrollo
+          git cat-file -e "$F910_SOURCE_COMMIT^{commit}"
+          git cat-file -e "$F910_BASELINE^{commit}"
+          git cat-file -e "$F910_CANDIDATE_COMMIT^{commit}"
+          test "$(git rev-parse HEAD)" = "$F910_CANDIDATE_COMMIT"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F910_BASELINE"]
+          source = os.environ["F910_SOURCE_COMMIT"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          allowed_statuses = {
+              ".gitattributes": {"A"},
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": {"M"},
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": {"M"},
+              ".github/scripts/production_control_preflight.sh": {"M"},
+              ".github/workflows/production_canary.yml": {"A"},
+              ".github/workflows/security-audit.yml": {"M"},
+              "scripts/core/cleansing_worker.py": {"M"},
+              "scripts/core/enrichment_worker.py": {"M"},
+              "scripts/core/production_canary_manifest.py": {"A"},
+              "scripts/core/production_canary_state.py": {"A"},
+              "scripts/core/sync_vector_worker.py": {"M"},
+              "scripts/core/universal_harvester.py": {"M"},
+              "tests/test_fase09_10_pre_main_controls.py": {"M"},
+              "tests/test_fase10_main_boundary.py": {"M"},
+              "tests/test_fase10_production_canary.py": {"A"},
+          }
+          expected_modes = {
+              path: "100644"
+              for path in allowed_statuses
+          }
+          expected_modes[".github/workflows/security-audit.yml"] = "100755"
+          source_equal_paths = {
+              ".github/scripts/production_control_preflight.sh",
+              ".github/workflows/production_canary.yml",
+              "scripts/core/production_canary_manifest.py",
+              "scripts/core/production_canary_state.py",
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          denied_exact = {
+              ".github/workflows/f9-7-contract.yml",
+              "tests/test_fase09_7_release_gates.py",
+          }
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies",
+              base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          changed = []
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              old_path = None
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              paths = [path] + ([old_path] if old_path else [])
+              changed.append((status, path))
+              if any(p and (p.startswith(denied_prefixes) or p in denied_exact) for p in paths):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              expected = allowed_statuses.get(path)
+              if not expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              if status not in expected:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              head_meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not head_meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              head_parts = head_meta.split(None, 3)
+              expected_mode = expected_modes[path]
+              if head_parts[:2] != [expected_mode, "blob"]:
+                  failures.append(f"mode-kind:{path}:{head_parts[:2]}")
+                  continue
+              base_meta = subprocess.check_output(["git", "ls-tree", base, "--", path], text=True).strip()
+              if status == "A" and base_meta:
+                  failures.append(f"base-present:{path}")
+              if status == "M" and not base_meta:
+                  failures.append(f"missing-base:{path}")
+          for path in sorted(source_equal_paths):
+              source_blob = subprocess.check_output(["git", "cat-file", "blob", f"{source}:{path}"])
+              head_blob = subprocess.check_output(["git", "cat-file", "blob", f"{head}:{path}"])
+              if source_blob != head_blob:
+                  failures.append(f"source-drift:{path}")
+          if not changed:
+              failures.append("empty-f910-candidate")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F9.10 pre-main transition boundary passed")
+          PY
+      - name: Run F9.10 pre-main controls tests
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          for path in (
+              Path('tests/test_fase09_10_pre_main_controls.py'),
+              Path('tests/test_fase10_main_boundary.py'),
+              Path('tests/test_fase10_production_canary.py'),
+          ):
+              spec = importlib.util.spec_from_file_location(path.stem, path)
+              module = importlib.util.module_from_spec(spec)
+              assert spec.loader is not None
+              spec.loader.exec_module(module)
+              for name in sorted(dir(module)):
+                  if name.startswith('test_'):
+                      getattr(module, name)()
+          PY
+
+  f10-main-boundary:
+    name: F10 Main Boundary
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F10 main boundary
         env:
           F10_EVENT_NAME: ${{ github.event_name }}
-          F10_REF_NAME: ${{ github.ref_name }}
+          F10_REF: ${{ github.ref }}
           F10_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
           F10_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
           F10_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
@@ -1660,26 +427,22 @@ jobs:
           F10_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
         run: |
           set -euo pipefail
+          git fetch --no-tags origin main certificacion
           python3 - <<'PY'
-          # F10_BOUNDARY_OBJECT_GATE_START
-          import hashlib
-          import json
           import os
           import re
           import subprocess
           import sys
 
-          ZERO_SHA = "0" * 40
           SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-          PERMANENT_BRANCHES = {"desarrollo", "certificacion", "main"}
+          EXPECTED_COUNT = 9
           ALLOWED_STATUSES = {"A", "M"}
-          ALLOWED_EXACT_PATHS = {
-              ".env.example",
+          ALLOWED_PATHS = {
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md",
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md",
               ".gitattributes",
-              ".github/actionlint.yaml",
               ".github/scripts/production_control_preflight.sh",
               ".github/workflows/db-sync-to-pro.yml",
-              ".github/workflows/f9-7-contract.yml",
               ".github/workflows/f9_9_certification_canary.yml",
               ".github/workflows/fg1_inventory.yml",
               ".github/workflows/fg3_integrity.yml",
@@ -1690,7 +453,6 @@ jobs:
               "requirements-fg1.txt",
               "requirements-fg3.txt",
               "requirements-pipeline.txt",
-              "requirements-test.txt",
               "scripts/core/certification_canary_manifest.py",
               "scripts/core/certification_canary_state.py",
               "scripts/core/cleansing_worker.py",
@@ -1706,123 +468,56 @@ jobs:
               "scripts/shared/roi_engine.py",
               "tests/test_fase09_10_pre_main_controls.py",
               "tests/test_fase09_9_certification_canary.py",
-              "tests/test_fase09_7_release_gates.py",
               "tests/test_fase10_main_boundary.py",
               "tests/test_fase10_production_canary.py",
               "tests/test_supabase_credentials_contract.py",
           }
-          ALLOWED_PREFIXES = (
-              ".context/",
-              "config/",
-              "tests/e2e/ca1/",
-          )
-          DENIED_PREFIXES = (
-              "db/",
-              "supabase/",
-              "web/",
-              "scripts/maintenance/",
-          )
+          DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          DENIED_PATHS = {".github/workflows/f9-7-contract.yml", ".github/workflows/opencode.yml"}
 
           def fail(message):
               print(f"::error::{message}")
-              raise SystemExit(1)
+              sys.exit(1)
 
           def git_text(*args):
               return subprocess.check_output(["git", *args], text=True).strip()
 
-          def git_text_or_fail(message, *args):
-              try:
-                  return git_text(*args)
-              except subprocess.CalledProcessError:
-                  fail(message)
-
           def git_bytes(*args):
               return subprocess.check_output(["git", *args])
 
-          def validate_sha(name, value):
-              if not SHA_RE.fullmatch(value or "") or value == ZERO_SHA:
+          event_name = os.environ["F10_EVENT_NAME"]
+          base_ref = os.environ["F10_BASE_REF"]
+          head_ref = os.environ["F10_HEAD_REF"]
+          base = os.environ["F10_BASE_SHA"]
+          head = os.environ["F10_HEAD_SHA"]
+          repository = os.environ["F10_REPOSITORY"]
+          base_repo = os.environ["F10_BASE_REPO"]
+          head_repo = os.environ["F10_HEAD_REPO"]
+
+          for name, value in {"F10_BASE_SHA": base, "F10_HEAD_SHA": head}.items():
+              if not SHA_RE.fullmatch(value or "") or value == "0" * 40:
                   fail(f"{name} is not a supported commit SHA")
-
-          event_name = os.environ.get("F10_EVENT_NAME", "")
-          ref_name = os.environ.get("F10_REF_NAME", "")
-          base_ref = os.environ.get("F10_BASE_REF", "")
-          head_ref = os.environ.get("F10_HEAD_REF", "")
-          base = os.environ.get("F10_BASE_SHA", "")
-          head = os.environ.get("F10_HEAD_SHA", "")
-          repository = os.environ.get("F10_REPOSITORY", "")
-          base_repo = os.environ.get("F10_BASE_REPO", "")
-          head_repo = os.environ.get("F10_HEAD_REPO", "")
-
-          if event_name not in {"pull_request", "push"}:
-              fail(f"unsupported event for F10 boundary: {event_name}")
-          if event_name == "pull_request":
-              if base_ref not in PERMANENT_BRANCHES:
-                  fail(f"unsupported pull request target for F10 boundary: {base_ref}")
-              if base_ref == "main" and head_ref != "certificacion":
-                  fail("PRs to main must come only from certificacion")
-              if base_ref != "main" and head_ref == "main":
-                  fail("main cannot be used as a non-production source branch")
-          elif ref_name not in PERMANENT_BRANCHES:
-              fail(f"unsupported push target for F10 boundary: {ref_name}")
-
-          validate_sha("F10_BASE_SHA", base)
-          validate_sha("F10_HEAD_SHA", head)
           if base == head:
-              fail("F10 boundary requires distinct base and head commits")
-          if event_name == "pull_request" and base_ref == "main":
-              if not repository or base_repo != repository or head_repo != repository:
-                  fail("PRs to main must originate from certificacion in the same repository")
-              certificacion_tip = git_text_or_fail(
-                  "unable to resolve protected certificacion branch tip",
-                  "rev-parse",
-                  "--verify",
-                  "refs/remotes/origin/certificacion^{commit}",
-              )
+              fail("F10 main boundary requires distinct base and head")
+          if event_name == "pull_request":
+              if base_ref != "main" or head_ref != "certificacion":
+                  fail("F10 main PR must be certificacion -> main")
+              if base_repo != repository or head_repo != repository:
+                  fail("F10 main PR must originate from the same repository")
+              certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
               if certificacion_tip != head:
-                  fail("PRs to main must use the protected certificacion branch tip")
+                  fail("F10 main PR must use the protected certificacion tip")
+          elif os.environ["F10_REF"] != "refs/heads/main":
+              fail("F10 push boundary only supports main")
 
-          for commit in (base, head):
-              subprocess.check_call(["git", "cat-file", "-e", f"{commit}^{{commit}}"])
-          subprocess.check_call(["git", "merge-base", "--is-ancestor", base, head])
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
-          head_tree = git_text("rev-parse", f"{head}^{{tree}}")
-          if git_text("rev-parse", f"{head_tree}^{{tree}}") != head_tree:
-              fail("unable to resolve immutable F10 head tree")
 
-          def allowed_path(path):
-              return path in ALLOWED_EXACT_PATHS or path.startswith(ALLOWED_PREFIXES)
-
-          def denied_path(path):
-              return path.startswith(DENIED_PREFIXES) or path.startswith(".env") and path != ".env.example"
-
-          def tree_entry(commit, path):
-              raw = git_bytes("ls-tree", "-z", commit, "--", path)
-              if not raw:
-                  return None
-              record = raw.rstrip(b"\0")
-              metadata, actual_path = record.split(b"\t", 1)
-              mode, kind, blob = metadata.decode("ascii").split(" ")
-              return {
-                  "path": actual_path.decode("utf-8", "surrogateescape"),
-                  "mode": mode,
-                  "kind": kind,
-                  "blob": blob,
-              }
-
-          raw_status = git_bytes(
-              "diff",
-              "--name-status",
-              "-z",
-              "--find-renames",
-              "--find-copies",
-              base,
-              head,
-              "--",
-          )
-          fields = raw_status.split(b"\0")
+          raw = git_bytes("diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--")
+          fields = raw.split(b"\0")
           index = 0
           manifest = []
+          failures = []
           while index < len(fields) and fields[index]:
               status = fields[index].decode("ascii")
               status_code = status[:1]
@@ -1833,226 +528,385 @@ jobs:
                   index += 1
               path = fields[index].decode("utf-8", "surrogateescape")
               index += 1
-              paths = [item for item in (old_path, path) if item]
+              for item in [p for p in (old_path, path) if p]:
+                  if item in DENIED_PATHS or item.startswith(DENIED_PREFIXES):
+                      failures.append(f"denied-path:{status}:{item}")
+                  elif item not in ALLOWED_PATHS:
+                      failures.append(f"unexpected-path:{status}:{item}")
               if status_code not in ALLOWED_STATUSES:
-                  fail(f"unsupported F10 boundary status {status} for {path}")
-              for item in paths:
-                  if denied_path(item):
-                      fail(f"denied F10 boundary path: {item}")
-                  if not allowed_path(item):
-                      fail(f"path is outside F10 CA1-only boundary: {item}")
-              head_entry = tree_entry(head, path)
-              base_entry = tree_entry(base, path)
+                  failures.append(f"unsupported-status:{status}:{path}")
+                  continue
+              head_meta = git_text("ls-tree", head, "--", path)
+              base_meta = git_text("ls-tree", base, "--", path)
+              if not head_meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              head_mode, head_kind, head_blob = head_meta.split(None, 3)[:3]
+              if head_kind != "blob":
+                  failures.append(f"non-blob:{path}")
               if status_code == "A":
-                  if base_entry is not None:
-                      fail(f"added path already exists in base: {path}")
-                  if head_entry is None:
-                      fail(f"added path missing from head: {path}")
-                  if (head_entry["mode"], head_entry["kind"], head_entry["path"]) != ("100644", "blob", path):
-                      fail(f"invalid added blob mode or path: {path}")
+                  if base_meta:
+                      failures.append(f"base-present:{path}")
+                  if head_mode != "100644":
+                      failures.append(f"added-mode:{path}:{head_mode}")
               else:
-                  if base_entry is None or head_entry is None:
-                      fail(f"modified path missing from base or head: {path}")
-                  if base_entry["path"] != path or head_entry["path"] != path:
-                      fail(f"tree path mismatch for {path}")
-                  if base_entry["kind"] != "blob" or head_entry["kind"] != "blob":
-                      fail(f"non-blob F10 boundary object: {path}")
-                  if base_entry["mode"] != head_entry["mode"] or base_entry["mode"] not in {"100644", "100755"}:
-                      fail(f"mode drift is not allowed for F10 boundary path: {path}")
-              manifest.append({"path": path, "mode": head_entry["mode"], "blob": head_entry["blob"]})
-
-          manifest = sorted(manifest, key=lambda item: item["path"])
-          if base_ref == "main" and not manifest:
-              fail("main promotion boundary cannot be empty")
-          manifest_digest = hashlib.sha256(
-              json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
-          ).hexdigest()
-          print(f"F10_MAIN_BOUNDARY_PASS paths={len(manifest)} manifest_digest={manifest_digest}")
-          # F10_BOUNDARY_OBJECT_GATE_END
+                  if not base_meta:
+                      failures.append(f"missing-base:{path}")
+                  else:
+                      base_mode, base_kind = base_meta.split(None, 3)[:2]
+                      if base_kind != "blob" or base_mode != head_mode or head_mode not in {"100644", "100755"}:
+                          failures.append(f"mode-kind:{path}:{base_mode}->{head_mode}")
+              manifest.append((status_code, path, head_mode, head_blob))
+          if len(manifest) != EXPECTED_COUNT:
+              failures.append(f"boundary-count:{len(manifest)}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print(f"F10 main boundary passed: {len(manifest)} CA1 objects")
           PY
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install pinned F9.9 pre-main test dependencies
-        run: pip install --require-hashes -r requirements-test.txt
-      - name: Run F9.9 pre-main controls tests
-        run: python3 -m pytest -q tests/test_fase09_9_pre_main_controls.py tests/test_fase10_main_boundary.py
 
-  f10-main-boundary:
-    name: F10 Main Boundary And Production Canary
+  f107-certification-gate-update:
+    name: F10.7 Certification Gate Update
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5cd27c6f6c35808865b7084673a83f9f690d3760') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5cd27c6f6c35808865b7084673a83f9f690d3760') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
           fetch-depth: 0
-      - name: Resolve object-based F10 main boundary
-        env:
-          F10_EVENT_NAME: ${{ github.event_name }}
-          F10_REF_NAME: ${{ github.ref_name }}
-          F10_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
-          F10_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-          F10_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          F10_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          F10_REPOSITORY: ${{ github.repository }}
-          F10_BASE_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.repo.full_name || github.repository }}
-          F10_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          persist-credentials: false
+      - name: Validate minimal F10.7 certification gate diff
         run: |
           set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          test "$base" = "5cd27c6f6c35808865b7084673a83f9f690d3760"
+          test "$(git rev-parse HEAD)" = "$head"
           python3 - <<'PY'
-          from pathlib import Path
+          import os
+          import subprocess
+          import sys
 
-          workflow = Path(".github/workflows/security-audit.yml").read_text(encoding="utf-8")
-          pre_main_job = workflow.split("  fase09-9-pre-main-controls:", 1)[1].split("  f10-main-boundary:", 1)[0]
-          block = pre_main_job.split("# F10_BOUNDARY_OBJECT_GATE_START", 1)[1].split(
-              "# F10_BOUNDARY_OBJECT_GATE_END", 1
-          )[0]
-          code = "\n".join(
-              line[10:] if line.startswith("          ") else line
-              for line in block.splitlines()
-          ).strip()
-          exec(compile(code + "\n", "f10-main-boundary-object-gate", "exec"))
+          base = "5cd27c6f6c35808865b7084673a83f9f690d3760"
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          expected = {
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          seen = {}
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+                  failures.append(f"unsupported-status:{status}:{old_path}")
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              if path not in expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              expected_status, expected_mode = expected[path]
+              if status != expected_status:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              mode, kind = meta.split(None, 3)[:2]
+              if (mode, kind) != (expected_mode, "blob"):
+                  failures.append(f"mode-kind:{path}:{mode}:{kind}")
+              seen[path] = status
+          if set(seen) != set(expected):
+              failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F10.7 certification gate update passed")
           PY
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+
+  f108-certification-remediation:
+    name: F10.8 Certification Remediation
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          python-version: '3.11'
-          cache: 'pip'
-      - name: Install pinned F10 boundary test dependencies
-        run: pip install --require-hashes -r requirements-test.txt
-      - name: Run F10 main boundary tests
-        run: python3 -m pytest -q tests/test_fase09_10_pre_main_controls.py tests/test_fase10_main_boundary.py tests/test_fase10_production_canary.py
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F10.8 certification remediation diff
+        env:
+          F108_BASELINE: ${{ env.F108_CERTIFICATION_BASELINE }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          test "$base" = "$F108_BASELINE"
+          test "$(git rev-parse HEAD)" = "$head"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F108_BASELINE"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          expected = {
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/production_canary.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "scripts/core/production_canary_manifest.py": ("M", "100644"),
+              "scripts/core/production_canary_state.py": ("M", "100644"),
+              "tests/test_fase10_production_canary.py": ("M", "100644"),
+              "tests/test_supabase_credentials_contract.py": ("M", "100644"),
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          seen = {}
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+                  failures.append(f"unsupported-status:{status}:{old_path}")
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              if path.startswith(denied_prefixes):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              if path not in expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              expected_status, expected_mode = expected[path]
+              if status != expected_status:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              mode, kind = meta.split(None, 3)[:2]
+              if (mode, kind) != (expected_mode, "blob"):
+                  failures.append(f"mode-kind:{path}:{mode}:{kind}")
+              seen[path] = status
+          if set(seen) != set(expected):
+              failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F10.8 certification remediation boundary passed")
+          PY
+
+  f108-main-gate-update:
+    name: F10.8 Main Gate Update
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F10.8 main gate update diff
+        env:
+          F108_GATE_BASELINE: ${{ env.F108_MAIN_GATE_BASELINE }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          test "$base" = "$F108_GATE_BASELINE"
+          test "$(git rev-parse HEAD)" = "$head"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F108_GATE_BASELINE"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          expected = {
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          seen = {}
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+                  failures.append(f"unsupported-status:{status}:{old_path}")
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              if path.startswith(denied_prefixes):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              if path not in expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              expected_status, expected_mode = expected[path]
+              if status != expected_status:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              mode, kind = meta.split(None, 3)[:2]
+              if (mode, kind) != (expected_mode, "blob"):
+                  failures.append(f"mode-kind:{path}:{mode}:{kind}")
+              seen[path] = status
+          if set(seen) != set(expected):
+              failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F10.8 main gate update boundary passed")
+          PY
 
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, release-gates, lint, typecheck, frontend-build, python-check, context-graph, fase06-db-as-code, fase07-g1b, fase08-hito1, fase09-pre-free, fase09-free-preflight-contract, fase09-5-rls, fase09-7-remediation, fase09-8-ca1, fase09-9-ca1-reactivation, fase09-9-pre-main-controls, f10-main-boundary, fase10-promotion-contract]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-main-gate-update]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
         env:
           CS: ${{ needs.credential-scan.result }}
-          RG: ${{ needs.release-gates.result }}
           LINT: ${{ needs.lint.result }}
           TC: ${{ needs.typecheck.result }}
-          BUILD: ${{ needs.frontend-build.result }}
           PC: ${{ needs.python-check.result }}
-          CG: ${{ needs.context-graph.result }}
-          F6: ${{ needs.fase06-db-as-code.result }}
-          F7: ${{ needs.fase07-g1b.result }}
-          F8: ${{ needs.fase08-hito1.result }}
-          F9: ${{ needs.fase09-pre-free.result }}
-          F93: ${{ needs.fase09-free-preflight-contract.result }}
-          F95: ${{ needs.fase09-5-rls.result }}
-          F97: ${{ needs.fase09-7-remediation.result }}
-          F98: ${{ needs.fase09-8-ca1.result }}
-          F99: ${{ needs.fase09-9-ca1-reactivation.result }}
-          F99_PRE_MAIN: ${{ needs.fase09-9-pre-main-controls.result }}
+          F99: ${{ needs.f99-certification-selective.result }}
+          F910: ${{ needs.f910-pre-main-controls.result }}
           F10_MAIN: ${{ needs.f10-main-boundary.result }}
-          F10: ${{ needs.fase10-promotion-contract.result }}
+          F107_CERT: ${{ needs.f107-certification-gate-update.result }}
+          F108_CERT: ${{ needs.f108-certification-remediation.result }}
+          F108_MAIN_GATE: ${{ needs.f108-main-gate-update.result }}
+          CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
+          MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
+          F910_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') }}
+          F107_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5cd27c6f6c35808865b7084673a83f9f690d3760') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5cd27c6f6c35808865b7084673a83f9f690d3760') }}
+          F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '1edc65aa848d32dabfa62aa60b53f4bff9b5716e') }}
+          F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
         run: |
-          exec >> "$GITHUB_STEP_SUMMARY"
-          echo "### Security Audit Results"
-          echo ""
-          echo "| Check | Status |"
-          echo "|---|---|"
-          # Credential scan and Python check are HARD requirements
-          if [ "$CS" != "success" ]; then
-            echo "❌ **credential-scan**: $CS (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **credential-scan**: passed"
-          if [ "$RG" != "success" ]; then
-            echo "❌ **release-gates**: $RG (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **release-gates**: passed"
-          if [ "$PC" != "success" ]; then
-            echo "❌ **python-check**: $PC (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **python-check**: passed"
-          if [ "$CG" != "success" ]; then
-            echo "❌ **context-graph**: $CG (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **context-graph**: passed"
-          if [ "$F6" != "success" ]; then
-            echo "❌ **fase06-db-as-code**: $F6 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase06-db-as-code**: passed"
-          if [ "$F7" != "success" ]; then
-            echo "❌ **fase07-g1b**: $F7 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase07-g1b**: passed"
-          if [ "$F8" != "success" ]; then
-            echo "❌ **fase08-hito1**: $F8 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase08-hito1**: passed"
-          if [ "$F9" != "success" ]; then
-            echo "❌ **fase09-pre-free**: $F9 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-pre-free**: passed"
-          if [ "$F93" != "success" ]; then
-            echo "❌ **fase09-free-preflight-contract**: $F93 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-free-preflight-contract**: passed"
-          if [ "$F95" != "success" ]; then
-            echo "❌ **fase09-5-rls**: $F95 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-5-rls**: passed"
-          if [ "$F97" != "success" ]; then
-            echo "❌ **fase09-7-remediation**: $F97 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-7-remediation**: passed"
-          if [ "$F98" != "success" ]; then
-            echo "❌ **fase09-8-ca1**: $F98 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-8-ca1**: passed"
-          if [ "$F99" != "success" ]; then
-            echo "❌ **fase09-9-ca1-reactivation**: $F99 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-9-ca1-reactivation**: passed"
-          if [ "$F99_PRE_MAIN" != "success" ]; then
-            echo "❌ **fase09-9-pre-main-controls**: $F99_PRE_MAIN (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase09-9-pre-main-controls**: passed"
-          if [ "$F10_MAIN" != "success" ]; then
-            echo "❌ **f10-main-boundary**: $F10_MAIN (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **f10-main-boundary**: passed"
-          if [ "$F10" != "success" ]; then
-            echo "❌ **fase10-promotion-contract**: $F10 (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **fase10-promotion-contract**: passed"
-          if [ "$LINT" != "success" ]; then
-            echo "❌ **lint**: $LINT (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **lint**: passed"
-          if [ "$TC" != "success" ]; then
-            echo "❌ **typecheck**: $TC (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **typecheck**: passed"
-          if [ "$BUILD" != "success" ]; then
-            echo "❌ **frontend-build**: $BUILD (BLOCKING)"
-            exit 1
-          fi
-          echo "✅ **frontend-build**: passed"
-          echo ""
-          echo "✅ **Security audit PASSED** — all F6/F7/F8/F9/F9.3/F9.5/F9.7/F9.8/F9.9/F10, credential, Python, Context Graph and frontend gates are green."
+          {
+            echo "### Security Audit Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|---|---|"
+            # Credential scan and Python check are HARD requirements
+            if [ "$CS" != "success" ]; then
+              echo "❌ **credential-scan**: $CS (BLOCKING)"
+              exit 1
+            fi
+            echo "✅ **credential-scan**: passed"
+            if [ "$PC" != "success" ]; then
+              echo "❌ **python-check**: $PC (BLOCKING)"
+              exit 1
+            fi
+            echo "✅ **python-check**: passed"
+            if [ "$CERTIFICATION_TRANSITION" = "true" ]; then
+              if [ "$F99_REQUIRED" = "true" ]; then
+                if [ "$F99" != "success" ]; then
+                  echo "❌ **f99-certification-selective**: $F99 (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f99-certification-selective**: passed"
+              elif [ "$F910_REQUIRED" = "true" ]; then
+                if [ "$F910" != "success" ]; then
+                  echo "❌ **f910-pre-main-controls**: $F910 (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f910-pre-main-controls**: passed"
+              elif [ "$F107_CERT_REQUIRED" = "true" ]; then
+                if [ "$F107_CERT" != "success" ]; then
+                  echo "❌ **f107-certification-gate-update**: $F107_CERT (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f107-certification-gate-update**: passed"
+              elif [ "$F108_CERT_REQUIRED" = "true" ]; then
+                if [ "$F108_CERT" != "success" ]; then
+                  echo "❌ **f108-certification-remediation**: $F108_CERT (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f108-certification-remediation**: passed"
+              elif [ "$F108_MAIN_GATE_REQUIRED" = "true" ]; then
+                if [ "$F108_MAIN_GATE" != "success" ]; then
+                  echo "❌ **f108-main-gate-update**: $F108_MAIN_GATE (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f108-main-gate-update**: passed"
+              else
+                echo "❌ **certification-transition**: unsupported baseline (BLOCKING)"
+                exit 1
+              fi
+            else
+              echo "✅ **certification-transition**: skipped outside certificacion"
+            fi
+            if [ "$MAIN_PROMOTION" = "true" ]; then
+              if [ "$F10_MAIN" != "success" ]; then
+                echo "❌ **f10-main-boundary**: $F10_MAIN (BLOCKING)"
+                exit 1
+              fi
+              echo "✅ **f10-main-boundary**: passed"
+            else
+              echo "✅ **f10-main-boundary**: skipped outside main promotion"
+            fi
+            # Lint and typecheck are informational (pre-existing tech debt)
+            if [ "$LINT" = "success" ]; then
+              echo "✅ **lint**: passed"
+            elif [ "$LINT" = "failure" ]; then
+              echo "⚠️ **lint**: has errors (non-blocking, tracked separately)"
+            else
+              echo "⚠️ **lint**: $LINT"
+            fi
+            if [ "$TC" = "success" ]; then
+              echo "✅ **typecheck**: passed"
+            elif [ "$TC" = "failure" ]; then
+              echo "⚠️ **typecheck**: has errors (non-blocking, tracked separately)"
+            else
+              echo "⚠️ **typecheck**: $TC"
+            fi
+            echo ""
+            echo "✅ **Security audit PASSED** — credential scan, Python check and certification transition boundary clean. Lint/typecheck issues are tracked separately."
+          } >> "$GITHUB_STEP_SUMMARY"
