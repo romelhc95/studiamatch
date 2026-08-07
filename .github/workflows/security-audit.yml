@@ -439,7 +439,7 @@ jobs:
           import sys
 
           SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-          EXPECTED = {
+          EXPECTED_ORIGINAL = {
               ".context/estado_del_proyecto.md": ("A", "100644"),
               ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
               ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("A", "100644"),
@@ -457,6 +457,15 @@ jobs:
               "tests/test_fase10_8_db_sync.py": ("A", "100644"),
               "tests/test_fase10_production_canary.py": ("M", "100644"),
               "tests/test_supabase_credentials_contract.py": ("M", "100644"),
+          }
+          EXPECTED_FG1_SOURCE_PROMOTION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".github/workflows/production_canary.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+              "tests/test_fase10_production_canary.py": ("M", "100644"),
           }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
@@ -498,6 +507,11 @@ jobs:
 
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
+
+          if base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
+              EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION
+          else:
+              EXPECTED = EXPECTED_ORIGINAL
 
           raw = git_bytes("diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--")
           fields = raw.split(b"\0")
