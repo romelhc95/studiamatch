@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` activa como `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED`. PR #297 fue aprobado/fusionado en `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; `security-audit`, `F10 Main Boundary` y Cloudflare Pages PASS. DB Sync `31142826000=FAIL_CLOSED_PRE_SUPABASE`: fallo antes de contactar Supabase porque un push sin cambios `db/**` ejecuto report de migraciones incompatible con `main`; apply/schema/FG2 quedaron skipped. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-010..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` activa como `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING`. PR #297 fue aprobado/fusionado en `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; `security-audit`, `F10 Main Boundary` y Cloudflare Pages PASS. DB Sync `31142826000=FAIL_CLOSED_PRE_SUPABASE` quedo remediado por PR #304/#305/#306/#307; post-merge `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, `DB Sync to Production` `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-010..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base documental post-main: `desarrollo@077fce526876f87c93119968d4b9cba245c8cbf4`.
+Base tecnica post-DB-sync-remediation: `main@529ca111f1fef40efb15676ad6f07d002a54ae92`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -55,10 +55,14 @@ El artifact del canary quedo sanitizado: tres JSON, cohortes `redacted`, sin
 `pre == post == after_cleanup`. DB Sync `31142826000` fallo fail-closed antes de
 Supabase porque un push CA1-only sin cambios `db/**` ejecuto un report de
 migraciones incompatible con la version de `main`; apply/schema/FG2 quedaron
-skipped. No hubo Production Canary acreditado, DDL/DML, migraciones, snapshot
-Production, writer ni mutacion DB. El hito queda
-`TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` hasta completar `EVID-H1-010..013`
-y `EVID-H1-016`.
+skipped. La remediacion DB Sync fue promovida por PR #304/#305/#306/#307 hasta
+`main@529ca111f1fef40efb15676ad6f07d002a54ae92`; el run post-merge
+`31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` ejecuto solo `Detect DB changes` y
+omitio preflight/report/apply/schema/FG2 por ausencia de cambios `db/**`.
+`Security Audit Gate` post-main `31151066061=PASS`. No hubo Production Canary
+acreditable, Supabase, DDL/DML, migraciones, snapshot Production, writer ni
+mutacion DB. El hito queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` hasta
+completar `EVID-H1-010..013` y `EVID-H1-016`.
 
 La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
 cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
@@ -77,7 +81,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones | Remediar DB Sync para omitir jobs DB en push sin cambios `db/**`, revalidar `main`, ejecutar Production Canary con autorizacion separada, F10.9 observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, con run post-merge `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` | Ejecutar Production Canary con autorizacion separada, F10.9 observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -258,7 +262,7 @@ demuestre necesidad estricta y se solicite otra decision.
 
 ## F10.8 Reconciliacion Post-Main Y Remediacion DB Sync
 
-F10.8 queda activa como `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED`.
+F10.8 queda activa como `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING`.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
@@ -278,22 +282,21 @@ documental reconfirmo:
   production window` quedaron skipped. No hubo DDL/DML, migrations, acceso
   Supabase, snapshot Production, writer ni mutacion DB.
 
-La tarea autorizable de F10.8 despues de fusionar esta reconciliacion es
-remediar exclusivamente `DB Sync to Production` para que un push a `main` sin
-cambios `db/**` termine verde con los jobs DB omitidos. Allowlist de edicion:
+La remediacion DB Sync fue ejecutada por la ruta protegida:
 
-- `.github/workflows/db-sync-to-pro.yml`.
-- Tests especificos del contrato DB Sync.
-- `.github/workflows/security-audit.yml` solo si el gate minimo de promocion lo
-  requiere.
+- PR #304 a `desarrollo`: `db0b35b804127ce4df2bf1c8a2668f764fe10d58`.
+- PR #305 a `certificacion`: DB Sync remediation CI PASS.
+- PR #306 a `certificacion`: main-boundary gate CI PASS.
+- PR #307 a `main`: `529ca111f1fef40efb15676ad6f07d002a54ae92`.
+- DB Sync post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`: solo corrio
+  `Detect DB changes`; `DB contract preflight`, `Report pending migrations`,
+  `Apply pending migrations`, `Verify target schema` y `FG2 deferred to scheduled
+  production window` quedaron skipped por ausencia de cambios `db/**`.
+- `Security Audit Gate` post-main `31151066061=PASS`.
 
-Comportamiento requerido del fix futuro: detector sin secrets ni environment que
-compare `github.event.before..github.sha` sobre `db/**`; report dry-run solo en
-`workflow_dispatch` o push con cambios DB; apply exclusivamente manual, con
-autorizacion DDL, backup/PITR y approval `Production`; preflight de manifest y
-compatibilidad CLI antes de cargar secrets. Excluye `db/**`, `supabase/**`,
-manifests, migrations, DDL/DML, backfill, Supabase, writers, Production Canary,
-workflow dispatch operativo, schedules y CA2.
+La remediacion no ejecuto Supabase, DDL/DML, migrations, workflow dispatch
+operativo, Production Canary, schedules, writers, backfill ni CA2. El run
+historico `31142826000` no se reintento.
 
 `EVID-H1-010..013` y `EVID-H1-016` permanecen pendientes. Hito 1 queda
 `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`, no `COMPLETED_PRODUCTION`.

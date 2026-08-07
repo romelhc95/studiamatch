@@ -33,9 +33,10 @@ se conserva solo como antecedente CA2 de Hito 2.
 10. F10.6 ejecuto control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
 11. F10.6 cierra documentalmente y activa F10.7 antes de cualquier PR a `main`.
 12. F10.7 documento rebaseline, reconstruyo controles, promovio por PR #291 a `main@64e4ed895d43121c5683e26a355993f18e528a5c` y registro boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`.
-13. F10.8 ejecuta canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados.
-14. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
-15. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
+13. F10.8 promovio por PR #297 la remediacion de Production Canary y despues remedio DB Sync por PR #304/#305/#306/#307 hasta `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` omitio jobs DB por ausencia de cambios `db/**`.
+14. F10.8 debe ejecutar canary Production manual con schedules apagados, `candidate_sha` exacto, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados, solo con autorizacion separada.
+15. F10.9 habilita schedules gradualmente y observa FG2/FG3; las 72h empiezan con el primer FG2 automatico valido sobre el nuevo SHA de `main`, y el cierre requiere al menos tres pares FG2 -> FG3 consecutivos completos.
+16. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
 
 ## Stop Conditions
 
@@ -65,7 +66,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 esta activa con remediacion DB Sync fail-closed despues de PR #297, Certification Canary PASS y DB Sync `31142826000=FAIL_CLOSED_PRE_SUPABASE`; F10.9 permanece bloqueada.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 esta activa con DB Sync remediado despues de PR #304/#305/#306/#307, Certification Canary PASS y run post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`; F10.9 permanece bloqueada hasta canary Production PASS.
 
 ## Subfases F10 CA1-Only
 
@@ -74,7 +75,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia sustituida; no autoriza ejecucion. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync `31142826000` fallo fail-closed antes de Supabase por ejecutar report DB en push sin cambios `db/**`. Requiere remediar DB Sync antes de Production Canary, schedules u observacion. |
+| `F10.8` | `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; run post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Production Canary sigue pendiente. |
 | `F10.9` | `PENDING` | Schedules graduales y observacion 72h + tres pares FG2 -> FG3 completos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 

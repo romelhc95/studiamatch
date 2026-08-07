@@ -32,6 +32,10 @@ F6-F8 son la base funcional contractual de Hito 1. Los artifacts tecnicos de F9.
 
 Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
 
+## Nota De Cierre Tecnico F10.8
+
+La remediacion DB Sync F10.8 quedo promovida a `main@529ca111f1fef40efb15676ad6f07d002a54ae92` por PR #307 y verificada con `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` run `31151066061=PASS`. Esta nota no declara `COMPLETED_PRODUCTION`: Production Canary, observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
+
 ## Trazabilidad
 
 - Complejidad y estimacion tecnica original: [EST-001](../estimaciones/est_001.md)
@@ -45,4 +49,5 @@ Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TAS
 - Adenda vigente: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
 - Plan CA1-only: [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
 - Evidencia cliente: [EVID-PACK-H1-001](../evidencias_cliente/sprint_1/paquete_hito_001.md)
+- Registro DB Sync F10.8: [EVID-H1-DBSYNC-F10.8-001](../evidencias_cliente/sprint_1/registro_db_sync_f10_8_2026-08-07.md)
 - Matriz de pruebas: [Tests Hito 1](../pruebas/01_matriz_tests_hito_1.md)
