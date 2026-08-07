@@ -72,6 +72,26 @@ def _active_canary_marker():
     return None, None
 
 
+def _is_f10_production_canary():
+    return bool(os.getenv("F10_PRODUCTION_CANARY_RUN_ID", "").strip())
+
+
+def _safe_url_label(url=None):
+    return "source_url=redacted" if _is_f10_production_canary() else str(url)
+
+
+def _safe_institution_label(value=None):
+    return "canary_cohort=redacted" if _is_f10_production_canary() else str(value)
+
+
+def _safe_error_label(error):
+    return type(error).__name__ if _is_f10_production_canary() else str(error)
+
+
+def _safe_pattern_label(pattern=None):
+    return "profile_pattern=redacted" if _is_f10_production_canary() else str(pattern)
+
+
 def _mark_canary_metadata(metadata):
     payload = dict(metadata or {})
     metadata_key, run_id = _active_canary_marker()
@@ -144,9 +164,9 @@ class UniversalHarvester:
             hours_since = (datetime.now(timezone.utc) - opened).total_seconds() / 3600
             if hours_since < 24:
                 self.circuit_open = True
-                logger.warning(f"Circuito abierto para {self.institution.get('name')} (abierto hace {hours_since:.1f}h). Saltando.")
+                logger.warning(f"Circuito abierto para {_safe_institution_label(self.institution.get('name'))} (abierto hace {hours_since:.1f}h). Saltando.")
             else:
-                logger.info(f"Circuito auto-cerrado para {self.institution.get('name')} (>24h desde apertura).")
+                logger.info(f"Circuito auto-cerrado para {_safe_institution_label(self.institution.get('name'))} (>24h desde apertura).")
                 try:
                     self.db.patch('institution_site_profiles', filters=f"institution_id=eq.{self.institution.get('id')}", data={'circuit_open': False, 'circuit_opened_at': None})
                 except Exception:
@@ -195,10 +215,10 @@ class UniversalHarvester:
             try:
                 return safe_regex.search(pattern, text, safe_regex.IGNORECASE, timeout=0.05)
             except TimeoutError:
-                logger.warning(f"Profile regex timed out and was rejected: {pattern}")
+                logger.warning(f"Profile regex timed out and was rejected: {_safe_pattern_label(pattern)}")
                 return None
             except Exception as e:
-                logger.warning(f"Profile regex rejected: {pattern} ({e})")
+                logger.warning(f"Profile regex rejected: {_safe_pattern_label(pattern)} ({_safe_error_label(e)})")
                 return None
         return re.search(pattern, text, re.IGNORECASE)
 
@@ -221,7 +241,7 @@ class UniversalHarvester:
                         profile[field] = self._normalize_jsonb_list(profile[field])
                 logger.info(f"Loaded site profile: site_type={profile.get('site_type')}, discovery_mode={profile.get('discovery_mode')}")
                 return profile
-            logger.info(f"Profile exists but incomplete for {self.institution.get('slug')}, will auto-detect.")
+            logger.info(f"Profile exists but incomplete for {_safe_institution_label(self.institution.get('slug'))}, will auto-detect.")
         return self._auto_detect_profile()
 
     def _auto_detect_profile(self):
@@ -238,18 +258,18 @@ class UniversalHarvester:
         inst_id = self.institution.get('id')
 
         if not website_url:
-            logger.warning(f"No website_url for {inst_name}, skipping auto-detection")
+            logger.warning(f"No website_url for {_safe_institution_label(inst_name)}, skipping auto-detection")
             return {}
 
-        logger.info(f"Auto-detecting profile for {inst_slug} ({inst_name}) from {website_url}")
+        logger.info(f"Auto-detecting profile for {_safe_institution_label(inst_slug)} from {_safe_url_label(website_url)}")
         try:
             diag = diagnose_site(website_url, logger=logger)
         except Exception as e:
-            logger.warning(f"Auto-diagnosis failed for {inst_slug}: {e}")
+            logger.warning(f"Auto-diagnosis failed for {_safe_institution_label(inst_slug)}: {type(e).__name__}")
             return {}
 
         if 'error' in diag:
-            logger.warning(f"Auto-diagnosis error for {inst_slug}: {diag['error']}")
+            logger.warning(f"Auto-diagnosis error for {_safe_institution_label(inst_slug)}")
             return {}
 
         profile = diag.get('institution_site_profile', {})
@@ -268,12 +288,12 @@ class UniversalHarvester:
                 self.db.patch('institution_site_profiles',
                               filters=f'institution_id=eq.{inst_id}',
                               data=profile)
-                logger.info(f"Updated auto-generated profile for {inst_slug}")
+                logger.info(f"Updated auto-generated profile for {_safe_institution_label(inst_slug)}")
             else:
                 self.db.insert('institution_site_profiles', profile)
-                logger.info(f"Created auto-generated profile for {inst_slug}")
+                logger.info(f"Created auto-generated profile for {_safe_institution_label(inst_slug)}")
         except Exception as e:
-            logger.warning(f"Could not save auto-generated profile for {inst_slug}: {e}")
+            logger.warning(f"Could not save auto-generated profile for {_safe_institution_label(inst_slug)}: {type(e).__name__}")
 
         confidence = diag.get('_confidence', {})
         confidence_str = ", ".join(confidence.get('needs_manual_review', []))
@@ -291,22 +311,22 @@ class UniversalHarvester:
                         if exc.startswith('re:'):
                             pat = exc[3:]
                             if len(pat) > 200:
-                                logger.warning(f"Regex pattern too long, skipping: {pat[:50]}...")
+                                logger.warning(f"Regex pattern too long, skipping: {_safe_pattern_label(pat)}")
                                 continue
                             if re.search(r'(\([^)]*[*+][^)]*\))+[*+]', pat):
-                                logger.warning(f"ReDoS-risk pattern rejected: {pat}")
+                                logger.warning(f"ReDoS-risk pattern rejected: {_safe_pattern_label(pat)}")
                                 continue
                             try:
                                 compiled.append(('re', pat))
                             except re.error as e:
-                                logger.warning(f"Invalid regex pattern '{pat}': {e}")
+                                logger.warning(f"Invalid regex pattern {_safe_pattern_label(pat)}: {_safe_error_label(e)}")
                                 continue
                         else:
                             compiled.append(exc.lower())
                 return compiled
             return []
         except Exception as e:
-            logger.warning(f"Error loading exclusions: {e}")
+            logger.warning(f"Error loading exclusions: {_safe_error_label(e)}")
             return []
 
     def _gate_enabled(self, gate_name):
@@ -334,7 +354,7 @@ class UniversalHarvester:
             if canonical and canonical.get("href"):
                 return normalize_url(canonical["href"].strip())
         except Exception as e:
-            logger.warning(f"Error extracting canonical URL: {e}")
+            logger.warning(f"Error extracting canonical URL: {_safe_error_label(e)}")
         return None
 
     def _generate_hash(self, text):
@@ -380,22 +400,22 @@ class UniversalHarvester:
             # Fase 79B: Circuit Breaker — detectar 403/429
             if resp and resp.status_code in (403, 429):
                 self.error_count += 1
-                logger.warning(f"HTTP {resp.status_code} para {url} (error #{self.error_count}/{self.max_consecutive_errors})")
+                logger.warning(f"HTTP {resp.status_code} for {_safe_url_label(url)} (error #{self.error_count}/{self.max_consecutive_errors})")
                 if self.error_count >= self.max_consecutive_errors:
-                    logger.error(f"DEMASIOADOS ERRORES ({self.error_count}). Abriendo circuito para {self.institution.get('name')}.")
+                    logger.error(f"Too many source errors ({self.error_count}). Opening circuit for {_safe_institution_label(self.institution.get('name'))}.")
                     self.circuit_open = True
                     try:
                         self.db.patch('institution_site_profiles', filters=f"institution_id=eq.{self.institution.get('id')}", data={'circuit_open': True, 'circuit_opened_at': datetime.now(timezone.utc).isoformat()})
                     except Exception as e:
-                        logger.warning(f"No se pudo actualizar circuit_open en DB: {e}")
+                        logger.warning(f"Could not update circuit_open in DB: {_safe_error_label(e)}")
             return resp
         except Exception as e:
-            logger.debug(f"Request failed for {url}: {e}")
+            logger.debug(f"Request failed for {_safe_url_label(url)}: {type(e).__name__}")
             return None
 
     async def _fetch_sitemap(self, session, sitemap_url):
         if self.check_time_guard(): return []
-        logger.info(f"Checking Sitemap: {sitemap_url}")
+        logger.info(f"Checking Sitemap: {_safe_url_label(sitemap_url)}")
         links = []
         self._discovery_fetch_attempts += 1
         resp = await self._safe_request(session, sitemap_url)
@@ -412,7 +432,7 @@ class UniversalHarvester:
                 loc = url.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
                 links.append(loc)
         except Exception as e:
-            logger.warning(f"Failed to parse sitemap {sitemap_url}: {e}")
+            logger.warning(f"Failed to parse sitemap {_safe_url_label(sitemap_url)}: {type(e).__name__}")
         return list(set(links))
 
     async def _bfs_crawl(self, start_url, existing_urls):
@@ -474,7 +494,7 @@ class UniversalHarvester:
                     if pattern.startswith('re:'):
                         pat = pattern[3:]
                         if not self._is_safe_profile_regex(pat):
-                            logger.warning(f"ReDoS-risk allowed pattern rejected: {pat}")
+                            logger.warning(f"ReDoS-risk allowed pattern rejected: {_safe_pattern_label(pat)}")
                             continue
                         try:
                             if self._safe_profile_search(pat, parsed_path):
@@ -664,7 +684,7 @@ class UniversalHarvester:
             if clean_u not in seen:
                 seen.add(clean_u)
                 clean_seeds.append(u)
-        logger.info(f"🔗 [HARDCODED] Loaded {len(clean_seeds)} seed URLs for {self.institution.get('name')}")
+        logger.info(f"[HARDCODED] Loaded {len(clean_seeds)} seed URLs for {_safe_institution_label(self.institution.get('name'))}")
         existing_urls = await self._load_existing_urls()
         new_urls = []
         for url in clean_seeds:
@@ -705,7 +725,7 @@ class UniversalHarvester:
                             page_response = await page.goto(url, wait_until="domcontentloaded", timeout=45000)
                             if not page_response or page_response.status != 200:
                                 status = getattr(page_response, "status", None)
-                                raise HarvesterPartialError(f"catalog page returned HTTP {status} for {url}")
+                                raise HarvesterPartialError(f"catalog page returned HTTP {status} for {_safe_url_label(url)}")
                             self._discovery_fetch_successes += 1
                             await asyncio.sleep(2)
                             if self.catalog_link_selector:
@@ -715,7 +735,7 @@ class UniversalHarvester:
                                     if href:
                                         links.append(urljoin(url, href))
                         except Exception as e:
-                            logger.warning(f"Error loading catalog page {url}: {e}")
+                            logger.warning(f"Error loading catalog page {_safe_url_label(url)}: {type(e).__name__}")
                         finally:
                             await page.close()
                     else:
@@ -749,7 +769,7 @@ class UniversalHarvester:
         if not browser:
             logger.warning("Catalog link extraction requires Playwright browser")
             return None
-        logger.info(f"🔍 [CATALOG LINKS] Starting scroll discovery for {self.institution.get('name')}")
+        logger.info(f"[CATALOG LINKS] Starting scroll discovery for {_safe_institution_label(self.institution.get('name'))}")
         existing_urls = await self._load_existing_urls()
         new_urls = []
         seed_urls = self.profile.get('seed_urls', []) if self.profile else []
@@ -767,12 +787,12 @@ class UniversalHarvester:
                     break
                 if not self._can_discover_more():
                     break
-                logger.info(f"  Navigating to catalog page: {catalog_url}")
+                logger.info(f"  Navigating to catalog page: {_safe_url_label(catalog_url)}")
                 self._discovery_fetch_attempts += 1
                 page_response = await page.goto(catalog_url, wait_until="domcontentloaded", timeout=60000)
                 if not page_response or page_response.status != 200:
                     status = getattr(page_response, "status", None)
-                    raise HarvesterPartialError(f"catalog page returned HTTP {status} for {catalog_url}")
+                    raise HarvesterPartialError(f"catalog page returned HTTP {status} for {_safe_url_label(catalog_url)}")
                 self._discovery_fetch_successes += 1
                 await self._dismiss_popups(page)
                 for iteration in range(1, self.catalog_scroll_iterations + 1):
@@ -801,7 +821,7 @@ class UniversalHarvester:
                         logger.info("  Reached page bottom, stopping scroll")
                         break
         except Exception as e:
-            logger.warning(f"Error during catalog scroll discovery: {e}")
+            logger.warning(f"Error during catalog scroll discovery: {_safe_error_label(e)}")
         finally:
             await page.close()
         logger.info(f"Total Catalog Links: {len(new_urls)} NEW URLs")
@@ -831,7 +851,7 @@ class UniversalHarvester:
                 return self._limit_urls(self._merge_resumable_urls(cat_result))
 
         # sitemap_bfs (default)
-        logger.info(f"Starting sitemap/BFS discovery for {self.institution.get('name')}")
+        logger.info(f"Starting sitemap/BFS discovery for {_safe_institution_label(self.institution.get('name'))}")
         sitemap_url = urljoin(start_url, '/sitemap.xml')
         async with AsyncSession() as session:
             sitemap_links = await self._fetch_sitemap(session, sitemap_url)
@@ -859,22 +879,22 @@ class UniversalHarvester:
     async def scrape_course_detail(self, session, page, url):
         """Playwright-based extraction for spa_js_heavy and ecommerce sites."""
         if self.circuit_open:
-            raise HarvesterPartialError(f"circuit is open before scraping {url}")
-        logger.info(f"Scraping {url}")
+            raise HarvesterPartialError(f"circuit is open before scraping {_safe_url_label(url)}")
+        logger.info(f"Scraping {_safe_url_label(url)}")
         try:
             response = await self._safe_request(session, url)
             if not response:
-                raise HarvesterPartialError(f"request failed for {url}")
+                raise HarvesterPartialError(f"request failed for {_safe_url_label(url)}")
             if response.status_code != 200:
-                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {url}")
+                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {_safe_url_label(url)}")
             if not self._is_html_response(response):
-                raise HarvesterPartialError(f"non-HTML content for {url}")
+                raise HarvesterPartialError(f"non-HTML content for {_safe_url_label(url)}")
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             if eff_url and not self._is_valid_crawl_url(eff_url):
-                raise HarvesterPartialError(f"redirected to excluded URL: {eff_url}")
+                raise HarvesterPartialError(f"redirected to excluded URL: {_safe_url_label(eff_url)}")
             if can_url and not self._is_valid_crawl_url(can_url):
-                raise HarvesterPartialError(f"canonical URL is excluded: {can_url}")
+                raise HarvesterPartialError(f"canonical URL is excluded: {_safe_url_label(can_url)}")
             discovered_row = self._discovered_row_for_url(url)
             has_changed, _ = await self._check_if_changed(
                 url,
@@ -884,7 +904,7 @@ class UniversalHarvester:
                 force_changed=discovered_row["status"] == DISCOVERED_STATUS,
             )
             if not has_changed:
-                logger.info(f"Skipping {url} - No changes.")
+                logger.info(f"Skipping {_safe_url_label(url)} - No changes.")
                 return None
 
             # Fase 62D: Anti-bot — Playwright page setup
@@ -898,13 +918,13 @@ class UniversalHarvester:
 
             raw_html = (await page.content())[:200000]
             if not raw_html.strip():
-                raise HarvesterPartialError(f"empty rendered HTML for {url}")
+                raise HarvesterPartialError(f"empty rendered HTML for {_safe_url_label(url)}")
             content_hash = self._generate_hash(raw_html)
             json_ld = await self._extract_json_ld(page)
             og_tags = await self._extract_og_tags(page)
             title = await self._extract_title(page, og_tags, json_ld)
             if not str(title or '').strip():
-                raise HarvesterPartialError(f"empty raw_name for {url}")
+                raise HarvesterPartialError(f"empty raw_name for {_safe_url_label(url)}")
             description = await self._extract_description(page, og_tags, json_ld)
 
             # Fase 62C: Section keywords extraction from rendered HTML
@@ -967,30 +987,30 @@ class UniversalHarvester:
         except HarvesterRunError:
             raise
         except Exception as e:
-            raise HarvesterPartialError(f"parser/browser error scraping {url}: {e}") from e
+            raise HarvesterPartialError(f"parser/browser error scraping {_safe_url_label(url)}: {_safe_error_label(e)}") from e
 
     async def _scrape_http(self, session, url):
         """Fase 62A: HTTP-only extraction for traditional_ssr sites (faster, no Playwright overhead)."""
         if self.circuit_open:
-            raise HarvesterPartialError(f"circuit is open before scraping {url}")
-        logger.info(f"Scraping (HTTP) {url}")
+            raise HarvesterPartialError(f"circuit is open before scraping {_safe_url_label(url)}")
+        logger.info(f"Scraping (HTTP) {_safe_url_label(url)}")
         try:
             response = await self._safe_request(session, url)
             if not response:
-                raise HarvesterPartialError(f"request failed for {url}")
+                raise HarvesterPartialError(f"request failed for {_safe_url_label(url)}")
             if response.status_code != 200:
-                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {url}")
+                raise HarvesterPartialError(f"invalid HTTP status {response.status_code} for {_safe_url_label(url)}")
             if not self._is_html_response(response):
-                raise HarvesterPartialError(f"non-HTML content for {url}")
+                raise HarvesterPartialError(f"non-HTML content for {_safe_url_label(url)}")
             eff_url = normalize_url(response.url)
             can_url = self._extract_canonical(response.text)
             if eff_url and not self._is_valid_crawl_url(eff_url):
-                raise HarvesterPartialError(f"redirected to excluded URL: {eff_url}")
+                raise HarvesterPartialError(f"redirected to excluded URL: {_safe_url_label(eff_url)}")
             if can_url and not self._is_valid_crawl_url(can_url):
-                raise HarvesterPartialError(f"canonical URL is excluded: {can_url}")
+                raise HarvesterPartialError(f"canonical URL is excluded: {_safe_url_label(can_url)}")
             raw_html = response.text[:50000]
             if not raw_html.strip():
-                raise HarvesterPartialError(f"empty HTML payload for {url}")
+                raise HarvesterPartialError(f"empty HTML payload for {_safe_url_label(url)}")
             discovered_row = self._discovered_row_for_url(url)
             has_changed, _ = await self._check_if_changed(
                 url,
@@ -1000,7 +1020,7 @@ class UniversalHarvester:
                 force_changed=discovered_row["status"] == DISCOVERED_STATUS,
             )
             if not has_changed:
-                logger.info(f"Skipping {url} - No changes.")
+                logger.info(f"Skipping {_safe_url_label(url)} - No changes.")
                 return None
 
             html = raw_html
@@ -1028,7 +1048,7 @@ class UniversalHarvester:
                     title = title_tag.string or ''
             title = title.strip()
             if not title:
-                raise HarvesterPartialError(f"empty raw_name for {url}")
+                raise HarvesterPartialError(f"empty raw_name for {_safe_url_label(url)}")
 
             # Extract description
             desc = og_tags.get('og:description') or (json_ld.get('description') if isinstance(json_ld, dict) else None) or ''
@@ -1059,7 +1079,7 @@ class UniversalHarvester:
         except HarvesterRunError:
             raise
         except Exception as e:
-            raise HarvesterPartialError(f"parser error scraping {url}: {e}") from e
+            raise HarvesterPartialError(f"parser error scraping {_safe_url_label(url)}: {_safe_error_label(e)}") from e
 
     # ─────────────────────────────────────────────────────────
     # Fase 62C: Section keywords extraction from headings
@@ -1112,14 +1132,14 @@ class UniversalHarvester:
         """Warm up the browser with a homepage visit + mouse simulation for Cloudflare."""
         if not self.warmup_url:
             return
-        logger.info(f"🔄 Warming up browser at {self.warmup_url}")
+        logger.info(f"Warming up browser at {_safe_url_label(self.warmup_url)}")
         page = await browser.new_page()
         try:
             await page.goto(self.warmup_url, wait_until="domcontentloaded", timeout=60000)
             await page.mouse.move(random.randint(100, 500), random.randint(100, 500))
             await asyncio.sleep(2)
         except Exception as e:
-            logger.warning(f"Warm-up page failed: {e}")
+            logger.warning(f"Warm-up page failed: {_safe_error_label(e)}")
         finally:
             await page.close()
 
@@ -1246,7 +1266,7 @@ class UniversalHarvester:
     def _save_to_staging(self, item):
         row = self._discovered_row_for_url(item.get("url"))
         promoted = self._promote_discovered_to_pending(row, item)
-        logger.info(f"Harvested to Staging: {item['url']}")
+        logger.info(f"Harvested to Staging: {_safe_url_label(item['url'])}")
         return promoted
 
 
@@ -1272,18 +1292,18 @@ async def main():
     try:
         # Fase 75: Require profile
         if not harvester.profile:
-            logger.error(f"❌ SKIP {inst['name']}: No existe entrada en institution_site_profiles. "
+            logger.error(f"SKIP {_safe_institution_label(inst['name'])}: No existe entrada en institution_site_profiles. "
                          f"Crea un perfil antes de ejecutar el pipeline.")
             return 1
         if not harvester._gate_enabled('discovery_enabled'):
-            logger.info(f"⏭️ SKIP {inst['name']}: discovery_enabled=false.")
+            logger.info(f"SKIP {_safe_institution_label(inst['name'])}: discovery_enabled=false.")
             return 0
         if harvester.circuit_open:
-            logger.error(f"Circuit is open for {inst['name']}; failing closed.")
+            logger.error(f"Circuit is open for {_safe_institution_label(inst['name'])}; failing closed.")
             return 1
         pipeline_enabled = harvester._gate_enabled('pipeline_enabled')
         if not pipeline_enabled:
-            logger.info(f"🔍 DISCOVERY-ONLY {inst['name']}: pipeline_enabled=false. "
+            logger.info(f"DISCOVERY-ONLY {_safe_institution_label(inst['name'])}: pipeline_enabled=false. "
                         f"Harvester will discover URLs into staging_raw for review. "
                         f"Cleansing/enrichment/sync will skip until pipeline_enabled=true.")
 
@@ -1312,11 +1332,11 @@ async def main():
             and harvester._discovery_fetch_attempts > 0
             and harvester._discovery_fetch_successes == 0
         ):
-            logger.error(f"FG2 discovery failed closed for {inst['name']}: all discovery fetches failed.")
+            logger.error(f"FG2 discovery failed closed for {_safe_institution_label(inst['name'])}: all discovery fetches failed.")
             return 1
 
         if not pipeline_enabled:
-            logger.info(f"🔍 DISCOVERY-ONLY complete for {inst['name']}: {len(urls)} URLs discovered; detail scraping skipped.")
+            logger.info(f"DISCOVERY-ONLY complete for {_safe_institution_label(inst['name'])}: {len(urls)} URLs discovered; detail scraping skipped.")
             return 0
 
         failures = []
@@ -1329,7 +1349,7 @@ async def main():
                     logger.warning(f"⚠️ [TIME GUARD] Límite de ejecución alcanzado ({elapsed_total/3600:.2f}h).")
                     break
 
-                logger.info(f"Processing {i + 1}/{len(urls)}: {url}")
+                logger.info(f"Processing {i + 1}/{len(urls)}: {_safe_url_label(url)}")
                 page = None
                 try:
                     if extraction_needs_browser and browser:
@@ -1346,13 +1366,13 @@ async def main():
                         promoted_count += 1
                 except Exception as exc:
                     failures.append((url, str(exc)))
-                    logger.error(f"Partial harvesting failure for {url}: {exc}")
+                    logger.error(f"Partial harvesting failure for {_safe_url_label(url)}: {type(exc).__name__}")
                 finally:
                     if page:
                         await page.close()
 
         if failures:
-            logger.error(f"FG2 finished PARTIAL/FAIL for {inst['name']}: {len(failures)} failures, {promoted_count} promoted.")
+            logger.error(f"FG2 finished PARTIAL/FAIL for {_safe_institution_label(inst['name'])}: {len(failures)} failures, {promoted_count} promoted.")
             return 1
 
         duration = int(time.time() - start_time)
@@ -1360,10 +1380,10 @@ async def main():
             "last_harvest_at": datetime.now().isoformat(),
             "last_harvest_duration_sec": duration
         }, expected_id=inst['id'])
-        logger.info(f"✅ Telemetry updated for {inst['name']}: {duration}s")
+        logger.info(f"Telemetry updated for {_safe_institution_label(inst['name'])}: {duration}s")
         return 0
     except Exception as exc:
-        logger.error(f"FG2 failed closed for {inst.get('name')}: {exc}")
+        logger.error(f"FG2 failed closed for {_safe_institution_label(inst.get('name'))}: {type(exc).__name__}")
         return 1
     finally:
         if browser:

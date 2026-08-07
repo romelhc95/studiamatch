@@ -445,6 +445,22 @@ primero requiere un canary Production F10.8 autorizado separadamente. Luego,
 solo con canary PASS, podra solicitarse F10.9 para habilitacion gradual y
 observacion de schedules.
 
+### Incidente Production Canary F10.8 - 2026-08-07
+
+El Production Canary `31157736479` no acredita `EVID-H1-010`. El run tuvo
+aprobacion separada del environment `Production`, manifest pre-canary, snapshot
+privado y FG1 completados; FG2 harvest fallo fail-closed por HTTP `403` de la
+fuente externa y las etapas posteriores de FG2/FG3 quedaron `skipped`.
+
+La recuperacion fue satisfactoria: restore exacto, segundo restore `NOOP` y
+`after-cleanup == pre-canary`. Los artifacts sanitizados no expusieron cohorte,
+UUIDs, hosts Supabase ni credenciales. La auditoria posterior detecto URLs
+operativas en logs, por lo que el siguiente intento queda bloqueado hasta
+promover una remediacion de sanitizacion y source-access preflight a `main`.
+
+Estado resultante: `FAIL_CLOSED_HTTP_403_RESTORE_NOOP`, `EVID-H1-010=PENDING`,
+F10.9 bloqueada y environments fail-closed.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
@@ -752,3 +768,36 @@ Paths y acciones excluidos: `db/**`, `supabase/**`, manifests, migrations,
 `scripts/maintenance/db_migrate.py`, datos operativos, `.env*`, Supabase,
 DDL/DML, backup/restore real, workflow dispatch operativo, Production Canary,
 schedules, writers, backfill, Edge y cualquier cambio CA2.
+
+## Allowlist De Remediacion Source Preflight F10.8
+
+Esta allowlist habilita unicamente la remediacion previa al segundo Production
+Canary tras la frase decimal exacta `Ejecuta las tareas pendientes de la Fase
+F10.8`. No autoriza ejecutar el canary, cambiar secrets/environments, habilitar
+schedules, iniciar F10.9, DDL/DML, writers, backfill ni CA2.
+
+Paths permitidos:
+
+- `.github/workflows/production_canary.yml` para insertar source-access preflight
+  read-only antes del snapshot y exigir limites F10.8 exactos.
+- `.github/workflows/security-audit.yml` y `tests/test_fase10_main_boundary.py`
+  solo para extender la allowlist CA1 del boundary a esta remediacion.
+- `scripts/core/production_canary_manifest.py` para exigir gates, perfil y
+  limites completos antes de crear snapshot.
+- `scripts/core/production_canary_source_preflight.py` para probar acceso a la
+  fuente con salida sanitizada y sin mutacion.
+- `scripts/core/master_orchestrator.py`, `scripts/core/universal_harvester.py` y
+  `scripts/core/discovery_institutions.py` para sanitizar logs en contexto
+  `F10_PRODUCTION_CANARY_RUN_ID`.
+- `scripts/security/scan_credentials.sh` para alinear el scanner standalone con
+  el patron `sb_publishable_` y emitir hallazgos redactados.
+- `tests/test_fase10_production_canary.py` y
+  `tests/test_supabase_credentials_contract.py` para contratos focused de
+  source preflight, sanitizacion e inventario de consumidores Supabase.
+- `.context/**` enlazado para registrar el run `31157736479` como
+  `FAIL_CLOSED_HTTP_403_RESTORE_NOOP` y mantener `EVID-H1-010=PENDING`.
+
+Paths y acciones excluidos: `db/**`, `supabase/**`, `web/**`,
+`scripts/maintenance/**`, datos operativos, `.env*`, secrets/environments,
+workflow dispatch del canary, Production/Scheduled activation, DDL/DML,
+backup/restore real fuera del workflow, writers, backfill, Edge y cualquier CA2.

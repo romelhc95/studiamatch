@@ -7,15 +7,7 @@
 set -e
 
 # Patterns that signal a hardcoded credential
-PATTERNS="eyJhbG[A-Za-z0-9_-]\{10,\}|
-sb_secret_[A-Za-z0-9_-]\{10,\}|
-sbp_[A-Za-z0-9_-]\{10,\}|
-sk-[A-Za-z0-9]\{20,\}|
-ghp_[A-Za-z0-9]\{20,\}|
-gho_[A-Za-z0-9]\{20,\}|
-github_pat_[A-Za-z0-9_-]\{30,\}|
-AKIA[0-9A-Z]\{16\}|
-ghs_[A-Za-z0-9]\{20,\}"
+PATTERNS='eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}'
 
 # File patterns to always skip
 skip_pattern="\.(png|jpg|jpeg|gif|bmp|ico|svg|woff|woff2|ttf|eot|mp4|avi|mov|pdf|zip|tar|gz|lock)$"
@@ -35,9 +27,10 @@ search_file() {
     # Check for credential patterns
     matches=$(grep -nE "$PATTERNS" "$f" 2>/dev/null || true)
     if [ -n "$matches" ]; then
-        echo "⚠️  CREDENTIAL FOUND in $f:"
+        echo "⚠️  CREDENTIAL FOUND in $f:" >&2
         echo "$matches" | while IFS= read -r line; do
-            echo "   → $line"
+            line_no=${line%%:*}
+            echo "   → line $line_no: redacted" >&2
         done
         found=1
     fi

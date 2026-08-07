@@ -96,11 +96,22 @@ jobs:
           {
             echo "CANARY_TARGET_PREFLIGHT_PASSED=false"
             echo "CANARY_PRE_MANIFEST_COMPLETED=false"
+            echo "CANARY_SOURCE_PREFLIGHT_COMPLETED=false"
             echo "CANARY_SNAPSHOT_COMPLETED=false"
           } >> "$GITHUB_ENV"
 
           canary_secret_slug="${F10_PRODUCTION_CANARY_INSTITUTION_SLUG:-}"
           canary_secret_host="${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}"
+          case "${F10_PRODUCTION_CANARY_RUN_ID:-}" in
+            ''|*[!0-9-]*) echo "Invalid canary run id" >&2; exit 1 ;;
+          esac
+          case "$canary_secret_slug" in
+            ''|*[!a-z0-9-]*) echo "Invalid canary cohort secret" >&2; exit 1 ;;
+          esac
+          case "$canary_secret_host" in
+            ''|*[!A-Za-z0-9.-]*) echo "Invalid Production Supabase host allowlist" >&2; exit 1 ;;
+          esac
+          echo "::add-mask::$F10_PRODUCTION_CANARY_RUN_ID"
           if [ -n "$canary_secret_slug" ]; then
             echo "::add-mask::$canary_secret_slug"
           fi
@@ -108,11 +119,37 @@ jobs:
             echo "::add-mask::$canary_secret_host"
           fi
 
+          canary_redacted_run="$RUNNER_TEMP/f10_canary_redacted_run.sh"
+          cat > "$canary_redacted_run" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          stdout_file="$(mktemp)"
+          stderr_file="$(mktemp)"
+          cleanup() {
+            rm -f "$stdout_file" "$stderr_file"
+          }
+          trap cleanup EXIT
+          set +e
+          "$@" >"$stdout_file" 2>"$stderr_file"
+          status=$?
+          set -e
+          if [ -s "$stdout_file" ]; then
+            stdout_lines="$(wc -l < "$stdout_file" | tr -d ' ')"
+            echo "[CANARY STDOUT REDACTED] lines=$stdout_lines"
+          fi
+          if [ -s "$stderr_file" ]; then
+            stderr_lines="$(wc -l < "$stderr_file" | tr -d ' ')"
+            echo "[CANARY STDERR REDACTED] lines=$stderr_lines" >&2
+          fi
+          exit "$status"
+          SH
+          chmod 700 "$canary_redacted_run"
+
           normalize_bool() {
             case "${1:-}" in
               true|TRUE|True|1|yes|YES|Yes) printf 'true' ;;
               false|FALSE|False|0|no|NO|No) printf 'false' ;;
-              *) echo "Invalid boolean value: ${1:-}" >&2; return 1 ;;
+              *) echo "Invalid boolean value" >&2; return 1 ;;
             esac
           }
           resolve_number() {
@@ -122,31 +159,33 @@ jobs:
               value="$default_value"
             fi
             case "$value" in
-              ''|*[!0-9]*) echo "Invalid numeric limit: $value" >&2; return 1 ;;
+              ''|*[!0-9]*) echo "Invalid numeric limit" >&2; return 1 ;;
             esac
             if [ "$value" -lt 1 ] || [ "$value" -gt 50 ]; then
-              echo "Limit out of allowed canary range 1..50: $value" >&2
+              echo "Limit out of allowed canary range 1..50" >&2
               return 1
             fi
             printf '%s' "$value"
           }
-
-          case "$canary_secret_slug" in
-            ''|*[!a-z0-9-]*) echo "Invalid canary cohort secret" >&2; exit 1 ;;
-          esac
-          if [ -z "$F10_PRODUCTION_CANARY_SUPABASE_HOST" ]; then
-            echo "F10_PRODUCTION_CANARY_SUPABASE_HOST is required" >&2
-            exit 1
-          fi
 
           run_fg1="true"
           case "$INPUT_MUTABLE_STAGES" in
             fg2_fg3|both) run_fg2="true"; run_fg3="true" ;;
             fg2) run_fg2="true"; run_fg3="false" ;;
             fg3) run_fg2="false"; run_fg3="true" ;;
-            *) echo "Invalid mutable_stages value: $INPUT_MUTABLE_STAGES" >&2; exit 1 ;;
+            *) echo "Invalid mutable_stages value" >&2; exit 1 ;;
           esac
           mutable_authorized="$(normalize_bool "$INPUT_MUTABLE_AUTHORIZED")"
+          max_harvest_urls="$(resolve_number "$INPUT_MAX_HARVEST_URLS" 5)"
+          max_staging_records="$(resolve_number "$INPUT_MAX_STAGING_RECORDS" 5)"
+          max_enrichment_records="$(resolve_number "$INPUT_MAX_ENRICHMENT_RECORDS" 3)"
+          max_sync_records="$(resolve_number "$INPUT_MAX_SYNC_RECORDS" 3)"
+          max_integrity_courses="$(resolve_number "$INPUT_MAX_INTEGRITY_COURSES" 3)"
+          test "$max_harvest_urls" = "5"
+          test "$max_staging_records" = "5"
+          test "$max_enrichment_records" = "3"
+          test "$max_sync_records" = "3"
+          test "$max_integrity_courses" = "3"
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
           if { [ "$run_fg2" = "true" ] || [ "$run_fg3" = "true" ]; } && [ "$mutable_authorized" != "true" ]; then
             echo "FG2/FG3 require mutable_authorized=true" >&2
@@ -156,15 +195,16 @@ jobs:
           {
             echo "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug"
             echo "CANARY_FG1_SOURCE_SLUG=$canary_secret_slug"
-            echo "CANARY_MAX_HARVEST_URLS=$(resolve_number "$INPUT_MAX_HARVEST_URLS" 5)"
-            echo "CANARY_MAX_STAGING_RECORDS=$(resolve_number "$INPUT_MAX_STAGING_RECORDS" 5)"
-            echo "CANARY_MAX_ENRICHMENT_RECORDS=$(resolve_number "$INPUT_MAX_ENRICHMENT_RECORDS" 3)"
-            echo "CANARY_MAX_SYNC_RECORDS=$(resolve_number "$INPUT_MAX_SYNC_RECORDS" 3)"
-            echo "CANARY_MAX_INTEGRITY_COURSES=$(resolve_number "$INPUT_MAX_INTEGRITY_COURSES" 3)"
+            echo "CANARY_MAX_HARVEST_URLS=$max_harvest_urls"
+            echo "CANARY_MAX_STAGING_RECORDS=$max_staging_records"
+            echo "CANARY_MAX_ENRICHMENT_RECORDS=$max_enrichment_records"
+            echo "CANARY_MAX_SYNC_RECORDS=$max_sync_records"
+            echo "CANARY_MAX_INTEGRITY_COURSES=$max_integrity_courses"
             echo "CANARY_RUN_FG1=$run_fg1"
             echo "CANARY_RUN_FG2=$run_fg2"
             echo "CANARY_RUN_FG3=$run_fg3"
             echo "CANARY_MUTABLE_AUTHORIZED=$mutable_authorized"
+            echo "CANARY_REDACTED_RUN=$canary_redacted_run"
             echo "CANARY_STATE_DIR=$RUNNER_TEMP/f10_production_canary_state"
             echo "CANARY_PRIVATE_SNAPSHOT=$RUNNER_TEMP/f10_production_canary_state/private_snapshot.json"
           } >> "$GITHUB_ENV"
@@ -176,9 +216,10 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
-          if [ -n "${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}" ]; then
-            echo "::add-mask::$F10_PRODUCTION_CANARY_SUPABASE_HOST"
-          fi
+          case "${F10_PRODUCTION_CANARY_SUPABASE_HOST:-}" in
+            ''|*[!A-Za-z0-9.-]*) echo "Invalid Production Supabase host allowlist" >&2; exit 1 ;;
+          esac
+          echo "::add-mask::$F10_PRODUCTION_CANARY_SUPABASE_HOST"
           python3 - <<'PY'
           import os
           from urllib.parse import urlparse
@@ -243,6 +284,22 @@ jobs:
             --max-integrity-courses "$CANARY_MAX_INTEGRITY_COURSES"
           echo "CANARY_PRE_MANIFEST_COMPLETED=true" >> "$GITHUB_ENV"
 
+      - name: Source access preflight
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "$CANARY_RUN_FG2" != "true" ]; then
+            echo "Skipping source access preflight because FG2 is disabled."
+            exit 0
+          fi
+          bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
+          python scripts/core/production_canary_source_preflight.py \
+            --institution-slug "$CANARY_REQUESTED_INSTITUTION_SLUG"
+          echo "CANARY_SOURCE_PREFLIGHT_COMPLETED=true" >> "$GITHUB_ENV"
+
       - name: Capture private mutable canary pre-state
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -280,7 +337,7 @@ jobs:
           if [ -z "$source_slug" ]; then
             source_slug="$CANARY_INSTITUTION_SLUG"
           fi
-          python scripts/core/discovery_institutions.py --source-slug "$source_slug" --no-insert
+          bash "$CANARY_REDACTED_RUN" python scripts/core/discovery_institutions.py --source-slug "$source_slug" --no-insert
 
       - name: FG2 bounded harvest canary
         env:
@@ -296,7 +353,7 @@ jobs:
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
           JOB_START_TIME="$(date +%s)"
           export JOB_START_TIME
-          python3 scripts/core/master_orchestrator.py \
+          bash "$CANARY_REDACTED_RUN" python3 scripts/core/master_orchestrator.py \
             --institution-slug "$CANARY_INSTITUTION_SLUG" \
             --limit 1 \
             --max-urls "$CANARY_MAX_HARVEST_URLS" \
@@ -314,7 +371,7 @@ jobs:
             exit 0
           fi
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
-          python scripts/core/cleansing_worker.py \
+          bash "$CANARY_REDACTED_RUN" python scripts/core/cleansing_worker.py \
             --institution-id "$CANARY_INSTITUTION_ID" \
             --limit "$CANARY_MAX_STAGING_RECORDS"
 
@@ -333,7 +390,7 @@ jobs:
             exit 0
           fi
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
-          python scripts/core/enrichment_worker.py \
+          bash "$CANARY_REDACTED_RUN" python scripts/core/enrichment_worker.py \
             --institution-id "$CANARY_INSTITUTION_ID" \
             --limit "$CANARY_MAX_ENRICHMENT_RECORDS"
 
@@ -349,7 +406,7 @@ jobs:
             exit 0
           fi
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
-          python scripts/core/sync_vector_worker.py \
+          bash "$CANARY_REDACTED_RUN" python scripts/core/sync_vector_worker.py \
             --institution-id "$CANARY_INSTITUTION_ID" \
             --limit "$CANARY_MAX_SYNC_RECORDS"
 
@@ -365,7 +422,7 @@ jobs:
             exit 0
           fi
           bash .github/scripts/production_control_preflight.sh PRODUCTION-CANARY --enforce
-          python scripts/core/integrity_ping.py \
+          bash "$CANARY_REDACTED_RUN" python scripts/core/integrity_ping.py \
             --institution-id "$CANARY_INSTITUTION_ID" \
             --limit "$CANARY_MAX_INTEGRITY_COURSES"
 
@@ -466,18 +523,47 @@ jobs:
             --max-sync-records "${CANARY_MAX_SYNC_RECORDS:-3}" \
             --max-integrity-courses "${CANARY_MAX_INTEGRITY_COURSES:-3}"
 
-      - name: Print sanitized manifests
+      - name: Verify and print sanitized manifests
         if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'
         run: |
           set -euo pipefail
+          required_manifests=(
+            artifacts/f10_production_canary_pre.json
+            artifacts/f10_production_canary_snapshot.json
+            artifacts/f10_production_canary_post.json
+            artifacts/f10_production_canary_restore.json
+            artifacts/f10_production_canary_restore_idempotent.json
+            artifacts/f10_production_canary_after_cleanup.json
+          )
           shopt -s nullglob
-          manifests=(artifacts/f10_production_canary_*.json)
-          if [ "${#manifests[@]}" -eq 0 ]; then
-            echo "Skipping sanitized manifest print because no manifests were produced."
-            exit 0
+          actual_manifests=(artifacts/f10_production_canary_*.json)
+          if [ "${#actual_manifests[@]}" -ne "${#required_manifests[@]}" ]; then
+            echo "Unexpected sanitized canary manifest count" >&2
+            exit 1
           fi
-          for manifest in "${manifests[@]}"; do
+          for manifest in "${required_manifests[@]}"; do
             test -s "$manifest"
+            python -m json.tool "$manifest" >/dev/null
+          done
+          for manifest in "${actual_manifests[@]}"; do
+            case " ${required_manifests[*]} " in
+              *" $manifest "*) ;;
+              *) echo "Unexpected sanitized canary manifest" >&2; exit 1 ;;
+            esac
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          pre = json.loads(Path("artifacts/f10_production_canary_pre.json").read_text(encoding="utf-8"))
+          after = json.loads(Path("artifacts/f10_production_canary_after_cleanup.json").read_text(encoding="utf-8"))
+          stable_keys = ("cohort", "profile_gates", "profile_contract", "limits", "counts")
+          drift = [key for key in stable_keys if pre.get(key) != after.get(key)]
+          if drift:
+              raise SystemExit(f"Canary cleanup manifest drift: {','.join(drift)}")
+          PY
+          manifests=("${required_manifests[@]}")
+          for manifest in "${manifests[@]}"; do
             python -m json.tool "$manifest"
           done
 
@@ -486,6 +572,12 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: f10-production-canary-manifests
-          path: artifacts/f10_production_canary_*.json
-          if-no-files-found: ignore
+          path: |
+            artifacts/f10_production_canary_pre.json
+            artifacts/f10_production_canary_snapshot.json
+            artifacts/f10_production_canary_post.json
+            artifacts/f10_production_canary_restore.json
+            artifacts/f10_production_canary_restore_idempotent.json
+            artifacts/f10_production_canary_after_cleanup.json
+          if-no-files-found: error
           retention-days: 30

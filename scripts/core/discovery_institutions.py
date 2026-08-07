@@ -18,6 +18,14 @@ load_dotenv()
 db = get_db_client()
 
 
+def _is_f10_production_canary():
+    return bool(os.getenv("F10_PRODUCTION_CANARY_RUN_ID", "").strip())
+
+
+def _source_label(value=None):
+    return "source=redacted" if _is_f10_production_canary() else str(value)
+
+
 def source_slug(name):
     normalized = unicodedata.normalize('NFKD', str(name or ''))
     ascii_name = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
@@ -44,7 +52,7 @@ def load_sources(only_source_slug=None):
     if only_source_slug:
         sources = [source for source in sources if source_slug(source.get('name')) == only_source_slug]
         if not sources:
-            raise RuntimeError(f"source_slug not found in config/institution_sources.json: {only_source_slug}")
+            raise RuntimeError("source_slug not found in config/institution_sources.json" if _is_f10_production_canary() else f"source_slug not found in config/institution_sources.json: {only_source_slug}")
     print(f"INFO: Loaded {len(sources)} institutions from config/institution_sources.json")
     return sources
 
@@ -60,7 +68,7 @@ def run_discovery(source_slug_filter=None, allow_insert=True):
         parsed = urlparse(inst['url'])
         domain = (parsed.hostname or '').lower()
         if not re.fullmatch(r"[a-z0-9.-]+", domain):
-            raise RuntimeError(f"invalid institution source domain for {inst['name']}")
+            raise RuntimeError(f"invalid institution source domain for {_source_label(inst['name'])}")
         res_check_data = db.select_service_raise(
             'institutions', filters=f"website_url=ilike.*{quote(domain, safe='')}*"
         )
@@ -68,7 +76,7 @@ def run_discovery(source_slug_filter=None, allow_insert=True):
         if isinstance(res_check_data, list):
             if len(res_check_data) == 0:
                 if not allow_insert:
-                    print(f"ERROR: {inst['name']} no existe en el catálogo y --no-insert está activo")
+                    print(f"ERROR: {_source_label(inst['name'])} no existe en el catálogo y --no-insert está activo")
                     failed += 1
                     continue
                 # 2. Es una institución nueva: Insertar
@@ -81,15 +89,15 @@ def run_discovery(source_slug_filter=None, allow_insert=True):
                 res_insert = db.insert('institutions', data)
 
                 if res_insert:
-                    print(f"NEW: {inst['name']} añadida al catálogo maestro.")
+                    print(f"NEW: {_source_label(inst['name'])} añadida al catálogo maestro.")
                     found += 1
                 else:
-                    print(f"ERROR: Error al insertar {inst['name']}")
+                    print(f"ERROR: Error al insertar {_source_label(inst['name'])}")
                     failed += 1
             else:
-                print(f"SKIP: {inst['name']} ya existe en el catálogo.")
+                print(f"SKIP: {_source_label(inst['name'])} ya existe en el catálogo.")
         else:
-            print(f"ERROR: Error al verificar {inst['name']}")
+            print(f"ERROR: Error al verificar {_source_label(inst['name'])}")
             failed += 1
 
     print(f"\nSUCCESS: Descubrimiento finalizado. {found} nuevas instituciones encontradas.")
@@ -104,5 +112,5 @@ if __name__ == "__main__":
     try:
         sys.exit(run_discovery(args.source_slug, allow_insert=not args.no_insert))
     except Exception as exc:
-        print(f"ERROR: {exc}")
+        print(f"ERROR: {type(exc).__name__}" if _is_f10_production_canary() else f"ERROR: {exc}")
         sys.exit(1)
