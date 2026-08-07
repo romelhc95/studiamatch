@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_8_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` |
+| Estado | `F10_8_DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -16,11 +16,12 @@ QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
 `USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. F10.7 quedo
 registrada como entrega tecnica post-main por PR #291. F10.8 promovio por PR #297
 la remediacion de Production Canary a `main@260900a268ab8eb194140ea7311aec2a170b6e17`
-y obtuvo Certification Canary `31140933096=PASS`, pero el workflow
-`DB Sync to Production` fallo fail-closed antes de Supabase en el push post-merge
-porque no omitio la ruta DB en un candidate sin cambios `db/**`. Schedules,
-Production Canary acreditable y fases posteriores permanecen bloqueados hasta
-autorizaciones separadas.
+y obtuvo Certification Canary `31140933096=PASS`; el falso rojo de
+`DB Sync to Production` fue remediado por PR #304/#305/#306/#307 y revalidado en
+`main@529ca111f1fef40efb15676ad6f07d002a54ae92` con run
+`31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`. Schedules, Production Canary
+acreditable y fases posteriores permanecen bloqueados hasta autorizaciones
+separadas.
 
 ## Objetivo
 
@@ -421,6 +422,29 @@ remediacion siguiente dentro de F10.8 no es repetir el run historico
 `31142826000`, sino corregir `DB Sync to Production` para que un push a `main`
 sin cambios `db/**` termine en success con los jobs DB omitidos.
 
+### Cierre Tecnico DB Sync F10.8 - 2026-08-07
+
+La remediacion fail-closed de DB Sync quedo promovida por la ruta protegida y
+verificada en `main`:
+
+- PR #304 a `desarrollo`: `db0b35b804127ce4df2bf1c8a2668f764fe10d58`.
+- PR #305 a `certificacion`: DB Sync remediation CI PASS.
+- PR #306 a `certificacion`: main-boundary gate CI PASS.
+- PR #307 a `main`: `529ca111f1fef40efb15676ad6f07d002a54ae92`.
+- `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`: solo
+  corrio `Detect DB changes`; `DB contract preflight`, `Report pending
+  migrations`, `Apply pending migrations`, `Verify target schema` y `FG2
+  deferred to scheduled production window` quedaron skipped por ausencia de
+  cambios `db/**`.
+- `Security Audit Gate` post-main `31151066061=PASS`.
+
+El run historico `31142826000` no se reintento. Esta remediacion no ejecuto
+Supabase, DDL/DML, migrations, workflow dispatch operativo, Production Canary,
+schedules, writers, backfill ni CA2. El siguiente paso productivo no es F10.9:
+primero requiere un canary Production F10.8 autorizado separadamente. Luego,
+solo con canary PASS, podra solicitarse F10.9 para habilitacion gradual y
+observacion de schedules.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
@@ -609,12 +633,12 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
 | `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
 | `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
-| `EVID-H1-009` | PR main | Approved/Merged | `VERIFIED` |
+| `EVID-H1-009` | PR main | Approved/Merged; incluye PR #307 de remediacion DB Sync | `VERIFIED` |
 | `EVID-H1-010` | Canary Production | PASS | `PENDING` |
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PENDING` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PENDING` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PENDING` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `VERIFIED_POST_MERGE_BOUNDARY` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS; remediacion DB Sync limitada a workflows | `VERIFIED_POST_MERGE_BOUNDARY` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `CLIENT_CONFORMITY_PENDING` |
 
@@ -693,7 +717,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync `31142826000` fallo fail-closed antes de Supabase por ejecutar report DB en push sin cambios `db/**`. Requiere remediar DB Sync antes de Production Canary, schedules u observacion. |
+| `F10.8` | `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; run post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Production Canary sigue pendiente y requiere autorizacion separada. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
@@ -703,7 +727,9 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 solo despues de que `EVID-H1-008` conserve su desviacion aceptada,
 `EVID-H1-009` y `EVID-H1-014` conserven la entrega tecnica verificada y
 `EVID-H1-010..013/016` queden verificadas segun sus umbrales futuros. CA2 queda
-`DEFERRED_TO_HITO_2` sin cambio funcional productivo.
+`DEFERRED_TO_HITO_2` sin cambio funcional productivo. La remediacion DB Sync
+F10.8 elimina el blocker tecnico de falso rojo, pero no sustituye el canary
+Production, la observacion de schedules ni la conformidad cliente.
 
 ## Allowlist De Remediacion DB Sync F10.8
 

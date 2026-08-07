@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_WITH_F10_8_DB_SYNC_REMEDIATION_REQUIRED` |
+| Estado | `DRAFT_DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
-| Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), entrega tecnica `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291), remediacion F10.8 `main@260900a268ab8eb194140ea7311aec2a170b6e17` (PR #297) |
+| Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), entrega tecnica `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291), remediacion F10.8 `main@260900a268ab8eb194140ea7311aec2a170b6e17` (PR #297), remediacion DB Sync `main@529ca111f1fef40efb15676ad6f07d002a54ae92` (PR #307) |
 
 Este documento define la evidencia que se entregara al cliente. No afirma que
 Hito 1 este completado.
@@ -39,9 +39,12 @@ Certification Canary `31140933096=PASS`, `security-audit`, `F10 Main Boundary` y
 Cloudflare Pages quedaron verificados. DB Sync `31142826000` fallo fail-closed
 antes de Supabase porque el push sin cambios `db/**` ejecuto report de migraciones
 incompatible con `main`; apply/schema/FG2 quedaron skipped y no hubo DDL/DML ni
-mutacion DB. Canary Production acreditable, schedules, produccion observada y
-conformidad siguen pendientes. El resultado final debera indicar claramente que se
-entrego CA1 y que CA2 se traslado a Hito 2.
+mutacion DB. La remediacion DB Sync se promovio por PR #304/#305/#306/#307 hasta
+`main@529ca111f1fef40efb15676ad6f07d002a54ae92`; run `31151066062` termino
+`SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`.
+Canary Production acreditable, schedules, produccion observada y conformidad
+siguen pendientes. El resultado final debera indicar claramente que se entrego
+CA1 tecnicamente y que CA2 se traslado a Hito 2.
 
 ## Alcance Entregado
 
@@ -50,8 +53,8 @@ entrego CA1 y que CA2 se traslado a Hito 2.
 | Schedules FG2/FG3 | `TECHNICAL_DELIVERY_MAIN_SCHEDULES_PENDING` | Workflows con kill switch y environments dedicados; gate main/canary Production definidos; observacion Production pendiente |
 | Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_QA_VERIFIED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; QA independiente `PASS` |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
-| Development/Certification/Production | `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` | PR #277/#282/#285/#288/#289/#291/#297 Approved/Merged; environments programados fail-closed; `main` promovido tecnicamente; Certification Canary final PASS; DB Sync requiere remediacion fail-closed para push sin DB; Production canary y schedules pendientes |
-| Cero cambios CA2 | `MAIN_BOUNDARY_PASS_POST_MERGE` | Boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; cero rutas prohibidas |
+| Development/Certification/Production | `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` | PR #277/#282/#285/#288/#289/#291/#297/#304/#305/#306/#307 Approved/Merged; environments programados fail-closed; `main` promovido tecnicamente; Certification Canary final PASS; DB Sync remediado y verificado en `main`; Production canary y schedules pendientes |
+| Cero cambios CA2 | `MAIN_BOUNDARY_PASS_POST_MERGE` | Boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; remediacion DB Sync limitada a workflows; cero rutas prohibidas |
 
 FG1 se valida en un anexo tecnico interno como soporte de inventario. No forma
 parte del alcance entregado ni de la conformidad contractual CA1.
@@ -78,7 +81,7 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 ## Validaciones
 
 - Local/container: `PASS` para py_compile CA1, assertions focused F9.8 CA1 y replay post-merge Docker/Linux (53 focused + focused jobs CI + F9.7 congelado 226+7 + runners PG17).
-- CI: PR #277 PASS (`security-audit`, boundary selectivo, credential scan, Python, typecheck, lint); PR #280/#283/#284 y CI post-merge PASS en `desarrollo`; PR #282/#285 y CI post-merge PASS en `certificacion`; PR #291 y PR #297 PASS hacia `main` con `security-audit` y boundary F10.
+- CI: PR #277 PASS (`security-audit`, boundary selectivo, credential scan, Python, typecheck, lint); PR #280/#283/#284 y CI post-merge PASS en `desarrollo`; PR #282/#285 y CI post-merge PASS en `certificacion`; PR #291 y PR #297 PASS hacia `main` con `security-audit` y boundary F10; PR #305/#306/#307 PASS para remediacion DB Sync y gate main incremental.
 - Security: `LOCAL_PASS` sin blockers; residual SSRF DNS TOCTOU documentado como riesgo no bloqueante.
 - QA independiente: `PASS` segun [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Certification F9.9: `DEVIATION_ACCEPTED_FAIL_CLOSED`, no PASS; el
@@ -86,11 +89,12 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - F9.10 readiness: run `30824041542` PASS read-only/sanitizado; PR #283 CI post-merge PASS (`30856264196`, `30856264217`); PR #285 CI post-merge `30865604732` PASS; run `30865604729` cancelado con cero pasos; boundary `main -> certificacion` = 32 objetos, digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5`; `USER_PERSONAL_UAT=PASS`. No DML y no Production. El canary Production futuro queda definido con artifacts sin slug/SHA/run/digest privado.
 - F10.6 control-plane: `Production-Scheduled-FG1/FG2/FG3` verificados con branch policy `main`, reviewer humano autorizado, self-review bloqueado, variables fail-closed y secrets minimos por nombre; `Production` conserva `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`; runs `30681941694`, `29678093566` y `29677885934` quedaron `cancelled` con `steps=[]` y sin pending deployments. No se aprobaron runs, no hubo retry, dispatch, schedule ejecutado, writer, Production canary, Supabase, Cloudflare, DDL/DML ni PR/merge a `main`.
 - Entrega tecnica F10.7: PR #291 aprobado/fusionado en `main@64e4ed895d43121c5683e26a355993f18e528a5c`; `Security Audit` post-main run `30969158679` PASS con `F10 Main Boundary`; Cloudflare Pages `SUCCESS`; `DB Sync to Production` run `30969158711` cancelado con jobs `steps=[]`. Boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; [ADR-0009](../../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) registra que esto es entrega tecnica, no cierre contractual completo.
-- F10.8 post-main: PR #297 aprobado/fusionado en `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS` sobre `certificacion@94026de77fe9c1a01c66eae78bea8b09858daf96`; artifact sanitizado con tres JSON, cohortes `redacted`, sin `institution_id`, hosts Supabase ni UUIDs en artifacts, y conteos/gates `pre == post == after_cleanup`. `security-audit` y `F10 Main Boundary` PASS. `DB Sync to Production` `31142826000=FAIL_CLOSED_PRE_SUPABASE`; fallo antes de Supabase por ruta sin cambios `db/**`, apply/schema/FG2 skipped y cero DDL/DML/mutacion. Falta remediar DB Sync antes de Production Canary.
+- F10.8 post-main: PR #297 aprobado/fusionado en `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS` sobre `certificacion@94026de77fe9c1a01c66eae78bea8b09858daf96`; artifact sanitizado con tres JSON, cohortes `redacted`, sin `institution_id`, hosts Supabase ni UUIDs en artifacts, y conteos/gates `pre == post == after_cleanup`. `security-audit` y `F10 Main Boundary` PASS. `DB Sync to Production` historico `31142826000=FAIL_CLOSED_PRE_SUPABASE`; fallo antes de Supabase por ruta sin cambios `db/**`, apply/schema/FG2 skipped y cero DDL/DML/mutacion. Remediacion DB Sync verificada por PR #307 y run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`; Production Canary sigue pendiente.
+- Remediacion DB Sync F10.8: PR #304 mergeado a `desarrollo`; PR #305 y PR #306 mergeados a `certificacion`; PR #307 mergeado a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`. `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`: solo `Detect DB changes` corrio; preflight/report/apply/schema/FG2 quedaron skipped por ausencia de cambios `db/**`. `Security Audit Gate` post-main `31151066061=PASS`. No Supabase, DDL/DML, migrations, Production Canary, schedules, writer ni mutacion DB.
 - `EVID-H1-010` futuro requiere canary Production completo `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`, limites `5/5/3/3/3`, snapshot privado, restore y segundo restore NOOP. Runs parciales FG2-only/FG3-only seran diagnosticos, no evidencia de cierre.
 - `USER_PERSONAL_UAT=PASS` historico queda registrado contra `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, sin PII, secretos ni identificadores internos; para F10.8 se registro un UAT nuevo contra `main@64e4ed895d43121c5683e26a355993f18e528a5c` / tree `7d43590c19ca15171d468bf8c823a5e93b47d8cc`.
 - Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); resultado `PASS` sanitizado en [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
-- Canary Production: pendiente.
+- Canary Production: pendiente; no se ejecuto en esta remediacion.
 - Schedule observado: pendiente.
 
 ## Desviacion F9.9 Certification
