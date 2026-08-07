@@ -18,7 +18,12 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
     assert "merge-base" not in workflow
-    assert "EXPECTED_COUNT = 9" in workflow
+    assert "EXPECTED = {" in workflow
+    assert "ALLOWED_PATHS" not in workflow
+    assert "exact CA1 objects" in workflow
+    assert '"scripts/core/production_canary_source_preflight.py"' in workflow
+    assert '"scripts/security/scan_credentials.sh"' in workflow
+    assert '".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md"' in workflow
     assert '"tests/test_supabase_credentials_contract.py"' in workflow
     assert '".github/workflows/opencode.yml"' in workflow
     assert '".github/workflows/f9-7-contract.yml"' in workflow
