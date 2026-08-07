@@ -65,7 +65,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 esta activa con remediacion requerida despues de un canary fail-closed sin mutaciones; F10.9 permanece bloqueada.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 esta activa con remediacion DB Sync fail-closed despues de PR #297, Certification Canary PASS y DB Sync `31142826000=FAIL_CLOSED_PRE_SUPABASE`; F10.9 permanece bloqueada.
 
 ## Subfases F10 CA1-Only
 
@@ -74,7 +74,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia sustituida; no autoriza ejecucion. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_REMEDIATION_REQUIRED` | Canary Production manual no acreditado; tres runs fail-closed cero-mutacion; retry consumido. Requiere remediar privacidad/target del workflow, promover a `main`, congelar nuevo SHA/tree, UAT nuevo y autorizacion decimal separada antes de otro canary. |
+| `F10.8` | `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync `31142826000` fallo fail-closed antes de Supabase por ejecutar report DB en push sin cambios `db/**`. Requiere remediar DB Sync antes de Production Canary, schedules u observacion. |
 | `F10.9` | `PENDING` | Schedules graduales y observacion 72h + tres pares FG2 -> FG3 completos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 

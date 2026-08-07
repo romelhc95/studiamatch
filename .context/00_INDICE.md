@@ -82,6 +82,7 @@
 - [Changelog 2026-08-01](changelog/2026-08-01.md)
 - [Changelog 2026-08-03](changelog/2026-08-03.md)
 - [Changelog 2026-08-04](changelog/2026-08-04.md)
+- [Changelog 2026-08-07](changelog/2026-08-07.md)
 - [Plantilla ADR](decisiones/_plantilla_adr.md)
 - [Changelog 2026-07-24](changelog/2026-07-24.md)
 - [Changelog 2026-07-25](changelog/2026-07-25.md)

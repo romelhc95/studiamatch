@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_8_BLOCKED_ENVIRONMENT_VARIABLE` |
+| Estado | `F10_8_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -14,9 +14,12 @@ ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
 QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
 `USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. F10.7 quedo
-registrada como entrega tecnica post-main por PR #291 y remediada localmente por
-PR #292. F10.8 queda bloqueada por variable faltante en el environment
-`Production`; schedules y fases posteriores permanecen bloqueados hasta
+registrada como entrega tecnica post-main por PR #291. F10.8 promovio por PR #297
+la remediacion de Production Canary a `main@260900a268ab8eb194140ea7311aec2a170b6e17`
+y obtuvo Certification Canary `31140933096=PASS`, pero el workflow
+`DB Sync to Production` fallo fail-closed antes de Supabase en el push post-merge
+porque no omitio la ruta DB en un candidate sin cambios `db/**`. Schedules,
+Production Canary acreditable y fases posteriores permanecen bloqueados hasta
 autorizaciones separadas.
 
 ## Objetivo
@@ -343,8 +346,8 @@ PR #292 quedo aprobado/fusionado en
 `31022879169=PASS`. Esta reconciliacion no modifica `main`, no ejecuta workflow
 dispatch, no accede a Supabase y no habilita schedules.
 
-F10.8 queda activa como `IN_PROGRESS_REMEDIATION_REQUIRED` con autoridad
-de canary congelada:
+En ese corte, F10.8 quedo registrada como remediacion requerida de Production
+Canary con autoridad de canary congelada:
 
 | Campo | Valor |
 |---|---|
@@ -394,6 +397,29 @@ Stop conditions especificas antes o durante F10.8:
 Ante cualquier stop condition, F10.8 queda bloqueada, no se reintenta
 automaticamente, `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`
 permanecen vigentes, `EVID-H1-010=PENDING` y F10.9 no puede iniciar.
+
+### Reconciliacion Post-Main F10.8 - 2026-08-07
+
+La promocion tecnica F10.8 quedo fusionada por PR #297 en
+`main@260900a268ab8eb194140ea7311aec2a170b6e17`.
+
+- `security-audit`, `F10 Main Boundary`, Cloudflare Pages, Credential Scan,
+  Python, ESLint y TypeScript: PASS.
+- Certification Canary `31140933096=PASS` sobre
+  `certificacion@94026de77fe9c1a01c66eae78bea8b09858daf96`; artifact
+  `f9-9-certification-canary-manifests-31140933096-1` sanitizado, con cohortes
+  `redacted`, sin `institution_id`, hosts Supabase ni UUIDs en artifacts, y
+  conteos/gates `pre == post == after_cleanup`.
+- `DB Sync to Production` run `31142826000=FAIL_CLOSED_PRE_SUPABASE`: el step
+  report invoco `db_migrate.py --manifest` en una version de `main` incompatible
+  antes de contactar Supabase. `Apply pending migrations`, `Verify target schema`
+  y `FG2 deferred to scheduled production window` quedaron skipped. No hubo
+  DDL/DML, migrations, acceso Supabase, writer ni mutacion DB.
+
+El estado resultante es `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. La
+remediacion siguiente dentro de F10.8 no es repetir el run historico
+`31142826000`, sino corregir `DB Sync to Production` para que un push a `main`
+sin cambios `db/**` termine en success con los jobs DB omitidos.
 
 ## Work Packages Internos
 
@@ -667,7 +693,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_REMEDIATION_REQUIRED` | Canary Production manual no acreditado; runs `31058586387`, `31061221460` y `31068745673` fallaron fail-closed cero-mutacion; retry consumido y remediacion de workflow requerida antes de otra autorizacion de canary. |
+| `F10.8` | `IN_PROGRESS_DB_SYNC_FAIL_CLOSED_REMEDIATION_REQUIRED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync `31142826000` fallo fail-closed antes de Supabase por ejecutar report DB en push sin cambios `db/**`. Requiere remediar DB Sync antes de Production Canary, schedules u observacion. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
@@ -678,3 +704,25 @@ solo despues de que `EVID-H1-008` conserve su desviacion aceptada,
 `EVID-H1-009` y `EVID-H1-014` conserven la entrega tecnica verificada y
 `EVID-H1-010..013/016` queden verificadas segun sus umbrales futuros. CA2 queda
 `DEFERRED_TO_HITO_2` sin cambio funcional productivo.
+
+## Allowlist De Remediacion DB Sync F10.8
+
+Esta allowlist habilita unicamente la remediacion fail-closed de DB Sync tras la
+frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.8`, una vez
+fusionada la reconciliacion documental que la activa. No autoriza Supabase,
+DDL/DML, Production Canary, schedules, writers, backfill ni CA2.
+
+Paths permitidos:
+
+- `.github/workflows/db-sync-to-pro.yml` para agregar detector sin secrets de
+  cambios `db/**`, omitir report/apply/verify en push sin DB y conservar apply
+  manual DDL-gated.
+- Tests especificos del contrato DB Sync para push sin DB, push con DB,
+  `workflow_dispatch` report y `workflow_dispatch` apply.
+- `.github/workflows/security-audit.yml` solo si el gate minimo de promocion
+  necesita aceptar exactamente este patch.
+
+Paths y acciones excluidos: `db/**`, `supabase/**`, manifests, migrations,
+`scripts/maintenance/db_migrate.py`, datos operativos, `.env*`, Supabase,
+DDL/DML, backup/restore real, workflow dispatch operativo, Production Canary,
+schedules, writers, backfill, Edge y cualquier cambio CA2.
