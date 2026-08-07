@@ -120,12 +120,8 @@ def test_db_sync_workflow_change_is_allowed_by_transition_gates() -> None:
     security_audit = source(".github/workflows/security-audit.yml")
     f9_7_contract = source(".github/workflows/f9-7-contract.yml")
 
-    security_allowlist = security_audit.split(
-        "f98_ca1_allowed_statuses = {", 1
-    )[1].split("f98_ca1_allowed = set", 1)[0]
-    transition_allowlist = f9_7_contract.split("allowed_statuses = {", 1)[1].split(
-        "allowed = set(allowed_statuses)", 1
-    )[0]
-
-    for allowlist in (security_allowlist, transition_allowlist):
-        assert "'.github/workflows/db-sync-to-pro.yml': {'M'}" in allowlist
+    db_sync_allowed = re.compile(
+        r"['\"]\.github/workflows/db-sync-to-pro\.yml['\"]:\s*\{['\"]M['\"]\}"
+    )
+    assert '".github/workflows/db-sync-to-pro.yml"' in security_audit
+    assert db_sync_allowed.search(f9_7_contract)

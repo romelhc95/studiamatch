@@ -310,5 +310,6 @@ def test_pro_workflow_uses_same_fase08_manifest_for_detect_and_apply():
     )
 
     assert "MIGRATION_MANIFEST: db/manifests/fase08_candidate.json" in workflow
-    assert workflow.count('--manifest "$MIGRATION_MANIFEST"') == 2
+    assert workflow.count('--manifest "$MIGRATION_MANIFEST"') == 3
+    assert "--validate-only --manifest \"$MIGRATION_MANIFEST\"" in workflow
     assert "fase06_promotable.json" not in workflow
