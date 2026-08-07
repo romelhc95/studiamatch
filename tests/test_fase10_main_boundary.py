@@ -46,6 +46,18 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "f108-main-gate-update:" in workflow
     assert "F10.8 Main Gate Update" in workflow
     assert "f6fb25b2f00f283081de3180238da808117137cf" in workflow
+    assert "f108-f97-main-scope:" in workflow
+    assert "F10.8 F9.7 Main Scope" in workflow
+    assert "8958ffdd021e09e43c48495057dc0869c990c9df" in workflow
+    assert "F108_F97_SCOPE_REQUIRED" in workflow
+    assert "needs.f108-f97-main-scope.result" in workflow
+    assert '".github/workflows/f9-7-contract.yml": ("M", "100644")' in workflow
+
+
+def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
+    workflow = source(".github/workflows/f9-7-contract.yml")
+
+    assert "github.event_name != 'pull_request' || github.base_ref != 'main'" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:
