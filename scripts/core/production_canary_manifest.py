@@ -22,6 +22,19 @@ def get_db_client():
 
 
 MANIFEST_SCHEMA = "f10-production-canary-manifest.v1"
+VALID_DISCOVERY_MODES = {
+    "hardcoded_urls",
+    "sitemap_bfs",
+    "paginated_catalog",
+    "catalog_link_extraction",
+}
+VALID_SITE_TYPES = {"traditional_ssr", "spa_js_heavy", "ecommerce"}
+EXACT_F10_LIMITS = {
+    "max_staging_records": 5,
+    "max_enrichment_records": 3,
+    "max_sync_records": 3,
+    "max_integrity_courses": 3,
+}
 
 
 def _ensure_github_production_context():
@@ -58,14 +71,17 @@ def _ensure_production_supabase_target():
 
 def _mask_github_value(value):
     if os.getenv("GITHUB_ACTIONS") == "true" and value not in (None, ""):
-        print(f"::add-mask::{value}")
+        text = str(value)
+        if "\n" in text or "\r" in text:
+            return
+        print(f"::add-mask::{text}")
 
 
 def _resolve_institution(db, slug):
     rows = db.select_service_raise(
         "institutions",
         filters=f"slug=eq.{quote(str(slug), safe='')}",
-        columns="id,slug",
+        columns="id,slug,website_url",
         limit=2,
     )
     if len(rows) != 1:
@@ -79,13 +95,75 @@ def _load_profile(db, institution_id):
         filters=f"institution_id=eq.{quote(str(institution_id), safe='')}",
         columns=(
             "institution_id,discovery_enabled,pipeline_enabled,"
-            "production_enabled,circuit_open,circuit_opened_at"
+            "production_enabled,circuit_open,circuit_opened_at,"
+            "site_type,discovery_mode,seed_urls,catalog_url_patterns,"
+            "allowed_url_patterns,exclusion_patterns,catalog_link_selector"
         ),
         limit=2,
     )
     if len(rows) > 1:
         raise RuntimeError("Expected at most one site profile for canary institution")
-    return rows[0] if rows else {}
+    profile = rows[0] if rows else {}
+    for field in (
+        "seed_urls",
+        "catalog_url_patterns",
+        "allowed_url_patterns",
+        "exclusion_patterns",
+    ):
+        profile[field] = _normalize_jsonb_list(profile.get(field))
+    return profile
+
+
+def _normalize_jsonb_list(value):
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return []
+        return parsed if isinstance(parsed, list) else []
+    if isinstance(value, list):
+        return value
+    return []
+
+
+def _validate_exact_f10_limits(args):
+    for attr, expected in EXACT_F10_LIMITS.items():
+        if getattr(args, attr) != expected:
+            raise RuntimeError("Production canary limits do not match the F10.8 contract")
+
+
+def _validate_profile_contract(profile, *, require_pipeline_enabled, require_production_enabled):
+    if not profile:
+        raise RuntimeError("Canary institution profile is not configured")
+    if not profile.get("discovery_enabled"):
+        raise RuntimeError("Canary institution is not discovery_enabled")
+    if require_pipeline_enabled and not profile.get("pipeline_enabled"):
+        raise RuntimeError("Canary institution is not pipeline_enabled")
+    if require_production_enabled and not profile.get("production_enabled"):
+        raise RuntimeError("Canary institution is not production_enabled")
+    if profile.get("circuit_open"):
+        raise RuntimeError("Canary institution has circuit_open=true")
+
+    site_type = str(profile.get("site_type") or "").strip()
+    discovery_mode = str(profile.get("discovery_mode") or "").strip()
+    if site_type not in VALID_SITE_TYPES:
+        raise RuntimeError("Canary institution site_type is not valid")
+    if discovery_mode not in VALID_DISCOVERY_MODES:
+        raise RuntimeError("Canary institution discovery_mode is not valid")
+
+    seed_urls = profile.get("seed_urls") or []
+    catalog_patterns = profile.get("catalog_url_patterns") or []
+    allowed_patterns = profile.get("allowed_url_patterns") or []
+    exclusions = profile.get("exclusion_patterns") or []
+
+    if discovery_mode in {"hardcoded_urls", "catalog_link_extraction"} and not seed_urls:
+        raise RuntimeError("Canary institution source seeds are not configured")
+    if discovery_mode == "paginated_catalog" and not catalog_patterns:
+        raise RuntimeError("Canary institution catalog patterns are not configured")
+    if not exclusions:
+        raise RuntimeError("Canary institution exclusions are not configured")
+    if discovery_mode in {"hardcoded_urls", "sitemap_bfs"} and not allowed_patterns:
+        raise RuntimeError("Canary institution allowed URL patterns are not configured")
 
 
 def _count_pipeline(db, table, filters):
@@ -110,19 +188,18 @@ def build_manifest(args):
     _ensure_github_production_context()
     load_dotenv()
     _ensure_production_supabase_target()
+    _validate_exact_f10_limits(args)
     db = get_db_client()
     institution = _resolve_institution(db, args.institution_slug)
     institution_id = institution["id"]
     _mask_github_value(institution_id)
     _mask_github_value(institution["slug"])
     profile = _load_profile(db, institution_id)
-
-    if args.require_pipeline_enabled and not profile.get("pipeline_enabled"):
-        raise RuntimeError("Canary institution is not pipeline_enabled")
-    if args.require_production_enabled and not profile.get("production_enabled"):
-        raise RuntimeError("Canary institution is not production_enabled")
-    if profile.get("circuit_open"):
-        raise RuntimeError("Canary institution has circuit_open=true")
+    _validate_profile_contract(
+        profile,
+        require_pipeline_enabled=args.require_pipeline_enabled,
+        require_production_enabled=args.require_production_enabled,
+    )
 
     inst_filter = f"institution_id=eq.{quote(str(institution_id), safe='')}"
     counts = {
@@ -148,6 +225,13 @@ def build_manifest(args):
             "pipeline_enabled": bool(profile.get("pipeline_enabled")),
             "production_enabled": bool(profile.get("production_enabled")),
             "circuit_open": bool(profile.get("circuit_open")),
+        },
+        "profile_contract": {
+            "site_type": profile.get("site_type"),
+            "discovery_mode": profile.get("discovery_mode"),
+            "has_seed_urls": bool(profile.get("seed_urls")),
+            "has_allowed_url_patterns": bool(profile.get("allowed_url_patterns")),
+            "has_exclusion_patterns": bool(profile.get("exclusion_patterns")),
         },
         "limits": {
             "max_staging_records": args.max_staging_records,

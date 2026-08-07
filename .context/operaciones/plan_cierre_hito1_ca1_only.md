@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_8_BLOCKED_ENVIRONMENT_VARIABLE` |
+| Estado | `F10_8_DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -14,10 +14,14 @@ ejecuta por si mismo: F9.8 quedo cerrada por replay post-merge; F9.9 documento
 PR #277, una desviacion Certification fail-closed, controles pre-main PR #280 y
 QA independiente `PASS`. F9.10 quedo cerrada con PR #285, boundary final y
 `USER_PERSONAL_UAT=PASS`; F10.6 quedo completada como control-plane. F10.7 quedo
-registrada como entrega tecnica post-main por PR #291 y remediada localmente por
-PR #292. F10.8 queda bloqueada por variable faltante en el environment
-`Production`; schedules y fases posteriores permanecen bloqueados hasta
-autorizaciones separadas.
+registrada como entrega tecnica post-main por PR #291. F10.8 promovio por PR #297
+la remediacion de Production Canary a `main@260900a268ab8eb194140ea7311aec2a170b6e17`
+y obtuvo Certification Canary `31140933096=PASS`; el falso rojo de
+`DB Sync to Production` fue remediado por PR #304/#305/#306/#307 y revalidado en
+`main@529ca111f1fef40efb15676ad6f07d002a54ae92` con run
+`31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`. Schedules, Production Canary
+acreditable y fases posteriores permanecen bloqueados hasta autorizaciones
+separadas.
 
 ## Objetivo
 
@@ -343,8 +347,8 @@ PR #292 quedo aprobado/fusionado en
 `31022879169=PASS`. Esta reconciliacion no modifica `main`, no ejecuta workflow
 dispatch, no accede a Supabase y no habilita schedules.
 
-F10.8 queda activa como `IN_PROGRESS_REMEDIATION_REQUIRED` con autoridad
-de canary congelada:
+En ese corte, F10.8 quedo registrada como remediacion requerida de Production
+Canary con autoridad de canary congelada:
 
 | Campo | Valor |
 |---|---|
@@ -394,6 +398,68 @@ Stop conditions especificas antes o durante F10.8:
 Ante cualquier stop condition, F10.8 queda bloqueada, no se reintenta
 automaticamente, `AUTOMATION_ENABLED=false` y `PRODUCTION_WRITERS_PAUSED=true`
 permanecen vigentes, `EVID-H1-010=PENDING` y F10.9 no puede iniciar.
+
+### Reconciliacion Post-Main F10.8 - 2026-08-07
+
+La promocion tecnica F10.8 quedo fusionada por PR #297 en
+`main@260900a268ab8eb194140ea7311aec2a170b6e17`.
+
+- `security-audit`, `F10 Main Boundary`, Cloudflare Pages, Credential Scan,
+  Python, ESLint y TypeScript: PASS.
+- Certification Canary `31140933096=PASS` sobre
+  `certificacion@94026de77fe9c1a01c66eae78bea8b09858daf96`; artifact
+  `f9-9-certification-canary-manifests-31140933096-1` sanitizado, con cohortes
+  `redacted`, sin `institution_id`, hosts Supabase ni UUIDs en artifacts, y
+  conteos/gates `pre == post == after_cleanup`.
+- `DB Sync to Production` run `31142826000=FAIL_CLOSED_PRE_SUPABASE`: el step
+  report invoco `db_migrate.py --manifest` en una version de `main` incompatible
+  antes de contactar Supabase. `Apply pending migrations`, `Verify target schema`
+  y `FG2 deferred to scheduled production window` quedaron skipped. No hubo
+  DDL/DML, migrations, acceso Supabase, writer ni mutacion DB.
+
+El estado resultante es `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. La
+remediacion siguiente dentro de F10.8 no es repetir el run historico
+`31142826000`, sino corregir `DB Sync to Production` para que un push a `main`
+sin cambios `db/**` termine en success con los jobs DB omitidos.
+
+### Cierre Tecnico DB Sync F10.8 - 2026-08-07
+
+La remediacion fail-closed de DB Sync quedo promovida por la ruta protegida y
+verificada en `main`:
+
+- PR #304 a `desarrollo`: `db0b35b804127ce4df2bf1c8a2668f764fe10d58`.
+- PR #305 a `certificacion`: DB Sync remediation CI PASS.
+- PR #306 a `certificacion`: main-boundary gate CI PASS.
+- PR #307 a `main`: `529ca111f1fef40efb15676ad6f07d002a54ae92`.
+- `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`: solo
+  corrio `Detect DB changes`; `DB contract preflight`, `Report pending
+  migrations`, `Apply pending migrations`, `Verify target schema` y `FG2
+  deferred to scheduled production window` quedaron skipped por ausencia de
+  cambios `db/**`.
+- `Security Audit Gate` post-main `31151066061=PASS`.
+
+El run historico `31142826000` no se reintento. Esta remediacion no ejecuto
+Supabase, DDL/DML, migrations, workflow dispatch operativo, Production Canary,
+schedules, writers, backfill ni CA2. El siguiente paso productivo no es F10.9:
+primero requiere un canary Production F10.8 autorizado separadamente. Luego,
+solo con canary PASS, podra solicitarse F10.9 para habilitacion gradual y
+observacion de schedules.
+
+### Incidente Production Canary F10.8 - 2026-08-07
+
+El Production Canary `31157736479` no acredita `EVID-H1-010`. El run tuvo
+aprobacion separada del environment `Production`, manifest pre-canary, snapshot
+privado y FG1 completados; FG2 harvest fallo fail-closed por HTTP `403` de la
+fuente externa y las etapas posteriores de FG2/FG3 quedaron `skipped`.
+
+La recuperacion fue satisfactoria: restore exacto, segundo restore `NOOP` y
+`after-cleanup == pre-canary`. Los artifacts sanitizados no expusieron cohorte,
+UUIDs, hosts Supabase ni credenciales. La auditoria posterior detecto URLs
+operativas en logs, por lo que el siguiente intento queda bloqueado hasta
+promover una remediacion de sanitizacion y source-access preflight a `main`.
+
+Estado resultante: `FAIL_CLOSED_HTTP_403_RESTORE_NOOP`, `EVID-H1-010=PENDING`,
+F10.9 bloqueada y environments fail-closed.
 
 ## Work Packages Internos
 
@@ -583,12 +649,12 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-006` | Equivalencia patch | PR #277 CI/boundary PASS | `VERIFIED` |
 | `EVID-H1-007` | PR certificacion | PR #277 Approved/Merged | `VERIFIED` |
 | `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
-| `EVID-H1-009` | PR main | Approved/Merged | `VERIFIED` |
+| `EVID-H1-009` | PR main | Approved/Merged; incluye PR #307 de remediacion DB Sync | `VERIFIED` |
 | `EVID-H1-010` | Canary Production | PASS | `PENDING` |
 | `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PENDING` |
 | `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PENDING` |
 | `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PENDING` |
-| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS | `VERIFIED_POST_MERGE_BOUNDARY` |
+| `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS; remediacion DB Sync limitada a workflows | `VERIFIED_POST_MERGE_BOUNDARY` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `CLIENT_CONFORMITY_PENDING` |
 
@@ -667,7 +733,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `IN_PROGRESS_REMEDIATION_REQUIRED` | Canary Production manual no acreditado; runs `31058586387`, `31061221460` y `31068745673` fallaron fail-closed cero-mutacion; retry consumido y remediacion de workflow requerida antes de otra autorizacion de canary. |
+| `F10.8` | `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; run post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Production Canary sigue pendiente y requiere autorizacion separada. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
@@ -677,4 +743,61 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 solo despues de que `EVID-H1-008` conserve su desviacion aceptada,
 `EVID-H1-009` y `EVID-H1-014` conserven la entrega tecnica verificada y
 `EVID-H1-010..013/016` queden verificadas segun sus umbrales futuros. CA2 queda
-`DEFERRED_TO_HITO_2` sin cambio funcional productivo.
+`DEFERRED_TO_HITO_2` sin cambio funcional productivo. La remediacion DB Sync
+F10.8 elimina el blocker tecnico de falso rojo, pero no sustituye el canary
+Production, la observacion de schedules ni la conformidad cliente.
+
+## Allowlist De Remediacion DB Sync F10.8
+
+Esta allowlist habilita unicamente la remediacion fail-closed de DB Sync tras la
+frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.8`, una vez
+fusionada la reconciliacion documental que la activa. No autoriza Supabase,
+DDL/DML, Production Canary, schedules, writers, backfill ni CA2.
+
+Paths permitidos:
+
+- `.github/workflows/db-sync-to-pro.yml` para agregar detector sin secrets de
+  cambios `db/**`, omitir report/apply/verify en push sin DB y conservar apply
+  manual DDL-gated.
+- Tests especificos del contrato DB Sync para push sin DB, push con DB,
+  `workflow_dispatch` report y `workflow_dispatch` apply.
+- `.github/workflows/security-audit.yml` solo si el gate minimo de promocion
+  necesita aceptar exactamente este patch.
+
+Paths y acciones excluidos: `db/**`, `supabase/**`, manifests, migrations,
+`scripts/maintenance/db_migrate.py`, datos operativos, `.env*`, Supabase,
+DDL/DML, backup/restore real, workflow dispatch operativo, Production Canary,
+schedules, writers, backfill, Edge y cualquier cambio CA2.
+
+## Allowlist De Remediacion Source Preflight F10.8
+
+Esta allowlist habilita unicamente la remediacion previa al segundo Production
+Canary tras la frase decimal exacta `Ejecuta las tareas pendientes de la Fase
+F10.8`. No autoriza ejecutar el canary, cambiar secrets/environments, habilitar
+schedules, iniciar F10.9, DDL/DML, writers, backfill ni CA2.
+
+Paths permitidos:
+
+- `.github/workflows/production_canary.yml` para insertar source-access preflight
+  read-only antes del snapshot y exigir limites F10.8 exactos.
+- `.github/workflows/security-audit.yml` y `tests/test_fase10_main_boundary.py`
+  solo para extender la allowlist CA1 del boundary a esta remediacion.
+- `scripts/core/production_canary_manifest.py` para exigir gates, perfil y
+  limites completos antes de crear snapshot.
+- `scripts/core/production_canary_source_preflight.py` para probar acceso a la
+  fuente con salida sanitizada y sin mutacion.
+- `scripts/core/master_orchestrator.py`, `scripts/core/universal_harvester.py` y
+  `scripts/core/discovery_institutions.py` para sanitizar logs en contexto
+  `F10_PRODUCTION_CANARY_RUN_ID`.
+- `scripts/security/scan_credentials.sh` para alinear el scanner standalone con
+  el patron `sb_publishable_` y emitir hallazgos redactados.
+- `tests/test_fase10_production_canary.py` y
+  `tests/test_supabase_credentials_contract.py` para contratos focused de
+  source preflight, sanitizacion e inventario de consumidores Supabase.
+- `.context/**` enlazado para registrar el run `31157736479` como
+  `FAIL_CLOSED_HTTP_403_RESTORE_NOOP` y mantener `EVID-H1-010=PENDING`.
+
+Paths y acciones excluidos: `db/**`, `supabase/**`, `web/**`,
+`scripts/maintenance/**`, datos operativos, `.env*`, secrets/environments,
+workflow dispatch del canary, Production/Scheduled activation, DDL/DML,
+backup/restore real fuera del workflow, writers, backfill, Edge y cualquier CA2.
