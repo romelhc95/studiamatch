@@ -156,6 +156,7 @@ jobs:
               'scripts/core/certification_canary_manifest.py': {'A', 'M'},
               'scripts/core/certification_canary_state.py': {'A', 'M'},
               'scripts/core/production_canary_manifest.py': {'A', 'M'},
+              'scripts/core/production_canary_source_preflight.py': {'A', 'M'},
               'scripts/core/production_canary_state.py': {'A', 'M'},
               'scripts/core/cleansing_worker.py': {'M'},
               'scripts/core/discovery_institutions.py': {'M'},
