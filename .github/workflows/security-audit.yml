@@ -19,6 +19,7 @@ env:
   F108_CERTIFICATION_BASELINE: 5c40be67241cff5524191c8cbf71b76ccd2b0590
   F108_MAIN_GATE_BASELINE: f6fb25b2f00f283081de3180238da808117137cf
   F108_F97_MAIN_SCOPE_BASELINE: 8958ffdd021e09e43c48495057dc0869c990c9df
+  F108_FG1_SOURCE_SLUG_BASELINE: 7b948c3ea5fe5057f17cf7aa11124c116f93c2f2
 
 jobs:
   credential-scan:
@@ -884,10 +885,94 @@ jobs:
           print("F10.8 F9.7 main-scope boundary passed")
           PY
 
+  f108-fg1-source-slug:
+    name: F10.8 FG1 Source Slug
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate F10.8 FG1 source slug diff
+        env:
+          F108_FG1_BASELINE: ${{ env.F108_FG1_SOURCE_SLUG_BASELINE }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
+          test "$base" = "$F108_FG1_BASELINE"
+          test "$(git rev-parse HEAD)" = "$head"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          base = os.environ["F108_FG1_BASELINE"]
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          expected = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".github/workflows/production_canary.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+              "tests/test_fase10_production_canary.py": ("M", "100644"),
+          }
+          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          raw = subprocess.check_output([
+              "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
+          ])
+          fields = raw.split(b"\0")
+          index = 0
+          seen = {}
+          failures = []
+          while index < len(fields) and fields[index]:
+              status = fields[index].decode("ascii")
+              index += 1
+              if status.startswith(("R", "C")):
+                  old_path = fields[index].decode("utf-8", "surrogateescape")
+                  index += 1
+                  failures.append(f"unsupported-status:{status}:{old_path}")
+              path = fields[index].decode("utf-8", "surrogateescape")
+              index += 1
+              if path.startswith(denied_prefixes):
+                  failures.append(f"denied-path:{status}:{path}")
+                  continue
+              if path not in expected:
+                  failures.append(f"unexpected-path:{status}:{path}")
+                  continue
+              expected_status, expected_mode = expected[path]
+              if status != expected_status:
+                  failures.append(f"status:{status}:{path}")
+                  continue
+              meta = subprocess.check_output(["git", "ls-tree", head, "--", path], text=True).strip()
+              if not meta:
+                  failures.append(f"missing-head:{path}")
+                  continue
+              mode, kind = meta.split(None, 3)[:2]
+              if (mode, kind) != (expected_mode, "blob"):
+                  failures.append(f"mode-kind:{path}:{mode}:{kind}")
+              seen[path] = status
+          if set(seen) != set(expected):
+              failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::{failure}")
+              sys.exit(1)
+          print("F10.8 FG1 source slug boundary passed")
+          PY
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-main-gate-update, f108-f97-main-scope]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-main-gate-update, f108-f97-main-scope, f108-fg1-source-slug]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -903,6 +988,7 @@ jobs:
           F108_CERT: ${{ needs.f108-certification-remediation.result }}
           F108_MAIN_GATE: ${{ needs.f108-main-gate-update.result }}
           F108_F97_SCOPE: ${{ needs.f108-f97-main-scope.result }}
+          F108_FG1_SOURCE: ${{ needs.f108-fg1-source-slug.result }}
           CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
           MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
@@ -911,6 +997,7 @@ jobs:
           F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5c40be67241cff5524191c8cbf71b76ccd2b0590') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5c40be67241cff5524191c8cbf71b76ccd2b0590') }}
           F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
           F108_F97_SCOPE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '8958ffdd021e09e43c48495057dc0869c990c9df') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '8958ffdd021e09e43c48495057dc0869c990c9df') }}
+          F108_FG1_SOURCE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') }}
         run: |
           {
             echo "### Security Audit Results"
@@ -965,6 +1052,12 @@ jobs:
                   exit 1
                 fi
                 echo "✅ **f108-f97-main-scope**: passed"
+              elif [ "$F108_FG1_SOURCE_REQUIRED" = "true" ]; then
+                if [ "$F108_FG1_SOURCE" != "success" ]; then
+                  echo "❌ **f108-fg1-source-slug**: $F108_FG1_SOURCE (BLOCKING)"
+                  exit 1
+                fi
+                echo "✅ **f108-fg1-source-slug**: passed"
               else
                 echo "❌ **certification-transition**: unsupported baseline (BLOCKING)"
                 exit 1
