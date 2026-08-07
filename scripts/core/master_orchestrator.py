@@ -4,6 +4,8 @@ import sys
 import os
 import json
 import time
+import contextlib
+import io
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
@@ -16,6 +18,20 @@ db = None
 logger = setup_lima_logging("MasterOrchestrator")
 MAX_RUN_SECONDS = 20400
 CIRCUIT_COOLDOWN = timedelta(hours=24)
+
+
+def _is_f10_production_canary():
+    return bool(os.getenv("F10_PRODUCTION_CANARY_RUN_ID", "").strip())
+
+
+def _cohort_label(value=None):
+    if _is_f10_production_canary():
+        return "canary_cohort=redacted"
+    return str(value)
+
+
+def _safe_error_label(error):
+    return type(error).__name__ if _is_f10_production_canary() else str(error)
 
 
 def _get_db():
@@ -37,18 +53,29 @@ def run_script(script_path, args=None, timeout=None):
     if args:
         cmd.extend(args)
 
-    logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
+    if _is_f10_production_canary():
+        logger.info(f"[STAGE START] {script_path} args=redacted count={len(args or [])}")
+    else:
+        logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
     # Explicitly pass environment to subprocess
     try:
+        capture_child_output = _is_f10_production_canary()
         result = subprocess.run(
             cmd,
-            capture_output=False,
+            capture_output=capture_child_output,
+            text=capture_child_output,
             env=os.environ.copy(),
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
         logger.error(f"[STAGE TIMEOUT] {script_path}")
         return False
+
+    if _is_f10_production_canary():
+        if result.stdout:
+            logger.info(f"[STAGE STDOUT REDACTED] {script_path} lines={len(result.stdout.splitlines())}")
+        if result.stderr:
+            logger.warning(f"[STAGE STDERR REDACTED] {script_path} lines={len(result.stderr.splitlines())}")
 
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
@@ -99,17 +126,13 @@ def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
             except (TypeError, ValueError):
                 opened_at = None
             if opened_at is None or current_time - opened_at < CIRCUIT_COOLDOWN:
-                logger.info(
-                    f"[CIRCUIT OPEN] Skipping {institution.get('name')}"
-                )
+                logger.info(f"[CIRCUIT OPEN] Skipping {_cohort_label(institution.get('name'))}")
                 continue
 
         try:
             last_harvest = _parse_timestamp(institution.get('last_harvest_at'))
         except (TypeError, ValueError) as exc:
-            raise RuntimeError(
-                f"Invalid freshness timestamp for {institution.get('name')}"
-            ) from exc
+            raise RuntimeError("Invalid freshness timestamp for canary cohort") from exc
         if (
             last_harvest
             and current_time - last_harvest < timedelta(days=3)
@@ -118,9 +141,7 @@ def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
                 filters=f"institution_id=eq.{quote(str(institution['id']), safe='')}",
             ) > 50
         ):
-            logger.info(
-                f"[FRESHNESS GUARD] Skipping {institution.get('name')}"
-            )
+            logger.info(f"[FRESHNESS GUARD] Skipping {_cohort_label(institution.get('name'))}")
             continue
 
         eligible.append(institution)
@@ -152,17 +173,25 @@ def main(argv=None):
     # 🚉 PHASE 1: Discovery & Harvesting
     logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
     try:
-        institutions = get_institutions(
-            limit=args.limit,
-            excluded_slugs=excluded_slugs,
-            only_slug=args.institution_slug,
-        )
+        if _is_f10_production_canary():
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                institutions = get_institutions(
+                    limit=args.limit,
+                    excluded_slugs=excluded_slugs,
+                    only_slug=args.institution_slug,
+                )
+        else:
+            institutions = get_institutions(
+                limit=args.limit,
+                excluded_slugs=excluded_slugs,
+                only_slug=args.institution_slug,
+            )
     except Exception as exc:
-        logger.error(f"Failed to select eligible institutions: {exc}")
+        logger.error(f"Failed to select eligible institutions: {_safe_error_label(exc)}")
         return 1
 
     if args.institution_slug and not institutions:
-        logger.error(f"No eligible institution found for slug: {args.institution_slug}")
+        logger.error("No eligible institution found for canary cohort" if _is_f10_production_canary() else f"No eligible institution found for slug: {args.institution_slug}")
         return 1
 
     logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
@@ -176,7 +205,7 @@ def main(argv=None):
             failures.append("global_time_budget")
             break
 
-        logger.info(f"### Processing Institution: {inst_name} ({inst['slug']})")
+        logger.info(f"### Processing Institution: {_cohort_label(inst_name)}")
         inst_json = json.dumps(dict(inst))
         harvester_args = [inst_json, "--global-start", str(global_start)]
         if args.max_urls is not None:
@@ -187,7 +216,7 @@ def main(argv=None):
             harvester_args,
             timeout=remaining,
         ):
-            failures.append(f"harvester:{inst.get('slug')}")
+            failures.append("harvester:redacted" if _is_f10_production_canary() else f"harvester:{inst.get('slug')}")
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:

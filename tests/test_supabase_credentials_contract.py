@@ -135,6 +135,7 @@ APPROVED_BEARER_TEST_LITERALS = {
 
 DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
+    "tests/test_fase10_8_db_sync.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/certification_canary_manifest.py": "supabase-data-api",
@@ -144,6 +145,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/core/integrity_ping.py": "supabase-data-api",
     "scripts/core/master_orchestrator.py": "supabase-data-api",
     "scripts/core/production_canary_manifest.py": "supabase-data-api",
+    "scripts/core/production_canary_source_preflight.py": "supabase-data-api",
     "scripts/core/production_canary_state.py": "supabase-data-api",
     "scripts/core/sync_vector_worker.py": "supabase-data-api",
     "scripts/core/universal_harvester.py": "supabase-data-api",
@@ -872,3 +874,18 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-ci",
         "supabase-data-api-test",
     }
+
+
+def test_credential_scanners_block_real_supabase_publishable_keys():
+    scanner_paths = [
+        ROOT / ".github/workflows/security-audit.yml",
+        ROOT / "scripts/security/scan_credentials.sh",
+    ]
+
+    for path in scanner_paths:
+        source = path.read_text(encoding="utf-8")
+        assert "sb_publishable_[A-Za-z0-9_-]{20,}" in source
+        assert "sb_secret_[A-Za-z0-9_-]{10,}" in source
+        assert "sk-(proj-)?[A-Za-z0-9_-]{20,}" in source
+        assert "opencode_[A-Za-z0-9_-]{20,}" in source
+        assert "OPENCODE_API_KEY" in source

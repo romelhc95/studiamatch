@@ -4,13 +4,14 @@ import ast
 import json
 import os
 import stat
+import sys
 from types import SimpleNamespace
 from pathlib import Path
 from urllib.parse import unquote
 
 import pytest
 
-from scripts.core import production_canary_manifest, production_canary_state
+from scripts.core import production_canary_manifest, production_canary_source_preflight, production_canary_state
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,8 +111,8 @@ def _set_production_canary_env(monkeypatch: pytest.MonkeyPatch, *, run_id: str =
 def _fake_tables() -> dict[str, list[dict[str, object]]]:
     return {
         "institutions": [
-            {"id": "inst-1", "slug": "demo"},
-            {"id": "inst-2", "slug": "other"},
+            {"id": "inst-1", "slug": "demo", "website_url": "https://source.example"},
+            {"id": "inst-2", "slug": "other", "website_url": "https://other.example"},
         ],
         "institution_site_profiles": [
             {
@@ -121,6 +122,11 @@ def _fake_tables() -> dict[str, list[dict[str, object]]]:
                 "pipeline_enabled": True,
                 "production_enabled": True,
                 "circuit_open": False,
+                "site_type": "traditional_ssr",
+                "discovery_mode": "hardcoded_urls",
+                "seed_urls": ["https://source.example/program-one"],
+                "allowed_url_patterns": ["program"],
+                "exclusion_patterns": ["admision"],
                 "notes": "stable",
             },
             {"id": "profile-2", "institution_id": "inst-2", "notes": "other"},
@@ -223,7 +229,7 @@ def test_production_canary_requires_target_allowlist_and_mutable_authorization()
     assert "vars.F10_PRODUCTION_CANARY_SUPABASE_HOST" not in workflow
     assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow
     assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow
-    assert "F10_PRODUCTION_CANARY_SUPABASE_HOST is required" in workflow
+    assert "Invalid Production Supabase host allowlist" in workflow
     assert "Production Supabase target does not match allowlist" in workflow
     assert "::add-mask::$canary_secret_slug" in workflow
     assert "::add-mask::$canary_secret_host" in workflow
@@ -232,6 +238,15 @@ def test_production_canary_requires_target_allowlist_and_mutable_authorization()
     assert "Invalid mutable_stages value" in workflow
     assert "mutable_authorized:" in workflow
     assert "FG2/FG3 require mutable_authorized=true" in workflow
+    assert "CANARY_REDACTED_RUN=$canary_redacted_run" in workflow
+    assert "[CANARY STDOUT REDACTED]" in workflow
+    assert "[CANARY STDERR REDACTED]" in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python scripts/core/discovery_institutions.py' in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python3 scripts/core/master_orchestrator.py' in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python scripts/core/cleansing_worker.py' in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python scripts/core/enrichment_worker.py' in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python scripts/core/sync_vector_worker.py' in workflow
+    assert 'bash "$CANARY_REDACTED_RUN" python scripts/core/integrity_ping.py' in workflow
     assert workflow.count("production_control_preflight.sh PRODUCTION-CANARY --enforce") >= 8
     assert "--require-production-enabled" in workflow
     guard_step = workflow.split("Guard Production target, candidate and limits", 1)[1].split(
@@ -254,17 +269,57 @@ def test_production_canary_uses_private_snapshot_and_idempotent_restore() -> Non
     assert "production_canary_state.py restore" in workflow
     assert "--expect-noop" in workflow
     upload_section = workflow.split("Upload sanitized canary manifests", 1)[1]
-    print_section = workflow.split("Print sanitized manifests", 1)[1].split("Upload sanitized canary manifests", 1)[0]
+    print_section = workflow.split("Verify and print sanitized manifests", 1)[1].split(
+        "Upload sanitized canary manifests", 1
+    )[0]
     assert "name: f10-production-canary-manifests" in upload_section
     assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in print_section
     assert "if: always() && env.CANARY_SNAPSHOT_COMPLETED == 'true'" in upload_section
     assert "${{ github.run_id }}" not in upload_section
     assert "${{ github.run_attempt }}" not in upload_section
-    assert "path: artifacts/f10_production_canary_*.json" in workflow
+    assert "actual_manifests=(artifacts/f10_production_canary_*.json)" in print_section
+    assert "Unexpected sanitized canary manifest" in print_section
+    assert "path: artifacts/f10_production_canary_*.json" not in upload_section
+    assert "path: |" in upload_section
     assert "private_snapshot.json" not in upload_section
-    assert "if-no-files-found: ignore" in upload_section
+    assert "required_manifests=(" in print_section
+    assert "artifacts/f10_production_canary_pre.json" in print_section
+    assert "artifacts/f10_production_canary_snapshot.json" in print_section
+    assert "artifacts/f10_production_canary_post.json" in print_section
+    assert "artifacts/f10_production_canary_restore.json" in print_section
+    assert "artifacts/f10_production_canary_restore_idempotent.json" in print_section
+    assert "artifacts/f10_production_canary_after_cleanup.json" in print_section
+    assert "artifacts/f10_production_canary_after_cleanup.json" in upload_section
+    assert "Canary cleanup manifest drift" in print_section
+    assert 'stable_keys = ("cohort", "profile_gates", "profile_contract", "limits", "counts")' in print_section
+    assert "if-no-files-found: error" in upload_section
+    assert "if-no-files-found: ignore" not in upload_section
     assert "CANARY_SNAPSHOT_COMPLETED=true" in workflow
     assert "Skipping mutable restore because no snapshot was captured." in workflow
+
+
+def test_production_canary_runs_source_access_preflight_before_snapshot() -> None:
+    workflow = source(".github/workflows/production_canary.yml")
+    source_preflight = source("scripts/core/production_canary_source_preflight.py")
+
+    assert "CANARY_SOURCE_PREFLIGHT_COMPLETED=false" in workflow
+    assert "production_canary_source_preflight.py" in workflow
+    assert workflow.index("Source access preflight") < workflow.index("Capture private mutable canary pre-state")
+    assert "SOURCE_ACCESS_PASS" in source_preflight
+    assert "SOURCE_BLOCKED_HTTP_403" in source_preflight
+    assert "SOURCE_RATE_LIMITED_HTTP_429" in source_preflight
+    assert "SOURCE_UPSTREAM_5XX" in source_preflight
+    assert "SOURCE_TIMEOUT" in source_preflight
+    assert "SOURCE_INVALID_RESPONSE" in source_preflight
+    assert "allow_redirects=False" in source_preflight
+    assert "route_read_only" in source_preflight
+    assert "_is_browser_allowed_request" in source_preflight
+    assert 'new_context(service_workers="block")' in source_preflight
+    assert 'context.route("**/*", route_read_only)' in source_preflight
+    assert 'page.on("popup", close_popup)' in source_preflight
+    assert 'getattr(response, "url", source_url) != source_url' in source_preflight
+    assert "_ReadOnlyCanaryDB" in source_preflight
+    assert "redirect_stdout" in source_preflight
 
 
 def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
@@ -282,6 +337,11 @@ def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     assert "${{ inputs.max_integrity_courses }}" not in run_blocks
     assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
     assert "CANARY_REQUESTED_INSTITUTION_SLUG=$canary_secret_slug" in workflow
+    assert "Invalid boolean value: ${1:-}" not in workflow
+    assert "Invalid numeric limit: $value" not in workflow
+    assert "Limit out of allowed canary range 1..50: $value" not in workflow
+    assert "Invalid mutable_stages value: $INPUT_MUTABLE_STAGES" not in workflow
+    assert workflow.index("Invalid canary cohort secret") < workflow.index("::add-mask::$canary_secret_slug")
 
 
 def test_production_canary_manifests_are_sanitized() -> None:
@@ -302,6 +362,158 @@ def test_production_canary_manifests_are_sanitized() -> None:
     assert '"private_digest"' not in state
     assert '"cohort": {"institution_slug": "redacted"}' in state
     assert '"institution_name"' not in state
+
+
+def test_production_canary_runtime_logs_are_sanitized() -> None:
+    orchestrator = source("scripts/core/master_orchestrator.py")
+    harvester = source("scripts/core/universal_harvester.py")
+    discovery = source("scripts/core/discovery_institutions.py")
+
+    assert "args=redacted" in orchestrator
+    assert "canary_cohort=redacted" in orchestrator
+    assert "STAGE STDOUT REDACTED" in orchestrator
+    assert "redirect_stdout" in orchestrator
+    assert "_safe_url_label" in harvester
+    assert "Processing {i + 1}/{len(urls)}: {_safe_url_label(url)}" in harvester
+    assert "Partial harvesting failure for {_safe_url_label(url)}: {type(exc).__name__}" in harvester
+    assert "_safe_pattern_label" in harvester
+    assert "source=redacted" in discovery
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected"),
+    [
+        (200, "SOURCE_ACCESS_PASS"),
+        (403, "SOURCE_BLOCKED_HTTP_403"),
+        (429, "SOURCE_RATE_LIMITED_HTTP_429"),
+        (500, "SOURCE_UPSTREAM_5XX"),
+        (503, "SOURCE_UPSTREAM_5XX"),
+        (302, "SOURCE_INVALID_RESPONSE"),
+    ],
+)
+def test_source_access_preflight_classifies_http_statuses(status_code: int, expected: str) -> None:
+    assert production_canary_source_preflight._classify_status(status_code) == expected
+
+
+def test_source_access_preflight_fails_closed_without_private_output(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_source_preflight, "get_" + "db_client", lambda: fake)
+    args = SimpleNamespace(institution_slug="demo")
+
+    result = production_canary_source_preflight.run_preflight(
+        args,
+        probe_source=lambda _url, _profile: production_canary_source_preflight.SOURCE_BLOCKED_HTTP_403,
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "SOURCE_BLOCKED_HTTP_403" in output
+    assert "demo" not in output
+    assert "inst-1" not in output
+    assert "https://" not in output
+
+
+def test_source_access_preflight_suppresses_db_client_output(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+
+    def noisy_get_db_client():
+        print("https://source.example/private-demo inst-1 demo")
+        print("https://source.example/private-demo inst-1 demo", file=sys.stderr)
+        return fake
+
+    monkeypatch.setattr(production_canary_source_preflight, "get_" + "db_client", noisy_get_db_client)
+    args = SimpleNamespace(institution_slug="demo")
+
+    result = production_canary_source_preflight.run_preflight(
+        args,
+        probe_source=lambda _url, _profile: production_canary_source_preflight.SOURCE_ACCESS_PASS,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert captured.out.strip() == production_canary_source_preflight.SOURCE_ACCESS_PASS
+    assert captured.err == ""
+
+
+def test_source_access_preflight_db_proxy_is_read_only() -> None:
+    proxy = production_canary_source_preflight._ReadOnlyCanaryDB(FakeProductionCanaryDB(_fake_tables()))
+
+    assert proxy.select_service_raise("institutions")
+    with pytest.raises(RuntimeError, match="read-only"):
+        proxy.insert("staging_raw", {})
+    with pytest.raises(RuntimeError, match="read-only"):
+        proxy.patch_raise("staging_raw", "id=eq.1", {})
+    with pytest.raises(RuntimeError, match="read-only"):
+        proxy.rpc("unsafe", {})
+    with pytest.raises(RuntimeError, match="read-only"):
+        proxy.rpc_raise("unsafe", {})
+
+
+@pytest.mark.parametrize(
+    "seed_url",
+    [
+        "http://source.example/program-one",
+        "https://source.example:8443/program-one",
+        "https://user:pass@source.example/program-one",
+        "https://127.0.0.1/program-one",
+        "https://169.254.169.254/program-one",
+        "https://other.example/program-one",
+    ],
+)
+def test_source_access_preflight_rejects_unsafe_source_urls(seed_url: str) -> None:
+    institution = {"website_url": "https://source.example"}
+    profile = {
+        "discovery_mode": "hardcoded_urls",
+        "seed_urls": [seed_url],
+        "catalog_url_patterns": [],
+    }
+
+    assert production_canary_source_preflight._safe_source_url(institution, profile) is None
+
+
+def test_source_access_preflight_allows_https_institution_subdomain() -> None:
+    institution = {"website_url": "https://www.source.example"}
+    profile = {
+        "discovery_mode": "hardcoded_urls",
+        "seed_urls": ["https://catalog.source.example/program-one#private"],
+        "catalog_url_patterns": [],
+    }
+
+    assert (
+        production_canary_source_preflight._safe_source_url(institution, profile)
+        == "https://catalog.source.example/program-one"
+    )
+
+
+def test_source_access_preflight_rejects_later_unsafe_seed_url() -> None:
+    institution = {"website_url": "https://source.example"}
+    profile = {
+        "discovery_mode": "catalog_link_extraction",
+        "seed_urls": ["https://source.example/catalog", "https://127.0.0.1/private"],
+        "catalog_url_patterns": [],
+    }
+
+    assert production_canary_source_preflight._safe_source_url(institution, profile) is None
+
+
+def test_source_access_preflight_rejects_later_unsafe_catalog_pattern() -> None:
+    institution = {"website_url": "https://source.example"}
+    profile = {
+        "discovery_mode": "paginated_catalog",
+        "seed_urls": [],
+        "catalog_url_patterns": [
+            "https://source.example/catalog?page={page}",
+            "https://169.254.169.254/catalog?page={page}",
+        ],
+    }
+
+    assert production_canary_source_preflight._safe_source_url(institution, profile) is None
 
 
 def test_production_canary_scripts_reject_local_cli(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -338,8 +550,36 @@ def test_production_canary_manifest_uses_fake_db_and_sanitizes_artifact(
     assert "sha" not in manifest["github"]
     assert "run_id" not in manifest["github"]
     assert manifest["profile_gates"]["production_enabled"] is True
+    assert manifest["profile_gates"]["discovery_enabled"] is True
+    assert manifest["profile_contract"] == {
+        "site_type": "traditional_ssr",
+        "discovery_mode": "hardcoded_urls",
+        "has_seed_urls": True,
+        "has_allowed_url_patterns": True,
+        "has_exclusion_patterns": True,
+    }
     assert manifest["counts"]["staging_pending"] == 1
     assert "CANARY_INSTITUTION_ID=inst-1" in env_file.read_text(encoding="utf-8")
+
+
+def test_production_canary_manifest_rejects_non_contract_limits(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_manifest, "get_" + "db_client", lambda: fake)
+    args = SimpleNamespace(
+        institution_slug="demo",
+        stage="pre",
+        github_env=None,
+        require_pipeline_enabled=True,
+        require_production_enabled=True,
+        max_staging_records=6,
+        max_enrichment_records=3,
+        max_sync_records=3,
+        max_integrity_courses=3,
+    )
+
+    with pytest.raises(RuntimeError, match="F10.8 contract"):
+        production_canary_manifest.build_manifest(args)
 
 
 def test_production_canary_target_mismatch_fails_before_db_client(monkeypatch: pytest.MonkeyPatch) -> None:
