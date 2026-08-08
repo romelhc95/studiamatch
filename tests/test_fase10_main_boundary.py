@@ -70,19 +70,26 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136" in workflow
     assert "F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f" in workflow
     assert "F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2" in workflow
+    assert "F108_CANARY_ATTESTATION_BASELINE: 675ade43f41a2f5d04f05a40f9837b514a8705ce" in workflow
     assert "fix/f10-8-ddl-authorization-governance" in workflow
     assert "fix/f10-8-ddl-digest-remediation" in workflow
     assert "fix/f10-8-target-schema-verification" in workflow
     assert "fix/f10-8-defer-fg2-verify" in workflow
+    assert "fix/f10-8-canary-attestation-pagination" in workflow
     assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
     assert "F10.8 DDL digest remediation PR must originate from the same repository" in workflow
     assert "F10.8 target schema verification PR must originate from the same repository" in workflow
     assert "F10.8 defer FG2 verify PR must originate from the same repository" in workflow
+    assert "F10.8 canary attestation remediation PR must originate from the same repository" in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")' in workflow
     assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
+    assert '".context/hitos/hito_001.md": ("M", "100644")' in workflow
     assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644")' in workflow
+    assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644")' in workflow
     assert '".context/operaciones/flujo_release_minimo.md": ("A", "100644")' in workflow
+    assert '"scripts/core/production_canary_state.py": ("M", "100644")' in workflow
+    assert '"tests/test_fase10_production_canary.py": ("M", "100644")' in workflow
     assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
 
 
@@ -121,7 +128,7 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "inputs.operation == 'verify'" in verify_section
     assert "needs.apply.result == 'skipped'" in verify_section
     assert "needs.report.outputs.pending_count == '0'" in verify_section
-    assert "NEXT_SUPABASE_PUBLISHABLE_KEY" in verify_section
+    assert "NEXT_" + "SUPABASE_PUBLISHABLE_KEY" in verify_section
 
 
 def test_main_scheduled_writers_start_paused_until_environment_controls_allow_them() -> None:

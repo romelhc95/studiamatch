@@ -524,6 +524,34 @@ backup, con writers y FG1/FG2/FG3 pausados durante el apply consumido. No
 reejecutar `operation=apply`; el siguiente paso es `operation=verify` read-only
 con pending count `0` tras esta remediacion.
 
+### Verify-Only Y Canary Attestation F10.8 - 2026-08-08
+
+PR #323 agrego `operation=verify` read-only y quedo promovido a
+`main@5c7efaf417eba7f45bed45994a6249d03f609fc2`. PR #324 corrigio el gate FG2
+deferred despues de verify y quedo promovido a
+`main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree
+`90868898778a1039006e45b870fbc03e6e65291b`.
+
+DB Sync verify `31268229878=PASS` confirmo pending migrations `0`, apply
+skipped, target schema PASS y FG2 deferred PASS. `USER_PERSONAL_UAT=PASS` fue
+emitido para ese SHA/tree. La autorizacion DDL Pro ya quedo consumida por
+`31263024890`; no se debe reejecutar `operation=apply`.
+
+El Production Canary completo `31269277219` fue aprobado separadamente en
+`Production` y no acredita `EVID-H1-010`. Paso target/candidate/limites,
+source-access preflight, snapshot, FG1, FG2 harvest/cleansing/enrichment/sync,
+FG3 y primer restore. Fallo fail-closed en el segundo restore `--expect-noop`
+porque la atestacion no-cohorte leyo filas completas con `select=*` en paginas
+de 1000, generando una respuesta JSON truncada de aproximadamente 8.1 MB; el
+HTTP 521 del manifest after-cleanup fue secundario.
+
+La remediacion autorizada dentro de F10.8 queda acotada a paginar la atestacion
+no-cohorte con paginas pequenas, conservando `columns="*"`, `order="id.asc"`,
+grupos `neq`/`is.null`, digest actual, snapshot schema y fail-closed. No autoriza
+DDL/DML, backfill, schedules, writers, secrets/environments ni CA2. El siguiente
+canary requiere nuevo SHA/tree promovido a `main`, UAT nuevo si aplica y
+autorizacion humana separada.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
@@ -796,7 +824,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `PRO_DDL_AUTH_GOVERNANCE_PENDING_APPLY` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; DB Sync `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente. Pro DDL y Production Canary siguen pendientes y requieren autorizaciones separadas. |
+| `F10.8` | `PRO_DDL_VERIFIED_CANARY_ATTESTATION_REMEDIATION_PENDING` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. Production Canary `31269277219` paso FG1/FG2/FG3 y primer restore, pero fallo fail-closed en segundo restore por JSON truncado en atestacion no-cohorte; `EVID-H1-010` sigue pendiente. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 

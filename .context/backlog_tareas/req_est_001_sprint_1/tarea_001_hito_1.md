@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` activa como `PRO_DDL_AUTH_GOVERNANCE_PENDING_APPLY`. PR #320 fue aprobado/fusionado en `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; `security-audit`, `F10 Main Boundary` y Cloudflare Pages PASS. DB Sync to Production `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente, `20260808_fase10_8_atomic_cleansing_provenance`, y dejo apply/schema/FG2 skipped. El registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO` queda como autorizacion sanitizada y verificable, pero no autoriza apply por si solo. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-010..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` activa como `PRO_DDL_VERIFIED_CANARY_ATTESTATION_REMEDIATION_PENDING`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. Production Canary `31269277219` paso FG1/FG2/FG3 y primer restore, pero fallo fail-closed en segundo restore por JSON truncado durante atestacion no-cohorte. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-010..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base tecnica post-cleansing-provenance-main: `main@1885806f0d9f189600d410d353fcf13fb8dd4676`.
+Base tecnica post-verify: `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -266,7 +266,7 @@ demuestre necesidad estricta y se solicite otra decision.
 
 ## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth
 
-F10.8 queda activa como `PRO_DDL_AUTH_GOVERNANCE_PENDING_APPLY`.
+F10.8 queda activa como `PRO_DDL_VERIFIED_CANARY_ATTESTATION_REMEDIATION_PENDING`.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
@@ -317,6 +317,16 @@ La remediacion cleansing provenance posterior siguio la ruta protegida:
 
 Esta remediacion de gobierno no ejecuto Pro DDL, DML, Production Canary,
 schedules, writers, backfill, secrets/environments ni CA2.
+
+PR #323 y PR #324 promovieron verify-only hasta
+`main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree
+`90868898778a1039006e45b870fbc03e6e65291b`. DB Sync verify
+`31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2
+deferred PASS. `USER_PERSONAL_UAT=PASS` fue emitido para ese SHA/tree. El
+Production Canary `31269277219` completo FG1/FG2/FG3 y primer restore, pero fallo
+fail-closed en el segundo restore `--expect-noop` por JSON truncado durante la
+atestacion no-cohorte. La remediacion vigente no autoriza DDL/DML, backfill,
+schedules, writers, secrets/environments ni CA2.
 
 `EVID-H1-010..013` y `EVID-H1-016` permanecen pendientes. Hito 1 queda
 `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`, no `COMPLETED_PRODUCTION`.
