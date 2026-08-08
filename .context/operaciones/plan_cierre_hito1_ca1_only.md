@@ -512,12 +512,17 @@ DB Sync `31246525845=SUCCESS_REPORT_ONLY` confirmo exactamente una migracion Pro
 pendiente. El intento apply `31258101516=FAIL_CLOSED_NON_AUTH_DIGEST` fallo antes
 de Pro porque el digest autorizado habia sido calculado desde el working tree
 Windows con CRLF; `Apply pending migrations`, `Verify target schema` y Production
-Canary quedaron skipped. La remediacion F10.8 debe calcular el digest desde blobs
-Git normalizados del candidate y mantener el registro DDL como unica excepcion
-excluida del digest. Backup fisico programado restaurable `2026-08-08T05:54:02Z`
-fue verificado sin ejecutar restore; PITR no esta habilitado por compute Micro y
-el RPO aceptado cubre cambios posteriores a ese backup, con writers y FG1/FG2/FG3
-obligatoriamente pausados antes del apply.
+Canary quedaron skipped. PR #322 corrigio el digest desde blobs Git y quedo en
+`main@224a65388330c96e02936383be94265d58a9c49f`; DB Sync
+`31262777949=SUCCESS_REPORT_ONLY` confirmo exactamente una pendiente y
+`31263024890` consumio `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO`, aplico Pro con
+`Aplicadas=1/1` y `Errores=0`, pero `Verify target schema` fallo porque el job no
+inyectaba `NEXT_SUPABASE_PUBLISHABLE_KEY`. Backup fisico programado restaurable
+`2026-08-08T05:54:02Z` fue verificado sin ejecutar restore; PITR no esta
+habilitado por compute Micro y el RPO aceptado cubre cambios posteriores a ese
+backup, con writers y FG1/FG2/FG3 pausados durante el apply consumido. No
+reejecutar `operation=apply`; el siguiente paso es `operation=verify` read-only
+con pending count `0` tras esta remediacion.
 
 ## Work Packages Internos
 

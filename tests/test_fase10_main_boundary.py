@@ -68,10 +68,13 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "needs.f108-fg1-main-boundary.result" in workflow
     assert "F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676" in workflow
     assert "F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136" in workflow
+    assert "F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f" in workflow
     assert "fix/f10-8-ddl-authorization-governance" in workflow
     assert "fix/f10-8-ddl-digest-remediation" in workflow
+    assert "fix/f10-8-target-schema-verification" in workflow
     assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
     assert "F10.8 DDL digest remediation PR must originate from the same repository" in workflow
+    assert "F10.8 target schema verification PR must originate from the same repository" in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")' in workflow
     assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
@@ -93,6 +96,7 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "Report pending migrations dry-run" in workflow
     assert "Confirm report-only mode" in workflow
     assert "operation == 'apply'" in workflow
+    assert "operation == 'verify'" in workflow
     assert "backup_pitr_verified" in workflow
     assert "ddl_authorization_id" in workflow
 
@@ -109,6 +113,12 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply_section
     assert 'grep -F "$CANDIDATE_SHA"' not in apply_section
     assert "Verify production controls before migrations" in apply_section
+
+    verify_section = workflow.split("  verify:", 1)[1].split("  defer-fg2:", 1)[0]
+    assert "inputs.operation == 'verify'" in verify_section
+    assert "needs.apply.result == 'skipped'" in verify_section
+    assert "needs.report.outputs.pending_count == '0'" in verify_section
+    assert "NEXT_SUPABASE_PUBLISHABLE_KEY" in verify_section
 
 
 def test_main_scheduled_writers_start_paused_until_environment_controls_allow_them() -> None:

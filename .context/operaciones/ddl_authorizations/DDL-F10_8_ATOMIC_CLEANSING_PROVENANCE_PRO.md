@@ -1,6 +1,7 @@
 # DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO
 
-Status: APPROVED_FOR_PRODUCTION_DDL
+Status: CONSUMED_BY_PRODUCTION_DDL
+Consumed by DB Sync run: 31263024890
 Authorized migration: 20260808_fase10_8_atomic_cleansing_provenance
 Authorized base SHA: 1885806f0d9f189600d410d353fcf13fb8dd4676
 Authorized non-auth digest SHA256: sha256:efca1ea5daeb45bb6239669dc28823915da12d6c703e6b900c8416396ddc77d9
@@ -9,13 +10,12 @@ Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL
 
 ## Alcance
 
-Este registro autoriza exclusivamente la futura evaluacion de apply Pro de la
-migracion forward-only `20260808_fase10_8_atomic_cleansing_provenance`, ya
-aplicada y verificada en Free/Desarrollo dentro de F10.8. No autoriza DDL/DML
-por si solo: el workflow debe ejecutarse manualmente sobre `main`, con
-`candidate_sha` exacto igual a `origin/main`, aprobacion del environment
-`Production`, `apply_authorized=true`, `backup_pitr_verified=true` y
-`PRODUCTION_WRITERS_PAUSED=true`.
+Este registro autorizo exclusivamente la evaluacion de apply Pro de la migracion
+forward-only `20260808_fase10_8_atomic_cleansing_provenance`, ya aplicada y
+verificada en Free/Desarrollo dentro de F10.8. La autorizacion fue consumida por
+DB Sync to Production run `31263024890`; no queda disponible para nuevos apply.
+Cualquier DDL futuro requiere una autorizacion nueva. La remediacion posterior
+solo puede ejecutar verificacion read-only del schema target.
 
 ## Cambio Autorizado Del Repositorio
 
@@ -62,8 +62,17 @@ secrets/environments, Cloudflare, Edge, CA2 ni cambios en `db/**`, `supabase/**`
   de aplicar porque el digest anterior fue calculado sobre CRLF del working tree
   Windows; `Apply pending migrations`, `Verify target schema` y Production Canary
   quedaron skipped.
+- PR #322 quedo mergeado en `main@224a65388330c96e02936383be94265d58a9c49f`.
+- DB Sync to Production run `31262777949=SUCCESS_REPORT_ONLY` observo solo la
+  migracion autorizada pendiente.
+- DB Sync to Production run `31263024890` consumio esta autorizacion: `Verify
+  explicit DDL authorization=PASS`, `Verify production controls=PASS`, `Apply
+  migrations to Pro=PASS`, `Aplicadas=1/1`, `Errores=0`.
+- `Verify target schema=FAIL_MISSING_PUBLISHABLE_KEY` porque el job no inyectaba
+  `NEXT_SUPABASE_PUBLISHABLE_KEY`; FG2 deferred quedo skipped. No reejecutar
+  `operation=apply`; la migracion Pro ya fue aplicada.
 - Backup fisico programado restaurable `2026-08-08T05:54:02Z` verificado sin
   ejecutar restore; PITR no habilitado por compute Micro; RPO aceptado para cambios
-  posteriores al timestamp del backup con writers y FG1/FG2/FG3 pausados antes de
-  cualquier apply futuro.
+  posteriores al timestamp del backup con writers y FG1/FG2/FG3 pausados durante
+  el apply consumido.
 - `EVID-H1-010..013/016` permanecen pendientes.

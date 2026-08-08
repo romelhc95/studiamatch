@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import re
-import subprocess
 from pathlib import Path
 
 
@@ -28,53 +25,7 @@ SECURITY_WORKFLOW = source(".github/workflows/security-audit.yml")
 
 
 DDL_AUTHORIZATION_PATH = ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md"
-DDL_AUTHORIZED_NON_AUTH_PATHS = {
-    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644"),
-    ".context/estado_del_proyecto.md": ("M", "100644"),
-    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
-    ".context/hitos/hito_001.md": ("A", "100644"),
-    ".context/operaciones/flujo_release_minimo.md": ("A", "100644"),
-    ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
-    ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
-    ".github/workflows/security-audit.yml": ("M", "100755"),
-    "tests/test_fase10_8_db_sync.py": ("M", "100644"),
-    "tests/test_fase10_main_boundary.py": ("M", "100644"),
-}
-
-
-def git_output(*args: str, text: bool = True) -> str | bytes:
-    return subprocess.check_output(["git", *args], cwd=ROOT, text=text)
-
-
-def git_blob_bytes_for_worktree(path: str) -> bytes:
-    # hash-object --path applies Git's clean filters, so CRLF working-tree bytes
-    # are normalized to the blob bytes that Actions will validate after commit.
-    blob = git_output("hash-object", "-w", f"--path={path}", "--", path).strip()
-    assert isinstance(blob, str)
-    return git_output("cat-file", "blob", blob, text=False)
-
-
-def git_index_mode(path: str) -> str:
-    output = git_output("ls-files", "--stage", "--", path)
-    assert isinstance(output, str)
-    return output.split()[0]
-
-
-def compute_authorized_non_auth_digest() -> str:
-    records = []
-    for path, (status, mode) in sorted(DDL_AUTHORIZED_NON_AUTH_PATHS.items()):
-        assert git_index_mode(path) == mode
-        records.append(
-            {
-                "mode": mode,
-                "path": path,
-                "sha256": hashlib.sha256(git_blob_bytes_for_worktree(path)).hexdigest(),
-                "status": status,
-            }
-        )
-    return "sha256:" + hashlib.sha256(
-        json.dumps(records, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    ).hexdigest()
+DDL_AUTHORIZED_NON_AUTH_DIGEST = "sha256:efca1ea5daeb45bb6239669dc28823915da12d6c703e6b900c8416396ddc77d9"
 
 
 def test_push_main_without_db_changes_skips_production_jobs() -> None:
@@ -98,6 +49,7 @@ def test_push_main_without_db_changes_skips_production_jobs() -> None:
 
     assert "github.event_name == 'workflow_dispatch'" in apply
     assert "github.event_name == 'workflow_dispatch'" in verify
+    assert "inputs.operation == 'verify'" in verify
 
 
 def test_detector_and_preflight_do_not_load_production_or_secrets() -> None:
@@ -139,6 +91,7 @@ def test_workflow_dispatch_report_preserves_dry_run_only_path() -> None:
     assert 'if [ "$EVENT_NAME" = "workflow_dispatch" ]; then' in detect
     assert "DB Sync manual dispatch requires report/preflight path" in detect
     assert '--dry-run --only "$F10_8_ONLY_MIGRATION"' in report
+    assert "- verify" in WORKFLOW
     assert "--manifest" not in report
     assert "Confirm report-only mode" in report
     assert "Apply migrations to Pro" not in report
@@ -178,7 +131,15 @@ def test_workflow_dispatch_apply_remains_manual_and_gated() -> None:
     assert "needs: [detect-db-changes, report, apply]" in verify
     assert "needs.report.result == 'success'" in verify
     assert "needs.apply.result == 'success'" in verify
+    assert "inputs.operation == 'verify'" in verify
+    assert "needs.apply.result == 'skipped'" in verify
+    assert "needs.report.outputs.pending_count == '0'" in verify
+    assert "Verify immutable candidate" in verify
+    assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in verify
+    assert "secrets.NEXT_SUPABASE_PUBLISHABLE_KEY" in verify
+    assert "NEXT_SUPABASE_PUBLISHABLE_KEY" in verify
     assert "needs.verify.result == 'success'" in defer
+    assert "inputs.operation == 'apply' || inputs.operation == 'verify'" in defer
 
 
 def test_untrusted_inputs_are_not_interpolated_directly_into_shell() -> None:
@@ -229,27 +190,30 @@ def test_atomic_cleansing_provenance_migration_contract() -> None:
         assert "GRANT EXECUTE ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) TO service_role" in sql
 
 
-def test_f10_8_ddl_authorization_record_is_runtime_gated() -> None:
+def test_f10_8_ddl_authorization_record_is_consumed_after_pro_apply() -> None:
     authorization = source(DDL_AUTHORIZATION_PATH)
 
-    assert "Status: APPROVED_FOR_PRODUCTION_DDL" in authorization
+    assert "Status: CONSUMED_BY_PRODUCTION_DDL" in authorization
     assert "Authorized migration: 20260808_fase10_8_atomic_cleansing_provenance" in authorization
     assert "Authorized base SHA: 1885806f0d9f189600d410d353fcf13fb8dd4676" in authorization
-    assert "Authorized non-auth digest SHA256: sha256:" in authorization
+    assert f"Authorized non-auth digest SHA256: {DDL_AUTHORIZED_NON_AUTH_DIGEST}" in authorization
     assert "sha256:0000000000000000000000000000000000000000000000000000000000000000" not in authorization
     assert "Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED" in authorization
     assert "APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR" in authorization
-    assert "31243797695=SUCCESS_REPORT_ONLY" in authorization
-    assert "no aplico DDL" in authorization
+    assert "Consumed by DB Sync run: 31263024890" in authorization
+    assert "Aplicadas=1/1" in authorization
+    assert "Errores=0" in authorization
+    assert "Verify target schema=FAIL_MISSING_PUBLISHABLE_KEY" in authorization
+    assert "Status: APPROVED_FOR_PRODUCTION_DDL" not in authorization
     assert "NEXT_SUPABASE_SECRET_KEY" not in authorization
 
 
-def test_f10_8_ddl_authorization_digest_matches_git_blobs() -> None:
+def test_f10_8_ddl_authorization_preserves_consumed_digest() -> None:
     authorization = source(DDL_AUTHORIZATION_PATH)
     match = re.search(r"^Authorized non-auth digest SHA256: (sha256:[0-9a-f]{64})$", authorization, re.M)
 
     assert match, "DDL authorization must pin the non-auth digest"
-    assert match.group(1) == compute_authorized_non_auth_digest()
+    assert match.group(1) == DDL_AUTHORIZED_NON_AUTH_DIGEST
 
 
 def test_postgres_regression_script_is_local_only_guarded() -> None:
