@@ -422,6 +422,7 @@ jobs:
     name: "FG2 deferred to scheduled production window"
     needs: verify
     if: >-
+      always() &&
       github.event_name == 'workflow_dispatch' &&
       github.ref_name == 'main' &&
       (inputs.operation == 'apply' || inputs.operation == 'verify') &&

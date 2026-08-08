@@ -26,6 +26,7 @@ env:
   F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676
   F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136
   F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f
+  F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2
 
 jobs:
   credential-scan:
@@ -520,6 +521,12 @@ jobs:
               "tests/test_fase10_8_db_sync.py": ("M", "100644"),
               "tests/test_fase10_main_boundary.py": ("M", "100644"),
           }
+          EXPECTED_DEFER_FG2_VERIFY = {
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
 
@@ -552,6 +559,7 @@ jobs:
               ddl_auth_governance_baseline = os.environ["F108_DDL_AUTH_GOVERNANCE_BASELINE"]
               ddl_digest_remediation_baseline = os.environ["F108_DDL_DIGEST_REMEDIATION_BASELINE"]
               target_schema_verification_baseline = os.environ["F108_TARGET_SCHEMA_VERIFICATION_BASELINE"]
+              defer_fg2_verify_baseline = os.environ["F108_DEFER_FG2_VERIFY_BASELINE"]
               is_cleansing_provenance_pr = (
                   base_ref == "main"
                   and head_ref == "promote/f10-8-cleansing-provenance-main"
@@ -572,6 +580,11 @@ jobs:
                   and head_ref == "fix/f10-8-target-schema-verification"
                   and base == target_schema_verification_baseline
               )
+              is_defer_fg2_verify_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-defer-fg2-verify"
+                  and base == defer_fg2_verify_baseline
+              )
               if base_ref == "main" and head_ref == "certificacion":
                   if base_repo != repository or head_repo != repository:
                       fail("F10 main PR must originate from the same repository")
@@ -590,6 +603,9 @@ jobs:
               elif is_target_schema_verification_pr:
                   if base_repo != repository or head_repo != repository:
                       fail("F10.8 target schema verification PR must originate from the same repository")
+              elif is_defer_fg2_verify_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 defer FG2 verify PR must originate from the same repository")
               else:
                   fail("F10 main PR must be certificacion -> main")
           elif os.environ["F10_REF"] != "refs/heads/main":
@@ -609,6 +625,9 @@ jobs:
               DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
           elif base == os.environ["F108_TARGET_SCHEMA_VERIFICATION_BASELINE"]:
               EXPECTED = EXPECTED_TARGET_SCHEMA_VERIFICATION
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F108_DEFER_FG2_VERIFY_BASELINE"]:
+              EXPECTED = EXPECTED_DEFER_FG2_VERIFY
               DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
           elif base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
               EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION

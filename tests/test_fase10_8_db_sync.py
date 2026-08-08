@@ -138,6 +138,8 @@ def test_workflow_dispatch_apply_remains_manual_and_gated() -> None:
     assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in verify
     assert "secrets.NEXT_SUPABASE_PUBLISHABLE_KEY" in verify
     assert "NEXT_SUPABASE_PUBLISHABLE_KEY" in verify
+    assert "needs: verify" in defer
+    assert "always() &&" in defer
     assert "needs.verify.result == 'success'" in defer
     assert "inputs.operation == 'apply' || inputs.operation == 'verify'" in defer
 
