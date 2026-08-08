@@ -6,13 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: "report runs dry-run only; apply requires separate DDL authorization"
+        description: "report runs dry-run only; apply requires separate DDL authorization; verify runs target schema only"
         required: true
         default: report
         type: choice
         options:
           - report
           - apply
+          - verify
       candidate_sha:
         description: "Immutable main commit approved for Production"
         required: true
@@ -364,9 +365,18 @@ jobs:
       always() &&
       github.event_name == 'workflow_dispatch' &&
       github.ref_name == 'main' &&
-      inputs.operation == 'apply' &&
-      needs.report.result == 'success' &&
-      needs.apply.result == 'success'
+      (
+        (
+          inputs.operation == 'apply' &&
+          needs.report.result == 'success' &&
+          needs.apply.result == 'success'
+        ) || (
+          inputs.operation == 'verify' &&
+          needs.report.result == 'success' &&
+          needs.apply.result == 'skipped' &&
+          needs.report.outputs.pending_count == '0'
+        )
+      )
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -376,6 +386,15 @@ jobs:
           ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Verify immutable candidate
+        env:
+          CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
       - name: Setup Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -387,6 +406,7 @@ jobs:
         id: parity
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_SUPABASE_PUBLISHABLE_KEY }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: python3 scripts/maintenance/check_db_parity.py --env pro --target-only
       - name: Report target schema result
@@ -404,7 +424,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref_name == 'main' &&
-      inputs.operation == 'apply' &&
+      (inputs.operation == 'apply' || inputs.operation == 'verify') &&
       needs.verify.result == 'success'
     runs-on: ubuntu-latest
     steps:
