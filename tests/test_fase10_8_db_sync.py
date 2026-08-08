@@ -20,6 +20,7 @@ def job_section(workflow: str, job_id: str) -> str:
 
 WORKFLOW = source(".github/workflows/db-sync-to-pro.yml")
 DB_MIGRATE = source("scripts/maintenance/db_migrate.py")
+F97_WORKFLOW = source(".github/workflows/f9-7-contract.yml")
 
 
 def test_push_main_without_db_changes_skips_production_jobs() -> None:
@@ -167,6 +168,18 @@ def test_postgres_regression_script_is_local_only_guarded() -> None:
     assert "studiamatch_f108" in script
     assert "localhost" in script
     assert "DROP SCHEMA IF EXISTS public CASCADE" in script
+
+
+def test_f9_7_boundary_allows_exact_f10_8_db_remediation_only() -> None:
+    allowed = F97_WORKFLOW.split("allowed_statuses = {", 1)[1].split("allowed = set(allowed_statuses)", 1)[0]
+    trigger_paths = F97_WORKFLOW.split("pull_request:", 1)[1].split("push:", 1)[0]
+    assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'" in trigger_paths
+    assert "'db/restore_full_schema.sql'" in trigger_paths
+    assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql': {'A'}" in allowed
+    assert "'db/restore_full_schema.sql': {'M'}" in allowed
+    assert "'scripts/maintenance/db_migrate.py': {'M'}" in allowed
+    assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in F97_WORKFLOW
+    assert "and not any(p in allowed for p in paths_to_check)" in F97_WORKFLOW
 
 
 if __name__ == "__main__":
