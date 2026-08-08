@@ -461,6 +461,28 @@ promover una remediacion de sanitizacion y source-access preflight a `main`.
 Estado resultante: `FAIL_CLOSED_HTTP_403_RESTORE_NOOP`, `EVID-H1-010=PENDING`,
 F10.9 bloqueada y environments fail-closed.
 
+### Incidente Production Canary F10.8 - 2026-08-08
+
+El retry completo `31236936740` sobre
+`main@705624a8ffa2f4fae0ffd7a958baa6205a6ae088` no acredita
+`EVID-H1-010`. Target/candidate/limites, source-access preflight, snapshot,
+FG1 y FG2 harvest pasaron. FG2 cleansing fallo fail-closed despues de promover
+tres filas existentes; enrichment, sync y FG3 quedaron `skipped`.
+
+La recuperacion fue satisfactoria: restore exacto, segundo restore `NOOP` y
+`after-cleanup == pre-canary`. La causa localmente reproducida es que
+`atomic_cleansing_promote` no fusiona `cleansed_programs.metadata` durante
+`ON CONFLICT (url)`, por lo que la postcondicion del canary no encuentra el
+marker `f10_production_canary_run_id` en filas preexistentes.
+
+La remediacion autorizada dentro de F10.8 queda acotada a versionar una
+migracion forward-only para fusionar metadata, mantener la transicion de
+`staging_raw` desde `pending` o `processing`, fijar `search_path`, restringir
+ACL a `service_role`, sincronizar `restore_full_schema.sql`, limitar DB Sync a
+esa migracion con `--only`, y validar PostgreSQL 17 localmente. Aplicar DDL en
+Free o Pro, reintentar el canary, habilitar schedules, ejecutar backfill o
+cambiar secrets/environments requiere autorizaciones separadas.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni
