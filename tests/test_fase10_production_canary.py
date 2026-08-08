@@ -226,13 +226,18 @@ def test_production_canary_requires_target_allowlist_and_mutable_authorization()
 
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
     assert "F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}" in workflow
+    assert "F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG }}" in workflow
     assert "vars.F10_PRODUCTION_CANARY_SUPABASE_HOST" not in workflow
     assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow
     assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow
     assert "Invalid Production Supabase host allowlist" in workflow
     assert "Production Supabase target does not match allowlist" in workflow
     assert "::add-mask::$canary_secret_slug" in workflow
+    assert "::add-mask::$canary_fg1_source_slug" in workflow
     assert "::add-mask::$canary_secret_host" in workflow
+    assert "Invalid canary FG1 source secret" in workflow
+    assert "CANARY_FG1_SOURCE_SLUG=$canary_fg1_source_slug" in workflow
+    assert "CANARY_FG1_SOURCE_SLUG=$canary_secret_slug" not in workflow
     assert "mutable_stages:" in workflow
     assert "default: fg2_fg3" in workflow
     assert "Invalid mutable_stages value" in workflow
@@ -342,6 +347,7 @@ def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     assert "Limit out of allowed canary range 1..50: $value" not in workflow
     assert "Invalid mutable_stages value: $INPUT_MUTABLE_STAGES" not in workflow
     assert workflow.index("Invalid canary cohort secret") < workflow.index("::add-mask::$canary_secret_slug")
+    assert workflow.index("Invalid canary FG1 source secret") < workflow.index("::add-mask::$canary_fg1_source_slug")
 
 
 def test_production_canary_manifests_are_sanitized() -> None:
