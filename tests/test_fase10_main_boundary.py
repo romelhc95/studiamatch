@@ -67,9 +67,13 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F108_FG1_MAIN_BOUNDARY_REQUIRED" in workflow
     assert "needs.f108-fg1-main-boundary.result" in workflow
     assert "F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676" in workflow
+    assert "F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136" in workflow
     assert "fix/f10-8-ddl-authorization-governance" in workflow
+    assert "fix/f10-8-ddl-digest-remediation" in workflow
     assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
+    assert "F10.8 DDL digest remediation PR must originate from the same repository" in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
+    assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")' in workflow
     assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
     assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644")' in workflow
     assert '".context/operaciones/flujo_release_minimo.md": ("A", "100644")' in workflow

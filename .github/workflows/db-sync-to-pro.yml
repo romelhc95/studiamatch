@@ -257,7 +257,6 @@ jobs:
           import hashlib
           import json
           import os
-          import pathlib
           import subprocess
           import sys
 
@@ -313,19 +312,21 @@ jobs:
               if not meta:
                   failures.append(f"missing-head:{path}")
                   continue
-              mode, kind = meta.split(None, 3)[:2]
+              mode, kind, blob = meta.split(None, 3)[:3]
               if (mode, kind) != (expected_mode, "blob"):
                   failures.append(f"mode-kind:{path}:{mode}:{kind}")
-              seen[path] = status
+              seen[path] = (status, mode, blob)
           if set(seen) != set(expected):
               failures.append(f"missing-expected:{sorted(set(expected) - set(seen))}")
           digest_records = []
           for path in sorted(set(expected) - {auth_file}):
+              status, mode, blob = seen[path]
+              blob_bytes = subprocess.check_output(["git", "cat-file", "blob", blob])
               digest_records.append({
-                  "mode": expected[path][1],
+                  "mode": mode,
                   "path": path,
-                  "sha256": hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest(),
-                  "status": expected[path][0],
+                  "sha256": hashlib.sha256(blob_bytes).hexdigest(),
+                  "status": status,
               })
           actual_digest = "sha256:" + hashlib.sha256(
               json.dumps(digest_records, separators=(",", ":"), sort_keys=True).encode("utf-8")
