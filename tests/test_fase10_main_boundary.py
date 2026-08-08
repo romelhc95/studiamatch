@@ -71,16 +71,19 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f" in workflow
     assert "F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2" in workflow
     assert "F108_CANARY_ATTESTATION_BASELINE: 675ade43f41a2f5d04f05a40f9837b514a8705ce" in workflow
+    assert "F108_PRODUCTION_CANARY_CLOSURE_BASELINE: 859d2f7d83f83950d10858fe27bd035febba7f68" in workflow
     assert "fix/f10-8-ddl-authorization-governance" in workflow
     assert "fix/f10-8-ddl-digest-remediation" in workflow
     assert "fix/f10-8-target-schema-verification" in workflow
     assert "fix/f10-8-defer-fg2-verify" in workflow
     assert "fix/f10-8-canary-attestation-pagination" in workflow
+    assert "docs/f10-8-production-canary-closure" in workflow
     assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
     assert "F10.8 DDL digest remediation PR must originate from the same repository" in workflow
     assert "F10.8 target schema verification PR must originate from the same repository" in workflow
     assert "F10.8 defer FG2 verify PR must originate from the same repository" in workflow
     assert "F10.8 canary attestation remediation PR must originate from the same repository" in workflow
+    assert "F10.8 production canary closure PR must originate from the same repository" in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
     assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")' in workflow
     assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
@@ -91,6 +94,15 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert '"scripts/core/production_canary_state.py": ("M", "100644")' in workflow
     assert '"tests/test_fase10_production_canary.py": ("M", "100644")' in workflow
     assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
+    assert "EXPECTED_PRODUCTION_CANARY_CLOSURE" in workflow
+    assert workflow.count('".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644")') >= 2
+    assert workflow.count('".context/estado_del_proyecto.md": ("M", "100644")') >= 5
+    assert workflow.count('".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644")') >= 5
+    assert workflow.count('".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644")') >= 4
+    assert workflow.count('".context/hitos/hito_001.md": ("M", "100644")') >= 2
+    assert workflow.count('".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")') >= 3
+    assert workflow.count('".context/operaciones/flujo_release_minimo.md": ("M", "100644")') >= 1
+    assert workflow.count('".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644")') >= 5
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:

@@ -28,6 +28,7 @@ env:
   F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f
   F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2
   F108_CANARY_ATTESTATION_BASELINE: 675ade43f41a2f5d04f05a40f9837b514a8705ce
+  F108_PRODUCTION_CANARY_CLOSURE_BASELINE: 859d2f7d83f83950d10858fe27bd035febba7f68
 
 jobs:
   credential-scan:
@@ -540,6 +541,18 @@ jobs:
               "tests/test_fase10_main_boundary.py": ("M", "100644"),
               "tests/test_fase10_production_canary.py": ("M", "100644"),
           }
+          EXPECTED_PRODUCTION_CANARY_CLOSURE = {
+              ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644"),
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/hitos/hito_001.md": ("M", "100644"),
+              ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644"),
+              ".context/operaciones/flujo_release_minimo.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
 
@@ -574,6 +587,7 @@ jobs:
               target_schema_verification_baseline = os.environ["F108_TARGET_SCHEMA_VERIFICATION_BASELINE"]
               defer_fg2_verify_baseline = os.environ["F108_DEFER_FG2_VERIFY_BASELINE"]
               canary_attestation_baseline = os.environ["F108_CANARY_ATTESTATION_BASELINE"]
+              production_canary_closure_baseline = os.environ["F108_PRODUCTION_CANARY_CLOSURE_BASELINE"]
               is_cleansing_provenance_pr = (
                   base_ref == "main"
                   and head_ref == "promote/f10-8-cleansing-provenance-main"
@@ -604,6 +618,11 @@ jobs:
                   and head_ref == "fix/f10-8-canary-attestation-pagination"
                   and base == canary_attestation_baseline
               )
+              is_production_canary_closure_pr = (
+                  base_ref == "main"
+                  and head_ref == "docs/f10-8-production-canary-closure"
+                  and base == production_canary_closure_baseline
+              )
               if base_ref == "main" and head_ref == "certificacion":
                   if base_repo != repository or head_repo != repository:
                       fail("F10 main PR must originate from the same repository")
@@ -628,6 +647,9 @@ jobs:
               elif is_canary_attestation_pr:
                   if base_repo != repository or head_repo != repository:
                       fail("F10.8 canary attestation remediation PR must originate from the same repository")
+              elif is_production_canary_closure_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 production canary closure PR must originate from the same repository")
               else:
                   fail("F10 main PR must be certificacion -> main")
           elif os.environ["F10_REF"] != "refs/heads/main":
@@ -654,6 +676,9 @@ jobs:
           elif base == os.environ["F108_CANARY_ATTESTATION_BASELINE"]:
               EXPECTED = EXPECTED_CANARY_ATTESTATION_REMEDIATION
               DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          elif base == os.environ["F108_PRODUCTION_CANARY_CLOSURE_BASELINE"]:
+              EXPECTED = EXPECTED_PRODUCTION_CANARY_CLOSURE
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
           elif base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
               EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION
           else:

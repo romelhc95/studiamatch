@@ -75,4 +75,6 @@ secrets/environments, Cloudflare, Edge, CA2 ni cambios en `db/**`, `supabase/**`
   ejecutar restore; PITR no habilitado por compute Micro; RPO aceptado para cambios
   posteriores al timestamp del backup con writers y FG1/FG2/FG3 pausados durante
   el apply consumido.
-- `EVID-H1-010..013/016` permanecen pendientes.
+- Al cierre de esta autorizacion DDL, `EVID-H1-010..013/016` permanecian
+  pendientes. Posteriormente, Production Canary `31272290614=PASS` verifico
+  `EVID-H1-010`; `EVID-H1-011..013/016` permanecen pendientes.
