@@ -507,6 +507,18 @@ dispatch manual, approval `Production`, `backup_pitr_verified=true` runtime y
 writers pausados. No registra Backup/PITR ejecutado, no aplica Pro, no reintenta
 Production Canary, no habilita schedules y no inicia F10.9.
 
+PR #321 promovio ese gobierno a `main@49c5b6c490982b4572ec39f577bf9468b0bfd136`.
+DB Sync `31246525845=SUCCESS_REPORT_ONLY` confirmo exactamente una migracion Pro
+pendiente. El intento apply `31258101516=FAIL_CLOSED_NON_AUTH_DIGEST` fallo antes
+de Pro porque el digest autorizado habia sido calculado desde el working tree
+Windows con CRLF; `Apply pending migrations`, `Verify target schema` y Production
+Canary quedaron skipped. La remediacion F10.8 debe calcular el digest desde blobs
+Git normalizados del candidate y mantener el registro DDL como unica excepcion
+excluida del digest. Backup fisico programado restaurable `2026-08-08T05:54:02Z`
+fue verificado sin ejecutar restore; PITR no esta habilitado por compute Micro y
+el RPO aceptado cubre cambios posteriores a ese backup, con writers y FG1/FG2/FG3
+obligatoriamente pausados antes del apply.
+
 ## Work Packages Internos
 
 Los IDs siguientes organizan trabajo; no son tareas, subfases, criterios ni

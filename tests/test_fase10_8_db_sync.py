@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -22,6 +25,56 @@ WORKFLOW = source(".github/workflows/db-sync-to-pro.yml")
 DB_MIGRATE = source("scripts/maintenance/db_migrate.py")
 F97_WORKFLOW = source(".github/workflows/f9-7-contract.yml")
 SECURITY_WORKFLOW = source(".github/workflows/security-audit.yml")
+
+
+DDL_AUTHORIZATION_PATH = ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md"
+DDL_AUTHORIZED_NON_AUTH_PATHS = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644"),
+    ".context/estado_del_proyecto.md": ("M", "100644"),
+    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+    ".context/hitos/hito_001.md": ("A", "100644"),
+    ".context/operaciones/flujo_release_minimo.md": ("A", "100644"),
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+    ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+    ".github/workflows/security-audit.yml": ("M", "100755"),
+    "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+    "tests/test_fase10_main_boundary.py": ("M", "100644"),
+}
+
+
+def git_output(*args: str, text: bool = True) -> str | bytes:
+    return subprocess.check_output(["git", *args], cwd=ROOT, text=text)
+
+
+def git_blob_bytes_for_worktree(path: str) -> bytes:
+    # hash-object --path applies Git's clean filters, so CRLF working-tree bytes
+    # are normalized to the blob bytes that Actions will validate after commit.
+    blob = git_output("hash-object", "-w", f"--path={path}", "--", path).strip()
+    assert isinstance(blob, str)
+    return git_output("cat-file", "blob", blob, text=False)
+
+
+def git_index_mode(path: str) -> str:
+    output = git_output("ls-files", "--stage", "--", path)
+    assert isinstance(output, str)
+    return output.split()[0]
+
+
+def compute_authorized_non_auth_digest() -> str:
+    records = []
+    for path, (status, mode) in sorted(DDL_AUTHORIZED_NON_AUTH_PATHS.items()):
+        assert git_index_mode(path) == mode
+        records.append(
+            {
+                "mode": mode,
+                "path": path,
+                "sha256": hashlib.sha256(git_blob_bytes_for_worktree(path)).hexdigest(),
+                "status": status,
+            }
+        )
+    return "sha256:" + hashlib.sha256(
+        json.dumps(records, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
 
 
 def test_push_main_without_db_changes_skips_production_jobs() -> None:
@@ -110,6 +163,9 @@ def test_workflow_dispatch_apply_remains_manual_and_gated() -> None:
     assert "Authorized non-auth digest SHA256:" in apply
     assert "EXPECTED_NON_AUTH_DIGEST" in apply
     assert "non-auth-digest:" in apply
+    assert '"git", "cat-file", "blob", blob' in apply
+    assert "hashlib.sha256(blob_bytes).hexdigest()" in apply
+    assert "pathlib.Path(path).read_bytes()" not in apply
     assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply
     assert "APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR" in apply
     assert "git merge-base --is-ancestor \"$auth_base_sha\" \"$CANDIDATE_SHA\"" in apply
@@ -174,9 +230,7 @@ def test_atomic_cleansing_provenance_migration_contract() -> None:
 
 
 def test_f10_8_ddl_authorization_record_is_runtime_gated() -> None:
-    authorization = source(
-        ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md"
-    )
+    authorization = source(DDL_AUTHORIZATION_PATH)
 
     assert "Status: APPROVED_FOR_PRODUCTION_DDL" in authorization
     assert "Authorized migration: 20260808_fase10_8_atomic_cleansing_provenance" in authorization
@@ -188,6 +242,14 @@ def test_f10_8_ddl_authorization_record_is_runtime_gated() -> None:
     assert "31243797695=SUCCESS_REPORT_ONLY" in authorization
     assert "no aplico DDL" in authorization
     assert "NEXT_SUPABASE_SECRET_KEY" not in authorization
+
+
+def test_f10_8_ddl_authorization_digest_matches_git_blobs() -> None:
+    authorization = source(DDL_AUTHORIZATION_PATH)
+    match = re.search(r"^Authorized non-auth digest SHA256: (sha256:[0-9a-f]{64})$", authorization, re.M)
+
+    assert match, "DDL authorization must pin the non-auth digest"
+    assert match.group(1) == compute_authorized_non_auth_digest()
 
 
 def test_postgres_regression_script_is_local_only_guarded() -> None:

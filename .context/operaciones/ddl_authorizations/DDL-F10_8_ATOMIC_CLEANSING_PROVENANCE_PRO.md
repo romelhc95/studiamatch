@@ -3,7 +3,7 @@
 Status: APPROVED_FOR_PRODUCTION_DDL
 Authorized migration: 20260808_fase10_8_atomic_cleansing_provenance
 Authorized base SHA: 1885806f0d9f189600d410d353fcf13fb8dd4676
-Authorized non-auth digest SHA256: sha256:424ce53a05aa91dea33b4edaeff332e567f7f640cd3b3f52d3c137ba66266c5e
+Authorized non-auth digest SHA256: sha256:efca1ea5daeb45bb6239669dc28823915da12d6c703e6b900c8416396ddc77d9
 Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED
 Pro apply gate: APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR
 
@@ -23,8 +23,9 @@ El deadlock SHA-bound se resuelve atando este registro al base SHA anterior a la
 remediacion documental, no al SHA final que contiene este mismo archivo. El gate
 de apply debe validar que el `candidate_sha` sea descendiente de
 `1885806f0d9f189600d410d353fcf13fb8dd4676` y que el diff desde ese base contenga
-solo las rutas de gobierno F10.8 allowlisted. El digest no-auth cubre contenido,
-status y modo de todas esas rutas excepto este propio registro DDL.
+solo las rutas de gobierno F10.8 allowlisted. El digest no-auth cubre contenido de
+blobs Git normalizados, status y modo de todas esas rutas excepto este propio
+registro DDL.
 
 Rutas permitidas desde el base autorizado:
 
@@ -54,4 +55,15 @@ secrets/environments, Cloudflare, Edge, CA2 ni cambios en `db/**`, `supabase/**`
   `20260808_fase10_8_atomic_cleansing_provenance`.
 - `Apply pending migrations`, `Verify target schema` y FG2 deferred quedaron
   skipped; no aplico DDL y no hubo DML Pro.
+- PR #321 quedo mergeado en `main@49c5b6c490982b4572ec39f577bf9468b0bfd136`.
+- DB Sync to Production run `31246525845=SUCCESS_REPORT_ONLY` observo solo la
+  migracion autorizada pendiente.
+- DB Sync to Production run `31258101516=FAIL_CLOSED_NON_AUTH_DIGEST` fallo antes
+  de aplicar porque el digest anterior fue calculado sobre CRLF del working tree
+  Windows; `Apply pending migrations`, `Verify target schema` y Production Canary
+  quedaron skipped.
+- Backup fisico programado restaurable `2026-08-08T05:54:02Z` verificado sin
+  ejecutar restore; PITR no habilitado por compute Micro; RPO aceptado para cambios
+  posteriores al timestamp del backup con writers y FG1/FG2/FG3 pausados antes de
+  cualquier apply futuro.
 - `EVID-H1-010..013/016` permanecen pendientes.
