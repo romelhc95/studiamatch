@@ -22,6 +22,7 @@ env:
   F108_FG1_SOURCE_SLUG_BASELINE: 7b948c3ea5fe5057f17cf7aa11124c116f93c2f2
   F108_FG1_MAIN_BOUNDARY_BASELINE: 90bbcd76c670d84d396051dfa8af74eec9876f9c
   F108_CLEANSING_PROVENANCE_CERT_BASELINE: 12e270166c26d4bc93c1c609c23045a6b6720d96
+  F108_CLEANSING_PROVENANCE_MAIN_BASELINE: 705624a8ffa2f4fae0ffd7a958baa6205a6ae088
 
 jobs:
   credential-scan:
@@ -469,6 +470,20 @@ jobs:
               "tests/test_fase10_main_boundary.py": ("M", "100644"),
               "tests/test_fase10_production_canary.py": ("M", "100644"),
           }
+          EXPECTED_CLEANSING_PROVENANCE_PROMOTION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/f9-7-contract.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644"),
+              "db/restore_full_schema.sql": ("M", "100644"),
+              "scripts/maintenance/db_migrate.py": ("M", "100644"),
+              "tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+          }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
 
@@ -497,20 +512,33 @@ jobs:
           if base == head:
               fail("F10 main boundary requires distinct base and head")
           if event_name == "pull_request":
-              if base_ref != "main" or head_ref != "certificacion":
+              provenance_baseline = os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]
+              is_cleansing_provenance_pr = (
+                  base_ref == "main"
+                  and head_ref == "promote/f10-8-cleansing-provenance-main"
+                  and base == provenance_baseline
+              )
+              if base_ref == "main" and head_ref == "certificacion":
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10 main PR must originate from the same repository")
+                  certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
+                  if certificacion_tip != head:
+                      fail("F10 main PR must use the protected certificacion tip")
+              elif is_cleansing_provenance_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 cleansing provenance PR must originate from the same repository")
+              else:
                   fail("F10 main PR must be certificacion -> main")
-              if base_repo != repository or head_repo != repository:
-                  fail("F10 main PR must originate from the same repository")
-              certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
-              if certificacion_tip != head:
-                  fail("F10 main PR must use the protected certificacion tip")
           elif os.environ["F10_REF"] != "refs/heads/main":
               fail("F10 push boundary only supports main")
 
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
 
-          if base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
+          if base == os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]:
+              EXPECTED = EXPECTED_CLEANSING_PROVENANCE_PROMOTION
+              DENIED_PREFIXES = ("supabase/", "web/")
+          elif base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
               EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION
           else:
               EXPECTED = EXPECTED_ORIGINAL
