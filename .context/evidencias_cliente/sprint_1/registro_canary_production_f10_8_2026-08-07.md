@@ -71,3 +71,82 @@ slug solo en `discovery_institutions.py --source-slug`. Antes de declarar
 secret FG1 sin exponer su valor, y obtener un Production Canary completo con
 `run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`,
 limites `5/5/3/3/3`, snapshot privado, restore exacto y segundo restore NOOP.
+
+## Retry Completo - 2026-08-08
+
+| Campo | Valor |
+|---|---|
+| Run | `31236936740` |
+| Candidate | `main@705624a8ffa2f4fae0ffd7a958baa6205a6ae088` |
+| Estado | `FAIL_CLOSED_FG2_CLEANSING_PROVENANCE_RESTORE_NOOP` |
+| Evidencia contractual | `EVID-H1-010=PENDING` |
+
+Resultado sanitizado:
+
+- Target, candidate y limites `5/5/3/3/3`: PASS.
+- Source-access preflight: PASS.
+- Snapshot privado: PASS.
+- FG1 one-source inventory: PASS.
+- FG2 bounded harvest: PASS.
+- FG2 bounded cleansing: FAIL con salida redactada y exit `1`.
+- FG2 enrichment, FG2 sync y FG3: `skipped` por fail-closed previo.
+- Restore exacto: PASS.
+- Segundo restore `--expect-noop`: PASS.
+- Manifest `after-cleanup` equivalente al estado pre-canary: PASS.
+
+Diagnostico sanitizado:
+
+La etapa FG2 harvest paso, pero cleansing fallo despues de promover tres filas
+existentes. La causa localmente reproducida es que `atomic_cleansing_promote`
+reencola filas por conflicto de URL sin fusionar `cleansed_programs.metadata`,
+por lo que la verificacion de procedencia no encuentra
+`f10_production_canary_run_id` en filas preexistentes. No se documentan URLs,
+cohorte, UUIDs, hosts Supabase, secrets ni datos operativos.
+
+Remediacion local validada:
+
+- Migration forward-only `20260808_fase10_8_atomic_cleansing_provenance.sql`.
+- Merge de metadata historica con metadata entrante durante `ON CONFLICT`.
+- Transicion de `staging_raw` desde `pending` o `processing` a `processed`.
+- `SECURITY DEFINER`, `SET search_path = pg_catalog` y execute solo para
+  `service_role`.
+- `restore_full_schema.sql` sincronizado con la definicion canonica.
+- `db-sync-to-pro.yml` limitado a la migracion F10.8 con `--only`, sin
+  `--manifest` ni `--validate-only`.
+- Pruebas locales Docker/Linux y PostgreSQL 17 PASS.
+
+Restricciones vigentes:
+
+- DDL remoto ejecutado solo en Free/Desarrollo para
+  `20260808_fase10_8_atomic_cleansing_provenance` bajo autorizacion separada.
+- No se ejecuto DDL/DML en Pro.
+- No se ejecuto otro Production Canary.
+- No se habilitaron schedules ni writers programados.
+- No hubo backfill ni cambios de secrets/environments.
+
+## DDL Free/Desarrollo - 2026-08-08
+
+| Campo | Valor |
+|---|---|
+| Migracion | `20260808_fase10_8_atomic_cleansing_provenance` |
+| Ambiente | Free/Desarrollo |
+| Estado | `APPLIED_AND_READONLY_VERIFIED` |
+| Alcance | `DDL_ONLY_FUNCTION_REPLACE_AND_ACL` |
+
+Verificacion read-only post-DDL:
+
+- Registro tecnico presente en `supabase_migrations.schema_migrations`.
+- `public.atomic_cleansing_promote(uuid[], jsonb)` quedo `SECURITY DEFINER`.
+- `search_path=pg_catalog` confirmado.
+- Merge de metadata historica y entrante confirmado en la definicion.
+- Transicion `staging_raw.status IN ('pending','processing')` confirmada.
+- `anon` y `authenticated` sin `EXECUTE`.
+- `service_role` con `EXECUTE`.
+- Advisors de seguridad/performance solo reportaron notices informativos
+  preexistentes/no atribuibles a esta remediacion.
+
+Limites preservados:
+
+- No hubo DML operativo, backfill ni procesamiento de programas.
+- No hubo Pro, Production Canary, schedules ni cambios de secrets/environments.
+- `EVID-H1-010` permanece `PENDING` hasta canary completo PASS.

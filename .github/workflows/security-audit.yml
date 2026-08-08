@@ -21,6 +21,8 @@ env:
   F108_F97_MAIN_SCOPE_BASELINE: 8958ffdd021e09e43c48495057dc0869c990c9df
   F108_FG1_SOURCE_SLUG_BASELINE: 7b948c3ea5fe5057f17cf7aa11124c116f93c2f2
   F108_FG1_MAIN_BOUNDARY_BASELINE: 90bbcd76c670d84d396051dfa8af74eec9876f9c
+  F108_CLEANSING_PROVENANCE_CERT_BASELINE: 12e270166c26d4bc93c1c609c23045a6b6720d96
+  F108_CLEANSING_PROVENANCE_MAIN_BASELINE: 705624a8ffa2f4fae0ffd7a958baa6205a6ae088
 
 jobs:
   credential-scan:
@@ -468,6 +470,20 @@ jobs:
               "tests/test_fase10_main_boundary.py": ("M", "100644"),
               "tests/test_fase10_production_canary.py": ("M", "100644"),
           }
+          EXPECTED_CLEANSING_PROVENANCE_PROMOTION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/f9-7-contract.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644"),
+              "db/restore_full_schema.sql": ("M", "100644"),
+              "scripts/maintenance/db_migrate.py": ("M", "100644"),
+              "tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+          }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
 
@@ -496,20 +512,33 @@ jobs:
           if base == head:
               fail("F10 main boundary requires distinct base and head")
           if event_name == "pull_request":
-              if base_ref != "main" or head_ref != "certificacion":
+              provenance_baseline = os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]
+              is_cleansing_provenance_pr = (
+                  base_ref == "main"
+                  and head_ref == "promote/f10-8-cleansing-provenance-main"
+                  and base == provenance_baseline
+              )
+              if base_ref == "main" and head_ref == "certificacion":
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10 main PR must originate from the same repository")
+                  certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
+                  if certificacion_tip != head:
+                      fail("F10 main PR must use the protected certificacion tip")
+              elif is_cleansing_provenance_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 cleansing provenance PR must originate from the same repository")
+              else:
                   fail("F10 main PR must be certificacion -> main")
-              if base_repo != repository or head_repo != repository:
-                  fail("F10 main PR must originate from the same repository")
-              certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
-              if certificacion_tip != head:
-                  fail("F10 main PR must use the protected certificacion tip")
           elif os.environ["F10_REF"] != "refs/heads/main":
               fail("F10 push boundary only supports main")
 
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
 
-          if base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
+          if base == os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]:
+              EXPECTED = EXPECTED_CLEANSING_PROVENANCE_PROMOTION
+              DENIED_PREFIXES = ("supabase/", "web/")
+          elif base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
               EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION
           else:
               EXPECTED = EXPECTED_ORIGINAL
@@ -649,7 +678,7 @@ jobs:
 
   f108-certification-remediation:
     name: F10.8 Certification Remediation
-    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5c40be67241cff5524191c8cbf71b76ccd2b0590') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5c40be67241cff5524191c8cbf71b76ccd2b0590') }}
+    if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '5c40be67241cff5524191c8cbf71b76ccd2b0590' || github.event.pull_request.base.sha == '12e270166c26d4bc93c1c609c23045a6b6720d96')) || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && (github.event.before == '5c40be67241cff5524191c8cbf71b76ccd2b0590' || github.event.before == '12e270166c26d4bc93c1c609c23045a6b6720d96')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -660,6 +689,7 @@ jobs:
       - name: Validate F10.8 certification remediation diff
         env:
           F108_BASELINE: ${{ env.F108_CERTIFICATION_BASELINE }}
+          F108_CLEANSING_PROVENANCE_BASELINE: ${{ env.F108_CLEANSING_PROVENANCE_CERT_BASELINE }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -669,16 +699,20 @@ jobs:
             base="${{ github.event.before }}"
             head="${{ github.sha }}"
           fi
-          test "$base" = "$F108_BASELINE"
+          case "$base" in
+            "$F108_BASELINE"|"$F108_CLEANSING_PROVENANCE_BASELINE") ;;
+            *) echo "Unsupported F10.8 certification baseline: $base" >&2; exit 1 ;;
+          esac
           test "$(git rev-parse HEAD)" = "$head"
-          python3 - <<'PY'
+          F108_ACTUAL_BASE="$base" python3 - <<'PY'
           import os
           import subprocess
           import sys
 
-          base = os.environ["F108_BASELINE"]
+          base = os.environ["F108_ACTUAL_BASE"]
+          provenance_base = os.environ["F108_CLEANSING_PROVENANCE_BASELINE"]
           head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-          expected = {
+          expected_original = {
               ".context/estado_del_proyecto.md": ("A", "100644"),
               ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
               ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("A", "100644"),
@@ -697,7 +731,26 @@ jobs:
               "tests/test_fase10_production_canary.py": ("M", "100644"),
               "tests/test_supabase_credentials_contract.py": ("M", "100644"),
           }
-          denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          expected_provenance = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/f9-7-contract.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644"),
+              "db/restore_full_schema.sql": ("M", "100644"),
+              "scripts/maintenance/db_migrate.py": ("M", "100644"),
+              "tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+          }
+          if base == provenance_base:
+              expected = expected_provenance
+              denied_prefixes = ("supabase/", "web/", "scripts/core/")
+          else:
+              expected = expected_original
+              denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")
           raw = subprocess.check_output([
               "git", "diff", "--name-status", "-z", "--find-renames", "--find-copies", base, head, "--",
           ])
@@ -1089,7 +1142,7 @@ jobs:
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
           F910_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'bc227629b8df1fcabca47ea7be3ea1d5b4c7667b') }}
           F107_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5cd27c6f6c35808865b7084673a83f9f690d3760') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5cd27c6f6c35808865b7084673a83f9f690d3760') }}
-          F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '5c40be67241cff5524191c8cbf71b76ccd2b0590') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '5c40be67241cff5524191c8cbf71b76ccd2b0590') }}
+          F108_CERT_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '5c40be67241cff5524191c8cbf71b76ccd2b0590' || github.event.pull_request.base.sha == '12e270166c26d4bc93c1c609c23045a6b6720d96')) || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && (github.event.before == '5c40be67241cff5524191c8cbf71b76ccd2b0590' || github.event.before == '12e270166c26d4bc93c1c609c23045a6b6720d96')) }}
           F108_MAIN_GATE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'f6fb25b2f00f283081de3180238da808117137cf') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'f6fb25b2f00f283081de3180238da808117137cf') }}
           F108_F97_SCOPE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '8958ffdd021e09e43c48495057dc0869c990c9df') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '8958ffdd021e09e43c48495057dc0869c990c9df') }}
           F108_FG1_SOURCE_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == '7b948c3ea5fe5057f17cf7aa11124c116f93c2f2') }}
