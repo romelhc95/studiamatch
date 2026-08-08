@@ -359,12 +359,13 @@ $function$;
 
 -- 6g. atomic_cleansing_promote
 CREATE OR REPLACE FUNCTION public.atomic_cleansing_promote(p_staging_ids uuid[], p_cleansed_data jsonb)
- RETURNS SETOF cleansed_programs
+ RETURNS SETOF public.cleansed_programs
  LANGUAGE plpgsql
  SECURITY DEFINER
+ SET search_path = pg_catalog
 AS $function$
 BEGIN
-    INSERT INTO cleansed_programs (
+    INSERT INTO public.cleansed_programs AS target (
         staging_id, institution_id, url, effective_url, canonical_url,
         clean_name, clean_description, modality, location, base_price,
         currency, status, metadata
@@ -379,25 +380,40 @@ BEGIN
         item->>'clean_description',
         item->>'modality',
         item->>'location',
-        (item->>'base_price')::NUMERIC,
+        NULLIF(item->>'base_price', '')::NUMERIC,
         item->>'currency',
         'pending',
-        (item->>'metadata')::JSONB
-    FROM jsonb_array_elements(p_cleansed_data) AS item
+        COALESCE(item->'metadata', '{}'::jsonb)
+    FROM pg_catalog.jsonb_array_elements(p_cleansed_data) AS item
     ON CONFLICT (url) DO UPDATE SET
+        staging_id = EXCLUDED.staging_id,
+        effective_url = EXCLUDED.effective_url,
+        canonical_url = EXCLUDED.canonical_url,
         clean_name = EXCLUDED.clean_name,
         clean_description = EXCLUDED.clean_description,
-        status = 'pending';
+        modality = EXCLUDED.modality,
+        location = EXCLUDED.location,
+        base_price = EXCLUDED.base_price,
+        currency = EXCLUDED.currency,
+        status = 'pending',
+        metadata =
+            COALESCE(target.metadata, '{}'::jsonb)
+            || COALESCE(EXCLUDED.metadata, '{}'::jsonb);
 
-    UPDATE staging_raw
+    UPDATE public.staging_raw
     SET status = 'processed'
-    WHERE id = ANY(p_staging_ids) AND status = 'processing';
+    WHERE id = ANY(p_staging_ids) AND status IN ('pending', 'processing');
 
     RETURN QUERY
-    SELECT * FROM cleansed_programs
-    WHERE url IN (SELECT item->>'url' FROM jsonb_array_elements(p_cleansed_data) AS item);
+    SELECT refreshed.* FROM public.cleansed_programs AS refreshed
+    WHERE refreshed.url IN (SELECT item->>'url' FROM pg_catalog.jsonb_array_elements(p_cleansed_data) AS item);
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM anon;
+REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) TO service_role;
 
 -- 6h. atomic_enrichment_promote
 CREATE OR REPLACE FUNCTION public.atomic_enrichment_promote(p_enriched_data jsonb, p_cleansed_id uuid)
