@@ -21,6 +21,7 @@ def job_section(workflow: str, job_id: str) -> str:
 WORKFLOW = source(".github/workflows/db-sync-to-pro.yml")
 DB_MIGRATE = source("scripts/maintenance/db_migrate.py")
 F97_WORKFLOW = source(".github/workflows/f9-7-contract.yml")
+SECURITY_WORKFLOW = source(".github/workflows/security-audit.yml")
 
 
 def test_push_main_without_db_changes_skips_production_jobs() -> None:
@@ -182,6 +183,16 @@ def test_f9_7_boundary_allows_exact_f10_8_db_remediation_only() -> None:
     assert "'scripts/maintenance/db_migrate.py': {'M'}" in allowed
     assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in F97_WORKFLOW
     assert "and not any(p in allowed for p in paths_to_check)" in F97_WORKFLOW
+
+
+def test_security_audit_supports_f10_8_cleansing_provenance_certification_baseline() -> None:
+    assert "F108_CLEANSING_PROVENANCE_CERT_BASELINE: 12e270166c26d4bc93c1c609c23045a6b6720d96" in SECURITY_WORKFLOW
+    assert "github.event.pull_request.base.sha == '12e270166c26d4bc93c1c609c23045a6b6720d96'" in SECURITY_WORKFLOW
+    assert "github.event.before == '12e270166c26d4bc93c1c609c23045a6b6720d96'" in SECURITY_WORKFLOW
+    assert '"db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644")' in SECURITY_WORKFLOW
+    assert '"scripts/maintenance/db_migrate.py": ("M", "100644")' in SECURITY_WORKFLOW
+    assert '"tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755")' in SECURITY_WORKFLOW
+    assert "F108_CERT_REQUIRED" in SECURITY_WORKFLOW
 
 
 if __name__ == "__main__":
