@@ -13,7 +13,7 @@
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base tecnica post-verify: `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`.
+Base tecnica post-canary: `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -63,15 +63,15 @@ omitio preflight/report/apply/schema/FG2 por ausencia de cambios `db/**`.
 provenance fue promovida por PR #319 a `certificacion` y por PR #320 a
 `main@1885806f0d9f189600d410d353fcf13fb8dd4676`. DB Sync to Production
 `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente
-y no aplico DDL. No hubo Production Canary acreditable, DDL/DML Pro, snapshot
-Production, writer ni mutacion DB. El hito queda
+y no aplico DDL. En ese corte no hubo Production Canary acreditable, snapshot
+Production, writer ni mutacion DB; la DDL Pro seguia pendiente. El hito queda
 `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` hasta completar
 `EVID-H1-011..013` y `EVID-H1-016`; `EVID-H1-010=VERIFIED` queda registrado
 por Production Canary `31272290614`.
 
-La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
-cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
-autorizaciones.
+La matriz viva de evidencias y umbrales de salida de Hito 1 se mantiene en
+[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida).
+No modifica estados, criterios ni autorizaciones.
 
 ## Arbol De Criterios
 

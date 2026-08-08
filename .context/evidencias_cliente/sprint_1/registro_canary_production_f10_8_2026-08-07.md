@@ -218,6 +218,8 @@ sobre un SHA/tree promovido y autorizado separadamente.
 | Tree | `ba7f6e74e88b2153aef1f4582bb3faa999c01a98` |
 | Estado | `PASS` |
 | Artifact | `9026139906` (`f10-production-canary-manifests`) |
+| Artifact digest | `sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce` |
+| Artifact expires | `2026-09-07T18:49:37Z` |
 | Evidencia contractual | `EVID-H1-010=VERIFIED` |
 
 El Production Canary completo fue autorizado con aprobacion separada del

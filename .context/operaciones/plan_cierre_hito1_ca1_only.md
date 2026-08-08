@@ -25,7 +25,8 @@ Pro DDL fue aplicada una sola vez por `31263024890` y verificada por
 `31268229878=PASS`. PR #325 promovio la remediacion de paginacion no-cohorte a
 `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree
 `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`; Production Canary
-`31272290614=PASS` subio artifact sanitizado `9026139906` y verifica
+`31272290614=PASS` subio artifact sanitizado `9026139906`
+(`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`) y verifica
 `EVID-H1-010`. Schedules y fases posteriores permanecen bloqueados hasta
 autorizaciones separadas.
 
@@ -574,7 +575,9 @@ El run completo paso target/candidate/limites, Supabase target, pre-manifest,
 source preflight, snapshot privado, FG1, FG2 harvest/cleansing/enrichment/sync,
 FG3, post-manifest, restore exacto, segundo restore `--expect-noop`, manifest
 after-cleanup, verificacion de manifests y upload de artifact sanitizado
-`9026139906` (`f10-production-canary-manifests`). El artifact contiene seis
+`9026139906` (`f10-production-canary-manifests`; digest
+`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`;
+expira `2026-09-07T18:49:37Z`). El artifact contiene seis
 manifests; `pre` y `after-cleanup` coinciden en counts/gates/contract/limits;
 `restore_idempotent` reporta `expect_noop=true`, `after_matches_snapshot=true`,
 `non_cohort_attestations_match=true` y cero filas restauradas/eliminadas.
@@ -856,7 +859,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. |
+| `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`); `EVID-H1-010=VERIFIED`. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
