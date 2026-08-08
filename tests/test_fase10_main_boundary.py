@@ -18,7 +18,7 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
     assert "merge-base" not in workflow
-    assert "EXPECTED = {" in workflow
+    assert "EXPECTED_ORIGINAL = {" in workflow
     assert "ALLOWED_PATHS" not in workflow
     assert "exact CA1 objects" in workflow
     assert '".context/estado_del_proyecto.md": ("A", "100644")' in workflow
@@ -58,6 +58,14 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F108_FG1_SOURCE_REQUIRED" in workflow
     assert "needs.f108-fg1-source-slug.result" in workflow
     assert "F10.8 FG1 source slug boundary passed" in workflow
+    assert "EXPECTED_FG1_SOURCE_PROMOTION" in workflow
+    assert "32526efadc21b734c58e47ff00f3a5be5b042f24" in workflow
+    assert '".github/workflows/production_canary.yml": ("M", "100644")' in workflow
+    assert "f108-fg1-main-boundary:" in workflow
+    assert "F10.8 FG1 Main Boundary" in workflow
+    assert "90bbcd76c670d84d396051dfa8af74eec9876f9c" in workflow
+    assert "F108_FG1_MAIN_BOUNDARY_REQUIRED" in workflow
+    assert "needs.f108-fg1-main-boundary.result" in workflow
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
