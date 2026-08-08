@@ -36,7 +36,7 @@ permissions:
   contents: read
 
 env:
-  MIGRATION_MANIFEST: db/manifests/fase08_candidate.json
+  F10_8_ONLY_MIGRATION: 20260808_fase10_8_atomic_cleansing_provenance
 
 concurrency:
   group: studiamatch-db-sync-${{ github.ref }}
@@ -133,11 +133,23 @@ jobs:
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"
-      - name: Validate manifest and CLI offline
+      - name: Validate F10.8 one-migration apply target offline
         run: |
           set -euo pipefail
-          test -f "$MIGRATION_MANIFEST"
-          python3 scripts/maintenance/db_migrate.py --env pro --validate-only --manifest "$MIGRATION_MANIFEST"
+          test -f "db/migrations/${F10_8_ONLY_MIGRATION}.sql"
+          python3 - <<'PY'
+          import pathlib
+
+          root = pathlib.Path(".")
+          migration = root / "db" / "migrations" / "20260808_fase10_8_atomic_cleansing_provenance.sql"
+          script = (root / "scripts" / "maintenance" / "db_migrate.py").read_text(encoding="utf-8")
+          if not migration.exists():
+              raise SystemExit("F10.8 migration is missing")
+          if "--only" not in script:
+              raise SystemExit("db_migrate.py must support --only")
+          if "F10_8_ALLOWED_PRO_ONLY_MIGRATIONS" not in script:
+              raise SystemExit("db_migrate.py must constrain Pro --only migrations")
+          PY
 
   report:
     name: "Report pending migrations"
@@ -181,7 +193,7 @@ jobs:
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
-          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --manifest "$MIGRATION_MANIFEST" > report.txt
+          python3 scripts/maintenance/db_migrate.py --env pro --dry-run --only "$F10_8_ONLY_MIGRATION" > report.txt
           count=$(grep -c "PENDIENTE" report.txt || true)
           printf '%s' "$count" | grep -Eq '^[0-9]+$'
           echo "count=$count" >> "$GITHUB_OUTPUT"
@@ -249,7 +261,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_SUPABASE_SECRET_KEY: ${{ secrets.NEXT_SUPABASE_SECRET_KEY }}
-        run: python3 scripts/maintenance/db_migrate.py --env pro --manifest "$MIGRATION_MANIFEST"
+        run: python3 scripts/maintenance/db_migrate.py --env pro --only "$F10_8_ONLY_MIGRATION"
 
   verify:
     name: "Verify target schema"
