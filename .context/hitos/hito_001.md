@@ -34,7 +34,7 @@ Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TAS
 
 ## Nota De Cierre Tecnico F10.8
 
-La remediacion cleansing provenance F10.8 quedo promovida a `main@1885806f0d9f189600d410d353fcf13fb8dd4676` por PR #320. `DB Sync to Production` run `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente, `20260808_fase10_8_atomic_cleansing_provenance`, y no aplico DDL. El registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO` deja la autorizacion sanitizada y verificable para una aplicacion Pro futura, condicionada a dispatch manual, approval `Production`, Backup/PITR runtime y writers pausados. Esta nota no declara `COMPLETED_PRODUCTION`: Pro DDL, Production Canary, observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
+La remediacion cleansing provenance F10.8 quedo promovida a `main@1885806f0d9f189600d410d353fcf13fb8dd4676` por PR #320. La DDL Pro `20260808_fase10_8_atomic_cleansing_provenance` fue aplicada una sola vez por DB Sync `31263024890` bajo autorizacion consumida, y DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS sobre `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`. El Production Canary `31269277219` paso FG1/FG2/FG3 y primer restore, pero fallo fail-closed en el segundo restore por JSON truncado durante atestacion no-cohorte; por tanto `EVID-H1-010` sigue pendiente. Esta nota no declara `COMPLETED_PRODUCTION`: Production Canary PASS, observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
 
 ## Trazabilidad
 

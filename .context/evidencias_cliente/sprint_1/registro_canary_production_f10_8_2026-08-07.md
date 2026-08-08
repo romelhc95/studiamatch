@@ -4,8 +4,8 @@
 |---|---|
 | ID | `EVID-H1-CANARY-F10.8-001` |
 | Subfase | `F10.8` |
-| Runs | `31157736479`, `31223623363` |
-| Estado | `SECOND_CANARY_FAIL_CLOSED_FG1_EXIT1_RESTORE_NOOP` |
+| Runs | `31157736479`, `31223623363`, `31236936740`, `31269277219` |
+| Estado | `FAIL_CLOSED_POST_RESTORE_ATTESTATION_JSON_TRUNCATED` |
 | Evidencia contractual | `EVID-H1-010=PENDING` |
 
 ## Resultado Sanitizado - Run `31157736479`
@@ -150,3 +150,59 @@ Limites preservados:
 - No hubo DML operativo, backfill ni procesamiento de programas.
 - No hubo Pro, Production Canary, schedules ni cambios de secrets/environments.
 - `EVID-H1-010` permanece `PENDING` hasta canary completo PASS.
+
+## Verify-Only Y Retry Completo - 2026-08-08
+
+| Campo | Valor |
+|---|---|
+| PR verify-only | `#323` -> `main@5c7efaf417eba7f45bed45994a6249d03f609fc2` |
+| PR FG2 deferred verify | `#324` -> `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` |
+| Tree | `90868898778a1039006e45b870fbc03e6e65291b` |
+| DB Sync verify | `31268229878=PASS` |
+| Pending migrations | `0` |
+| Apply | `SKIPPED` |
+| Target schema | `PASS` |
+| FG2 deferred | `PASS` |
+| UAT | `USER_PERSONAL_UAT=PASS` para SHA/tree indicado |
+
+## Resultado Sanitizado - Run `31269277219`
+
+El Production Canary completo fue autorizado con aprobacion separada del
+`main@675ade43f41a2f5d04f05a40f9837b514a8705ce` con limites `5/5/3/3/3` y
+`mutable_authorized=true`.
+
+Resultado:
+
+- Target, candidate y limites: PASS.
+- Source-access preflight: PASS.
+- Snapshot privado: PASS.
+- FG1 one-source inventory: PASS.
+- FG2 harvest, cleansing, enrichment y sync: PASS.
+- FG3 integrity: PASS.
+- Restore exacto: PASS.
+- Segundo restore `--expect-noop`: FAIL por JSON truncado durante atestacion
+  no-cohorte.
+- Manifest after-cleanup: FAIL secundario con HTTP 521.
+- Artifact sanitizado parcial: 4/6 manifests; artifact ID `9025228257`.
+
+Diagnostico sanitizado:
+
+La atestacion no-cohorte leia filas completas con `select=*` usando paginas de
+1000 filas. En `staging_raw`, las filas no-cohorte contienen payloads grandes y
+una respuesta alcanzo aproximadamente 8.1 MB, llegando truncada dentro de un
+string JSON. El run falla correctamente en modo fail-closed y no acredita
+`EVID-H1-010`. No se documentan URLs, cohorte, UUIDs, hosts Supabase, secrets ni
+datos operativos.
+
+Remediacion acotada:
+
+- Paginar solo la atestacion no-cohorte con paginas pequenas.
+- Conservar `columns="*"`, `order="id.asc"`, grupos `neq`/`is.null`, digest
+  actual y snapshot schema.
+- Mantener fail-closed ante JSON invalido, HTTP no exitoso o manifests
+  incompletos.
+- No ejecutar DDL/DML, backfill, schedules, writers ni cambios de
+  secrets/environments.
+
+`EVID-H1-010` permanece `PENDING` hasta un nuevo Production Canary completo PASS
+sobre un SHA/tree promovido y autorizado separadamente.
