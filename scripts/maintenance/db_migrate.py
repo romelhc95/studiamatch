@@ -197,7 +197,7 @@ def main():
                         help="Aplicar/listar solo migrations cuyo nombre coincida exactamente. Repetible.")
     args = parser.parse_args()
 
-    if args.env == "pro" and not args.manifest:
+    if args.env == "pro":
         if set(args.only) != F10_8_ALLOWED_PRO_ONLY_MIGRATIONS:
             parser.error(
                 "--manifest es obligatorio para Pro salvo la remediacion "

@@ -141,6 +141,8 @@ def test_db_sync_is_limited_to_f10_8_single_forward_migration() -> None:
     assert "--manifest" not in WORKFLOW
     assert "F10_8_ALLOWED_PRO_ONLY_MIGRATIONS" in DB_MIGRATE
     assert "20260808_fase10_8_atomic_cleansing_provenance" in DB_MIGRATE
+    assert 'if args.env == "pro":' in DB_MIGRATE
+    assert "not args.manifest" not in DB_MIGRATE
     assert "--manifest es obligatorio para Pro salvo la remediacion" in DB_MIGRATE
 
 
