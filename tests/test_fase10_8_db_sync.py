@@ -105,7 +105,15 @@ def test_workflow_dispatch_apply_remains_manual_and_gated() -> None:
     assert "inputs.ddl_authorization_id != ''" in apply
     assert "fromJSON(needs.report.outputs.pending_count) > 0" in apply
     assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in apply
-    assert "APPROVED_FOR_PRODUCTION_DDL" in apply
+    assert "Status: APPROVED_FOR_PRODUCTION_DDL" in apply
+    assert "Authorized base SHA:" in apply
+    assert "Authorized non-auth digest SHA256:" in apply
+    assert "EXPECTED_NON_AUTH_DIGEST" in apply
+    assert "non-auth-digest:" in apply
+    assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply
+    assert "APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR" in apply
+    assert "git merge-base --is-ancestor \"$auth_base_sha\" \"$CANDIDATE_SHA\"" in apply
+    assert 'grep -F "$CANDIDATE_SHA"' not in apply
     assert "production_control_preflight.sh DB-SYNC --enforce" in apply
     assert "ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}" in apply
     assert '--only "$F10_8_ONLY_MIGRATION"' in apply
@@ -163,6 +171,23 @@ def test_atomic_cleansing_provenance_migration_contract() -> None:
         assert "REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM anon" in sql
         assert "REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM authenticated" in sql
         assert "GRANT EXECUTE ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) TO service_role" in sql
+
+
+def test_f10_8_ddl_authorization_record_is_runtime_gated() -> None:
+    authorization = source(
+        ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md"
+    )
+
+    assert "Status: APPROVED_FOR_PRODUCTION_DDL" in authorization
+    assert "Authorized migration: 20260808_fase10_8_atomic_cleansing_provenance" in authorization
+    assert "Authorized base SHA: 1885806f0d9f189600d410d353fcf13fb8dd4676" in authorization
+    assert "Authorized non-auth digest SHA256: sha256:" in authorization
+    assert "sha256:0000000000000000000000000000000000000000000000000000000000000000" not in authorization
+    assert "Backup/PITR gate: BACKUP_PITR_RUNTIME_GATE_REQUIRED" in authorization
+    assert "APPLY_REQUIRES_WORKFLOW_DISPATCH_PRODUCTION_ENVIRONMENT_APPROVAL_AND_RUNTIME_BACKUP_PITR" in authorization
+    assert "31243797695=SUCCESS_REPORT_ONLY" in authorization
+    assert "no aplico DDL" in authorization
+    assert "NEXT_SUPABASE_SECRET_KEY" not in authorization
 
 
 def test_postgres_regression_script_is_local_only_guarded() -> None:

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_8_DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` |
+| Estado | `F10_8_PRO_DDL_AUTH_GOVERNANCE_PENDING_APPLY` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -19,9 +19,11 @@ la remediacion de Production Canary a `main@260900a268ab8eb194140ea7311aec2a170b
 y obtuvo Certification Canary `31140933096=PASS`; el falso rojo de
 `DB Sync to Production` fue remediado por PR #304/#305/#306/#307 y revalidado en
 `main@529ca111f1fef40efb15676ad6f07d002a54ae92` con run
-`31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`. Schedules, Production Canary
-acreditable y fases posteriores permanecen bloqueados hasta autorizaciones
-separadas.
+`31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED`. La remediacion cleansing provenance
+fue promovida por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`;
+DB Sync `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro
+pendiente y no ejecuto apply. Pro DDL, Production Canary acreditable, schedules y
+fases posteriores permanecen bloqueados hasta autorizaciones separadas.
 
 ## Objetivo
 
@@ -441,9 +443,10 @@ verificada en `main`:
 El run historico `31142826000` no se reintento. Esta remediacion no ejecuto
 Supabase, DDL/DML, migrations, workflow dispatch operativo, Production Canary,
 schedules, writers, backfill ni CA2. El siguiente paso productivo no es F10.9:
-primero requiere un canary Production F10.8 autorizado separadamente. Luego,
-solo con canary PASS, podra solicitarse F10.9 para habilitacion gradual y
-observacion de schedules.
+primero requiere resolver la adopcion Pro de la migracion F10.8 con autorizacion
+separada y, despues, ejecutar un canary Production F10.8 autorizado
+separadamente. Luego, solo con canary PASS, podra solicitarse F10.9 para
+habilitacion gradual y observacion de schedules.
 
 ### Incidente Production Canary F10.8 - 2026-08-07
 
@@ -482,6 +485,27 @@ ACL a `service_role`, sincronizar `restore_full_schema.sql`, limitar DB Sync a
 esa migracion con `--only`, y validar PostgreSQL 17 localmente. Aplicar DDL en
 Free o Pro, reintentar el canary, habilitar schedules, ejecutar backfill o
 cambiar secrets/environments requiere autorizaciones separadas.
+
+### Cierre Main Cleansing Provenance Y DDL Auth Governance - 2026-08-08
+
+La remediacion de `atomic_cleansing_promote` fue promovida por flujo protegido:
+
+- PR #319 a `certificacion`: `2a70dd001d8ded34d5ba67c19221f7f5e291d2c8`.
+- PR #320 a `main`: `1885806f0d9f189600d410d353fcf13fb8dd4676`.
+- DB Sync to Production `31243797695=SUCCESS_REPORT_ONLY`: `Detect DB changes`,
+  `DB contract preflight` y `Report pending migrations` pasaron; el report
+  observo exactamente `20260808_fase10_8_atomic_cleansing_provenance` pendiente
+  en Pro; `Apply pending migrations`, `Verify target schema` y FG2 deferred
+  quedaron skipped.
+
+El deadlock del registro DDL queda remediado por un gate SHA-bound de base:
+`DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO` fija
+`Authorized base SHA: 1885806f0d9f189600d410d353fcf13fb8dd4676`. El workflow de
+apply debe verificar que el `candidate_sha` manual sea `origin/main`, descendiente
+de ese base y limitado al diff allowlisted de gobierno F10.8. El registro exige
+dispatch manual, approval `Production`, `backup_pitr_verified=true` runtime y
+writers pausados. No registra Backup/PITR ejecutado, no aplica Pro, no reintenta
+Production Canary, no habilita schedules y no inicia F10.9.
 
 ## Work Packages Internos
 
@@ -755,7 +779,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.1`-`F10.5` | `SUPERSEDED_HISTORY` | Historia documental sustituida; no autorizable. |
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
-| `F10.8` | `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; run post-main `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Production Canary sigue pendiente y requiere autorizacion separada. |
+| `F10.8` | `PRO_DDL_AUTH_GOVERNANCE_PENDING_APPLY` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary final `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; DB Sync `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente. Pro DDL y Production Canary siguen pendientes y requieren autorizaciones separadas. |
 | `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
@@ -823,3 +847,30 @@ Paths y acciones excluidos: `db/**`, `supabase/**`, `web/**`,
 `scripts/maintenance/**`, datos operativos, `.env*`, secrets/environments,
 workflow dispatch del canary, Production/Scheduled activation, DDL/DML,
 backup/restore real fuera del workflow, writers, backfill, Edge y cualquier CA2.
+
+## Allowlist De Gobierno DDL F10.8
+
+Esta allowlist habilita unicamente reconciliar el Context Graph post PR #320,
+restaurar autoridades documentales de Hito 1 a `main`, corregir el deadlock
+SHA-bound del registro DDL y versionar `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO`.
+No autoriza aplicar Pro, ejecutar Production Canary, cambiar environments/secrets,
+habilitar schedules, backfill, writers ni CA2.
+
+Paths permitidos:
+
+- `.context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md`
+- `.context/estado_del_proyecto.md`
+- `.context/evidencias_cliente/sprint_1/paquete_hito_001.md`
+- `.context/hitos/hito_001.md`
+- `.context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md`
+- `.context/operaciones/flujo_release_minimo.md`
+- `.context/operaciones/plan_cierre_hito1_ca1_only.md`
+- `.github/workflows/db-sync-to-pro.yml`
+- `.github/workflows/security-audit.yml`
+- `tests/test_fase10_8_db_sync.py`
+- `tests/test_fase10_main_boundary.py`
+
+Paths y acciones excluidos: `db/**`, `supabase/**`, `web/**`, `scripts/core/**`,
+`scripts/maintenance/**`, datos operativos, `.env*`, secrets/environments,
+workflow dispatch operativo, Production Canary, schedules, writers, backfill,
+Edge y cualquier CA2.

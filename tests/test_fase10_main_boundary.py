@@ -66,6 +66,14 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "90bbcd76c670d84d396051dfa8af74eec9876f9c" in workflow
     assert "F108_FG1_MAIN_BOUNDARY_REQUIRED" in workflow
     assert "needs.f108-fg1-main-boundary.result" in workflow
+    assert "F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676" in workflow
+    assert "fix/f10-8-ddl-authorization-governance" in workflow
+    assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
+    assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
+    assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
+    assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644")' in workflow
+    assert '".context/operaciones/flujo_release_minimo.md": ("A", "100644")' in workflow
+    assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
@@ -92,7 +100,10 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "inputs.ddl_authorization_id != ''" in apply_section
     assert "fromJSON(needs.report.outputs.pending_count) > 0" in apply_section
     assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in apply_section
-    assert "APPROVED_FOR_PRODUCTION_DDL" in apply_section
+    assert "Status: APPROVED_FOR_PRODUCTION_DDL" in apply_section
+    assert "Authorized base SHA:" in apply_section
+    assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply_section
+    assert 'grep -F "$CANDIDATE_SHA"' not in apply_section
     assert "Verify production controls before migrations" in apply_section
 
 
