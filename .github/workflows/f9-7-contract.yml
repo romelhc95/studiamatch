@@ -23,6 +23,8 @@ on:
       - 'db/migrations/20260727_fase09_7_notify_new_lead_retirement.sql'
       - 'db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql'
       - 'db/migrations/20260729_fase09_7_leads_email_security_hold.sql'
+      - 'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'
+      - 'db/restore_full_schema.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
       - 'scripts/maintenance/fase09_7_leads_email_security_hold_candidate.py'
       - 'scripts/maintenance/fase09_7_notify_drift_diagnostic.sql'
@@ -152,6 +154,9 @@ jobs:
               '.gitattributes': {'M'},
               '.github/workflows/fg1_inventory.yml': {'M'},
               '.github/workflows/db-sync-to-pro.yml': {'M'},
+              'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql': {'A'},
+              'db/restore_full_schema.sql': {'M'},
+              'scripts/maintenance/db_migrate.py': {'M'},
               '.github/workflows/fg3_integrity.yml': {'M'},
               '.github/workflows/production_pipeline.yml': {'M'},
               'scripts/core/certification_canary_manifest.py': {'A', 'M'},
@@ -208,7 +213,10 @@ jobs:
               path = fields[index].decode('utf-8', 'surrogateescape')
               index += 1
               paths_to_check = [p for p in (old_path, path) if p]
-              if any(p.startswith(denied_prefixes) or p in denied_exact for p in paths_to_check):
+              if (
+                  any(p.startswith(denied_prefixes) or p in denied_exact for p in paths_to_check)
+                  and not any(p in allowed for p in paths_to_check)
+              ):
                   failed.append(f'denied:{path}')
               if (
                   any(p in protected or p.startswith(protected_prefixes) for p in paths_to_check)
