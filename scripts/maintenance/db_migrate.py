@@ -59,6 +59,9 @@ MIGRATIONS_DIR = os.path.join(
     "db", "migrations"
 )
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+F10_8_ALLOWED_PRO_ONLY_MIGRATIONS = {
+    "20260808_fase10_8_atomic_cleansing_provenance",
+}
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
@@ -604,7 +607,11 @@ def main():
     if args.all:
         parser.error("--all no esta soportado")
     if args.env == "pro" and not args.manifest:
-        parser.error("--manifest es obligatorio para Pro")
+        if set(args.only) != F10_8_ALLOWED_PRO_ONLY_MIGRATIONS:
+            parser.error(
+                "--manifest es obligatorio para Pro salvo la remediacion "
+                "F10.8 --only 20260808_fase10_8_atomic_cleansing_provenance"
+            )
     if args.manifest and args.only:
         parser.error("--manifest y --only no se pueden combinar")
 

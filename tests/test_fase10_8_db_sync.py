@@ -19,6 +19,8 @@ def job_section(workflow: str, job_id: str) -> str:
 
 
 WORKFLOW = source(".github/workflows/db-sync-to-pro.yml")
+DB_MIGRATE = source("scripts/maintenance/db_migrate.py")
+F97_WORKFLOW = source(".github/workflows/f9-7-contract.yml")
 
 
 def test_push_main_without_db_changes_skips_production_jobs() -> None:
@@ -63,11 +65,11 @@ def test_preflight_validates_manifest_before_secret_bearing_report() -> None:
 
     assert WORKFLOW.index("  db-contract-preflight:") < WORKFLOW.index("  report:")
     assert "needs: detect-db-changes" in preflight
-    assert "test -f \"$MIGRATION_MANIFEST\"" in preflight
-    assert (
-        'python3 scripts/maintenance/db_migrate.py --env pro --validate-only --manifest "$MIGRATION_MANIFEST"'
-        in preflight
-    )
+    assert 'test -f "db/migrations/${F10_8_ONLY_MIGRATION}.sql"' in preflight
+    assert "--validate-only" not in preflight
+    assert "--manifest" not in preflight
+    assert "F10.8 migration is missing" in preflight
+    assert "db_migrate.py must constrain Pro --only migrations" in preflight
     assert "needs: [detect-db-changes, db-contract-preflight]" in report
     assert "environment:" in report
     assert "name: Production" in report
@@ -82,7 +84,8 @@ def test_workflow_dispatch_report_preserves_dry_run_only_path() -> None:
 
     assert 'if [ "$EVENT_NAME" = "workflow_dispatch" ]; then' in detect
     assert "DB Sync manual dispatch requires report/preflight path" in detect
-    assert '--dry-run --manifest "$MIGRATION_MANIFEST"' in report
+    assert '--dry-run --only "$F10_8_ONLY_MIGRATION"' in report
+    assert "--manifest" not in report
     assert "Confirm report-only mode" in report
     assert "Apply migrations to Pro" not in report
     assert "printf '%s' \"$count\" | grep -Eq '^[0-9]+$'" in report
@@ -104,6 +107,8 @@ def test_workflow_dispatch_apply_remains_manual_and_gated() -> None:
     assert "APPROVED_FOR_PRODUCTION_DDL" in apply
     assert "production_control_preflight.sh DB-SYNC --enforce" in apply
     assert "ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}" in apply
+    assert '--only "$F10_8_ONLY_MIGRATION"' in apply
+    assert "--manifest" not in apply
 
     assert "needs: [detect-db-changes, report, apply]" in verify
     assert "needs.report.result == 'success'" in verify
@@ -125,6 +130,56 @@ def test_no_prohibited_surfaces_are_introduced() -> None:
     assert "production_canary" not in WORKFLOW
     assert "workflow_dispatch" in WORKFLOW
     assert "supabase/functions" not in WORKFLOW
+
+
+def test_db_sync_is_limited_to_f10_8_single_forward_migration() -> None:
+    assert "MIGRATION_MANIFEST" not in WORKFLOW
+    assert "F10_8_ONLY_MIGRATION: 20260808_fase10_8_atomic_cleansing_provenance" in WORKFLOW
+    assert WORKFLOW.count("F10_8_ONLY_MIGRATION") >= 4
+    assert "db/migrations/${F10_8_ONLY_MIGRATION}.sql" in WORKFLOW
+    assert "--validate-only" not in WORKFLOW
+    assert "--manifest" not in WORKFLOW
+    assert "F10_8_ALLOWED_PRO_ONLY_MIGRATIONS" in DB_MIGRATE
+    assert "20260808_fase10_8_atomic_cleansing_provenance" in DB_MIGRATE
+    assert "--manifest es obligatorio para Pro salvo la remediacion" in DB_MIGRATE
+
+
+def test_atomic_cleansing_provenance_migration_contract() -> None:
+    migration = source("db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql")
+    restore = source("db/restore_full_schema.sql")
+
+    for sql in (migration, restore):
+        assert "CREATE OR REPLACE FUNCTION public.atomic_cleansing_promote" in sql
+        assert "RETURNS SETOF public.cleansed_programs" in sql
+        assert "SET search_path = pg_catalog" in sql
+        assert "INSERT INTO public.cleansed_programs AS target" in sql
+        assert "COALESCE(target.metadata, '{}'::jsonb)" in sql
+        assert "|| COALESCE(EXCLUDED.metadata, '{}'::jsonb)" in sql
+        assert "status IN ('pending', 'processing')" in sql
+        assert "REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM PUBLIC" in sql
+        assert "REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM anon" in sql
+        assert "REVOKE ALL ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) FROM authenticated" in sql
+        assert "GRANT EXECUTE ON FUNCTION public.atomic_cleansing_promote(uuid[], jsonb) TO service_role" in sql
+
+
+def test_postgres_regression_script_is_local_only_guarded() -> None:
+    script = source("tests/sql/run_fase10_8_atomic_cleansing_postgres.sh")
+    assert "ALLOW_DESTRUCTIVE_LOCAL_TEST_DB" in script
+    assert "studiamatch_f108" in script
+    assert "localhost" in script
+    assert "DROP SCHEMA IF EXISTS public CASCADE" in script
+
+
+def test_f9_7_boundary_allows_exact_f10_8_db_remediation_only() -> None:
+    allowed = F97_WORKFLOW.split("allowed_statuses = {", 1)[1].split("allowed = set(allowed_statuses)", 1)[0]
+    trigger_paths = F97_WORKFLOW.split("pull_request:", 1)[1].split("push:", 1)[0]
+    assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'" in trigger_paths
+    assert "'db/restore_full_schema.sql'" in trigger_paths
+    assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql': {'A'}" in allowed
+    assert "'db/restore_full_schema.sql': {'M'}" in allowed
+    assert "'scripts/maintenance/db_migrate.py': {'M'}" in allowed
+    assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in F97_WORKFLOW
+    assert "and not any(p in allowed for p in paths_to_check)" in F97_WORKFLOW
 
 
 if __name__ == "__main__":
