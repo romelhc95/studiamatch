@@ -91,7 +91,36 @@ Remediacion local validada:
 
 Restricciones vigentes:
 
-- No se ejecuto DDL/DML remoto en Free ni Pro.
+- DDL remoto ejecutado solo en Free/Desarrollo para
+  `20260808_fase10_8_atomic_cleansing_provenance` bajo autorizacion separada.
+- No se ejecuto DDL/DML en Pro.
 - No se ejecuto otro Production Canary.
 - No se habilitaron schedules ni writers programados.
 - No hubo backfill ni cambios de secrets/environments.
+
+## DDL Free/Desarrollo - 2026-08-08
+
+| Campo | Valor |
+|---|---|
+| Migracion | `20260808_fase10_8_atomic_cleansing_provenance` |
+| Ambiente | Free/Desarrollo |
+| Estado | `APPLIED_AND_READONLY_VERIFIED` |
+| Alcance | `DDL_ONLY_FUNCTION_REPLACE_AND_ACL` |
+
+Verificacion read-only post-DDL:
+
+- Registro tecnico presente en `supabase_migrations.schema_migrations`.
+- `public.atomic_cleansing_promote(uuid[], jsonb)` quedo `SECURITY DEFINER`.
+- `search_path=pg_catalog` confirmado.
+- Merge de metadata historica y entrante confirmado en la definicion.
+- Transicion `staging_raw.status IN ('pending','processing')` confirmada.
+- `anon` y `authenticated` sin `EXECUTE`.
+- `service_role` con `EXECUTE`.
+- Advisors de seguridad/performance solo reportaron notices informativos
+  preexistentes/no atribuibles a esta remediacion.
+
+Limites preservados:
+
+- No hubo DML operativo, backfill ni procesamiento de programas.
+- No hubo Pro, Production Canary, schedules ni cambios de secrets/environments.
+- `EVID-H1-010` permanece `PENDING` hasta canary completo PASS.
