@@ -18,17 +18,22 @@ from .supabase_credentials import (
 
 DNS_RETRY_DELAYS = [5, 10, 20]
 DNS_RETRY_MAX = 3
+IDEMPOTENT_HTTP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 class DatabaseAPIError(RuntimeError):
     """Raised when the Data API returns an unexpected response."""
 
 
-def _request_with_retry(method, url, **kwargs):
+def _request_with_retry(method, url, *, retry_mutations=False, **kwargs):
     """
     Executes an HTTP request with exponential backoff retry for DNS/connection errors.
     Non-transient errors (4xx, 5xx) are NOT retried — only network-level failures.
     """
+    method_name = getattr(method, "__name__", "").upper()
+    if method_name == "REQUEST":
+        method_name = str(kwargs.get("method", "")).upper()
+    should_retry = retry_mutations or method_name in IDEMPOTENT_HTTP_METHODS
     last_err = None
     for attempt in range(1, DNS_RETRY_MAX + 1):
         try:
@@ -37,6 +42,12 @@ def _request_with_retry(method, url, **kwargs):
                 getattr(requests.exceptions, 'DNSResolutionError', requests.exceptions.ConnectionError),
                 requests.exceptions.Timeout) as e:
             last_err = e
+            if not should_retry:
+                print(
+                    "DB_CLIENT_RETRY: Not retrying non-idempotent "
+                    f"{method_name or 'HTTP'} request for {url}: {type(e).__name__}"
+                )
+                raise
             if attempt < DNS_RETRY_MAX:
                 delay = DNS_RETRY_DELAYS[attempt - 1]
                 print(f"DB_CLIENT_RETRY: Attempt {attempt}/{DNS_RETRY_MAX} failed ({type(e).__name__}). Retrying in {delay}s...")

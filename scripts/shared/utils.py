@@ -318,39 +318,8 @@ def standardize_category(potential_cat, course_name=""):
     
     return "Tecnología"
 
-from urllib.parse import urlparse, urlunparse
+from .url_identity import normalize_url
 
-def normalize_url(url):
-    """
-    Normalizes a URL for de-duplication:
-    - Lowercases scheme and netloc.
-    - Removes query strings and fragments.
-    - Removes trailing slashes.
-    """
-    if not url:
-        return ""
-    
-    try:
-        parsed = urlparse(url)
-        # 1. Lowercase scheme and netloc
-        scheme = parsed.scheme.lower()
-        netloc = parsed.netloc.lower()
-        
-        # 2. Path normalization: remove trailing slash
-        path = parsed.path
-        if path.endswith('/') and len(path) > 1:
-            path = path[:-1]
-        
-        # 3. Deduplicate /en/ language prefix (e.g. /en/posgrado/ → /posgrado/)
-        import re as _re
-        if '/en/' in path:
-            path = _re.sub(r'/en/', '/', path)
-        
-        # 4. Reconstruct without query strings and fragments
-        normalized = urlunparse((scheme, netloc, path, '', '', ''))
-        return normalized
-    except Exception:
-        return url
 
 
 def parse_start_date(text):
