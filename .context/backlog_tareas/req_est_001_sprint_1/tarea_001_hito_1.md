@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda pendiente. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad de ejecucion. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base tecnica post-canary: `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`.
+Base tecnica post-cierre documental F10.8: `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -72,6 +72,21 @@ por Production Canary `31272290614`.
 La matriz viva de evidencias y umbrales de salida de Hito 1 se mantiene en
 [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida).
 No modifica estados, criterios ni autorizaciones.
+
+## Hallazgo Tardio F10.9
+
+La activacion global posterior al canary descubrio fallos fail-closed de FG2 y
+FG3 documentados en
+[INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md).
+Los runs y reruns diagnosticos no acreditan observacion natural; el contador de
+pares vuelve a `0` y la ventana de 72h queda `NOT_STARTED` segun
+[EVID-H1-OBS-F10.9-001](../../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md).
+
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md)
+registra contencion, hardening, planners y gates separados. El plan no autoriza
+kill switch, codigo, DDL/DML, backfill, schedules ni retries por si mismo. La
+decision humana vigente exige cero cursos activos sin syllabus/objectives antes
+del cierre. `H1-CA1` no cambia y no se crean subtareas ni criterios nuevos.
 
 ## Arbol De Criterios
 
@@ -268,7 +283,8 @@ demuestre necesidad estricta y se solicite otra decision.
 ## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth
 
 F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda
-pendiente para habilitacion gradual de schedules y observacion.
+`IN_PROGRESS_BLOCKED_BY_INCIDENT` hasta remediacion, nueva habilitacion gradual y
+observacion completa.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
@@ -341,6 +357,11 @@ after-cleanup y upload de seis manifests sanitizados en artifact `9026139906`.
 `EVID-H1-010=VERIFIED`; `EVID-H1-011..013` y `EVID-H1-016` permanecen
 pendientes. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`, no
 `COMPLETED_PRODUCTION`.
+
+La observacion global posterior se conserva como evidencia fail-closed en
+[EVID-H1-OBS-F10.9-001](../../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md): cero pares aceptados, ventana 72h no iniciada y
+remediacion requerida. Este registro no modifica la verificacion F10.8 ni
+autoriza operaciones remotas.
 
 ## Exclusiones Historicas Preservadas
 

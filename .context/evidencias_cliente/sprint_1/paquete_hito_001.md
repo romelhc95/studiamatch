@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_PRODUCTION_CANARY_VERIFIED_F10_9_PENDING` |
+| Estado | `DRAFT_F10_9_REMEDIATION_REQUIRED` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
-| Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), entrega tecnica `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291), remediacion F10.8 `main@260900a268ab8eb194140ea7311aec2a170b6e17` (PR #297), remediacion DB Sync `main@529ca111f1fef40efb15676ad6f07d002a54ae92` (PR #307), remediacion cleansing provenance `main@1885806f0d9f189600d410d353fcf13fb8dd4676` (PR #320), verify-only F10.8 `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b` (PR #324), canary PASS F10.8 `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98` (PR #325) |
+| Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), entrega tecnica `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291), remediacion F10.8 `main@260900a268ab8eb194140ea7311aec2a170b6e17` (PR #297), remediacion DB Sync `main@529ca111f1fef40efb15676ad6f07d002a54ae92` (PR #307), remediacion cleansing provenance `main@1885806f0d9f189600d410d353fcf13fb8dd4676` (PR #320), verify-only F10.8 `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b` (PR #324), canary PASS F10.8 `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98` (PR #325), cierre documental F10.8 `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4` (PR #326) |
 
 Este documento define la evidencia que se entregara al cliente. No afirma que
 Hito 1 este completado.
@@ -52,14 +52,24 @@ sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045c
 observada y conformidad siguen pendientes. El resultado final debera indicar
 claramente que se entrego CA1 tecnicamente y que CA2 se traslado a Hito 2.
 
+La primera observacion global F10.9 detecto fallos fail-closed en FG2 y FG3. El
+detalle sanitizado queda en
+[INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), el
+plan no ejecutable en
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) y los
+runs en
+[EVID-H1-OBS-F10.9-001](./registro_observacion_production_f10_9_2026-08-09.md).
+Pares aceptados `0`; ventana 72h `NOT_STARTED`; `EVID-H1-011..013/016` siguen
+pendientes. F10.8 y `EVID-H1-010=VERIFIED` no cambian.
+
 ## Alcance Entregado
 
 | Elemento | Resultado | Evidencia |
 |---|---|---|
-| Schedules FG2/FG3 | `TECHNICAL_DELIVERY_MAIN_SCHEDULES_PENDING` | Workflows con kill switch y environments dedicados; gate main/canary Production definidos; observacion Production pendiente |
+| Schedules FG2/FG3 | `F10_9_BLOCKED_REMEDIATION_REQUIRED` | Workflows con kill switch y environments dedicados; primera observacion global fail-closed; cero pares aceptados y remediacion documentada |
 | Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_QA_VERIFIED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; QA independiente `PASS` |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
-| Development/Certification/Production | `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` | PR #277/#282/#285/#288/#289/#291/#297/#304/#305/#306/#307/#319/#320/#325 Approved/Merged; environments programados fail-closed; `main` promovido tecnicamente; Certification Canary final PASS; DB Sync remediado y verificado en `main`; Pro DDL aplicada una sola vez; Production Canary `31272290614=PASS`; schedules pendientes |
+| Development/Certification/Production | `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` | PR #277/#282/#285/#288/#289/#291/#297/#304/#305/#306/#307/#319/#320/#325/#326 Approved/Merged; `main` promovido tecnicamente; Certification Canary final PASS; DB Sync remediado y verificado en `main`; Pro DDL aplicada una sola vez; Production Canary `31272290614=PASS`; primera observacion global fail-closed y remediacion F10.9 pendiente |
 | Cero cambios CA2 | `MAIN_BOUNDARY_PASS_POST_MERGE` | Boundary post-merge 32 objetos digest `8fafc74e415d6875315e8584eb17705e24c40777675996cde9bf4ff0ccf7ddff`; remediacion DB Sync limitada a workflows; cero rutas prohibidas |
 
 FG1 se valida en un anexo tecnico interno como soporte de inventario. No forma
@@ -151,6 +161,8 @@ puede presentarse como mitigado sin evidencia.
 - Readiness F9.10: completada; F10.6 control-plane completada; F10.7 entrega tecnica post-main registrada por PR #291 y [ADR-0009](../../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md).
 - UAT personal: `PASS` registrado para SHA/tree final de Certification; la promocion tecnica posterior a `main` no autoriza Production canary, schedules ni cierre contractual.
 - Aprobacion de release tecnico a `main`: `VERIFIED` por PR #291, PR #297 y PR #325 aprobados/fusionados.
+- Plan de remediacion F10.9: documentado, sin autoridad DDL/DML, backfill,
+  schedules, retries ni merge.
 - Conformidad cliente: pendiente.
 
 ## Ledger De Evidencias H1
@@ -173,3 +185,8 @@ puede presentarse como mitigado sin evidencia.
 | `EVID-H1-014` | `VERIFIED_POST_MERGE_BOUNDARY` |
 | `EVID-H1-015` | `VERIFIED` |
 | `EVID-H1-016` | `CLIENT_CONFORMITY_PENDING` |
+
+La observacion vigente se consulta en
+[EVID-H1-OBS-F10.9-001](./registro_observacion_production_f10_9_2026-08-09.md).
+Ningun run documentado acredita `EVID-H1-011/012`; el contador permanece en
+cero.
