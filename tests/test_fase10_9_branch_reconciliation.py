@@ -266,6 +266,55 @@ class F109BoundaryTest(unittest.TestCase):
         with self.assertRaises(BoundaryError):
             validate_dev(Path("."), DEV_BASE, head, "pull_request", cert_tip)
 
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_dev_push_validates_second_parent_history(
+        self,
+        require_sha_mock,
+        commit_tree_mock,
+        commit_parents_mock,
+        is_ancestor_mock,
+        git_mock,
+    ) -> None:
+        pr_head = "b" * 40
+        merge_head = "c" * 40
+        cert_tip = "d" * 40
+        shared_tree = "e" * 40
+
+        def tree(repo, commit):
+            if commit == DEV_BASE:
+                return DEV_ARCHIVE_TREE
+            if commit == DEV_EXTRACTION:
+                return MAIN_SOURCE_TREE
+            return shared_tree
+
+        def parents(repo, commit):
+            if commit == DEV_EXTRACTION:
+                return [DEV_BASE]
+            if commit == pr_head:
+                return [DEV_EXTRACTION, cert_tip]
+            if commit == merge_head:
+                return [DEV_BASE, pr_head]
+            return []
+
+        def git_output(repo, *args, **kwargs):
+            if args[:2] == ("rev-parse", "refs/remotes/origin/archive/f10-9-ca2-preserve-desarrollo-20260809"):
+                return DEV_BASE
+            if args[:3] == ("rev-list", "--reverse", "--first-parent"):
+                return f"{DEV_EXTRACTION}\n{pr_head}\n"
+            if args[:1] == ("rev-list",):
+                return f"{DEV_EXTRACTION}\n{pr_head}\n{cert_tip}\n"
+            raise AssertionError(args)
+
+        commit_tree_mock.side_effect = tree
+        commit_parents_mock.side_effect = parents
+        git_mock.side_effect = git_output
+
+        validate_dev(Path("."), DEV_BASE, merge_head, "push", cert_tip)
+
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_fork(self, parse_args_mock) -> None:
         parse_args_mock.return_value = SimpleNamespace(

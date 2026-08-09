@@ -279,11 +279,18 @@ def validate_dev(repo: Path, base: str, head: str, event: str, cert_tip: str) ->
     require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift")
     require(commit_parents(repo, DEV_EXTRACTION) == [DEV_BASE], "extraction parent drift")
     require(commit_tree(repo, DEV_EXTRACTION) == MAIN_SOURCE_TREE, "extraction tree drift")
-    require(is_ancestor(repo, DEV_EXTRACTION, head), "extraction is not an ancestor of head")
-    require(is_ancestor(repo, cert_tip, head), "protected certificacion tip is not an ancestor")
-    require(commit_tree(repo, head) == commit_tree(repo, cert_tip), "desarrollo tree differs from certificacion")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "desarrollo push must be a protected merge commit")
+        require(push_parents[0] == base, "desarrollo push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "push tree differs from PR head")
+    require(is_ancestor(repo, DEV_EXTRACTION, candidate_head), "extraction is not an ancestor of PR head")
+    require(is_ancestor(repo, cert_tip, candidate_head), "protected certificacion tip is not an ancestor")
+    require(commit_tree(repo, candidate_head) == commit_tree(repo, cert_tip), "desarrollo tree differs from certificacion")
     first_parent_chain = str(
-        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{head}")
+        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{candidate_head}")
     ).split()
     require(first_parent_chain and first_parent_chain[0] == DEV_EXTRACTION, "unexpected first-parent extraction history")
     for commit in first_parent_chain[1:]:
@@ -292,15 +299,13 @@ def validate_dev(repo: Path, base: str, head: str, event: str, cert_tip: str) ->
         require(is_ancestor(repo, parents[1], cert_tip), f"merge parent is outside certificacion: {commit}")
         require(commit_tree(repo, commit) == commit_tree(repo, parents[1]), f"merge tree differs from certificacion parent: {commit}")
     first_parent_set = set(first_parent_chain)
-    all_commits = str(git(repo, "rev-list", f"{base}..{head}")).split()
+    all_commits = str(git(repo, "rev-list", f"{base}..{candidate_head}")).split()
     unexpected = [
         commit
         for commit in all_commits
         if commit not in first_parent_set and not is_ancestor(repo, commit, cert_tip)
     ]
     require(not unexpected, f"unexpected commits outside certificacion history: {unexpected!r}")
-    if event == "push":
-        require(commit_parents(repo, head)[0] == base, "desarrollo push first parent drift")
 
 
 def validate_p1(repo: Path, base: str, head: str, p1_base: str, event: str) -> None:
