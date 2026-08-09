@@ -7,7 +7,7 @@
 | Decision humana | Conservar F8, simplificar F9, retirar el plan temporal en F9.4 y exigir executor privado digest-bound/target-bound/single-use para PR-O F9.7 |
 | Contexto relacionado | [PLAN-H1-SIMPLIFICADO-001](../operaciones/plan_simplificado_hito1.md), [Estado vigente](../estado_del_proyecto.md) |
 
-Vigencia parcial posterior: [ADR-0006](./ADR-0006_incorporacion_adenda_sprint_1.md)
+Vigencia parcial posterior: ADR-0006
 aprueba la rebaseline CA1-only. La secuencia schema/backfill/free_certified de
 esta ADR queda `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2 de
 Hito 2.

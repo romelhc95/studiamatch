@@ -14,7 +14,7 @@ Este backlog registra hallazgos del cierre documental F9.5 sin crear una subtare
 | `BK-F9.5-04` | `ratings`/`reviews` y sus contadores | Requiere alcance y pruebas propias; no forma parte de H-00. |
 | `BK-F9.5-05` | [Arquitectura diferida de leads/email](backlog_seguridad_leads_email.md): email, rate limit, privacidad, outbox, provider, secretos, observabilidad y supply-chain hardening | Requiere evaluacion de seguridad, nuevo ciclo `INTAKE -> EST -> REQ -> TASK` y autorizacion separada. |
 | `BK-F9.5-06` | Limpieza fisica de artifacts historicos | Reservada exclusivamente para F11, con aprobacion explicita. |
-| `BK-F9.5-07` | [Exec SQL control-plane](backlog_exec_sql_control_plane.md): canal administrativo restringido `public.exec_sql(text)` | Residual aceptado para PR local; requiere sustitucion futura sin autorizar implementacion. |
+| `BK-F9.5-07` | Exec SQL control-plane: canal administrativo restringido `public.exec_sql(text)` | Residual aceptado para PR local; requiere sustitucion futura sin autorizar implementacion. |
 | `BK-F9.5-08` | Hardening futuro fuera de alcance WP-F9.7-04: cadenas firewall legacy distintas de las tres F9.7, medicion/optimizacion de tiempo CI, escaneo de commit messages, verificacion remota de branch protection y expansion general de patrones de credenciales | `DEFERRED_NO_IMPLEMENTATION`; no crea tarea, criterio, fecha ni compromiso. |
 | `BK-F9.5-09` | `PyPDF2 DeprecationWarning` emitido por dependencia externa en pruebas Python | `DEFERRED_NO_IMPLEMENTATION`; no originado por codigo modificado, no bloquea Hito 1 y no autoriza migracion de dependencia en F9.7. |
 
@@ -50,4 +50,4 @@ Comunicacion al cliente: si aparece en evidencias, reportarlo como deuda tecnica
 
 Los artifacts de PR #245 y PR #247 permanecen `HISTORICAL_NON_PROMOTABLE`. Ningun item de este backlog permite promoverlos, aplicarlos, borrarlos o incluirlos en el package contractual F6-F8.
 
-Las dependencias minimas de F9.7 y el backfill editorial de F9.8/F9.9 viven en [TASK-H1-001](tarea_001_hito_1.md). La definicion P0 H-00 de F9.6 vive en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
+Las dependencias minimas de F9.7 y el backfill editorial de F9.8/F9.9 viven en [TASK-H1-001](tarea_001_hito_1.md). La definicion P0 H-00 de F9.6 vive en la macrofase F9.

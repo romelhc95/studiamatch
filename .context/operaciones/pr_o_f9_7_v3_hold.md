@@ -38,4 +38,4 @@ Esta nota preserva la existencia documental del PR-O v1 definido en PR #261. No 
 - [Estado del proyecto](../estado_del_proyecto.md)
 - [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [Plan de corte Hito 1](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
-- [Cierre definitivo F9.7](./cierre_definitivo_f9_7.md)
+- Cierre definitivo F9.7

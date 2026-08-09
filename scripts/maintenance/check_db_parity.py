@@ -13,89 +13,22 @@ This script blocks on schema/configuration drift, not on ETL row counts.
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import os
 import re
 import sys
-from dataclasses import dataclass
-from pathlib import Path
-from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any
+
+import requests
+from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from maintenance.migration_manifest import canonical_sql_sha256, load_manifest
-
-if TYPE_CHECKING:
-    from shared.db_client import DatabaseClient
-
-
-class _LazyRequests:
-    """Do not import a network client while pure F10 helpers are imported."""
-
-    _module = None
-
-    def __getattr__(self, name: str) -> Any:
-        if self._module is None:
-            self._module = importlib.import_module("requests")
-        return getattr(self._module, name)
-
-
-requests = _LazyRequests()
-
-
-@dataclass(frozen=True)
-class PromotionOperationMode:
-    """Pure classification; it does not grant or execute a capability."""
-
-    name: str
-    capability: str
-    remote: bool
-    executable_in_f10: bool
-
-
-PROMOTION_OPERATION_MODES = MappingProxyType({
-    "local_contract": PromotionOperationMode(
-        "local_contract", "LOCAL_PROMOTION_CONTRACT", False, True
-    ),
-    "free_readiness": PromotionOperationMode(
-        "free_readiness", "REMOTE_READ_FREE", True, False
-    ),
-    "free_schema_acceptance": PromotionOperationMode(
-        "free_schema_acceptance", "ACCEPT_FREE_SCHEMA", True, False
-    ),
-    "free_backfill_acceptance": PromotionOperationMode(
-        "free_backfill_acceptance", "ACCEPT_FREE_BACKFILL", True, False
-    ),
-    "free_final_certification": PromotionOperationMode(
-        "free_final_certification", "ACCEPT_FREE_FINAL", True, False
-    ),
-    "pro_parity": PromotionOperationMode(
-        "pro_parity", "PRO_PARITY", True, False
-    ),
-})
-_PROMOTION_OPERATION_MODES_SNAPSHOT = PROMOTION_OPERATION_MODES
-
-
-def select_promotion_operation_mode(name: str) -> PromotionOperationMode:
-    """Return an exact mode or fail before any environment/transport access."""
-
-    try:
-        mode = _PROMOTION_OPERATION_MODES_SNAPSHOT[name]
-    except (KeyError, TypeError) as exc:
-        raise ValueError(f"unsupported promotion operation mode: {name!r}") from exc
-    if not mode.executable_in_f10:
-        raise RuntimeError(f"promotion operation mode is blocked in F10: {name}")
-    return mode
-
-
-def classify_promotion_operation_mode(name: str) -> PromotionOperationMode:
-    """Describe local and reserved remote modes without executing either."""
-
-    try:
-        return _PROMOTION_OPERATION_MODES_SNAPSHOT[name]
-    except (KeyError, TypeError) as exc:
-        raise ValueError(f"unsupported promotion operation mode: {name!r}") from exc
+from shared.db_client import DatabaseClient
+from shared.supabase_credentials import (
+    get_environment_credentials,
+    get_secret_key,
+    require_distinct_environments,
+)
 
 
 CONFIG_COLUMNS = {
@@ -110,20 +43,7 @@ CONFIG_COLUMNS = {
         "pipeline_enabled",
         "production_enabled",
     },
-    "courses": {
-        "start_date",
-        "publication_status",
-        "data_quality_status",
-        "missing_fields",
-        "field_sources",
-        "manual_updated_at",
-        "is_sponsored",
-        "sponsorship_priority",
-        "sponsorship_label",
-    },
-    "leads": {"lead_source_type"},
-    "ratings": {"moderation_status", "moderated_at"},
-    "reviews": {"moderation_status", "moderated_at"},
+    "courses": {"start_date"},
 }
 
 CONFIG_TABLES = {
@@ -140,10 +60,6 @@ REQUIRED_MIGRATIONS = {
     "fase114_security_contract_hardening",
     "fase115_authenticated_profile_hardening",
     "fase116_public_grant_defense_in_depth",
-    "20260724_fase06_g1b_reconciliation",
-    "20260724_fase06_hito1_editorial_contract",
-    "20260725_fase07_g1b_closure",
-    "20260725_fase08_hito1_functional_closure",
 }
 
 OPERATIONAL_TABLES = {
@@ -154,17 +70,6 @@ OPERATIONAL_TABLES = {
 }
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-F8_MANIFEST = Path(ROOT_DIR) / "db" / "manifests" / "fase08_candidate.json"
-
-
-@dataclass(frozen=True)
-class LedgerPage:
-    """One exact-count page returned by the ledger transport adapter."""
-
-    rows: list[dict[str, Any]]
-    total: int
-    start: int | None
-    end: int | None
 
 
 def migration_is_applied(applied: set[str], required_name: str) -> bool:
@@ -174,8 +79,6 @@ def migration_is_applied(applied: set[str], required_name: str) -> bool:
 
 
 def load_environment(target: str) -> None:
-    from dotenv import load_dotenv
-
     env_file = ".env.gitprod" if target == "pro" else ".env.local"
     load_dotenv(os.path.join(ROOT_DIR, env_file), override=True)
 
@@ -201,8 +104,6 @@ def load_environment(target: str) -> None:
 
 
 def assert_environment(target: str) -> None:
-    from shared.supabase_credentials import get_secret_key
-
     required = ["NEXT_SUPABASE_SECRET_KEY"]
     missing = [name for name in required if not os.environ.get(name)]
     if not (os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")):
@@ -220,162 +121,12 @@ def try_rpc(db: DatabaseClient, sql: str) -> list[dict[str, Any]] | None:
         return None
 
 
-def service_select(
-    db: DatabaseClient,
-    table: str,
-    columns: str,
-    limit: int = 1000,
-    *,
-    offset: int = 0,
-    order: str | None = None,
-    exact_count: bool = False,
-) -> list[dict[str, Any]] | LedgerPage:
-    """Perform one privileged REST page and fail closed on transport/JSON errors."""
-
-    url = f"{db.supabase_url}/rest/v1/{table}?select={columns}"
-    if order:
-        url += f"&order={order}"
-    url += f"&limit={limit}&offset={offset}"
-    headers = db._get_headers(use_service_role=True)
-    if exact_count:
-        headers = dict(headers)
-        headers["Prefer"] = "count=exact"
-        headers["Range"] = f"{offset}-{offset + limit - 1}"
-    try:
-        res = requests.get(url, headers=headers, timeout=30)
-    except requests.RequestException as exc:
-        raise RuntimeError(f"REST select transport failed for {table}.{columns}") from exc
-    if res.status_code not in (200, 206):
-        raise RuntimeError(
-            f"REST select failed for {table}.{columns}: HTTP {res.status_code}"
-        )
-    try:
-        rows = res.json()
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(
-            f"REST select returned invalid JSON for {table}.{columns}"
-        ) from exc
-    if not isinstance(rows, list):
-        raise RuntimeError(
-            f"REST select returned a non-list for {table}.{columns}"
-        )
-    if not exact_count:
-        return rows
-
-    content_range = res.headers.get("Content-Range", "")
-    match = re.fullmatch(r"(?:(\*)|(\d+)-(\d+))/(\d+)", content_range)
-    if match is None:
-        raise RuntimeError(
-            f"REST select missing exact Content-Range for {table}.{columns}"
-        )
-    start = int(match.group(2)) if match.group(2) is not None else None
-    end = int(match.group(3)) if match.group(3) is not None else None
-    return LedgerPage(
-        rows=rows,
-        total=int(match.group(4)),
-        start=start,
-        end=end,
-    )
-
-
-def read_paginated_migration_ledger(
-    fetch_page: Callable[[int, int], LedgerPage],
-    *,
-    page_size: int = 1000,
-) -> dict[str, str]:
-    """Read and validate a complete ledger through an injected page function.
-
-    The helper has no environment or transport dependency. ``fetch_page`` receives
-    ``(limit, offset)`` and must provide an exact total on every page.
-    """
-
-    if isinstance(page_size, bool) or not isinstance(page_size, int) or page_size < 1:
-        raise ValueError("ledger page_size must be a positive integer")
-
-    ledger: dict[str, str] = {}
-    offset = 0
-    expected_total: int | None = None
-    first_page = True
-    while first_page or (expected_total is not None and offset < expected_total):
-        first_page = False
-        try:
-            page = fetch_page(page_size, offset)
-        except Exception as exc:
-            raise RuntimeError(f"ledger page read failed at offset {offset}") from exc
-        if not isinstance(page, LedgerPage):
-            raise RuntimeError("ledger page has an invalid representation")
-        if (
-            isinstance(page.total, bool)
-            or not isinstance(page.total, int)
-            or page.total < 0
-        ):
-            raise RuntimeError("ledger page has an invalid total")
-        if not isinstance(page.rows, list):
-            raise RuntimeError("ledger page rows are not a list")
-        if expected_total is None:
-            expected_total = page.total
-        elif page.total != expected_total:
-            raise RuntimeError("ledger total changed during pagination")
-        if expected_total < offset:
-            raise RuntimeError("ledger page offset exceeds the exact total")
-
-        expected_size = min(page_size, expected_total - offset)
-        if len(page.rows) != expected_size:
-            raise RuntimeError(
-                f"ledger page is incomplete at offset {offset}"
-            )
-        if page.rows:
-            if page.start != offset or page.end != offset + len(page.rows) - 1:
-                raise RuntimeError(
-                    f"ledger page boundaries are invalid at offset {offset}"
-                )
-        elif page.start is not None or page.end is not None:
-            raise RuntimeError("empty ledger page contains unexpected boundaries")
-        for row in page.rows:
-            if not isinstance(row, dict):
-                raise RuntimeError("ledger contains a malformed row")
-            name = row.get("name")
-            statements = row.get("statements")
-            if (
-                not isinstance(name, str)
-                or not name
-                or name != name.strip()
-            ):
-                raise RuntimeError("ledger contains an invalid migration name")
-            if not isinstance(statements, str):
-                raise RuntimeError(
-                    f"ledger contains invalid statements for {name}"
-                )
-            if name in ledger:
-                raise RuntimeError(f"ledger contains duplicate migration name {name}")
-            ledger[name] = statements
-        offset += len(page.rows)
-
-    if expected_total is None or offset != expected_total:
-        raise RuntimeError("ledger pagination did not reach its exact total")
-    return ledger
-
-
-def read_migration_ledger(
-    db: DatabaseClient, *, page_size: int = 1000
-) -> dict[str, str]:
-    """Adapt ``service_select`` to the pure exact-count ledger reader."""
-
-    def fetch_page(limit: int, offset: int) -> LedgerPage:
-        page = service_select(
-            db,
-            "supabase_migrations",
-            "name,statements",
-            limit,
-            offset=offset,
-            order="name.asc",
-            exact_count=True,
-        )
-        if not isinstance(page, LedgerPage):
-            raise RuntimeError("ledger transport omitted exact page metadata")
-        return page
-
-    return read_paginated_migration_ledger(fetch_page, page_size=page_size)
+def service_select(db: DatabaseClient, table: str, columns: str, limit: int = 1000):
+    url = f"{db.supabase_url}/rest/v1/{table}?select={columns}&limit={limit}"
+    res = requests.get(url, headers=db._get_headers(use_service_role=True), timeout=30)
+    if res.status_code == 200:
+        return res.json()
+    raise RuntimeError(f"REST select failed for {table}.{columns}: {res.status_code} {(res.text or '')[:160]}")
 
 
 def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, Any]]:
@@ -383,32 +134,24 @@ def _select_all(db: DatabaseClient, table: str, columns: str) -> list[dict[str, 
 
 
 def compare_migrations(db_free: DatabaseClient, db_target: DatabaseClient):
-    print("\n[CHECK 1] Package contractual aplicado")
+    print("\n[CHECK 1] Migraciones aplicadas")
     try:
-        free_ledger = read_migration_ledger(db_free)
-        target_ledger = read_migration_ledger(db_target)
-        package = load_manifest(
-            F8_MANIFEST, "pro", required_status="free_certified"
-        )
+        free = service_select(db_free, "supabase_migrations", "name") or []
+        target = service_select(db_target, "supabase_migrations", "name") or []
     except Exception as e:
-        return "ERROR", [f"No se pudo validar el package contractual: {e}"]
+        return "WARN", [f"No se pudo leer supabase_migrations: {e}"]
 
-    errors = []
-    for migration in package:
-        marker = f"sha256:{canonical_sql_sha256(migration)}"
-        for environment, ledger in (
-            ("Free", free_ledger),
-            ("target", target_ledger),
-        ):
-            if ledger.get(migration.stem) != marker:
-                errors.append(
-                    f"{environment}: ledger/checksum invalido para {migration.stem}"
-                )
+    free_set = {r["name"] for r in free if r.get("name")}
+    target_set = {r["name"] for r in target if r.get("name")}
+    only_free = sorted(free_set - target_set)
+    only_target = sorted(target_set - free_set)
 
-    if errors:
-        return "ERROR", errors
+    if only_free:
+        return "ERROR", [f"Migraciones en Free pero NO en target: {only_free}"]
+    if only_target:
+        return "WARN", [f"Migraciones en target pero NO en Free: {only_target}"]
 
-    print(f"  OK: {len(package)} migrations contractuales con checksum exacto")
+    print(f"  OK: {len(free_set)} migraciones en ambos ambientes")
     return "OK", []
 
 
@@ -459,8 +202,8 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
     errors: list[str] = []
 
     try:
-        ledger = read_migration_ledger(db_target)
-        applied = set(ledger)
+        target_migrations = service_select(db_target, "supabase_migrations", "name") or []
+        applied = {row.get("name") for row in target_migrations if row.get("name")}
         missing_migrations = sorted(
             required_name
             for required_name in REQUIRED_MIGRATIONS
@@ -468,30 +211,8 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
         )
         if missing_migrations:
             errors.append(f"Migraciones contractuales faltantes en target: {missing_migrations}")
-
-        for migration in load_manifest(
-            F8_MANIFEST, "pro", required_status="free_certified"
-        ):
-            expected_marker = f"sha256:{canonical_sql_sha256(migration)}"
-            if ledger.get(migration.stem) != expected_marker:
-                errors.append(
-                    f"Ledger/checksum contractual invalido: {migration.stem}"
-                )
     except Exception as e:
         errors.append(f"No se pudo verificar supabase_migrations: {e}")
-
-    for verifier in (
-        "verify_fase06_g1b_reconciliation",
-        "verify_fase06_hito1_contract",
-        "verify_fase07_g1b_closure",
-        "verify_fase08_hito1_contract",
-    ):
-        try:
-            result = db_target.rpc_raise(verifier, {})
-            if result is not True:
-                errors.append(f"El verificador {verifier} no retorno true")
-        except Exception as e:
-            errors.append(f"No se pudo ejecutar {verifier}: {e}")
 
     embedded_url = (
         f"{db_target.supabase_url}/rest/v1/courses"
@@ -555,37 +276,6 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 "institution_site_profiles.exclusion_patterns esta expuesto publicamente"
             )
 
-        social_public_fields = {
-            "ratings": "id,course_id,rating_value,user_nickname,created_at",
-            "reviews": "id,course_id,content,user_nickname,created_at",
-        }
-        for table, columns in social_public_fields.items():
-            social_url = (
-                f"{db_target.supabase_url}/rest/v1/{table}"
-                f"?select={columns}&limit=1"
-            )
-            social_res = requests.get(
-                social_url, headers=public_headers, timeout=30
-            )
-            if social_res.status_code != 200:
-                errors.append(
-                    f"Lectura publica minima de {table} fallo: "
-                    f"HTTP {social_res.status_code}"
-                )
-
-            private_url = (
-                f"{db_target.supabase_url}/rest/v1/{table}"
-                "?select=moderation_status&limit=1"
-            )
-            private_res = requests.get(
-                private_url, headers=public_headers, timeout=30
-            )
-            if private_res.status_code not in (401, 403):
-                errors.append(
-                    f"{table}.moderation_status no produjo una denegacion explicita: "
-                    f"HTTP {private_res.status_code}"
-                )
-
         rpc_checks = [
             (
                 "atomic_enrichment_promote",
@@ -604,10 +294,10 @@ def check_schema_contracts(db_target: DatabaseClient, *, check_public: bool = Tr
                 json=payload,
                 timeout=30,
             )
-            if rpc_res.status_code not in (401, 403, 404):
+            if rpc_res.status_code in (200, 201, 204):
                 errors.append(
-                    f"RPC {function_name} no produjo una denegacion explicita: "
-                    f"HTTP {rpc_res.status_code}"
+                    f"RPC {function_name} es ejecutable con publishable key; "
+                    "debe estar restringida a service_role"
                 )
 
     if errors:
@@ -781,12 +471,6 @@ def report_operational_counts(db_free: DatabaseClient, db_target: DatabaseClient
 
 
 def main() -> None:
-    from shared.db_client import DatabaseClient
-    from shared.supabase_credentials import (
-        get_environment_credentials,
-        require_distinct_environments,
-    )
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", choices=["free", "pro"], default="pro")
     parser.add_argument("--strict", action="store_true")

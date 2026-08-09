@@ -16,4 +16,4 @@ Los artifacts y resultados historicos F9.3 no se reescriben. Su existencia no ob
 
 La frase `Ejecuta las tareas pendientes de la Fase F9.4` solo cubrio la reconciliacion documental descrita por el estado y la tarea activos. No concede acceso Free/Pro, carga de secrets, DDL, DML, migrations, backfill, H-00, pausa de writers, workflows remotos ni operaciones productivas.
 
-El siguiente trabajo autorizable se obtiene exclusivamente de [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) y la [macrofase F9](./certificacion_hito1_f9.md). Esta nota es un tombstone historico y no una definicion ejecutable.
+El siguiente trabajo autorizable se obtiene exclusivamente de [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) y la macrofase F9. Esta nota es un tombstone historico y no una definicion ejecutable.

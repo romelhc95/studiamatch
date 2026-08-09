@@ -1,10 +1,15 @@
 # Matriz de adopcion DB
 
-Nota canonica para decisiones de adopcion Supabase desde F5. Separa ledger, postcondicion y fuente. El estado observado que la sustenta vive en el [snapshot canonico del sistema DB](../sistema_db_supabase.md); esta matriz no compite con ese snapshot.
+Estado: `HISTORICAL_MATRIX_SUPERSEDED_BY_F10_8`.
+
+Esta matriz se restaura solo como referencia historica anterior a la DDL Pro
+F10.8. No contiene esa aplicacion/verificacion y no decide adopcion vigente. La
+autoridad viva es [Estado del proyecto](../estado_del_proyecto.md) y la tarea
+activa enlazada.
 
 Enlaces canonicos: [Indice](../00_INDICE.md) | [Sistema DB](../sistema_db_supabase.md) | [Arquitectura pipeline](../arquitectura_pipeline.md) | [Estado del proyecto](../estado_del_proyecto.md) | [Tarea Hito 1](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./flujo_release_minimo.md)
 
-La adenda CA1-only aprobada no cambia ninguna adopcion DB. CA2 local se
+El contenido restante preserva el corte historico. La adenda CA1-only aprobada no cambia ninguna adopcion DB. CA2 local se
 clasifica como preparacion de Hito 2; Free y Pro conservan los estados
 observados de esta matriz. El release CA1-only debe probar diff DB vacio.
 F10.7 promovio tecnicamente a `main`, pero `DB Sync to Production` run
@@ -31,7 +36,7 @@ DDL/DML, verificacion de esquema ni postcondicion DB nueva.
 
 Las columnas de ledger y postcondicion son independientes. `ledger presente` no equivale a `postcondicion efectiva`, y `postcondicion efectiva` no equivale a `fuente disponible`.
 
-## Matriz canonica
+## Matriz Historica Pre-F10.8
 
 | Alcance | Ambiente | Ledger | Postcondicion | Fuente | Estado de adopcion | Decision F6 |
 |---|---|---|---|---|---|---|
@@ -42,7 +47,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 | Antecedente CA2 (`H1-CA2P`, `H1-CA7P`) | Pro | Sin evidencia de adopcion completa | Pendiente/divergente | Base F6-F8 aun no aplicada | `source_unavailable` | No promover en Hito 1; Hito 2 requiere package y evidencia nueva |
 | G1b promocionable | Free | Evidencia identificable | Efectiva; closure F7 no aplicado | Package F6/F7 forward-only | `ledger_applied` y `source_unavailable` | Certificar package en Free sin replay |
 | G1b promocionable | Pro | Sin evidencia de adopcion completa | Pendiente de reconciliacion | Package F6/F7, aun no aplicado | `source_unavailable` | Promover por postcondicion despues de Free |
-| H-00 P0 | Free | [Evidencia sanitizada F9.6](./cierre_h00_f9_6.md) | PII directa remediada; cohorte pseudonimizada | Operacion historica separada, no package contractual | `historical_free_only` | `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE sustituido, verificar acceso en F9.7 y nunca promover a Pro |
+| H-00 P0 | Free | Evidencia sanitizada F9.6 | PII directa remediada; cohorte pseudonimizada | Operacion historica separada, no package contractual | `historical_free_only` | `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE sustituido, verificar acceso en F9.7 y nunca promover a Pro |
 | H-00 P0 | Pro | Ausente | No aplicable | No aplicable | `historical_free_only` | Prohibicion mecanica obligatoria |
 | Efectos sin fuente canonica | Free/Pro | Sin atribucion inequivoca | Observados | Fuente activa no identificada | `observed_effective_unledgered` | Inventariar y versionar sin copiar filas |
 | Snapshots DB historicos | Git | No son ledger vigente | Contradicen el remoto actual | Disponibles pero obsoletos | `superseded` | Prohibido usarlos como baseline o replay |
@@ -56,7 +61,7 @@ Las columnas de ledger y postcondicion son independientes. `ledger presente` no 
 
 Los detalles tecnicos sensibles para operar esta reconciliacion permanecen en un artifact privado local excluido de Git. Esta matriz no publica identificadores de proyecto, endpoints, hashes, conteos, findings explotables ni URLs especificas de remediation.
 
-El candidate y sus exclusiones se describen en [Reconciliacion DB-as-Code F6](./reconciliacion_db_as_code_f6.md); su compatibilidad G1b se mapea en [Certificacion F7](./certificacion_g1b_f7.md).
+El candidate y sus exclusiones se describen en Reconciliacion DB-as-Code F6; su compatibilidad G1b se mapea en Certificacion F7.
 
 ## Cierre Contractual F9.5
 
@@ -68,15 +73,15 @@ CA1-only.
 
 ## Cierre F9.6 H-00
 
-La [verificacion sanitizada](./cierre_h00_f9_6.md) confirmo la cohorte con PII directa remediada y conservada como pseudonimizada. El data owner acepta el riesgo residual de UUID/metadatos en Free restringido. Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`; no hubo DML, backup valido, acceso Pro, schema, migrations, writers ni backfill. F9.7 debe verificar ausencia de lectura publica; F11 revaluara la retencion.
+La verificacion sanitizada confirmo la cohorte con PII directa remediada y conservada como pseudonimizada. El data owner acepta el riesgo residual de UUID/metadatos en Free restringido. Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`; no hubo DML, backup valido, acceso Pro, schema, migrations, writers ni backfill. F9.7 debe verificar ausencia de lectura publica; F11 revaluara la retencion.
 
 ## Gate B F9.7
 
-[EVID-F9.7-GATE-B-001](./gate_b_f9_7.md) observo en Free, sin leer filas, un boundary candidate vacio permitido y drift de acceso incompatible con el gate. El resultado es `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; no hubo HTTP posterior, aprobaciones operativas, writers, schema ni DML. Los detalles se conservan solo como evidencia reducida en la nota enlazada.
+EVID-F9.7-GATE-B-001 observo en Free, sin leer filas, un boundary candidate vacio permitido y drift de acceso incompatible con el gate. El resultado es `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; no hubo HTTP posterior, aprobaciones operativas, writers, schema ni DML. Los detalles se conservan solo como evidencia reducida en la nota enlazada.
 
-La [atestacion de origen ACL](./atestacion_origen_acl_f9_7.md) observo `package_source_coverage=complete` sin fuentes heredadas/SET/owner/unknown, pero no cambia la adopcion: la closure sigue sin aplicar, su mismatch y el trigger mantienen fail-closed, y los predicates no atestados bloquean aplicacion independientemente. Los runbooks permanecen sin aprobar y no ejecutan operaciones.
+La atestacion de origen ACL observo `package_source_coverage=complete` sin fuentes heredadas/SET/owner/unknown, pero no cambia la adopcion: la closure sigue sin aplicar, su mismatch y el trigger mantienen fail-closed, y los predicates no atestados bloquean aplicacion independientemente. Los runbooks permanecen sin aprobar y no ejecutan operaciones.
 
-La [remediacion local del trigger](./remediacion_trigger_f9_7.md) reemplaza el draft suplementario no confirmado por el candidate v3 local PR-ready de seis entradas. V2 queda historico no promocionable. La nueva entrada retira fail-closed la ruta de egress y conserva rollback/ledger atomicos, el Edge Function historico queda tombstoneado en Git, y el [drenaje pg_net](./pg_net_queue_drain_f9_7.md) queda counts-only y no ejecutado. Nada observa ni cambia la adopcion remota.
+La remediacion local del trigger reemplaza el draft suplementario no confirmado por el candidate v3 local PR-ready de seis entradas. V2 queda historico no promocionable. La nueva entrada retira fail-closed la ruta de egress y conserva rollback/ledger atomicos, el Edge Function historico queda tombstoneado en Git, y el drenaje pg_net queda counts-only y no ejecutado. Nada observa ni cambia la adopcion remota.
 
 [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) define un corte local posterior: public lead capture `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, security hold `LOCAL_CANDIDATE_BLOCKED`, Free/Pro `UNCHANGED_NOT_ATTESTED`. Esta matriz registra adopcion, no capacidad operativa.
 

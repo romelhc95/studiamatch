@@ -150,7 +150,16 @@ class EnrichmentWorker:
         try:
             filters = "status=eq.pending"
             if institution_id:
+                if str(institution_id) not in self.ready_inst_ids:
+                    logger.warning(f"Institution {institution_id} is not pipeline-enabled for enrichment.")
+                    return []
                 filters = f"{filters}&institution_id=eq.{quote(str(institution_id), safe='')}"
+            else:
+                if not self.ready_inst_ids:
+                    logger.warning("No pipeline-enabled institutions available for enrichment.")
+                    return []
+                ready_ids = ",".join(quote(str(inst_id), safe='') for inst_id in sorted(self.ready_inst_ids))
+                filters = f"{filters}&institution_id=in.({ready_ids})"
             res = self.db.select_pipeline_raise('cleansed_programs', filters=filters, limit=limit, order="id.asc")
             if res and len(res) > 0:
                 return res
@@ -1074,9 +1083,6 @@ if __name__ == "__main__":
                     inst_id = r.get('institution_id')
                     if inst_id and str(inst_id) not in worker.ready_inst_ids:
                         logger.warning(f"⏭️ SKIP {r.get('clean_name', '?')}: institution {inst_id} pipeline_gate=false")
-                        metadata = dict(r.get('metadata') or {})
-                        metadata['skip_reason'] = 'pipeline_gate=false'
-                        worker.db.patch_raise('cleansed_programs', filters=f"id=eq.{rid}", data={'status': 'skipped', 'metadata': metadata})
                         continue
                     # Fase 77: Early-exit dinámico
                     if not getattr(worker, '_mock_only', False) and worker.orchestrator._all_degraded():

@@ -12,7 +12,7 @@
 - Decision humana: conservar F8, no restaurar F7 y simplificar F9.
 - Fecha de decision: 2026-07-26.
 - Alcance de esta nota: contractual y documental; no autoriza codigo, red, DDL, DML, secrets, migrations, backfill ni release.
-- Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 y el follow-up post-PR #262 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la [macrofase F9](./certificacion_hito1_f9.md) y el [flujo de release](./flujo_release_minimo.md).
+- Entrada en vigor: adoptado en F9.4 y reconciliado por los cierres documentales F9.5/F9.6 y el follow-up post-PR #262 en [Estado del proyecto](../estado_del_proyecto.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), la macrofase F9 y el [flujo de release](./flujo_release_minimo.md).
 
 La definicion staged [Preflight Free F9.4](./preflight_free_f9_4.md) queda `SUPERSEDED_NON_AUTHORIZABLE`. F9.5 queda cerrada `COMPLETED_WITH_KNOWN_FINDINGS`. F9.6 queda cerrada `H00_ALREADY_REMEDIATED_NO_DML`; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE`. F9.7 queda cerrada por rebaseline contractual y el PR-O sucesor certificado localmente queda `SUPERSEDED_FOR_HITO_1`.
 
@@ -35,7 +35,7 @@ Decision: conservar F8 y las correcciones posteriores validas, no restaurar F7 y
 
 - Baseline: conservar F8 y las correcciones posteriores validas.
 - Fecha contractual: 2026-07-27 a las 09:00 PET.
-- H-00: P0 Free-only historico de la ruta sustituida; ya no es prerrequisito del cierre Hito 1 CA1-only. [F9.6](./cierre_h00_f9_6.md) verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
+- H-00: P0 Free-only historico de la ruta sustituida; ya no es prerrequisito del cierre Hito 1 CA1-only. F9.6 verifico la cohorte con PII directa remediada, conservada como pseudonimizada, y cerro sin DML; el data owner acepta el riesgo residual de vinculabilidad en Free.
 - Plan temporal: retirar `TEMP_PLAN_RECONSTRUCCION_MAIN_HITO1.md` durante F9.4, despues de reconciliar en el vault toda informacion vigente y bajo autorizacion exacta.
 - Alcance historico pre-adenda: `H1-CA1`, `H1-CA2P` y `H1-CA7P`. Alcance vigente Hito 1: `H1-CA1` solamente; `H1-CA2P` pasa a `H2-CA2` y `H1-CA7P` pasa a `H4-CA7`.
 - Corte leads/email: [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) mantiene el producto publico y difiere la arquitectura integral de leads/email sin crear criterios nuevos.
@@ -70,7 +70,7 @@ vigente queda en [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md) y en el
 | `F9.4` | Reconciliacion contractual local | Simplificar F9, retirar el diseno bloqueado, consolidar CA y eliminar el plan temporal |
 | `F9.5` | Cierre contractual/documental | `COMPLETED_WITH_KNOWN_FINDINGS`; PR #245/#247 y sus artifacts son `HISTORICAL_NON_PROMOTABLE`, sin nueva lectura Free ni package aplicable |
 | `F9.6` | P0 H-00 Free-only | `H00_ALREADY_REMEDIATED_NO_DML`; PII directa historicamente remediada y cohorte pseudonimizada, Gate B DELETE sustituido y Pro prohibido |
-| `F9.7` | Schema/RLS Free y corte local leads/email | [WP-F9.7-01..06](./cierre_definitivo_f9_7.md) cierran el candidate local; v3 byte-identico retira trigger; hold objetivo niega todos los roles de aplicacion; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
+| `F9.7` | Schema/RLS Free y corte local leads/email | WP-F9.7-01..06 cierran el candidate local; v3 byte-identico retira trigger; hold objetivo niega todos los roles de aplicacion; snapshot remoto, resguardo/restore, pausa y aplicacion conservan gates separados; sin H-00 ni backfill |
 | `F9.8` | Aprobar backfill editorial | Dependencia `H1-CA2P` para evitar catalogo invisible: cohorte, predicado, conteos, idempotencia y rollback |
 | `F9.9` | Ejecutar backfill Free | Dependencia `H1-CA2P` separada: aplicacion, segunda ejecucion en cero y smoke FG2/FG3 |
 | `F9.10` | Certificacion Free | QA, RLS por rol, PostgREST, canary, cleanup, `USER_PERSONAL_UAT` sobre candidate commit/tree inmutable y solo despues T04/PR `desarrollo -> certificacion` |
@@ -109,7 +109,7 @@ certificacion final y F10 Production.
 2. Conservar F9.5 y sus artifacts como historia `HISTORICAL_NON_PROMOTABLE`, sin repetir la lectura Free ni crear un package sucesor.
 3. Conservar `T01_CONDITIONAL_ACCEPTED` como antecedente documental de F9.6; no habilita schema ni nuevas operaciones.
 4. Registrar F9.6 `H00_ALREADY_REMEDIATED_NO_DML`: PII directa remediada en la cohorte pseudonimizada, Gate B DELETE sustituido, cero DML y Pro sin acceso.
-5. En F9.7, cerrar primero [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md); despues, bajo autorizacion propia, resolver resguardo/restore, pausa de writers, acceso cero de roles de aplicacion a `leads`/`email_log` y comportamiento semantico RLS antes de aplicar schema/T02.
+5. En F9.7, cerrar primero PLAN-F9.7-CIERRE-001; despues, bajo autorizacion propia, resolver resguardo/restore, pausa de writers, acceso cero de roles de aplicacion a `leads`/`email_log` y comportamiento semantico RLS antes de aplicar schema/T02.
 6. En la ruta historica, aprobar y ejecutar el backfill editorial de `H1-CA2P` como operacion DML separada e idempotente para evitar catalogo invisible; tras la adenda queda trasladado a `H2-CA2`.
 7. Validar RLS por rol, PostgREST, FG2/FG3, canary, cleanup y QA independiente en Free.
 8. Cumplir `USER_PERSONAL_UAT=PASS` del usuario sobre candidate commit/tree inmutable despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10.
@@ -140,7 +140,7 @@ No se debe afirmar ni garantizar cumplimiento sin evidencia de todos los gates. 
 1. El mapeo coincide con [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md), [HITO-001](../hitos/hito_001.md) y [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
 2. Estado, tarea, macrofase F9, release minimo, matriz DB, indice y changelog quedan reconciliados sin trabajo operativo.
 3. La definicion staged F9.4 y el registro F9.5 quedan historicos y no autorizables; PR #245/#247 quedan `HISTORICAL_NON_PROMOTABLE`.
-4. La informacion vigente del plan temporal queda preservada en [Preservacion F9.4](./preservacion_plan_temporal_f9_4.md) antes de retirarlo.
+4. La informacion vigente del plan temporal queda preservada en Preservacion F9.4 antes de retirarlo.
 5. La adopcion se completa solo con Context Graph, auditorias, CI, aprobacion humana y merge del PR exclusivamente documental.
 
 El prompt historico que solicito Gate B pre-DDL/read-only de F9.7 despues del merge y validacion post-merge del candidate local fue:
@@ -153,9 +153,9 @@ Alcance exclusivo: ejecutar el Gate B pre-DDL y read-only de F9.7 unicamente en 
 No autoriza Pro, DDL, DML, schema, migrations, pausa/reanudacion de writers, H-00, backfill, F9.8, ramas de certificacion/main ni produccion.
 ```
 
-La autorizacion fue recibida y consumida por [EVID-F9.7-GATE-B-001](./gate_b_f9_7.md). Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
+La autorizacion fue recibida y consumida por EVID-F9.7-GATE-B-001. Gate B termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`; este prompt queda como evidencia historica y no puede reutilizarse para una nueva lectura o remediacion.
 
-La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. La [atestacion ACL posterior](./atestacion_origen_acl_f9_7.md) observo unicamente fuentes reparables por el package; el mismatch de closure y el trigger mantienen fail-closed, mientras predicates no atestados bloquean aplicacion independientemente. [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local y no autoriza repetir lecturas ni aplicar schema.
+La definicion de remediacion congela package, allowlist logica, rollback, postcondiciones y runbooks sin capacidad remota. La atestacion ACL posterior observo unicamente fuentes reparables por el package; el mismatch de closure y el trigger mantienen fail-closed, mientras predicates no atestados bloquean aplicacion independientemente. [PLAN-H1-CORTE-SFE-001](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local y no autoriza repetir lecturas ni aplicar schema.
 
 ## Referencias
 
@@ -164,6 +164,6 @@ La [definicion de remediacion](./remediacion_gate_b_f9_7.md) congela package, al
 - [REQ-EST-001](../backlog_tareas/req_est_001_sprint_1/_index.md)
 - [HITO-001](../hitos/hito_001.md)
 - [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
-- [Certificacion local F8](./certificacion_hito1_f8.md)
-- [Macrofase F9 vigente](./certificacion_hito1_f9.md)
+- Certificacion local F8
+- Macrofase F9 vigente
 - [Flujo de release minimo](./flujo_release_minimo.md)

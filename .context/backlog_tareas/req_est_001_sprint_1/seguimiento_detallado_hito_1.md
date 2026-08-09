@@ -28,7 +28,7 @@ Las fechas registran el compromiso original. No prueban cumplimiento ni sustituy
 - [EST-001](../../estimaciones/est_001.md), Paquete 1.
 - Backlog historico preservado fuera del workspace actual.
 - [Plan simplificado](../../operaciones/plan_simplificado_hito1.md).
-- [Macrofase F9](../../operaciones/certificacion_hito1_f9.md).
+- Macrofase F9.
 - [Plan de corte seguridad/funcionalidad/estabilidad](../../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md).
 - [Matriz de adopcion DB](../../operaciones/matriz_adopcion_db.md).
 - [PR-O F9.7 executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md), definido pero todavia no implementado tras PR #262.
@@ -77,7 +77,7 @@ Los identificadores `CHK-H1-*` son referencias de verificacion, no criterios de 
 | `TR-H1-06` | Patrocinio y leads base; captura publica y email quedan diferidos por ADR-0005 | `H1-CA2P`                    | Package F6-F8 y [BK-F9.5-05](backlog_seguridad_leads_email.md) | F6-F8/F9.7       |
 | `TR-H1-07` | RLS, RPC y ACL                                                                 | `H1-CA2P`                    | TASK-H1-001 y matriz DB                                        | F9.7/F9.10       |
 | `TR-H1-08` | Contrato para hitos siguientes                                                 | `H1-CA7P`                    | Context Graph                                                  | F11              |
-| `TR-H1-09` | H-00 Free-only                                                                 | `P0_PRIVACY`, no CA          | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md)       | F9.6             |
+| `TR-H1-09` | H-00 Free-only                                                                 | `P0_PRIVACY`, no CA          | Cierre H-00 F9.6       | F9.6             |
 | `TR-H1-10` | Identidad backend de servicio                                                  | Dependencia `H1-CA1/H1-CA2P` | TASK-H1-001                                                    | F9.7             |
 | `TR-H1-11` | Schema/RLS contractual en Free                                                 | `H1-CA2P`                    | TASK-H1-001 y matriz DB                                        | F9.7             |
 | `TR-H1-12` | Candidate local CA1-only                                                       | `H1-CA1`                     | Macrofase F9                                                   | F9.8             |
@@ -89,7 +89,7 @@ Los identificadores `CHK-H1-*` son referencias de verificacion, no criterios de 
 
 ## Referencia De Cierre H-00
 
-F9.6 cerro como `H00_ALREADY_REMEDIATED_NO_DML`: [EVID-F9.6-H00-001](../../operaciones/cierre_h00_f9_6.md) registra la cohorte con PII directa remediada, conservada como pseudonimizada, Gate B DELETE sustituido y riesgo residual aceptado por el data owner en Free. Esta vista no conserva la evidencia privada y no autoriza F9.7.
+F9.6 cerro como `H00_ALREADY_REMEDIATED_NO_DML`: EVID-F9.6-H00-001 registra la cohorte con PII directa remediada, conservada como pseudonimizada, Gate B DELETE sustituido y riesgo residual aceptado por el data owner en Free. Esta vista no conserva la evidencia privada y no autoriza F9.7.
 
 ## Correspondencia Con El Backlog Historico
 
@@ -116,8 +116,8 @@ Los checks historicos no se heredan como evidencia vigente. Cada estado anterior
 | Fase | Proposito asociado al Hito | Fuente autorizada |
 |---|---|---|
 | F6-F8 | Base funcional contractual local | Notas operativas F6-F8 y Git |
-| F9.1-F9.5 | Historia y cierre contractual/documental | [Macrofase F9](../../operaciones/certificacion_hito1_f9.md) y TASK-H1-001 |
-| F9.6 | H-00 Free-only | [Cierre H-00 F9.6](../../operaciones/cierre_h00_f9_6.md) |
+| F9.1-F9.5 | Historia y cierre contractual/documental | Macrofase F9 y TASK-H1-001 |
+| F9.6 | H-00 Free-only | Cierre H-00 F9.6 |
 | F9.7-F9.10 | Rebaseline, candidate local CA1-only, Certification/QA, UAT y readiness | Macrofase F9 y [Estado](../../estado_del_proyecto.md) |
 | F10 | Pro y produccion | Estado y flujo de release |
 | F11 | Cierre contractual | Estado y TASK-H1-001 |
@@ -143,7 +143,7 @@ No se incluyen artifacts privados, project refs, endpoints, PII, filas, credenti
 - H-00 es un P0 de privacidad separado; no agrega un CA.
 - H-00 cerro en F9.6 sin DML; Gate B DELETE es `SUPERSEDED_NON_AUTHORIZABLE` y F9.7 conserva autorizacion separada.
 - Los artifacts PR #245/#247 son `HISTORICAL_NON_PROMOTABLE`.
-- El corte F9.7 deja v3 byte-identico como predecessor; el hold actual queda `SUPERSEDED_NON_PROMOTABLE` y la ruta futura exige PR-O sucesor con executor privado. [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md) organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
+- El corte F9.7 deja v3 byte-identico como predecessor; el hold actual queda `SUPERSEDED_NON_PROMOTABLE` y la ruta futura exige PR-O sucesor con executor privado. PLAN-F9.7-CIERRE-001 organiza seis work packages internos con acceso cero de roles de aplicacion; captura publica `LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`, email egress `LOCAL_TOMBSTONE_REMOTE_UNKNOWN`, T02 `NOT_EXECUTED`, backup `PLANNED`, writers `INVENTORIED` y Free/Pro `UNCHANGED_NOT_ATTESTED`.
 - PR #262 quedo mergeado en `desarrollo@c0b6c5efaaaca25f7946e114cc53f63f3a5daa66` / tree `3e5537f01ebf4bec94ada99b274415fc13a2f039`; el PR-O sucesor fue certificado localmente despues, pero queda `SUPERSEDED_FOR_HITO_1` por la rebaseline CA1-only. Free/Pro siguen `UNCHANGED_NOT_ATTESTED`.
 - Free es el ambiente DB de desarrollo/certificacion del contrato; `certificacion` como rama/release permanece bloqueada.
 - `USER_PERSONAL_UAT` es hold operativo F9.10 de tracking, no criterio, subtarea, subfase ni transicion. Debe ocurrir despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario.

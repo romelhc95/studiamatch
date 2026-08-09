@@ -15,35 +15,6 @@ STOPWORDS = {
     "por", "nivel", "basico", "básico", "avanzado", "online", "virtual",
 }
 
-PUBLIC_COURSE_FILTERS = (
-    "is_active=eq.true&is_verified=eq.true&publication_status=eq.publicado"
-)
-
-
-def _load_public_visible_courses(database):
-    profiles = database.select_all_service(
-        "institution_site_profiles",
-        filters="production_enabled=eq.true",
-        columns="institution_id",
-        batch_size=1000,
-    )
-    production_institution_ids = {
-        str(profile.get("institution_id"))
-        for profile in profiles
-        if profile.get("institution_id")
-    }
-    courses = database.select_all_service(
-        "courses",
-        filters=PUBLIC_COURSE_FILTERS,
-        columns="id,name,institution_id,category_confirmed",
-        batch_size=1000,
-    )
-    return [
-        course
-        for course in courses
-        if str(course.get("institution_id")) in production_institution_ids
-    ]
-
 
 def tokenize(text):
     return [
@@ -55,7 +26,13 @@ def tokenize(text):
 
 def audit():
     db = get_db_client()
-    courses = _load_public_visible_courses(db)
+    filters = "is_active=eq.true&is_verified=eq.true"
+    courses = db.select_all(
+        "courses",
+        filters=filters,
+        columns="id,name,category_confirmed",
+        batch_size=1000,
+    )
     total = len(courses)
     uncategorized = [course for course in courses if course.get("category_confirmed") is not True]
     categorized = total - len(uncategorized)
@@ -68,9 +45,7 @@ def audit():
         for course in uncategorized[:20]:
             print(f"  - {course.get('name')}")
 
-        known_rules = db.select_all_service(
-            "category_rules", columns="keyword", batch_size=1000
-        )
+        known_rules = db.select_all("category_rules", columns="keyword", batch_size=1000)
         known_keywords = {str(row.get("keyword", "")).lower() for row in known_rules}
         token_counts = Counter(
             token

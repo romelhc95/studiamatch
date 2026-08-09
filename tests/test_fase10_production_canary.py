@@ -22,12 +22,23 @@ def source(relative: str) -> str:
 
 
 class FakeProductionCanaryDB:
-    def __init__(self, tables: dict[str, list[dict[str, object]]], *, patch_fails: bool = False):
+    def __init__(
+        self,
+        tables: dict[str, list[dict[str, object]]],
+        *,
+        patch_fails: bool = False,
+        max_response_bytes: int | None = None,
+    ):
         self.tables = {
             table: [dict(row) for row in rows]
             for table, rows in tables.items()
         }
         self.patch_fails = patch_fails
+        self.max_response_bytes = max_response_bytes
+        self.max_observed_response_bytes = 0
+        self.select_all_calls: list[dict[str, object]] = []
+        self.delete_calls: list[dict[str, object]] = []
+        self.patch_calls: list[dict[str, object]] = []
 
     def _matches(self, row: dict[str, object], filters: str | None) -> bool:
         if not filters:
@@ -41,7 +52,8 @@ class FakeProductionCanaryDB:
                     return False
             elif "=neq." in clause:
                 column, value = clause.split("=neq.", 1)
-                if str(row.get(column)) == unquote(value):
+                current = row.get(column)
+                if current is None or str(current) == unquote(value):
                     return False
             elif clause.endswith("=is.null"):
                 column = clause.removesuffix("=is.null")
@@ -65,11 +77,38 @@ class FakeProductionCanaryDB:
     def select_pipeline_raise(self, table: str, filters: str | None = None, **_kwargs) -> list[dict[str, object]]:
         return self._select(table, filters)
 
-    def select_all_service(self, table: str, filters: str | None = None, **_kwargs) -> list[dict[str, object]]:
-        return self._select(table, filters)
+    def _select_all(self, identity: str, table: str, filters: str | None = None, **kwargs) -> list[dict[str, object]]:
+        batch_size = int(kwargs.get("batch_size", 1000))
+        columns = kwargs.get("columns", "*")
+        order = kwargs.get("order")
+        if batch_size < 1:
+            raise AssertionError("batch_size must be positive")
+        self.select_all_calls.append(
+            {
+                "identity": identity,
+                "table": table,
+                "filters": filters,
+                "batch_size": batch_size,
+                "columns": columns,
+                "order": order,
+            }
+        )
+        rows = self._select(table, filters)
+        accumulated: list[dict[str, object]] = []
+        for offset in range(0, len(rows), batch_size):
+            page = rows[offset:offset + batch_size]
+            response_bytes = len(json.dumps(page).encode("utf-8"))
+            self.max_observed_response_bytes = max(self.max_observed_response_bytes, response_bytes)
+            if self.max_response_bytes is not None and response_bytes > self.max_response_bytes:
+                raise RuntimeError("synthetic truncated JSON response")
+            accumulated.extend(dict(row) for row in page)
+        return accumulated
 
-    def select_all_pipeline(self, table: str, filters: str | None = None, **_kwargs) -> list[dict[str, object]]:
-        return self._select(table, filters)
+    def select_all_service(self, table: str, filters: str | None = None, **kwargs) -> list[dict[str, object]]:
+        return self._select_all("service", table, filters, **kwargs)
+
+    def select_all_pipeline(self, table: str, filters: str | None = None, **kwargs) -> list[dict[str, object]]:
+        return self._select_all("pipeline", table, filters, **kwargs)
 
     def count_service_raise(self, table: str, filters: str | None = None) -> int:
         return len(self._select(table, filters))
@@ -78,11 +117,13 @@ class FakeProductionCanaryDB:
         return len(self._select(table, filters))
 
     def delete(self, table: str, filters: str) -> list[dict[str, object]]:
+        self.delete_calls.append({"table": table, "filters": filters})
         deleted = [row for row in self.tables[table] if self._matches(row, filters)]
         self.tables[table] = [row for row in self.tables[table] if not self._matches(row, filters)]
         return deleted
 
     def patch_exact_one_raise(self, table: str, filters: str, data: dict[str, object], expected_id: object) -> None:
+        self.patch_calls.append({"table": table, "filters": filters, "data": data, "expected_id": expected_id})
         if self.patch_fails:
             raise RuntimeError("synthetic patch failure")
         matches = [row for row in self.tables[table] if self._matches(row, filters)]
@@ -226,13 +267,18 @@ def test_production_canary_requires_target_allowlist_and_mutable_authorization()
 
     assert "F10_PRODUCTION_CANARY_SUPABASE_HOST: ${{ secrets.F10_PRODUCTION_CANARY_SUPABASE_HOST }}" in workflow
     assert "F10_PRODUCTION_CANARY_INSTITUTION_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_INSTITUTION_SLUG }}" in workflow
+    assert "F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG: ${{ secrets.F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG }}" in workflow
     assert "vars.F10_PRODUCTION_CANARY_SUPABASE_HOST" not in workflow
     assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow
     assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow
     assert "Invalid Production Supabase host allowlist" in workflow
     assert "Production Supabase target does not match allowlist" in workflow
     assert "::add-mask::$canary_secret_slug" in workflow
+    assert "::add-mask::$canary_fg1_source_slug" in workflow
     assert "::add-mask::$canary_secret_host" in workflow
+    assert "Invalid canary FG1 source secret" in workflow
+    assert "CANARY_FG1_SOURCE_SLUG=$canary_fg1_source_slug" in workflow
+    assert "CANARY_FG1_SOURCE_SLUG=$canary_secret_slug" not in workflow
     assert "mutable_stages:" in workflow
     assert "default: fg2_fg3" in workflow
     assert "Invalid mutable_stages value" in workflow
@@ -342,6 +388,7 @@ def test_production_canary_avoids_input_shell_injection_with_secrets() -> None:
     assert "Limit out of allowed canary range 1..50: $value" not in workflow
     assert "Invalid mutable_stages value: $INPUT_MUTABLE_STAGES" not in workflow
     assert workflow.index("Invalid canary cohort secret") < workflow.index("::add-mask::$canary_secret_slug")
+    assert workflow.index("Invalid canary FG1 source secret") < workflow.index("::add-mask::$canary_fg1_source_slug")
 
 
 def test_production_canary_manifests_are_sanitized() -> None:
@@ -685,11 +732,96 @@ def test_production_canary_snapshot_restore_and_second_noop_are_offline_and_sani
     fake.tables["courses"][0]["provider_used"] = "changed|f10-production-canary:run-1"
 
     production_canary_state.restore_snapshot(_restore_args(tmp_path))
+    fake.delete_calls.clear()
+    fake.patch_calls.clear()
     production_canary_state.restore_snapshot(_restore_args(tmp_path, expect_noop=True))
 
     assert [row["id"] for row in fake.tables["staging_raw"]] == ["stage-1", "stage-2"]
     assert fake.tables["courses"][0]["provider_used"] == "baseline"
+    assert fake.delete_calls == []
+    assert fake.patch_calls == []
     noop_summary = json.loads((tmp_path / "artifacts" / "restore_noop.json").read_text(encoding="utf-8"))
+    assert noop_summary["expect_noop"] is True
+    assert noop_summary["after_matches_snapshot"] is True
+    assert noop_summary["non_cohort_attestations_match"] is True
+    assert "digest" not in json.dumps(noop_summary)
+
+
+def test_production_canary_non_cohort_attestation_uses_bounded_full_row_pages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    fake = FakeProductionCanaryDB(_fake_tables())
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    production_canary_state.restore_snapshot(_restore_args(tmp_path))
+    production_canary_state.restore_snapshot(_restore_args(tmp_path, expect_noop=True))
+
+    non_cohort_calls = [
+        call
+        for call in fake.select_all_calls
+        if "=neq." in str(call["filters"]) or str(call["filters"]).endswith("=is.null")
+    ]
+    assert non_cohort_calls
+    assert {call["batch_size"] for call in non_cohort_calls} == {
+        production_canary_state.NON_COHORT_ATTESTATION_BATCH_SIZE
+    }
+    assert all(call["columns"] == "*" for call in non_cohort_calls)
+    assert all(call["order"] == "id.asc" for call in non_cohort_calls)
+    assert any("=neq." in str(call["filters"]) for call in non_cohort_calls)
+    assert any(str(call["filters"]).endswith("=is.null") for call in non_cohort_calls)
+
+
+def test_production_canary_non_cohort_groups_follow_postgrest_null_semantics() -> None:
+    tables = _fake_tables()
+    tables["staging_raw"].append(
+        {
+            "id": "stage-null",
+            "institution_id": None,
+            "status": "pending",
+            "metadata": {"stable": True},
+        }
+    )
+    fake = FakeProductionCanaryDB(tables)
+
+    groups = production_canary_state._select_non_cohort_groups(fake, "staging_raw", "inst-1")
+
+    assert {row["id"] for row in groups["not_institution"]} == {"stage-2"}
+    assert {row["id"] for row in groups["null_institution"]} == {"stage-null"}
+
+
+def test_production_canary_restore_noop_handles_large_non_cohort_payloads_with_bounded_pages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    tables = _fake_tables()
+    large_payload = "x" * 70_000
+    large_rows = []
+    for index in range(120):
+        row = {
+            "id": f"stage-large-{index:03d}",
+            "institution_id": "inst-2",
+            "status": "pending",
+            "raw_html": large_payload,
+            "metadata": {"stable": True, "index": index},
+        }
+        large_rows.append(row)
+        tables["staging_raw"].append(row)
+    assert len(json.dumps(large_rows).encode("utf-8")) > 8_000_000
+    fake = FakeProductionCanaryDB(tables, max_response_bytes=8_000_000)
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    production_canary_state.restore_snapshot(_restore_args(tmp_path))
+    fake.delete_calls.clear()
+    fake.patch_calls.clear()
+    production_canary_state.restore_snapshot(_restore_args(tmp_path, expect_noop=True))
+
+    noop_summary = json.loads((tmp_path / "artifacts" / "restore_noop.json").read_text(encoding="utf-8"))
+    assert fake.max_observed_response_bytes < 8_000_000
+    assert fake.delete_calls == []
+    assert fake.patch_calls == []
     assert noop_summary["expect_noop"] is True
     assert noop_summary["after_matches_snapshot"] is True
     assert noop_summary["non_cohort_attestations_match"] is True
@@ -704,6 +836,33 @@ def test_production_canary_restore_detects_non_cohort_content_mutation_with_same
     monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
     production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
     fake.tables["staging_raw"][1]["status"] = "same-count-drift"
+
+    with pytest.raises(RuntimeError, match="Non-cohort row content changed"):
+        production_canary_state.restore_snapshot(_restore_args(tmp_path))
+
+
+def test_production_canary_restore_detects_non_cohort_drift_after_first_bounded_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_production_canary_env(monkeypatch)
+    tables = _fake_tables()
+    for index in range(25):
+        tables["staging_raw"].append(
+            {
+                "id": f"stage-page-{index:03d}",
+                "institution_id": "inst-2",
+                "status": "pending",
+                "raw_html": f"stable-{index}",
+                "metadata": {"stable": True, "index": index},
+            }
+        )
+    fake = FakeProductionCanaryDB(tables)
+    monkeypatch.setattr(production_canary_state, "get_" + "db_client", lambda: fake)
+    production_canary_state.capture_snapshot(_snapshot_args(tmp_path))
+    for row in fake.tables["staging_raw"]:
+        if row["id"] == "stage-page-020":
+            row["raw_html"] = "same-count-drift"
+            break
 
     with pytest.raises(RuntimeError, match="Non-cohort row content changed"):
         production_canary_state.restore_snapshot(_restore_args(tmp_path))

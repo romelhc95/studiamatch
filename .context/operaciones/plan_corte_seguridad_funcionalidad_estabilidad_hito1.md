@@ -17,7 +17,7 @@ Crear un corte local de seguridad, funcionalidad y estabilidad que retire la cap
 
 ## Decisiones Humanas Fijadas
 
-Antes de la adenda, Hito 1 conservaba tres criterios, producto publico, harvester completo y ruta a produccion. El alcance vigente de Hito 1 es CA1-only; leads/email quedan diferidos y solo pueden reactivarse con nuevo ciclo formal. Los roles `anon`, `authenticated`, `authenticator` y `service_role` quedaron sin acceso a `leads`/`email_log` en el package local historico; las filas legacy se preservan bajo autoridad owner. El cierre se organizo mediante el [plan definitivo de work packages](./cierre_definitivo_f9_7.md), sin crear subfases ni subtareas.
+Antes de la adenda, Hito 1 conservaba tres criterios, producto publico, harvester completo y ruta a produccion. El alcance vigente de Hito 1 es CA1-only; leads/email quedan diferidos y solo pueden reactivarse con nuevo ciclo formal. Los roles `anon`, `authenticated`, `authenticator` y `service_role` quedaron sin acceso a `leads`/`email_log` en el package local historico; las filas legacy se preservan bajo autoridad owner. El cierre se organizo mediante el plan definitivo de work packages, sin crear subfases ni subtareas.
 
 ## Semantica De Estados
 
@@ -79,11 +79,11 @@ Merge humano del corte, replay local post-merge, definicion local de PR-O v1, su
 
 ## Plan De Cierre Definitivo
 
-[PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md) divide el trabajo en `WP-F9.7-01` a `WP-F9.7-06`: gobierno, DB, frontend, release gates, candidate inmutable y auditoria/PR. Cada WP tiene alcance, owner de archivos, matriz enfocada, checkpoint y GO propio. Solo el ultimo WP puede producir `GO_FOR_LOCAL_PR`; los gates Free permanecen separados.
+PLAN-F9.7-CIERRE-001 divide el trabajo en `WP-F9.7-01` a `WP-F9.7-06`: gobierno, DB, frontend, release gates, candidate inmutable y auditoria/PR. Cada WP tiene alcance, owner de archivos, matriz enfocada, checkpoint y GO propio. Solo el ultimo WP puede producir `GO_FOR_LOCAL_PR`; los gates Free permanecen separados.
 
 ## Evidencia De Salida
 
-La salida del corte exige validaciones Docker, PostgreSQL 17, frontend publico, Context Graph, actionlint, EOL, hashes v3, diff cero de protected paths, secret scan y auditorias `GO_FOR_LOCAL_PR` sobre un mismo tree. Los auditores aplican los invariantes y la clasificacion congelados en [PLAN-F9.7-CIERRE-001](./cierre_definitivo_f9_7.md); remote unknown y limites aceptados no amplian por si solos el alcance local.
+La salida del corte exige validaciones Docker, PostgreSQL 17, frontend publico, Context Graph, actionlint, EOL, hashes v3, diff cero de protected paths, secret scan y auditorias `GO_FOR_LOCAL_PR` sobre un mismo tree. Los auditores aplican los invariantes y la clasificacion congelados en PLAN-F9.7-CIERRE-001; remote unknown y limites aceptados no amplian por si solos el alcance local.
 
 ## Stop Conditions
 
@@ -96,11 +96,11 @@ No autoriza Supabase Free/Pro, Supabase MCP, DDL/DML remoto, deploy Edge/Cloudfl
 ## Referencias
 
 - [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md)
-- [Cierre definitivo F9.7](./cierre_definitivo_f9_7.md)
-- [Certificacion Hito 1 F9](./certificacion_hito1_f9.md)
-- [Remediacion local del trigger F9.7](./remediacion_trigger_f9_7.md)
+- Cierre definitivo F9.7
+- Certificacion Hito 1 F9
+- Remediacion local del trigger F9.7
 - [Contrato PR-O F9.7 v1 superseded](./pr_o_f9_7_v3_hold.md)
 - [Contrato PR-O F9.7 executor privado](./pr_o_f9_7_successor_private_executor.md)
 - [Backlog leads/email](../backlog_tareas/req_est_001_sprint_1/backlog_seguridad_leads_email.md)
 - [Arquitectura del pipeline](../arquitectura_pipeline.md)
-- [Estructura frontend](../estructura_frontend.md)
+- Estructura frontend

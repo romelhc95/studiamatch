@@ -18,20 +18,20 @@ export function Footer() {
               Datos actualizados periódicamente
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-10 gap-y-6">
+          <div className="flex gap-12">
             <div className="space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Plataforma</p>
               <ul className="space-y-2.5">
-                <li><Link href="/#programas" prefetch={false} className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Explorar</Link></li>
-                <li><Link href="/#como-funciona" prefetch={false} className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Metodología</Link></li>
-                <li><Link href="/compare" prefetch={false} className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Comparar</Link></li>
+                <li><Link href="/#programas" className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Explorar</Link></li>
+                <li><Link href="/#como-funciona" className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Metodología</Link></li>
+                <li><Link href="/compare" className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Comparar</Link></li>
               </ul>
             </div>
             <div className="space-y-3">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Legal</p>
               <ul className="space-y-2.5">
-                <li><Link href="/privacidad" prefetch={false} className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Privacidad</Link></li>
-                <li><Link href="/terminos" prefetch={false} className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Términos</Link></li>
+                <li><Link href="/privacidad" className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Privacidad</Link></li>
+                <li><Link href="/terminos" className="text-[13px] text-slate-500 hover:text-brand-slate transition-colors">Términos</Link></li>
               </ul>
             </div>
             <div className="space-y-3">

@@ -177,8 +177,8 @@ La siguiente accion de Hito 1 ya no es `GO_FOR_FREE` ni `PREFLIGHT_READ_ONLY_FRE
 - [Estado del proyecto](../estado_del_proyecto.md)
 - [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [Plan de corte Hito 1](./plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
-- [Cierre definitivo F9.7](./cierre_definitivo_f9_7.md)
-- [Macrofase F9](./certificacion_hito1_f9.md)
+- Cierre definitivo F9.7
+- Macrofase F9
 - [Matriz de adopcion DB](./matriz_adopcion_db.md)
 - [Sistema DB Supabase](../sistema_db_supabase.md)
 - [Flujo de release minimo](./flujo_release_minimo.md)

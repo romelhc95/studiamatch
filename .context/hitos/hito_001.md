@@ -34,7 +34,22 @@ Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TAS
 
 ## Nota De Cierre Tecnico F10.8
 
-La remediacion DB Sync F10.8 quedo promovida a `main@529ca111f1fef40efb15676ad6f07d002a54ae92` por PR #307 y verificada con `DB Sync to Production` run `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` run `31151066061=PASS`. Esta nota no declara `COMPLETED_PRODUCTION`: Production Canary, observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
+La remediacion cleansing provenance F10.8 quedo promovida a `main@1885806f0d9f189600d410d353fcf13fb8dd4676` por PR #320. La DDL Pro `20260808_fase10_8_atomic_cleansing_provenance` fue aplicada una sola vez por DB Sync `31263024890` bajo autorizacion consumida, y DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS sobre `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`. PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`; Production Canary `31272290614=PASS` completo FG1/FG2/FG3, restore exacto, segundo restore NOOP, after-cleanup y artifact sanitizado `9026139906` con digest `sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`; por tanto `EVID-H1-010=VERIFIED`. Esta nota no declara `COMPLETED_PRODUCTION`: observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
+
+## Hallazgo Tardio F10.9
+
+La primera observacion global de schedules quedo fail-closed y descubrio blockers
+operativos FG2/FG3 no cubiertos por la cohorte acotada F10.8. El incidente se
+preserva en
+[INC-F10.9-001](../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), la
+remediacion propuesta en
+[PLAN-REM-F10.9-001](../operaciones/plan_remediacion_f10_9_fg2_fg3.md) y el
+ledger append-only en
+[EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md).
+
+El hallazgo no reabre F10.8 ni cambia `H1-CA1`. Hito 1 permanece tecnicamente
+entregado y formalmente pendiente; cero pares FG2 -> FG3 fueron aceptados. Los
+estados vivos se consultan exclusivamente en TASK y Estado del Proyecto.
 
 ## Trazabilidad
 
@@ -49,5 +64,9 @@ La remediacion DB Sync F10.8 quedo promovida a `main@529ca111f1fef40efb15676ad6f
 - Adenda vigente: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
 - Plan CA1-only: [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
 - Evidencia cliente: [EVID-PACK-H1-001](../evidencias_cliente/sprint_1/paquete_hito_001.md)
-- Registro DB Sync F10.8: [EVID-H1-DBSYNC-F10.8-001](../evidencias_cliente/sprint_1/registro_db_sync_f10_8_2026-08-07.md)
-- Matriz de pruebas: [Tests Hito 1](../pruebas/01_matriz_tests_hito_1.md)
+- Registro Production Canary F10.8: [EVID-H1-CANARY-F10.8-001](../evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md)
+- Incidente F10.9: [INC-F10.9-001](../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md)
+- Plan remediacion F10.9: [PLAN-REM-F10.9-001](../operaciones/plan_remediacion_f10_9_fg2_fg3.md)
+- Registro observacion F10.9: [EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md)
+- Autorizacion DDL F10.8: [DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO](../operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md)
+- Matriz de evidencias: [Evidencia de salida](../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida)

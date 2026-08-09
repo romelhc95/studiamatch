@@ -56,7 +56,7 @@ export async function generateStaticParams() {
       return defaultPath;
     }
 
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)&is_active=eq.true&is_verified=eq.true`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
       headers: {
         'apikey': SUPABASE_PUBLISHABLE_KEY
       }
@@ -79,18 +79,6 @@ export async function generateStaticParams() {
     console.error("Error generating static params:", error);
     return defaultPath;
   }
-}
-
-const JSON_LD_ESCAPE_LOOKUP: Record<string, string> = {
-  "<": "\\u003c",
-  ">": "\\u003e",
-  "&": "\\u0026",
-  "\u2028": "\\u2028",
-  "\u2029": "\\u2029",
-};
-
-function serializeJsonLd(value: unknown): string {
-  return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, (character) => JSON_LD_ESCAPE_LOOKUP[character]);
 }
 
 function CourseJsonLd({ course }: { course: Course & { institutions?: { name: string } } }) {
@@ -118,7 +106,7 @@ function CourseJsonLd({ course }: { course: Course & { institutions?: { name: st
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: serializeJsonLd(ld) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
     />
   );
 }

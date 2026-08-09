@@ -9,7 +9,7 @@
 - Autorizacion vigente: ninguna; F9.5 no admite otra lectura Free bajo esta nota.
 - Resultado: los FAIL y las remediaciones locales permanecen como evidencia historica y no certifican Free/Pro.
 
-Esta nota preserva la historia de F9.5. No define trabajo autorizable, no permite tools ni hereda adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md). La definicion pendiente de ejecucion es exclusivamente F9.6 en la [macrofase F9](./certificacion_hito1_f9.md).
+Esta nota preserva la historia de F9.5. No define trabajo autorizable, no permite tools ni hereda adapter, OpenAPI, advisors, bindings, nonce o attestations de la [F9.4 sustituida](./preflight_free_f9_4.md). La definicion pendiente de ejecucion es exclusivamente F9.6 en la macrofase F9.
 
 ## Artifacts Historicos Preservados
 

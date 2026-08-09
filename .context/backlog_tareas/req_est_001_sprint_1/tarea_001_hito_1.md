@@ -6,14 +6,14 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` activa como `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING`. PR #297 fue aprobado/fusionado en `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; `security-audit`, `F10 Main Boundary` y Cloudflare Pages PASS. DB Sync `31142826000=FAIL_CLOSED_PRE_SUPABASE` quedo remediado por PR #304/#305/#306/#307; post-merge `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, `DB Sync to Production` `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` y `Security Audit Gate` `31151066061=PASS`. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-010..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad de ejecucion. El plan vigente documenta R0, P1-P7 y G0-G13: R0 sigue bloqueado por CI/review; P1 existe localmente pero no esta integrado; P2-P5/P7 no han iniciado y P6 queda fuera de F10.9. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
 
 Esta nota es la autoridad exclusiva del estado vivo de `TASK-H1-001` y de sus criterios. La tarea no tiene subtareas. Los IDs `WP-F9.7-*` son unidades operativas internas de F9.7 y no agregan criterios, subfases ni autorizaciones.
 
-Base tecnica post-DB-sync-remediation: `main@529ca111f1fef40efb15676ad6f07d002a54ae92`.
+Base tecnica post-cierre documental F10.8: `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4`.
 
 El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una vista `TRACKING_ONLY`: organiza work items y evidencia sin crear subtareas, criterios, alcance ni autoridad de estado paralela.
 
@@ -29,9 +29,9 @@ La decision humana de F9.7 adopta la adenda aprobada para cerrar Hito 1 con
 - `H1-CA1` es el unico criterio activo de esta TASK hasta
   `COMPLETED_PRODUCTION_CA1_ONLY`.
 - `H1-CA2P` se preserva como antecedente y su alcance pendiente pasa a
-  [TASK-H2-001](./tarea_002_hito_2.md) como `H2-CA2`.
+  TASK-H2-001 como `H2-CA2`.
 - `H1-CA7P` se preserva como antecedente y su alcance pendiente pasa a
-  [TASK-H4-001](./tarea_004_hito_4.md) como `H4-CA7`.
+  TASK-H4-001 como `H4-CA7`.
 - Los avances CA2 locales no se promueven con el candidate CA1-only.
 - Produccion conserva su comportamiento actual para leads/email.
 
@@ -59,14 +59,64 @@ skipped. La remediacion DB Sync fue promovida por PR #304/#305/#306/#307 hasta
 `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; el run post-merge
 `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` ejecuto solo `Detect DB changes` y
 omitio preflight/report/apply/schema/FG2 por ausencia de cambios `db/**`.
-`Security Audit Gate` post-main `31151066061=PASS`. No hubo Production Canary
-acreditable, Supabase, DDL/DML, migraciones, snapshot Production, writer ni
-mutacion DB. El hito queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` hasta
-completar `EVID-H1-010..013` y `EVID-H1-016`.
+`Security Audit Gate` post-main `31151066061=PASS`. La remediacion cleansing
+provenance fue promovida por PR #319 a `certificacion` y por PR #320 a
+`main@1885806f0d9f189600d410d353fcf13fb8dd4676`. DB Sync to Production
+`31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente
+y no aplico DDL. En ese corte no hubo Production Canary acreditable, snapshot
+Production, writer ni mutacion DB; la DDL Pro seguia pendiente. El hito queda
+`TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` hasta completar
+`EVID-H1-011..013` y `EVID-H1-016`; `EVID-H1-010=VERIFIED` queda registrado
+por Production Canary `31272290614`.
 
-La [matriz de pruebas Hito 1](../../pruebas/01_matriz_tests_hito_1.md) organiza
-cobertura `PLANNED` subordinada a esta TASK. No modifica estados, criterios ni
-autorizaciones.
+La matriz viva de evidencias y umbrales de salida de Hito 1 se mantiene en
+[PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida).
+No modifica estados, criterios ni autorizaciones.
+
+## Hallazgo Tardio F10.9
+
+La activacion global posterior al canary descubrio fallos fail-closed de FG2 y
+FG3 documentados en
+[INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md).
+Los runs y reruns diagnosticos no acreditan observacion natural; el contador de
+pares vuelve a `0` y la ventana de 72h queda `NOT_STARTED` segun
+[EVID-H1-OBS-F10.9-001](../../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md).
+
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md)
+registra contencion, hardening, planners y gates separados. El plan no autoriza
+kill switch, codigo, DDL/DML, backfill, schedules ni retries por si mismo. La
+decision humana vigente exige cero cursos activos sin syllabus/objectives antes
+del cierre. `H1-CA1` no cambia y no se crean subtareas ni criterios nuevos.
+
+### Secuencia Paso A Paso F10.9
+
+La secuencia planificada y sus aprobaciones pendientes se documentan en
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md). El
+plan no concede ejecucion y cada gate exige la frase decimal exacta mas su
+alcance adicional:
+
+1. `G0`: cerrar R0 y estabilizar/integrar P1 sobre ancestry protegido conforme a
+   [G0-R0-F10.9](../../operaciones/g0_r0_reconciliacion_f10_9.md).
+2. `G1`: implementar P2 planners read-only/offline.
+3. `G2`: implementar P3 preflight FG2 y P4 atomicidad FG3.
+4. `G3`: implementar P5 metadata read-only/fail-closed.
+5. `G4`: decidir `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`.
+6. `G5`: integrar P7 en `desarrollo` sin P6/SQL/DDL/DML/backfill.
+7. `G6`: atestar contencion antes del primer acceso remoto al data plane.
+8. `G7`: promover y validar el patch CA1 en Certification.
+9. `G8`: promover a `main` con schedules aun pausados.
+10. `G9`: ejecutar diagnostico Production read-only.
+11. `G10`: congelar el gate final previo a schedules.
+12. `G11`: decidir `GO_SCHEDULES` o `STOP_REQUIRES_REBASELINE`.
+13. `G12`: habilitacion gradual.
+14. `G13`: tres pares naturales consecutivos durante al menos 72h.
+
+Ningun gate concede el siguiente. G0 tambien debe cerrar el
+`BLOCKED_INHERITED_CONTEXT_GRAPH` registrado en el plan, sin importar CA2 ni
+inventar documentos. Un cambio de SHA/tree, schema, cantidades, profile,
+environment, dependencias o normalization version invalida el manifest y produce
+`STOP`. F11.1 y `EVID-H1-016` siguen fuera de esta secuencia hasta que
+`EVID-H1-011..013` sean verificadas.
 
 ## Arbol De Criterios
 
@@ -81,7 +131,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, con run post-merge `31151066062=SUCCESS_NO_DB_CHANGES_SKIPPED` | Ejecutar Production Canary con autorizacion separada, F10.9 observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`, con DB Sync report-only `31243797695=SUCCESS_REPORT_ONLY`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; Production Canary completo `31272290614=PASS` con artifact sanitizado `9026139906` | F10.9 observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -104,11 +154,14 @@ autorizan schema, migrations ni backfill en Hito 1:
 
 El baseline de workflows debe contrastarse con `H1-CA1`; los comentarios no sustituyen la configuracion ejecutable. La modalidad aprobada es cadencia automatica con gates, circuit breakers y controles de ambiente.
 
-Los nombres, adopcion Free/Pro y postcondiciones exactas se fijan en [Sistema DB](../../sistema_db_supabase.md) y [Matriz DB](../../operaciones/matriz_adopcion_db.md). No se editan ledgers historicos.
+El estado DB vigente se obtiene de `estado_del_proyecto.md` y evidencia F10.8.
+[Sistema DB](../../sistema_db_supabase.md) y [Matriz DB](../../operaciones/matriz_adopcion_db.md)
+se conservan como referencias historicas pre-F10.8; no autorizan adopcion ni se
+editan ledgers historicos.
 
-El candidate DB-as-Code vigente se registra en [Reconciliacion F6](../../operaciones/reconciliacion_db_as_code_f6.md). PR #223 incorporo el package a `desarrollo` y PR #224 cerro su portabilidad LF/CRLF. La existencia del candidate no prueba adopcion remota ni completa `H1-CA2P` antes de certificacion.
+El candidate DB-as-Code vigente se registra en Reconciliacion F6. PR #223 incorporo el package a `desarrollo` y PR #224 cerro su portabilidad LF/CRLF. La existencia del candidate no prueba adopcion remota ni completa `H1-CA2P` antes de certificacion.
 
-F8 agrego una closure forward-only y certificacion local reproducible documentadas en [Certificacion local Hito 1 F8](../../operaciones/certificacion_hito1_f8.md). PR #228 fue fusionado y validado post-merge. El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
+F8 agrego una closure forward-only y certificacion local reproducible documentadas en Certificacion local Hito 1 F8. PR #228 fue fusionado y validado post-merge. El resultado local no habilita Free/Pro ni autoriza el backfill editorial.
 
 El package historico `FASE-09`, ahora mapeado a F9.1, se limita a [precertificacion local H1-CA2P](../../operaciones/precertificacion_hito1_f9.md): package real en PostgreSQL efimero, rollback, replay del contrato F8, ledger paginado y reconciliacion de nomenclatura fail-fast. No completa este criterio ni autoriza acceso remoto.
 
@@ -116,7 +169,7 @@ F9.1 conserva byte-identicos el manifest y las migrations F8. PR #231 y la remed
 
 El package historico `FASE-10`, ahora mapeado a F9.2, se limita al [contrato local de promocion](../../operaciones/promocion_hito1_f10.md): reemplaza prerrequisitos universales por evidencia por transicion y crea un descriptor sucesor bloqueado. No modifica el candidate F8, no cambia status y no accede a ambientes remotos.
 
-F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; su ruta operacional historica no otorgo attestations ni transiciones de estado. F9.1/F9.2 no completan la [macrofase F9](../../operaciones/certificacion_hito1_f9.md) ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
+F9.2 conserva F8 byte-identico y valida neutralmente estructuras de attestations sin conceder estado/capability. PR #235 fue aprobado, fusionado y validado post-merge sobre `desarrollo@d67fa31`; su ruta operacional historica no otorgo attestations ni transiciones de estado. F9.1/F9.2 no completan la macrofase F9 ni `H1-CA2P`; F10 Produccion y F11 Cierre siguen pendientes.
 
 F9.3 fue autorizada mediante la frase decimal exacta y congelo un contrato exclusivamente local: descriptor inmutable, catalogos read-only cerrados, target binding no reversible, schemas neutrales para la F9.4 entonces prevista, runner sin transportes y job CI sin secrets. PR #238 fue aprobado y fusionado; el replay detecto una incompatibilidad del fixture con CRLF del bind mount Windows, remediada y fusionada mediante PR #239. `desarrollo@4e77fe0` repitio desde un checkout Linux limpio dentro de Docker 55 pruebas focused, 253 de regresion, 22 checks sinteticos, Python compile y Context Graph en PASS. No hubo acceso Free/Pro ni cambio de estado. Al cerrar F9.3, F9.4 aun no estaba autorizada; ADR-0004 sustituyo despues esa ruta.
 
@@ -134,7 +187,7 @@ F9.5 termina `COMPLETED_WITH_KNOWN_FINDINGS`. Los intentos y remediaciones local
 
 ## Cierre F9.6 - H-00 Ya Remediado
 
-F9.6 termina `COMPLETED` con resultado `H00_ALREADY_REMEDIATED_NO_DML`. La verificacion sanitizada [EVID-F9.6-H00-001](../../operaciones/cierre_h00_f9_6.md) confirmo la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Seguridad y calidad de datos revisaron la cadena de evidencia en GO.
+F9.6 termina `COMPLETED` con resultado `H00_ALREADY_REMEDIATED_NO_DML`. La verificacion sanitizada EVID-F9.6-H00-001 confirmo la cohorte con remediacion completa de PII directa y sin coincidencias parciales o invalidas. Seguridad y calidad de datos revisaron la cadena de evidencia en GO.
 
 - Gate B DELETE queda `SUPERSEDED_NON_AUTHORIZABLE`; no se elimino ni modifico ninguna fila.
 - La cohorte tiene PII directa remediada y se conserva como pseudonimizada. El data owner acepta el riesgo residual de vinculabilidad de UUID y metadatos dentro de Free restringido; no autoriza correlacionarlos con Pro. F9.7 debe verificar ausencia de lectura publica y F11 revaluar su retencion.
@@ -155,11 +208,11 @@ La autorizacion local F9.7 implementa y valida el candidate sin acceder a Free/P
 
 Gate B verifico Free de forma pre-DDL/read-only y se consumio sin aplicar schema ni pausar writers. Resguardo/restore, pausa de writers, atestacion suplementaria y cualquier aplicacion permanecen sujetos a gates y aprobaciones separadas.
 
-[EVID-F9.7-GATE-B-001](../../operaciones/gate_b_f9_7.md) ejecuto Gate B con una consulta Free agregada y termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`: el boundary candidate vacio fue permitido, pero el acceso de superficies protegidas activo stop conditions. El runner HTTP y las aprobaciones separadas de resguardo/restore y pausa quedaron `NOT_SUBMITTED_BLOCKED_BY_GATE_B_FAIL`; writers, DDL/DML, Pro y backfill permanecieron en cero.
+EVID-F9.7-GATE-B-001 ejecuto Gate B con una consulta Free agregada y termino `FREE_GATE_B_FAIL_STOPPED_READ_ONLY`: el boundary candidate vacio fue permitido, pero el acceso de superficies protegidas activo stop conditions. El runner HTTP y las aprobaciones separadas de resguardo/restore y pausa quedaron `NOT_SUBMITTED_BLOCKED_BY_GATE_B_FAIL`; writers, DDL/DML, Pro y backfill permanecieron en cero.
 
-La [definicion de remediacion](../../operaciones/remediacion_gate_b_f9_7.md) congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La [atestacion ACL](../../operaciones/atestacion_origen_acl_f9_7.md) observo cobertura completa del package para fuentes ACL, sin herencia/SET/owner/unknown; el mismatch y el trigger mantuvieron fail-closed y los predicates no atestados bloquearon aplicacion independientemente. No hubo filas de negocio, HTTP, schema, migrations, DML, backup, restore ni control de writers.
+La definicion de remediacion congela el mismo package de cinco entradas, rollback/postcondiciones y runbooks no ejecutables. La atestacion ACL observo cobertura completa del package para fuentes ACL, sin herencia/SET/owner/unknown; el mismatch y el trigger mantuvieron fail-closed y los predicates no atestados bloquearon aplicacion independientemente. No hubo filas de negocio, HTTP, schema, migrations, DML, backup, restore ni control de writers.
 
-La [remediacion local del trigger](../../operaciones/remediacion_trigger_f9_7.md) reemplazo el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado en Git y el drenaje pg_net queda counts-only. [ADR-0005](../../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local: la arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`, el frontend soportado no tiene captura publica y el hold actual queda `SUPERSEDED_NON_PROMOTABLE`; la ruta futura exige [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md). No observa ni modifica Free/Pro y no autoriza aplicacion.
+La remediacion local del trigger reemplazo el draft suplementario no confirmado por un manifest sucesor v3 de seis entradas. Las cinco migrations historicas quedan byte-identicas; v2 queda como antecedente historico no promocionable; la sexta elimina de forma fail-closed `trg_notify_new_lead` y `public.notify_new_lead()` sin `CASCADE`, el Edge Function historico queda tombstoneado en Git y el drenaje pg_net queda counts-only. [ADR-0005](../../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrega el corte local: la arquitectura leads/email queda `DEFERRED_NO_IMPLEMENTATION`, el frontend soportado no tiene captura publica y el hold actual queda `SUPERSEDED_NON_PROMOTABLE`; la ruta futura exige [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md). No observa ni modifica Free/Pro y no autoriza aplicacion.
 
 El backfill editorial queda trasladado a `H2-CA2`. Para Hito 1 CA1-only queda
 prohibido planificarlo, aplicarlo o usarlo como evidencia de cierre.
@@ -168,7 +221,10 @@ Estado del corte local: `public_lead_capture=LOCAL_CODE_REMOVED_REMOTE_UNKNOWN`,
 
 ### Work Packages De Cierre F9.7
 
-El contrato, dependencias y criterios completos viven en [PLAN-F9.7-CIERRE-001](../../operaciones/cierre_definitivo_f9_7.md). Esta tabla es la autoridad viva de su avance:
+El contrato PLAN-F9.7-CIERRE-001 queda como antecedente no incluido en el
+candidate CA1-only. La siguiente tabla preserva su resultado historico; la
+autoridad viva permanece en el encabezado de esta tarea y en
+`estado_del_proyecto.md`:
 
 | Work package | Estado | Resultado requerido |
 |---|---|---|
@@ -183,7 +239,7 @@ Decisiones vinculantes historicas: todos los roles de aplicacion, incluido `serv
 
 Hold operativo posterior: `USER_PERSONAL_UAT` pertenece a F9.10 como hold manual de experiencia personal del usuario, no como criterio contractual, subtarea, subfase ni transicion de la maquina. Debe ejecutarse despues de canary, validaciones tecnicas Certification y QA, y antes de declarar readiness para F10; exige candidate commit/tree inmutable y `PASS` personal explicito del usuario.
 
-El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la [macrofase F9](../../operaciones/certificacion_hito1_f9.md).
+El backlog sin implementacion de policies, canary, hardening, inventarios y limpieza F11 se registra en [Backlog F9.5](backlog_f9_5_known_findings.md). El cierre H-00 y la definicion de F9.7 viven en la macrofase F9.
 
 ## Frontera F9.8 CA1-Only
 
@@ -235,7 +291,7 @@ en [ADR-0007](../../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - `EVID-H1-007=VERIFIED` por PR #277 `APPROVED/MERGED`.
 - `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`: los canaries Certification observaron salida no cero ante inventario invalido o HTTP 403 observado desde GitHub-hosted runners; cleanup e idempotencia pasaron cuando hubo snapshot.
 - La desviacion no es `PASS` y no valida FG2 downstream, FG3 ni success path.
-- `EVID-H1-009=VERIFIED` y `EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY` quedan registrados posteriormente por F10.7; `EVID-H1-015=VERIFIED`; `EVID-H1-010..013/016` permanecen pendientes.
+- `EVID-H1-009=VERIFIED` y `EVID-H1-014=VERIFIED_POST_MERGE_BOUNDARY` quedan registrados posteriormente por F10.7; `EVID-H1-015=VERIFIED`; en ese corte `EVID-H1-010..013/016` permanecian pendientes.
 - La definicion QA F9.9 vive en [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); el resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md) verifica fail-closed sin declarar Certification PASS.
 - F9.9 queda `COMPLETED_QA_VERIFIED`. F9.10 queda `COMPLETED_READINESS_F10` con boundary real `main -> certificacion`, candidate/readiness y `USER_PERSONAL_UAT=PASS`; F10 conserva el control-plane, entrega tecnica F10.7 a `main`, canary Production y observacion.
 
@@ -260,9 +316,11 @@ writers, schedules, Production canary, sincronizacion o modificacion de ramas
 protegidas, y cambios en `.github/workflows/**` salvo que una validacion local
 demuestre necesidad estricta y se solicite otra decision.
 
-## F10.8 Reconciliacion Post-Main Y Remediacion DB Sync
+## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth
 
-F10.8 queda activa como `DB_SYNC_REMEDIATED_PRODUCTION_CANARY_PENDING`.
+F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda
+`IN_PROGRESS_BLOCKED_BY_INCIDENT` hasta remediacion, nueva habilitacion gradual y
+observacion completa.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
@@ -298,8 +356,48 @@ La remediacion no ejecuto Supabase, DDL/DML, migrations, workflow dispatch
 operativo, Production Canary, schedules, writers, backfill ni CA2. El run
 historico `31142826000` no se reintento.
 
-`EVID-H1-010..013` y `EVID-H1-016` permanecen pendientes. Hito 1 queda
-`TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`, no `COMPLETED_PRODUCTION`.
+La remediacion cleansing provenance posterior siguio la ruta protegida:
+
+- PR #319 a `certificacion`: `2a70dd001d8ded34d5ba67c19221f7f5e291d2c8`.
+- PR #320 a `main`: `1885806f0d9f189600d410d353fcf13fb8dd4676`.
+- DB Sync to Production `31243797695=SUCCESS_REPORT_ONLY`: report-only observo
+  exactamente `20260808_fase10_8_atomic_cleansing_provenance` como migracion Pro
+  pendiente; `Apply pending migrations`, `Verify target schema` y FG2 deferred
+  quedaron skipped.
+- El registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO` corrige el deadlock de
+  SHA atando la autorizacion al base `1885806f0d9f189600d410d353fcf13fb8dd4676`
+  y exige diff allowlisted, dispatch manual, approval `Production`, Backup/PITR
+  runtime y writers pausados antes de un apply futuro.
+
+Esta remediacion de gobierno no ejecuto Pro DDL, DML, Production Canary,
+schedules, writers, backfill, secrets/environments ni CA2.
+
+PR #323 y PR #324 promovieron verify-only hasta
+`main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree
+`90868898778a1039006e45b870fbc03e6e65291b`. DB Sync verify
+`31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2
+deferred PASS. `USER_PERSONAL_UAT=PASS` fue emitido para ese SHA/tree. El
+Production Canary `31269277219` completo FG1/FG2/FG3 y primer restore, pero fallo
+fail-closed en el segundo restore `--expect-noop` por JSON truncado durante la
+atestacion no-cohorte. La remediacion vigente no autoriza DDL/DML, backfill,
+schedules, writers, secrets/environments ni CA2.
+
+PR #325 promovio la remediacion de paginacion no-cohorte a
+`main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree
+`ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. DB Sync post-merge
+`31271765282=SUCCESS_NO_DB_CHANGES_SKIPPED` corrio solo `Detect DB changes`;
+Security Audit post-merge `31271765308=PASS`. Production Canary
+`31272290614=PASS` completo FG1/FG2/FG3, restore exacto, segundo restore NOOP,
+after-cleanup y upload de seis manifests sanitizados en artifact `9026139906`.
+
+`EVID-H1-010=VERIFIED`; `EVID-H1-011..013` y `EVID-H1-016` permanecen
+pendientes. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`, no
+`COMPLETED_PRODUCTION`.
+
+La observacion global posterior se conserva como evidencia fail-closed en
+[EVID-H1-OBS-F10.9-001](../../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md): cero pares aceptados, ventana 72h no iniciada y
+remediacion requerida. Este registro no modifica la verificacion F10.8 ni
+autoriza operaciones remotas.
 
 ## Exclusiones Historicas Preservadas
 
@@ -313,7 +411,9 @@ historico `31142826000` no se reintento.
 
 - El paquete minimo conserva los IDs `H-01` a `H-07` y `H-10` sin publicar postcondiciones explotables.
 - F7 mapeo postcondiciones a `H1-CA2P` como antecedente historico; Hito 2 debe producir evidencia nueva para `H2-CA2`.
-- La adopcion se decide desde la [matriz DB](../../operaciones/matriz_adopcion_db.md), no desde evidencia historica.
+- La adopcion vigente se decide desde `estado_del_proyecto.md` y evidencia nueva;
+  la [matriz DB](../../operaciones/matriz_adopcion_db.md) es referencia historica
+  pre-F10.8 y no concede adopcion.
 - El frontend debe ser compatible con las superficies que el contrato aprobado retire.
 
 H-00 no forma parte del paquete promocionable. F9.6 verifico la remediacion historica de PII directa y la conservacion pseudonimizada, y cerro sin DML como `H00_ALREADY_REMEDIATED_NO_DML`; nunca se aplica en Pro.

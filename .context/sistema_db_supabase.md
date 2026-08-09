@@ -1,6 +1,11 @@
 # Sistema DB Supabase
 
-Snapshot canonico observado vigente. Resume el estado aplicado de Supabase sin publicar identificadores de proyecto, endpoints, credenciales, hashes, conteos de ledger ni detalles de findings. Las decisiones de adopcion se toman exclusivamente en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
+Estado: `HISTORICAL_SNAPSHOT_SUPERSEDED_BY_F10_8`.
+
+Este blob se restaura solo como referencia historica del snapshot anterior a la
+DDL Pro F10.8. No contiene esa aplicacion/verificacion y no es autoridad vigente
+para adoptar, promover ni operar DB. La autoridad viva es
+[Estado del proyecto](./estado_del_proyecto.md) y la tarea activa enlazada.
 
 Enlaces canonicos: [Indice](./00_INDICE.md) | [Arquitectura pipeline](./arquitectura_pipeline.md) | [Estado del proyecto](./estado_del_proyecto.md) | [Tarea Hito 1](./backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) | [Flujo release](./operaciones/flujo_release_minimo.md) | [Matriz DB](./operaciones/matriz_adopcion_db.md)
 
@@ -12,7 +17,8 @@ Enlaces canonicos: [Indice](./00_INDICE.md) | [Arquitectura pipeline](./arquitec
 - Una entrada de ledger no prueba por si sola una postcondicion.
 - Una postcondicion observada no prueba que su SQL fuente este versionado.
 
-Este archivo es el snapshot canonico observado. No sustituye la matriz ni registra decisiones de promocion.
+El contenido restante preserva el snapshot historico; no sustituye la autoridad
+viva ni registra el estado post-F10.8.
 
 ## Ambientes
 
@@ -43,16 +49,16 @@ Trazabilidad activa Hito 1: `H1-CA1`. Antecedentes historicos: `H1-CA2P`,
 `H1-CA7P`, trasladados a `H2-CA2` y `H4-CA7`.
 
 - `[REMOTE Free]` Se observaron efectos del contrato Hito 1 y del hardening G1b.
-- `[REMOTE Free]` [Gate B F9.7](./operaciones/gate_b_f9_7.md) observo en modo read-only drift de acceso incompatible con el gate y se detuvo antes de HTTP, aprobaciones operativas o DDL.
-- `[GIT/DERIVED]` La [remediacion F9.7](./operaciones/remediacion_gate_b_f9_7.md) demuestra cobertura local de drift directo y rollback atomico de drift heredado/desconocido; no cambia el snapshot remoto ni autoriza aplicacion.
-- `[REMOTE Free]` La [atestacion ACL F9.7](./operaciones/atestacion_origen_acl_f9_7.md) atribuyo las fuentes observadas a drift reparable por el package, sin herencia/SET/owner/unknown; predicates/trigger y aplicacion permanecen bloqueados.
-- `[GIT/DERIVED]` La [remediacion local del trigger F9.7](./operaciones/remediacion_trigger_f9_7.md) agrega el candidate v3 local PR-ready de seis entradas. V2 queda como antecedente historico no promocionable; v3 retira fail-closed la ruta de egress y tombstonea la Edge Function historica; el [drenaje pg_net](./operaciones/pg_net_queue_drain_f9_7.md) queda counts-only y no ejecutado; no observa ni cambia Free/Pro.
+- `[REMOTE Free]` Gate B F9.7 observo en modo read-only drift de acceso incompatible con el gate y se detuvo antes de HTTP, aprobaciones operativas o DDL.
+- `[GIT/DERIVED]` La remediacion F9.7 demuestra cobertura local de drift directo y rollback atomico de drift heredado/desconocido; no cambia el snapshot remoto ni autoriza aplicacion.
+- `[REMOTE Free]` La atestacion ACL F9.7 atribuyo las fuentes observadas a drift reparable por el package, sin herencia/SET/owner/unknown; predicates/trigger y aplicacion permanecen bloqueados.
+- `[GIT/DERIVED]` La remediacion local del trigger F9.7 agrega el candidate v3 local PR-ready de seis entradas. V2 queda como antecedente historico no promocionable; v3 retira fail-closed la ruta de egress y tombstonea la Edge Function historica; el drenaje pg_net queda counts-only y no ejecutado; no observa ni cambia Free/Pro.
 - `[GIT/DERIVED]` [ADR-0005](./decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) agrego un security hold local y bloqueado posterior a v3. Despues de PR #261, [PR-O v1](./operaciones/pr_o_f9_7_v3_hold.md) y el hold actual quedan `SUPERSEDED_NON_PROMOTABLE`; el sucesor [PR-O executor privado](./operaciones/pr_o_f9_7_successor_private_executor.md) fue certificado solo en local como `CERTIFIED_LOCAL_PR_O_SUCCESSOR`, sin transport remoto ejecutable, `application_authorized=false` y `capabilities=[]`. Tras la rebaseline CA1-only, esta ruta queda `SUPERSEDED_FOR_HITO_1` y se conserva como antecedente CA2. Free y Pro permanecen `UNCHANGED_NOT_ATTESTED` para este corte.
 - `[REMOTE Pro]` La adopcion equivalente no esta demostrada; F6 confirmo divergencia por postcondicion.
 - `[GIT/DERIVED]` Los bundles preservados recuperan consolidados verificables, pero no demuestran el SQL historico aplicado byte a byte. F6 creo fuentes nuevas forward-only en un manifest cerrado.
 - `[GIT]` F6-F8 son la base funcional contractual de Hito 1. Los artifacts F9.5 de PR #245/#247 son `HISTORICAL_NON_PROMOTABLE` y no cambian el snapshot observado.
 - H-00 es P0 `historical_free_only`, queda excluido de Pro y cerro `H00_ALREADY_REMEDIATED_NO_DML`: la cohorte con PII directa remediada se conserva pseudonimizada bajo riesgo aceptado; Gate B DELETE fue sustituido.
-- Los objetos y diferencias sensibles permanecen en el artifact privado ignorado. El contrato publicable F6 vive en la [reconciliacion DB-as-Code](./operaciones/reconciliacion_db_as_code_f6.md).
+- Los objetos y diferencias sensibles permanecen en el artifact privado ignorado. El contrato publicable F6 vive en la reconciliacion DB-as-Code.
 
 ## Ledgers y fuentes
 
@@ -75,7 +81,7 @@ Los detalles tecnicos se conservan solo en el artifact privado local ignorado. N
 2. Mantener los ledgers append-only; no actualizar, borrar ni reconstruir historia.
 3. Recuperar artifacts historicos solo con checksum verificable.
 4. Si la fuente no se demuestra, mantener `source_unavailable` y crear una migracion nueva forward-only.
-5. Mantener H-00 como P0 `historical_free_only`, enlazar su [cierre F9.6](./operaciones/cierre_h00_f9_6.md) y excluirlo mecanicamente de Pro.
+5. Mantener H-00 como P0 `historical_free_only`, enlazar su cierre F9.6 y excluirlo mecanicamente de Pro.
 6. Separar schema/RLS/RPC de cualquier backfill editorial.
 7. Todo backfill futuro debe ser acotado, idempotente, auditable y aprobado.
 8. No copiar datos operativos entre Free y Pro.
@@ -85,4 +91,6 @@ Los detalles tecnicos se conservan solo en el artifact privado local ignorado. N
 12. Seguir el [flujo release minimo](./operaciones/flujo_release_minimo.md) y requerir aprobacion explicita para Pro.
 13. El cierre Hito 1 CA1-only debe demostrar diff DB vacio; cualquier ruta futura de leads/email o CA2 vive fuera de Hito 1 y requiere ciclo propio.
 
-La clasificacion por alcance y ambiente vive en la [matriz canonica de adopcion DB](./operaciones/matriz_adopcion_db.md).
+La clasificacion historica por alcance y ambiente vive en la
+[matriz pre-F10.8](./operaciones/matriz_adopcion_db.md). La autoridad vigente
+permanece en `estado_del_proyecto.md`.

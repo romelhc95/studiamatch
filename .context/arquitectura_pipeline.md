@@ -1,8 +1,8 @@
 # Arquitectura Del Pipeline
 
 Esta nota conserva el resumen operativo del pipeline. Las vistas Mermaid y las
-fronteras completas viven en el [Mapa canonico de arquitectura](arquitectura/00_mapa.md),
-especialmente [Pipeline y estados](arquitectura/03_pipeline_estados.md). Las
+fronteras completas viven en el Mapa canonico de arquitectura,
+especialmente Pipeline y estados. Las
 vistas son derivadas y no acreditan adopcion remota.
 
 ## Flujo Actual
@@ -69,4 +69,4 @@ Leads/email no son una estacion del Golden Pipeline. La arquitectura completa de
 
 Ver [Sistema DB Supabase](sistema_db_supabase.md),
 [Flujo de release](operaciones/flujo_release_minimo.md) y
-[Estrategia de pruebas](pruebas/00_estrategia_pruebas_sprint_1.md).
+Estrategia de pruebas.

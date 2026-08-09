@@ -21,10 +21,10 @@ permanezcan `PENDING` y sin subfase activa.
 | Hito | Paquete | Criterios | Tarea canonica |
 |---|---|---|---|
 | [HITO-001](../../hitos/hito_001.md) | Orquestacion, schema y seguridad base | `H1-CA1`, `H1-CA2P`, `H1-CA7P` | [TASK-H1-001](./tarea_001_hito_1.md) |
-| [HITO-002](../../hitos/hito_002.md) | Pipeline de campos vacios | CA3 y CA2 parcial | [TASK-H2-001](./tarea_002_hito_2.md) |
-| [HITO-003](../../hitos/hito_003.md) | Panel admin | CA4 | [TASK-H3-001](./tarea_003_hito_3.md) |
-| [HITO-004](../../hitos/hito_004.md) | Home y documentacion | CA5, CA6, CA7 y CA13 Home | [TASK-H4-001](./tarea_004_hito_4.md) |
-| [HITO-005](../../hitos/hito_005.md) | Resultados, filtros y cards | CA8 a CA13 Resultados | [TASK-H5-001](./tarea_005_hito_5.md) |
+| HITO-002 | Pipeline de campos vacios | CA3 y CA2 parcial | TASK-H2-001 |
+| HITO-003 | Panel admin | CA4 | TASK-H3-001 |
+| HITO-004 | Home y documentacion | CA5, CA6, CA7 y CA13 Home | TASK-H4-001 |
+| HITO-005 | Resultados, filtros y cards | CA8 a CA13 Resultados | TASK-H5-001 |
 
 ## Criterios Aprobados Sprint 1
 
@@ -92,17 +92,17 @@ preparacion, nunca como adopcion o cierre reutilizado.
 
 - [Hallazgos F9.5](./backlog_f9_5_known_findings.md).
 - [Seguridad leads/email](./backlog_seguridad_leads_email.md).
-- [Control-plane exec SQL](./backlog_exec_sql_control_plane.md).
-- [Riesgos CA2/RLS para cliente](../../evidencias_cliente/sprint_1/anexo_h1_ca2_seguridad_rls.md).
+- Control-plane exec SQL.
+- Riesgos CA2/RLS para cliente.
 
 ## Dependencias Canonicas
 
-- [Hitos Sprint 1](../../hitos/_index.md)
-- [ADR-0006](../../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+- Hitos Sprint 1
+- ADR-0006
 - [Arquitectura pipeline](../../arquitectura_pipeline.md)
-- [Mapa canonico de arquitectura](../../arquitectura/00_mapa.md)
-- [Estrategia de pruebas](../../pruebas/00_estrategia_pruebas_sprint_1.md)
+- Mapa canonico de arquitectura
+- Estrategia de pruebas
 - [Sistema DB](../../sistema_db_supabase.md)
 - [Matriz DB](../../operaciones/matriz_adopcion_db.md)
-- [Flujo de requerimientos](../../operaciones/flujo_requerimientos.md)
+- Flujo de requerimientos
 - [Flujo de release](../../operaciones/flujo_release_minimo.md)

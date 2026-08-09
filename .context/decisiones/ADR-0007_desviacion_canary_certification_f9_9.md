@@ -82,6 +82,6 @@ F9.10 debe revisar la desviacion, confirmar QA independiente y preparar readines
 - [Estado del proyecto](../estado_del_proyecto.md)
 - [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
-- [Certificacion Hito 1 F9](../operaciones/certificacion_hito1_f9.md)
+- Certificacion Hito 1 F9
 - [Definicion QA F9.9](../operaciones/qa_desviacion_f9_9.md)
 - [Paquete de evidencia Hito 1](../evidencias_cliente/sprint_1/paquete_hito_001.md)

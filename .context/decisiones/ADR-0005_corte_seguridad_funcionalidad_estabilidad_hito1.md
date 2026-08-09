@@ -5,9 +5,9 @@
 | ID | `ADR-0005` |
 | Estado | `ACCEPTED` |
 | Decision humana | Congelar el perfil publico de Hito 1 sin captura publica de leads ni email automatico |
-| Contexto relacionado | [PLAN-H1-CORTE-SFE-001](../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md), [PLAN-F9.7-CIERRE-001](../operaciones/cierre_definitivo_f9_7.md), [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) |
+| Contexto relacionado | [PLAN-H1-CORTE-SFE-001](../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md), PLAN-F9.7-CIERRE-001, [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md), [ADR-0004](./ADR-0004_simplificacion_contractual_hito1.md) |
 
-Vigencia parcial posterior: [ADR-0006](./ADR-0006_incorporacion_adenda_sprint_1.md)
+Vigencia parcial posterior: ADR-0006
 aprueba Hito 1 CA1-only. Este corte se preserva como historia local y
 antecedente de CA2; no define el candidate productivo Hito 1.
 
@@ -45,5 +45,5 @@ Hito 1 conserva como destino la produccion completa, pero su perfil habilitado n
 - El verifier sucesor debe detectar drift administrativo ordinario sobre grants, ACL, RLS, policies, views, routines, publications, triggers, rules y membresias; no promete neutralizar a un owner/superuser ni probar SQL dinamico arbitrariamente ofuscado.
 - El security hold no conserva lectura de aplicacion sobre las tablas retenidas; cualquier inspeccion futura requiere una operacion owner separada y autorizada.
 - `service_role` no conserva acceso data-plane a `leads`/`email_log`; el contrato exacto de `exec_sql(text)` es residual aceptado solo para el PR local historico y queda fuera del estado final del PR-O sucesor.
-- [PLAN-F9.7-CIERRE-001](../operaciones/cierre_definitivo_f9_7.md) congela invariantes, clasificacion de hallazgos, checkpoints y criterios GO diferenciados para evitar ampliacion de alcance durante auditorias.
+- PLAN-F9.7-CIERRE-001 congela invariantes, clasificacion de hallazgos, checkpoints y criterios GO diferenciados para evitar ampliacion de alcance durante auditorias.
 - F9 y `TASK-H1-001` permanecen abiertos con F9.8 activa; F9.7 queda cerrado por rebaseline documental y F10/F11 permanecen bloqueados.

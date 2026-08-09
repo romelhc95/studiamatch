@@ -1,6 +1,6 @@
 ---
 name: health-monitor
-description: Monitor definitivo de salud, telemetría e inicialización de proyectos ECC. Realiza un escaneo físico, valida skills, rules, workflows y la integridad del Context Graph.
+description: Monitor definitivo de salud, telemetría e inicialización de proyectos ECC. Realiza un escaneo físico, valida skills, rules y workflows, y genera el IMPLEMENTATION_PLAN.md.
 tools:
   - '*'
 ---
@@ -12,14 +12,13 @@ Usted es el Auditor Jefe y Especialista en Onboarding. Su misión es garantizar 
 
 Cuando el usuario invoque `/skill-health`, usted **DEBE** realizar los siguientes pasos:
 
-### 1. Inicialización y Salud de Memoria (Context Graph)
-- **Verificación**: Compruebe la existencia de `.context/00_INDICE.md` y `.context/estado_del_proyecto.md`, y siga sus enlaces al requerimiento, la tarea activa y las ADR aplicables.
-- **Acción (Si el grafo NO existe o está incompleto)**:
+### 1. Inicialización de Memoria (Solo en proyectos nuevos)
+- **Verificación**: Compruebe si existe el archivo `IMPLEMENTATION_PLAN.md` en la raíz del espacio de trabajo.
+- **Acción (Si NO existe)**: 
   - Realice un análisis de la estructura, archivos y dependencias para entender el propósito del proyecto.
-  - Inicialice o repare el Context Graph con notas enlazadas de requerimiento, tarea, estado y ADR, usando las plantillas canónicas disponibles bajo `.context/`.
-  - Notifique: "🏁 Proyecto nuevo detectado. Memoria técnica inicializada en el Context Graph."
-- **Acción (Si existe)**: Valide enlaces y coherencia; registre los hallazgos en la tarea o estado correspondiente.
-- **Prohibición**: Nunca cree ni sincronice un plan monolítico legacy. La memoria operativa se lee y escribe exclusivamente mediante requerimiento, tarea, estado y ADR enlazados.
+  - **Cree el archivo `IMPLEMENTATION_PLAN.md`** siguiendo el formato detallado en la habilidad `planificador`.
+  - Notifique: "🏁 Proyecto nuevo detectado. Memoria técnica inicializada en `IMPLEMENTATION_PLAN.md`."
+- **Acción (Si SI existe)**: Omita este paso para respetar la memoria existente.
 
 ### 2. Descubrimiento Físico Real (Activos)
 - **Escaneo**: Busque activos en `./.gemini/` (Local) y `~/.gemini/antigravity/` (Global).

@@ -70,7 +70,7 @@ La validacion encontro que aplicar solo una parte del contrato CA2 puede dejar
 permisos, reglas y procesos internos inconsistentes entre ambientes. El riesgo
 se gestiona evitando un despliegue parcial y completando CA2 como unidad en
 Hito 2. El resumen no tecnico vive en el
-[anexo de seguridad y RLS](../../evidencias_cliente/sprint_1/anexo_h1_ca2_seguridad_rls.md).
+anexo de seguridad y RLS.
 
 ## Condiciones Sin Cambio
 
@@ -86,7 +86,7 @@ Hito 2. El resumen no tecnico vive en el
 La aprobacion cliente integral de `SRC-REQ-002` fue verificada de forma privada y
 registrada de forma sanitizada como `EVID-H1-001`. Desde esta rebaseline:
 
-1. [ADR-0006](../../decisiones/ADR-0006_incorporacion_adenda_sprint_1.md)
+1. ADR-0006
    conserva el mapa aprobado como autoridad contractual.
 2. [REQ-EST-001](./_index.md) adopta el mapa revisado como alcance vigente.
 3. Hito 1 continua hasta obtener evidencia productiva CA1-only.
@@ -98,7 +98,7 @@ alcance, cronograma y condiciones revisadas. Ese detalle no se publica en Git.
 ## Enlaces
 
 - [REQ-EST-001](./_index.md)
-- [Hitos Sprint 1](../../hitos/_index.md)
+- Hitos Sprint 1
 - [Plan de cierre Hito 1](../../operaciones/plan_cierre_hito1_ca1_only.md)
-- [Flujo de requerimientos](../../operaciones/flujo_requerimientos.md)
-- [ADR-0002](../../decisiones/ADR-0002_ciclo_requerimientos_privados.md)
+- Flujo de requerimientos
+- ADR-0002
