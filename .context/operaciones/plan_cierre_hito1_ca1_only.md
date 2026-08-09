@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `F10_8_PRODUCTION_CANARY_VERIFIED_F10_9_PENDING` |
+| Estado | `F10_9_INCIDENT_REMEDIATION_PLANNED` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -582,10 +582,28 @@ manifests; `pre` y `after-cleanup` coinciden en counts/gates/contract/limits;
 `restore_idempotent` reporta `expect_noop=true`, `after_matches_snapshot=true`,
 `non_cohort_attestations_match=true` y cero filas restauradas/eliminadas.
 
-`EVID-H1-010=VERIFIED`. F10.9 permanece pendiente para schedules automaticos y
-observacion; F11.1 permanece pendiente para cierre/conformidad. Este cierre no
+`EVID-H1-010=VERIFIED`. En ese corte F10.9 permanecia pendiente para schedules
+automaticos y observacion; F11.1 permanece pendiente para cierre/conformidad. Este cierre no
 autoriza DDL/DML, backfill, schedules, writers, cambios de secrets/environments ni
 CA2.
+
+### Hallazgo Tardio F10.9 - 2026-08-09
+
+La primera observacion global posterior al canary quedo fail-closed. Los runs y
+reruns se registran en
+[INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) y en el ledger
+[EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md).
+
+FG2 valido credenciales pero quedo parcial por inventario URL duplicado, estados
+stale y source access; FG3 valido credenciales pero termino con resultados HTTP
+inconclusos, mutaciones parciales y un gate de metadata incumplido. Ningun run
+acredita `EVID-H1-011/012`, los pares aceptados vuelven a `0` y la ventana de 72h
+queda `NOT_STARTED`.
+
+[PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) organiza la
+remediacion sin autorizarla. La decision humana vigente exige cero cursos activos
+sin syllabus/objectives para cerrar Hito 1. F10.8 y
+`EVID-H1-010=VERIFIED` permanecen inmutables.
 
 ## Work Packages Internos
 
@@ -784,6 +802,10 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `CLIENT_CONFORMITY_PENDING` |
 
+La primera observacion F10.9 registra `0` pares aceptados. Los intentos
+documentados en `EVID-H1-OBS-F10.9-001` son evidencia fail-closed y no cambian los
+estados `PENDING` de `EVID-H1-011..013`.
+
 ## Stop Conditions
 
 - Path/hunk CA2 en el candidate.
@@ -860,7 +882,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`); `EVID-H1-010=VERIFIED`. |
-| `F10.9` | `PENDING` | Habilitacion gradual de schedules y observacion: al menos 72h y tres pares FG2 -> FG3 consecutivos completos. |
+| `F10.9` | `IN_PROGRESS_BLOCKED_BY_INCIDENT` | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) registra cero pares aceptados; [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) queda documentado y no ejecutable hasta aprobaciones separadas. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida
