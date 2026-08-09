@@ -37,6 +37,7 @@ VOLATILE_RESTORE_COLUMNS = {"created_at", "updated_at"}
 CANARY_RUN_METADATA_KEY = "f10_production_canary_run_id"
 CANARY_PROVIDER_MARKER = "f10-production-canary"
 CANARY_PROFILE_NOTE_PREFIX = "F10 production canary run "
+NON_COHORT_ATTESTATION_BATCH_SIZE = 10
 
 
 def _ensure_github_production_context():
@@ -182,12 +183,24 @@ def _parse_timestamp(value):
     return parsed.astimezone(timezone.utc)
 
 
-def _select_rows(db, table, filters):
+def _select_rows(db, table, filters, *, batch_size=1000):
     config = TABLES[table]
     if config["pipeline"]:
-        rows = db.select_all_pipeline(table, filters=filters, order="id.asc")
+        rows = db.select_all_pipeline(
+            table,
+            filters=filters,
+            columns="*",
+            batch_size=batch_size,
+            order="id.asc",
+        )
     else:
-        rows = db.select_all_service(table, filters=filters, order="id.asc")
+        rows = db.select_all_service(
+            table,
+            filters=filters,
+            columns="*",
+            batch_size=batch_size,
+            order="id.asc",
+        )
     return _sort_rows(rows or [])
 
 
@@ -231,9 +244,20 @@ def _select_restore_rows(db, table, institution_id, before_rows):
 def _select_non_cohort_groups(db, table, institution_id):
     config = TABLES[table]
     column = config["cohort_column"]
+    batch_size = NON_COHORT_ATTESTATION_BATCH_SIZE
     return {
-        "not_institution": _select_rows(table=table, db=db, filters=f"{column}=neq.{quote(str(institution_id), safe='')}"),
-        "null_institution": _select_rows(table=table, db=db, filters=f"{column}=is.null"),
+        "not_institution": _select_rows(
+            table=table,
+            db=db,
+            filters=f"{column}=neq.{quote(str(institution_id), safe='')}",
+            batch_size=batch_size,
+        ),
+        "null_institution": _select_rows(
+            table=table,
+            db=db,
+            filters=f"{column}=is.null",
+            batch_size=batch_size,
+        ),
     }
 
 

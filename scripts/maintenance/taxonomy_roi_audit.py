@@ -16,47 +16,19 @@ SENIORITY_COLUMNS = {
     "Senior": "salary_senior",
 }
 
-PUBLIC_COURSE_FILTERS = (
-    "is_active=eq.true&is_verified=eq.true&publication_status=eq.publicado"
-)
-COURSE_COLUMNS = (
-    "id,name,institution_id,category,category_id,expected_monthly_salary,"
-    "roi_months,seniority_level,price_pen,course_type"
-)
-
-
-def _load_public_visible_courses(database):
-    profiles = database.select_all_service(
-        'institution_site_profiles',
-        filters='production_enabled=eq.true',
-        columns='institution_id',
-    )
-    production_institution_ids = {
-        str(profile.get('institution_id'))
-        for profile in profiles
-        if profile.get('institution_id')
-    }
-    courses = database.select_all_service(
-        'courses',
-        filters=PUBLIC_COURSE_FILTERS,
-        columns=COURSE_COLUMNS,
-    )
-    return [
-        course
-        for course in courses
-        if str(course.get('institution_id')) in production_institution_ids
-    ]
-
-
 def run_taxonomy_roi_audit():
     print("🚀 Iniciando Auditoría de Coherencia Taxonómica y Financiera...")
     
     # 1. Obtener datos de referencia (Salarios de Mercado)
-    salaries_data = db.select_all_service('market_salaries', columns='*')
+    salaries_data = db.select_all('market_salaries', columns='*')
     market_map = {s['category_id']: s for s in salaries_data}
 
     # 2. Obtener todos los cursos activos
-    courses = _load_public_visible_courses(db)
+    courses = db.select_all(
+        'courses',
+        filters='is_active=eq.true',
+        columns='id,name,category,category_id,expected_monthly_salary,roi_months,seniority_level,price_pen,course_type',
+    )
     
     issues = []
     

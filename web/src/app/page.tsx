@@ -65,12 +65,12 @@ export default async function Home() {
   const initialCourses = await fetchCourses();
 
   return (
-      <Suspense fallback={
-        <div className="min-h-screen bg-brand-slate flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div>
-        </div>
-      }>
-        <HomeContent initialCourses={initialCourses} />
-      </Suspense>
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-slate flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-blue"></div>
+      </div>
+    }>
+      <HomeContent initialCourses={initialCourses} />
+    </Suspense>
   );
 }

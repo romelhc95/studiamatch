@@ -1,14 +1,10 @@
-import type { Metadata } from "next";
-import Home from "../page";
+import CoursesFallbackPage from "./CoursesFallbackPage";
 
-export const metadata: Metadata = {
-  title: "Catálogo de programas | StudIAMatch",
-  description: "Explora y compara programas educativos verificados en StudIAMatch.",
-  alternates: {
-    canonical: "https://studiamatch.com/courses/",
-  },
+export const metadata = {
+  title: "Detalle de programa | StudIAMatch",
+  description: "Información detallada de programas educativos verificados en StudIAMatch.",
 };
 
-export default async function CoursesPage() {
-  return Home();
+export default function CoursesPage() {
+  return <CoursesFallbackPage />;
 }

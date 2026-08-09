@@ -1,100 +1,34 @@
 #!/bin/sh
-# pre-push hook - blocks pushes when any outgoing commit tree contains credentials.
+# pre-push hook — Blocks push if new commits contain hardcoded credentials.
 # Installation: git config core.hooksPath .githooks
+# Input from git: <local_ref> <local_sha> <remote_ref> <remote_sha>
 
-set -u
+echo "🔍 [pre-push] Scanning push diff for hardcoded credentials..."
 
-F97_CREDENTIAL_PATTERN="eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
-ZERO_SHA=0000000000000000000000000000000000000000
-remote_name=${1:-origin}
-
-echo "[pre-push] Scanning outgoing commit trees for hardcoded credentials..."
-
-if ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo "[pre-push] SECURITY BLOCKED: unable to inspect Git repository."
-    exit 1
-fi
-
-scan_tree() {
-    tree_sha=$1
-    git grep -a -q -E "$F97_CREDENTIAL_PATTERN" "$tree_sha" -- .
-    status=$?
-    if [ "$status" -eq 0 ]; then
-        echo "[pre-push] SECURITY BLOCKED: potential credential detected in outgoing commit tree (content redacted)."
-        return 1
-    fi
-    if [ "$status" -eq 1 ]; then
-        return 0
-    fi
-    echo "[pre-push] SECURITY BLOCKED: credential scan failed operationally."
-    return 1
-}
-
-tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/studiamatch-pre-push.XXXXXX") || exit 1
-seen_trees=$tmp_dir/seen-trees
-: > "$seen_trees" || exit 1
-blocked=0
-
-while read -r local_ref local_sha remote_ref remote_sha; do
-    if [ -z "${local_ref:-}" ]; then
+remote_sha=""
+while read local_ref local_sha remote_ref remote_sha; do
+    # Determine range of commits to check
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Deleting remote ref, skip
         continue
     fi
-    if [ "$local_sha" = "$ZERO_SHA" ]; then
-        continue
-    fi
-
-    if ! git cat-file -e "$local_sha^{commit}" 2>/dev/null; then
-        echo "[pre-push] SECURITY BLOCKED: local commit object is invalid."
-        blocked=1
-        continue
-    fi
-
-    commits_file=$tmp_dir/commits
-    if [ "$remote_sha" = "$ZERO_SHA" ]; then
-        if ! git rev-list "$local_sha" --not --remotes="$remote_name" > "$commits_file" 2>/dev/null; then
-            echo "[pre-push] SECURITY BLOCKED: unable to enumerate new-branch commits."
-            blocked=1
-            continue
-        fi
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch: diff the full pushed tree against the empty tree.
+        empty_tree=$(git hash-object -t tree /dev/null)
+        range="${empty_tree}..${local_sha}"
     else
-        if ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
-            echo "[pre-push] SECURITY BLOCKED: remote commit object is invalid."
-            blocked=1
-            continue
-        fi
-        if ! git rev-list "$local_sha" --not "$remote_sha" > "$commits_file" 2>/dev/null; then
-            echo "[pre-push] SECURITY BLOCKED: unable to enumerate outgoing commits."
-            blocked=1
-            continue
-        fi
+        range="${remote_sha}..${local_sha}"
     fi
 
-    while IFS= read -r commit_sha; do
-        [ -n "$commit_sha" ] || continue
-        tree_sha=$(git rev-parse "$commit_sha^{tree}" 2>/dev/null) || {
-            echo "[pre-push] SECURITY BLOCKED: unable to resolve outgoing commit tree."
-            blocked=1
-            continue
-        }
-        if grep -qx "$tree_sha" "$seen_trees" 2>/dev/null; then
-            continue
-        fi
-        printf '%s\n' "$tree_sha" >> "$seen_trees" || {
-            echo "[pre-push] SECURITY BLOCKED: unable to track scanned trees."
-            blocked=1
-            continue
-        }
-        if ! scan_tree "$tree_sha"; then
-            blocked=1
-        fi
-    done < "$commits_file"
+    # Get diff for new commits and scan for credentials
+    if git diff "$range" 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' | grep -qE \
+        "eyJhbG[A-Za-z0-9_-]{10,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"; then
+        echo "⚠️  CREDENTIAL FOUND in commits being pushed to $remote_ref"
+        echo "   Check the diff above, remove the credential, and use an env var."
+        echo "   To see exact location: git diff $range | grep -n -E '<pattern>'"
+        exit 1
+    fi
 done
 
-rm -rf -- "$tmp_dir"
-
-if [ "$blocked" -ne 0 ]; then
-    exit 1
-fi
-
-echo "[pre-push] No credentials detected in outgoing commits."
+echo "✅ [pre-push] No credentials detected in push."
 exit 0

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os
-import subprocess
+import re
 from pathlib import Path
 
 
@@ -12,135 +11,144 @@ def source(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def _run_preflight(
-    writer: str,
-    *,
-    event_name: str = "workflow_dispatch",
-    ref_name: str = "main",
-    automation_enabled: str = "false",
-    writers_paused: str = "true",
-) -> subprocess.CompletedProcess:
-    env = os.environ.copy()
-    env.update(
-        {
-            "GITHUB_EVENT_NAME": event_name,
-            "GITHUB_REF_NAME": ref_name,
-            "AUTOMATION_ENABLED": automation_enabled,
-            "PRODUCTION_WRITERS_PAUSED": writers_paused,
-        }
-    )
-    return subprocess.run(
-        ["bash", str(ROOT / ".github/scripts/production_control_preflight.sh"), writer, "--enforce"],
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def test_db_sync_preflight_requires_writers_paused_and_manual_dispatch() -> None:
+def test_production_control_preflight_is_fail_closed_and_output_based() -> None:
     script = source(".github/scripts/production_control_preflight.sh")
 
-    assert 'if [ "$writer" = "DB-SYNC" ]; then' in script
+    assert "set -euo pipefail" in script
     assert "PRODUCTION-CANARY" in script
-    assert 'reason="production_canary_automation_not_disabled"' in script
-    assert 'reason="production_canary_writers_not_paused"' in script
-    assert 'reason="db_sync_requires_manual_dispatch"' in script
-    assert 'reason="production_writers_not_paused_for_db_sync"' in script
-    assert 'reason="production_db_sync_allowed"' in script
-    assert '[ "$writers_paused" != "true" ]' in script
-    assert 'elif [ "$writers_paused" != "false" ]; then' in script
+    assert 'allow_writer="false"' in script
+    assert "production_writers_paused_or_unset" in script
+    assert "automation_disabled" in script
+    assert "production_canary_requires_manual_dispatch" in script
+    assert "production_canary_automation_not_disabled" in script
+    assert "production_canary_writers_not_paused" in script
+    assert "production_canary_allowed" in script
+    assert "db_sync_requires_manual_dispatch" in script
+    assert "production_db_sync_allowed" in script
+    assert "--enforce" in script
+    assert '"$reason" != "automation_disabled"' in script
+    assert '"$reason" != "non_main_schedule_blocked"' in script
+    assert "GITHUB_STEP_SUMMARY" in script
+    assert "Production Control Preflight" in script
+    for output in (
+        "writer=$writer",
+        "allow_writer=$allow_writer",
+        "automation_enabled=${automation_enabled:-unset}",
+        "writers_paused=${writers_paused:-unset}",
+        "reason=$reason",
+    ):
+        assert output in script
 
 
-def test_preflight_allows_only_manual_production_canary_with_automation_off_and_writers_paused() -> None:
-    allowed = _run_preflight("PRODUCTION-CANARY")
-    automation_on = _run_preflight("PRODUCTION-CANARY", automation_enabled="true")
-    writers_active = _run_preflight("PRODUCTION-CANARY", writers_paused="false")
-    scheduled = _run_preflight("PRODUCTION-CANARY", event_name="schedule")
+def test_scheduled_workflows_use_environment_bound_preflight_outputs() -> None:
+    workflows = {
+        "fg1": source(".github/workflows/fg1_inventory.yml"),
+        "fg2": source(".github/workflows/production_pipeline.yml"),
+        "fg3": source(".github/workflows/fg3_integrity.yml"),
+    }
 
-    assert allowed.returncode == 0, allowed.stdout + allowed.stderr
-    assert "reason=production_canary_allowed" in allowed.stdout
-    assert automation_on.returncode != 0
-    assert "production_canary_automation_not_disabled" in automation_on.stdout + automation_on.stderr
-    assert writers_active.returncode != 0
-    assert "production_canary_writers_not_paused" in writers_active.stdout + writers_active.stderr
-    assert scheduled.returncode != 0
-    assert "production_canary_requires_manual_dispatch" in scheduled.stdout + scheduled.stderr
-
-
-def test_preflight_db_sync_requires_manual_dispatch_and_paused_writers() -> None:
-    allowed = _run_preflight("DB-SYNC", automation_enabled="true")
-    push = _run_preflight("DB-SYNC", event_name="push", automation_enabled="true")
-    writers_active = _run_preflight("DB-SYNC", automation_enabled="true", writers_paused="false")
-
-    assert allowed.returncode == 0, allowed.stdout + allowed.stderr
-    assert "reason=production_db_sync_allowed" in allowed.stdout
-    assert push.returncode != 0
-    assert "db_sync_requires_manual_dispatch" in push.stdout + push.stderr
-    assert writers_active.returncode != 0
-    assert "production_writers_not_paused_for_db_sync" in writers_active.stdout + writers_active.stderr
+    forbidden_job_if = "github.ref_name == 'main' && vars.AUTOMATION_ENABLED == 'true'"
+    for name, workflow in workflows.items():
+        assert "production_control_preflight:" in workflow, name
+        assert "Resolve production controls" in workflow, name
+        assert "steps.preflight.outputs.allow_writer" in workflow, name
+        assert "needs.production_control_preflight.outputs.allow_writer == 'true'" in workflow, name
+        assert forbidden_job_if not in workflow, name
+        assert "PRODUCTION_WRITERS_PAUSED: ${{ vars.PRODUCTION_WRITERS_PAUSED }}" in workflow, name
+        assert "AUTOMATION_ENABLED: ${{ vars.AUTOMATION_ENABLED }}" in workflow, name
 
 
-def test_preflight_fg_writers_require_active_writers_and_automation_for_schedules() -> None:
-    scheduled_allowed = _run_preflight(
+def test_fg2_checks_writer_pause_before_every_mutating_station() -> None:
+    workflow = source(".github/workflows/production_pipeline.yml")
+
+    assert workflow.count("Verify production controls before mutating station") == 4
+    for writer in (
+        "FG2-HARVEST",
+        "FG2-CLEANSING",
+        "FG2-ENRICHMENT",
         "FG2-SYNC",
-        event_name="schedule",
-        automation_enabled="true",
-        writers_paused="false",
-    )
-    paused = _run_preflight(
-        "FG2-SYNC",
-        event_name="schedule",
-        automation_enabled="true",
-        writers_paused="true",
-    )
-    automation_disabled = _run_preflight(
-        "FG2-SYNC",
-        event_name="schedule",
-        automation_enabled="false",
-        writers_paused="false",
-    )
+    ):
+        assert f"production_control_preflight.sh {writer} --enforce" in workflow
 
-    assert scheduled_allowed.returncode == 0, scheduled_allowed.stdout + scheduled_allowed.stderr
-    assert "reason=production_writer_allowed" in scheduled_allowed.stdout
-    assert paused.returncode != 0
-    assert "production_writers_paused_or_unset" in paused.stdout + paused.stderr
-    assert automation_disabled.returncode != 0
-    assert "automation_disabled" in automation_disabled.stdout + automation_disabled.stderr
+    assert workflow.count("needs.production_control_preflight.outputs.allow_writer == 'true'") >= 5
+    for job in (
+        "phase_1_harvesting",
+        "phase_1_5_cleansing",
+        "phase_2_enrichment",
+        "phase_3_sync",
+        "phase_4_audit",
+    ):
+        assert f"  {job}:" in workflow
 
 
-def test_f910_security_audit_has_dedicated_f10_boundary_gate() -> None:
+def test_fg1_and_fg3_check_writer_pause_before_mutation() -> None:
+    fg1 = source(".github/workflows/fg1_inventory.yml")
+    fg3 = source(".github/workflows/fg3_integrity.yml")
+
+    assert "production_control_preflight.sh FG1 --enforce" in fg1
+    assert "production_control_preflight.sh FG3 --enforce" in fg3
+    assert fg1.index("Verify production controls before mutating station") < fg1.index(
+        "Run Discovery Institutions"
+    )
+    assert fg3.index("Verify production controls before mutating station") < fg3.index(
+        "Run Integrity Ping"
+    )
+
+
+def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
+    workflow = source(".github/workflows/db-sync-to-pro.yml")
+
+    assert "push:" in workflow
+    assert "branches: [main]" in workflow
+    assert "operation:" in workflow
+    assert "backup_pitr_verified:" in workflow
+    assert "ddl_authorization_id:" in workflow
+    assert "Report pending migrations dry-run" in workflow
+    assert "Confirm report-only mode" in workflow
+    assert "github.event_name == 'workflow_dispatch'" in workflow
+    assert "inputs.operation == 'apply'" in workflow
+    assert "inputs.apply_authorized" in workflow
+    assert "inputs.backup_pitr_verified" in workflow
+    assert "inputs.ddl_authorization_id != ''" in workflow
+    assert "fromJSON(needs.report.outputs.pending_count) > 0" in workflow
+    assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in workflow
+    assert "APPROVED_FOR_PRODUCTION_DDL" in workflow
+    assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in workflow
+    assert "production_control_preflight.sh DB-SYNC --enforce" in workflow
+    assert "python3 scripts/maintenance/db_migrate.py --env pro --manifest" in workflow
+
+    report_section = workflow.split("  report:", 1)[1].split("  apply:", 1)[0]
+    assert "--dry-run --manifest" in report_section
+    assert "Apply migrations to Pro" not in report_section
+    assert not re.search(r"if:\s*github\.ref_name == 'main' && inputs\.apply_authorized", workflow)
+
+
+def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "f10-main-boundary:" in workflow
-    assert "F10 Main Boundary And Production Canary" in workflow
-    assert "tests/test_fase10_production_canary.py" in workflow
-    assert "tests/test_fase09_10_pre_main_controls.py tests/test_fase10_main_boundary.py tests/test_fase10_production_canary.py" in workflow
-    assert "needs.f10-main-boundary.result" in workflow
-    assert "f10-main-boundary**" in workflow
+    assert "F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b" in workflow
+    assert "F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab" in workflow
+    assert "f910-pre-main-controls:" in workflow
+    assert "F9.10 Pre-Main Repository Controls" in workflow
+    assert "git fetch --no-tags origin certificacion desarrollo" in workflow
+    assert "unsupported baseline" in workflow
+    assert '"db/", "supabase/", "web/", "scripts/maintenance/"' in workflow
+    assert '".github/workflows/f9-7-contract.yml"' in workflow
+    assert '"tests/test_fase09_7_release_gates.py"' in workflow
+    assert '".github/workflows/production_canary.yml": {"A"}' in workflow
+    assert '"scripts/core/production_canary_manifest.py": {"A"}' in workflow
+    assert '"scripts/core/production_canary_state.py": {"A"}' in workflow
+    assert '"tests/test_fase10_production_canary.py": {"A"}' in workflow
+    assert 'expected_modes[".github/workflows/security-audit.yml"] = "100755"' in workflow
+    assert "tests/test_fase09_10_pre_main_controls.py" in workflow
 
 
-def test_f910_allowed_surfaces_are_documented_without_authorizing_f10() -> None:
-    plan = source(".context/operaciones/plan_cierre_hito1_ca1_only.md")
-    estado = source(".context/estado_del_proyecto.md")
+def test_production_canary_workflow_is_present_but_never_scheduled() -> None:
+    workflow = source(".github/workflows/production_canary.yml")
 
-    assert "Allowlist De Controles Pre-Main F9.10" in plan
-    assert ".github/workflows/production_canary.yml" in plan
-    assert "scripts/core/production_canary_state.py" in plan
-    assert "F10 permanece bloqueada" in estado
-    assert "EVID-H1-010" in plan
-
-
-def test_production_canary_files_are_in_release_gate_allowlist() -> None:
-    workflow = source(".github/workflows/security-audit.yml")
-    f97_contract = source(".github/workflows/f9-7-contract.yml")
-
-    release_gate = workflow.split("f98_ca1_allowed_statuses = {", 1)[1].split(
-        "f98_ca1_allowed = set", 1
-    )[0]
-    assert "'scripts/core/production_canary_manifest.py': {'A'}" in release_gate
-    assert "'scripts/core/production_canary_state.py': {'A'}" in release_gate
-    assert "'.gitattributes': {'M'}" in release_gate
-    assert "'scripts/core/production_canary_manifest.py': {'A', 'M'}" in f97_contract
-    assert "'scripts/core/production_canary_state.py': {'A', 'M'}" in f97_contract
-    assert "'.gitattributes': {'M'}" in f97_contract
+    assert "workflow_dispatch:" in workflow
+    assert "schedule:" not in workflow
+    assert "github.ref_name == 'main'" in workflow
+    assert "candidate_sha:" in workflow
+    assert "PRODUCTION-CANARY --enforce" in workflow
+    assert "mutable_authorized:" in workflow

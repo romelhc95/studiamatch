@@ -138,11 +138,35 @@ def test_runtime_scripts_keep_default_schedules_but_accept_canary_cohort_flags()
     assert "self._limit_urls(self._merge_resumable_urls" in harvester
     assert "--institution-id" in cleansing
     assert "--limit" in cleansing
+    assert "max_records" in cleansing
+    assert "active_batch_size" in cleansing
+    assert "lock_staging_records returned non-cohort or unlocked row" in cleansing
     assert "--institution-id" in enrichment
+    assert "institution_id=in." in enrichment
+    assert "worker.db.patch_raise('cleansed_programs'" not in enrichment
     assert "--institution-id" in sync
     assert "cross_institution_url_collision" in sync
     assert "--institution-id" in integrity
     assert "active_limit = None if limit is None else max(limit - expired_count, 0)" in integrity
+
+
+def test_mutable_canary_writers_mark_row_provenance() -> None:
+    harvester = source("scripts/core/universal_harvester.py")
+    cleansing = source("scripts/core/cleansing_worker.py")
+    enrichment = source("scripts/core/enrichment_worker.py")
+    sync = source("scripts/core/sync_vector_worker.py")
+
+    assert "F99_CERTIFICATION_CANARY_RUN_ID" in harvester
+    assert "f99_certification_canary_run_id" in harvester
+    assert "F9.9 certification canary run" in harvester
+    assert "f99_certification_canary_run_id" in cleansing
+    assert "_mark_canary_metadata" in cleansing
+    assert "_verify_canary_cleansed_row" in cleansing
+    assert "f99_certification_canary_run_id" in enrichment
+    assert "_mark_canary_metadata" in enrichment
+    assert "_verify_canary_enriched_row" in enrichment
+    assert "f99-certification-canary" in sync
+    assert "_mark_canary_provider" in sync
 
 
 def test_canary_manifest_is_sanitized_and_does_not_print_internal_ids() -> None:
@@ -156,6 +180,13 @@ def test_canary_manifest_is_sanitized_and_does_not_print_internal_ids() -> None:
     assert "CANARY_INSTITUTION_ID" in manifest
     assert '"institution_id"' not in manifest
     assert "print(json" not in manifest
+    assert "workflow_dispatch" in manifest
+    assert "push" in manifest
+    assert "after-cleanup" in manifest
+    assert 'if os.getenv("GITHUB_ACTIONS") != "true"' not in manifest.split("def _ensure_certification_supabase_target():", 1)[1].split("def _resolve_institution", 1)[0]
+    assert 'parsed.scheme != "https"' in manifest
+    assert "parsed.username" in manifest
+    assert "port not in (None, 443)" in manifest
     assert "_mask_github_value(institution_id)" in manifest
     assert "_mask_github_value(institution_id)" in state
     assert "Expected exactly one institution for slug" not in manifest
@@ -167,26 +198,70 @@ def test_canary_state_private_snapshot_and_sanitized_summary_contract() -> None:
 
     assert "STATE_SCHEMA" in state
     assert "SUMMARY_SCHEMA" in state
+    assert "select_all_pipeline" in state
+    assert "select_all_service" in state
+    assert "patch_exact_one_raise" in state
+    assert "expect_noop" in state
     assert "private_digest" not in state
     assert "deleted_canary_rows" in state
     assert "restored_existing_rows" in state
     assert "non_cohort_count_matches" in state
-    assert "CANARY_PRIVATE_SNAPSHOT" not in state
+    assert "institution_site_profiles" in state
+    assert '"institutions"' in state
+    assert "_select_restore_rows" in state
+    assert "_has_canary_marker" in state
+    assert "_has_any_canary_marker" in state
+    assert "_ensure_clean_prestate" in state
+    assert "dirty canary leftovers" in state
+    assert "canary_run_id" in state
+    assert "f99-certification-canary" in state
+    assert "f99_certification_canary_run_id" in state
+    assert '.split("|")' in state
+    assert ".splitlines()" in state
+    assert "Refusing to delete pre-existing or unverified extra row" in state
+    assert '"cohort_column": "institution_id"' in state
+    assert 'null_filter = f"{column}=is.null"' in state
     assert "VOLATILE_RESTORE_COLUMNS" in state
     assert "updated_at" in state
     assert "_ensure_certification_supabase_target" in state
     assert "_mask_github_value(institution_id)" in state
     assert '"institution_slug": "redacted"' in state
     assert '"institution_name": "redacted"' in state
-    assert 'if os.getenv("GITHUB_ACTIONS") != "true"' not in state.split(
-        "def _ensure_certification_supabase_target():", 1
-    )[1].split("def _canonical", 1)[0]
+    assert 'if os.getenv("GITHUB_ACTIONS") != "true"' not in state.split("def _ensure_certification_supabase_target():", 1)[1].split("def _canonical", 1)[0]
     assert 'parsed.scheme != "https"' in state
     assert "parsed.username" in state
     assert "port not in (None, 443)" in state
     assert "Canary pre-state contains dirty canary leftovers:" not in state
     assert "Duplicate row id in canary state: {row_id}" not in state
     assert "extra row from {table}: {row_id}" not in state
+
+
+def test_sync_vector_rejects_orphan_course_url_collision() -> None:
+    sync = source("scripts/core/sync_vector_worker.py")
+
+    collision_block = sync.split("Cross-institution URL collision", 1)[0].rsplit("if (", 1)[1]
+    assert "existing_course" in collision_block
+    assert "str(existing_inst_id) != str(enriched['institution_id'])" in collision_block
+    assert "and existing_inst_id" not in collision_block
+    assert "invalid_enriched_url" in sync
+    assert "is_safe_public_url" in sync
+    assert "validated_url" in sync
+    assert "_verify_canary_course_marker" in sync
+    assert "canary_course_marker_missing" in sync
+
+
+def test_cleansing_fallback_rejects_cross_institution_url_collision() -> None:
+    cleansing = source("scripts/core/cleansing_worker.py")
+
+    fallback_block = cleansing.split("upsert('cleansed_programs'", 1)[0].rsplit("for item in cleansed_batch:", 1)[1]
+    assert "select_pipeline_raise" in fallback_block
+    assert "url=eq." in fallback_block
+    assert "str(existing.get('institution_id')) != str(item['institution_id'])" in fallback_block
+    assert "cross_institution_url_collision" in fallback_block
+    assert "member_institutions" in cleansing
+    assert "invalid_cleansed_url" in cleansing
+    assert "canary provenance marker missing from cleansed_programs" in cleansing
+    assert "is_safe_public_url(url)" in source("scripts/core/sync_vector_worker.py")
 
 
 def test_security_audit_f99_runtime_manifest_includes_canary_runtime() -> None:
@@ -200,10 +275,37 @@ def test_security_audit_f99_runtime_manifest_includes_canary_runtime() -> None:
     assert "scripts/core/master_orchestrator.py" in runtime_manifest
 
 
-def test_f97_contract_allows_certification_canary_redaction_without_skipping() -> None:
-    workflow = source(".github/workflows/f9-7-contract.yml")
+def test_security_audit_freezes_selective_certification_identity() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
 
-    assert "name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract" in workflow
-    assert "scripts/core/certification_canary_manifest.py': {'A', 'M'}" in workflow
-    assert "scripts/core/certification_canary_state.py': {'A', 'M'}" in workflow
-    assert "f97-drift:{path}" in workflow
+    assert "F99_CERTIFICATION_BASELINE: e4ad815624184b692219ca9490347880af8de6b6" in workflow
+    assert "F99_CA1_SOURCE_COMMIT: 456becf94a2bab3d8091c7036509cfb80791a3f9" in workflow
+    assert "denied_prefixes = ('db/', 'supabase/', 'web/', 'scripts/maintenance/')" in workflow
+    assert "source-drift:{path}" in workflow
+    assert "f99-certification-selective" in workflow
+    assert "github.base_ref == 'certificacion'" in workflow
+    assert "F99_REQUIRED" in workflow
+    source_equal_exclusions = workflow.split("source_equal_paths = sorted(runtime_paths - {", 1)[1].split("})", 1)[0]
+    assert "scripts/core/cleansing_worker.py" in source_equal_exclusions
+    assert "scripts/core/enrichment_worker.py" in source_equal_exclusions
+    assert "scripts/core/sync_vector_worker.py" in source_equal_exclusions
+    assert "scripts/core/universal_harvester.py" in source_equal_exclusions
+
+
+def test_security_audit_accepts_certification_canary_redaction_boundary() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+
+    assert "F108_CERTIFICATION_REDACTION_BASELINE: f8bba3c75601b21fa456133b36df9e222db4c685" in workflow
+    assert "f108-certification-canary-redaction:" in workflow
+    assert "F10.8 Certification Canary Redaction" in workflow
+    assert "F108_CERT_REDACTION_REQUIRED" in workflow
+    assert "needs.f108-certification-canary-redaction.result" in workflow
+    redaction_gate = workflow.split("f108-certification-canary-redaction:", 1)[1].split(
+        "f108-main-gate-update:", 1
+    )[0]
+    assert '".github/workflows/f9_9_certification_canary.yml": ("M", "100644")' in redaction_gate
+    assert '".github/workflows/security-audit.yml": ("M", "100755")' in redaction_gate
+    assert '"scripts/core/certification_canary_manifest.py": ("M", "100644")' in redaction_gate
+    assert '"scripts/core/certification_canary_state.py": ("M", "100644")' in redaction_gate
+    assert '"tests/test_fase09_9_certification_canary.py": ("M", "100644")' in redaction_gate
+    assert 'denied_prefixes = ("db/", "supabase/", "web/", "scripts/maintenance/")' in redaction_gate

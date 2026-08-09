@@ -392,21 +392,30 @@ class CleansingWorker:
         batch_size: int = 100,
         max_iterations: int = 10000,
         institution_id: Optional[str] = None,
+        max_records: Optional[int] = None,
     ) -> Generator[Dict[str, Any], None, None]:
         """Streams pending staging records using lock RPC if available, falls back to simple select."""
         seen_ids: set = set()
         iterations = 0
         rpc_failures = 0
         rpc_fallback = False
+        yielded = 0
         while True:
+            if max_records is not None and yielded >= max_records:
+                break
             iterations += 1
             if iterations > max_iterations:
                 logger.warning(f"Max iterations ({max_iterations}) reached. Breaking loop.")
                 break
+            active_batch_size = batch_size
+            if max_records is not None:
+                active_batch_size = min(batch_size, max(max_records - yielded, 0))
+                if active_batch_size <= 0:
+                    break
             try:
                 # Try atomic lock via RPC first (PG17-safe, UPDATE+RETURNING atomico)
                 if not rpc_fallback:
-                    locked = self.db.rpc('lock_staging_records', {"inst_id": institution_id, "batch_size": batch_size})
+                    locked = self.db.rpc('lock_staging_records', {"inst_id": institution_id, "batch_size": active_batch_size})
                     if locked and len(locked) > 0:
                         rpc_failures = 0
                         current_ids = {r['id'] for r in locked if isinstance(r, dict)}
@@ -416,6 +425,27 @@ class CleansingWorker:
                         seen_ids.update(current_ids)
                         for record in locked:
                             if isinstance(record, dict):
+                                if max_records is not None and yielded >= max_records:
+                                    break
+                                record_id = record.get('id')
+                                if not record_id:
+                                    raise RuntimeError("lock_staging_records returned row without id")
+                                verified = self.db.select_pipeline_raise(
+                                    'staging_raw',
+                                    filters=f"id=eq.{quote(str(record_id), safe='')}",
+                                    columns='id,institution_id,status',
+                                    limit=1,
+                                )
+                                if (
+                                    len(verified) != 1
+                                    or verified[0].get('status') != 'processing'
+                                    or (
+                                        institution_id
+                                        and str(verified[0].get('institution_id')) != str(institution_id)
+                                    )
+                                ):
+                                    raise RuntimeError("lock_staging_records returned non-cohort or unlocked row")
+                                yielded += 1
                                 yield record
                         continue
                     if locked is not None:
@@ -428,9 +458,13 @@ class CleansingWorker:
                 filters = "status=eq.pending"
                 if institution_id:
                     filters = f"{filters}&institution_id=eq.{quote(str(institution_id), safe='')}"
-                batch = self.db.select_pipeline_raise('staging_raw', filters=filters, limit=batch_size)
+                batch = self.db.select_pipeline_raise('staging_raw', filters=filters, limit=active_batch_size)
                 if not batch: break
-                for record in batch: yield record
+                for record in batch:
+                    if max_records is not None and yielded >= max_records:
+                        break
+                    yielded += 1
+                    yield record
             except Exception as e:
                 logger.error(f"Error streaming pending staging: {e}")
                 raise
@@ -483,6 +517,9 @@ class CleansingWorker:
 
         cleansed_batch, staging_updates, processed_count = [], [], 0
         for base_url, members in groups.items():
+            member_institutions = {str(m.get('institution_id')) for m in members}
+            if len(member_institutions) != 1:
+                raise RuntimeError("cross_institution_url_collision")
             combined_html, combined_desc = "", ""
             best_raw_name = None
 
@@ -554,6 +591,19 @@ class CleansingWorker:
         if cleansed_batch:
             # Try atomic RPC promotion first. RPC errors must not trigger the
             # non-atomic fallback because the server-side outcome is unknown.
+            for item in cleansed_batch:
+                url_value = item.get('url')
+                if not isinstance(url_value, str) or url_value.strip().lower() in {'', 'none', 'null'}:
+                    raise RuntimeError("invalid_cleansed_url")
+                existing_rows = self.db.select_pipeline_raise(
+                    'cleansed_programs',
+                    filters=f"url=eq.{quote(url_value.strip(), safe='')}",
+                    columns='id,institution_id',
+                    limit=2,
+                )
+                existing = existing_rows[0] if existing_rows else {}
+                if existing and str(existing.get('institution_id')) != str(item['institution_id']):
+                    raise RuntimeError("cross_institution_url_collision")
             staging_ids = [u['id'] for u in staging_updates if u['status'] == 'processed']
             rpc_result = self.db.rpc_raise('atomic_cleansing_promote', {
                 "p_staging_ids": staging_ids,
@@ -567,7 +617,7 @@ class CleansingWorker:
                         self.db.patch_raise(
                             'staging_raw',
                             filters=f"id=eq.{update['id']}",
-                            data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
+                            data={"status": update['status'], "metadata": update.get('metadata', {})},
                         )
                 logger.info(f"Promoted {len(cleansed_batch)} courses via RPC (Consolidated {processed_count} URLs).")
             else:
@@ -579,7 +629,7 @@ class CleansingWorker:
                     self.db.patch_raise(
                         'staging_raw',
                         filters=f"id=eq.{update['id']}",
-                        data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
+                        data={"status": update['status'], "metadata": update.get('metadata', {})},
                     )
                 logger.info(f"Promoted {len(cleansed_batch)} courses (Consolidated {processed_count} URLs).")
             for item in cleansed_batch:
@@ -590,7 +640,7 @@ class CleansingWorker:
                 self.db.patch_raise(
                     'staging_raw',
                     filters=f"id=eq.{update['id']}",
-                    data={"status": update['status'], "metadata": _mark_canary_metadata(update.get('metadata', {}))},
+                    data={"status": update['status'], "metadata": update.get('metadata', {})},
                 )
         return processed_count
 
@@ -607,7 +657,7 @@ if __name__ == "__main__":
     total_processed, batch_accumulator = 0, []
     total_seen = 0
     batch_size = min(200, args.limit) if args.limit is not None else 200
-    for record in worker.stream_pending_staging(batch_size=batch_size, institution_id=args.institution_id):
+    for record in worker.stream_pending_staging(batch_size=batch_size, institution_id=args.institution_id, max_records=args.limit):
         if guard.should_exit:
             logger.warning(f"⚠️ [TIME_GUARD] Shutdown durante cleansing. Procesados: {total_processed}")
             break

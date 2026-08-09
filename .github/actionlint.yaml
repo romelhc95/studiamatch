@@ -1,7 +1,0 @@
-paths:
-  .github/workflows/db-sync-to-pro.yml:
-    ignore:
-      - '^shellcheck reported issue in this script: SC2086:info:3:24: Double quote to prevent globbing and word splitting$'
-  .github/workflows/production_pipeline.yml:
-    ignore:
-      - '^shellcheck reported issue in this script: SC2086:info:1:38: Double quote to prevent globbing and word splitting$'

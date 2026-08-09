@@ -18,6 +18,7 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
     compute_roi,
     duration_months_to_hours,
@@ -75,13 +76,13 @@ class SyncVectorWorker:
             re.compile(r'inscr[ií]b', re.IGNORECASE),
         ]
 
-    def _verify_canary_course_marker(self, synced_url):
+    def _verify_canary_course_marker(self, validated_url):
         marker_prefix, run_id = _active_canary_provider_marker()
         if not marker_prefix or not run_id:
             return
         rows = self.db.select_service_raise(
             'courses',
-            filters=f"url=eq.{quote(str(synced_url), safe='')}",
+            filters=f"url=eq.{quote(str(validated_url), safe='')}",
             columns='id,provider_used',
             limit=2,
         )
@@ -201,6 +202,26 @@ class SyncVectorWorker:
         e_id = enriched['id']
         raw_name = enriched.get('official_name')
         url = enriched['url']
+        if not isinstance(url, str) or url.strip().lower() in {'', 'none', 'null'}:
+            logger.error(f"Invalid enriched URL for {e_id}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="invalid_enriched_url",
+                existing_metadata=enriched.get('metadata'),
+            )
+            return False
+        url = url.strip()
+        if not is_safe_public_url(url):
+            logger.error(f"Unsafe enriched URL for {e_id}: {url}")
+            self.update_enriched_status(
+                e_id,
+                "error",
+                error_msg="invalid_enriched_url",
+                existing_metadata=enriched.get('metadata'),
+            )
+            return False
+        validated_url = url
 
         # Fase 100: skip si la institucion no tiene pipeline habilitado
         inst_id = enriched.get('institution_id')
@@ -255,11 +276,9 @@ class SyncVectorWorker:
 
         # Fallback: if slugify returns empty (non-ASCII names), use last URL segment
         if not base_slug:
-            url = enriched.get('url', '')
-            if url:
-                last_segment = urlparse(url).path.strip('/').split('/')[-1]
-                base_slug = slugify(last_segment)
-                logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
+            last_segment = urlparse(validated_url).path.strip('/').split('/')[-1]
+            base_slug = slugify(last_segment)
+            logger.warning(f"Empty name slug for '{name}', using URL fallback: '{last_segment}' -> '{base_slug}'")
             if not base_slug:
                 base_slug = 'curso'
                 logger.warning(f"All slug methods failed for '{name}', using default 'curso'")
@@ -309,7 +328,7 @@ class SyncVectorWorker:
         # Apply section_mode_map: derive mode from URL path
         resolved_mode = enriched.get('modality') or defaults.get('mode')
         if not enriched.get('modality') and section_mode_map:
-            course_url = enriched.get('url', '')
+            course_url = validated_url
             for path_key, mode_val in section_mode_map.items():
                 if path_key in course_url:
                     resolved_mode = mode_val
@@ -328,7 +347,7 @@ class SyncVectorWorker:
             "institution_id": enriched['institution_id'],
             "name": name,
             "slug": full_slug,
-            "url": url,
+            "url": validated_url,
             "price_pen": enriched.get('total_cost_est'),
             "price_status": defaults.get('price_status', 'publicado') if not enriched.get('total_cost_est') else 'publicado',
             "mode": resolved_mode,
@@ -366,7 +385,6 @@ class SyncVectorWorker:
         existing_inst_id = existing_course.get('institution_id')
         if (
             existing_course
-            and existing_inst_id
             and str(existing_inst_id) != str(enriched['institution_id'])
         ):
             logger.error(f"Cross-institution URL collision for {url}")
@@ -435,9 +453,9 @@ class SyncVectorWorker:
                         )
                         return False
             try:
-                self._verify_canary_course_marker(url)
+                self._verify_canary_course_marker(validated_url)
             except Exception:
-                logger.error(f"Canary provenance marker missing for course URL: {url}")
+                logger.error(f"Canary provenance marker missing for course URL: {validated_url}")
                 self.update_enriched_status(
                     e_id,
                     "error",
