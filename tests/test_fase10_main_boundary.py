@@ -17,7 +17,10 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 Main Boundary" in workflow
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
-    assert "merge-base" not in workflow
+    f10_main_block = workflow.split("  f10-main-boundary:", 1)[1].split(
+        "  f107-certification-gate-update:", 1
+    )[0]
+    assert "merge-base" not in f10_main_block
     assert "EXPECTED_ORIGINAL = {" in workflow
     assert "ALLOWED_PATHS" not in workflow
     assert "exact CA1 objects" in workflow
@@ -99,6 +102,16 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
     assert "EXPECTED_PRODUCTION_CANARY_CLOSURE" in workflow
     assert "EXPECTED_F109_REMEDIATION_PLAN" in workflow
+    assert "f109-branch-reconciliation:" in workflow
+    assert "F10.9 Branch Reconciliation" in workflow
+    assert "needs.f109-branch-reconciliation.result" in workflow
+    assert "F109_REQUIRED" in workflow
+    assert "scripts/security/f109_boundary.py" in workflow
+    assert "actions/checkout@v4" not in workflow
+    assert "actions/setup-node@v4" not in workflow
+    assert "actions/setup-python@v5" not in workflow
+    assert "auto-merge" not in workflow
+    assert "auto-approve" not in workflow
     assert '".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": ("A", "100644")' in workflow
     assert '".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": ("A", "100644")' in workflow
     assert '".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": ("A", "100644")' in workflow
