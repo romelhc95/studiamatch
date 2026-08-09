@@ -22,13 +22,21 @@ env:
   F108_FG1_SOURCE_SLUG_BASELINE: 7b948c3ea5fe5057f17cf7aa11124c116f93c2f2
   F108_FG1_MAIN_BOUNDARY_BASELINE: 90bbcd76c670d84d396051dfa8af74eec9876f9c
   F108_CLEANSING_PROVENANCE_CERT_BASELINE: 12e270166c26d4bc93c1c609c23045a6b6720d96
+  F108_CLEANSING_PROVENANCE_MAIN_BASELINE: 705624a8ffa2f4fae0ffd7a958baa6205a6ae088
+  F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676
+  F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136
+  F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f
+  F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2
+  F108_CANARY_ATTESTATION_BASELINE: 675ade43f41a2f5d04f05a40f9837b514a8705ce
+  F108_PRODUCTION_CANARY_CLOSURE_BASELINE: 859d2f7d83f83950d10858fe27bd035febba7f68
+  F109_REMEDIATION_PLAN_BASELINE: 38314170197a907ac5c4c815a9bb18b3d5f29b06
 
 jobs:
   credential-scan:
     name: Credential Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Scan for hardcoded credentials
         run: |
           PATTERNS="eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['\"]?[A-Za-z0-9_-]{20,}"
@@ -60,8 +68,8 @@ jobs:
         working-directory: web
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -79,8 +87,8 @@ jobs:
         working-directory: web
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -94,8 +102,8 @@ jobs:
     name: Python Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
       - name: Check all core scripts compile
@@ -115,7 +123,7 @@ jobs:
     if: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -469,6 +477,95 @@ jobs:
               "tests/test_fase10_main_boundary.py": ("M", "100644"),
               "tests/test_fase10_production_canary.py": ("M", "100644"),
           }
+          EXPECTED_CLEANSING_PROVENANCE_PROMOTION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/f9-7-contract.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644"),
+              "db/restore_full_schema.sql": ("M", "100644"),
+              "scripts/maintenance/db_migrate.py": ("M", "100644"),
+              "tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+          }
+          EXPECTED_DDL_AUTHORIZATION_GOVERNANCE = {
+              ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644"),
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/hitos/hito_001.md": ("A", "100644"),
+              ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644"),
+              ".context/operaciones/flujo_release_minimo.md": ("A", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          EXPECTED_DDL_DIGEST_REMEDIATION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          EXPECTED_TARGET_SCHEMA_VERIFICATION = {
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          EXPECTED_DEFER_FG2_VERIFY = {
+              ".github/workflows/db-sync-to-pro.yml": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_8_db_sync.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          EXPECTED_CANARY_ATTESTATION_REMEDIATION = {
+              ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644"),
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/hitos/hito_001.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "scripts/core/production_canary_state.py": ("M", "100644"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+              "tests/test_fase10_production_canary.py": ("M", "100644"),
+          }
+          EXPECTED_PRODUCTION_CANARY_CLOSURE = {
+              ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644"),
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644"),
+              ".context/hitos/hito_001.md": ("M", "100644"),
+              ".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644"),
+              ".context/operaciones/flujo_release_minimo.md": ("M", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
+          EXPECTED_F109_REMEDIATION_PLAN = {
+              ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644"),
+              ".context/estado_del_proyecto.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644"),
+              ".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": ("A", "100644"),
+              ".context/hitos/hito_001.md": ("M", "100644"),
+              ".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": ("A", "100644"),
+              ".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644"),
+              ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": ("A", "100644"),
+              ".github/workflows/security-audit.yml": ("M", "100755"),
+              "tests/test_fase10_main_boundary.py": ("M", "100644"),
+          }
           DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
           DENIED_PATHS = {".github/workflows/opencode.yml"}
 
@@ -497,20 +594,117 @@ jobs:
           if base == head:
               fail("F10 main boundary requires distinct base and head")
           if event_name == "pull_request":
-              if base_ref != "main" or head_ref != "certificacion":
+              provenance_baseline = os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]
+              ddl_auth_governance_baseline = os.environ["F108_DDL_AUTH_GOVERNANCE_BASELINE"]
+              ddl_digest_remediation_baseline = os.environ["F108_DDL_DIGEST_REMEDIATION_BASELINE"]
+              target_schema_verification_baseline = os.environ["F108_TARGET_SCHEMA_VERIFICATION_BASELINE"]
+              defer_fg2_verify_baseline = os.environ["F108_DEFER_FG2_VERIFY_BASELINE"]
+              canary_attestation_baseline = os.environ["F108_CANARY_ATTESTATION_BASELINE"]
+              production_canary_closure_baseline = os.environ["F108_PRODUCTION_CANARY_CLOSURE_BASELINE"]
+              f109_remediation_plan_baseline = os.environ["F109_REMEDIATION_PLAN_BASELINE"]
+              is_cleansing_provenance_pr = (
+                  base_ref == "main"
+                  and head_ref == "promote/f10-8-cleansing-provenance-main"
+                  and base == provenance_baseline
+              )
+              is_ddl_auth_governance_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-ddl-authorization-governance"
+                  and base == ddl_auth_governance_baseline
+              )
+              is_ddl_digest_remediation_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-ddl-digest-remediation"
+                  and base == ddl_digest_remediation_baseline
+              )
+              is_target_schema_verification_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-target-schema-verification"
+                  and base == target_schema_verification_baseline
+              )
+              is_defer_fg2_verify_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-defer-fg2-verify"
+                  and base == defer_fg2_verify_baseline
+              )
+              is_canary_attestation_pr = (
+                  base_ref == "main"
+                  and head_ref == "fix/f10-8-canary-attestation-pagination"
+                  and base == canary_attestation_baseline
+              )
+              is_production_canary_closure_pr = (
+                  base_ref == "main"
+                  and head_ref == "docs/f10-8-production-canary-closure"
+                  and base == production_canary_closure_baseline
+              )
+              is_f109_remediation_plan_pr = (
+                  base_ref == "main"
+                  and head_ref == "docs/f10-9-global-pipeline-remediation-plan"
+                  and base == f109_remediation_plan_baseline
+              )
+              if base_ref == "main" and head_ref == "certificacion":
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10 main PR must originate from the same repository")
+                  certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
+                  if certificacion_tip != head:
+                      fail("F10 main PR must use the protected certificacion tip")
+              elif is_cleansing_provenance_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 cleansing provenance PR must originate from the same repository")
+              elif is_ddl_auth_governance_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 DDL authorization governance PR must originate from the same repository")
+              elif is_ddl_digest_remediation_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 DDL digest remediation PR must originate from the same repository")
+              elif is_target_schema_verification_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 target schema verification PR must originate from the same repository")
+              elif is_defer_fg2_verify_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 defer FG2 verify PR must originate from the same repository")
+              elif is_canary_attestation_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 canary attestation remediation PR must originate from the same repository")
+              elif is_production_canary_closure_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.8 production canary closure PR must originate from the same repository")
+              elif is_f109_remediation_plan_pr:
+                  if base_repo != repository or head_repo != repository:
+                      fail("F10.9 remediation plan PR must originate from the same repository")
+              else:
                   fail("F10 main PR must be certificacion -> main")
-              if base_repo != repository or head_repo != repository:
-                  fail("F10 main PR must originate from the same repository")
-              certificacion_tip = git_text("rev-parse", "refs/remotes/origin/certificacion^{commit}")
-              if certificacion_tip != head:
-                  fail("F10 main PR must use the protected certificacion tip")
           elif os.environ["F10_REF"] != "refs/heads/main":
               fail("F10 push boundary only supports main")
 
           if git_text("rev-parse", "HEAD") != head:
               fail("checked out commit does not match F10 head SHA")
 
-          if base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
+          if base == os.environ["F108_CLEANSING_PROVENANCE_MAIN_BASELINE"]:
+              EXPECTED = EXPECTED_CLEANSING_PROVENANCE_PROMOTION
+              DENIED_PREFIXES = ("supabase/", "web/")
+          elif base == os.environ["F108_DDL_AUTH_GOVERNANCE_BASELINE"]:
+              EXPECTED = EXPECTED_DDL_AUTHORIZATION_GOVERNANCE
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F108_DDL_DIGEST_REMEDIATION_BASELINE"]:
+              EXPECTED = EXPECTED_DDL_DIGEST_REMEDIATION
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F108_TARGET_SCHEMA_VERIFICATION_BASELINE"]:
+              EXPECTED = EXPECTED_TARGET_SCHEMA_VERIFICATION
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F108_DEFER_FG2_VERIFY_BASELINE"]:
+              EXPECTED = EXPECTED_DEFER_FG2_VERIFY
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F108_CANARY_ATTESTATION_BASELINE"]:
+              EXPECTED = EXPECTED_CANARY_ATTESTATION_REMEDIATION
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
+          elif base == os.environ["F108_PRODUCTION_CANARY_CLOSURE_BASELINE"]:
+              EXPECTED = EXPECTED_PRODUCTION_CANARY_CLOSURE
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")
+          elif base == os.environ["F109_REMEDIATION_PLAN_BASELINE"]:
+              EXPECTED = EXPECTED_F109_REMEDIATION_PLAN
+              DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/", "requirements")
+          elif base == "32526efadc21b734c58e47ff00f3a5be5b042f24":
               EXPECTED = EXPECTED_FG1_SOURCE_PROMOTION
           else:
               EXPECTED = EXPECTED_ORIGINAL
@@ -1088,10 +1282,54 @@ jobs:
           print("F10.8 FG1 main-boundary boundary passed")
           PY
 
+  f109-branch-reconciliation:
+    name: F10.9 Branch Reconciliation
+    if: >-
+      (github.event_name == 'pull_request' &&
+        ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
+         (github.base_ref == 'desarrollo' &&
+           github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) ||
+      (github.event_name == 'push' &&
+        ((github.ref == 'refs/heads/certificacion' && github.event.before == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
+         (github.ref == 'refs/heads/desarrollo' && github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc')))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch protected reconciliation refs
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin certificacion archive/f10-9-ca2-preserve-desarrollo-20260809
+      - name: Validate F10.9 branch reconciliation
+        env:
+          F109_EVENT: ${{ github.event_name }}
+          F109_BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
+          F109_HEAD_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          F109_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          F109_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          F109_BASE_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.repo.full_name || github.repository }}
+          F109_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+        run: |
+          set -euo pipefail
+          cert_tip="$(git rev-parse origin/certificacion)"
+          python3 scripts/security/f109_boundary.py \
+            --event "$F109_EVENT" \
+            --base-ref "$F109_BASE_REF" \
+            --head-ref "$F109_HEAD_REF" \
+            --base-sha "$F109_BASE_SHA" \
+            --head-sha "$F109_HEAD_SHA" \
+            --base-repo "$F109_BASE_REPO" \
+            --head-repo "$F109_HEAD_REPO" \
+            --cert-tip "$cert_tip"
+          python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
+
   security-audit:
     name: security-audit
     if: always()
-    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-main-gate-update, f108-f97-main-scope, f108-fg1-source-slug, f108-fg1-main-boundary]
+    needs: [credential-scan, lint, typecheck, python-check, f99-certification-selective, f910-pre-main-controls, f10-main-boundary, f107-certification-gate-update, f108-certification-remediation, f108-main-gate-update, f108-f97-main-scope, f108-fg1-source-slug, f108-fg1-main-boundary, f109-branch-reconciliation]
     runs-on: ubuntu-latest
     steps:
       - name: Aggregate results
@@ -1109,6 +1347,8 @@ jobs:
           F108_F97_SCOPE: ${{ needs.f108-f97-main-scope.result }}
           F108_FG1_SOURCE: ${{ needs.f108-fg1-source-slug.result }}
           F108_FG1_MAIN_BOUNDARY: ${{ needs.f108-fg1-main-boundary.result }}
+          F109_RECONCILIATION: ${{ needs.f109-branch-reconciliation.result }}
+          F109_REQUIRED: ${{ (github.event_name == 'pull_request' && ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') || (github.base_ref == 'desarrollo' && github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) || (github.event_name == 'push' && ((github.ref == 'refs/heads/certificacion' && github.event.before == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') || (github.ref == 'refs/heads/desarrollo' && github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) }}
           CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
           MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
@@ -1136,8 +1376,17 @@ jobs:
               exit 1
             fi
             echo "✅ **python-check**: passed"
+            if [ "$F109_REQUIRED" = "true" ]; then
+              if [ "$F109_RECONCILIATION" != "success" ]; then
+                echo "❌ **f109-branch-reconciliation**: $F109_RECONCILIATION (BLOCKING)"
+                exit 1
+              fi
+              echo "✅ **f109-branch-reconciliation**: passed"
+            fi
             if [ "$CERTIFICATION_TRANSITION" = "true" ]; then
-              if [ "$F99_REQUIRED" = "true" ]; then
+              if [ "$F109_REQUIRED" = "true" ]; then
+                echo "✅ **certification-transition**: F10.9 reconciliation passed"
+              elif [ "$F99_REQUIRED" = "true" ]; then
                 if [ "$F99" != "success" ]; then
                   echo "❌ **f99-certification-selective**: $F99 (BLOCKING)"
                   exit 1

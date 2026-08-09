@@ -4,9 +4,9 @@
 |---|---|
 | ID | `EVID-H1-CANARY-F10.8-001` |
 | Subfase | `F10.8` |
-| Runs | `31157736479`, `31223623363` |
-| Estado | `SECOND_CANARY_FAIL_CLOSED_FG1_EXIT1_RESTORE_NOOP` |
-| Evidencia contractual | `EVID-H1-010=PENDING` |
+| Runs | `31157736479`, `31223623363`, `31236936740`, `31269277219`, `31272290614` |
+| Estado | `PRODUCTION_CANARY_PASS` |
+| Evidencia contractual | `EVID-H1-010=VERIFIED` |
 
 ## Resultado Sanitizado - Run `31157736479`
 
@@ -66,11 +66,13 @@ diagnostico local identifico que FG1 usaba el slug de cohorte mutable en vez de
 un source slug FG1 dedicado. La correccion local separa
 `F10_PRODUCTION_CANARY_FG1_SOURCE_SLUG` de
 `F10_PRODUCTION_CANARY_INSTITUTION_SLUG`, valida/maskea ambos y usa el source
-slug solo en `discovery_institutions.py --source-slug`. Antes de declarar
-`EVID-H1-010=VERIFIED` se requiere promover esa correccion a `main`, confirmar el
-secret FG1 sin exponer su valor, y obtener un Production Canary completo con
-`run_fg1=true`, `run_fg2=true`, `run_fg3=true`, `mutable_authorized=true`,
-limites `5/5/3/3/3`, snapshot privado, restore exacto y segundo restore NOOP.
+slug solo en `discovery_institutions.py --source-slug`. En ese corte, antes de
+declarar `EVID-H1-010=VERIFIED` se requeria promover esa correccion a `main`,
+confirmar el secret FG1 sin exponer su valor, y obtener un Production Canary
+completo con `run_fg1=true`, `run_fg2=true`, `run_fg3=true`,
+`mutable_authorized=true`, limites `5/5/3/3/3`, snapshot privado, restore exacto
+y segundo restore NOOP. Ese requisito quedo cumplido posteriormente por PR #325 y
+Production Canary `31272290614=PASS`.
 
 ## Retry Completo - 2026-08-08
 
@@ -149,4 +151,104 @@ Limites preservados:
 
 - No hubo DML operativo, backfill ni procesamiento de programas.
 - No hubo Pro, Production Canary, schedules ni cambios de secrets/environments.
-- `EVID-H1-010` permanece `PENDING` hasta canary completo PASS.
+- En ese corte, `EVID-H1-010` permanecia `PENDING` hasta canary completo PASS.
+
+## Verify-Only Y Retry Completo - 2026-08-08
+
+| Campo | Valor |
+|---|---|
+| PR verify-only | `#323` -> `main@5c7efaf417eba7f45bed45994a6249d03f609fc2` |
+| PR FG2 deferred verify | `#324` -> `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` |
+| Tree | `90868898778a1039006e45b870fbc03e6e65291b` |
+| DB Sync verify | `31268229878=PASS` |
+| Pending migrations | `0` |
+| Apply | `SKIPPED` |
+| Target schema | `PASS` |
+| FG2 deferred | `PASS` |
+| UAT | `USER_PERSONAL_UAT=PASS` para SHA/tree indicado |
+
+## Resultado Sanitizado - Run `31269277219`
+
+El Production Canary completo fue autorizado con aprobacion separada del
+`main@675ade43f41a2f5d04f05a40f9837b514a8705ce` con limites `5/5/3/3/3` y
+`mutable_authorized=true`.
+
+Resultado:
+
+- Target, candidate y limites: PASS.
+- Source-access preflight: PASS.
+- Snapshot privado: PASS.
+- FG1 one-source inventory: PASS.
+- FG2 harvest, cleansing, enrichment y sync: PASS.
+- FG3 integrity: PASS.
+- Restore exacto: PASS.
+- Segundo restore `--expect-noop`: FAIL por JSON truncado durante atestacion
+  no-cohorte.
+- Manifest after-cleanup: FAIL secundario con HTTP 521.
+- Artifact sanitizado parcial: 4/6 manifests; artifact ID `9025228257`.
+
+Diagnostico sanitizado:
+
+La atestacion no-cohorte leia filas completas con `select=*` usando paginas de
+1000 filas. En `staging_raw`, las filas no-cohorte contienen payloads grandes y
+una respuesta alcanzo aproximadamente 8.1 MB, llegando truncada dentro de un
+string JSON. El run falla correctamente en modo fail-closed y no acredita
+`EVID-H1-010`. No se documentan URLs, cohorte, UUIDs, hosts Supabase, secrets ni
+datos operativos.
+
+Remediacion acotada:
+
+- Paginar solo la atestacion no-cohorte con paginas pequenas.
+- Conservar `columns="*"`, `order="id.asc"`, grupos `neq`/`is.null`, digest
+  actual y snapshot schema.
+- Mantener fail-closed ante JSON invalido, HTTP no exitoso o manifests
+  incompletos.
+- No ejecutar DDL/DML, backfill, schedules, writers ni cambios de
+  secrets/environments.
+
+`EVID-H1-010` permanecia `PENDING` hasta un nuevo Production Canary completo PASS
+sobre un SHA/tree promovido y autorizado separadamente.
+
+## Resultado Sanitizado - Run `31272290614`
+
+| Campo | Valor |
+|---|---|
+| Run | `31272290614` |
+| Candidate | `main@859d2f7d83f83950d10858fe27bd035febba7f68` |
+| Tree | `ba7f6e74e88b2153aef1f4582bb3faa999c01a98` |
+| Estado | `PASS` |
+| Artifact | `9026139906` (`f10-production-canary-manifests`) |
+| Artifact digest | `sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce` |
+| Artifact expires | `2026-09-07T18:49:37Z` |
+| Evidencia contractual | `EVID-H1-010=VERIFIED` |
+
+El Production Canary completo fue autorizado con aprobacion separada del
+environment `Production`, `mutable_stages=fg2_fg3`, `mutable_authorized=true` y
+limites `5/5/3/3/3`.
+
+Resultado:
+
+- Target, candidate y limites: PASS.
+- Production Supabase target guard: PASS.
+- Source-access preflight: PASS.
+- Snapshot privado: PASS.
+- FG1 one-source inventory: PASS.
+- FG2 harvest, cleansing, enrichment y sync: PASS.
+- FG3 integrity: PASS.
+- Restore exacto: PASS.
+- Segundo restore `--expect-noop`: PASS.
+- Manifest after-cleanup: PASS.
+- Verificacion de manifests sanitizados: PASS.
+- Artifact sanitizado completo: 6/6 manifests, artifact ID `9026139906`.
+
+Atestacion sanitizada:
+
+- `pre` y `after-cleanup` coinciden en counts, gates, contrato y limites.
+- `restore_idempotent` reporta `expect_noop=true`, `after_matches_snapshot=true`,
+  `non_cohort_attestations_match=true` y cero filas restauradas o eliminadas.
+- Revision focalizada del artifact no encontro patrones comunes de secrets, URLs
+  Supabase, URLs HTTP ni UUIDs.
+
+No se documentan URLs, cohorte, UUIDs operativos, hosts Supabase, secrets ni datos
+operativos. Este run acredita `EVID-H1-010=VERIFIED`; no acredita schedules ni
+conformidad cliente.

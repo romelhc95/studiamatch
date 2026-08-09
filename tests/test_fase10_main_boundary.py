@@ -17,7 +17,10 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 Main Boundary" in workflow
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
-    assert "merge-base" not in workflow
+    f10_main_block = workflow.split("  f10-main-boundary:", 1)[1].split(
+        "  f107-certification-gate-update:", 1
+    )[0]
+    assert "merge-base" not in f10_main_block
     assert "EXPECTED_ORIGINAL = {" in workflow
     assert "ALLOWED_PATHS" not in workflow
     assert "exact CA1 objects" in workflow
@@ -66,6 +69,61 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "90bbcd76c670d84d396051dfa8af74eec9876f9c" in workflow
     assert "F108_FG1_MAIN_BOUNDARY_REQUIRED" in workflow
     assert "needs.f108-fg1-main-boundary.result" in workflow
+    assert "F108_DDL_AUTH_GOVERNANCE_BASELINE: 1885806f0d9f189600d410d353fcf13fb8dd4676" in workflow
+    assert "F108_DDL_DIGEST_REMEDIATION_BASELINE: 49c5b6c490982b4572ec39f577bf9468b0bfd136" in workflow
+    assert "F108_TARGET_SCHEMA_VERIFICATION_BASELINE: 224a65388330c96e02936383be94265d58a9c49f" in workflow
+    assert "F108_DEFER_FG2_VERIFY_BASELINE: 5c7efaf417eba7f45bed45994a6249d03f609fc2" in workflow
+    assert "F108_CANARY_ATTESTATION_BASELINE: 675ade43f41a2f5d04f05a40f9837b514a8705ce" in workflow
+    assert "F108_PRODUCTION_CANARY_CLOSURE_BASELINE: 859d2f7d83f83950d10858fe27bd035febba7f68" in workflow
+    assert "F109_REMEDIATION_PLAN_BASELINE: 38314170197a907ac5c4c815a9bb18b3d5f29b06" in workflow
+    assert "fix/f10-8-ddl-authorization-governance" in workflow
+    assert "fix/f10-8-ddl-digest-remediation" in workflow
+    assert "fix/f10-8-target-schema-verification" in workflow
+    assert "fix/f10-8-defer-fg2-verify" in workflow
+    assert "fix/f10-8-canary-attestation-pagination" in workflow
+    assert "docs/f10-8-production-canary-closure" in workflow
+    assert "docs/f10-9-global-pipeline-remediation-plan" in workflow
+    assert "F10.8 DDL authorization governance PR must originate from the same repository" in workflow
+    assert "F10.8 DDL digest remediation PR must originate from the same repository" in workflow
+    assert "F10.8 target schema verification PR must originate from the same repository" in workflow
+    assert "F10.8 defer FG2 verify PR must originate from the same repository" in workflow
+    assert "F10.8 canary attestation remediation PR must originate from the same repository" in workflow
+    assert "F10.8 production canary closure PR must originate from the same repository" in workflow
+    assert "F10.9 remediation plan PR must originate from the same repository" in workflow
+    assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("A", "100644")' in workflow
+    assert '".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")' in workflow
+    assert '".context/hitos/hito_001.md": ("A", "100644")' in workflow
+    assert '".context/hitos/hito_001.md": ("M", "100644")' in workflow
+    assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("A", "100644")' in workflow
+    assert '".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644")' in workflow
+    assert '".context/operaciones/flujo_release_minimo.md": ("A", "100644")' in workflow
+    assert '"scripts/core/production_canary_state.py": ("M", "100644")' in workflow
+    assert '"tests/test_fase10_production_canary.py": ("M", "100644")' in workflow
+    assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
+    assert "EXPECTED_PRODUCTION_CANARY_CLOSURE" in workflow
+    assert "EXPECTED_F109_REMEDIATION_PLAN" in workflow
+    assert "f109-branch-reconciliation:" in workflow
+    assert "F10.9 Branch Reconciliation" in workflow
+    assert "needs.f109-branch-reconciliation.result" in workflow
+    assert "F109_REQUIRED" in workflow
+    assert "scripts/security/f109_boundary.py" in workflow
+    assert "actions/checkout@v4" not in workflow
+    assert "actions/setup-node@v4" not in workflow
+    assert "actions/setup-python@v5" not in workflow
+    assert "auto-merge" not in workflow
+    assert "auto-approve" not in workflow
+    assert '".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": ("A", "100644")' in workflow
+    assert '".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": ("A", "100644")' in workflow
+    assert '".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": ("A", "100644")' in workflow
+    assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/", "requirements")' in workflow
+    assert workflow.count('".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": ("M", "100644")') >= 2
+    assert workflow.count('".context/estado_del_proyecto.md": ("M", "100644")') >= 5
+    assert workflow.count('".context/evidencias_cliente/sprint_1/paquete_hito_001.md": ("M", "100644")') >= 5
+    assert workflow.count('".context/evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md": ("M", "100644")') >= 4
+    assert workflow.count('".context/hitos/hito_001.md": ("M", "100644")') >= 2
+    assert workflow.count('".context/operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md": ("M", "100644")') >= 3
+    assert workflow.count('".context/operaciones/flujo_release_minimo.md": ("M", "100644")') >= 1
+    assert workflow.count('".context/operaciones/plan_cierre_hito1_ca1_only.md": ("M", "100644")') >= 5
 
 
 def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
@@ -81,6 +139,7 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "Report pending migrations dry-run" in workflow
     assert "Confirm report-only mode" in workflow
     assert "operation == 'apply'" in workflow
+    assert "operation == 'verify'" in workflow
     assert "backup_pitr_verified" in workflow
     assert "ddl_authorization_id" in workflow
 
@@ -92,8 +151,17 @@ def test_main_promotion_cannot_auto_apply_database_changes() -> None:
     assert "inputs.ddl_authorization_id != ''" in apply_section
     assert "fromJSON(needs.report.outputs.pending_count) > 0" in apply_section
     assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in apply_section
-    assert "APPROVED_FOR_PRODUCTION_DDL" in apply_section
+    assert "Status: APPROVED_FOR_PRODUCTION_DDL" in apply_section
+    assert "Authorized base SHA:" in apply_section
+    assert "BACKUP_PITR_RUNTIME_GATE_REQUIRED" in apply_section
+    assert 'grep -F "$CANDIDATE_SHA"' not in apply_section
     assert "Verify production controls before migrations" in apply_section
+
+    verify_section = workflow.split("  verify:", 1)[1].split("  defer-fg2:", 1)[0]
+    assert "inputs.operation == 'verify'" in verify_section
+    assert "needs.apply.result == 'skipped'" in verify_section
+    assert "needs.report.outputs.pending_count == '0'" in verify_section
+    assert "NEXT_" + "SUPABASE_PUBLISHABLE_KEY" in verify_section
 
 
 def test_main_scheduled_writers_start_paused_until_environment_controls_allow_them() -> None:
