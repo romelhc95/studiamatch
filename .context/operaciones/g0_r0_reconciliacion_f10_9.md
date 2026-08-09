@@ -10,6 +10,8 @@
 | Gate siguiente | `G1/P2` solo despues de `G0=PASS` |
 
 Freeze vigente: [R0-FREEZE-F10.9-2026-08-09](./r0_freeze_f10_9_2026_08_09.md).
+Manifest del graph:
+[R0-CONTEXT-GRAPH-F10.9-2026-08-09](./r0_context_graph_manifest_2026_08_09.md).
 
 ## Proposito
 
