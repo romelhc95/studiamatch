@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad de ejecucion. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad de ejecucion. El plan vigente documenta R0, P1-P7 y G0-G13: R0 sigue bloqueado por CI/review; P1 existe localmente pero no esta integrado; P2-P5/P7 no han iniciado y P6 queda fuera de F10.9. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -87,6 +87,36 @@ registra contencion, hardening, planners y gates separados. El plan no autoriza
 kill switch, codigo, DDL/DML, backfill, schedules ni retries por si mismo. La
 decision humana vigente exige cero cursos activos sin syllabus/objectives antes
 del cierre. `H1-CA1` no cambia y no se crean subtareas ni criterios nuevos.
+
+### Secuencia Paso A Paso F10.9
+
+La secuencia planificada y sus aprobaciones pendientes se documentan en
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md). El
+plan no concede ejecucion y cada gate exige la frase decimal exacta mas su
+alcance adicional:
+
+1. `G0`: cerrar R0 y estabilizar/integrar P1 sobre ancestry protegido conforme a
+   [G0-R0-F10.9](../../operaciones/g0_r0_reconciliacion_f10_9.md).
+2. `G1`: implementar P2 planners read-only/offline.
+3. `G2`: implementar P3 preflight FG2 y P4 atomicidad FG3.
+4. `G3`: implementar P5 metadata read-only/fail-closed.
+5. `G4`: decidir `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`.
+6. `G5`: integrar P7 en `desarrollo` sin P6/SQL/DDL/DML/backfill.
+7. `G6`: atestar contencion antes del primer acceso remoto al data plane.
+8. `G7`: promover y validar el patch CA1 en Certification.
+9. `G8`: promover a `main` con schedules aun pausados.
+10. `G9`: ejecutar diagnostico Production read-only.
+11. `G10`: congelar el gate final previo a schedules.
+12. `G11`: decidir `GO_SCHEDULES` o `STOP_REQUIRES_REBASELINE`.
+13. `G12`: habilitacion gradual.
+14. `G13`: tres pares naturales consecutivos durante al menos 72h.
+
+Ningun gate concede el siguiente. G0 tambien debe cerrar el
+`BLOCKED_INHERITED_CONTEXT_GRAPH` registrado en el plan, sin importar CA2 ni
+inventar documentos. Un cambio de SHA/tree, schema, cantidades, profile,
+environment, dependencias o normalization version invalida el manifest y produce
+`STOP`. F11.1 y `EVID-H1-016` siguen fuera de esta secuencia hasta que
+`EVID-H1-011..013` sean verificadas.
 
 ## Arbol De Criterios
 
