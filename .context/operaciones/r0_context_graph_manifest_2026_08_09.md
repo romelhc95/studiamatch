@@ -18,7 +18,7 @@ before_unique_missing_targets = 38
 
 reconciled_content_markdown_files = 39
 reconciled_content_local_links = 337
-final_graph_markdown_files = 40
+final_graph_markdown_files = 41
 final_graph_local_links = 340
 after_broken_references = 0
 after_unknown_provenance_holds = 0
