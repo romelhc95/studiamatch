@@ -32,6 +32,8 @@ tests/test_fase10_main_boundary.py
 El validador candidate aplica allowlists exactas para
 `F109_CERT_RECONCILIATION`, `F109_DEV_RECONCILIATION` y `F109_P1`. El modo
 certificacion exige ademas Context Graph `41 files / 340 links / 0 broken`.
+Los modes quedan congelados por path: `security-audit.yml=100755`; todos los
+demas paths del delta R0=`100644`.
 El modo P1 queda dormido hasta congelar el SHA post-#328; no se activa por nombre
 de rama ni por un baseline pendiente.
 
@@ -39,14 +41,15 @@ de rama ni por un baseline pendiente.
 
 ```text
 path = local temp outside repository
-sha256 = 68c981d7136038f5a592f394609a0fadef38c1d8a359cf9609c00dcab26b5909
+sha256 = 412aefd14e64a8f27473127a3e80a2679548c8317665b44de95addf1bdd30919
 result = FROZEN_COMPILE_PASS_EXECUTION_PENDING_COMMIT
 ```
 
 El validator independiente no puede ser reemplazado por el PR ni ejecutarse
 desde una copia del candidate.
-El freeze previo `da55638a...` fue invalidado antes del primer push al ampliar
-la verificacion de actions pinneadas; no es evidencia utilizable.
+Los freezes previos `da55638a...` y `68c981d7...` fueron invalidados antes del
+primer push al ampliar actions pinneadas y modes por path; no son evidencia
+utilizable.
 
 ## Candidate
 

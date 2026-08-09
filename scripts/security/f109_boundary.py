@@ -106,6 +106,11 @@ CERT_ALLOWED_STATUSES = {
     "tests/test_fase10_main_boundary.py": "M",
 }
 
+CERT_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in CERT_ALLOWED_STATUSES
+}
+
 P1_ALLOWED_STATUSES = {
     "scripts/shared/db_client.py": "M",
     "scripts/shared/safe_http.py": "A",
@@ -188,6 +193,7 @@ def require_exact_delta(
     base: str,
     head: str,
     expected: dict[str, str],
+    expected_modes: dict[str, str] | None = None,
 ) -> None:
     actual = changed_statuses(repo, base, head)
     require(actual == expected, f"delta mismatch: expected={expected!r} actual={actual!r}")
@@ -197,7 +203,8 @@ def require_exact_delta(
         metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
         require(len(metadata) == 4, f"missing tree metadata for {path}")
         mode, kind, _blob, tree_path = metadata
-        require((mode, kind, tree_path) == ("100644", "blob", path), f"invalid tree entry {path}")
+        expected_mode = (expected_modes or {}).get(path, "100644")
+        require((mode, kind, tree_path) == (expected_mode, "blob", path), f"invalid tree entry {path}")
 
 
 def validate_context_graph(
@@ -248,7 +255,7 @@ def validate_cert(repo: Path, base: str, head: str, event: str) -> None:
     require(is_ancestor(repo, CERT_ANCHOR, head), "cert anchor is not an ancestor of head")
     if event == "push":
         require(commit_parents(repo, head)[0] == base, "certification push first parent drift")
-    require_exact_delta(repo, CERT_ANCHOR, head, CERT_ALLOWED_STATUSES)
+    require_exact_delta(repo, CERT_ANCHOR, head, CERT_ALLOWED_STATUSES, CERT_ALLOWED_MODES)
     validate_context_graph(
         repo,
         expected_files=41,

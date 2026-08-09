@@ -11,6 +11,7 @@ from scripts.security.f109_boundary import (
     BoundaryError,
     CERT_BASE,
     CERT_ANCHOR,
+    CERT_ALLOWED_MODES,
     CERT_ALLOWED_STATUSES,
     DEV_ARCHIVE_TREE,
     DEV_BASE,
@@ -287,6 +288,8 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertIn("scripts/security/f109_boundary.py", CERT_ALLOWED_STATUSES)
         self.assertNotIn("db/migrations/example.sql", CERT_ALLOWED_STATUSES)
         self.assertNotIn("web/src/app/page.tsx", CERT_ALLOWED_STATUSES)
+        self.assertEqual(CERT_ALLOWED_MODES[".github/workflows/security-audit.yml"], "100755")
+        self.assertEqual(CERT_ALLOWED_MODES[".github/workflows/f9-7-contract.yml"], "100644")
 
     def test_p1_allowlist_is_exact(self) -> None:
         self.assertEqual(
