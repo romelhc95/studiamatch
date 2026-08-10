@@ -36,6 +36,10 @@ POST_G2_DEV_BASE = "0f3bdafde9adb49749aed6c758c235924b0f0063"
 POST_G2_DEV_TREE = "fae420228a6c5631bddb730f38e6204df1dfcc97"
 P5_WIRING_HEAD_REF = "ci/f10-9-g3-boundary"
 P5_HEAD_REF = "feat/f10-9-p5-metadata-readonly"
+F1010_M2A_BASE = "560af8ad9ce6350fd6c219c853665e1f9c6089f3"
+F1010_M2A_BASE_TREE = "bb2fce144bacac4045b028dd0246815bae209023"
+F1010_M2A_HEAD_REF = "ci/f10-10-m2-boundary"
+F1010_M1_HEAD_REF = "feat/f10-10-m1-offline-tooling"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -220,6 +224,25 @@ P5_WIRING_ALLOWED_MODES = {
     path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
     for path in P5_WIRING_ALLOWED_STATUSES
 }
+
+F1010_M2A_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M2A_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in F1010_M2A_ALLOWED_STATUSES
+}
+
+F1010_M1_ALLOWED_STATUSES = {
+    "scripts/shared/f10_10_metadata_remediation.py": "A",
+    "tests/test_fase10_10_m1_offline_tooling.py": "A",
+}
+
+F1010_M1_ALLOWED_MODES = {path: "100644" for path in F1010_M1_ALLOWED_STATUSES}
 
 CONTEXT_IGNORED_PREFIXES = (
     ".context/.obsidian/",
@@ -757,6 +780,84 @@ def validate_p5(
     require_exact_delta(repo, base, candidate_head, P5_ALLOWED_STATUSES, P5_ALLOWED_MODES)
 
 
+def validate_f1010_m2a_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M2A_BASE, "unexpected F10.10 M2a wiring baseline")
+    require_sha(repo, "F1010_M2A_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M2A_BASE_TREE, "F10.10 M2a baseline tree drift")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M2a push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M2a push first parent drift")
+        candidate_head = push_parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M2a push tree differs from PR head",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "F10.10 M2a PR must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M2A_ALLOWED_STATUSES,
+        F1010_M2A_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=48,
+        expected_links=345,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_f1010_m1(
+    repo: Path,
+    base: str,
+    head: str,
+    f1010_m1_base: str,
+    f1010_m1_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(f1010_m1_base)), "F10.10 M1 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(f1010_m1_base_tree)), "F10.10 M1 baseline tree is not frozen")
+    require(base == f1010_m1_base, "F10.10 M1 must use the protected post-M2a desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == f1010_m1_base_tree, "F10.10 M1 protected base tree drift")
+    require(is_ancestor(repo, base, head), "F10.10 M1 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M1 PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M1 push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M1 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M1 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M1 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M1_ALLOWED_STATUSES,
+        F1010_M1_ALLOWED_MODES,
+    )
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -766,6 +867,7 @@ def detect_mode(
     p2_base: str = "",
     g2_base: str = "",
     p5_base: str = "",
+    f1010_m1_base: str = "",
 ) -> str:
     if base_ref == "certificacion" and base == CERT_BASE:
         return "cert"
@@ -787,6 +889,10 @@ def detect_mode(
         event == "push" or head_ref == P5_WIRING_HEAD_REF
     ):
         return "p5_wiring"
+    if base_ref == "desarrollo" and base == F1010_M2A_BASE and (
+        event == "push" or head_ref == F1010_M2A_HEAD_REF
+    ):
+        return "f1010_m2a"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -795,6 +901,14 @@ def detect_mode(
         return "g2"
     if event == "pull_request" and base_ref == "desarrollo" and p5_base and base == p5_base and head_ref == P5_HEAD_REF:
         return "p5"
+    if (
+        event == "pull_request"
+        and base_ref == "desarrollo"
+        and f1010_m1_base
+        and base == f1010_m1_base
+        and head_ref == F1010_M1_HEAD_REF
+    ):
+        return "f1010_m1"
     return "skip"
 
 
@@ -824,6 +938,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--g2-base-tree", default="")
     parser.add_argument("--p5-base", default="")
     parser.add_argument("--p5-base-tree", default="")
+    parser.add_argument("--f1010-m1-base", default="")
+    parser.add_argument("--f1010-m1-base-tree", default="")
     parser.add_argument("--github-output", default="")
     return parser.parse_args()
 
@@ -841,6 +957,7 @@ def main() -> int:
             args.p2_base,
             args.g2_base,
             getattr(args, "p5_base", ""),
+            getattr(args, "f1010_m1_base", ""),
         )
         if mode == "skip" and args.base_ref == "desarrollo":
             if args.event == "pull_request" and args.head_ref == WIRING_HEAD_REF:
@@ -859,14 +976,23 @@ def main() -> int:
                 raise BoundaryError("P5 wiring branch requires the frozen post-G2 baseline")
             if args.event == "pull_request" and args.head_ref == P5_HEAD_REF:
                 raise BoundaryError("P5 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M2A_HEAD_REF:
+                raise BoundaryError("F10.10 M2a wiring branch requires its frozen baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
+                raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
             touched_g2 = set(actual).intersection(G2_ALLOWED_STATUSES)
             touched_p5 = set(actual).intersection(P5_ALLOWED_STATUSES)
+            touched_f1010_m1 = set(actual).intersection(F1010_M1_ALLOWED_STATUSES)
             require(
-                sum(bool(surface) for surface in (touched_p1, touched_p2, touched_g2, touched_p5)) <= 1,
-                "P1, P2, G2, and P5 surfaces cannot share a candidate",
+                sum(
+                    bool(surface)
+                    for surface in (touched_p1, touched_p2, touched_g2, touched_p5, touched_f1010_m1)
+                )
+                <= 1,
+                "F10.9 and F10.10 protected surfaces cannot share a candidate",
             )
             if touched_p1:
                 require(args.head_ref == P1_HEAD_REF or args.event == "push", "P1 paths require the protected P1 branch")
@@ -884,6 +1010,16 @@ def main() -> int:
                 require(args.head_ref == P5_HEAD_REF or args.event == "push", "P5 paths require the protected P5 branch")
                 require(actual == P5_ALLOWED_STATUSES, "partial or expanded P5 delta is forbidden")
                 mode = "p5"
+            elif touched_f1010_m1:
+                require(
+                    args.head_ref == F1010_M1_HEAD_REF or args.event == "push",
+                    "F10.10 M1 paths require the protected M1 branch",
+                )
+                require(
+                    actual == F1010_M1_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M1 delta is forbidden",
+                )
+                mode = "f1010_m1"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -920,6 +1056,8 @@ def main() -> int:
             validate_g2_wiring(args.repo, args.base_sha, args.head_sha, args.event)
         elif mode == "p5_wiring":
             validate_p5_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m2a":
+            validate_f1010_m2a_wiring(args.repo, args.base_sha, args.head_sha, args.event)
         elif mode == "p5":
             validate_p5(
                 args.repo,
@@ -927,6 +1065,15 @@ def main() -> int:
                 args.head_sha,
                 getattr(args, "p5_base", ""),
                 getattr(args, "p5_base_tree", ""),
+                args.event,
+            )
+        elif mode == "f1010_m1":
+            validate_f1010_m1(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                getattr(args, "f1010_m1_base", ""),
+                getattr(args, "f1010_m1_base_tree", ""),
                 args.event,
             )
         else:
