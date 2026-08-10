@@ -1320,6 +1320,8 @@ jobs:
           p2_base_tree=""
           g2_base=""
           g2_base_tree=""
+          p5_base=""
+          p5_base_tree=""
           if [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "fix/f10-9-p1-rebuilt" ]; then
             protected_dev_tip="$(git rev-parse origin/desarrollo)"
             test "$F109_BASE_SHA" = "$protected_dev_tip"
@@ -1335,6 +1337,11 @@ jobs:
             test "$F109_BASE_SHA" = "$protected_dev_tip"
             g2_base="$F109_BASE_SHA"
             g2_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-9-p5-metadata-readonly" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            p5_base="$F109_BASE_SHA"
+            p5_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
           elif [ "$F109_EVENT" = "push" ] && [ "$F109_BASE_REF" = "desarrollo" ]; then
             p1_base="$F109_BASE_SHA"
             p1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
@@ -1342,6 +1349,8 @@ jobs:
             p2_base_tree="$p1_base_tree"
             g2_base="$F109_BASE_SHA"
             g2_base_tree="$p1_base_tree"
+            p5_base="$F109_BASE_SHA"
+            p5_base_tree="$p1_base_tree"
           fi
           python3 scripts/security/f109_boundary.py \
             --event "$F109_EVENT" \
@@ -1357,7 +1366,9 @@ jobs:
             --p2-base "$p2_base" \
             --p2-base-tree "$p2_base_tree" \
             --g2-base "$g2_base" \
-            --g2-base-tree "$g2_base_tree"
+            --g2-base-tree "$g2_base_tree" \
+            --p5-base "$p5_base" \
+            --p5-base-tree "$p5_base_tree"
           python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
 
   security-audit:

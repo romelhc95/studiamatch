@@ -30,6 +30,14 @@ from scripts.security.f109_boundary import (
     P2_HEAD_REF,
     P2_WIRING_ALLOWED_STATUSES,
     P2_WIRING_HEAD_REF,
+    P5_ALLOWED_MODES,
+    P5_ALLOWED_STATUSES,
+    P5_HEAD_REF,
+    P5_WIRING_ALLOWED_MODES,
+    P5_WIRING_ALLOWED_STATUSES,
+    P5_WIRING_HEAD_REF,
+    POST_G2_DEV_BASE,
+    POST_G2_DEV_TREE,
     POST_P1_DEV_BASE,
     POST_P1_DEV_TREE,
     POST_P2_DEV_BASE,
@@ -51,6 +59,8 @@ from scripts.security.f109_boundary import (
     validate_p1,
     validate_p2,
     validate_p2_wiring,
+    validate_p5,
+    validate_p5_wiring,
     validate_wiring,
 )
 
@@ -299,6 +309,25 @@ class F109BoundaryTest(unittest.TestCase):
                 g2_base="4" * 40,
             ),
             "g2",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                P5_WIRING_HEAD_REF,
+                POST_G2_DEV_BASE,
+            ),
+            "p5_wiring",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                P5_HEAD_REF,
+                "5" * 40,
+                p5_base="5" * 40,
+            ),
+            "p5",
         )
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
@@ -726,6 +755,58 @@ class F109BoundaryTest(unittest.TestCase):
             Path("."), base, pr_head, G2_ALLOWED_STATUSES, G2_ALLOWED_MODES
         )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=[POST_G2_DEV_BASE])
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.git", return_value=DEV_BASE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_p5_wiring_pr_is_one_exact_commit(
+        self,
+        require_sha_mock,
+        git_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        graph_mock,
+    ) -> None:
+        tree_mock.side_effect = lambda repo, commit: (
+            POST_G2_DEV_TREE if commit == POST_G2_DEV_BASE else DEV_ARCHIVE_TREE
+        )
+
+        validate_p5_wiring(Path("."), POST_G2_DEV_BASE, "b" * 40, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            POST_G2_DEV_BASE,
+            "b" * 40,
+            P5_WIRING_ALLOWED_STATUSES,
+            P5_WIRING_ALLOWED_MODES,
+        )
+        self.assertEqual(graph_mock.call_args.kwargs["expected_files"], 44)
+        self.assertEqual(graph_mock.call_args.kwargs["expected_links"], 345)
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=["a" * 40])
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="d" * 40)
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_p5_pr_requires_frozen_direct_base(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+    ) -> None:
+        validate_p5(Path("."), "a" * 40, "b" * 40, "a" * 40, "d" * 40, "pull_request")
+        delta_mock.assert_called_once_with(
+            Path("."), "a" * 40, "b" * 40, P5_ALLOWED_STATUSES, P5_ALLOWED_MODES
+        )
+
+        with self.assertRaises(BoundaryError):
+            validate_p5(Path("."), "a" * 40, "b" * 40, "c" * 40, "d" * 40, "pull_request")
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -918,6 +999,20 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertFalse(set(G2_ALLOWED_STATUSES).intersection(P1_ALLOWED_STATUSES))
         self.assertFalse(set(G2_ALLOWED_STATUSES).intersection(P2_ALLOWED_STATUSES))
 
+    def test_p5_allowlists_are_exact_and_disjoint(self) -> None:
+        self.assertEqual(
+            P5_ALLOWED_STATUSES,
+            {
+                "scripts/shared/f10_9_metadata_planner.py": "A",
+                "tests/test_fase10_9_p5_metadata_readonly.py": "A",
+            },
+        )
+        self.assertEqual(P5_WIRING_ALLOWED_STATUSES, G2_WIRING_ALLOWED_STATUSES)
+        self.assertTrue(all(mode == "100644" for mode in P5_ALLOWED_MODES.values()))
+        self.assertEqual(P5_WIRING_ALLOWED_MODES[".github/workflows/security-audit.yml"], "100755")
+        for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES):
+            self.assertFalse(set(P5_ALLOWED_STATUSES).intersection(existing))
+
     def test_p2_workflow_wiring_is_hard_gated(self) -> None:
         root = Path(__file__).resolve().parents[1]
         for relative in (
@@ -943,6 +1038,19 @@ class F109BoundaryTest(unittest.TestCase):
                 self.assertIn('test "$F109_BASE_SHA" = "$protected_dev_tip"', workflow)
                 self.assertIn('--g2-base "$g2_base"', workflow)
                 self.assertIn('--g2-base-tree "$g2_base_tree"', workflow)
+
+    def test_p5_workflow_wiring_is_hard_gated(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for relative in (
+            ".github/workflows/f9-7-contract.yml",
+            ".github/workflows/security-audit.yml",
+        ):
+            workflow = (root / relative).read_text(encoding="utf-8")
+            with self.subTest(workflow=relative):
+                self.assertIn('F109_HEAD_REF" = "feat/f10-9-p5-metadata-readonly"', workflow)
+                self.assertIn('test "$F109_BASE_SHA" = "$protected_dev_tip"', workflow)
+                self.assertIn('--p5-base "$p5_base"', workflow)
+                self.assertIn('--p5-base-tree "$p5_base_tree"', workflow)
 
     def test_non_p1_delta_preserves_legacy_denials(self) -> None:
         validate_non_p1_delta(Path("."), "0" * 40, {"README.md": "M"})
