@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-REM-F10.9-001` |
-| Estado | `G1_P2_COMPLETED_POST_MERGE_VERIFIED_GO_G2_AUTHORIZATION_REQUIRED` |
+| Estado | `G2_P3_P4_COMPLETED_POST_MERGE_VERIFIED_GO_G3_AUTHORIZATION_REQUIRED` |
 | Incidente | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) |
 | Subfase | `F10.9` |
 | Hito | `HITO-001` |
@@ -37,7 +37,8 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P1` | `COMPLETED_POST_MERGE_VERIFIED` | PR #331 integro el wiring fail-closed en `4f47836a8c80bbab396e30ed65f424e58e772987`; PR #332 integro el candidate estabilizado en `desarrollo@53921e3ec845f4a248e586a0ecd667c64f4c070d` / tree `0344c649772aea18314fe022d5f24898e3dc03d0`. Security Audit `31350585499=PASS` y F9.7 `31350585516=PASS` post-merge. PR #330 fue cerrado como `SUPERSEDED_NON_PROMOTABLE`. |
 | Wiring `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #333 aprobado/fusionado en `desarrollo@d5433ea9f810b0338513665bb95ba28715c6c8b5` / tree `24a270f314b46728d5ae9847dafba0ff1999be7f`; Security Audit `31354339105=PASS` y F9.7 `31354339122=PASS` post-merge. |
 | `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #335 integro los cuatro paths exactos mediante `desarrollo@0d87060837586603055ca91629b20815803b3239` / tree `9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`; Security Audit `31361988478=PASS` y F9.7 `31361988498=PASS` post-merge. Ver [evidencia G1/P2](./g1_p2_post_merge_evidence_2026_08_10.md). |
-| `P3`-`P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | Ningun PASS de G1 concede el gate siguiente. |
+| `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
+| `P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | Ningun PASS de G2 concede el gate siguiente. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
 | Observacion | `NOT_STARTED` | Pares aceptados `0`; cualquier secuencia empieza despues de remediacion promovida y habilitacion operacional nueva. |
@@ -46,11 +47,12 @@ Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `43` archivos Markdown, `344` enlaces locales y
+- el Context Graph contiene `44` archivos Markdown, `345` enlaces locales y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;
-- G1/P2 queda trazado por evidencia separada sin importar CA2 ni conceder G2.
+- G1/P2 y G2/P3-P4 quedan trazados por evidencia separada sin importar CA2 ni
+  conceder G3.
 
 ### R0 - Reconciliacion De Repositorio Y Boundaries
 
@@ -419,8 +421,16 @@ orquestacion partial-global; separar FG3 en probe/classify/aggregate/apply/verif
 Salida: suites sinteticas que demuestren cero writes ante blocker/inconcluso,
 exact-one, `ALREADY_APPLIED` reconciliado y segundo run NOOP.
 
-Aprobacion pendiente: frase decimal F10.9 mas codigo/tests P3/P4 local. No
-autoriza ejecucion de workers remotos.
+Aprobacion consumida para codigo/tests P3/P4 local. PR #338 fue aprobado sobre
+`b0674c9fd8fb4b91f63e0b0fc32f8d93b2a4afdc` y fusionado en
+`desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree
+`f448ac27c8abf5f2dbbb77da0ece6c82861f0028`. Security Audit
+`31389283184=PASS` y F9.7 `31389282945=PASS` verificaron el merge protegido. La
+[evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md) registra el
+boundary exacto, validaciones y capacidades desactivadas. Resultado
+`G2=PASS/GO_G3_AUTHORIZATION_REQUIRED`.
+
+Este PASS no autoriza G3/P5, red remota, data plane, workers, providers ni apply.
 
 ### G3 - P5 Metadata Read-Only
 
