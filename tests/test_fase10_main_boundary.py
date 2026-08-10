@@ -107,6 +107,11 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "needs.f109-branch-reconciliation.result" in workflow
     assert "F109_REQUIRED" in workflow
     assert "scripts/security/f109_boundary.py" in workflow
+    assert "fix/f10-9-p1-rebuilt" in workflow
+    assert "--p1-base-tree" in workflow
+    assert "protected_dev_tip" in workflow
+    assert "github.base_ref == 'desarrollo'" in workflow
+    assert "github.ref == 'refs/heads/desarrollo'" in workflow
     assert "actions/checkout@v4" not in workflow
     assert "actions/setup-node@v4" not in workflow
     assert "actions/setup-python@v5" not in workflow
@@ -130,6 +135,12 @@ def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
     workflow = source(".github/workflows/f9-7-contract.yml")
 
     assert "github.event_name != 'pull_request' || github.base_ref != 'main'" in workflow
+    assert "fix/f10-9-p1-rebuilt" in workflow
+    assert "--p1-base" in workflow
+    assert "--p1-base-tree" in workflow
+    assert "--github-output \"$GITHUB_OUTPUT\"" in workflow
+    assert "steps.f109.outputs.mode == 'skip_non_p1'" in workflow
+    assert "github.base_ref == 'desarrollo'" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:

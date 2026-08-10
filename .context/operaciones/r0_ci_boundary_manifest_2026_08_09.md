@@ -4,7 +4,7 @@
 |---|---|
 | Gate | `G0-R0-F10.9` |
 | Freeze | `R0-FREEZE-F10.9-2026-08-09` |
-| Estado | `CANDIDATE_LOCAL_VALIDATION_PENDING_COMMIT` |
+| Estado | `PROTECTED_RECONCILIATION_PASS_P1_WIRING_IN_PROGRESS` |
 | Autoriza merge | `NO` |
 
 ## Anchors
@@ -17,6 +17,9 @@ cert_anchor = f8695f2463f5f8bf2d887bdd344f7f102afc13cd
 dev_base = 8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc
 dev_archive_tree = 13d3926f21b65abc73d1e8ef6e4305b2d61e0c77
 dev_extraction = 2c83cde5bc6e04f01c595a629e5694bd6de3e286
+cert_merge = 4f16f314284324c3b5e9c11c4536eef5ee04c7f3
+post_r0_dev_base = 4dcbb3fd792c25b16627f663fde31e40229718ce
+post_r0_dev_tree = cad3f1061cbdc00b2883f7812602a4f80bda0853
 ```
 
 ## Boundary Surfaces
@@ -34,15 +37,35 @@ El validador candidate aplica allowlists exactas para
 certificacion exige ademas Context Graph `41 files / 340 links / 0 broken`.
 Los modes quedan congelados por path: `security-audit.yml=100755`; todos los
 demas paths del delta R0=`100644`.
-El modo P1 queda dormido hasta congelar el SHA post-#328; no se activa por nombre
-de rama ni por un baseline pendiente.
+El wiring activa P1 solo para `fix/f10-9-p1-rebuilt` desde el tip protegido
+vigente de `desarrollo`, o para su push merge protegido cuando el delta coincide
+exactamente con cinco paths. El PR de wiring usa baseline literal post-R0 y
+allowlist propia de doce paths. Todo PR y push de `desarrollo` ejecuta F10.9:
+cualquier interseccion parcial, expandida, renombrada o con mode drift sobre P1
+falla; solo un delta sin paths P1 emite `skip_non_p1`, conserva activo el
+boundary legacy y no se convierte en autorizacion P1.
+
+```text
+M AGENTS.md
+M .context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md
+M .context/estado_del_proyecto.md
+M .context/operaciones/g0_r0_reconciliacion_f10_9.md
+M .context/operaciones/plan_remediacion_f10_9_fg2_fg3.md
+M .context/operaciones/r0_ci_boundary_manifest_2026_08_09.md
+A .context/operaciones/r0_post_merge_evidence_2026_08_09.md
+M .github/workflows/f9-7-contract.yml
+M .github/workflows/security-audit.yml
+M scripts/security/f109_boundary.py
+M tests/test_fase10_9_branch_reconciliation.py
+M tests/test_fase10_main_boundary.py
+```
 
 ## Independent Validator
 
 ```text
 path = local temp outside repository
-sha256 = 412aefd14e64a8f27473127a3e80a2679548c8317665b44de95addf1bdd30919
-result = FROZEN_COMPILE_PASS_EXECUTION_PENDING_COMMIT
+sha256 = 733da0452549c05a2983d15112eb13dd59240ebe01beaf35874218f060a1e9a2
+result = PASS_FINAL_STAGED_INDEX
 ```
 
 El validator independiente no puede ser reemplazado por el PR ni ejecutarse
@@ -55,11 +78,14 @@ utilizable.
 
 ```text
 head_sha = DERIVED_EXTERNAL_AFTER_COMMIT
-head_tree = DERIVED_EXTERNAL_AFTER_COMMIT
-delta_manifest_digest = DERIVED_EXTERNAL_AFTER_COMMIT
-required_checks = PENDING_REMOTE
+head_tree = RECORDED_EXTERNAL_AFTER_FINAL_STAGE_AND_COMMIT
+delta_manifest_digest = RECORDED_EXTERNAL_AFTER_FINAL_STAGE
+required_checks = PREVIOUS_R0_PASS_WIRING_PENDING_REMOTE
 human_review_after_last_push = PENDING
 ```
 
-Este manifest se actualiza antes del primer push con SHA/tree/digests reales.
-No autoriza #328, #330, merge ni data plane.
+El output sanitizado externo conserva tree y digest reales del indice final; el
+head SHA se deriva despues del commit. No se incrustan esos valores en el mismo
+tree porque producirian una referencia criptografica autorreferente. Antes del
+primer push se revalida que el commit conserva exactamente ese tree y delta.
+Este manifest no autoriza #328, #330, merge ni data plane.

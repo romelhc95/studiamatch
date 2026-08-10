@@ -33,8 +33,8 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 
 | Paquete | Estado | Evidencia o blocker vigente |
 |---|---|---|
-| `R0` | `IN_PROGRESS_BLOCKED_CI_REVIEW_REQUIRED` | CA2 preservado en `archive/f10-9-ca2-preserve-desarrollo-20260809@8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc` / tree `13d3926f21b65abc73d1e8ef6e4305b2d61e0c77`; PR #329, #328 y #330 permanecen abiertos, sin merge ni credito de cierre. |
-| `P1` | `IMPLEMENTED_LOCAL_NOT_INTEGRATED_REQUIRES_STABILIZATION` | Commit `8333102c44ea3278a05c3dad82763d55706b7e4f` / tree `fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac`; diez pruebas sinteticas PASS y `py_compile` PASS en Docker; el candidate no esta integrado en `desarrollo` y requiere cerrar findings de transporte SSRF antes de promocion. |
+| `R0` | `COMPLETED_POST_MERGE_VERIFIED_P1_WIRING_IN_PROGRESS` | CA2 preservado en `archive/f10-9-ca2-preserve-desarrollo-20260809@8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc` / tree `13d3926f21b65abc73d1e8ef6e4305b2d61e0c77`; PR #329 fue fusionado en `certificacion@4f16f314284324c3b5e9c11c4536eef5ee04c7f3` y PR #328 en `desarrollo@4dcbb3fd792c25b16627f663fde31e40229718ce`, ambos con checks post-merge PASS. PR #330 permanece abierto como referencia no promocionable. |
+| `P1` | `NOT_INTEGRATED_REQUIRES_REBUILD_STABILIZATION` | El commit de #330 `8333102c44ea3278a05c3dad82763d55706b7e4f` / tree `fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac` es solo referencia semantica; no esta integrado en `desarrollo`. El wiring fail-closed debe fusionarse y verificarse antes de reconstruir P1 desde el nuevo tip protegido y cerrar findings de transporte SSRF. |
 | `P2`-`P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | No existe candidate integrado ni autorizacion para implementar estos paquetes. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
@@ -70,9 +70,11 @@ Secuencia obligatoria:
    #328 mediante merge normal, sin rebase ni force-push.
 4. Verificar que el archive CA2 conserva commit/tree y que el tree final de la
    reconciliacion coincide con el tip certificado; exigir CI y review nuevos.
-5. Despues del merge humano de #328, reconstruir P1 desde el nuevo tip protegido
-   de `desarrollo`, sin arrastrar el stack de reconciliacion.
-6. El diff P1 aislado debe contener exactamente:
+5. Despues del merge humano de #328, integrar primero el wiring fail-closed P1
+   desde `ci/f10-9-p1-boundary`, con validator independiente, CI y review humano.
+6. Solo despues de ese merge y sus checks post-merge, reconstruir P1 desde el
+   nuevo tip protegido de `desarrollo`, sin arrastrar ancestry de #330. El diff
+   P1 aislado debe contener exactamente:
 
 ```text
 M scripts/shared/db_client.py

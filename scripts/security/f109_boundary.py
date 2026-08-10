@@ -20,6 +20,9 @@ DEV_BASE = "8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc"
 DEV_ARCHIVE_REF = "refs/remotes/origin/archive/f10-9-ca2-preserve-desarrollo-20260809"
 DEV_ARCHIVE_TREE = "13d3926f21b65abc73d1e8ef6e4305b2d61e0c77"
 DEV_EXTRACTION = "2c83cde5bc6e04f01c595a629e5694bd6de3e286"
+POST_R0_DEV_BASE = "4dcbb3fd792c25b16627f663fde31e40229718ce"
+POST_R0_DEV_TREE = "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+WIRING_HEAD_REF = "ci/f10-9-p1-boundary"
 P1_HEAD_REF = "fix/f10-9-p1-rebuilt"
 
 CONTEXT_EXPECTED_BLOBS = {
@@ -119,6 +122,87 @@ P1_ALLOWED_STATUSES = {
     "tests/test_fase10_9_p1_safety_contracts.py": "A",
 }
 
+WIRING_ALLOWED_STATUSES = {
+    "AGENTS.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g0_r0_reconciliacion_f10_9.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/r0_ci_boundary_manifest_2026_08_09.md": "M",
+    ".context/operaciones/r0_post_merge_evidence_2026_08_09.md": "A",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_main_boundary.py": "M",
+}
+
+WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WIRING_ALLOWED_STATUSES
+}
+
+CONTEXT_IGNORED_PREFIXES = (
+    ".context/.obsidian/",
+    ".context/artifacts/private/",
+)
+
+LEGACY_ALLOWED_STATUSES = {
+    ".gitattributes": {"M"},
+    ".github/workflows/fg1_inventory.yml": {"M"},
+    ".github/workflows/db-sync-to-pro.yml": {"M"},
+    "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": {"A"},
+    "db/restore_full_schema.sql": {"M"},
+    "scripts/maintenance/db_migrate.py": {"M"},
+    ".github/workflows/fg3_integrity.yml": {"M"},
+    ".github/workflows/production_pipeline.yml": {"M"},
+    "scripts/core/certification_canary_manifest.py": {"A", "M"},
+    "scripts/core/certification_canary_state.py": {"A", "M"},
+    "scripts/core/production_canary_manifest.py": {"A", "M"},
+    "scripts/core/production_canary_source_preflight.py": {"A", "M"},
+    "scripts/core/production_canary_state.py": {"A", "M"},
+    "scripts/core/cleansing_worker.py": {"M"},
+    "scripts/core/discovery_institutions.py": {"M"},
+    "scripts/core/enrichment_worker.py": {"M"},
+    "scripts/core/integrity_ping.py": {"M"},
+    "scripts/core/master_orchestrator.py": {"M"},
+    "scripts/core/sync_vector_worker.py": {"M"},
+    "scripts/core/universal_harvester.py": {"M"},
+    "scripts/shared/db_client.py": {"M"},
+}
+
+LEGACY_PROTECTED_PATHS = {
+    ".github/workflows/fg1_inventory.yml",
+    ".github/workflows/production_pipeline.yml",
+    ".github/workflows/fg3_integrity.yml",
+    ".github/workflows/db-sync-to-pro.yml",
+    "requirements-fg1.txt",
+    "requirements-pipeline.txt",
+    "requirements-fg3.txt",
+    "requirements-db-migrate.txt",
+    "db/manifests/fase09_7_free_schema_rls_v3.json",
+    "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+    "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+    "db/migrations/20260725_fase07_g1b_closure.sql",
+    "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+    "db/migrations/20260727_fase09_7_public_access_closure.sql",
+    "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
+    "scripts/maintenance/category_coverage_audit.py",
+    "scripts/maintenance/quality_assurance_audit.py",
+    "scripts/maintenance/taxonomy_roi_audit.py",
+}
+
+F109_CONTROL_PATHS = {
+    ".github/workflows/f9-7-contract.yml",
+    ".github/workflows/security-audit.yml",
+    "scripts/security/f109_boundary.py",
+    "tests/test_fase10_9_branch_reconciliation.py",
+    "tests/test_fase10_main_boundary.py",
+}
+
+LEGACY_PROTECTED_PREFIXES = ("scripts/core/", "scripts/shared/", "config/")
+LEGACY_DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
+
 
 class BoundaryError(RuntimeError):
     pass
@@ -207,6 +291,38 @@ def require_exact_delta(
         require((mode, kind, tree_path) == (expected_mode, "blob", path), f"invalid tree entry {path}")
 
 
+def validate_non_p1_delta(repo: Path, head: str, actual: dict[str, str]) -> None:
+    failures: list[str] = []
+    for path, status in actual.items():
+        if path.startswith(CONTEXT_IGNORED_PREFIXES):
+            failures.append(f"private-context-tracked:{path}")
+            continue
+        if path in F109_CONTROL_PATHS:
+            failures.append(f"f109-control-drift:{path}")
+            continue
+        allowed_statuses = LEGACY_ALLOWED_STATUSES.get(path)
+        if path.startswith(LEGACY_DENIED_PREFIXES) and allowed_statuses is None:
+            failures.append(f"legacy-denied:{path}")
+            continue
+        if (
+            path in LEGACY_PROTECTED_PATHS or path.startswith(LEGACY_PROTECTED_PREFIXES)
+        ) and allowed_statuses is None:
+            failures.append(f"legacy-protected-drift:{path}")
+            continue
+        if allowed_statuses is not None and status not in allowed_statuses:
+            failures.append(f"legacy-status:{status}:{path}")
+            continue
+        if allowed_statuses is not None and status != "D":
+            metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
+            if len(metadata) != 4 or (metadata[0], metadata[1], metadata[3]) != (
+                "100644",
+                "blob",
+                path,
+            ):
+                failures.append(f"legacy-mode-kind:{path}")
+    require(not failures, f"non-P1 delta violates legacy boundary: {failures!r}")
+
+
 def validate_context_graph(
     root: Path,
     expected_files: int,
@@ -215,7 +331,15 @@ def validate_context_graph(
     forbidden_paths: set[str] | None = None,
 ) -> None:
     root = root.resolve()
-    markdown_files = sorted((root / ".context").rglob("*.md"))
+    tracked_private = str(
+        git(root, "ls-files", "--", ".context/.obsidian", ".context/artifacts/private")
+    ).split()
+    require(not tracked_private, f"private context paths must remain untracked: {tracked_private!r}")
+    markdown_files = sorted(
+        path
+        for path in (root / ".context").rglob("*.md")
+        if not path.relative_to(root).as_posix().startswith(CONTEXT_IGNORED_PREFIXES)
+    )
     pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
     local_links = 0
     broken: list[tuple[str, str]] = []
@@ -308,18 +432,64 @@ def validate_dev(repo: Path, base: str, head: str, event: str, cert_tip: str) ->
     require(not unexpected, f"unexpected commits outside certificacion history: {unexpected!r}")
 
 
-def validate_p1(repo: Path, base: str, head: str, p1_base: str, event: str) -> None:
+def validate_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_R0_DEV_BASE, "unexpected P1 wiring baseline")
+    require_sha(repo, "POST_R0_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_R0_DEV_TREE, "post-R0 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during P1 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during P1 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P1 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "P1 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P1 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "P1 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WIRING_ALLOWED_STATUSES,
+        WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=42,
+        expected_links=341,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_p1(
+    repo: Path,
+    base: str,
+    head: str,
+    p1_base: str,
+    p1_base_tree: str,
+    event: str,
+) -> None:
     require(bool(SHA_RE.fullmatch(p1_base)), "P1 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(p1_base_tree)), "P1 baseline tree is not frozen")
     require(base == p1_base, "P1 must use the protected post-R0 desarrollo baseline")
     require_sha(repo, "base", base)
     require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == p1_base_tree, "P1 protected base tree drift")
     require(is_ancestor(repo, base, head), "P1 base is not an ancestor of head")
-    parents = commit_parents(repo, head)
+    candidate_head = head
     if event == "pull_request":
-        require(parents == [base], "P1 PR head must be one direct commit from protected desarrollo")
+        require(commit_parents(repo, candidate_head) == [base], "P1 PR head must be one direct commit from protected desarrollo")
     else:
-        require(parents and parents[0] == base, "P1 push first parent must be protected desarrollo")
-    require_exact_delta(repo, base, head, P1_ALLOWED_STATUSES)
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P1 push must be a protected merge commit")
+        require(push_parents[0] == base, "P1 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "P1 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P1 push tree differs from PR head")
+    require_exact_delta(repo, base, candidate_head, P1_ALLOWED_STATUSES)
 
 
 def detect_mode(event: str, base_ref: str, head_ref: str, base: str, p1_base: str = "") -> str:
@@ -327,11 +497,20 @@ def detect_mode(event: str, base_ref: str, head_ref: str, base: str, p1_base: st
         return "cert"
     if base_ref == "desarrollo" and base == DEV_BASE:
         return "dev"
-    if base_ref == "desarrollo" and p1_base and base == p1_base and (
-        event == "push" or head_ref == P1_HEAD_REF
+    if base_ref == "desarrollo" and base == POST_R0_DEV_BASE and (
+        event == "push" or head_ref == WIRING_HEAD_REF
     ):
+        return "wiring"
+    if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     return "skip"
+
+
+def emit_mode(mode: str, github_output: str) -> None:
+    print(f"F10.9 boundary passed: mode={mode}")
+    if github_output:
+        with Path(github_output).open("a", encoding="utf-8") as output:
+            output.write(f"mode={mode}\n")
 
 
 def parse_args() -> argparse.Namespace:
@@ -346,6 +525,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--head-repo", required=True)
     parser.add_argument("--cert-tip", default="")
     parser.add_argument("--p1-base", default="")
+    parser.add_argument("--p1-base-tree", default="")
+    parser.add_argument("--github-output", default="")
     return parser.parse_args()
 
 
@@ -354,15 +535,39 @@ def main() -> int:
     try:
         require(args.base_repo == args.head_repo, "F10.9 boundary requires the same repository")
         mode = detect_mode(args.event, args.base_ref, args.head_ref, args.base_sha, args.p1_base)
+        if mode == "skip" and args.base_ref == "desarrollo":
+            if args.event == "pull_request" and args.head_ref == WIRING_HEAD_REF:
+                raise BoundaryError("P1 wiring branch requires the frozen post-R0 baseline")
+            if args.event == "pull_request" and args.head_ref == P1_HEAD_REF:
+                raise BoundaryError("P1 branch requires the frozen protected desarrollo baseline")
+            actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
+            touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
+            if touched_p1:
+                require(args.head_ref == P1_HEAD_REF or args.event == "push", "P1 paths require the protected P1 branch")
+                require(actual == P1_ALLOWED_STATUSES, "partial or expanded P1 delta is forbidden")
+                mode = "p1"
+            else:
+                validate_non_p1_delta(args.repo, args.head_sha, actual)
+                emit_mode("skip_non_p1", args.github_output)
+                return 0
         require(mode != "skip", "event does not match an exact F10.9 boundary mode")
         if mode == "cert":
             validate_cert(args.repo, args.base_sha, args.head_sha, args.event)
         elif mode == "dev":
             require(bool(args.cert_tip), "cert_tip is required for desarrollo reconciliation")
             validate_dev(args.repo, args.base_sha, args.head_sha, args.event, args.cert_tip)
+        elif mode == "wiring":
+            validate_wiring(args.repo, args.base_sha, args.head_sha, args.event)
         else:
-            validate_p1(args.repo, args.base_sha, args.head_sha, args.p1_base, args.event)
-        print(f"F10.9 boundary passed: mode={mode}")
+            validate_p1(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                args.p1_base,
+                args.p1_base_tree,
+                args.event,
+            )
+        emit_mode(mode, args.github_output)
         return 0
     except (BoundaryError, subprocess.CalledProcessError) as exc:
         print(f"F10.9 boundary failed: {exc}", file=sys.stderr)
