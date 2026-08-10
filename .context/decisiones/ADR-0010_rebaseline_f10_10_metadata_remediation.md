@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `APPROVED_EFFECTIVE_PENDING_PROTECTED_MERGE` |
+| Estado | `APPROVED_EFFECTIVE` |
 | Fecha | `2026-08-10` |
 | Autoridad | Decision superior humana del Hito 1 |
 | Subfase creada | `F10.10` |
@@ -88,6 +88,8 @@ impide declarar salida cero.
 
 ## Estado De Adopcion
 
-Este ADR queda efectivo como decision superior, pero M0 solo se considera
-integrado despues de merge protegido y checks post-merge del paquete documental.
-Hasta entonces no se implementa M1 ni se realiza acceso remoto.
+Este ADR quedo integrado por PR #343 en
+`desarrollo@f59c35272ccec930434b3ceeb1aee8eac732d4b9`, con Security Audit
+`31419218575=PASS` y F9.7 `31419218779=PASS` post-merge. M0 queda PASS. M1 fue
+autorizado por alcance humano separado solo para tooling, fixtures y pruebas
+offline; no concede acceso remoto.
