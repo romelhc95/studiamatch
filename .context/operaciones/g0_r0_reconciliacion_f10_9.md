@@ -5,9 +5,9 @@
 | ID | `G0-R0-F10.9` |
 | Plan padre | [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) |
 | Subfase | `F10.9` |
-| Estado | `DOCUMENTED_EXECUTION_PENDING_SEPARATE_APPROVAL` |
+| Estado | `COMPLETED_PASS_GO_G1_P2` |
 | Autoriza ejecucion | `NO` |
-| Gate siguiente | `G1/P2` solo despues de `G0=PASS` |
+| Gate siguiente | `G1/P2` requiere wiring integrado y autorizacion separada |
 
 Freeze vigente: [R0-FREEZE-F10.9-2026-08-09](./r0_freeze_f10_9_2026_08_09.md).
 Manifest del graph:
@@ -43,38 +43,41 @@ Snapshot documental: `2026-08-09`.
 | Merge preparado `main -> certificacion` | `f8695f2463f5f8bf2d887bdd344f7f102afc13cd` | Parents baseline/source; tree `54098b3ff581cc7728979afc8e6d47c9535141b5` |
 | Extraccion forward-only CA2 | `2c83cde5bc6e04f01c595a629e5694bd6de3e286` | Parent `8f4b4b0`; tree `54098b3ff581cc7728979afc8e6d47c9535141b5` |
 | Merge preparado `certificacion -> desarrollo` | `4c4080ed95b407f2126f1908d171d2d73859f810` | Tree `54098b3ff581cc7728979afc8e6d47c9535141b5` |
-| P1 local | `8333102c44ea3278a05c3dad82763d55706b7e4f` | Tree `fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac`; no integrado |
+| P1 referencia descartada | `8333102c44ea3278a05c3dad82763d55706b7e4f` | Tree `fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac`; PR #330 cerrado como superseded, ancestry no reutilizado |
+| Wiring P1 integrado | `4f47836a8c80bbab396e30ed65f424e58e772987` | PR #331 fusionado; checks post-merge PASS |
+| P1 integrado | `53921e3ec845f4a248e586a0ecd667c64f4c070d` | PR #332 fusionado; tree `0344c649772aea18314fe022d5f24898e3dc03d0` |
 
 Estos valores son anchors de diagnostico, no autorizaciones. Un cambio remoto
 antes de ejecutar G0 obliga a recalcular heads, parents y manifests. No se
 actualiza silenciosamente ningun SHA congelado.
 
-## Blockers Vigentes
+## Blockers Resueltos En G0
 
 ### B1 - Security Audit No Reconoce F10.9
 
-El agregador de `.github/workflows/security-audit.yml` trata toda transicion a
+El agregador de `.github/workflows/security-audit.yml` trataba toda transicion a
 `certificacion` como un baseline historico enumerado. Si ningun flag `*_REQUIRED`
 coincide, produce `certification-transition: unsupported baseline`.
 
 ### B2 - F9.7 Contract Interpreta R0/P1 Como Drift Historico
 
-`.github/workflows/f9-7-contract.yml` ejecuta el boundary F9.8 para PRs y pushes
+`.github/workflows/f9-7-contract.yml` ejecutaba el boundary F9.8 para PRs y pushes
 de `desarrollo`. Su allowlist/protected-prefix logic interpreta la extraccion
 CA2 y los nuevos `scripts/shared/**` de P1 como drift F9.7/F9.8.
 
 ### B3 - Context Graph Selectivo Incompleto
 
-El tree observado de `origin/main` contiene `11` archivos Markdown bajo
+El tree inicialmente observado de `origin/main` contenia `11` archivos Markdown bajo
 `.context`, `135` enlaces locales y `78` targets heredados ausentes. Los seis
 targets tocados por la documentacion F10.9 existen, pero el graph global queda
-`BLOCKED_INHERITED_CONTEXT_GRAPH`.
+`BLOCKED_INHERITED_CONTEXT_GRAPH`. R0 termino con `42` Markdown, `341` enlaces
+locales y `0` rotos.
 
 ### B4 - P1 Requiere Estabilizacion
 
-P1 no puede promoverse solo porque sus diez pruebas iniciales pasaron. Debe
-cerrar los findings de transporte indicados en el plan padre y reconstruirse
-desde el tip protegido de `desarrollo` posterior a R0.
+P1 fue reconstruido desde el tip protegido post-wiring, cerro los findings de
+transporte/retries, paso las suites focused y de regresion y quedo integrado por
+PR #332 con checks post-merge verdes.
 
 ## Frontera G0/R0
 
@@ -329,7 +332,7 @@ checks post-merge.
 
 ## Paso 6 - Reconstruir Y Estabilizar P1
 
-Solo despues del merge humano de #328:
+Solo despues del merge humano del wiring P1 (#331):
 
 1. Crear una rama nueva desde el tip protegido post-R0 de `desarrollo`.
 2. Aplicar semanticamente P1 sin reutilizar ancestry apilada de #330.
@@ -343,6 +346,12 @@ Solo despues del merge humano de #328:
 8. Obtener aprobacion humana posterior al ultimo push.
 9. Fusionar manualmente, revalidar branch protection y verificar checks
    post-merge.
+
+Resultado: completado por PR #332. Candidate
+`e9fb19a217cf1ad3bd9924afb0d3bdbebed7a694`; merge
+`53921e3ec845f4a248e586a0ecd667c64f4c070d`; tree
+`0344c649772aea18314fe022d5f24898e3dc03d0`; Security Audit
+`31350585499=success`; F9.7 Contract `31350585516=success`.
 
 ## Manifests R0
 
@@ -386,6 +395,10 @@ remote_data_operations = 0
 Resultado alternativo: cualquier predicado falso produce `G0=STOP`, no
 `PARTIAL_PASS`. P2 permanece prohibido hasta resolverlo y emitir un manifest G0
 nuevo.
+
+Resultado observado: todos los predicados quedaron verdaderos. G0 termina
+`PASS/GO_G1_P2`. Este resultado habilita preparar el boundary de G1, pero no
+autoriza implementar P2, acceder a red remota ni operar data plane.
 
 ## Evidencia De Entrega
 

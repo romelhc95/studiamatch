@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Gate | [G0-R0-F10.9](./g0_r0_reconciliacion_f10_9.md) |
-| Estado | `PROTECTED_RECONCILIATION_PASS_P1_WIRING_IN_PROGRESS` |
-| Autoriza G0 PASS | `NO` |
-| Autoriza P1 runtime | `NO` |
+| Estado | `G0_PASS_GO_G1_P2` |
+| Autoriza G0 PASS | `YES_RECORDED` |
+| Autoriza P2 runtime | `NO` |
 | Autoriza data plane | `NO` |
 
 ## Protected Heads
@@ -14,11 +14,12 @@
 |---|---|---|
 | `main` | `ad89e8ab9575b37476502d6062e22c044ad6447b` | `54098b3ff581cc7728979afc8e6d47c9535141b5` |
 | `certificacion` | `4f16f314284324c3b5e9c11c4536eef5ee04c7f3` | `cad3f1061cbdc00b2883f7812602a4f80bda0853` |
-| `desarrollo` | `4dcbb3fd792c25b16627f663fde31e40229718ce` | `cad3f1061cbdc00b2883f7812602a4f80bda0853` |
+| `desarrollo` | `53921e3ec845f4a248e586a0ecd667c64f4c070d` | `0344c649772aea18314fe022d5f24898e3dc03d0` |
 
 `main` es ancestro de `certificacion`; `certificacion` es ancestro de
-`desarrollo`. Los trees protegidos de `certificacion` y `desarrollo` son
-identicos.
+`desarrollo`. La igualdad de trees de `certificacion` y `desarrollo` fue
+verificada al cerrar R0; los cambios posteriores corresponden exclusivamente al
+wiring P1 y P1 integrado.
 
 ## PR 329 - Certificacion
 
@@ -59,20 +60,44 @@ status = PRESERVED_FOR_HITO_2
 head = 8333102c44ea3278a05c3dad82763d55706b7e4f
 tree = fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac
 status = REFERENCE_ONLY_NON_PROMOTABLE
-replacement = NOT_CREATED
-close_authorized = NO
+replacement = PR_332
+status_final = CLOSED_SUPERSEDED_NON_PROMOTABLE
 ```
 
-PR #330 no se fusiona, rebasa ni force-pushea. Solo puede consultarse como
-referencia semantica. Se cierra como `SUPERSEDED_NON_PROMOTABLE` despues de
-abrir el reemplazo P1 desde el tip protegido post-wiring.
+PR #330 no fue fusionado, rebasado ni force-pusheado. Queda solo como referencia
+semantica; fue cerrado como `SUPERSEDED_NON_PROMOTABLE` despues de abrir #332.
 
-## P1 Boundary Wiring
+## PR 331 - P1 Boundary Wiring
 
-El package `ci/f10-9-p1-boundary` habilita el boundary fail-closed previo a P1.
-No modifica los cinco paths runtime P1 y requiere aprobacion/merge humano antes
-de crear `fix/f10-9-p1-rebuilt`.
+```text
+merge_commit = 4f47836a8c80bbab396e30ed65f424e58e772987
+approval_after_last_push = true
+post_merge_checks = success
+```
 
-G0 permanece abierto hasta integrar P1, verificar checks post-merge y registrar
-`R0-P1`. Este documento no autoriza P2, DDL/DML, Supabase, schedules,
-dispatches, backfill, re-enrichment ni data plane.
+El package habilito el boundary fail-closed previo a P1 sin modificar sus cinco
+paths runtime.
+
+## PR 332 - P1 Integrado
+
+```text
+candidate = e9fb19a217cf1ad3bd9924afb0d3bdbebed7a694
+merge_commit = 53921e3ec845f4a248e586a0ecd667c64f4c070d
+merge_tree = 0344c649772aea18314fe022d5f24898e3dc03d0
+approval_after_last_push = true
+security_audit_run = 31350585499:success
+f9_7_contract_run = 31350585516:success
+p1_diff_paths = exact_five_path_allowlist
+```
+
+P1 paso 36 pruebas focused, 121 regresiones relacionadas, credential scan y
+security-auditor sin blockers. El ancestry de #330 no fue reutilizado.
+
+## Decision G0
+
+Todos los predicados de salida G0 quedaron satisfechos. Resultado:
+`G0=PASS/GO_G1_P2`. La siguiente actividad es integrar el wiring fail-closed P2;
+P2 funcional permanece `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION`.
+
+Este documento no autoriza P2, DDL/DML, Supabase, schedules, dispatches,
+backfill, re-enrichment ni data plane.

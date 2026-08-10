@@ -4,7 +4,7 @@
 |---|---|
 | Gate | `G0-R0-F10.9` |
 | Freeze | `R0-FREEZE-F10.9-2026-08-09` |
-| Estado | `PROTECTED_RECONCILIATION_PASS_P1_WIRING_IN_PROGRESS` |
+| Estado | `G0_PASS_P2_WIRING_IN_PROGRESS` |
 | Autoriza merge | `NO` |
 
 ## Anchors
@@ -20,6 +20,8 @@ dev_extraction = 2c83cde5bc6e04f01c595a629e5694bd6de3e286
 cert_merge = 4f16f314284324c3b5e9c11c4536eef5ee04c7f3
 post_r0_dev_base = 4dcbb3fd792c25b16627f663fde31e40229718ce
 post_r0_dev_tree = cad3f1061cbdc00b2883f7812602a4f80bda0853
+post_p1_dev_base = 53921e3ec845f4a248e586a0ecd667c64f4c070d
+post_p1_dev_tree = 0344c649772aea18314fe022d5f24898e3dc03d0
 ```
 
 ## Boundary Surfaces
@@ -60,6 +62,39 @@ M tests/test_fase10_9_branch_reconciliation.py
 M tests/test_fase10_main_boundary.py
 ```
 
+## P2 Wiring Boundary
+
+El candidate `ci/f10-9-p2-boundary` parte exactamente de `post_p1_dev_base` y
+debe ser un unico commit directo, same-repository, con modes exactos. Su delta
+contiene exclusivamente diez paths existentes:
+
+```text
+M .context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md
+M .context/estado_del_proyecto.md
+M .context/operaciones/g0_r0_reconciliacion_f10_9.md
+M .context/operaciones/plan_remediacion_f10_9_fg2_fg3.md
+M .context/operaciones/r0_ci_boundary_manifest_2026_08_09.md
+M .context/operaciones/r0_post_merge_evidence_2026_08_09.md
+M .github/workflows/f9-7-contract.yml
+M .github/workflows/security-audit.yml
+M scripts/security/f109_boundary.py
+M tests/test_fase10_9_branch_reconciliation.py
+```
+
+El wiring reconoce P2 funcional solo en
+`feat/f10-9-p2-readonly-planners`, desde el tip protegido post-wiring y con
+exactamente cuatro altas mode `100644`:
+
+```text
+A scripts/shared/f10_9_readonly_planner.py
+A scripts/maintenance/f10_9_readonly_audit.py
+A tests/fixtures/f10_9_p2_synthetic.json
+A tests/test_fase10_9_p2_readonly_planners.py
+```
+
+Intersecciones parciales, deltas expandidos, otro branch, otro baseline, forks,
+renames, deletes o mode drift fallan. El wiring no implementa P2.
+
 ## Independent Validator
 
 ```text
@@ -72,20 +107,33 @@ El validator independiente no puede ser reemplazado por el PR ni ejecutarse
 desde una copia del candidate.
 Los freezes previos `da55638a...` y `68c981d7...` fueron invalidados antes del
 primer push al ampliar actions pinneadas y modes por path; no son evidencia
-utilizable.
+utilizable. Este bloque corresponde al package P1 ya integrado; el validator
+independiente P2 wiring se congela despues del stage final de sus diez paths.
 
-## Candidate
+## P1 Integrado
+
+```text
+candidate_sha = e9fb19a217cf1ad3bd9924afb0d3bdbebed7a694
+merge_sha = 53921e3ec845f4a248e586a0ecd667c64f4c070d
+merge_tree = 0344c649772aea18314fe022d5f24898e3dc03d0
+security_audit = 31350585499:success
+f9_7_contract = 31350585516:success
+human_review_after_last_push = true
+```
+
+## Candidate P2 Wiring
 
 ```text
 head_sha = DERIVED_EXTERNAL_AFTER_COMMIT
 head_tree = RECORDED_EXTERNAL_AFTER_FINAL_STAGE_AND_COMMIT
 delta_manifest_digest = RECORDED_EXTERNAL_AFTER_FINAL_STAGE
-required_checks = PREVIOUS_R0_PASS_WIRING_PENDING_REMOTE
+required_checks = LOCAL_VALIDATION_PASS_REMOTE_PENDING
 human_review_after_last_push = PENDING
+independent_validator_sha256 = 1c7a767e37ccd4d549dbe6face36baff160e23dd314a5c0fdab50e8f81015919
+independent_validator_result = PASS
 ```
 
 El output sanitizado externo conserva tree y digest reales del indice final; el
 head SHA se deriva despues del commit. No se incrustan esos valores en el mismo
-tree porque producirian una referencia criptografica autorreferente. Antes del
-primer push se revalida que el commit conserva exactamente ese tree y delta.
-Este manifest no autoriza #328, #330, merge ni data plane.
+tree porque producirian una referencia criptografica autorreferente. Este
+manifest no autoriza P2 funcional, merge ni data plane.
