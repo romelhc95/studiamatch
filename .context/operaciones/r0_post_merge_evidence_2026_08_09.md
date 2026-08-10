@@ -14,12 +14,12 @@
 |---|---|---|
 | `main` | `ad89e8ab9575b37476502d6062e22c044ad6447b` | `54098b3ff581cc7728979afc8e6d47c9535141b5` |
 | `certificacion` | `4f16f314284324c3b5e9c11c4536eef5ee04c7f3` | `cad3f1061cbdc00b2883f7812602a4f80bda0853` |
-| `desarrollo` | `53921e3ec845f4a248e586a0ecd667c64f4c070d` | `0344c649772aea18314fe022d5f24898e3dc03d0` |
+| `desarrollo` | `d5433ea9f810b0338513665bb95ba28715c6c8b5` | `24a270f314b46728d5ae9847dafba0ff1999be7f` |
 
 `main` es ancestro de `certificacion`; `certificacion` es ancestro de
 `desarrollo`. La igualdad de trees de `certificacion` y `desarrollo` fue
 verificada al cerrar R0; los cambios posteriores corresponden exclusivamente al
-wiring P1 y P1 integrado.
+wiring P1, P1 integrado y wiring P2 protegido.
 
 ## PR 329 - Certificacion
 
@@ -101,3 +101,19 @@ P2 funcional permanece `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION`.
 
 Este documento no autoriza P2, DDL/DML, Supabase, schedules, dispatches,
 backfill, re-enrichment ni data plane.
+
+## PR 333 - P2 Boundary Wiring
+
+```text
+candidate = c9dd940c8beb74b48979a86b6a91f5bdc1225cbc
+merge_commit = d5433ea9f810b0338513665bb95ba28715c6c8b5
+merge_tree = 24a270f314b46728d5ae9847dafba0ff1999be7f
+approval_after_last_push = true
+security_audit_run = 31354339105:success
+f9_7_contract_run = 31354339122:success
+p2_wiring_diff_paths = exact_ten_path_allowlist
+```
+
+El wiring P2 quedo protegido y verificado post-merge. La autorizacion posterior
+de G1/P2 se limita a cuatro altas locales read-only/offline; no habilita red,
+data plane ni apply.

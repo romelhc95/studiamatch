@@ -4,7 +4,7 @@
 |---|---|
 | Gate | `G0-R0-F10.9` |
 | Freeze | `R0-FREEZE-F10.9-2026-08-09` |
-| Estado | `G0_PASS_P2_WIRING_IN_PROGRESS` |
+| Estado | `G0_PASS_P2_WIRING_COMPLETED_G1_AUTHORIZED` |
 | Autoriza merge | `NO` |
 
 ## Anchors
@@ -124,11 +124,14 @@ human_review_after_last_push = true
 ## Candidate P2 Wiring
 
 ```text
-head_sha = DERIVED_EXTERNAL_AFTER_COMMIT
-head_tree = RECORDED_EXTERNAL_AFTER_FINAL_STAGE_AND_COMMIT
-delta_manifest_digest = RECORDED_EXTERNAL_AFTER_FINAL_STAGE
-required_checks = LOCAL_VALIDATION_PASS_REMOTE_PENDING
-human_review_after_last_push = PENDING
+head_sha = c9dd940c8beb74b48979a86b6a91f5bdc1225cbc
+head_tree = 24a270f314b46728d5ae9847dafba0ff1999be7f
+delta_manifest_digest = 0ac5438fc4a7b5ee15c7e9a02f3671b164c7aacc8a74d3b9e0e8dda82d5fdbde
+merge_sha = d5433ea9f810b0338513665bb95ba28715c6c8b5
+merge_tree = 24a270f314b46728d5ae9847dafba0ff1999be7f
+security_audit = 31354339105:success
+f9_7_contract = 31354339122:success
+human_review_after_last_push = true
 independent_validator_sha256 = 1c7a767e37ccd4d549dbe6face36baff160e23dd314a5c0fdab50e8f81015919
 independent_validator_result = PASS
 ```
@@ -136,4 +139,5 @@ independent_validator_result = PASS
 El output sanitizado externo conserva tree y digest reales del indice final; el
 head SHA se deriva despues del commit. No se incrustan esos valores en el mismo
 tree porque producirian una referencia criptografica autorreferente. Este
-manifest no autoriza P2 funcional, merge ni data plane.
+manifest registra el wiring ya integrado. La autorizacion posterior de P2 se
+limita a codigo/tests locales read-only/offline y no concede data plane.

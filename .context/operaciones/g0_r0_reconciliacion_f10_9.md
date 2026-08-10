@@ -46,6 +46,7 @@ Snapshot documental: `2026-08-09`.
 | P1 referencia descartada | `8333102c44ea3278a05c3dad82763d55706b7e4f` | Tree `fab0ca1bbad12fd633b7574a44ab0a52ea00a1ac`; PR #330 cerrado como superseded, ancestry no reutilizado |
 | Wiring P1 integrado | `4f47836a8c80bbab396e30ed65f424e58e772987` | PR #331 fusionado; checks post-merge PASS |
 | P1 integrado | `53921e3ec845f4a248e586a0ecd667c64f4c070d` | PR #332 fusionado; tree `0344c649772aea18314fe022d5f24898e3dc03d0` |
+| Wiring P2 integrado | `d5433ea9f810b0338513665bb95ba28715c6c8b5` | PR #333 fusionado; tree `24a270f314b46728d5ae9847dafba0ff1999be7f`; checks post-merge PASS |
 
 Estos valores son anchors de diagnostico, no autorizaciones. Un cambio remoto
 antes de ejecutar G0 obliga a recalcular heads, parents y manifests. No se
@@ -399,6 +400,10 @@ nuevo.
 Resultado observado: todos los predicados quedaron verdaderos. G0 termina
 `PASS/GO_G1_P2`. Este resultado habilita preparar el boundary de G1, pero no
 autoriza implementar P2, acceder a red remota ni operar data plane.
+
+El boundary G1 fue integrado posteriormente por PR #333. La autorizacion
+decimal separada para G1/P2 se limita a implementacion local read-only/offline;
+no modifica el resultado historico G0.
 
 ## Evidencia De Entrega
 
