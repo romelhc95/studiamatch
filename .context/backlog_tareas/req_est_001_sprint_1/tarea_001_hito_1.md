@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad general de ejecucion. El plan vigente documenta R0, P1-P7 y G0-G13: R0/P1 y wiring P2 fueron integrados por PR #329/#328/#331/#332/#333; `desarrollo@d5433ea9f810b0338513665bb95ba28715c6c8b5` / tree `24a270f314b46728d5ae9847dafba0ff1999be7f` obtuvo Security Audit `31354339105=PASS` y F9.7 `31354339122=PASS` post-merge; G0 queda `PASS/GO_G1_P2`. PR #330 fue cerrado como `SUPERSEDED_NON_PROMOTABLE`; G1/P2 esta autorizado solo para implementacion local read-only/offline, P3-P5/P7 no han iniciado y P6 queda fuera de F10.9. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b`; PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`. Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad general de ejecucion. El plan vigente documenta R0, P1-P7 y G0-G13: R0/P1 y wiring P2 fueron integrados por PR #329/#328/#331/#332/#333; G0 queda `PASS/GO_G1_P2`. [G1/P2 post-merge](../../operaciones/g1_p2_post_merge_evidence_2026_08_10.md) registra PR #335 aprobado/fusionado en `desarrollo@0d87060837586603055ca91629b20815803b3239` / tree `9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`, con Security Audit `31361988478=PASS` y F9.7 `31361988498=PASS`; G1 queda `PASS/GO_G2_AUTHORIZATION_REQUIRED`. PR #330 fue cerrado como `SUPERSEDED_NON_PROMOTABLE`; P3-P5/P7 no han iniciado y P6 queda fuera de F10.9. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -97,7 +97,7 @@ alcance adicional:
 
 1. `G0`: cerrar R0 y estabilizar/integrar P1 sobre ancestry protegido conforme a
    [G0-R0-F10.9](../../operaciones/g0_r0_reconciliacion_f10_9.md).
-2. `G1`: implementar P2 planners read-only/offline.
+2. `G1`: `PASS`; P2 planners read-only/offline integrados por PR #335.
 3. `G2`: implementar P3 preflight FG2 y P4 atomicidad FG3.
 4. `G3`: implementar P5 metadata read-only/fail-closed.
 5. `G4`: decidir `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`.
@@ -111,7 +111,7 @@ alcance adicional:
 13. `G12`: habilitacion gradual.
 14. `G13`: tres pares naturales consecutivos durante al menos 72h.
 
-Ningun gate concede el siguiente. G0 tambien debe cerrar el
+Ningun gate concede el siguiente. G0 cerro el
 `BLOCKED_INHERITED_CONTEXT_GRAPH` registrado en el plan, sin importar CA2 ni
 inventar documentos. Un cambio de SHA/tree, schema, cantidades, profile,
 environment, dependencias o normalization version invalida el manifest y produce

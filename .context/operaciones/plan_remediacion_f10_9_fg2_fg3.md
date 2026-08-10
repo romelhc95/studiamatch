@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-REM-F10.9-001` |
-| Estado | `G1_P2_AUTHORIZED_LOCAL_IMPLEMENTATION_PENDING` |
+| Estado | `G1_P2_COMPLETED_POST_MERGE_VERIFIED_GO_G2_AUTHORIZATION_REQUIRED` |
 | Incidente | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) |
 | Subfase | `F10.9` |
 | Hito | `HITO-001` |
@@ -28,7 +28,7 @@ y el alcance adicional indicado. Un gate en `PASS` tampoco concede el siguiente.
 
 ## Estado De Ejecucion Del Plan
 
-Snapshot documental: `2026-08-09`. Este bloque registra el estado observado;
+Snapshot documental: `2026-08-10`. Este bloque registra el estado observado;
 no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 
 | Paquete | Estado | Evidencia o blocker vigente |
@@ -36,23 +36,21 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `R0` | `COMPLETED_POST_MERGE_VERIFIED` | CA2 preservado en `archive/f10-9-ca2-preserve-desarrollo-20260809@8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc` / tree `13d3926f21b65abc73d1e8ef6e4305b2d61e0c77`; PR #329 fue fusionado en `certificacion@4f16f314284324c3b5e9c11c4536eef5ee04c7f3` y PR #328 en `desarrollo@4dcbb3fd792c25b16627f663fde31e40229718ce`, ambos con checks post-merge PASS. |
 | `P1` | `COMPLETED_POST_MERGE_VERIFIED` | PR #331 integro el wiring fail-closed en `4f47836a8c80bbab396e30ed65f424e58e772987`; PR #332 integro el candidate estabilizado en `desarrollo@53921e3ec845f4a248e586a0ecd667c64f4c070d` / tree `0344c649772aea18314fe022d5f24898e3dc03d0`. Security Audit `31350585499=PASS` y F9.7 `31350585516=PASS` post-merge. PR #330 fue cerrado como `SUPERSEDED_NON_PROMOTABLE`. |
 | Wiring `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #333 aprobado/fusionado en `desarrollo@d5433ea9f810b0338513665bb95ba28715c6c8b5` / tree `24a270f314b46728d5ae9847dafba0ff1999be7f`; Security Audit `31354339105=PASS` y F9.7 `31354339122=PASS` post-merge. |
-| `P2` | `AUTHORIZED_LOCAL_IMPLEMENTATION_PENDING` | Autorizacion decimal F10.9 consumida para los cuatro paths exactos P2, fixtures sinteticos y cero red/data plane. |
+| `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #335 integro los cuatro paths exactos mediante `desarrollo@0d87060837586603055ca91629b20815803b3239` / tree `9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`; Security Audit `31361988478=PASS` y F9.7 `31361988498=PASS` post-merge. Ver [evidencia G1/P2](./g1_p2_post_merge_evidence_2026_08_10.md). |
 | `P3`-`P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | Ningun PASS de G1 concede el gate siguiente. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
 | Observacion | `NOT_STARTED` | Pares aceptados `0`; cualquier secuencia empieza despues de remediacion promovida y habilitacion operacional nueva. |
 
-Validacion documental local de este snapshot:
+Validacion documental local vigente de este snapshot:
 
-- los seis targets de enlaces tocados por esta actualizacion existen;
+- los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph global de `origin/main` queda
-  `BLOCKED_INHERITED_CONTEXT_GRAPH`: el tree selectivo contiene `11` archivos
-  Markdown bajo `.context`, `135` enlaces locales observados y `78` targets
-  ausentes heredados;
-- este paquete no restaura esos documentos ni puede declarar Context Graph PASS;
-  R0 debe reconciliar el graph desde el ancestry protegido sin importar CA2 ni
-  inventar contenido.
+- el Context Graph contiene `43` archivos Markdown, `344` enlaces locales y
+  `0` targets rotos;
+- el blocker heredado de Context Graph registrado en el snapshot inicial quedo
+  superado por R0 y no permanece como accion pendiente;
+- G1/P2 queda trazado por evidencia separada sin importar CA2 ni conceder G2.
 
 ### R0 - Reconciliacion De Repositorio Y Boundaries
 
@@ -398,6 +396,18 @@ El wiring fail-closed fue integrado mediante PR #333 y reconoce exclusivamente
 `feat/f10-9-p2-readonly-planners`, su baseline protegido y los cuatro paths
 exactos de P2. El candidate debe partir del tip protegido posterior a la
 reconciliacion post-merge.
+
+Salida observada: PR #335 fue aprobado sobre
+`b7ac753873e712cd35b937dd9ed1cf66015a776a` y fusionado en
+`desarrollo@0d87060837586603055ca91629b20815803b3239` / tree
+`9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`. Security Audit
+`31361988478=PASS` y F9.7 `31361988498=PASS` verificaron el merge protegido.
+La [evidencia G1/P2](./g1_p2_post_merge_evidence_2026_08_10.md) registra diff,
+validaciones, capacidades desactivadas y manifest fail-closed. Resultado
+`G1=PASS/GO_G2_AUTHORIZATION_REQUIRED`.
+
+La aprobacion G1 fue consumida. Este PASS no autoriza G2/P3-P4, red remota,
+data plane, workers ni apply.
 
 ### G2 - P3/P4 Runtime Fail-Closed
 
