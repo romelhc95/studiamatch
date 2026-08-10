@@ -311,6 +311,22 @@ Solo despues del merge humano de #329:
 9. Fusionar mediante merge commit humano a `desarrollo`.
 10. Revalidar branch protection y registrar merge SHA/tree/checks post-merge.
 
+## Paso 5A - Wiring CI P1 Post-R0
+
+Despues del merge humano de #328 y antes de tocar runtime P1:
+
+1. congelar `desarrollo` post-R0 y su tree;
+2. crear `ci/f10-9-p1-boundary` desde ese tip protegido;
+3. habilitar modos fail-closed para el PR de wiring, P1 PR y push protegido;
+4. exigir same-repository, tip protegido vigente, parent/first-parent y allowlist
+   exacta de cinco paths P1;
+5. mantener P1 runtime y #330 sin cambios;
+6. ejecutar validator independiente porque el package modifica su propio CI;
+7. abrir PR a `desarrollo` y esperar aprobacion humana posterior al ultimo push.
+
+El wiring no declara G0 PASS ni autoriza reconstruir P1 antes de su merge y
+checks post-merge.
+
 ## Paso 6 - Reconstruir Y Estabilizar P1
 
 Solo despues del merge humano de #328:
