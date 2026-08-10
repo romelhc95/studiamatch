@@ -12,6 +12,14 @@ from urllib.parse import quote
 # Add root directory to sys.path for shared imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.db_client import get_db_client
+from shared.f10_9_fg2_preflight import (
+    ExistingDbReadFacade,
+    PreflightError,
+    build_runtime_manifest,
+    run_preflight,
+    safe_source_probe,
+    sanitized_collection_error,
+)
 from shared.utils import setup_lima_logging
 
 db = None
@@ -25,9 +33,7 @@ def _is_f10_production_canary():
 
 
 def _cohort_label(value=None):
-    if _is_f10_production_canary():
-        return "canary_cohort=redacted"
-    return str(value)
+    return "canary_cohort=redacted" if _is_f10_production_canary() else "cohort_member=redacted"
 
 
 def _safe_error_label(error):
@@ -53,17 +59,13 @@ def run_script(script_path, args=None, timeout=None):
     if args:
         cmd.extend(args)
 
-    if _is_f10_production_canary():
-        logger.info(f"[STAGE START] {script_path} args=redacted count={len(args or [])}")
-    else:
-        logger.info(f"🚀 [STAGE START] {script_path} {' '.join(args) if args else ''}")
+    logger.info(f"[STAGE START] {script_path} args=redacted count={len(args or [])}")
     # Explicitly pass environment to subprocess
     try:
-        capture_child_output = _is_f10_production_canary()
         result = subprocess.run(
             cmd,
-            capture_output=capture_child_output,
-            text=capture_child_output,
+            capture_output=True,
+            text=True,
             env=os.environ.copy(),
             timeout=timeout,
         )
@@ -71,11 +73,10 @@ def run_script(script_path, args=None, timeout=None):
         logger.error(f"[STAGE TIMEOUT] {script_path}")
         return False
 
-    if _is_f10_production_canary():
-        if result.stdout:
-            logger.info(f"[STAGE STDOUT REDACTED] {script_path} lines={len(result.stdout.splitlines())}")
-        if result.stderr:
-            logger.warning(f"[STAGE STDERR REDACTED] {script_path} lines={len(result.stderr.splitlines())}")
+    if result.stdout:
+        logger.info(f"[STAGE STDOUT REDACTED] {script_path} lines={len(result.stdout.splitlines())}")
+    if result.stderr:
+        logger.warning(f"[STAGE STDERR REDACTED] {script_path} lines={len(result.stderr.splitlines())}")
 
     if result.returncode == 0:
         logger.info(f"✅ [STAGE SUCCESS] {script_path}")
@@ -150,12 +151,21 @@ def get_institutions(limit=10, excluded_slugs=None, only_slug=None, now=None):
 
     return eligible
 
-def main(argv=None):
+def main(
+    argv=None,
+    *,
+    db_facade=None,
+    source_probe=None,
+    script_runner=None,
+    clock=None,
+    manifest_sink=None,
+):
     import argparse
 
     # Detect Job Start Time from environment (GitHub Actions) or use current time as fallback
     env_start = os.getenv("JOB_START_TIME")
-    global_start = float(env_start) if env_start else time.time()
+    clock = clock or time.time
+    global_start = float(env_start) if env_start else clock()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5, help="Number of institutions to process")
@@ -169,70 +179,138 @@ def main(argv=None):
         slug.strip() for slug in args.exclude.split(',') if slug.strip()
     } if args.exclude else set()
     failures = []
+    member_outcomes = {}
+    runner = script_runner or run_script
+    effective_probe = source_probe or safe_source_probe
 
-    # 🚉 PHASE 1: Discovery & Harvesting
-    logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
+    def emit_runtime(result):
+        manifest = build_runtime_manifest(
+            preflight.manifest,
+            result=result,
+            member_outcomes=member_outcomes,
+        )
+        if manifest_sink is not None:
+            manifest_sink(manifest)
+        logger.info(
+            f"[FG2 RUNTIME] result={result} "
+            f"manifest_fingerprint={manifest['manifest_fingerprint']}"
+        )
+
+    # G2/P3: no harvester construction or subprocess is permitted before both
+    # the frozen preflight and its immediately-before-run drift check pass.
+    logger.info("[FG2 PREFLIGHT] collecting read-only cohort")
     try:
-        if _is_f10_production_canary():
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                institutions = get_institutions(
-                    limit=args.limit,
-                    excluded_slugs=excluded_slugs,
-                    only_slug=args.institution_slug,
-                )
-        else:
-            institutions = get_institutions(
+        output_guard = (
+            contextlib.redirect_stdout(io.StringIO())
+            if _is_f10_production_canary()
+            else contextlib.nullcontext()
+        )
+        error_guard = (
+            contextlib.redirect_stderr(io.StringIO())
+            if _is_f10_production_canary()
+            else contextlib.nullcontext()
+        )
+        with output_guard, error_guard:
+            first_facade = db_facade or ExistingDbReadFacade(_get_db())
+            preflight = run_preflight(
+                first_facade,
+                effective_probe,
+                limit=args.limit,
+                excluded_slugs=excluded_slugs,
+                only_slug=args.institution_slug,
+            )
+            second_facade = db_facade or ExistingDbReadFacade(_get_db())
+            verified = run_preflight(
+                second_facade,
+                effective_probe,
                 limit=args.limit,
                 excluded_slugs=excluded_slugs,
                 only_slug=args.institution_slug,
             )
     except Exception as exc:
-        logger.error(f"Failed to select eligible institutions: {_safe_error_label(exc)}")
+        reason = str(exc) if isinstance(exc, PreflightError) else "COLLECTION_ERROR"
+        preflight = sanitized_collection_error(reason)
+        logger.error(f"[FG2 PREFLIGHT] result=BLOCKED reason={reason}")
         return 1
 
-    if args.institution_slug and not institutions:
-        logger.error("No eligible institution found for canary cohort" if _is_f10_production_canary() else f"No eligible institution found for slug: {args.institution_slug}")
+    if (
+        preflight.manifest.get("run_fingerprint")
+        != verified.manifest.get("run_fingerprint")
+        or preflight.manifest.get("snapshot_fingerprint")
+        != verified.manifest.get("snapshot_fingerprint")
+    ):
+        logger.error("[FG2 PREFLIGHT] result=BLOCKED reason=FINGERPRINT_DRIFT")
         return 1
 
-    logger.info(f"Found {len(institutions)} institutions to harvest after exclusions.")
+    if preflight.is_noop and verified.is_noop:
+        emit_runtime("NOOP")
+        logger.info("[FG2 PREFLIGHT] result=NOOP cohort_size=0")
+        return 0
+    if not preflight.is_runnable or not verified.is_runnable:
+        logger.error("[FG2 PREFLIGHT] result=BLOCKED")
+        return 1
+    cohort = preflight._consume()
+    institutions = tuple(item.as_runtime_dict() for item in cohort.institutions)
+    logger.info(
+        f"[FG2 PREFLIGHT] result=PASS cohort_size={len(institutions)} "
+        f"run_fingerprint={cohort.run_fingerprint}"
+    )
+
+    # 🚉 PHASE 1: Discovery & Harvesting
+    logger.info("--- PHASE 1: DISCOVERY & HARVESTING ---")
 
     for inst in institutions:
         inst_id = inst['id']
-        inst_name = inst['name']
-        remaining = MAX_RUN_SECONDS - (time.time() - global_start)
+        remaining = MAX_RUN_SECONDS - (clock() - global_start)
         if remaining <= 0:
             logger.error("[TIME BUDGET] Global harvesting budget exhausted")
             failures.append("global_time_budget")
+            member_outcomes["TIME_BUDGET"] = member_outcomes.get("TIME_BUDGET", 0) + 1
             break
 
-        logger.info(f"### Processing Institution: {_cohort_label(inst_name)}")
+        logger.info(f"### Processing Institution: {_cohort_label()}")
         inst_json = json.dumps(dict(inst))
         harvester_args = [inst_json, "--global-start", str(global_start)]
         if args.max_urls is not None:
             harvester_args.extend(["--max-urls", str(args.max_urls)])
         # Pass global start to sub-process
-        if not run_script(
+        if not runner(
             "scripts/core/universal_harvester.py",
             harvester_args,
             timeout=remaining,
         ):
-            failures.append("harvester:redacted" if _is_f10_production_canary() else f"harvester:{inst.get('slug')}")
+            failures.append("harvester:redacted")
+            member_outcomes["FAILED"] = member_outcomes.get("FAILED", 0) + 1
+        else:
+            member_outcomes["SUCCESS"] = member_outcomes.get("SUCCESS", 0) + 1
+
+    # A failed institution blocks cleansing/downstream while preserving already
+    # persisted work from successful institutions.
+    if failures:
+        emit_runtime("PARTIAL_GLOBAL")
+        return 1
 
     # 🚉 PHASE 1.5: Cleansing
     if not args.skip_cleansing:
         logger.info("--- PHASE 1.5: CLEANSING ---")
-        remaining = MAX_RUN_SECONDS - (time.time() - global_start)
+        remaining = MAX_RUN_SECONDS - (clock() - global_start)
         if remaining <= 0:
             logger.error("[TIME BUDGET] No budget remains for cleansing")
             failures.append("cleansing:time_budget")
-        elif not run_script("scripts/core/cleansing_worker.py", timeout=remaining):
-            logger.warning("Cleansing step failed, but continuing pipeline...")
+            member_outcomes["TIME_BUDGET"] = member_outcomes.get("TIME_BUDGET", 0) + 1
+        elif not runner("scripts/core/cleansing_worker.py", timeout=remaining):
+            logger.warning("Cleansing step failed; downstream remains blocked.")
             failures.append("cleansing")
+            member_outcomes["CLEANSING_FAILED"] = 1
     else:
         logger.info("--- PHASE 1.5: CLEANSING SKIPPED (Delegated to Orchestrator) ---")
 
+    if failures:
+        emit_runtime("PARTIAL_GLOBAL")
+        return 1
+    emit_runtime("SUCCESS")
     logger.info("🏁 ORCHESTRATOR LOOP FINISHED.")
-    return 1 if failures else 0
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())
