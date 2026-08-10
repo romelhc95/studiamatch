@@ -145,6 +145,13 @@ from .supabase_credentials import (
     build_supabase_headers,
     get_publishable_key,
 )
+from .safe_http import SafeHTTPPolicy, UnsafeURL, safe_get
+
+
+PDF_HTTP_POLICY = SafeHTTPPolicy(
+    total_timeout_seconds=20,
+    max_response_bytes=16 * 1024 * 1024,
+)
 
 def infer_course_type(name):
     """
@@ -181,12 +188,15 @@ def extract_pdf_text_from_url(url):
         return ""
     
     try:
-        response = requests.get(url, stream=True, timeout=15)
+        response = safe_get(
+            url,
+            policy=PDF_HTTP_POLICY,
+            headers={"Accept": "application/pdf"},
+        )
         response.raise_for_status()
-        
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-            for chunk in response.iter_content(chunk_size=8192):
-                temp_pdf.write(chunk)
+            temp_pdf.write(response.content)
             temp_pdf_path = temp_pdf.name
             
         text_content = []
@@ -204,8 +214,11 @@ def extract_pdf_text_from_url(url):
             os.remove(temp_pdf_path)
             
         return "\n".join(text_content).strip()
-    except Exception as e:
-        print(f"Error parseando PDF {url}: {e}")
+    except UnsafeURL as exc:
+        print(f"PDF_FETCH_FAILED reason={exc.reason_code}")
+        return ""
+    except Exception:
+        print("PDF_PARSE_FAILED reason=invalid_pdf")
         return ""
 
 # List of keywords that define a DATA course (Pilot Niche)
@@ -275,9 +288,9 @@ def standardize_category(potential_cat, course_name=""):
                 if res.status_code == 200:
                     _category_rules_cache = res.json()
                 else:
-                    print(f"Warning: Could not fetch category rules (Status {res.status_code})")
-            except Exception as e:
-                print(f"Error initializing category cache: {e}")
+                    print(f"CATEGORY_RULES_FAILED reason=http_status status={res.status_code}")
+            except Exception:
+                print("CATEGORY_RULES_FAILED reason=transport")
 
     # 2. Try matching via dynamic rules (Highest priority wins)
     for rule in _category_rules_cache:
@@ -318,39 +331,7 @@ def standardize_category(potential_cat, course_name=""):
     
     return "Tecnología"
 
-from urllib.parse import urlparse, urlunparse
-
-def normalize_url(url):
-    """
-    Normalizes a URL for de-duplication:
-    - Lowercases scheme and netloc.
-    - Removes query strings and fragments.
-    - Removes trailing slashes.
-    """
-    if not url:
-        return ""
-    
-    try:
-        parsed = urlparse(url)
-        # 1. Lowercase scheme and netloc
-        scheme = parsed.scheme.lower()
-        netloc = parsed.netloc.lower()
-        
-        # 2. Path normalization: remove trailing slash
-        path = parsed.path
-        if path.endswith('/') and len(path) > 1:
-            path = path[:-1]
-        
-        # 3. Deduplicate /en/ language prefix (e.g. /en/posgrado/ → /posgrado/)
-        import re as _re
-        if '/en/' in path:
-            path = _re.sub(r'/en/', '/', path)
-        
-        # 4. Reconstruct without query strings and fragments
-        normalized = urlunparse((scheme, netloc, path, '', '', ''))
-        return normalized
-    except Exception:
-        return url
+from .url_identity import normalize_url
 
 
 def parse_start_date(text):
