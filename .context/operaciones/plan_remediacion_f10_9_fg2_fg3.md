@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-REM-F10.9-001` |
-| Estado | `G0_PASS_P2_WIRING_IN_PROGRESS` |
+| Estado | `G1_P2_AUTHORIZED_LOCAL_IMPLEMENTATION_PENDING` |
 | Incidente | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) |
 | Subfase | `F10.9` |
 | Hito | `HITO-001` |
@@ -35,8 +35,9 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 |---|---|---|
 | `R0` | `COMPLETED_POST_MERGE_VERIFIED` | CA2 preservado en `archive/f10-9-ca2-preserve-desarrollo-20260809@8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc` / tree `13d3926f21b65abc73d1e8ef6e4305b2d61e0c77`; PR #329 fue fusionado en `certificacion@4f16f314284324c3b5e9c11c4536eef5ee04c7f3` y PR #328 en `desarrollo@4dcbb3fd792c25b16627f663fde31e40229718ce`, ambos con checks post-merge PASS. |
 | `P1` | `COMPLETED_POST_MERGE_VERIFIED` | PR #331 integro el wiring fail-closed en `4f47836a8c80bbab396e30ed65f424e58e772987`; PR #332 integro el candidate estabilizado en `desarrollo@53921e3ec845f4a248e586a0ecd667c64f4c070d` / tree `0344c649772aea18314fe022d5f24898e3dc03d0`. Security Audit `31350585499=PASS` y F9.7 `31350585516=PASS` post-merge. PR #330 fue cerrado como `SUPERSEDED_NON_PROMOTABLE`. |
-| Wiring `P2` | `IN_PROGRESS_LOCAL_VALIDATION_PENDING` | Rama `ci/f10-9-p2-boundary` desde el tip protegido post-P1; solo boundaries, workflows, tests y reconciliacion documental. No contiene los cuatro paths funcionales P2. |
-| `P2`-`P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | G0 queda `PASS/GO_G1_P2`, pero el resultado del gate no autoriza implementar estos paquetes. |
+| Wiring `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #333 aprobado/fusionado en `desarrollo@d5433ea9f810b0338513665bb95ba28715c6c8b5` / tree `24a270f314b46728d5ae9847dafba0ff1999be7f`; Security Audit `31354339105=PASS` y F9.7 `31354339122=PASS` post-merge. |
+| `P2` | `AUTHORIZED_LOCAL_IMPLEMENTATION_PENDING` | Autorizacion decimal F10.9 consumida para los cuatro paths exactos P2, fixtures sinteticos y cero red/data plane. |
+| `P3`-`P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | Ningun PASS de G1 concede el gate siguiente. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
 | Observacion | `NOT_STARTED` | Pares aceptados `0`; cualquier secuencia empieza despues de remediacion promovida y habilitacion operacional nueva. |
@@ -390,13 +391,13 @@ Todos deben operar sobre fixtures sinteticos por defecto y no incluir modo apply
 Salida: reason codes, fingerprints, clasificaciones HOLD y manifests
 sanitizados reproducibles.
 
-Aprobacion pendiente: frase decimal F10.9 mas codigo/tests P2 local. No autoriza
-red remota.
+Aprobacion consumida para codigo/tests P2 local read-only/offline. No autoriza
+red remota, data plane ni acciones de apply.
 
-Antes de implementar G1/P2 debe integrarse un wiring fail-closed separado que
-reconozca exclusivamente `feat/f10-9-p2-readonly-planners`, su baseline
-protegido post-wiring y los cuatro paths exactos de P2. Ese wiring no cuenta como
-inicio de P2 ni concede su autorizacion.
+El wiring fail-closed fue integrado mediante PR #333 y reconoce exclusivamente
+`feat/f10-9-p2-readonly-planners`, su baseline protegido y los cuatro paths
+exactos de P2. El candidate debe partir del tip protegido posterior a la
+reconciliacion post-merge.
 
 ### G2 - P3/P4 Runtime Fail-Closed
 
