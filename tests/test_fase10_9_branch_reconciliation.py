@@ -16,6 +16,12 @@ from scripts.security.f109_boundary import (
     DEV_ARCHIVE_TREE,
     DEV_BASE,
     DEV_EXTRACTION,
+    G2_ALLOWED_MODES,
+    G2_ALLOWED_STATUSES,
+    G2_HEAD_REF,
+    G2_WIRING_ALLOWED_MODES,
+    G2_WIRING_ALLOWED_STATUSES,
+    G2_WIRING_HEAD_REF,
     MAIN_SOURCE,
     MAIN_SOURCE_TREE,
     P1_ALLOWED_STATUSES,
@@ -26,6 +32,8 @@ from scripts.security.f109_boundary import (
     P2_WIRING_HEAD_REF,
     POST_P1_DEV_BASE,
     POST_P1_DEV_TREE,
+    POST_P2_DEV_BASE,
+    POST_P2_DEV_TREE,
     POST_R0_DEV_BASE,
     POST_R0_DEV_TREE,
     WIRING_ALLOWED_STATUSES,
@@ -37,6 +45,8 @@ from scripts.security.f109_boundary import (
     validate_cert,
     validate_context_graph,
     validate_dev,
+    validate_g2,
+    validate_g2_wiring,
     validate_non_p1_delta,
     validate_p1,
     validate_p2,
@@ -270,6 +280,25 @@ class F109BoundaryTest(unittest.TestCase):
                 p2_base="3" * 40,
             ),
             "p2",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                G2_WIRING_HEAD_REF,
+                POST_P2_DEV_BASE,
+            ),
+            "g2_wiring",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                G2_HEAD_REF,
+                "4" * 40,
+                g2_base="4" * 40,
+            ),
+            "g2",
         )
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
@@ -565,6 +594,138 @@ class F109BoundaryTest(unittest.TestCase):
 
         delta_mock.assert_called_once_with(Path("."), base, pr_head, P2_ALLOWED_STATUSES)
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=[POST_P2_DEV_BASE])
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.git", return_value=DEV_BASE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g2_wiring_pr_is_one_exact_commit(
+        self,
+        require_sha_mock,
+        git_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        graph_mock,
+    ) -> None:
+        tree_mock.side_effect = lambda repo, commit: (
+            POST_P2_DEV_TREE if commit == POST_P2_DEV_BASE else DEV_ARCHIVE_TREE
+        )
+
+        validate_g2_wiring(Path("."), POST_P2_DEV_BASE, "b" * 40, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            POST_P2_DEV_BASE,
+            "b" * 40,
+            G2_WIRING_ALLOWED_STATUSES,
+            G2_WIRING_ALLOWED_MODES,
+        )
+        self.assertEqual(graph_mock.call_args.kwargs["expected_files"], 43)
+        self.assertEqual(graph_mock.call_args.kwargs["expected_links"], 344)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.git", return_value=DEV_BASE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g2_wiring_push_validates_merge_and_single_commit_pr(
+        self,
+        require_sha_mock,
+        git_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        graph_mock,
+    ) -> None:
+        pr_head = "b" * 40
+        merge_head = "c" * 40
+
+        def tree(repo, commit):
+            if commit == POST_P2_DEV_BASE:
+                return POST_P2_DEV_TREE
+            if commit == DEV_BASE:
+                return DEV_ARCHIVE_TREE
+            return "d" * 40
+
+        def parents(repo, commit):
+            if commit == merge_head:
+                return [POST_P2_DEV_BASE, pr_head]
+            if commit == pr_head:
+                return [POST_P2_DEV_BASE]
+            return []
+
+        tree_mock.side_effect = tree
+        parents_mock.side_effect = parents
+
+        validate_g2_wiring(Path("."), POST_P2_DEV_BASE, merge_head, "push")
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            POST_P2_DEV_BASE,
+            pr_head,
+            G2_WIRING_ALLOWED_STATUSES,
+            G2_WIRING_ALLOWED_MODES,
+        )
+        graph_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=["a" * 40])
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="d" * 40)
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g2_pr_requires_frozen_direct_base(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+    ) -> None:
+        validate_g2(Path("."), "a" * 40, "b" * 40, "a" * 40, "d" * 40, "pull_request")
+        delta_mock.assert_called_once_with(
+            Path("."), "a" * 40, "b" * 40, G2_ALLOWED_STATUSES, G2_ALLOWED_MODES
+        )
+
+        with self.assertRaises(BoundaryError):
+            validate_g2(Path("."), "a" * 40, "b" * 40, "c" * 40, "d" * 40, "pull_request")
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g2_push_validates_merge_and_single_commit_pr(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+    ) -> None:
+        base = "a" * 40
+        pr_head = "b" * 40
+        merge_head = "c" * 40
+        base_tree = "d" * 40
+        tree_mock.return_value = base_tree
+
+        def parents(repo, commit):
+            if commit == merge_head:
+                return [base, pr_head]
+            if commit == pr_head:
+                return [base]
+            return []
+
+        parents_mock.side_effect = parents
+
+        validate_g2(Path("."), base, merge_head, base, base_tree, "push")
+
+        delta_mock.assert_called_once_with(
+            Path("."), base, pr_head, G2_ALLOWED_STATUSES, G2_ALLOWED_MODES
+        )
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -677,6 +838,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="",
             p2_base="",
             p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
             github_output="",
         )
 
@@ -729,6 +892,32 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertFalse(set(P2_ALLOWED_STATUSES).intersection(P1_ALLOWED_STATUSES))
 
+    def test_g2_allowlists_are_exact_and_disjoint(self) -> None:
+        self.assertEqual(
+            G2_ALLOWED_STATUSES,
+            {
+                "scripts/core/master_orchestrator.py": "M",
+                "scripts/core/integrity_ping.py": "M",
+                "scripts/shared/f10_9_fg2_preflight.py": "A",
+                "scripts/shared/f10_9_fg3_atomic.py": "A",
+                "tests/test_fase10_9_p3_fg2_preflight.py": "A",
+                "tests/test_fase10_9_p4_fg3_atomicity.py": "A",
+            },
+        )
+        self.assertEqual(
+            G2_WIRING_ALLOWED_STATUSES,
+            {
+                ".github/workflows/f9-7-contract.yml": "M",
+                ".github/workflows/security-audit.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertTrue(all(mode == "100644" for mode in G2_ALLOWED_MODES.values()))
+        self.assertEqual(G2_WIRING_ALLOWED_MODES[".github/workflows/security-audit.yml"], "100755")
+        self.assertFalse(set(G2_ALLOWED_STATUSES).intersection(P1_ALLOWED_STATUSES))
+        self.assertFalse(set(G2_ALLOWED_STATUSES).intersection(P2_ALLOWED_STATUSES))
+
     def test_p2_workflow_wiring_is_hard_gated(self) -> None:
         root = Path(__file__).resolve().parents[1]
         for relative in (
@@ -741,6 +930,19 @@ class F109BoundaryTest(unittest.TestCase):
                 self.assertIn('test "$F109_BASE_SHA" = "$protected_dev_tip"', workflow)
                 self.assertIn('--p2-base "$p2_base"', workflow)
                 self.assertIn('--p2-base-tree "$p2_base_tree"', workflow)
+
+    def test_g2_workflow_wiring_is_hard_gated(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for relative in (
+            ".github/workflows/f9-7-contract.yml",
+            ".github/workflows/security-audit.yml",
+        ):
+            workflow = (root / relative).read_text(encoding="utf-8")
+            with self.subTest(workflow=relative):
+                self.assertIn('F109_HEAD_REF" = "feat/f10-9-p3-p4-runtime-fail-closed"', workflow)
+                self.assertIn('test "$F109_BASE_SHA" = "$protected_dev_tip"', workflow)
+                self.assertIn('--g2-base "$g2_base"', workflow)
+                self.assertIn('--g2-base-tree "$g2_base_tree"', workflow)
 
     def test_non_p1_delta_preserves_legacy_denials(self) -> None:
         validate_non_p1_delta(Path("."), "0" * 40, {"README.md": "M"})
@@ -812,6 +1014,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="",
             p2_base="",
             p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
             github_output="",
         )
         changed_statuses_mock.return_value = P1_ALLOWED_STATUSES
@@ -842,6 +1046,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="c" * 40,
             p2_base="a" * 40,
             p2_base_tree="c" * 40,
+            g2_base="a" * 40,
+            g2_base_tree="c" * 40,
             github_output="",
         )
         for delta in (
@@ -876,6 +1082,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="",
             p2_base="",
             p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
             github_output="",
         )
         changed_statuses_mock.return_value = P2_ALLOWED_STATUSES
@@ -906,6 +1114,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="c" * 40,
             p2_base="a" * 40,
             p2_base_tree="c" * 40,
+            g2_base="a" * 40,
+            g2_base_tree="c" * 40,
             github_output="",
         )
         for delta in (
@@ -942,6 +1152,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="c" * 40,
             p2_base="a" * 40,
             p2_base_tree="c" * 40,
+            g2_base="a" * 40,
+            g2_base_tree="c" * 40,
             github_output="",
         )
         changed_statuses_mock.return_value = {
@@ -952,6 +1164,112 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(main(), 1)
         validate_p1_mock.assert_not_called()
         validate_p2_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.validate_g2")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g2_paths_from_wrong_branch(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+        validate_g2_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref="wrong-branch",
+            base_sha="a" * 40,
+            head_sha="b" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            github_output="",
+        )
+        changed_statuses_mock.return_value = G2_ALLOWED_STATUSES
+
+        self.assertEqual(main(), 1)
+        validate_g2_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.validate_g2")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_partial_or_expanded_g2_push(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+        validate_g2_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="push",
+            base_ref="desarrollo",
+            head_ref="desarrollo",
+            base_sha="a" * 40,
+            head_sha="b" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="a" * 40,
+            p1_base_tree="c" * 40,
+            p2_base="a" * 40,
+            p2_base_tree="c" * 40,
+            g2_base="a" * 40,
+            g2_base_tree="c" * 40,
+            github_output="",
+        )
+        for delta in (
+            {"scripts/core/master_orchestrator.py": "M"},
+            {**G2_ALLOWED_STATUSES, "extra.txt": "A"},
+        ):
+            with self.subTest(delta=delta):
+                changed_statuses_mock.return_value = delta
+                self.assertEqual(main(), 1)
+        validate_g2_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.validate_g2")
+    @mock.patch("scripts.security.f109_boundary.validate_p1")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_mixed_p1_g2_candidate(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+        validate_p1_mock,
+        validate_g2_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="push",
+            base_ref="desarrollo",
+            head_ref="desarrollo",
+            base_sha="a" * 40,
+            head_sha="b" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="a" * 40,
+            p1_base_tree="c" * 40,
+            p2_base="a" * 40,
+            p2_base_tree="c" * 40,
+            g2_base="a" * 40,
+            g2_base_tree="c" * 40,
+            github_output="",
+        )
+        changed_statuses_mock.return_value = {
+            "scripts/shared/db_client.py": "M",
+            "scripts/core/master_orchestrator.py": "M",
+        }
+
+        self.assertEqual(main(), 1)
+        validate_p1_mock.assert_not_called()
+        validate_g2_mock.assert_not_called()
 
     @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value={"README.md": "M"})
     @mock.patch("scripts.security.f109_boundary.parse_args")
@@ -972,6 +1290,8 @@ class F109BoundaryTest(unittest.TestCase):
                 p1_base_tree="",
                 p2_base="",
                 p2_base_tree="",
+                g2_base="",
+                g2_base_tree="",
                 github_output=str(output),
             )
 
@@ -999,6 +1319,8 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="",
             p2_base="",
             p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
             github_output="",
         )
 
@@ -1026,6 +1348,66 @@ class F109BoundaryTest(unittest.TestCase):
             p1_base_tree="",
             p2_base="",
             p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+        changed_statuses_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g2_wiring_branch_with_wrong_baseline(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G2_WIRING_HEAD_REF,
+            base_sha="a" * 40,
+            head_sha="b" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+        changed_statuses_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g2_branch_with_wrong_baseline(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G2_HEAD_REF,
+            base_sha="a" * 40,
+            head_sha="b" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
             github_output="",
         )
 
