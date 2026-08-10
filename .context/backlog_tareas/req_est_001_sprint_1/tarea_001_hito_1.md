@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10` en rebaseline metadata. F10.8 queda `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. PR #342 fue fusionado en `desarrollo@909b9cbd451e76777ec70df6f56675d6fb563199` con Security Audit `31412721559=PASS` y F9.7 `31412721306=PASS`. [ADR-0010](../../decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md) crea F10.10 dentro del Hito 1 con metadata cero preservada. [PLAN-F10.10-001](../../operaciones/plan_remediacion_metadata_f10_10.md) queda en `M0_AUTHORITY_REGISTRATION_PENDING_PROTECTED_MERGE`; no autoriza M1 ni operaciones remotas. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
+| Fase vigente | Macrofase `F9` completada y `F10` en rebaseline metadata. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. [M0 F10.10 post-merge](../../operaciones/m0_f10_10_post_merge_evidence_2026_08_10.md) registra PR #343 fusionado en `desarrollo@f59c35272ccec930434b3ceeb1aee8eac732d4b9`, con Security Audit `31419218575=PASS` y F9.7 `31419218779=PASS`. M0 queda PASS; M1 esta autorizado solo para tooling, fixtures y pruebas offline. M2-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -123,8 +123,8 @@ environment, dependencias o normalization version invalida el manifest y produce
 F10.10 es la subfase activa para registrar el rebaseline mutante separado. M0 es
 documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 
-1. `M0`: ADR, plan, autoridad viva y PR protegido.
-2. `M1`: tooling y pruebas offline, sin red/DB/provider.
+1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
+2. `M1`: `AUTHORIZED_LOCAL_ONLY`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: promocion de codigo sin ejecucion remota.
 4. `M3`: contencion y diagnostico read-only por ambiente.
 5. `M4`: generacion privada atribuible.

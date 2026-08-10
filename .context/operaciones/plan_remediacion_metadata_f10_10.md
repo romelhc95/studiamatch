@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M0_AUTHORITY_REGISTRATION_PENDING_PROTECTED_MERGE` |
+| Estado | `M0_PASS_M1_LOCAL_AUTHORIZED_PENDING_IMPLEMENTATION` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -47,7 +47,7 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 
 | Gate | Alcance | Salida requerida | Capacidad |
 |---|---|---|---|
-| `M0` | Registrar ADR, plan, autoridad y tarea | PR documental protegido y checks post-merge PASS | Git/docs |
+| `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
 | `M3` | Contencion y diagnostico read-only | Cohorte vigente doble, schema/trigger/writer fingerprints | Lectura remota |
@@ -267,8 +267,12 @@ before/after no se usa sola para afirmar cero writes transitorios.
 M9 PASS no reactiva F10.9. M10 requiere una nueva decision superior que cambie
 formalmente G4 a `PASS_CA1_RUNTIME_ONLY` o mantenga STOP.
 
-## Estado M0
+## Estado M0 Y Autorizacion M1
 
-Este package solo registra autoridad. No crea codigo, workflow, SQL, artifact,
-provider call ni acceso a Supabase. Tras merge y checks post-merge, M0 debe
-reconciliarse antes de solicitar la frase exacta F10.10 para M1.
+[EVID-M0-F10.10](./m0_f10_10_post_merge_evidence_2026_08_10.md) registra PR #343,
+merge `f59c35272ccec930434b3ceeb1aee8eac732d4b9`, Security Audit
+`31419218575=PASS` y F9.7 `31419218779=PASS`. M0=`PASS`.
+
+La autorizacion M1 fue consumida para tooling, fixtures y pruebas offline. M1 no
+autoriza red, DB, Supabase, providers, environments, writers, workflows
+operativos, SQL ni DDL. M2-M10 permanecen sin autorizar.

@@ -79,7 +79,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`. |
 | `F10.9` | `STOP_REQUIRES_REBASELINE` | G3/P5 cerrado; G4 detiene P7, promociones, schedules y observacion hasta decision de autoridad superior. |
-| `F10.10` | `IN_PROGRESS_M0_AUTHORITY_REGISTRATION` | Fase mutante separada para metadata, inicialmente docs-only; M1-M10 requieren gates y aprobaciones independientes. |
+| `F10.10` | `M0_PASS_M1_LOCAL_AUTHORIZED` | M0 integrado por PR #343; M1 autorizado solo para tooling/fixtures/tests offline. M2-M10 y toda capacidad remota requieren gates independientes. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 
 ## Maquina De Promocion Hito 1
