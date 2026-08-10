@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-REM-F10.9-001` |
-| Estado | `G2_P3_P4_COMPLETED_POST_MERGE_VERIFIED_GO_G3_AUTHORIZATION_REQUIRED` |
+| Estado | `G4_STOP_REQUIRES_REBASELINE` |
 | Incidente | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) |
 | Subfase | `F10.9` |
 | Hito | `HITO-001` |
@@ -22,9 +22,11 @@ Este plan es subordinado a
 criterio, subfase ni autorizacion paralela.
 
 Ninguna seccion, estado, gate o fila denominada `Aprobacion pendiente` concede
-capacidad de ejecucion. Cada gate requiere una autorizacion humana futura que
-incluya la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.9`
-y el alcance adicional indicado. Un gate en `PASS` tampoco concede el siguiente.
+capacidad de ejecucion. La regla de autorizacion decimal aplicaba mientras el
+gate anterior permitiera avanzar. Desde G4=`STOP_REQUIRES_REBASELINE`, ninguna
+frase F10.9 autoriza G5-G13: solo una decision de autoridad superior fuera de
+F10.9 puede rebaselinar o trasladar el blocker. Un gate en `PASS` tampoco concede
+el siguiente.
 
 ## Estado De Ejecucion Del Plan
 
@@ -38,7 +40,8 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | Wiring `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #333 aprobado/fusionado en `desarrollo@d5433ea9f810b0338513665bb95ba28715c6c8b5` / tree `24a270f314b46728d5ae9847dafba0ff1999be7f`; Security Audit `31354339105=PASS` y F9.7 `31354339122=PASS` post-merge. |
 | `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #335 integro los cuatro paths exactos mediante `desarrollo@0d87060837586603055ca91629b20815803b3239` / tree `9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`; Security Audit `31361988478=PASS` y F9.7 `31361988498=PASS` post-merge. Ver [evidencia G1/P2](./g1_p2_post_merge_evidence_2026_08_10.md). |
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
-| `P5`/`P7` | `NOT_STARTED_REQUIRES_SEPARATE_AUTHORIZATION` | Ningun PASS de G2 concede el gate siguiente. |
+| `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
+| `P7` | `BLOCKED_BY_G4_STOP_REQUIRES_REBASELINE` | G4 no puede demostrar metadata cero y una correccion mutante esta fuera de F10.9. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
 | Observacion | `NOT_STARTED` | Pares aceptados `0`; cualquier secuencia empieza despues de remediacion promovida y habilitacion operacional nueva. |
@@ -47,12 +50,12 @@ Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `44` archivos Markdown, `345` enlaces locales y
+- el Context Graph contiene `45` archivos Markdown, `341` enlaces locales y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;
-- G1/P2 y G2/P3-P4 quedan trazados por evidencia separada sin importar CA2 ni
-  conceder G3.
+- G1/P2, G2/P3-P4 y G3/P5 quedan trazados por evidencia separada sin importar
+  CA2; G4 queda en STOP y no concede G5.
 
 ### R0 - Reconciliacion De Repositorio Y Boundaries
 
@@ -442,8 +445,13 @@ placeholders y produzca conteo/digest sanitizado.
 Salida: gate determinista que retorna no cero cuando exista un curso activo
 incompleto y demuestra cero writer/provider calls.
 
-Aprobacion pendiente: frase decimal F10.9 mas codigo/tests P5 local. No autoriza
-provider remoto, writer, re-enrichment ni backfill.
+Aprobacion consumida para codigo/tests P5 local. PR #341 fue aprobado sobre
+`46fd10864af2a90e407f6867adf980daa940b075` y fusionado en
+`desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree
+`8eb146006419d93dc0a74710ca9efaaf101ab280`. Security Audit
+`31409222936=PASS` y F9.7 `31409222568=PASS` verificaron el merge protegido. Ver
+[evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md).
+Resultado `G3=PASS`.
 
 ### G4 - Decision De Autoridad Por Hallazgos Mutantes
 
@@ -456,10 +464,16 @@ ejecutan providers.
 Salida: `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`. El segundo resultado
 bloquea G5 y exige una decision de la autoridad superior fuera de F10.9.
 
-Aprobacion pendiente: frase decimal F10.9 para registrar la decision. No autoriza
-P6, SQL, DDL/DML, backfill ni cambios editoriales.
+Decision registrada: `STOP_REQUIRES_REBASELINE`. El snapshot conocido conserva
+`104/224` cursos activos incompletos, no existe una atestacion vigente que
+demuestre cero y cualquier correccion necesaria exige capacidades mutantes
+prohibidas en F10.9. G5/P7 y todos los gates posteriores quedan bloqueados hasta
+una decision de autoridad superior fuera de F10.9. No autoriza P6, SQL, DDL/DML,
+backfill, re-enrichment ni cambios editoriales.
 
 ### G5 - P7 Candidate Integrado
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G1-G3 PASS y G4=`PASS_CA1_RUNTIME_ONLY`.
 
@@ -469,10 +483,12 @@ tests y evidencia; abrir PR protegido a `desarrollo` y ejecutar security-auditor
 Salida: candidate commit/tree/digest inmutable y CI de `desarrollo` PASS. No
 promueve a `certificacion` ni exige QA Certification en este gate.
 
-Aprobacion pendiente: frase decimal F10.9 mas codigo/tests/PR P7. Cada promocion
-requiere alcance remoto y review humano separados.
+Autorizacion suspendida: ninguna frase F10.9 habilita P7 mientras G4 permanezca
+en STOP. Requiere rebaseline de autoridad superior fuera de F10.9.
 
 ### G6 - Contencion Operacional Atestada
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: antes del primer acceso remoto a environments o data plane. Los pushes,
 CI, reviews y merges Git de G0/G5 no cuentan como acceso data plane.
@@ -482,9 +498,11 @@ environments sin leer valores secretos.
 
 Salida: atestacion sanitizada con SHA/tree y estado fail-closed.
 
-Aprobacion pendiente: frase decimal F10.9 mas operacion GitHub de contencion.
+Autorizacion suspendida por G4 STOP; no ejecutar operacion GitHub de contencion.
 
 ### G7 - Promocion Certification
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G5 y G6 PASS.
 
@@ -494,9 +512,11 @@ ejecutar CI, canary acotado permitido y QA independiente.
 Salida: equivalencia patch/tree/digest, CI PASS, canary sin mutacion fuera de la
 frontera y QA PASS.
 
-Aprobacion pendiente: frase decimal F10.9 mas promocion/canary Certification.
+Autorizacion suspendida por G4 STOP; no promover ni ejecutar canary Certification.
 
 ### G8 - Promocion Main
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G7 PASS y candidate certificado inmutable.
 
@@ -506,9 +526,11 @@ a `main`; observar checks y deployment sin ejecutar schedules.
 Salida: main SHA/tree/digest, CI post-merge PASS, cero paths CA2/DB/editoriales y
 writers programados aun pausados.
 
-Aprobacion pendiente: frase decimal F10.9 mas promocion main/release SDLC.
+Autorizacion suspendida por G4 STOP; no promover a Main ni ejecutar release.
 
 ### G9 - Diagnostico Production Read-Only
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G8 PASS y contencion G6 revalidada.
 
@@ -518,9 +540,11 @@ gate metadata sin writers. No se usa Free como ruta de aplicacion.
 Salida: cero blockers runtime CA1, cero inconclusos, cero perfiles invalidos y
 cero cursos activos incompletos. Cualquier necesidad de mutacion produce STOP.
 
-Aprobacion pendiente: frase decimal F10.9 mas diagnostico Production read-only.
+Autorizacion suspendida por G4 STOP; no acceder a Production ni al data plane.
 
 ### G10 - Gate Final Antes De Schedules
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G9 PASS.
 
@@ -530,10 +554,11 @@ policy, cron main-only y ausencia de runs activos.
 Salida: autorizacion-ready manifest para habilitacion gradual, sin cambiar
 variables ni schedules en este gate.
 
-Aprobacion pendiente: frase decimal F10.9 para preparar el manifest; no habilita
-schedules.
+Autorizacion suspendida por G4 STOP; no preparar manifest operativo ni schedules.
 
 ### G11 - Decision GO/NO-GO De Habilitacion
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G10 PASS y manifests vigentes.
 
@@ -542,9 +567,11 @@ que la remediacion permanece CA1-only.
 
 Salida: `GO_SCHEDULES` o `STOP_REQUIRES_REBASELINE`.
 
-Aprobacion pendiente: decision humana F10.9. No autoriza DDL/DML/backfill.
+Decision suspendida por G4 STOP; `GO_SCHEDULES` no es alcanzable en este baseline.
 
 ### G12 - Diagnostico Y Habilitacion Gradual
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: G11=`GO_SCHEDULES`.
 
@@ -553,10 +580,12 @@ metadata; despues habilitar FG2 y, solo tras su primer natural completo, FG3.
 
 Salida: primer par natural valido. Dispatches y reruns no cuentan.
 
-Aprobaciones pendientes: frase decimal F10.9 mas diagnosticos, variables y
-schedules, todas separadas.
+Autorizaciones suspendidas por G4 STOP; no cambiar diagnosticos, variables ni
+schedules.
 
 ### G13 - Observacion Y Cierre F10.9
+
+Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Entrada: primer FG2 natural valido posterior a remediacion.
 
@@ -568,8 +597,8 @@ Salida: `EVID-H1-011/012=VERIFIED` solo si se cumplen todos los umbrales. Para
 activo/main-only; cualquier waiver requiere decision separada. `EVID-H1-016` y
 F11.1 permanecen como aprobacion/cierre posterior separado.
 
-Aprobacion pendiente: frase decimal F10.9 mas habilitacion de observacion. F11.1
-no queda autorizada.
+Autorizacion suspendida por G4 STOP; no habilitar observacion. F11.1 no queda
+autorizada.
 
 ## Manifest Minimo Por Gate
 
@@ -627,13 +656,14 @@ mutaciones ante blocker.
 | Accion | Gate requerido |
 |---|---|
 | Boundaries/reconciliacion R0 | F10.9 Git/CI y review humano por PR |
-| P1-P7 codigo/tests/docs | F10.9 y PR protegido por package |
-| Kill switch | Operacion F10.9 |
-| Promocion/canary Certification | Aprobacion Certification |
-| Promocion a main | Aprobacion release/SDLC |
-| Diagnostico Production read-only | Aprobacion read-only F10.9 |
-| Schedules/retries/dispatches | Aprobacion F10.9 posterior; no acreditan observacion si son manuales |
-| Observacion natural 72h | Aprobacion de habilitacion F10.9 |
+| P1-P5 codigo/tests/docs | Consumido por packages y PRs protegidos ya verificados |
+| P7/G5-G13 | Suspendidos por G4 STOP; requieren rebaseline de autoridad superior fuera de F10.9 |
+| Kill switch | Suspendido por G4 STOP |
+| Promocion/canary Certification | Suspendida por G4 STOP |
+| Promocion a main | Suspendida por G4 STOP |
+| Diagnostico Production read-only | Suspendido por G4 STOP |
+| Schedules/retries/dispatches | Suspendidos por G4 STOP |
+| Observacion natural 72h | Suspendida por G4 STOP |
 | Conformidad y cierre | F11.1 y aprobacion cliente separadas |
 
 DDL, DML de reparacion ad hoc, SQL/migrations y re-enrichment/backfill no tienen

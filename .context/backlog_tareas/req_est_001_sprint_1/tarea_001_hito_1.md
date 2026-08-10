@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada para Hito 1 CA1-only y macrofase `F10` en progreso con `F10.8` completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda `IN_PROGRESS_BLOCKED_BY_INCIDENT`. Pro DDL fue aplicada una sola vez en `31263024890`; Production Canary `31272290614=PASS`, artifact sanitizado `9026139906`; `EVID-H1-010=VERIFIED`. La primera observacion global registra [INC-F10.9-001](../../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), cero pares aceptados y [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md) sin autoridad general de ejecucion. R0/P1/P2 quedaron cerrados post-merge. [G2/P3-P4 post-merge](../../operaciones/g2_p3_p4_post_merge_evidence_2026_08_10.md) registra PR #338 aprobado/fusionado en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`, con Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS`; G2 queda `PASS/GO_G3_AUTHORIZATION_REQUIRED`. P5/P7 no han iniciado y P6 queda fuera de F10.9. Hito 1 queda `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` permanecen pendientes. La historia F9.7, [PR-O v1](../../operaciones/pr_o_f9_7_v3_hold.md) y [PR-O executor privado](../../operaciones/pr_o_f9_7_successor_private_executor.md) permanecen como antecedentes no ejecutables para Hito 1. |
+| Fase vigente | Macrofase `F9` completada y macrofase `F10` bloqueada por rebaseline. F10.8 queda `COMPLETED_PRODUCTION_CANARY_VERIFIED`; `EVID-H1-010=VERIFIED`. F10.9 completo R0/P1-P5. [G3/P5 post-merge y G4](../../operaciones/g3_p5_post_merge_g4_decision_2026_08_10.md) registra PR #341 aprobado/fusionado en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`, con Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS`; `G3=PASS` y `G4=STOP_REQUIRES_REBASELINE`. No existe evidencia vigente de metadata cero y el snapshot conocido conserva `104/224` incompletos; P7/G5+ queda bloqueado porque F10.9 no autoriza re-enrichment, backfill, writer editorial ni DML. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`; `EVID-H1-011..013/016` siguen pendientes. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -90,26 +90,26 @@ del cierre. `H1-CA1` no cambia y no se crean subtareas ni criterios nuevos.
 
 ### Secuencia Paso A Paso F10.9
 
-La secuencia planificada y sus aprobaciones pendientes se documentan en
-[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md). El
-plan no concede ejecucion y cada gate exige la frase decimal exacta mas su
-alcance adicional:
+La secuencia historicamente planificada se documenta en
+[PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md). G0-G3
+fueron consumidos; G4 produjo STOP. Ninguna frase F10.9 habilita ahora G5-G13:
+requieren primero una decision de autoridad superior fuera de F10.9.
 
 1. `G0`: cerrar R0 y estabilizar/integrar P1 sobre ancestry protegido conforme a
    [G0-R0-F10.9](../../operaciones/g0_r0_reconciliacion_f10_9.md).
 2. `G1`: `PASS`; P2 planners read-only/offline integrados por PR #335.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
-4. `G3`: implementar P5 metadata read-only/fail-closed.
-5. `G4`: decidir `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`.
-6. `G5`: integrar P7 en `desarrollo` sin P6/SQL/DDL/DML/backfill.
-7. `G6`: atestar contencion antes del primer acceso remoto al data plane.
-8. `G7`: promover y validar el patch CA1 en Certification.
-9. `G8`: promover a `main` con schedules aun pausados.
-10. `G9`: ejecutar diagnostico Production read-only.
-11. `G10`: congelar el gate final previo a schedules.
-12. `G11`: decidir `GO_SCHEDULES` o `STOP_REQUIRES_REBASELINE`.
-13. `G12`: habilitacion gradual.
-14. `G13`: tres pares naturales consecutivos durante al menos 72h.
+4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
+5. `G4`: `STOP_REQUIRES_REBASELINE`; bloquea P7/G5 y gates posteriores.
+6. `G5`: `BLOCKED_NOT_AUTHORIZED` hasta decision de autoridad superior.
+7. `G6`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+8. `G7`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+9. `G8`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+10. `G9`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+11. `G10`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+12. `G11`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+13. `G12`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+14. `G13`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
 
 Ningun gate concede el siguiente. G0 cerro el
 `BLOCKED_INHERITED_CONTEXT_GRAPH` registrado en el plan, sin importar CA2 ni
@@ -319,8 +319,8 @@ demuestre necesidad estricta y se solicite otra decision.
 ## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth
 
 F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda
-`IN_PROGRESS_BLOCKED_BY_INCIDENT` hasta remediacion, nueva habilitacion gradual y
-observacion completa.
+`STOP_REQUIRES_REBASELINE` en G4. G5-G13, habilitacion y observacion estan
+suspendidos hasta una decision de autoridad superior fuera de F10.9.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
