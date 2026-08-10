@@ -36,8 +36,9 @@ se conserva solo como antecedente CA2 de Hito 2.
 13. F10.8 promovio por PR #297 la remediacion de Production Canary, remedio DB Sync por PR #304/#305/#306/#307 hasta `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, y promovio la remediacion cleansing provenance por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; `DB Sync to Production` run `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente y no aplico DDL.
 14. F10.8 aplico Pro una sola vez mediante `DB Sync to Production` run `31263024890`, bajo registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO`, `candidate_sha` exacto igual a `origin/main`, dispatch manual, approval `Production`, Backup/RPO runtime aceptado y writers pausados; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS.
 15. F10.8 ejecuto Production Canary manual con schedules apagados sobre `main@859d2f7d83f83950d10858fe27bd035febba7f68`, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados; run `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`.
-16. F10.9 planificaba habilitar schedules y observar FG2/FG3, pero G4=`STOP_REQUIRES_REBASELINE` suspendio G5-G13; no empiezan schedules ni 72h sin decision superior y nuevo baseline.
-17. F11.1 cierra documentalmente el Hito 1 y la evidencia final.
+16. F10.9 planificaba habilitar schedules y observar FG2/FG3, pero G4=`STOP_REQUIRES_REBASELINE` suspendio G5-G13.
+17. F10.10 ejecuta, por gates separados, remediacion metadata fill-only por etapas Free -> Certification -> Pro y devuelve evidencia a F10.9/G4; las cohortes son independientes por target fisico, no por alias de environment, y no habilita schedules.
+18. F11.1 cierra documentalmente el Hito 1 y la evidencia final solo tras los gates productivos aplicables.
 
 ## Stop Conditions
 
@@ -78,6 +79,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`. |
 | `F10.9` | `STOP_REQUIRES_REBASELINE` | G3/P5 cerrado; G4 detiene P7, promociones, schedules y observacion hasta decision de autoridad superior. |
+| `F10.10` | `IN_PROGRESS_M0_AUTHORITY_REGISTRATION` | Fase mutante separada para metadata, inicialmente docs-only; M1-M10 requieren gates y aprobaciones independientes. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 
 ## Maquina De Promocion Hito 1
