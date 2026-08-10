@@ -24,6 +24,10 @@ POST_R0_DEV_BASE = "4dcbb3fd792c25b16627f663fde31e40229718ce"
 POST_R0_DEV_TREE = "cad3f1061cbdc00b2883f7812602a4f80bda0853"
 WIRING_HEAD_REF = "ci/f10-9-p1-boundary"
 P1_HEAD_REF = "fix/f10-9-p1-rebuilt"
+POST_P1_DEV_BASE = "53921e3ec845f4a248e586a0ecd667c64f4c070d"
+POST_P1_DEV_TREE = "0344c649772aea18314fe022d5f24898e3dc03d0"
+P2_WIRING_HEAD_REF = "ci/f10-9-p2-boundary"
+P2_HEAD_REF = "feat/f10-9-p2-readonly-planners"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -122,6 +126,13 @@ P1_ALLOWED_STATUSES = {
     "tests/test_fase10_9_p1_safety_contracts.py": "A",
 }
 
+P2_ALLOWED_STATUSES = {
+    "scripts/shared/f10_9_readonly_planner.py": "A",
+    "scripts/maintenance/f10_9_readonly_audit.py": "A",
+    "tests/fixtures/f10_9_p2_synthetic.json": "A",
+    "tests/test_fase10_9_p2_readonly_planners.py": "A",
+}
+
 WIRING_ALLOWED_STATUSES = {
     "AGENTS.md": "M",
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
@@ -140,6 +151,24 @@ WIRING_ALLOWED_STATUSES = {
 WIRING_ALLOWED_MODES = {
     path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
     for path in WIRING_ALLOWED_STATUSES
+}
+
+P2_WIRING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g0_r0_reconciliacion_f10_9.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/r0_ci_boundary_manifest_2026_08_09.md": "M",
+    ".context/operaciones/r0_post_merge_evidence_2026_08_09.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+P2_WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in P2_WIRING_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -492,7 +521,74 @@ def validate_p1(
     require_exact_delta(repo, base, candidate_head, P1_ALLOWED_STATUSES)
 
 
-def detect_mode(event: str, base_ref: str, head_ref: str, base: str, p1_base: str = "") -> str:
+def validate_p2_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_P1_DEV_BASE, "unexpected P2 wiring baseline")
+    require_sha(repo, "POST_P1_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_P1_DEV_TREE, "post-P1 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during P2 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during P2 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P2 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "P2 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P2 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "P2 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        P2_WIRING_ALLOWED_STATUSES,
+        P2_WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=42,
+        expected_links=341,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_p2(
+    repo: Path,
+    base: str,
+    head: str,
+    p2_base: str,
+    p2_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(p2_base)), "P2 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(p2_base_tree)), "P2 baseline tree is not frozen")
+    require(base == p2_base, "P2 must use the protected post-wiring desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == p2_base_tree, "P2 protected base tree drift")
+    require(is_ancestor(repo, base, head), "P2 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "P2 PR head must be one direct commit from protected desarrollo")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P2 push must be a protected merge commit")
+        require(push_parents[0] == base, "P2 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "P2 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P2 push tree differs from PR head")
+    require_exact_delta(repo, base, candidate_head, P2_ALLOWED_STATUSES)
+
+
+def detect_mode(
+    event: str,
+    base_ref: str,
+    head_ref: str,
+    base: str,
+    p1_base: str = "",
+    p2_base: str = "",
+) -> str:
     if base_ref == "certificacion" and base == CERT_BASE:
         return "cert"
     if base_ref == "desarrollo" and base == DEV_BASE:
@@ -501,8 +597,14 @@ def detect_mode(event: str, base_ref: str, head_ref: str, base: str, p1_base: st
         event == "push" or head_ref == WIRING_HEAD_REF
     ):
         return "wiring"
+    if base_ref == "desarrollo" and base == POST_P1_DEV_BASE and (
+        event == "push" or head_ref == P2_WIRING_HEAD_REF
+    ):
+        return "p2_wiring"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
+    if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
+        return "p2"
     return "skip"
 
 
@@ -526,6 +628,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cert-tip", default="")
     parser.add_argument("--p1-base", default="")
     parser.add_argument("--p1-base-tree", default="")
+    parser.add_argument("--p2-base", default="")
+    parser.add_argument("--p2-base-tree", default="")
     parser.add_argument("--github-output", default="")
     return parser.parse_args()
 
@@ -534,18 +638,35 @@ def main() -> int:
     args = parse_args()
     try:
         require(args.base_repo == args.head_repo, "F10.9 boundary requires the same repository")
-        mode = detect_mode(args.event, args.base_ref, args.head_ref, args.base_sha, args.p1_base)
+        mode = detect_mode(
+            args.event,
+            args.base_ref,
+            args.head_ref,
+            args.base_sha,
+            args.p1_base,
+            args.p2_base,
+        )
         if mode == "skip" and args.base_ref == "desarrollo":
             if args.event == "pull_request" and args.head_ref == WIRING_HEAD_REF:
                 raise BoundaryError("P1 wiring branch requires the frozen post-R0 baseline")
             if args.event == "pull_request" and args.head_ref == P1_HEAD_REF:
                 raise BoundaryError("P1 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == P2_WIRING_HEAD_REF:
+                raise BoundaryError("P2 wiring branch requires the frozen post-P1 baseline")
+            if args.event == "pull_request" and args.head_ref == P2_HEAD_REF:
+                raise BoundaryError("P2 branch requires the frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
+            touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
+            require(not (touched_p1 and touched_p2), "P1 and P2 surfaces cannot share a candidate")
             if touched_p1:
                 require(args.head_ref == P1_HEAD_REF or args.event == "push", "P1 paths require the protected P1 branch")
                 require(actual == P1_ALLOWED_STATUSES, "partial or expanded P1 delta is forbidden")
                 mode = "p1"
+            elif touched_p2:
+                require(args.head_ref == P2_HEAD_REF or args.event == "push", "P2 paths require the protected P2 branch")
+                require(actual == P2_ALLOWED_STATUSES, "partial or expanded P2 delta is forbidden")
+                mode = "p2"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -558,13 +679,24 @@ def main() -> int:
             validate_dev(args.repo, args.base_sha, args.head_sha, args.event, args.cert_tip)
         elif mode == "wiring":
             validate_wiring(args.repo, args.base_sha, args.head_sha, args.event)
-        else:
+        elif mode == "p1":
             validate_p1(
                 args.repo,
                 args.base_sha,
                 args.head_sha,
                 args.p1_base,
                 args.p1_base_tree,
+                args.event,
+            )
+        elif mode == "p2_wiring":
+            validate_p2_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        else:
+            validate_p2(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                args.p2_base,
+                args.p2_base_tree,
                 args.event,
             )
         emit_mode(mode, args.github_output)

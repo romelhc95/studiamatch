@@ -1316,14 +1316,23 @@ jobs:
           cert_tip="$(git rev-parse origin/certificacion)"
           p1_base=""
           p1_base_tree=""
+          p2_base=""
+          p2_base_tree=""
           if [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "fix/f10-9-p1-rebuilt" ]; then
             protected_dev_tip="$(git rev-parse origin/desarrollo)"
             test "$F109_BASE_SHA" = "$protected_dev_tip"
             p1_base="$F109_BASE_SHA"
             p1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-9-p2-readonly-planners" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            p2_base="$F109_BASE_SHA"
+            p2_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
           elif [ "$F109_EVENT" = "push" ] && [ "$F109_BASE_REF" = "desarrollo" ]; then
             p1_base="$F109_BASE_SHA"
             p1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+            p2_base="$F109_BASE_SHA"
+            p2_base_tree="$p1_base_tree"
           fi
           python3 scripts/security/f109_boundary.py \
             --event "$F109_EVENT" \
@@ -1335,7 +1344,9 @@ jobs:
             --head-repo "$F109_HEAD_REPO" \
             --cert-tip "$cert_tip" \
             --p1-base "$p1_base" \
-            --p1-base-tree "$p1_base_tree"
+            --p1-base-tree "$p1_base_tree" \
+            --p2-base "$p2_base" \
+            --p2-base-tree "$p2_base_tree"
           python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
 
   security-audit:
