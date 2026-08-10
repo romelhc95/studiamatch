@@ -90,7 +90,8 @@ usa una frontera por patch:
 6. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
 7. F10.7 ejecuta PR a `main` y registra entrega tecnica post-merge.
 8. F10.8 ejecuta canary Production con schedules apagados.
-9. F10.9 habilita schedules gradualmente y observa la operacion.
+9. F10.9 planificaba habilitar schedules y observar la operacion, pero
+   G4=`STOP_REQUIRES_REBASELINE` suspendio esa ruta hasta decision superior.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -882,7 +883,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`); `EVID-H1-010=VERIFIED`. |
-| `F10.9` | `IN_PROGRESS_BLOCKED_BY_INCIDENT` | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) registra cero pares aceptados; [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) queda documentado y no ejecutable hasta aprobaciones separadas. |
+| `F10.9` | `STOP_REQUIRES_REBASELINE` | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) registra cero pares aceptados; [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) cerro G3/P5 y detuvo G4. G5-G13 no son autorizables mediante otra frase F10.9; requieren decision de autoridad superior. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida

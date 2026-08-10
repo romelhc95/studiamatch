@@ -25,10 +25,10 @@ Obtener un baseline protegido y trazable antes de implementar P2. G0/R0 debe:
 5. estabilizar e integrar P1 como un diff aislado;
 6. demostrar checks post-merge verdes en `desarrollo`.
 
-Este documento no concede pushes, PRs, approvals, merges ni cambios CI. Su
-ejecucion requiere una autorizacion futura con la frase decimal exacta
-`Ejecuta las tareas pendientes de la Fase F10.9` y alcance Git/CI remoto
-explicito. Branch protection y review humano permanecen obligatorios.
+Este documento no concede pushes, PRs, approvals, merges ni cambios CI. La
+autorizacion Git/CI que permitio ejecutarlo fue consumida y G0 esta cerrado. El
+runbook es historico y no puede reutilizarse despues de G4 STOP; branch
+protection y review humano permanecen como controles registrados.
 
 ## Baseline Congelado
 
@@ -105,7 +105,9 @@ Prohibido en G0/R0:
 
 Antes de editar:
 
-1. Confirmar que `F10.9=IN_PROGRESS_BLOCKED_BY_INCIDENT` en la autoridad viva.
+1. Prerrequisito historico consumido en G0: confirmar que entonces
+   `F10.9=IN_PROGRESS_BLOCKED_BY_INCIDENT` en la autoridad viva. No describe el
+   estado actual ni concede ejecucion despues de G4 STOP.
 2. Confirmar heads protegidos y comparar con el baseline congelado.
 3. Confirmar que no existe otro PR/merge concurrente que cambie los parents.
 4. Verificar el archive CA2 por commit y tree.
