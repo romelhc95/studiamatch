@@ -549,6 +549,63 @@ def test_past_canonical_valid_until_is_allowed_for_offline_binding_only(
     assert called is False
 
 
+def test_target_binding_digest_requires_no_password(
+    workspace: Path, config: m3.Config,
+) -> None:
+    env = env_for(config)
+    del env["F10_10_M3_PASSWORD"]
+
+    code, binding = m3.run_cli(
+        [
+            "--mode", "target-binding-digest", "--target-alias", "FREE_DB",
+            "--approval-id", config.approval_id,
+        ],
+        env=env,
+        workspace=workspace,
+        connection_factory=lambda *_args: pytest.fail("offline mode must not connect"),
+    )
+
+    assert code == 0
+    assert binding["target_binding_digest"] == configured_binding(config)
+
+
+@pytest.mark.parametrize("mode", ["q0-only", "collect"])
+def test_connected_modes_require_password_before_connection(
+    workspace: Path, config: m3.Config, mode: str,
+) -> None:
+    env = env_for(config)
+    del env["F10_10_M3_PASSWORD"]
+    called = False
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        raise AssertionError("missing password must stop before connection")
+
+    code, manifest = m3.run_cli(
+        [
+            "--mode", mode, "--target-alias", "FREE_DB",
+            "--approval-id", config.approval_id,
+        ],
+        env=env, workspace=workspace, connection_factory=factory,
+    )
+
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_CONFIG_INVALID"]
+    assert called is False
+
+
+def test_default_connection_factory_rejects_missing_password_before_driver_import(
+    config: m3.Config, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    passwordless = deepcopy(config)
+    object.__setattr__(passwordless, "password", None)
+    monkeypatch.setitem(sys.modules, "psycopg2", None)
+
+    with pytest.raises(m3.CollectorError, match="STOP_CONFIG_INVALID"):
+        m3.default_connection_factory(passwordless, None)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ("mutate", "reason"),
     [
