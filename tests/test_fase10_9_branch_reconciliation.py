@@ -40,6 +40,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_READER_POST_MERGE_BASE_TREE,
     F1010_M3_READER_POST_MERGE_DOCS_COMMIT,
     F1010_M3_READER_POST_MERGE_HEAD_REF,
+    F1010_M3_ROTATION_ALLOWED_MODES,
+    F1010_M3_ROTATION_ALLOWED_STATUSES,
+    F1010_M3_ROTATION_BASE,
+    F1010_M3_ROTATION_BASE_TREE,
+    F1010_M3_ROTATION_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -82,6 +87,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3,
     validate_f1010_m3_reader,
     validate_f1010_m3_reader_post_merge,
+    validate_f1010_m3_rotation,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -438,6 +444,15 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_READER_POST_MERGE_BASE,
             ),
             "f1010_m3_reader_post_merge",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_ROTATION_HEAD_REF,
+                F1010_M3_ROTATION_BASE,
+            ),
+            "f1010_m3_rotation",
         )
         self.assertEqual(
             detect_mode(
@@ -1309,6 +1324,154 @@ class F109BoundaryTest(unittest.TestCase):
                 Path("."), F1010_M3_READER_POST_MERGE_BASE, merge, "push"
             )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_rotation_requires_one_direct_commit(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "f" * 40
+        tree_mock.return_value = F1010_M3_ROTATION_BASE_TREE
+        parents_mock.return_value = [F1010_M3_ROTATION_BASE]
+
+        validate_f1010_m3_rotation(
+            Path("."), F1010_M3_ROTATION_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_ROTATION_BASE,
+            head,
+            F1010_M3_ROTATION_ALLOWED_STATUSES,
+            F1010_M3_ROTATION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 54, 369)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_rotation_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        merge = "e" * 40
+        candidate = "f" * 40
+
+        def parents(repo, commit):
+            if commit == merge:
+                return [F1010_M3_ROTATION_BASE, candidate]
+            return [F1010_M3_ROTATION_BASE]
+
+        def tree(repo, commit):
+            if commit == F1010_M3_ROTATION_BASE:
+                return F1010_M3_ROTATION_BASE_TREE
+            return "1" * 40
+
+        parents_mock.side_effect = parents
+        tree_mock.side_effect = tree
+
+        validate_f1010_m3_rotation(
+            Path("."), F1010_M3_ROTATION_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_ROTATION_BASE,
+            candidate,
+            F1010_M3_ROTATION_ALLOWED_STATUSES,
+            F1010_M3_ROTATION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 54, 369)
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_rotation_rejects_invalid_push_topology(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        merge = "e" * 40
+        candidate = "f" * 40
+        tree_mock.return_value = F1010_M3_ROTATION_BASE_TREE
+        invalid_parents = (
+            [F1010_M3_ROTATION_BASE],
+            ["0" * 40, candidate],
+            [F1010_M3_ROTATION_BASE, candidate, "1" * 40],
+        )
+        for parents in invalid_parents:
+            with self.subTest(parents=parents):
+                parents_mock.return_value = parents
+                with self.assertRaises(BoundaryError):
+                    validate_f1010_m3_rotation(
+                        Path("."), F1010_M3_ROTATION_BASE, merge, "push"
+                    )
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_rotation_rejects_push_tree_mismatch(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        merge = "e" * 40
+        candidate = "f" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_ROTATION_BASE, candidate],
+            [F1010_M3_ROTATION_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_ROTATION_BASE_TREE,
+            "1" * 40,
+            "2" * 40,
+        ]
+
+        with self.assertRaises(BoundaryError):
+            validate_f1010_m3_rotation(
+                Path("."), F1010_M3_ROTATION_BASE, merge, "push"
+            )
+
+    @mock.patch("scripts.security.f109_boundary.validate_f1010_m3_rotation")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_rotation_attestation_from_wrong_branch(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+        validate_rotation_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(head_ref="wrong-branch")
+        changed_statuses_mock.return_value = {
+            ".context/operaciones/m3_reader_f10_10_rotation_attestation_2026_08_11.md": "A"
+        }
+
+        self.assertEqual(main(), 1)
+        validate_rotation_mock.assert_not_called()
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -1585,6 +1748,25 @@ class F109BoundaryTest(unittest.TestCase):
                 mode == "100644"
                 for mode in F1010_M3_READER_POST_MERGE_ALLOWED_MODES.values()
             )
+        )
+        self.assertEqual(
+            F1010_M3_ROTATION_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/flujo_release_minimo.md": "M",
+                ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+                ".context/operaciones/m3_reader_f10_10_post_merge_evidence_2026_08_11.md": "M",
+                ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+                ".context/operaciones/m3_reader_f10_10_rotation_attestation_2026_08_11.md": "A",
+                ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+                ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertTrue(
+            all(mode == "100644" for mode in F1010_M3_ROTATION_ALLOWED_MODES.values())
         )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):
             self.assertFalse(set(F1010_M1_ALLOWED_STATUSES).intersection(existing))

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10/M3` |
-| Resultado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
+| Resultado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
 | PR | `#353` |
 | Estado remoto Free | `NOT_STARTED_GATES_PENDING` |
 | Gates consumidos | Ninguno |
@@ -62,8 +62,8 @@ Supabase, DDL/DML remoto, password ni consumo de gates.
 M0 = PASS
 M1 = COMPLETED_POST_MERGE_VERIFIED
 M2 = PASS
-M3_READER_V2 = M3_READER_POST_MERGE_VERIFIED_GATES_PENDING
-M3_FREE_PREFLIGHT = BLOCKED_ROTATION_ATTESTATION_AND_GATE_PENDING
+M3_READER_V2 = M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING
+M3_FREE_PREFLIGHT = BLOCKED_PAYLOAD_AND_GATE_PENDING
 M3_FREE_DDL_Q0_COLLECT_TEARDOWN = NOT_STARTED_GATES_PENDING
 M4_M10 = NOT_AUTHORIZED
 F10.9_G4 = STOP_REQUIRES_REBASELINE
@@ -71,7 +71,7 @@ HITO_1 = TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING
 ```
 
 La promocion no consume los gates propuestos ni `APPROVE_M3_FREE_READONLY`. La
-credencial canary local marcada `ROTATION_REQUIRED_OUT_OF_BAND` permanece
-prohibida; antes de preparar un payload operativo debe existir atestacion
-sanitizada de rotacion/revocacion. Certification, Pro, providers, writers,
+[atestacion sanitizada](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
+cierra `ROTATION_REQUIRED_OUT_OF_BAND`; la credencial anterior permanece
+prohibida. Payload/gate de preflight, Certification, Pro, providers, writers,
 schedules, M4-M10 y F11.1 permanecen bloqueados.
