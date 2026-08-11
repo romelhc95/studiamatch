@@ -46,6 +46,10 @@ F1010_M3_HEAD_REF = "feat/f10-10-m3-readonly-collector-v2"
 F1010_M3_READER_BASE = "1adfc2a8bcabfd4b58ff2bc34f73e47626f1a838"
 F1010_M3_READER_BASE_TREE = "4b2e3245d2a87c7170b4241b87e1a8ae123c1bec"
 F1010_M3_READER_HEAD_REF = "feat/f10-10-m3-reader-rebaseline-v2"
+F1010_M3_READER_POST_MERGE_BASE = "2cf614a4a44ffabc5e06ba08dc20707807db274f"
+F1010_M3_READER_POST_MERGE_BASE_TREE = "7b9e9cfd9d74749416cfab098da116ecbe239c04"
+F1010_M3_READER_POST_MERGE_HEAD_REF = "docs/f10-10-m3-reader-post-merge"
+F1010_M3_READER_POST_MERGE_DOCS_COMMIT = "07953e6e0759bd73cdb4ca7df1f3163fda5b53a0"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -291,6 +295,23 @@ F1010_M3_READER_ALLOWED_STATUSES = {
 F1010_M3_READER_ALLOWED_MODES = {
     path: "100755" if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh" else "100644"
     for path in F1010_M3_READER_ALLOWED_STATUSES
+}
+
+F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_post_merge_evidence_2026_08_11.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_READER_POST_MERGE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -979,6 +1000,75 @@ def validate_f1010_m3_reader(repo: Path, base: str, head: str, event: str) -> No
     validate_context_graph(repo, 52, 363)
 
 
+def validate_f1010_m3_reader_post_merge(
+    repo: Path, base: str, head: str, event: str
+) -> None:
+    require(
+        base == F1010_M3_READER_POST_MERGE_BASE,
+        "unexpected F10.10 M3 reader post-merge baseline",
+    )
+    require_sha(repo, "F1010_M3_READER_POST_MERGE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_READER_POST_MERGE_BASE_TREE,
+        "F10.10 M3 reader post-merge base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 reader post-merge base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2,
+            "F10.10 M3 reader post-merge push must be a protected merge commit",
+        )
+        require(
+            push_parents[0] == base,
+            "F10.10 M3 reader post-merge push first parent drift",
+        )
+        candidate_head = push_parents[1]
+        require(
+            is_ancestor(repo, base, candidate_head),
+            "F10.10 M3 reader post-merge PR head does not descend from baseline",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 reader post-merge push tree differs from PR head",
+        )
+    first_parent_chain = str(
+        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{candidate_head}")
+    ).split()
+    require(
+        first_parent_chain
+        == [F1010_M3_READER_POST_MERGE_DOCS_COMMIT, candidate_head],
+        "F10.10 M3 reader post-merge candidate must contain the frozen docs commit and one remediation commit",
+    )
+    all_commits = str(git(repo, "rev-list", f"{base}..{candidate_head}")).split()
+    require(
+        set(all_commits) == set(first_parent_chain),
+        "F10.10 M3 reader post-merge candidate cannot contain merge or side history",
+    )
+    require(
+        commit_parents(repo, F1010_M3_READER_POST_MERGE_DOCS_COMMIT) == [base],
+        "F10.10 M3 reader post-merge docs commit parent drift",
+    )
+    require(
+        commit_parents(repo, candidate_head)
+        == [F1010_M3_READER_POST_MERGE_DOCS_COMMIT],
+        "F10.10 M3 reader post-merge remediation must directly follow the docs commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES,
+        F1010_M3_READER_POST_MERGE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 53, 362)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1022,6 +1112,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_READER_HEAD_REF
     ):
         return "f1010_m3_reader"
+    if base_ref == "desarrollo" and base == F1010_M3_READER_POST_MERGE_BASE and (
+        event == "push" or head_ref == F1010_M3_READER_POST_MERGE_HEAD_REF
+    ):
+        return "f1010_m3_reader_post_merge"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -1113,6 +1207,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_READER_HEAD_REF:
                 raise BoundaryError("F10.10 M3 reader branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_READER_POST_MERGE_HEAD_REF:
+                raise BoundaryError("F10.10 M3 reader post-merge branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -1223,6 +1319,10 @@ def main() -> int:
             validate_f1010_m3(args.repo, args.base_sha, args.head_sha, args.event)
         elif mode == "f1010_m3_reader":
             validate_f1010_m3_reader(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m3_reader_post_merge":
+            validate_f1010_m3_reader_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
         else:
             validate_g2(
                 args.repo,
