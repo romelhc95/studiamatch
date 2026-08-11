@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_SCOPE_APPROVED_TARGET_AUTHORIZATIONS_PENDING`; Free primero mediante SQL full-population/read-only, replay Certification sobre el mismo binding/artifact y Pro despues, cada uno con gates humanos separados.
+4. `M3`: `M3_COLLECTOR_CANDIDATE_PENDING_PROTECTED_MERGE`; el candidate local no consume gates. Tras promocion y evidencia post-merge, Free usa SQL full-population/read-only, seguido por replay Certification y Pro con gates separados.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.

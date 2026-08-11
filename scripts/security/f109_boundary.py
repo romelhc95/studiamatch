@@ -40,6 +40,9 @@ F1010_M2A_BASE = "560af8ad9ce6350fd6c219c853665e1f9c6089f3"
 F1010_M2A_BASE_TREE = "bb2fce144bacac4045b028dd0246815bae209023"
 F1010_M2A_HEAD_REF = "ci/f10-10-m2-boundary"
 F1010_M1_HEAD_REF = "feat/f10-10-m1-offline-tooling"
+F1010_M3_BASE = "ea6ef79a450d691a93195b26bec2ecde1b4dc18d"
+F1010_M3_BASE_TREE = "fe5b8223e56f360bef930bd565cfa6318e37692c"
+F1010_M3_HEAD_REF = "feat/f10-10-m3-readonly-collector-v2"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -243,6 +246,22 @@ F1010_M1_ALLOWED_STATUSES = {
 }
 
 F1010_M1_ALLOWED_MODES = {path: "100644" for path in F1010_M1_ALLOWED_STATUSES}
+
+F1010_M3_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_f10_10_m3_readonly_collector.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_ALLOWED_MODES = {path: "100644" for path in F1010_M3_ALLOWED_STATUSES}
 
 CONTEXT_IGNORED_PREFIXES = (
     ".context/.obsidian/",
@@ -858,6 +877,40 @@ def validate_f1010_m1(
     )
 
 
+def validate_f1010_m3(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M3_BASE, "unexpected F10.10 M3 protected baseline")
+    require_sha(repo, "F1010_M3_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_BASE_TREE, "F10.10 M3 protected base tree drift")
+    require(is_ancestor(repo, base, head), "F10.10 M3 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M3 push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M3 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_ALLOWED_STATUSES,
+        F1010_M3_ALLOWED_MODES,
+    )
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -893,6 +946,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M2A_HEAD_REF
     ):
         return "f1010_m2a"
+    if base_ref == "desarrollo" and base == F1010_M3_BASE and (
+        event == "push" or head_ref == F1010_M3_HEAD_REF
+    ):
+        return "f1010_m3"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -980,16 +1037,26 @@ def main() -> int:
                 raise BoundaryError("F10.10 M2a wiring branch requires its frozen baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
+                raise BoundaryError("F10.10 M3 branch requires the frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
             touched_g2 = set(actual).intersection(G2_ALLOWED_STATUSES)
             touched_p5 = set(actual).intersection(P5_ALLOWED_STATUSES)
             touched_f1010_m1 = set(actual).intersection(F1010_M1_ALLOWED_STATUSES)
+            touched_f1010_m3 = set(actual).intersection(F1010_M3_ALLOWED_STATUSES)
             require(
                 sum(
                     bool(surface)
-                    for surface in (touched_p1, touched_p2, touched_g2, touched_p5, touched_f1010_m1)
+                    for surface in (
+                        touched_p1,
+                        touched_p2,
+                        touched_g2,
+                        touched_p5,
+                        touched_f1010_m1,
+                        touched_f1010_m3,
+                    )
                 )
                 <= 1,
                 "F10.9 and F10.10 protected surfaces cannot share a candidate",
@@ -1076,6 +1143,8 @@ def main() -> int:
                 getattr(args, "f1010_m1_base_tree", ""),
                 args.event,
             )
+        elif mode == "f1010_m3":
+            validate_f1010_m3(args.repo, args.base_sha, args.head_sha, args.event)
         else:
             validate_g2(
                 args.repo,

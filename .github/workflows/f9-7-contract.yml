@@ -61,6 +61,7 @@ on:
       - 'tests/test_fase09_7_release_gates.py'
       - 'tests/test_supabase_credentials_contract.py'
       - 'tests/test_frontend_public_surfaces_playwright.py'
+      - 'tests/test_f10_10_m3_readonly_collector.py'
       - '.env.example'
       - '.gitattributes'
       - '.github/actionlint.yaml'
@@ -78,6 +79,7 @@ on:
       - 'scripts/maintenance/category_coverage_audit.py'
       - 'scripts/maintenance/quality_assurance_audit.py'
       - 'scripts/maintenance/taxonomy_roi_audit.py'
+      - 'scripts/maintenance/f10_10_m3_readonly_collector.py'
       - 'scripts/shared/**'
       - 'requirements-fg1.txt'
       - 'requirements-pipeline.txt'
@@ -104,12 +106,83 @@ env:
     eyJhbG[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sbp_[A-Za-z0-9_-]{10,}|sk-(proj-)?[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16}|ghs_[A-Za-z0-9]{20,}|opencode_[A-Za-z0-9_-]{20,}|oc_[A-Za-z0-9_-]{30,}|OPENCODE_API_KEY[[:space:]]*[:=][[:space:]]*['"]?[A-Za-z0-9_-]{20,}
 
 jobs:
+  f1010-m3-zero-write:
+    name: F10.10 M3 Zero-Write Collector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require exact M3 candidate surface
+        run: |
+          test -f scripts/maintenance/f10_10_m3_readonly_collector.py
+          test -f tests/test_f10_10_m3_readonly_collector.py
+          test "$(git rev-parse HEAD)" = "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install frozen test dependencies
+        run: |
+          git show "$F97_FROZEN_COMMIT:requirements-test.txt" > "$RUNNER_TEMP/requirements-test.txt"
+          git show "$F97_FROZEN_COMMIT:requirements-db-migrate.txt" > "$RUNNER_TEMP/requirements-db-migrate.txt"
+          pip install --require-hashes \
+            -r "$RUNNER_TEMP/requirements-db-migrate.txt" \
+            -r "$RUNNER_TEMP/requirements-test.txt"
+      - name: Prepare M3 firewall cleanup state
+        run: |
+          state_dir="$(mktemp -d "$RUNNER_TEMP/f1010-m3-firewall.XXXXXXXX")"
+          guard="$RUNNER_TEMP/fase09_7_firewall_guard.sh"
+          chmod 700 "$state_dir"
+          git show "$F97_FROZEN_COMMIT:.github/scripts/fase09_7_firewall_guard.sh" > "$guard"
+          chmod 500 "$guard"
+          echo "F1010_M3_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
+          echo "F1010_M3_FIREWALL_GUARD=$guard" >> "$GITHUB_ENV"
+      - name: Block M3 external egress
+        run: >-
+          "$F1010_M3_FIREWALL_GUARD" setup
+          FASE097_AUDIT_EGRESS "$F1010_M3_FIREWALL_STATE"
+      - name: Run M3 zero-write collector contract
+        run: |
+          workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
+          while [ "$workspace_ancestor" != "/" ]; do
+            sudo chmod o+x "$workspace_ancestor"
+            workspace_ancestor="$(dirname "$workspace_ancestor")"
+          done
+          sudo chmod -R go+rX,go-w "$GITHUB_WORKSPACE"
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
+            PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
+              tests/test_f10_10_m3_readonly_collector.py
+      - name: Restore M3 external egress
+        if: always()
+        run: |
+          cleanup_status=0
+          state_dir="${F1010_M3_FIREWALL_STATE:-}"
+          guard="${F1010_M3_FIREWALL_GUARD:-}"
+          if [ -n "$state_dir" ] && [ -d "$state_dir" ] && [ -x "$guard" ]; then
+            "$guard" cleanup \
+              FASE097_AUDIT_EGRESS "$state_dir" || cleanup_status=$?
+            if [ "$cleanup_status" -eq 0 ]; then
+              rm -rf -- "$state_dir" || cleanup_status=1
+            fi
+          else
+            cleanup_status=1
+          fi
+          exit "$cleanup_status"
+
   fase09-7-schema-rls:
     name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract
-    if: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
+    needs: f1010-m3-zero-write
+    if: ${{ always() && (github.event_name != 'pull_request' || github.base_ref != 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Require M3 zero-write prerequisite
+        run: test "${{ needs.f1010-m3-zero-write.result }}" = "success"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
