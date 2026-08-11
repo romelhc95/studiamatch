@@ -62,6 +62,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PREFLIGHT_EVIDENCE_BASE,
     F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
     F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF,
+    F1010_M3_FINAL_READINESS_ALLOWED_MODES,
+    F1010_M3_FINAL_READINESS_ALLOWED_STATUSES,
+    F1010_M3_FINAL_READINESS_BASE,
+    F1010_M3_FINAL_READINESS_BASE_TREE,
+    F1010_M3_FINAL_READINESS_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -108,6 +113,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_passwordless,
     validate_f1010_m3_preflight_payload,
     validate_f1010_m3_preflight_evidence,
+    validate_f1010_m3_final_readiness,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -500,6 +506,13 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_PREFLIGHT_EVIDENCE_BASE,
             ),
             "f1010_m3_preflight_evidence",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", F1010_M3_FINAL_READINESS_HEAD_REF,
+                F1010_M3_FINAL_READINESS_BASE,
+            ),
+            "f1010_m3_final_readiness",
         )
         self.assertEqual(
             detect_mode(
@@ -1956,6 +1969,70 @@ class F109BoundaryTest(unittest.TestCase):
         ):
             assert gate in authority
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_final_readiness_accepts_direct_candidate(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_FINAL_READINESS_BASE_TREE
+        parents_mock.return_value = [F1010_M3_FINAL_READINESS_BASE]
+        validate_f1010_m3_final_readiness(
+            Path("."), F1010_M3_FINAL_READINESS_BASE, head, "pull_request"
+        )
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_FINAL_READINESS_BASE, head,
+            F1010_M3_FINAL_READINESS_ALLOWED_STATUSES,
+            F1010_M3_FINAL_READINESS_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_final_readiness_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        candidate = "c" * 40
+        merge = "d" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_FINAL_READINESS_BASE, candidate],
+            [F1010_M3_FINAL_READINESS_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_FINAL_READINESS_BASE_TREE,
+            "e" * 40,
+            "e" * 40,
+        ]
+        validate_f1010_m3_final_readiness(
+            Path("."), F1010_M3_FINAL_READINESS_BASE, merge, "push"
+        )
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_FINAL_READINESS_BASE, candidate,
+            F1010_M3_FINAL_READINESS_ALLOWED_STATUSES,
+            F1010_M3_FINAL_READINESS_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -2281,6 +2358,13 @@ class F109BoundaryTest(unittest.TestCase):
             all(
                 mode == "100644"
                 for mode in F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES.values()
+            )
+        )
+        self.assertEqual(len(F1010_M3_FINAL_READINESS_ALLOWED_STATUSES), 6)
+        self.assertTrue(
+            all(
+                mode == "100644"
+                for mode in F1010_M3_FINAL_READINESS_ALLOWED_MODES.values()
             )
         )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):

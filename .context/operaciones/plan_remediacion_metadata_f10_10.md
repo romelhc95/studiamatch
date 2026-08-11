@@ -345,12 +345,20 @@ conservan intencionalmente y son validos dentro de v2; manifest/binding v1 sigue
 rechazado y no existe `q0-attestation-v2`.
 
 El gate preflight Free fue consumido una vez y termino PASS. DDL Free, Q0 Free,
-lectura y teardown Free estan no consumidos. Merge protegido, CI post-merge,
-PostgreSQL 17 networkless y rotacion atestada ya terminaron PASS. No
-hubo acceso remoto, Supabase, DDL remoto ni passwords. El gate DDL sigue pendiente. Certification,
+lectura y teardown Free estan no consumidos. Los CI anteriores al run
+`31533516407`, PostgreSQL 17 local y rotacion atestada conservan su evidencia
+historica PASS, pero no sustituyen el final-readiness post-merge fallido. No hubo
+acceso remoto, Supabase, DDL remoto ni passwords. El gate DDL sigue pendiente. Certification,
 Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
 
 La contrasena SQL usada previamente por un canary local fue rotada/revocada fuera
 de banda segun [atestacion sanitizada](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 y no puede reutilizarse. Su valor no se documento. El hallazgo queda cerrado solo
 para esa identidad.
+
+El run post-merge `31533516407` de PR #358 fallo porque el harness acepto el
+servidor temporal que el entrypoint PostgreSQL usa durante init; el socket
+desaparecio al transicionar al servidor final. No se autoriza un rerun ciego. La
+remediacion debe esperar el marcador `PostgreSQL init process complete`, comprobar
+contenedor/socket y exigir tres probes consecutivos antes del contrato. DDL Free
+permanece bloqueado hasta merge protegido y CI post-merge PASS de esa correccion.

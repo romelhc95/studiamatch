@@ -114,6 +114,7 @@ jobs:
   f1010-m3-zero-write:
     name: F10.10 M3 Zero-Write Collector
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -188,12 +189,61 @@ jobs:
             postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
           test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' \
             studiamatch-m3-reader-postgres)" = "none"
-          for _ in $(seq 1 30); do
-            pg_isready --host "$F1010_M3_READER_SOCKET" \
-              --username postgres --dbname postgres && exit 0
+          init_complete=0
+          for _ in $(seq 1 60); do
+            test "$(docker inspect --format '{{.State.Running}}' \
+              studiamatch-m3-reader-postgres)" = "true" || break
+            if docker logs studiamatch-m3-reader-postgres 2>&1 | \
+                grep -Fq "PostgreSQL init process complete; ready for start up."; then
+              init_complete=1
+              break
+            fi
             sleep 1
           done
-          exit 1
+          if [ "$init_complete" -ne 1 ]; then
+            docker logs studiamatch-m3-reader-postgres
+            exit 1
+          fi
+          final_ready=0
+          for _ in $(seq 1 60); do
+            if [ "$(docker inspect --format '{{.State.Running}}' \
+                studiamatch-m3-reader-postgres)" != "true" ]; then
+              break
+            fi
+            if test -S "$F1010_M3_READER_SOCKET/.s.PGSQL.5432" && \
+                pg_isready --host "$F1010_M3_READER_SOCKET" \
+                  --username postgres --dbname postgres; then
+              final_ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$final_ready" -ne 1 ]; then
+            docker logs studiamatch-m3-reader-postgres
+            exit 1
+          fi
+          # Require stability after acquiring the final server.  A failed probe
+          # resets the consecutive counter instead of accepting a transient socket.
+          stable_probes=0
+          for _ in $(seq 1 15); do
+            if [ "$(docker inspect --format '{{.State.Running}}' \
+                studiamatch-m3-reader-postgres)" = "true" ] && \
+                test -S "$F1010_M3_READER_SOCKET/.s.PGSQL.5432" && \
+                pg_isready --host "$F1010_M3_READER_SOCKET" \
+                  --username postgres --dbname postgres; then
+              stable_probes=$((stable_probes + 1))
+              if [ "$stable_probes" -eq 3 ]; then
+                break
+              fi
+            else
+              stable_probes=0
+            fi
+            sleep 1
+          done
+          if [ "$stable_probes" -ne 3 ]; then
+            docker logs studiamatch-m3-reader-postgres
+            exit 1
+          fi
       - name: Run M3 reader PostgreSQL 17 contract
         run: |
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
