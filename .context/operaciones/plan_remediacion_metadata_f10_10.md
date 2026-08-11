@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M2_PASS_M3_SEPARATE_AUTH_REQUIRED` |
+| Estado | `M3_SCOPE_APPROVED_TARGET_AUTHORIZATIONS_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -282,3 +282,11 @@ PR #346, candidate final `a234fecb9c750a28cd290882919be972f1408467`, merge
 
 M3-M10 permanecen sin autorizar. M2 no autoriza red, DB, Supabase, providers,
 environments, writers, workflows operativos, backup/restore, SQL ni DDL.
+
+El [scope M3 por ambiente/target](./m3_f10_10_scope_por_ambiente_target.md)
+queda aprobado como contrato. Antes de cualquier gate remoto debe implementarse
+y promoverse el colector versionado que ese scope exige. Despues, la ejecucion
+sigue bloqueada hasta consumir, en orden, `APPROVE_M3_FREE_READONLY`,
+`APPROVE_M3_CERTIFICATION_REPLAY`, `APPROVE_SDLC_M3_PRO`,
+`APPROVE_PRODUCTION_M3_READONLY_WINDOW` y `APPROVE_M3_PRO_READONLY`. Ningun gate
+concede M4.
