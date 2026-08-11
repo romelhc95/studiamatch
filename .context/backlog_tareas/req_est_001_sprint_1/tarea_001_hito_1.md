@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. PR #353 promovio M3 reader v2; PR #354/#355 reconciliaron evidencia y rotacion; PR #356 promovio binding offline passwordless. El [payload exacto de preflight](../../operaciones/m3_reader_f10_10_preflight_payload_2026_08_11.json) esta listo para revision. Ningun gate esta consumido; aprobacion exacta de preflight pendiente. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. PR #357 promovio el payload y CI post-merge termino PASS. La [evidencia preflight](../../operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md) registra PASS local passwordless, network none y cero capacidad remota. Solo preflight esta consumido; DDL, Q0, lectura y teardown siguen pendientes. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING`; PR #350 permanece antecedente v1. PR #353 promovio el package v2 solo `FREE_DB`; PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding passwordless. El payload preflight exacto esta listo; preflight, DDL Free, Q0, lectura y teardown no iniciaron y requieren gates exactos independientes.
+4. `M3`: `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`; PR #350 permanece antecedente v1. Candidate, rotacion, binding y payload fueron promovidos. Preflight local passwordless termino PASS; DDL Free, Q0, lectura y teardown no iniciaron y requieren gates exactos independientes.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
@@ -157,7 +157,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados, M3 reader v2 promovido/reconciliado, rotacion atestada y payload preflight passwordless listo | Gate preflight y gates Free no consumidos; M4-M10, handoff superior a F10.9/G4, observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados, M3 reader v2 promovido/reconciliado, rotacion atestada y preflight local passwordless PASS | Gate preflight consumido una vez; DDL/Q0/lectura/teardown no consumidos; M4-M10, handoff superior a F10.9/G4, observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 

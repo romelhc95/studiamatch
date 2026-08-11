@@ -1,0 +1,21 @@
+{
+  "approval_id": "F10.10-M3-PREFLIGHT-FREE-20260811T190023Z",
+  "candidate_commit": "ea3adaf6fd9847fc5cf98f4d0ed6449a41fae1a1",
+  "candidate_tree": "1929c3cc6dd3ab0f5b822a530ee2d08285ff9345",
+  "decision": "PASS",
+  "executed_at": "2026-08-11T20:09:22Z",
+  "mode": "LOCAL_PASSWORDLESS_ONLY",
+  "network": "none",
+  "password_consumed": false,
+  "payload_merge_commit": "47100311a10731ea6297af5c8c1e2e64f5d100b2",
+  "payload_sha256": "sha256:68fd845808dbe694984ffbdd087b44e19754b4c76c14da862d74dad232971613",
+  "query_set_digest": "sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7",
+  "reason_codes": [],
+  "remote_ddl": false,
+  "remote_dml": false,
+  "remote_read": false,
+  "schema": "f10.10-m3-reader-preflight-result-v1",
+  "target_alias": "FREE_DB",
+  "target_binding_digest": "sha256:013972e22906ea23d2aa6d4f7caaa9a92f93d6c4618d5e44e93f49c897ae0f01",
+  "valid_until": "2026-08-11T23:00:23Z"
+}

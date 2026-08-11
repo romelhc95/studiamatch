@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING` |
+| Estado | `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `NO / NO` |
-| Gates consumidos | Ninguno |
+| Gates consumidos | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` una vez |
 | Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
 | Query-set content digest `query-set-v1` candidate | `sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7` |
 | Package Free-only candidate | `sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906` |
@@ -159,22 +159,21 @@ confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
 banda. No se registro ni inspecciono su valor. La identidad anterior permanece
 prohibida en provision, Q0, collect, teardown y cualquier otro ambiente.
 
-## Gates Propuestos No Consumidos
+## Ledger De Gates
 
 Orden propuesto para una operacion Free futura:
 
 | Gate | Capacidad maxima propuesta | Estado |
 |---|---|---|
-| `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `PROPOSED_NOT_EXECUTABLE` |
+| `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `CONSUMED_ONCE_PASS` |
 | `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
-Estos gates son nombres propuestos, no aprobaciones vigentes. Los prerrequisitos
-de merge protegido, CI/post-merge y rotacion atestada estan satisfechos, pero todos
-siguen no consumidos y no ejecutables. Una aprobacion humana posterior debe citar
-el payload exacto:
+El gate preflight fue aprobado/consumido una vez y termino PASS. Los gates DDL,
+Q0, lectura y teardown siguen no consumidos y no ejecutables. Cada aprobacion
+humana posterior debe citar su payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
 stop conditions y plan de teardown. Ningun gate concede el siguiente y la frase
@@ -183,8 +182,9 @@ decimal F10.10 no los consume.
 El [payload preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json) ya
 congela esos campos en forma sanitizada. Su digest canonico es
 `sha256:68fd845808dbe694984ffbdd087b44e19754b4c76c14da862d74dad232971613`.
-Su existencia no consume el gate; la ejecucion local passwordless requiere
-aprobacion literal ligada a ese digest.
+La [ejecucion local passwordless](./m3_reader_f10_10_preflight_evidence_2026_08_11.md)
+consumio exclusivamente el gate preflight y termino PASS. DDL, Q0, lectura y
+teardown permanecen no consumidos.
 
 ## Bloqueos Preservados
 
