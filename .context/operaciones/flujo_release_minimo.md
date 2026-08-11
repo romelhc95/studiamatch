@@ -37,7 +37,7 @@ se conserva solo como antecedente CA2 de Hito 2.
 14. F10.8 aplico Pro una sola vez mediante `DB Sync to Production` run `31263024890`, bajo registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO`, `candidate_sha` exacto igual a `origin/main`, dispatch manual, approval `Production`, Backup/RPO runtime aceptado y writers pausados; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS.
 15. F10.8 ejecuto Production Canary manual con schedules apagados sobre `main@859d2f7d83f83950d10858fe27bd035febba7f68`, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados; run `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`.
 16. F10.9 planificaba habilitar schedules y observar FG2/FG3, pero G4=`STOP_REQUIRES_REBASELINE` suspendio G5-G13.
-17. F10.10 mantiene la remediacion metadata en `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING`. PR #353 promovio el collector v2 solo `FREE_DB`; merge protegido y CI/post-merge PASS validaron package/compensacion, aislamiento Pro, rol inicialmente NOLOGIN, Q0 predecessor y teardown quarantine-first. Atestacion sanitizada de rotacion y gate exacto preceden cualquier preflight. Certification, Pro, M4 y F10.9/G4 siguen bloqueados.
+17. F10.10 mantiene la remediacion metadata en `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING`. PR #353 promovio el collector v2 solo `FREE_DB` y PR #354 reconcilio evidencia/boundary; CI post-merge PASS valido package/compensacion, aislamiento Pro, rol inicialmente NOLOGIN, Q0 predecessor y teardown quarantine-first. La rotacion SQL canary esta atestada; payload y gate exacto preceden cualquier preflight. Certification, Pro, M4 y F10.9/G4 siguen bloqueados.
 18. F11.1 cierra documentalmente el Hito 1 y la evidencia final solo tras los gates productivos aplicables.
 
 ## Stop Conditions
@@ -53,7 +53,7 @@ se conserva solo como antecedente CA2 de Hito 2.
 - Reutilizar el freeze F9.10 de 32 objetos como autoridad F10.7 sin nuevo digest, variables aprobadas y UAT nuevo.
 - Tener un deployment Cloudflare Pages de `main` no observado, no documentado o usado como sustituto de canary Production.
 - Ejecutar M3 reader fuera de `FREE_DB`, antes de merge/CI post-merge, sin predecessor Q0 canonical v2 PASS, con digests target/observed iguales, `BYPASSRLS=false`, provisioner drifted, activacion sin expiracion exacta o password fuera de `psql \password`.
-- Detectar como Pro-relevant `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` o `db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql`; reutilizar una credencial canary local pendiente de rotacion.
+- Detectar como Pro-relevant `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` o `db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql`; reutilizar la identidad canary anterior ya rotada/revocada.
 
 ## Schedules
 
@@ -81,7 +81,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`. |
 | `F10.9` | `STOP_REQUIRES_REBASELINE` | G3/P5 cerrado; G4 detiene P7, promociones, schedules y observacion hasta decision de autoridad superior. |
-| `F10.10` | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` | [Scope v2 Free-only](./m3_f10_10_scope_por_ambiente_target.md): PR #353 aprobado/fusionado y CI post-merge PASS; NOLOGIN inicial, Q0/collect encadenados, provisioner cerrado, aislamiento DB Sync Pro y teardown quarantine-first. Gates Free no consumidos; rotacion atestada pendiente. |
+| `F10.10` | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` | [Scope v2 Free-only](./m3_f10_10_scope_por_ambiente_target.md): PR #353 promovio el candidate, PR #354 reconcilio evidencia/boundary y CI post-merge termino PASS; NOLOGIN inicial, Q0/collect encadenados, provisioner cerrado, aislamiento DB Sync Pro y teardown quarantine-first. Rotacion SQL canary atestada; payload/gate preflight y gates posteriores no consumidos. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 
 ## Maquina De Promocion Hito 1

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
+| Estado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
@@ -295,11 +295,11 @@ evidencia no autoriza Free ni consume gates.
 
 ## Credencial Canary Local
 
-Una credencial usada previamente en un canary local queda
-`ROTATION_REQUIRED_OUT_OF_BAND` y no puede reutilizarse para provision, Q0,
-collect, teardown ni otro ambiente. Su valor no se registra ni se inspecciona en
-este rebaseline. La rotacion y revocacion deben realizarse fuera de banda por el
-propietario; solo una atestacion sanitizada futura puede cerrar el hallazgo.
+La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
+confirma `FREE_DB_DATABASE_PASSWORD_ROTATED` y `OLD_CREDENTIAL_REVOKED`. El valor
+no se registro ni inspecciono. `ROTATION_REQUIRED_OUT_OF_BAND` queda cerrado para
+esa identidad, que permanece prohibida para provision, Q0, collect, teardown u
+otro ambiente.
 
 ## Gates No Consumidos
 
@@ -311,9 +311,9 @@ APPROVE_M3_FREE_READONLY
 APPROVE_F10_10_M3_READER_TEARDOWN_FREE
 ```
 
-Son propuestos/no consumidos/no ejecutables. Merge protegido y CI post-merge ya
-quedaron PASS, pero falta atestacion sanitizada de rotacion/revocacion y aprobacion
-humana del payload exacto. Ningun gate concede el siguiente.
+Son propuestos/no consumidos/no ejecutables. Merge protegido, CI post-merge y
+rotacion atestada ya quedaron PASS, pero faltan payload exacto y aprobacion humana
+del preflight. Ningun gate concede el siguiente.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
 bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto, password ni
 consumo de gates.

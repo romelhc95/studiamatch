@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
+| Estado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -306,9 +306,10 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING`: PR #353 promovio collector v2,
-package `db/free_only_migrations/` fuera del glob Pro y compensacion fail-closed;
-Security Audit `31497100919` y F9.7 `31497100928` terminaron PASS post-merge.
+es `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING`: PR #353 promovio
+collector v2 y PR #354 reconcilio evidencia/boundary; CI post-merge termino PASS.
+El package `db/free_only_migrations/` permanece fuera del glob Pro y la
+compensacion sigue fail-closed.
 DB Sync excluye `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y el path exacto de compensacion de
 su deteccion automatica Pro-relevant. El rol Free `studiamatch_m3_reader` nace con
 `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL`, obtiene solo
@@ -342,11 +343,12 @@ rechazado y no existe `q0-attestation-v2`.
 
 Los gates propuestos de preflight Free, DDL Free, Q0 Free y teardown Free, junto
 con `APPROVE_M3_FREE_READONLY`, estan no consumidos. Merge protegido, CI
-post-merge y PostgreSQL 17 networkless ya terminaron PASS; falta atestacion
-sanitizada de rotacion/revocacion y aprobacion de payload exacto antes del primer
-gate. No hubo acceso remoto, Supabase, DDL remoto ni passwords. Certification,
+post-merge, PostgreSQL 17 networkless y rotacion atestada ya terminaron PASS;
+faltan payload exacto y aprobacion antes del primer gate. No hubo acceso remoto,
+Supabase, DDL remoto ni passwords. Certification,
 Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
 
-Una credencial usada previamente por un canary local requiere rotacion/revocacion
-fuera de banda y no puede reutilizarse. Su valor no se documenta. El hallazgo
-permanece abierto hasta atestacion sanitizada posterior.
+La contrasena SQL usada previamente por un canary local fue rotada/revocada fuera
+de banda segun [atestacion sanitizada](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
+y no puede reutilizarse. Su valor no se documento. El hallazgo queda cerrado solo
+para esa identidad.

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
+| Estado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `NO / NO` |
@@ -151,11 +151,10 @@ PR #353 y las validaciones post-merge completaron PostgreSQL 17 networkless,
 collector v2, boundary, credential scan y contratos del repositorio. Ese PASS
 habilita unicamente revisar payloads futuros; no concede Free, DDL ni passwords.
 
-Una credencial usada previamente en un canary local queda
-`ROTATION_REQUIRED_OUT_OF_BAND` y no puede reutilizarse en provision, Q0, collect,
-teardown ni otro ambiente. No se registra ni inspecciona su valor. El propietario
-debe rotarla/revocarla fuera de banda y una atestacion sanitizada futura debe
-confirmarlo.
+La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
+confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
+banda. No se registro ni inspecciono su valor. La identidad anterior permanece
+prohibida en provision, Q0, collect, teardown y cualquier otro ambiente.
 
 ## Gates Propuestos No Consumidos
 
@@ -169,11 +168,10 @@ Orden propuesto para una operacion Free futura:
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
-Estos gates son nombres propuestos, no aprobaciones vigentes. El prerrequisito de
-merge protegido y CI/post-merge ya esta satisfecho por PR #353, pero todos siguen
-no consumidos y no ejecutables. Antes del primer payload debe cerrarse mediante
-atestacion sanitizada la rotacion/revocacion pendiente; una aprobacion humana
-posterior debe citar el payload exacto:
+Estos gates son nombres propuestos, no aprobaciones vigentes. Los prerrequisitos
+de merge protegido, CI/post-merge y rotacion atestada estan satisfechos, pero todos
+siguen no consumidos y no ejecutables. Una aprobacion humana posterior debe citar
+el payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
 stop conditions y plan de teardown. Ningun gate concede el siguiente y la frase
