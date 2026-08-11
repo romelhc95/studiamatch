@@ -75,6 +75,12 @@ Este PASS no concede conexion Free, DDL/DML, password, Q0, lectura ni teardown.
 El siguiente paso permitido es preparar un payload DDL Free separado para revision
 humana; ejecutarlo requiere su gate literal independiente.
 
+El CI post-merge de PR #358 detecto una carrera independiente del harness local:
+`pg_isready` aceptaba el servidor temporal del entrypoint PostgreSQL antes de que
+este lo apagara para iniciar el servidor final. El PASS preflight permanece
+inalterado, pero DDL queda bloqueado hasta promover una espera explicita de fin de
+init y readiness final estable.
+
 Enlaces: [estado](../estado_del_proyecto.md) |
 [rebaseline](./m3_reader_f10_10_rebaseline.md) |
 [scope](./m3_f10_10_scope_por_ambiente_target.md)

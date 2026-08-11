@@ -57,6 +57,9 @@ def test_compensation_quarantines_before_revoking_or_dropping() -> None:
 def test_ci_runs_package_on_networkless_postgresql_17() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     runner = RUNNER.read_text(encoding="utf-8")
+    startup = workflow.split("- name: Start M3 reader networkless PostgreSQL 17", 1)[1].split(
+        "- name: Run M3 reader PostgreSQL 17 contract", 1
+    )[0]
     cleanup = workflow.split("- name: Remove M3 reader local database", 1)[1].split(
         "- name: Restore M3 external egress", 1
     )[0]
@@ -64,6 +67,22 @@ def test_ci_runs_package_on_networkless_postgresql_17() -> None:
     assert "--network none" in workflow
     assert workflow.index("docker pull") < workflow.index("Block M3 external egress")
     assert "docker run --detach --pull never" in workflow
+    assert "PostgreSQL init process complete; ready for start up." in workflow
+    assert 'test -S "$F1010_M3_READER_SOCKET/.s.PGSQL.5432"' in workflow
+    assert "timeout-minutes: 10" in workflow
+    assert "{{.State.Running}}" in workflow
+    assert "final_ready=0" in startup
+    assert "for _ in $(seq 1 60)" in startup
+    assert 'if [ "$final_ready" -ne 1 ]' in startup
+    assert "stable_probes=0" in startup
+    assert "for _ in $(seq 1 15)" in startup
+    assert "stable_probes=$((stable_probes + 1))" in startup
+    assert "stable_probes=0" in startup
+    assert 'if [ "$stable_probes" -ne 3 ]' in startup
+    assert startup.count("docker logs studiamatch-m3-reader-postgres") == 4
+    assert "pg_isready" not in startup.split("init_complete=0", 1)[1].split(
+        'if [ "$init_complete" -ne 1 ]', 1
+    )[0]
     assert 'state_dir="${F1010_M3_READER_STATE:-}"' in cleanup
     assert 'sudo rm -rf -- "$state_dir"' in cleanup
     assert "postgres:17-alpine@sha256:742f40" in workflow
