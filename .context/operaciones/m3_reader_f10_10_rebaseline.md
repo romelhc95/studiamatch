@@ -150,6 +150,9 @@ o cualquier red habilitada invalida la prueba.
 PR #353 y las validaciones post-merge completaron PostgreSQL 17 networkless,
 collector v2, boundary, credential scan y contratos del repositorio. Ese PASS
 habilita unicamente revisar payloads futuros; no concede Free, DDL ni passwords.
+La preparacion offline de `target-binding-digest` debe omitir
+`F10_10_M3_PASSWORD`; solo `q0-only` y `collect`, bajo sus gates posteriores,
+pueden requerirla y cualquier ausencia detiene antes de driver o conexion.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de

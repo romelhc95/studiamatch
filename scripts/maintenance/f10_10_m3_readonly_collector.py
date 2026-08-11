@@ -259,7 +259,7 @@ class Config:
     sql_port: int
     database: str
     user: str
-    password: str
+    password: str | None
     ca_file: Path
     ca_sha256: str
     valid_until_epoch: int
@@ -499,7 +499,10 @@ def _parse_role_name(value: str) -> str:
     return value
 
 
-def load_config(env: dict[str, str], target_alias: str, approval_id: str) -> Config:
+def load_config(
+    env: dict[str, str], target_alias: str, approval_id: str, *,
+    require_password: bool = True,
+) -> Config:
     if (
         target_alias != "FREE_DB"
         or not re.fullmatch(r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9][A-Za-z0-9._:-]{15,127}", approval_id)
@@ -542,7 +545,10 @@ def load_config(env: dict[str, str], target_alias: str, approval_id: str) -> Con
         sql_port=port,
         database=_env_required(env, "F10_10_M3_DATABASE"),
         user=_env_required(env, "F10_10_M3_USER"),
-        password=_env_required(env, "F10_10_M3_PASSWORD"),
+        password=(
+            _env_required(env, "F10_10_M3_PASSWORD")
+            if require_password else None
+        ),
         ca_file=ca_file,
         ca_sha256=ca_sha,
         valid_until_epoch=valid_until_epoch,
@@ -643,6 +649,8 @@ def verify_pinned_ca(pinned_ca: PinnedCA) -> None:
 
 def default_connection_factory(config: Config, pinned_ca: PinnedCA) -> Any:
     """Create the sole production connection; psycopg2 remains a lazy import."""
+    if config.password is None:
+        raise CollectorError("STOP_CONFIG_INVALID")
     try:
         import psycopg2  # type: ignore
     except ImportError as exc:
@@ -1694,7 +1702,12 @@ def run_cli(
         if args.target_alias is None or args.approval_id is None:
             raise CollectorError("STOP_CLI_INVALID")
         alias, approval = args.target_alias, args.approval_id
-        config = load_config(dict(os.environ) if env is None else env, alias, approval)
+        config = load_config(
+            dict(os.environ) if env is None else env,
+            alias,
+            approval,
+            require_password=args.mode != "target-binding-digest",
+        )
         if args.mode == "target-binding-digest":
             with open_pinned_ca(config) as pinned_ca:
                 _, configured_binding = target_binding(config, pinned_ca.digest)

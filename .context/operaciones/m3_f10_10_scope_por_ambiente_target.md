@@ -156,6 +156,9 @@ No incluye valores exactos esperados de protocolo TLS negociado, cipher, library
 TLS ni `server_version_num`. Esas variables de entorno quedan eliminadas. Las
 entradas privadas requeridas incluyen `F10_10_M3_PROVISIONER` y
 `F10_10_M3_VALID_UNTIL`, ademas del binding Free, reader y CA aprobados.
+El modo offline `target-binding-digest` no consume ni requiere
+`F10_10_M3_PASSWORD`; `q0-only` y `collect` la exigen y detienen la ejecucion antes
+de importar el driver o abrir una conexion si falta.
 
 El CA se valida por digest, se copia a un `memfd` sellado y el mismo descriptor
 aprobado se entrega a libpq con `sslmode=verify-full`. No se usa probe separado,

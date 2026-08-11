@@ -45,6 +45,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_ROTATION_BASE,
     F1010_M3_ROTATION_BASE_TREE,
     F1010_M3_ROTATION_HEAD_REF,
+    F1010_M3_PASSWORDLESS_ALLOWED_MODES,
+    F1010_M3_PASSWORDLESS_ALLOWED_STATUSES,
+    F1010_M3_PASSWORDLESS_BASE,
+    F1010_M3_PASSWORDLESS_BASE_TREE,
+    F1010_M3_PASSWORDLESS_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -88,6 +93,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_reader,
     validate_f1010_m3_reader_post_merge,
     validate_f1010_m3_rotation,
+    validate_f1010_m3_passwordless,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -453,6 +459,15 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_ROTATION_BASE,
             ),
             "f1010_m3_rotation",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_PASSWORDLESS_HEAD_REF,
+                F1010_M3_PASSWORDLESS_BASE,
+            ),
+            "f1010_m3_passwordless",
         )
         self.assertEqual(
             detect_mode(
@@ -1472,6 +1487,151 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(main(), 1)
         validate_rotation_mock.assert_not_called()
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_passwordless_requires_one_direct_commit(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "1" * 40
+        tree_mock.return_value = F1010_M3_PASSWORDLESS_BASE_TREE
+        parents_mock.return_value = [F1010_M3_PASSWORDLESS_BASE]
+
+        validate_f1010_m3_passwordless(
+            Path("."), F1010_M3_PASSWORDLESS_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_PASSWORDLESS_BASE,
+            head,
+            F1010_M3_PASSWORDLESS_ALLOWED_STATUSES,
+            F1010_M3_PASSWORDLESS_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 54, 369)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_passwordless_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        merge = "2" * 40
+        candidate = "1" * 40
+
+        def parents(repo, commit):
+            if commit == merge:
+                return [F1010_M3_PASSWORDLESS_BASE, candidate]
+            return [F1010_M3_PASSWORDLESS_BASE]
+
+        def tree(repo, commit):
+            if commit == F1010_M3_PASSWORDLESS_BASE:
+                return F1010_M3_PASSWORDLESS_BASE_TREE
+            return "3" * 40
+
+        parents_mock.side_effect = parents
+        tree_mock.side_effect = tree
+
+        validate_f1010_m3_passwordless(
+            Path("."), F1010_M3_PASSWORDLESS_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_PASSWORDLESS_BASE,
+            candidate,
+            F1010_M3_PASSWORDLESS_ALLOWED_STATUSES,
+            F1010_M3_PASSWORDLESS_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 54, 369)
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_passwordless_rejects_invalid_push_topology(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        merge = "2" * 40
+        candidate = "1" * 40
+        tree_mock.return_value = F1010_M3_PASSWORDLESS_BASE_TREE
+        for parents in (
+            [F1010_M3_PASSWORDLESS_BASE],
+            ["0" * 40, candidate],
+            [F1010_M3_PASSWORDLESS_BASE, candidate, "3" * 40],
+        ):
+            with self.subTest(parents=parents):
+                parents_mock.return_value = parents
+                with self.assertRaises(BoundaryError):
+                    validate_f1010_m3_passwordless(
+                        Path("."), F1010_M3_PASSWORDLESS_BASE, merge, "push"
+                    )
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_passwordless_rejects_push_tree_mismatch(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        merge = "2" * 40
+        candidate = "1" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_PASSWORDLESS_BASE, candidate],
+            [F1010_M3_PASSWORDLESS_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_PASSWORDLESS_BASE_TREE,
+            "3" * 40,
+            "4" * 40,
+        ]
+
+        with self.assertRaises(BoundaryError):
+            validate_f1010_m3_passwordless(
+                Path("."), F1010_M3_PASSWORDLESS_BASE, merge, "push"
+            )
+
+    @mock.patch("scripts.security.f109_boundary.validate_f1010_m3_passwordless")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_passwordless_branch_with_baseline_drift(
+        self,
+        parse_args_mock,
+        validate_passwordless_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            head_ref=F1010_M3_PASSWORDLESS_HEAD_REF,
+            base_sha="0" * 40,
+        )
+
+        self.assertEqual(main(), 1)
+        validate_passwordless_mock.assert_not_called()
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -1767,6 +1927,23 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertTrue(
             all(mode == "100644" for mode in F1010_M3_ROTATION_ALLOWED_MODES.values())
+        )
+        self.assertEqual(
+            F1010_M3_PASSWORDLESS_ALLOWED_STATUSES,
+            {
+                ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+                ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+                "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_f10_10_m3_readonly_collector.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertTrue(
+            all(
+                mode == "100644"
+                for mode in F1010_M3_PASSWORDLESS_ALLOWED_MODES.values()
+            )
         )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):
             self.assertFalse(set(F1010_M1_ALLOWED_STATUSES).intersection(existing))
