@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10` en rebaseline metadata. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. [M0 F10.10 post-merge](../../operaciones/m0_f10_10_post_merge_evidence_2026_08_10.md) registra PR #343 fusionado en `desarrollo@f59c35272ccec930434b3ceeb1aee8eac732d4b9`, con Security Audit `31419218575=PASS` y F9.7 `31419218779=PASS`. M0 queda PASS; M1 esta autorizado solo para tooling, fixtures y pruebas offline. M2-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
+| Fase vigente | Macrofase `F9` completada y `F10` en rebaseline metadata. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. [M2 F10.10 post-merge](../../operaciones/m2_f10_10_post_merge_evidence_2026_08_10.md) registra PR #345/#346, `desarrollo@a7a032c5f35b2cb4e4e8a152a03947b3d7d60a7c` / tree `306d606ac42a791e8efc98af81730db2e58cb146` y checks post-merge PASS. M1 queda integrado offline y M2=`PASS`; M3-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -124,9 +124,9 @@ F10.10 es la subfase activa para registrar el rebaseline mutante separado. M0 es
 documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
-2. `M1`: `AUTHORIZED_LOCAL_ONLY`; tooling y pruebas offline, sin red/DB/provider.
-3. `M2`: promocion de codigo sin ejecucion remota.
-4. `M3`: contencion y diagnostico read-only por ambiente.
+2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
+3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
+4. `M3`: `BLOCKED_SEPARATE_AUTH_REQUIRED`; contencion y diagnostico read-only por ambiente/target.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
@@ -150,7 +150,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`, con DB Sync report-only `31243797695=SUCCESS_REPORT_ONLY`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; Production Canary completo `31272290614=PASS` con artifact sanitizado `9026139906` | F10.10 M0-M10, handoff superior a F10.9/G4, gates F10.9 rebaselinados, observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291 con boundary 32 objetos y Cloudflare Pages `SUCCESS`; F10.8 remediacion Production Canary promovida por PR #297 a `main`, Certification Canary final PASS y DB Sync fail-closed pre-Supabase sin DDL/DML ni mutaciones; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`, con DB Sync report-only `31243797695=SUCCESS_REPORT_ONLY`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; Production Canary completo `31272290614=PASS` con artifact sanitizado `9026139906`; F10.10 M1/M2 integrados por PR #345/#346 | F10.10 M3-M10, handoff superior a F10.9/G4, gates F10.9 rebaselinados, observacion de schedules y F11.1 conformidad/cierre |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
