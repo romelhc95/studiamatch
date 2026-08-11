@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `NO / NO` |
@@ -25,9 +25,11 @@ el candidate v2, no registra ejecucion remota y no consume aprobaciones.
 La preparacion local se rebaselina sobre un collector v2 exclusivamente
 `FREE_DB` y un paquete Free-only
 para una identidad efimera dedicada llamada exactamente
-`studiamatch_m3_reader`. El candidate completo debe recorrer PR protegido y CI
-post-merge antes de que pueda proponerse un payload operativo. Las pruebas
-locales son evidencia de candidate, no validacion final ni autorizacion remota.
+`studiamatch_m3_reader`. PR #353 promovio el candidate completo mediante merge
+protegido `2cf614a4a44ffabc5e06ba08dc20707807db274f` / tree
+`7b9e9cfd9d74749416cfab098da116ecbe239c04`; CI post-merge termino PASS. La
+[evidencia post-merge](./m3_reader_f10_10_post_merge_evidence_2026_08_11.md)
+acredita el candidate, pero no autoriza una operacion remota ni consume gates.
 
 La autorizacion decimal recibida permite esta preparacion local. No permite
 Supabase, red remota, DDL remoto, manejo de passwords, activacion privada ni el
@@ -145,10 +147,9 @@ CI descarga la imagen PostgreSQL 17 pinneada antes de activar el firewall de
 egress; despues inicia la prueba con `--pull never --network none`. Un pull tardio
 o cualquier red habilitada invalida la prueba.
 
-Los resultados locales del worktree no son finales. El estado no puede avanzar
-hasta que el candidate se fusione mediante PR protegido y pasen CI y validaciones
-post-merge, incluidos PostgreSQL 17 networkless, collector v2, boundary,
-credential scan y Context Graph.
+PR #353 y las validaciones post-merge completaron PostgreSQL 17 networkless,
+collector v2, boundary, credential scan y contratos del repositorio. Ese PASS
+habilita unicamente revisar payloads futuros; no concede Free, DDL ni passwords.
 
 Una credencial usada previamente en un canary local queda
 `ROTATION_REQUIRED_OUT_OF_BAND` y no puede reutilizarse en provision, Q0, collect,
@@ -168,9 +169,11 @@ Orden propuesto para una operacion Free futura:
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
-Estos gates son nombres propuestos, no aprobaciones vigentes. Son no consumidos y
-no ejecutables hasta que el candidate completo quede fusionado por PR protegido,
-CI/post-merge sea PASS y una aprobacion humana posterior cite el payload exacto:
+Estos gates son nombres propuestos, no aprobaciones vigentes. El prerrequisito de
+merge protegido y CI/post-merge ya esta satisfecho por PR #353, pero todos siguen
+no consumidos y no ejecutables. Antes del primer payload debe cerrarse mediante
+atestacion sanitizada la rotacion/revocacion pendiente; una aprobacion humana
+posterior debe citar el payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
 stop conditions y plan de teardown. Ningun gate concede el siguiente y la frase
@@ -181,8 +184,8 @@ decimal F10.10 no los consume.
 Certification y Pro no reciben este rol ni este DDL Free-only. Certification
 replay y toda ruta de collector/lectura/DDL Pro quedan superseded y bloqueadas en
 este rebaseline. M4-M10, F10.9/G4, G5-G13, schedules,
-observacion y F11.1 permanecen bloqueados. M3 reader PASS futuro tampoco los
-habilitaria automaticamente; requieren sus autoridades y gates posteriores.
+observacion y F11.1 permanecen bloqueados. Un PASS operativo Free futuro tampoco
+los habilitaria automaticamente; requieren sus autoridades y gates posteriores.
 
 Enlaces: [Estado](../estado_del_proyecto.md) |
 [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) |
