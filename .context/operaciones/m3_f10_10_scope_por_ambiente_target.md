@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_SCOPE_APPROVED_TARGET_AUTHORIZATIONS_PENDING` |
-| Base | `desarrollo@c3108b499f0c8b02332404d45843c572707796ef` |
-| Base tree | `42020a765ef21114754454cf8f928f3a0a12bf7b` |
+| Estado | `M3_COLLECTOR_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Base | `desarrollo@ea6ef79a450d691a93195b26bec2ecde1b4dc18d` |
+| Base tree | `fe5b8223e56f360bef930bd565cfa6318e37692c` |
 | Ejecuta acceso remoto | `NO` |
 | Autoriza M4 | `NO` |
 
@@ -111,16 +111,16 @@ No se crea rol, grant, policy ni funcion para M3. Si la identidad no existe o no
 cumple Q0, terminar `STOP_NEEDS_READONLY_CHANNEL`.
 
 Antes de aprobar, la configuracion privada aporta el binding SQL esperado: host,
-puerto, database, CA bundle, certificado peer y `server_version_num` exacto
-esperados.
+puerto, database, CA bundle, atributos TLS soportados y `server_version_num`
+exacto esperados.
 El host SQL usa
 `f10.10-m3-sql-host-v1`: IDNA A-label ASCII lowercase, sin punto terminal,
 userinfo, query ni fragment; el puerto es entero explicito. La conexion exige
 TLS con validacion CA y hostname equivalente a `sslmode=verify-full`.
 
 La misma conexion PostgreSQL, no un probe separado, observa host, puerto,
-fingerprint SHA-256 del certificado TLS peer, `current_database` y
-`server_version_num`. El artifact
+`current_database`, `server_version_num`, `ssl_in_use`, protocolo, cipher y
+library TLS mediante la API publica libpq. El artifact
 conserva binding esperado y observado; cualquier mismatch entre API alias,
 configuracion local y conexion real termina `STOP_TARGET_MISMATCH`. La aprobacion
 cita el digest esperado; el manifest PASS publica tambien el digest observado.
@@ -156,7 +156,10 @@ al binding API:
 ```text
 normalized_sql_dsn_host
 sql_port
-tls_peer_certificate_sha256
+ca_certificate_sha256
+tls_protocol
+tls_cipher
+tls_library
 current_database
 ```
 
@@ -167,9 +170,61 @@ No usar service/secret key, password postgres owner ni superuser. Toda transacci
 del colector comienza explicitamente `REPEATABLE READ READ ONLY`, ejecuta Q0 como
 primera sentencia y comprueba `transaction_read_only=on`; no se confia solo en el
 default del rol. La conexion fija `search_path=pg_catalog` antes de abrir la
-transaccion y Q0 lo atesta, estabilizando toda renderizacion catalogo dependiente
-de search path. Privilegio DML directo o transporte sin esos enforcements termina
-`STOP_NEEDS_READONLY_CHANNEL`.
+transaccion y Q0 atesta `search_path=pg_catalog` y `client_encoding=UTF8`,
+estabilizando toda renderizacion catalogo. Privilegio DML directo o transporte
+sin esos enforcements termina `STOP_NEEDS_READONLY_CHANNEL`.
+
+### Adenda De Implementacion Aprobada
+
+La API publica de alto nivel elegida (`ConnectionInfo`/`PQsslAttribute`) no expone
+el certificado leaf DER de la misma conexion. M3 no usa internals nativos,
+`PQsslStruct` ni un probe separado: el binding exige
+`sslmode=verify-full`, pin SHA-256 del CA file aprobado, hostname verification y
+atributos TLS soportados. Cualquier atributo ausente o distinto termina
+`STOP_TLS_CONTRACT` o `STOP_TARGET_MISMATCH`.
+
+El CA aprobado se copia a un `memfd` collector-owned sellado contra write/grow/
+shrink antes de entregarlo a libpq. Q1-Q3b usan named server-side cursors con
+fetch acotado; Q0, BEGIN/COMMIT y cada pagina Q4 conservan cursor regular.
+
+El collector usa `psycopg2-binary==2.9.12` ya fijado con hashes en
+`requirements-pipeline.txt`; el import es lazy y la invocacion runtime instala
+ese lock dentro de `studiamatch-dev`. No se agrega un segundo driver.
+
+Solo se acepta conexion directa `db.<project_ref>.supabase.co:5432`; session y
+transaction poolers terminan `STOP_TARGET_MISMATCH`. Asi el host liga fisicamente
+el project ref y Q0 compara el rol efectivo exacto, sin confundir login pooler con
+`current_user`.
+
+Query-set `f10.10-m3-query-set-v1` incluye exactamente, ordenados por path:
+
+```text
+scripts/maintenance/f10_10_m3_readonly_collector.py
+tests/test_f10_10_m3_readonly_collector.py
+```
+
+El digest se calcula runtime sobre texto UTF-8 normalizado; no se incrusta en los
+archivos que hashea. Limites fail-closed: pagina `500`, poblacion `10000`, string
+`32768` chars, presupuesto remoto acumulado `16 MiB`, cada resultado catalogo
+`50000` filas, artifact `64 MiB`, connect timeout `10s` y
+statement/lock/idle-in-transaction timeout `60s`. Artifacts solo bajo
+`local/f10_10/m3/`, ruta ya gitignored; symlink, traversal u overwrite terminan
+STOP.
+
+Invocacion reproducible, siempre dentro del contenedor:
+
+```text
+docker exec studiamatch-dev python3 -m venv /tmp/f10_10_m3_venv
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/pip install --require-hashes -r /app/requirements-pipeline.txt
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode query-set-digest
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode target-binding-digest --target-alias <ALIAS> --approval-id <APPROVAL_ID>
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode collect --target-alias <ALIAS> --approval-id <APPROVAL_ID> --expected-query-set-digest <DIGEST> --expected-target-binding-digest <DIGEST> --private-artifact local/f10_10/m3/<PRIVATE>.json --sanitized-manifest local/f10_10/m3/<MANIFEST>.json
+```
+
+La instalacion o ejecucion no ocurre hasta consumir el gate remoto exacto. El
+manifest sanitizado se publica ultimo como commit marker; un private artifact sin
+manifest se considera adquisicion incompleta y nunca PASS. El canal publico usa
+`approval_fingerprint`, no el approval ID crudo.
 
 Referencias Supabase consultadas al definir este contrato:
 
@@ -192,6 +247,7 @@ select
   current_setting('transaction_read_only') as transaction_read_only,
   current_setting('default_transaction_read_only') as default_transaction_read_only,
   current_setting('search_path') as effective_search_path,
+  current_setting('client_encoding') as client_encoding,
   r.rolsuper,
   r.rolbypassrls,
   r.rolcreaterole,
@@ -232,6 +288,7 @@ session_user = current_user
 transaction_read_only = on
 default_transaction_read_only = on
 effective_search_path = pg_catalog
+client_encoding = UTF8
 rolsuper = false
 rolcreaterole = false
 rolcreatedb = false
@@ -269,23 +326,33 @@ where a.attrelid = 'public.courses'::regclass
 order by a.attnum;
 ```
 
-Exigir exactamente cuatro filas, `id` NOT NULL, `is_active=boolean` y metadata
-nullable/text-compatible. Drift termina `STOP_SCHEMA_DRIFT`.
+Exigir exactamente cuatro filas: `id=uuid NOT NULL`, `is_active=boolean NOT
+NULL`, `syllabus=text NULL` y `objectives=text NULL`. Un `is_active=NULL` o
+cualquier drift termina `STOP_SCHEMA_DRIFT`.
 
 ### Q2 - Constraints Relevantes
 
 ```sql
-select c.conname, c.contype, pg_catalog.pg_get_constraintdef(c.oid, true)
+select
+  c.conname,
+  c.contype,
+  pg_catalog.pg_get_constraintdef(c.oid, true) as constraint_definition,
+  case when c.contype = 'p' then k.ordinality::integer else null end as key_ordinality,
+  case when c.contype = 'p' then a.attname else null end as key_column_name
 from pg_catalog.pg_constraint as c
+left join lateral unnest(c.conkey) with ordinality as k(attnum, ordinality) on true
+left join pg_catalog.pg_attribute as a
+  on a.attrelid = c.conrelid and a.attnum = k.attnum
 where c.conrelid = 'public.courses'::regclass
   and (
     c.contype = 'p'
     or pg_catalog.pg_get_constraintdef(c.oid, true) ~* '(syllabus|objectives)'
   )
-order by c.conname;
+order by c.conname, k.ordinality nulls first;
 ```
 
-Q2 debe demostrar que la PK es exactamente una columna `id`; cualquier PK
+Q2 demuestra estructuralmente que existe exactamente una PK de una columna `id`;
+cualquier PK
 compuesta, ausencia de PK o unicidad/nullability ambigua termina
 `STOP_UNSTABLE_KEYSET`.
 
@@ -422,15 +489,15 @@ Paginas siguientes:
 ```sql
 select id, is_active, syllabus, objectives
 from public.courses
-where id > :last_private_id
+where id > %s
 order by id asc
 limit 500;
 ```
 
 Continuar hasta una pagina menor a 500 filas y luego `commit`. Abrir una segunda
 transaccion repeatable-read/read-only y repetir Q4 desde cero. Prohibido
-`OFFSET`, `select=*`, joins, views o filtros de cohorte. `:last_private_id`
-permanece privado.
+`OFFSET`, `select=*`, joins, views o filtros de cohorte. El unico parametro `%s`
+recibe `last_private_id` como UUID privado mediante binding DB-API.
 
 La pagina terminal menor a 500 cuenta en `page_count`, incluida una pagina vacia
 solo cuando la poblacion es multiplo exacto de 500. Antes de conservar la fila
@@ -472,6 +539,7 @@ canonical_json = UTF-8, ensure_ascii=true, sort_keys=true, separators=(",", ":")
 null = ["null"]
 string = ["string", value]
 boolean = ["boolean", true|false]
+integer = ["integer", decimal_ascii]
 digest(domain, value) = SHA256(
   "f10.10-m3:" || domain || "\n" || uint64_be(len(canonical_json)) || canonical_json
 )
@@ -491,7 +559,7 @@ schema-v1 = filas Q1 como arrays en el orden exacto del SELECT
 constraints-v1 = filas Q2 como arrays en el orden exacto del SELECT
 triggers-v1 = {"triggers":filas_Q3,"routines":filas_Q3b,"extensions":filas_extensiones,"aggregates":filas_agregados,"extension_members":filas_membresias}
 query-set-v1 = {"collector_version":string,"files":[[relative_path,sha256_hex,normalized_utf8_text],...]}
-target-binding-v1 = {"alias":string,"api":[host_normalization_version,project_ref_fingerprint,host_fingerprint],"sql":[sql_host_normalization_version,sql_host_fingerprint,port,database_fingerprint,tls_mode,ca_sha256,peer_certificate_sha256,server_version_num]}
+target-binding-v1 = {"alias":string,"api":[host_normalization_version,project_ref_fingerprint,host_fingerprint],"sql":[sql_host_normalization_version,sql_host_fingerprint,port,database_fingerprint,tls_mode,ca_sha256,[ssl_in_use,tls_protocol,tls_cipher,tls_library],server_version_num]}
 ```
 
 Cada fila catalogo usa string etiquetado, boolean etiquetado o `["null"]` en el
