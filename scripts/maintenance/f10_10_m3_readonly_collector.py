@@ -10,6 +10,7 @@ contains database values or exception text.
 from __future__ import annotations
 
 import argparse
+import calendar
 import hashlib
 import json
 import os
@@ -20,24 +21,31 @@ import unicodedata
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 from urllib.parse import urlsplit
 
 
-COLLECTOR_VERSION = "f10.10-m3-readonly-collector-v1"
-CANONICAL_VERSION = "f10.10-m3-canonical-v1"
+COLLECTOR_VERSION = "f10.10-m3-readonly-collector-v2"
+CANONICAL_VERSION = "f10.10-m3-canonical-v2"
 NORMALIZATION_VERSION = "f10.9-metadata-v2"
 HOST_NORMALIZATION_VERSION = "f10.10-m3-host-v1"
 SQL_HOST_NORMALIZATION_VERSION = "f10.10-m3-sql-host-v1"
+TARGET_BINDING_VERSION = "f10.10-m3-target-binding-v2"
+OBSERVED_TRANSPORT_VERSION = "f10.10-m3-observed-transport-v2"
 PAGE_SIZE = 500
 CATALOG_FETCH_SIZE = 16
 MAX_ROWS = 10_000
 MAX_STRING_CHARS = 32_768
 MAX_CATALOG_ROWS = 50_000
 MAX_ARTIFACT_BYTES = 64 * 1024 * 1024
+MAX_PREDECESSOR_BYTES = 1024 * 1024
 MAX_REMOTE_UTF8_BYTES = 16 * 1024 * 1024
 MAX_CA_BYTES = 8 * 1024 * 1024
+MAX_TRANSPORT_ATTRIBUTE_CHARS = 256
+MIN_VALID_UNTIL_EPOCH = 0
+MAX_VALID_UNTIL_EPOCH = 253_402_300_799
 CONNECT_TIMEOUT_SECONDS = 10
 TIMEOUT_MILLISECONDS = 60_000
 PSYCOPG2_VERSION = "2.9.12"
@@ -62,10 +70,37 @@ Q0_SQL = """select
   r.rolbypassrls,
   r.rolcreaterole,
   r.rolcreatedb,
-  exists (select 1 from pg_catalog.pg_auth_members as m where m.member = r.oid) as has_role_memberships,
+  r.rolcanlogin,
+  r.rolinherit,
+  r.rolreplication,
+  r.rolconnlimit,
+  extract(epoch from r.rolvaliduntil)::bigint as rolvaliduntil_epoch,
+  r.rolvaliduntil > pg_catalog.statement_timestamp() as rolvaliduntil_is_future,
+  exists (select 1 from pg_catalog.pg_auth_members as m where m.member = r.oid) as is_member_of_roles,
+  (select count(*) from pg_catalog.pg_auth_members as m where m.roleid = r.oid) as role_member_count,
+  (select member_role.rolname::text
+   from pg_catalog.pg_auth_members as m
+   join pg_catalog.pg_roles as member_role on member_role.oid = m.member
+   where m.roleid = r.oid order by member_role.rolname::text limit 1) as member_role_name,
+  (select m.admin_option from pg_catalog.pg_auth_members as m
+   where m.roleid = r.oid order by m.member limit 1) as member_admin_option,
+  (select m.inherit_option from pg_catalog.pg_auth_members as m
+   where m.roleid = r.oid order by m.member limit 1) as member_inherit_option,
+  (select m.set_option from pg_catalog.pg_auth_members as m
+   where m.roleid = r.oid order by m.member limit 1) as member_set_option,
   c.relrowsecurity,
   c.relforcerowsecurity,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'SELECT') as can_select,
+  pg_catalog.has_table_privilege(current_user, 'public.courses', 'SELECT') as has_table_select,
+  pg_catalog.has_column_privilege(current_user, 'public.courses', 'id', 'SELECT') as can_select_id,
+  pg_catalog.has_column_privilege(current_user, 'public.courses', 'is_active', 'SELECT') as can_select_is_active,
+  pg_catalog.has_column_privilege(current_user, 'public.courses', 'syllabus', 'SELECT') as can_select_syllabus,
+  pg_catalog.has_column_privilege(current_user, 'public.courses', 'objectives', 'SELECT') as can_select_objectives,
+  exists (
+    select 1 from pg_catalog.pg_attribute as a
+    where a.attrelid = 'public.courses'::regclass and a.attnum > 0 and not a.attisdropped
+      and a.attname not in ('id', 'is_active', 'syllabus', 'objectives')
+      and pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'SELECT')
+  ) as has_other_select,
   pg_catalog.has_table_privilege(current_user, 'public.courses', 'INSERT') as can_insert,
   pg_catalog.has_table_privilege(current_user, 'public.courses', 'UPDATE') as can_update,
   pg_catalog.has_table_privilege(current_user, 'public.courses', 'DELETE') as can_delete,
@@ -78,7 +113,16 @@ Q0_SQL = """select
       and (pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'INSERT')
         or pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'UPDATE')
         or pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'REFERENCES'))
-  ) as has_mutating_column_privilege
+  ) as has_mutating_column_privilege,
+  exists (
+    select 1
+    from pg_catalog.pg_proc as p
+    join pg_catalog.pg_namespace as n on n.oid = p.pronamespace
+    where p.prosecdef
+      and n.nspname not in ('pg_catalog', 'information_schema')
+      and n.nspname !~ '^pg_toast'
+      and pg_catalog.has_function_privilege(current_user, p.oid, 'EXECUTE')
+  ) as can_execute_non_system_security_definer
 from pg_catalog.pg_roles as r
 join pg_catalog.pg_class as c on c.oid = 'public.courses'::regclass
 where r.rolname = current_user"""
@@ -218,10 +262,8 @@ class Config:
     password: str
     ca_file: Path
     ca_sha256: str
-    server_version_num: int
-    tls_protocol: str
-    tls_cipher: str
-    tls_library: str
+    valid_until_epoch: int
+    provisioner: str
 
 
 @dataclass(frozen=True)
@@ -301,13 +343,16 @@ def canonical_json(value: Any) -> bytes:
 
 
 def envelope_digest(domain: str, payload: Any) -> str:
-    if domain not in {
+    version = 1
+    if domain in {"target-binding-v2", "observed-transport-v2"}:
+        version = 2
+    elif domain not in {
         "total-ids-v1", "active-ids-v1", "snapshot-raw-v1",
         "snapshot-normalized-v1", "cohort-v1", "schema-v1",
-        "constraints-v1", "triggers-v1", "query-set-v1", "target-binding-v1",
+        "constraints-v1", "triggers-v1", "query-set-v1",
     }:
         raise CollectorError("STOP_INTERNAL_CONTRACT")
-    encoded = canonical_json({"domain": domain, "version": 1, "payload": payload})
+    encoded = canonical_json({"domain": domain, "version": version, "payload": payload})
     digest = hashlib.sha256()
     digest.update(f"f10.10-m3:{domain}\n".encode("ascii"))
     digest.update(len(encoded).to_bytes(8, "big"))
@@ -429,18 +474,42 @@ def _env_required(env: dict[str, str], name: str) -> str:
     return value
 
 
+def _parse_valid_until_epoch(value: str) -> int:
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", value):
+        raise CollectorError("STOP_CONFIG_INVALID")
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+        epoch = calendar.timegm(parsed.utctimetuple())
+    except (OverflowError, ValueError) as exc:
+        raise CollectorError("STOP_CONFIG_INVALID") from exc
+    if (
+        parsed.strftime("%Y-%m-%dT%H:%M:%SZ") != value
+        or epoch < MIN_VALID_UNTIL_EPOCH
+        or epoch > MAX_VALID_UNTIL_EPOCH
+    ):
+        raise CollectorError("STOP_CONFIG_INVALID")
+    return epoch
+
+
+def _parse_role_name(value: str) -> str:
+    if not re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", value):
+        raise CollectorError("STOP_CONFIG_INVALID")
+    if len(value.encode("ascii")) > 63:
+        raise CollectorError("STOP_CONFIG_INVALID")
+    return value
+
+
 def load_config(env: dict[str, str], target_alias: str, approval_id: str) -> Config:
     if (
-        target_alias not in {"FREE_DB", "PRO_DB"}
+        target_alias != "FREE_DB"
         or not re.fullmatch(r"(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9][A-Za-z0-9._:-]{15,127}", approval_id)
     ):
         raise CollectorError("STOP_CONFIG_INVALID")
     try:
         port = int(_env_required(env, "F10_10_M3_SQL_PORT"))
-        version = int(_env_required(env, "F10_10_M3_SERVER_VERSION_NUM"))
     except ValueError as exc:
         raise CollectorError("STOP_CONFIG_INVALID") from exc
-    if port != 5432 or version <= 0:
+    if port != 5432:
         raise CollectorError("STOP_CONFIG_INVALID")
     ca_sha = _env_required(env, "F10_10_M3_CA_SHA256").lower()
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", ca_sha):
@@ -460,6 +529,10 @@ def load_config(env: dict[str, str], target_alias: str, approval_id: str) -> Con
     ca_file = Path(_env_required(env, "F10_10_M3_CA_FILE"))
     if not ca_file.is_absolute():
         raise CollectorError("STOP_CONFIG_INVALID")
+    valid_until_epoch = _parse_valid_until_epoch(
+        _env_required(env, "F10_10_M3_VALID_UNTIL")
+    )
+    provisioner = _parse_role_name(_env_required(env, "F10_10_M3_PROVISIONER"))
     return Config(
         target_alias=target_alias,
         approval_id=approval_id,
@@ -472,10 +545,8 @@ def load_config(env: dict[str, str], target_alias: str, approval_id: str) -> Con
         password=_env_required(env, "F10_10_M3_PASSWORD"),
         ca_file=ca_file,
         ca_sha256=ca_sha,
-        server_version_num=version,
-        tls_protocol=_env_required(env, "F10_10_M3_TLS_PROTOCOL"),
-        tls_cipher=_env_required(env, "F10_10_M3_TLS_CIPHER"),
-        tls_library=_env_required(env, "F10_10_M3_TLS_LIBRARY"),
+        valid_until_epoch=valid_until_epoch,
+        provisioner=provisioner,
     )
 
 
@@ -604,14 +675,30 @@ def default_connection_factory(config: Config, pinned_ca: PinnedCA) -> Any:
         raise CollectorError("STOP_CONNECTION_FAILED") from exc
 
 
-def _tls_observation(connection: Any, config: Config) -> dict[str, Any]:
+def _transport_attribute(value: Any) -> str:
+    if (
+        not isinstance(value, str) or not value
+        or len(value) > MAX_TRANSPORT_ATTRIBUTE_CHARS
+        or any(unicodedata.category(character).startswith("C") for character in value)
+    ):
+        raise CollectorError("STOP_TLS_CONTRACT")
+    try:
+        value.encode("utf-8")
+    except UnicodeError as exc:
+        raise CollectorError("STOP_TLS_CONTRACT") from exc
+    return value
+
+
+def observed_transport_attestation(
+    connection: Any, config: Config,
+) -> tuple[dict[str, Any], str]:
     try:
         info = connection.info
         observed = {
             "ssl_in_use": info.ssl_in_use,
-            "protocol": info.ssl_attribute("protocol"),
-            "cipher": info.ssl_attribute("cipher"),
-            "library": info.ssl_attribute("library"),
+            "protocol": _transport_attribute(info.ssl_attribute("protocol")),
+            "cipher": _transport_attribute(info.ssl_attribute("cipher")),
+            "library": _transport_attribute(info.ssl_attribute("library")),
             "server_version_num": info.server_version,
         }
         transport = {
@@ -620,12 +707,18 @@ def _tls_observation(connection: Any, config: Config) -> dict[str, Any]:
             "database": info.dbname,
             "user": info.user,
         }
+    except CollectorError:
+        raise
     except Exception as exc:
         raise CollectorError("STOP_TLS_CONTRACT") from exc
-    expected = (True, config.tls_protocol, config.tls_cipher, config.tls_library, config.server_version_num)
-    values = tuple(observed.values())
-    if values != expected or any(value in (None, "") for value in values):
-        raise CollectorError("STOP_TARGET_MISMATCH")
+    if (
+        observed["ssl_in_use"] is not True
+        or observed["protocol"] not in {"TLSv1.2", "TLSv1.3"}
+        or isinstance(observed["server_version_num"], bool)
+        or not isinstance(observed["server_version_num"], int)
+        or observed["server_version_num"] <= 0
+    ):
+        raise CollectorError("STOP_TLS_CONTRACT")
     if transport != {
         "host": config.sql_host,
         "port": config.sql_port,
@@ -634,16 +727,38 @@ def _tls_observation(connection: Any, config: Config) -> dict[str, Any]:
     }:
         raise CollectorError("STOP_TARGET_MISMATCH")
     observed["transport"] = transport
-    return observed
+    digest_payload = {
+        "schema": OBSERVED_TRANSPORT_VERSION,
+        "ssl_in_use": observed["ssl_in_use"],
+        "protocol": observed["protocol"],
+        "cipher": observed["cipher"],
+        "library": observed["library"],
+        "server_version_num": observed["server_version_num"],
+        "transport": [
+            _plain_sha256(b"sql-host-v1\0", transport["host"]),
+            transport["port"],
+            _plain_sha256(b"database-v1\0", transport["database"]),
+            _plain_sha256(b"user-v1\0", transport["user"]),
+        ],
+    }
+    return observed, envelope_digest("observed-transport-v2", digest_payload)
+
+
+def ensure_digest_domain_separation(
+    target_binding_digest: str, observed_transport_digest: str,
+) -> None:
+    if target_binding_digest == observed_transport_digest:
+        raise CollectorError("STOP_DIGEST_DOMAIN_COLLISION")
 
 
 def target_binding(
-    config: Config, tls: dict[str, Any], ca_digest: str,
+    config: Config, ca_digest: str,
 ) -> tuple[dict[str, Any], str]:
     api_host = normalize_api_url(config.api_url)
     if config.sql_port != 5432 or config.sql_host != f"db.{config.project_ref}.supabase.co":
         raise CollectorError("STOP_TARGET_MISMATCH")
     private = {
+        "schema": TARGET_BINDING_VERSION,
         "alias": config.target_alias,
         "api": [
             HOST_NORMALIZATION_VERSION,
@@ -655,13 +770,14 @@ def target_binding(
             _plain_sha256(b"sql-host-v1\0", config.sql_host),
             config.sql_port,
             _plain_sha256(b"database-v1\0", config.database),
+            _plain_sha256(b"user-v1\0", config.user),
+            _plain_sha256(b"provisioner-v1\0", config.provisioner),
+            config.valid_until_epoch,
             "verify-full",
             ca_digest,
-            [tls["ssl_in_use"], tls["protocol"], tls["cipher"], tls["library"]],
-            tls["server_version_num"],
         ],
     }
-    return private, envelope_digest("target-binding-v1", private)
+    return private, envelope_digest("target-binding-v2", private)
 
 
 def _execute(
@@ -725,26 +841,51 @@ def _q0(
 ) -> list[Any]:
     _execute(cursor, Q0_SQL, evidence)
     rows = _fetchall(cursor, 1, "STOP_NEEDS_READONLY_CHANNEL")
-    if len(rows) != 1 or len(rows[0]) != 22:
+    if len(rows) != 1 or len(rows[0]) != 39:
         raise CollectorError("STOP_NEEDS_READONLY_CHANNEL")
     row = list(rows[0])
     budget.consume(row)
     (
         session_user, current_user, _database, tx_ro, default_ro, search_path, client_encoding,
-        rolsuper, bypass, createrole, createdb, memberships, rls, _force_rls,
-        can_select, can_insert, can_update, can_delete, can_truncate,
-        can_reference, can_trigger, mutating_column,
+        rolsuper, bypass, createrole, createdb, can_login, inherits,
+        replication, connection_limit, valid_until_epoch, valid_until_is_future,
+        is_member_of_roles, role_member_count, member_role_name,
+        member_admin_option, member_inherit_option, member_set_option,
+        rls, _force_rls,
+        has_table_select, can_select_id,
+        can_select_is_active, can_select_syllabus, can_select_objectives,
+        has_other_select, can_insert, can_update, can_delete, can_truncate,
+        can_reference, can_trigger, mutating_column, security_definer_execute,
     ) = row
     valid = (
         isinstance(session_user, str) and session_user == current_user == config.user
         and _database == config.database and tx_ro == "on" and default_ro == "on"
         and search_path == "pg_catalog" and client_encoding == "UTF8" and rolsuper is False
-        and isinstance(bypass, bool) and createrole is False and createdb is False
-        and memberships is False and isinstance(rls, bool) and can_select is True
+        and bypass is True and createrole is False and createdb is False
+        and can_login is True and inherits is False and replication is False
+        and isinstance(connection_limit, int) and not isinstance(connection_limit, bool)
+        and connection_limit == 1
+        and isinstance(valid_until_epoch, int)
+        and not isinstance(valid_until_epoch, bool)
+        and valid_until_epoch == config.valid_until_epoch
+        and valid_until_is_future is True
+        and is_member_of_roles is False
+        and isinstance(role_member_count, int)
+        and not isinstance(role_member_count, bool)
+        and role_member_count == 1
+        and member_role_name == config.provisioner
+        and member_admin_option is True
+        and member_inherit_option is False
+        and member_set_option is False
+        and isinstance(rls, bool) and has_table_select is False
+        and all(value is True for value in (
+            can_select_id, can_select_is_active, can_select_syllabus,
+            can_select_objectives,
+        ))
         and all(value is False for value in (
-            can_insert, can_update, can_delete, can_truncate, can_reference,
-            can_trigger, mutating_column,
-        )) and (rls is False or bypass is True)
+            has_other_select, can_insert, can_update, can_delete, can_truncate,
+            can_reference, can_trigger, mutating_column, security_definer_execute,
+        ))
     )
     if not valid:
         raise CollectorError("STOP_NEEDS_READONLY_CHANNEL")
@@ -857,7 +998,8 @@ def _metadata_transaction(
 
 def _snapshot_transaction(
     cursor: Any, config: Config, fingerprints: dict[str, str],
-    query_digest: str, binding_digest: str, snapshot_number: int,
+    query_digest: str, binding_digest: str, transport_digest: str,
+    snapshot_number: int,
     budget: RemoteBudget, evidence: PrivateEvidence,
 ) -> Snapshot:
     q0_attestation = _begin(cursor, config, budget, evidence)
@@ -949,6 +1091,7 @@ def _snapshot_transaction(
         **fingerprints,
         "query_set_digest": query_digest,
         "target_binding_digest": binding_digest,
+        "observed_transport_digest": transport_digest,
     }
     return Snapshot(rows, summary, q0_attestation)
 
@@ -967,17 +1110,20 @@ def _bounded_raw_cause(error: BaseException) -> str | None:
 
 def collect(
     config: Config, connection_factory: ConnectionFactory,
-    approved_query_digest: str, pinned_ca: PinnedCA,
+    approved_query_digest: str, q0_predecessor_digest: str, pinned_ca: PinnedCA,
 ) -> CollectionResult:
     query_digest = _digest_argument(approved_query_digest)
+    predecessor_digest = _digest_argument(q0_predecessor_digest)
     evidence = PrivateEvidence.create()
     budget = RemoteBudget()
+    transport_digest: str | None = None
     try:
         connection = connection_factory(config, pinned_ca)
     except CollectorError as exc:
         exc.partial_private = {
             "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
             "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "q0_predecessor_digest": predecessor_digest,
             "transcript": evidence.transcript, "page_boundaries": evidence.page_boundaries,
             "remote_utf8_bytes": budget.used, "reason_code": exc.reason_code,
             "raw_cause": _bounded_raw_cause(exc),
@@ -989,24 +1135,28 @@ def collect(
         stable.partial_private = {
             "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
             "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "q0_predecessor_digest": predecessor_digest,
             "transcript": evidence.transcript, "page_boundaries": evidence.page_boundaries,
             "remote_utf8_bytes": budget.used, "reason_code": stable.reason_code,
             "raw_cause": _bounded_raw_cause(stable),
         }
         raise stable
     try:
-        tls = _tls_observation(connection, config)
-        binding_private, binding_digest = target_binding(config, tls, pinned_ca.digest)
+        binding_private, binding_digest = target_binding(config, pinned_ca.digest)
+        transport, transport_digest = observed_transport_attestation(connection, config)
+        ensure_digest_domain_separation(binding_digest, transport_digest)
         with connection.cursor() as cursor:
             catalog, fingerprints, trigger_payload, metadata_q0 = _metadata_transaction(
                 connection, cursor, config, budget, evidence
             )
             first = _snapshot_transaction(
-                cursor, config, fingerprints, query_digest, binding_digest, 1,
+                cursor, config, fingerprints, query_digest, binding_digest,
+                transport_digest, 1,
                 budget, evidence,
             )
             second = _snapshot_transaction(
-                cursor, config, fingerprints, query_digest, binding_digest, 2,
+                cursor, config, fingerprints, query_digest, binding_digest,
+                transport_digest, 2,
                 budget, evidence,
             )
         if not (metadata_q0 == first.q0_attestation == second.q0_attestation):
@@ -1017,7 +1167,9 @@ def collect(
             "schema": COLLECTOR_VERSION,
             "approval_id": config.approval_id,
             "binding": binding_private,
-            "tls": tls,
+            "observed_transport": transport,
+            "observed_transport_digest": transport_digest,
+            "q0_predecessor_digest": predecessor_digest,
             "q0_attestations": [metadata_q0, first.q0_attestation, second.q0_attestation],
             "transcript": evidence.transcript,
             "page_boundaries": evidence.page_boundaries,
@@ -1036,6 +1188,8 @@ def collect(
             approval_id=config.approval_id,
             query_digest=query_digest,
             binding_digest=binding_digest,
+            transport_digest=transport_digest,
+            q0_predecessor_digest=predecessor_digest,
             summary=first.summary,
             snapshots_equal=True,
         )
@@ -1050,9 +1204,11 @@ def collect(
             "approval_id": config.approval_id,
             "target_alias": config.target_alias,
             "query_set_digest": query_digest,
+            "q0_predecessor_digest": predecessor_digest,
             "transcript": evidence.transcript,
             "page_boundaries": evidence.page_boundaries,
             "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
             "reason_code": exc.reason_code,
             "raw_cause": _bounded_raw_cause(exc),
         }
@@ -1069,9 +1225,112 @@ def collect(
             "approval_id": config.approval_id,
             "target_alias": config.target_alias,
             "query_set_digest": query_digest,
+            "q0_predecessor_digest": predecessor_digest,
             "transcript": evidence.transcript,
             "page_boundaries": evidence.page_boundaries,
             "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
+            "reason_code": stable.reason_code,
+            "raw_cause": _bounded_raw_cause(stable),
+        }
+        raise stable
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
+
+
+def collect_q0_only(
+    config: Config, connection_factory: ConnectionFactory,
+    approved_query_digest: str, pinned_ca: PinnedCA,
+) -> CollectionResult:
+    query_digest = _digest_argument(approved_query_digest)
+    evidence = PrivateEvidence.create()
+    budget = RemoteBudget()
+    transport_digest: str | None = None
+    try:
+        connection = connection_factory(config, pinned_ca)
+    except CollectorError as exc:
+        exc.partial_private = {
+            "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
+            "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "transcript": evidence.transcript, "page_boundaries": [],
+            "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
+            "reason_code": exc.reason_code,
+            "raw_cause": _bounded_raw_cause(exc),
+        }
+        raise
+    except Exception as exc:
+        stable = CollectorError("STOP_CONNECTION_FAILED")
+        stable.__cause__ = exc
+        stable.partial_private = {
+            "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
+            "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "transcript": evidence.transcript, "page_boundaries": [],
+            "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
+            "reason_code": stable.reason_code,
+            "raw_cause": _bounded_raw_cause(stable),
+        }
+        raise stable
+    try:
+        binding_private, binding_digest = target_binding(config, pinned_ca.digest)
+        transport, transport_digest = observed_transport_attestation(connection, config)
+        ensure_digest_domain_separation(binding_digest, transport_digest)
+        with connection.cursor() as cursor:
+            q0_attestation = _begin(cursor, config, budget, evidence)
+            _commit(cursor, evidence)
+        private = {
+            "schema": COLLECTOR_VERSION,
+            "approval_id": config.approval_id,
+            "binding": binding_private,
+            "observed_transport": transport,
+            "observed_transport_digest": transport_digest,
+            "q0_attestations": [q0_attestation],
+            "transcript": evidence.transcript,
+            "page_boundaries": [],
+            "remote_utf8_bytes": budget.used,
+            "catalog": {},
+            "snapshots": [],
+        }
+        manifest = build_manifest(
+            decision="PASS", reason_codes=[], target_alias=config.target_alias,
+            approval_id=config.approval_id, query_digest=query_digest,
+            binding_digest=binding_digest, transport_digest=transport_digest,
+            mode="q0-only", transcript=evidence.transcript,
+            summary={"rows_collected": 0, "content_bytes": 0},
+        )
+        return CollectionResult(private, manifest)
+    except CollectorError as exc:
+        try:
+            connection.rollback()
+        except Exception:
+            pass
+        exc.partial_private = {
+            "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
+            "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "transcript": evidence.transcript, "page_boundaries": [],
+            "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
+            "reason_code": exc.reason_code,
+            "raw_cause": _bounded_raw_cause(exc),
+        }
+        raise
+    except Exception as exc:
+        try:
+            connection.rollback()
+        except Exception:
+            pass
+        stable = CollectorError("STOP_ACQUISITION_FAILED")
+        stable.__cause__ = exc
+        stable.partial_private = {
+            "schema": COLLECTOR_VERSION, "approval_id": config.approval_id,
+            "target_alias": config.target_alias, "query_set_digest": query_digest,
+            "transcript": evidence.transcript, "page_boundaries": [],
+            "remote_utf8_bytes": budget.used,
+            "observed_transport_digest": transport_digest,
             "reason_code": stable.reason_code,
             "raw_cause": _bounded_raw_cause(stable),
         }
@@ -1086,37 +1345,72 @@ def collect(
 def build_manifest(
     *, decision: str, reason_codes: list[str], target_alias: str,
     approval_id: str, query_digest: str | None = None,
-    binding_digest: str | None = None, summary: dict[str, Any] | None = None,
-    snapshots_equal: bool = False,
+    binding_digest: str | None = None, transport_digest: str | None = None,
+    q0_predecessor_digest: str | None = None,
+    summary: dict[str, Any] | None = None, snapshots_equal: bool = False,
+    mode: str = "collect", transcript: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if decision not in {"PASS", "HOLD", "STOP"}:
         raise CollectorError("STOP_INTERNAL_CONTRACT")
-    safe_summary = {} if summary is None else {
-        key: summary[key] for key in (
-            "page_count", "total_count", "total_ids_digest", "active_count",
-            "active_ids_digest", "missing_syllabus", "missing_objectives",
-            "missing_both", "incomplete_active_courses", "incomplete_slots",
-            "full_snapshot_raw_digest", "full_snapshot_normalized_digest",
-            "cohort_fingerprint", "schema_fingerprint", "constraint_fingerprint",
-            "trigger_fingerprint",
-        )
-    }
+    if mode not in {"collect", "q0-only"}:
+        raise CollectorError("STOP_INTERNAL_CONTRACT")
+    safe_transcript: list[dict[str, Any]] = []
+    if transcript is not None:
+        for item in transcript:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"transaction", "query_id", "parameter_count"}
+                or isinstance(item["transaction"], bool)
+                or not isinstance(item["transaction"], int)
+                or item["transaction"] < 0
+                or item["query_id"] not in set(QUERY_IDS.values())
+                or isinstance(item["parameter_count"], bool)
+                or not isinstance(item["parameter_count"], int)
+                or item["parameter_count"] < 0
+            ):
+                raise CollectorError("STOP_INTERNAL_CONTRACT")
+            safe_transcript.append({
+                "transaction": item["transaction"],
+                "query_id": item["query_id"],
+                "parameter_count": item["parameter_count"],
+            })
+    if mode == "q0-only":
+        if summary != {"rows_collected": 0, "content_bytes": 0}:
+            raise CollectorError("STOP_INTERNAL_CONTRACT")
+        safe_summary = dict(summary)
+    else:
+        safe_summary = {} if summary is None else {
+            key: summary[key] for key in (
+                "page_count", "total_count", "total_ids_digest", "active_count",
+                "active_ids_digest", "missing_syllabus", "missing_objectives",
+                "missing_both", "incomplete_active_courses", "incomplete_slots",
+                "full_snapshot_raw_digest", "full_snapshot_normalized_digest",
+                "cohort_fingerprint", "schema_fingerprint", "constraint_fingerprint",
+                "trigger_fingerprint",
+            )
+        }
     return {
-        "schema": "f10.10-m3-sanitized-manifest-v1",
-        "commit_marker": "F10_10_M3_COMMIT_V1",
+        "schema": "f10.10-m3-sanitized-manifest-v2",
+        "commit_marker": "F10_10_M3_COMMIT_V2",
         "collector_version": COLLECTOR_VERSION,
         "canonical_version": CANONICAL_VERSION,
         "normalization_version": NORMALIZATION_VERSION,
         "host_normalization_version": HOST_NORMALIZATION_VERSION,
+        "target_binding_version": TARGET_BINDING_VERSION,
+        "observed_transport_version": OBSERVED_TRANSPORT_VERSION,
+        "mode": mode,
         "target_alias": target_alias,
         "approval_fingerprint": (
             _plain_sha256(b"approval-id-v1\0", approval_id)
             if approval_id not in {"", "UNSET"} else None
         ),
         "target_binding_digest": binding_digest,
+        "observed_transport_digest": transport_digest,
+        "q0_predecessor_digest": q0_predecessor_digest,
         "query_set_digest": query_digest,
         "snapshots_equal": snapshots_equal,
         "summary": safe_summary,
+        "transcript": safe_transcript,
         "provider_calls": 0, "writer_calls": 0, "dml": 0, "ddl": 0,
         "rpc": 0, "backup_restore": 0, "schedule_changes": 0,
         "decision": decision,
@@ -1190,6 +1484,53 @@ class ArtifactDirectory:
                 continue
             raise CollectorError("STOP_ARTIFACT_EXISTS")
 
+    def read_predecessor(self, name: str, expected_digest: str) -> dict[str, Any]:
+        descriptor: int | None = None
+        try:
+            descriptor = os.open(
+                name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=self.fd,
+            )
+            metadata = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != os.geteuid()
+                or metadata.st_mode & 0o077
+                or metadata.st_size <= 0
+                or metadata.st_size > MAX_PREDECESSOR_BYTES
+            ):
+                raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+            chunks: list[bytes] = []
+            remaining = metadata.st_size
+            while remaining:
+                chunk = os.read(descriptor, min(64 * 1024, remaining))
+                if not chunk:
+                    raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            if os.read(descriptor, 1):
+                raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+            raw = b"".join(chunks)
+            actual_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+            if actual_digest != expected_digest:
+                raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+            try:
+                payload = json.loads(raw.decode("utf-8"))
+            except (UnicodeError, json.JSONDecodeError) as exc:
+                raise CollectorError("STOP_Q0_PREDECESSOR_INVALID") from exc
+            if not isinstance(payload, dict) or canonical_json(payload) + b"\n" != raw:
+                raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+            return payload
+        except CollectorError:
+            raise
+        except OSError as exc:
+            raise CollectorError("STOP_Q0_PREDECESSOR_INVALID") from exc
+        finally:
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+
     def publish(self, name: str, payload: bytes) -> None:
         if len(payload) > MAX_ARTIFACT_BYTES:
             raise CollectorError("STOP_ARTIFACT_LIMIT")
@@ -1249,16 +1590,77 @@ class _SafeArgumentParser(argparse.ArgumentParser):
         raise CollectorError("STOP_CLI_INVALID")
 
 
+def validate_q0_predecessor(
+    payload: dict[str, Any], *, query_digest: str, binding_digest: str,
+) -> None:
+    expected_keys = {
+        "schema", "commit_marker", "collector_version", "canonical_version",
+        "normalization_version", "host_normalization_version",
+        "target_binding_version", "observed_transport_version", "mode",
+        "target_alias", "approval_fingerprint", "target_binding_digest",
+        "observed_transport_digest", "q0_predecessor_digest", "query_set_digest",
+        "snapshots_equal", "summary", "transcript", "provider_calls",
+        "writer_calls", "dml", "ddl", "rpc", "backup_restore",
+        "schedule_changes", "decision", "reason_codes",
+    }
+    exact_values = {
+        "schema": "f10.10-m3-sanitized-manifest-v2",
+        "commit_marker": "F10_10_M3_COMMIT_V2",
+        "collector_version": COLLECTOR_VERSION,
+        "canonical_version": CANONICAL_VERSION,
+        "normalization_version": NORMALIZATION_VERSION,
+        "host_normalization_version": HOST_NORMALIZATION_VERSION,
+        "target_binding_version": TARGET_BINDING_VERSION,
+        "observed_transport_version": OBSERVED_TRANSPORT_VERSION,
+        "mode": "q0-only",
+        "target_alias": "FREE_DB",
+        "target_binding_digest": binding_digest,
+        "q0_predecessor_digest": None,
+        "query_set_digest": query_digest,
+        "snapshots_equal": False,
+        "summary": {"rows_collected": 0, "content_bytes": 0},
+        "transcript": [
+            {"transaction": 1, "query_id": "TX_BEGIN", "parameter_count": 0},
+            {"transaction": 1, "query_id": "Q0", "parameter_count": 0},
+            {"transaction": 1, "query_id": "TX_COMMIT", "parameter_count": 0},
+        ],
+        "provider_calls": 0,
+        "writer_calls": 0,
+        "dml": 0,
+        "ddl": 0,
+        "rpc": 0,
+        "backup_restore": 0,
+        "schedule_changes": 0,
+        "decision": "PASS",
+        "reason_codes": [],
+    }
+    if set(payload) != expected_keys or any(
+        payload.get(key) != value for key, value in exact_values.items()
+    ):
+        raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+    try:
+        _digest_argument(payload["approval_fingerprint"])
+        _digest_argument(payload["observed_transport_digest"])
+    except (CollectorError, KeyError, TypeError) as exc:
+        raise CollectorError("STOP_Q0_PREDECESSOR_INVALID") from exc
+    if payload["observed_transport_digest"] == payload["target_binding_digest"]:
+        raise CollectorError("STOP_Q0_PREDECESSOR_INVALID")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _SafeArgumentParser(add_help=True)
     parser.add_argument(
-        "--mode", choices=("collect", "query-set-digest", "target-binding-digest"),
+        "--mode", choices=(
+            "collect", "q0-only", "query-set-digest", "target-binding-digest",
+        ),
         default="collect",
     )
     parser.add_argument("--target-alias", choices=("FREE_DB", "PRO_DB"))
     parser.add_argument("--approval-id")
     parser.add_argument("--expected-query-set-digest")
     parser.add_argument("--expected-target-binding-digest")
+    parser.add_argument("--q0-predecessor-manifest")
+    parser.add_argument("--expected-q0-predecessor-digest")
     parser.add_argument("--private-artifact")
     parser.add_argument("--sanitized-manifest")
     return parser
@@ -1279,8 +1681,11 @@ def run_cli(
     approval = "UNSET"
     query_digest_value: str | None = None
     binding_digest_value: str | None = None
+    predecessor_digest_value: str | None = None
+    output_mode = "collect"
     try:
         args = build_parser().parse_args(list(argv))
+        output_mode = "q0-only" if args.mode == "q0-only" else "collect"
         query_payload = query_set_payload(root)
         actual_query = envelope_digest("query-set-v1", query_payload)
         query_digest_value = actual_query
@@ -1290,17 +1695,13 @@ def run_cli(
             raise CollectorError("STOP_CLI_INVALID")
         alias, approval = args.target_alias, args.approval_id
         config = load_config(dict(os.environ) if env is None else env, alias, approval)
-        expected_tls = {
-            "ssl_in_use": True, "protocol": config.tls_protocol,
-            "cipher": config.tls_cipher, "library": config.tls_library,
-            "server_version_num": config.server_version_num,
-        }
         if args.mode == "target-binding-digest":
             with open_pinned_ca(config) as pinned_ca:
-                _, configured_binding = target_binding(config, expected_tls, pinned_ca.digest)
+                _, configured_binding = target_binding(config, pinned_ca.digest)
                 return 0, {
                     "mode": "target-binding-digest",
                     "target_alias": alias,
+                    "target_binding_version": TARGET_BINDING_VERSION,
                     "target_binding_digest": configured_binding,
                 }
         required = (
@@ -1309,13 +1710,32 @@ def run_cli(
         )
         if any(value is None for value in required):
             raise CollectorError("STOP_CLI_INVALID")
+        predecessor_name: str | None = None
+        if args.mode == "collect":
+            if (
+                args.q0_predecessor_manifest is None
+                or args.expected_q0_predecessor_digest is None
+            ):
+                raise CollectorError("STOP_CLI_INVALID")
+            predecessor_name = _artifact_filename(args.q0_predecessor_manifest)
+            predecessor_digest_value = _digest_argument(
+                args.expected_q0_predecessor_digest
+            )
+        elif (
+            args.q0_predecessor_manifest is not None
+            or args.expected_q0_predecessor_digest is not None
+        ):
+            raise CollectorError("STOP_CLI_INVALID")
         expected_query = _digest_argument(args.expected_query_set_digest)
         expected_binding = _digest_argument(args.expected_target_binding_digest)
         if actual_query != expected_query:
             raise CollectorError("STOP_QUERY_SET_MISMATCH")
         private_name = _artifact_filename(args.private_artifact)
         manifest_name = _artifact_filename(args.sanitized_manifest)
-        if private_name == manifest_name:
+        if (
+            private_name == manifest_name
+            or predecessor_name in {private_name, manifest_name}
+        ):
             raise CollectorError("STOP_PATH_UNSAFE")
         with ArtifactDirectory(root) as artifacts:
             artifacts.require_absent(private_name, manifest_name)
@@ -1323,14 +1743,29 @@ def run_cli(
             try:
                 with open_pinned_ca(config) as pinned_ca:
                     # The same pinned descriptor binds approval and libpq connection.
-                    _, rebound = target_binding(config, expected_tls, pinned_ca.digest)
+                    _, rebound = target_binding(config, pinned_ca.digest)
                     binding_digest_value = rebound
                     if rebound != expected_binding:
                         raise CollectorError("STOP_TARGET_MISMATCH")
-                    result = collect(
-                        config, connection_factory or default_connection_factory,
-                        expected_query, pinned_ca,
-                    )
+                    if args.mode == "collect":
+                        if predecessor_name is None or predecessor_digest_value is None:
+                            raise CollectorError("STOP_INTERNAL_CONTRACT")
+                        predecessor = artifacts.read_predecessor(
+                            predecessor_name, predecessor_digest_value,
+                        )
+                        validate_q0_predecessor(
+                            predecessor, query_digest=expected_query,
+                            binding_digest=expected_binding,
+                        )
+                        result = collect(
+                            config, connection_factory or default_connection_factory,
+                            expected_query, predecessor_digest_value, pinned_ca,
+                        )
+                    else:
+                        result = collect_q0_only(
+                            config, connection_factory or default_connection_factory,
+                            expected_query, pinned_ca,
+                        )
                     verify_pinned_ca(pinned_ca)
                 if (
                     result.manifest["target_binding_digest"] != expected_binding
@@ -1342,14 +1777,10 @@ def run_cli(
                 artifacts.publish(manifest_name, canonical_json(result.manifest) + b"\n")
                 return 0, result.manifest
             except CollectorError as exc:
-                manifest = build_manifest(
-                    decision=exc.decision, reason_codes=[exc.reason_code],
-                    target_alias=alias, approval_id=approval,
-                    query_digest=query_digest_value, binding_digest=binding_digest_value,
-                )
                 private_stop = exc.partial_private or {
                     "schema": COLLECTOR_VERSION, "approval_id": approval,
                     "target_alias": alias, "reason_code": exc.reason_code,
+                    "q0_predecessor_digest": predecessor_digest_value,
                     "raw_cause": _bounded_raw_cause(exc),
                     "transcript": (
                         result.private.get("transcript", []) if result is not None else []
@@ -1358,6 +1789,22 @@ def run_cli(
                         result.private.get("page_boundaries", []) if result is not None else []
                     ),
                 }
+                manifest = build_manifest(
+                    decision=exc.decision, reason_codes=[exc.reason_code],
+                    target_alias=alias, approval_id=approval,
+                    query_digest=query_digest_value, binding_digest=binding_digest_value,
+                    transport_digest=private_stop.get("observed_transport_digest"),
+                    q0_predecessor_digest=predecessor_digest_value,
+                    mode=output_mode,
+                    summary=(
+                        {"rows_collected": 0, "content_bytes": 0}
+                        if output_mode == "q0-only" else None
+                    ),
+                    transcript=(
+                        private_stop.get("transcript", [])
+                        if output_mode == "q0-only" else None
+                    ),
+                )
                 artifacts.publish(private_name, canonical_json(private_stop) + b"\n")
                 artifacts.publish(manifest_name, canonical_json(manifest) + b"\n")
                 return 2 if exc.decision == "STOP" else 1, manifest
@@ -1366,6 +1813,12 @@ def run_cli(
             decision=exc.decision, reason_codes=[exc.reason_code],
             target_alias=alias, approval_id=approval,
             query_digest=query_digest_value, binding_digest=binding_digest_value,
+            q0_predecessor_digest=predecessor_digest_value,
+            mode=output_mode,
+            summary=(
+                {"rows_collected": 0, "content_bytes": 0}
+                if output_mode == "q0-only" else None
+            ),
         )
         return 2 if exc.decision == "STOP" else 1, manifest
     except Exception:
@@ -1373,6 +1826,12 @@ def run_cli(
             decision="STOP", reason_codes=["STOP_INTERNAL_FAILURE"],
             target_alias=alias, approval_id=approval,
             query_digest=query_digest_value, binding_digest=binding_digest_value,
+            q0_predecessor_digest=predecessor_digest_value,
+            mode=output_mode,
+            summary=(
+                {"rows_collected": 0, "content_bytes": 0}
+                if output_mode == "q0-only" else None
+            ),
         )
         return 2, manifest
 
