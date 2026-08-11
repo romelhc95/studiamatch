@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M0_PASS_M1_LOCAL_AUTHORIZED_PENDING_IMPLEMENTATION` |
+| Estado | `M2_PASS_M3_SEPARATE_AUTH_REQUIRED` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -267,12 +267,18 @@ before/after no se usa sola para afirmar cero writes transitorios.
 M9 PASS no reactiva F10.9. M10 requiere una nueva decision superior que cambie
 formalmente G4 a `PASS_CA1_RUNTIME_ONLY` o mantenga STOP.
 
-## Estado M0 Y Autorizacion M1
+## Estado M0-M2
 
 [EVID-M0-F10.10](./m0_f10_10_post_merge_evidence_2026_08_10.md) registra PR #343,
 merge `f59c35272ccec930434b3ceeb1aee8eac732d4b9`, Security Audit
 `31419218575=PASS` y F9.7 `31419218779=PASS`. M0=`PASS`.
 
-La autorizacion M1 fue consumida para tooling, fixtures y pruebas offline. M1 no
-autoriza red, DB, Supabase, providers, environments, writers, workflows
-operativos, SQL ni DDL. M2-M10 permanecen sin autorizar.
+La autorizacion M1 fue consumida para tooling, fixtures y pruebas offline. La
+[evidencia M2](./m2_f10_10_post_merge_evidence_2026_08_10.md) registra PR #345 y
+PR #346, candidate final `a234fecb9c750a28cd290882919be972f1408467`, merge
+`a7a032c5f35b2cb4e4e8a152a03947b3d7d60a7c`, tree
+`306d606ac42a791e8efc98af81730db2e58cb146` y checks post-merge PASS. M1 queda
+`COMPLETED_POST_MERGE_VERIFIED` y M2=`PASS`.
+
+M3-M10 permanecen sin autorizar. M2 no autoriza red, DB, Supabase, providers,
+environments, writers, workflows operativos, backup/restore, SQL ni DDL.
