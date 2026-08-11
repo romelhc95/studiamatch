@@ -3,13 +3,13 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
+| Estado | `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `NO / NO` |
 | Gates consumidos | Ninguno |
 | Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
-| Query-set content digest `query-set-v1` candidate | `sha256:d7653136b10e23a58a9c15be74cd92909a4d98fdfcd48800925b82cbe9ddc642` |
+| Query-set content digest `query-set-v1` candidate | `sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7` |
 | Package Free-only candidate | `sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906` |
 | Compensacion candidate | `sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0` |
 
@@ -179,6 +179,12 @@ candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
 stop conditions y plan de teardown. Ningun gate concede el siguiente y la frase
 decimal F10.10 no los consume.
+
+El [payload preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json) ya
+congela esos campos en forma sanitizada. Su digest canonico es
+`sha256:68fd845808dbe694984ffbdd087b44e19754b4c76c14da862d74dad232971613`.
+Su existencia no consume el gate; la ejecucion local passwordless requiere
+aprobacion literal ligada a ese digest.
 
 ## Bloqueos Preservados
 

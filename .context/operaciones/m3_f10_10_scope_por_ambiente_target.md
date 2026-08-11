@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_READER_ROTATION_ATTESTED_PREFLIGHT_GATE_PENDING` |
+| Estado | `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
@@ -315,8 +315,13 @@ APPROVE_F10_10_M3_READER_TEARDOWN_FREE
 ```
 
 Son propuestos/no consumidos/no ejecutables. Merge protegido, CI post-merge y
-rotacion atestada ya quedaron PASS, pero faltan payload exacto y aprobacion humana
-del preflight. Ningun gate concede el siguiente.
+rotacion atestada ya quedaron PASS; el payload exacto esta listo y falta la
+aprobacion humana del preflight. Ningun gate concede el siguiente.
+
+El [payload exacto de preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json)
+congela candidate, digests, binding offline, roles, CA y ventana de cuatro horas.
+Su preparacion no uso red ni password. Solo queda pendiente la aprobacion literal
+del gate ligada al digest canonico del payload.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
 bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto, password ni
 consumo de gates.

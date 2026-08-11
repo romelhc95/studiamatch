@@ -27,8 +27,9 @@ credencial. Esta evidencia cierra exclusivamente
 La atestacion no autoriza conexion a Free, lectura, DDL/DML, password del reader,
 provider, writer, schedule, Certification o Pro. No consume
 `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` ni ningun gate posterior. El siguiente
-paso permitido es preparar para revision humana un payload de preflight ligado al
-candidate y digests promovidos; su ejecucion requiere aprobacion exacta separada.
+paso permitido produjo el [payload de preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json)
+ligado al candidate y digests promovidos; su ejecucion requiere aprobacion exacta
+separada.
 
 Enlaces: [estado](../estado_del_proyecto.md) |
 [rebaseline M3 reader](./m3_reader_f10_10_rebaseline.md) |
