@@ -59,6 +59,9 @@ F1010_M3_PASSWORDLESS_HEAD_REF = "fix/f10-10-m3-passwordless-binding"
 F1010_M3_PREFLIGHT_PAYLOAD_BASE = "ea3adaf6fd9847fc5cf98f4d0ed6449a41fae1a1"
 F1010_M3_PREFLIGHT_PAYLOAD_BASE_TREE = "1929c3cc6dd3ab0f5b822a530ee2d08285ff9345"
 F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF = "docs/f10-10-m3-preflight-payload"
+F1010_M3_PREFLIGHT_EVIDENCE_BASE = "47100311a10731ea6297af5c8c1e2e64f5d100b2"
+F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE = "7ebe1b429ae986fbab907814d14eddb680a72dab"
+F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF = "docs/f10-10-m3-preflight-evidence"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -370,6 +373,24 @@ F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES = {
 
 F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_MODES = {
     path: "100644" for path in F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES
+}
+
+F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md": "A",
+    ".context/operaciones/m3_reader_f10_10_preflight_result_2026_08_11.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -1261,6 +1282,54 @@ def validate_f1010_m3_preflight_payload(
     validate_context_graph(repo, 54, 374)
 
 
+def validate_f1010_m3_preflight_evidence(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PREFLIGHT_EVIDENCE_BASE,
+        "unexpected F10.10 M3 preflight evidence baseline",
+    )
+    require_sha(repo, "F1010_M3_PREFLIGHT_EVIDENCE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
+        "F10.10 M3 preflight evidence base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 preflight evidence base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight evidence PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 preflight evidence push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight evidence merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 preflight evidence push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+        F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1320,6 +1389,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF
     ):
         return "f1010_m3_preflight_payload"
+    if base_ref == "desarrollo" and base == F1010_M3_PREFLIGHT_EVIDENCE_BASE and (
+        event == "push" or head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF
+    ):
+        return "f1010_m3_preflight_evidence"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -1419,6 +1492,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 passwordless binding branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF:
                 raise BoundaryError("F10.10 M3 preflight payload branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF:
+                raise BoundaryError("F10.10 M3 preflight evidence branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -1430,6 +1505,9 @@ def main() -> int:
             touched_f1010_m3_rotation = set(actual).intersection(F1010_M3_ROTATION_ALLOWED_STATUSES)
             touched_f1010_m3_preflight_payload = set(actual).intersection(
                 F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES
+            )
+            touched_f1010_m3_preflight_evidence = set(actual).intersection(
+                F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES
             )
             require(
                 sum(
@@ -1444,6 +1522,7 @@ def main() -> int:
                         touched_f1010_m3_reader,
                         touched_f1010_m3_rotation,
                         touched_f1010_m3_preflight_payload,
+                        touched_f1010_m3_preflight_evidence,
                     )
                 )
                 <= 1,
@@ -1496,6 +1575,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 preflight payload delta is forbidden",
                 )
                 mode = "f1010_m3_preflight_payload"
+            elif touched_f1010_m3_preflight_evidence:
+                require(
+                    args.head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 preflight evidence paths require the protected evidence branch",
+                )
+                require(
+                    actual == F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 preflight evidence delta is forbidden",
+                )
+                mode = "f1010_m3_preflight_evidence"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -1570,6 +1660,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_preflight_payload":
             validate_f1010_m3_preflight_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_preflight_evidence":
+            validate_f1010_m3_preflight_evidence(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

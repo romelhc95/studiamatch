@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING` |
+| Estado | `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
 | Ejecuta acceso remoto | `NO` |
-| Gates consumidos | Ninguno |
+| Gates consumidos | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` una vez |
 | Autoriza Certification / Pro / M4 | `NO / NO / NO` |
 
 Este documento es el scope autoritativo M3 reader v2. Sustituye todas las
@@ -304,24 +304,23 @@ no se registro ni inspecciono. `ROTATION_REQUIRED_OUT_OF_BAND` queda cerrado par
 esa identidad, que permanece prohibida para provision, Q0, collect, teardown u
 otro ambiente.
 
-## Gates No Consumidos
+## Ledger De Gates
 
 ```text
-APPROVE_F10_10_M3_READER_PREFLIGHT_FREE
-APPROVE_F10_10_M3_READER_DDL_FREE
-APPROVE_F10_10_M3_READER_Q0_FREE
-APPROVE_M3_FREE_READONLY
-APPROVE_F10_10_M3_READER_TEARDOWN_FREE
+APPROVE_F10_10_M3_READER_PREFLIGHT_FREE = CONSUMED_ONCE_PASS
+APPROVE_F10_10_M3_READER_DDL_FREE = NOT_CONSUMED
+APPROVE_F10_10_M3_READER_Q0_FREE = NOT_CONSUMED
+APPROVE_M3_FREE_READONLY = NOT_CONSUMED
+APPROVE_F10_10_M3_READER_TEARDOWN_FREE = NOT_CONSUMED
 ```
 
-Son propuestos/no consumidos/no ejecutables. Merge protegido, CI post-merge y
-rotacion atestada ya quedaron PASS; el payload exacto esta listo y falta la
-aprobacion humana del preflight. Ningun gate concede el siguiente.
+El gate preflight fue consumido una vez y produjo [PASS sanitizado](./m3_reader_f10_10_preflight_evidence_2026_08_11.md).
+Los gates DDL Free, Q0 Free, lectura y teardown siguen no consumidos/no
+ejecutables. Ningun gate concede el siguiente.
 
 El [payload exacto de preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json)
 congela candidate, digests, binding offline, roles, CA y ventana de cuatro horas.
-Su preparacion no uso red ni password. Solo queda pendiente la aprobacion literal
-del gate ligada al digest canonico del payload.
+Su ejecucion no uso red ni password y termino PASS. No autoriza el gate DDL.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
-bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto, password ni
-consumo de gates.
+bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto ni password; solo
+se consumio el gate preflight local passwordless.

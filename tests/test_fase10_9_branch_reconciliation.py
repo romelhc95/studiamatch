@@ -57,6 +57,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PREFLIGHT_PAYLOAD_BASE,
     F1010_M3_PREFLIGHT_PAYLOAD_BASE_TREE,
     F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF,
+    F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES,
+    F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+    F1010_M3_PREFLIGHT_EVIDENCE_BASE,
+    F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
+    F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -102,6 +107,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_rotation,
     validate_f1010_m3_passwordless,
     validate_f1010_m3_preflight_payload,
+    validate_f1010_m3_preflight_evidence,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -485,6 +491,15 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_PREFLIGHT_PAYLOAD_BASE,
             ),
             "f1010_m3_preflight_payload",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF,
+                F1010_M3_PREFLIGHT_EVIDENCE_BASE,
+            ),
+            "f1010_m3_preflight_evidence",
         )
         self.assertEqual(
             detect_mode(
@@ -1798,6 +1813,149 @@ class F109BoundaryTest(unittest.TestCase):
             for marker in ("supabase.co", "project_ref", "sql_host", "password\"")
         )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_preflight_evidence_accepts_pr_and_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        candidate = "8" * 40
+        merge = "9" * 40
+        tree_mock.return_value = F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE
+        parents_mock.return_value = [F1010_M3_PREFLIGHT_EVIDENCE_BASE]
+        validate_f1010_m3_preflight_evidence(
+            Path("."), F1010_M3_PREFLIGHT_EVIDENCE_BASE, candidate, "pull_request"
+        )
+        delta_mock.assert_called_with(
+            Path("."), F1010_M3_PREFLIGHT_EVIDENCE_BASE, candidate,
+            F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+            F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES,
+        )
+
+        delta_mock.reset_mock()
+        context_mock.reset_mock()
+        parents_mock.side_effect = [
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE, candidate],
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
+            "a" * 40,
+            "a" * 40,
+        ]
+        validate_f1010_m3_preflight_evidence(
+            Path("."), F1010_M3_PREFLIGHT_EVIDENCE_BASE, merge, "push"
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_preflight_evidence_rejects_invalid_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        merge = "9" * 40
+        candidate = "8" * 40
+        tree_mock.return_value = F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE
+        for parents in (
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE],
+            ["0" * 40, candidate],
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE, candidate, "a" * 40],
+        ):
+            with self.subTest(parents=parents):
+                parents_mock.return_value = parents
+                with self.assertRaises(BoundaryError):
+                    validate_f1010_m3_preflight_evidence(
+                        Path("."), F1010_M3_PREFLIGHT_EVIDENCE_BASE, merge, "push"
+                    )
+
+        parents_mock.side_effect = [
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE, candidate],
+            [F1010_M3_PREFLIGHT_EVIDENCE_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
+            "a" * 40,
+            "b" * 40,
+        ]
+        with self.assertRaises(BoundaryError):
+            validate_f1010_m3_preflight_evidence(
+                Path("."), F1010_M3_PREFLIGHT_EVIDENCE_BASE, merge, "push"
+            )
+
+    @mock.patch("scripts.security.f109_boundary.validate_f1010_m3_preflight_evidence")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_preflight_evidence_from_wrong_branch(
+        self,
+        parse_args_mock,
+        changed_statuses_mock,
+        validate_evidence_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(head_ref="wrong-branch")
+        changed_statuses_mock.return_value = {
+            ".context/operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md": "A"
+        }
+        self.assertEqual(main(), 1)
+        validate_evidence_mock.assert_not_called()
+
+    def test_f1010_m3_preflight_result_and_gate_ledger_are_canonical(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        result = json.loads(
+            (root / ".context/operaciones/m3_reader_f10_10_preflight_result_2026_08_11.json")
+            .read_text(encoding="utf-8")
+        )
+        canonical = json.dumps(
+            result, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("ascii")
+
+        assert hashlib.sha256(canonical).hexdigest() == (
+            "9ea235083a5c7e32df30c62a462fefb96bc91d19295e1339a3e9112b2d3a41b1"
+        )
+        assert result["decision"] == "PASS"
+        assert result["network"] == "none"
+        assert result["password_consumed"] is False
+        assert result["reason_codes"] == []
+        assert result["remote_read"] is False
+        assert result["remote_ddl"] is False
+        assert result["remote_dml"] is False
+        assert result["executed_at"] < result["valid_until"]
+
+        authority_paths = (
+            ".context/estado_del_proyecto.md",
+            ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md",
+            ".context/operaciones/m3_reader_f10_10_rebaseline.md",
+            ".context/operaciones/plan_remediacion_metadata_f10_10.md",
+            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+        )
+        authority = "\n".join(
+            (root / path).read_text(encoding="utf-8") for path in authority_paths
+        )
+        assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
+        assert "M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING" in authority
+        assert "CONSUMED_ONCE_PASS" in authority
+        for gate in (
+            "APPROVE_F10_10_M3_READER_DDL_FREE",
+            "APPROVE_F10_10_M3_READER_Q0_FREE",
+            "APPROVE_M3_FREE_READONLY",
+            "APPROVE_F10_10_M3_READER_TEARDOWN_FREE",
+        ):
+            assert gate in authority
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -2116,6 +2274,13 @@ class F109BoundaryTest(unittest.TestCase):
             all(
                 mode == "100644"
                 for mode in F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_MODES.values()
+            )
+        )
+        self.assertEqual(len(F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES), 11)
+        self.assertTrue(
+            all(
+                mode == "100644"
+                for mode in F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES.values()
             )
         )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):
