@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_COLLECTOR_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Estado | `M3_COLLECTOR_PROMOTED_REMOTE_GATES_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -267,7 +267,7 @@ before/after no se usa sola para afirmar cero writes transitorios.
 M9 PASS no reactiva F10.9. M10 requiere una nueva decision superior que cambie
 formalmente G4 a `PASS_CA1_RUNTIME_ONLY` o mantenga STOP.
 
-## Estado M0-M2
+## Estado M0-M3
 
 [EVID-M0-F10.10](./m0_f10_10_post_merge_evidence_2026_08_10.md) registra PR #343,
 merge `f59c35272ccec930434b3ceeb1aee8eac732d4b9`, Security Audit
@@ -280,14 +280,17 @@ PR #346, candidate final `a234fecb9c750a28cd290882919be972f1408467`, merge
 `306d606ac42a791e8efc98af81730db2e58cb146` y checks post-merge PASS. M1 queda
 `COMPLETED_POST_MERGE_VERIFIED` y M2=`PASS`.
 
-M3-M10 permanecen sin autorizar. M2 no autoriza red, DB, Supabase, providers,
-environments, writers, workflows operativos, backup/restore, SQL ni DDL.
+La ejecucion remota M3 y M4-M10 permanecen sin autorizar. M2 no autoriza red,
+DB, Supabase, providers, environments, writers, workflows operativos,
+backup/restore, SQL ni DDL.
 
 El [scope M3 por ambiente/target](./m3_f10_10_scope_por_ambiente_target.md)
-queda aprobado como contrato y registra la adenda `verify-full` soportada. El
-collector candidate y sus zero-write tests deben promoverse por PR protegido y
-obtener evidencia post-merge antes de cualquier gate remoto. Despues, la ejecucion
-sigue bloqueada hasta consumir, en orden, `APPROVE_M3_FREE_READONLY`,
+queda aprobado como contrato y registra la adenda `verify-full` soportada. La
+[evidencia M3](./m3_f10_10_post_merge_evidence_2026_08_11.md) registra PR #350,
+merge `332706fe3ed2b525438494b50be8aad583bedd83`, tree
+`91e1fc1b89ce2a2fc3aa8114ef9a0818b60dcd46` y checks post-merge PASS. El
+collector queda promovido, pero la ejecucion sigue bloqueada hasta consumir, en
+orden, `APPROVE_M3_FREE_READONLY`,
 `APPROVE_M3_CERTIFICATION_REPLAY`, `APPROVE_SDLC_M3_PRO`,
 `APPROVE_PRODUCTION_M3_READONLY_WINDOW` y `APPROVE_M3_PRO_READONLY`. Ningun gate
 concede M4.
