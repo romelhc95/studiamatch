@@ -29,6 +29,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_BASE,
     F1010_M3_BASE_TREE,
     F1010_M3_HEAD_REF,
+    F1010_M3_READER_ALLOWED_MODES,
+    F1010_M3_READER_ALLOWED_STATUSES,
+    F1010_M3_READER_BASE,
+    F1010_M3_READER_BASE_TREE,
+    F1010_M3_READER_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -69,6 +74,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m1,
     validate_f1010_m2a_wiring,
     validate_f1010_m3,
+    validate_f1010_m3_reader,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -407,6 +413,15 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_BASE,
             ),
             "f1010_m3",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_READER_HEAD_REF,
+                F1010_M3_READER_BASE,
+            ),
+            "f1010_m3_reader",
         )
         self.assertEqual(
             detect_mode(
@@ -1130,6 +1145,38 @@ class F109BoundaryTest(unittest.TestCase):
             F1010_M3_ALLOWED_MODES,
         )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_reader_pr_requires_frozen_direct_base(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_READER_BASE_TREE
+        parents_mock.return_value = [F1010_M3_READER_BASE]
+
+        validate_f1010_m3_reader(
+            Path("."), F1010_M3_READER_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_READER_BASE,
+            head,
+            F1010_M3_READER_ALLOWED_STATUSES,
+            F1010_M3_READER_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 52, 363)
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -1372,6 +1419,20 @@ class F109BoundaryTest(unittest.TestCase):
             },
         )
         self.assertTrue(all(mode == "100644" for mode in F1010_M3_ALLOWED_MODES.values()))
+        self.assertEqual(len(F1010_M3_READER_ALLOWED_STATUSES), 19)
+        self.assertEqual(
+            F1010_M3_READER_ALLOWED_MODES[
+                "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+            ],
+            "100755",
+        )
+        self.assertTrue(
+            all(
+                mode == "100644"
+                for path, mode in F1010_M3_READER_ALLOWED_MODES.items()
+                if path != "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+            )
+        )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):
             self.assertFalse(set(F1010_M1_ALLOWED_STATUSES).intersection(existing))
 

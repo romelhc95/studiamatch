@@ -1,0 +1,192 @@
+# F10.10 M3 Reader - Rebaseline De Preparacion Local
+
+| Campo | Valor |
+|---|---|
+| Subfase | `F10.10` |
+| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
+| Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
+| Acceso remoto / DDL remoto | `NO / NO` |
+| Gates consumidos | Ninguno |
+| Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
+| Query-set content digest `query-set-v1` candidate | `sha256:d7653136b10e23a58a9c15be74cd92909a4d98fdfcd48800925b82cbe9ddc642` |
+| Package Free-only candidate | `sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906` |
+| Compensacion candidate | `sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0` |
+
+Esta nota es la autoridad enfocada del rebaseline M3 reader y sustituye, para la
+proxima ejecucion Free, las partes operativas del scope M3 anterior que asumian
+una identidad SQL preexistente y un unico gate de lectura. La
+[evidencia post-merge M3](./m3_f10_10_post_merge_evidence_2026_08_11.md) de PR
+#350 permanece inmutable como antecedente del collector v1 promovido; no acredita
+el candidate v2, no registra ejecucion remota y no consume aprobaciones.
+
+## Decision
+
+La preparacion local se rebaselina sobre un collector v2 exclusivamente
+`FREE_DB` y un paquete Free-only
+para una identidad efimera dedicada llamada exactamente
+`studiamatch_m3_reader`. El candidate completo debe recorrer PR protegido y CI
+post-merge antes de que pueda proponerse un payload operativo. Las pruebas
+locales son evidencia de candidate, no validacion final ni autorizacion remota.
+
+La autorizacion decimal recibida permite esta preparacion local. No permite
+Supabase, red remota, DDL remoto, manejo de passwords, activacion privada ni el
+consumo de `APPROVE_M3_FREE_READONLY`. En esta preparacion no ocurrio acceso
+remoto, conexion Supabase, DDL/DML remoto, cambio de password ni consumo de gate.
+
+## Contrato Del Collector V2
+
+El collector v2 separa dos evidencias que no deben confundirse:
+
+1. **Binding aprobado offline**: se calcula sin red desde alias, project-ref
+   fingerprint, host API/SQL normalizado, puerto, database/user fingerprints,
+   `sslmode=verify-full`, digest del CA aprobado y expiracion privada del rol.
+2. **Atestacion observada en la misma conexion**: despues de conectar, la API
+   publica libpq observa host, puerto, database, user, TLS activo, protocolo,
+   cipher, library y `server_version_num` de esa misma conexion PostgreSQL.
+
+El binding offline no incorpora valores negociados esperados de protocolo,
+cipher, library TLS ni version exacta del servidor. Se eliminan como entradas de
+entorno los valores TLS negociados exactos. La atestacion observada sigue siendo
+obligatoria y fail-closed: exige TLS activo, `verify-full`, protocolo permitido y
+coincidencia de host/puerto/database/user con el binding; publica solo su digest
+sanitizado. No se usa un probe TLS separado ni se convierte una observacion
+negociada en configuracion preaprobada ficticia.
+
+`q0-only` es un modo y gate independiente. Solo atesta transporte, identidad,
+expiracion, read-only y privilegios; exige `BYPASSRLS=true`, no ejecuta Q1-Q4, no
+lee filas de `courses` y no concede la lectura full-population. `collect` exige
+mecanicamente un manifest predecessor canonical v2 `q0-only=PASS`, cuyo digest,
+query-set y target binding deben coincidir con runtime.
+
+## Rol Free Dedicado
+
+El paquete local propone exactamente este estado inicial:
+
+- rol efimero `studiamatch_m3_reader` con `NOLOGIN`, `PASSWORD NULL`,
+  `VALID UNTIL NULL`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`,
+  `NOREPLICATION`, `NOINHERIT`, connection limit 1 y `BYPASSRLS` aceptado para
+  visibilidad full-population bajo RLS;
+- defaults por rol/database: `default_transaction_read_only=on`,
+  `search_path=pg_catalog` y `client_encoding=UTF8`;
+- `CONNECT` solo al database aprobado y `USAGE` solo sobre `public`;
+- `SELECT` de columna exactamente sobre `public.courses.id`,
+  `public.courses.is_active`, `public.courses.syllabus` y
+  `public.courses.objectives`;
+- cero `SELECT` sobre otras columnas o relaciones, cero privilegio mutante,
+  cero ownership, cero edges `member=reader`, exactamente un edge
+  `roleid=reader` para el provisioner aprobado, y cero acceso efectivo a rutinas
+  no-sistema `SECURITY DEFINER`.
+
+`BYPASSRLS=true` es obligatorio en todos los estados admitidos y no concede
+escritura. Se acepta unicamente junto con el cierre de
+privilegios anterior, transacciones `REPEATABLE READ READ ONLY`, Q0 separado y
+caducidad finita. Cualquier grant heredado, `PUBLIC` amplio, colision de rol,
+edge distinto del provisioner permitido, ownership, acceso a otra
+relacion/columna, capacidad mutante o `SECURITY DEFINER` termina STOP.
+
+La provision remota futura deja `NOLOGIN`, `PASSWORD NULL` y `rolvaliduntil=NULL`.
+Solo durante una activacion privada bajo el gate Q0 se fija `LOGIN` y un `VALID
+UNTIL` exacto, finito y futuro igual a `F10_10_M3_VALID_UNTIL`. El password
+se establece exclusivamente mediante `psql` interactivo con `\password
+studiamatch_m3_reader`; nunca mediante SQL literal, argumento CLI, variable
+versionada, log, artifact, transcript o esta documentacion. La activacion y la
+lectura deben terminar antes de la expiracion.
+
+El edge administrado PostgreSQL 17 admite exactamente al provisioner aprobado por
+`F10_10_M3_PROVISIONER` como member/admin del reader: `roleid=reader`,
+`member=provisioner`, `admin=true/inherit=false/set=false`. El reader es member de
+cero roles (`member=reader`). Cualquier otro edge termina STOP. El fingerprint
+del provisioner forma parte del binding offline `target-binding-v2`.
+
+## Package Y Aislamiento Pro
+
+El package de provision vive bajo:
+
+```text
+db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql
+```
+
+La compensacion vive separada bajo:
+
+```text
+db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql
+```
+
+`scripts/maintenance/db_migrate.py` descubre mecanicamente solo
+`db/migrations/*.sql`; por ubicacion, el package Free-only queda fuera de ese glob
+Pro. Ademas, DB Sync Pro excluye de su deteccion automatica Pro-relevant el patron
+exacto `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y el path exacto de compensacion anterior. No
+deben copiarse, enlazarse ni reflejarse bajo `db/migrations/`. Cualquier deteccion
+o aplicacion por la ruta Pro termina STOP.
+
+La compensacion acepta el estado inicial inactivo o el estado activo con
+LOGIN/password/expiracion finita futura o expirada. Es deliberadamente
+fail-closed y multi-etapa:
+primero pone el rol
+en cuarentena con `NOLOGIN NOBYPASSRLS PASSWORD NULL`; despues termina sesiones
+bajo el gate de teardown y revoca los grants/settings creados por el package;
+finalmente lo elimina solo si no hay ownership ni dependencias bloqueantes. Grants
+o dependencias ajenos al package pueden permanecer y bloquear `DROP ROLE`. Si el
+drop no es seguro, la identidad queda cuarentenada con grants/settings del package
+revocados, mientras grants/dependencias ajenos pueden persistir; nunca se reactiva
+por rollback.
+
+## Validacion Local Requerida
+
+El candidate requiere PostgreSQL 17 local, aislado y networkless. La validacion
+debe cubrir provision, estado inicial sin password/expiracion, visibilidad RLS por
+`BYPASSRLS`, SELECT exacto de cuatro columnas, rechazo de otras columnas,
+relaciones, DML y `SECURITY DEFINER`, colisiones/grants amplios fail-closed, y
+compensacion cuarentena -> revocacion -> drop. Debe demostrar tambien que el
+package Free-only no entra al glob `db/migrations/*.sql` de Pro.
+
+CI descarga la imagen PostgreSQL 17 pinneada antes de activar el firewall de
+egress; despues inicia la prueba con `--pull never --network none`. Un pull tardio
+o cualquier red habilitada invalida la prueba.
+
+Los resultados locales del worktree no son finales. El estado no puede avanzar
+hasta que el candidate se fusione mediante PR protegido y pasen CI y validaciones
+post-merge, incluidos PostgreSQL 17 networkless, collector v2, boundary,
+credential scan y Context Graph.
+
+Una credencial usada previamente en un canary local queda
+`ROTATION_REQUIRED_OUT_OF_BAND` y no puede reutilizarse en provision, Q0, collect,
+teardown ni otro ambiente. No se registra ni inspecciona su valor. El propietario
+debe rotarla/revocarla fuera de banda y una atestacion sanitizada futura debe
+confirmarlo.
+
+## Gates Propuestos No Consumidos
+
+Orden propuesto para una operacion Free futura:
+
+| Gate | Capacidad maxima propuesta | Estado |
+|---|---|---|
+| `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `PROPOSED_NOT_EXECUTABLE` |
+| `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` | `PROPOSED_NOT_EXECUTABLE` |
+| `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
+| `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
+| `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
+
+Estos gates son nombres propuestos, no aprobaciones vigentes. Son no consumidos y
+no ejecutables hasta que el candidate completo quede fusionado por PR protegido,
+CI/post-merge sea PASS y una aprobacion humana posterior cite el payload exacto:
+candidate SHA/tree, digests de package/compensacion/query-set, target binding
+offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
+stop conditions y plan de teardown. Ningun gate concede el siguiente y la frase
+decimal F10.10 no los consume.
+
+## Bloqueos Preservados
+
+Certification y Pro no reciben este rol ni este DDL Free-only. Certification
+replay y toda ruta de collector/lectura/DDL Pro quedan superseded y bloqueadas en
+este rebaseline. M4-M10, F10.9/G4, G5-G13, schedules,
+observacion y F11.1 permanecen bloqueados. M3 reader PASS futuro tampoco los
+habilitaria automaticamente; requieren sus autoridades y gates posteriores.
+
+Enlaces: [Estado](../estado_del_proyecto.md) |
+[TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) |
+[Scope M3](./m3_f10_10_scope_por_ambiente_target.md) |
+[Plan F10.10](./plan_remediacion_metadata_f10_10.md) |
+[Flujo release](./flujo_release_minimo.md) |
+[Plan cierre Hito 1](./plan_cierre_hito1_ca1_only.md)

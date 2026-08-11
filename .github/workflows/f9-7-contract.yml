@@ -24,6 +24,8 @@ on:
       - 'db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql'
       - 'db/migrations/20260729_fase09_7_leads_email_security_hold.sql'
       - 'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'
+      - 'db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql'
+      - 'db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql'
       - 'db/restore_full_schema.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
       - 'scripts/maintenance/fase09_7_leads_email_security_hold_candidate.py'
@@ -51,6 +53,8 @@ on:
       - 'tests/sql/fase09_exec_sql_fixture.sql'
       - 'tests/sql/run_fase09_7_postgres.sh'
       - 'tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh'
+      - 'tests/sql/20260811_fase10_10_m3_free_reader_test.sql'
+      - 'tests/sql/run_fase10_10_m3_free_reader_postgres17.sh'
       - 'tests/test_fase09_7_backend_identity.py'
       - 'tests/test_fase09_7_acl_source_attestation.py'
       - 'tests/test_fase09_7_gate_b_readonly.py'
@@ -62,6 +66,7 @@ on:
       - 'tests/test_supabase_credentials_contract.py'
       - 'tests/test_frontend_public_surfaces_playwright.py'
       - 'tests/test_f10_10_m3_readonly_collector.py'
+      - 'tests/test_f10_10_m3_reader_package.py'
       - '.env.example'
       - '.gitattributes'
       - '.github/actionlint.yaml'
@@ -131,6 +136,11 @@ jobs:
           pip install --require-hashes \
             -r "$RUNNER_TEMP/requirements-db-migrate.txt" \
             -r "$RUNNER_TEMP/requirements-test.txt"
+      - name: Materialize pinned PostgreSQL 17 image
+        run: |
+          image="postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
+          docker pull "$image"
+          test -n "$(docker image inspect --format '{{.Id}}' "$image")"
       - name: Prepare M3 firewall cleanup state
         run: |
           state_dir="$(mktemp -d "$RUNNER_TEMP/f1010-m3-firewall.XXXXXXXX")"
@@ -155,8 +165,56 @@ jobs:
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
-            PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
-              tests/test_f10_10_m3_readonly_collector.py
+             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
+              tests/test_f10_10_m3_readonly_collector.py \
+              tests/test_f10_10_m3_reader_package.py
+      - name: Prepare M3 reader PostgreSQL socket
+        run: |
+          state_dir="$(mktemp -d "$RUNNER_TEMP/f1010-m3-reader.XXXXXXXX")"
+          chmod 711 "$state_dir"
+          mkdir "$state_dir/postgres-socket"
+          chmod 777 "$state_dir/postgres-socket"
+          echo "F1010_M3_READER_STATE=$state_dir" >> "$GITHUB_ENV"
+          echo "F1010_M3_READER_SOCKET=$state_dir/postgres-socket" >> "$GITHUB_ENV"
+      - name: Start M3 reader networkless PostgreSQL 17
+        run: |
+          docker run --detach --pull never --name studiamatch-m3-reader-postgres \
+            --network none \
+            --security-opt no-new-privileges:true \
+            --volume "$F1010_M3_READER_SOCKET:/var/run/postgresql" \
+            --env POSTGRES_DB=postgres \
+            --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD=postgres \
+            postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193
+          test "$(docker inspect --format '{{.HostConfig.NetworkMode}}' \
+            studiamatch-m3-reader-postgres)" = "none"
+          for _ in $(seq 1 30); do
+            pg_isready --host "$F1010_M3_READER_SOCKET" \
+              --username postgres --dbname postgres && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run M3 reader PostgreSQL 17 contract
+        run: |
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            env -i HOME=/tmp CI=true PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" \
+            TEST_DATABASE_URL="postgresql://postgres:postgres@/postgres?host=$F1010_M3_READER_SOCKET" \
+            F10_10_M3_READER_TEST_SOCKET="$F1010_M3_READER_SOCKET" \
+            ALLOW_DESTRUCTIVE_LOCAL_TEST_DB=F10_10_M3_READER_LOCAL_POSTGRES17_ONLY \
+            bash tests/sql/run_fase10_10_m3_free_reader_postgres17.sh
+      - name: Remove M3 reader local database
+        if: always()
+        run: |
+          cleanup_status=0
+          docker rm --force studiamatch-m3-reader-postgres || cleanup_status=$?
+          state_dir="${F1010_M3_READER_STATE:-}"
+          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
+            sudo rm -rf -- "$state_dir" || cleanup_status=1
+          else
+            cleanup_status=1
+          fi
+          exit "$cleanup_status"
       - name: Restore M3 external egress
         if: always()
         run: |

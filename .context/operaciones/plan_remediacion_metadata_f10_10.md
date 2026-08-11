@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_COLLECTOR_PROMOTED_REMOTE_GATES_PENDING` |
+| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -15,6 +15,14 @@ Corregir de forma acotada, reversible y atribuible los cursos activos que sigan
 sin syllabus y/o objectives, sin reabrir F10.9, sin ampliar writers del pipeline,
 sin modificar schema y sin cambios fuera de una cohorte congelada por target
 fisico.
+
+El [rebaseline M3 reader](./m3_reader_f10_10_rebaseline.md) introduce una
+excepcion preparatoria Free-only al veto general de DDL de esta version del plan:
+un package local para crear y retirar exclusivamente el rol efimero
+`studiamatch_m3_reader`. La excepcion no esta ejecutada ni autorizada remotamente,
+no modifica schema de aplicacion, tablas, RLS, policies, triggers ni datos, y solo
+podra ser operativa despues de merge protegido, CI/post-merge y gates/payload
+separados. Certification y Pro quedan fuera de la excepcion.
 
 El snapshot historico `104/224` sirve solo como antecedente. La primera cohorte
 operativa debe surgir de dos lecturas paginadas vigentes con la politica P5
@@ -38,7 +46,9 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 - INSERT, DELETE, UPSERT, RPC, SQL ad hoc o writers masivos;
 - writes en `staging_raw`, `cleansed_programs` o `enriched_programs`;
 - ejecutar workers core o scripts legacy como reparacion;
-- DDL, schema, RLS, grants, triggers o migrations;
+- DDL, schema, RLS, grants, triggers o migrations, salvo el candidate local
+  Free-only del rol M3 reader descrito en su rebaseline; su DDL remoto permanece
+  prohibido hasta gate futuro;
 - copiar datos operativos entre ambientes;
 - sobrescribir metadata valida o cambiar actividad para reducir el denominador;
 - schedules, observacion F10.9 o F11.1.
@@ -50,7 +60,7 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
-| `M3` | Contencion y diagnostico read-only | Cohorte vigente doble, schema/trigger/writer fingerprints | Lectura remota |
+| `M3` | Preparar canal Free y luego diagnostico read-only por gates separados | Reader efimero, Q0 separado, cohorte doble y fingerprints | Candidate local pendiente; remoto bloqueado |
 | `M4` | Generar propuestas privadas | Candidate atribuible, budget respetado, cero DB writes | Provider sin writer |
 | `M5` | Revision editorial | 100% outputs provider revisados; solo aprobados son elegibles | Humano |
 | `M6` | Pilot maximo 5 | exact-one, verify, cero no-cohorte | Writer acotado |
@@ -60,10 +70,10 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M10` | Handoff de autoridad | Decision separada sobre F10.9/G4 | Docs/Git |
 
 Ningun gate concede el siguiente. M0 no autoriza M1. M2 no autoriza environments.
-Free, Certification y Pro requieren etapas de aprobacion independientes. La
+El M3 reader v2 tiene un unico target `FREE_DB` y approvals Free separados. La
 unidad de datos es el target fisico inmutable `(project_ref, host_fingerprint)`.
-Si dos nombres apuntan al mismo target fisico, se ejecuta una sola cohorte/apply
-y se registran dos approvals/replays; no se reportan como cohortes independientes.
+Certification y Pro no reciben replay, collector, cohorte ni apply en este
+rebaseline; toda secuencia anterior entre ambientes queda superseded.
 
 ## Cohorte
 
@@ -284,13 +294,59 @@ La ejecucion remota M3 y M4-M10 permanecen sin autorizar. M2 no autoriza red,
 DB, Supabase, providers, environments, writers, workflows operativos,
 backup/restore, SQL ni DDL.
 
-El [scope M3 por ambiente/target](./m3_f10_10_scope_por_ambiente_target.md)
+El [scope M3 v2 Free-only](./m3_f10_10_scope_por_ambiente_target.md)
 queda aprobado como contrato y registra la adenda `verify-full` soportada. La
 [evidencia M3](./m3_f10_10_post_merge_evidence_2026_08_11.md) registra PR #350,
 merge `332706fe3ed2b525438494b50be8aad583bedd83`, tree
 `91e1fc1b89ce2a2fc3aa8114ef9a0818b60dcd46` y checks post-merge PASS. El
-collector queda promovido, pero la ejecucion sigue bloqueada hasta consumir, en
-orden, `APPROVE_M3_FREE_READONLY`,
-`APPROVE_M3_CERTIFICATION_REPLAY`, `APPROVE_SDLC_M3_PRO`,
-`APPROVE_PRODUCTION_M3_READONLY_WINDOW` y `APPROVE_M3_PRO_READONLY`. Ningun gate
-concede M4.
+collector v1 queda promovido solo como antecedente. Su secuencia historica
+Free -> Certification -> Pro queda `SUPERSEDED_BY_M3_READER_V2_FREE_ONLY` y no es
+ejecutable. Ningun gate historico concede M4.
+
+### Rebaseline Posterior Del Reader
+
+El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
+es `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE`: collector v2,
+package `db/free_only_migrations/` fuera del glob Pro y compensacion fail-closed.
+DB Sync excluye `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y el path exacto de compensacion de
+su deteccion automatica Pro-relevant. El rol Free `studiamatch_m3_reader` nace con
+`NOLOGIN/PASSWORD NULL/rolvaliduntil NULL`, obtiene solo
+SELECT de cuatro columnas y no tiene otra relacion, mutacion o acceso efectivo a
+`SECURITY DEFINER`; `BYPASSRLS=true` es obligatorio siempre para full-population.
+La activacion privada Q0 fija `LOGIN` y `VALID UNTIL` exacto/finito desde
+`F10_10_M3_VALID_UNTIL`, y usa solo `psql
+\password` para establecer el password.
+
+El provisioner PostgreSQL 17 aprobado por `F10_10_M3_PROVISIONER` es exactamente
+el unico member/admin del reader (`roleid=reader`, `member=provisioner`) con
+`admin=true/inherit=false/set=false`; el reader es member de cero roles
+(`member=reader`). El fingerprint del provisioner se incorpora a
+`target-binding-v2`.
+
+Binding offline y atestacion TLS/server de la misma conexion son evidencias
+separadas y sus digests no pueden ser iguales; se retiran los valores negociados
+TLS/server exactos del entorno. `q0-only` es un gate independiente anterior a
+Q1-Q4. `collect` exige mecanicamente su manifest/digest predecessor canonical v2
+PASS con query-set y target binding identicos. El manifest sanitizado prueba
+PASS/transcript/binding/query-set/counters, no publica BYPASS/expiracion raw. La
+compensacion acepta estado activo con expiracion futura o expirada, o inactivo;
+cuarentena primero, termina sesiones bajo gate, revoca grants/settings del package
+y solo elimina al final si dependencias ajenas no bloquean el drop.
+
+El manifest/envelope canonical, target binding, observed transport y predecessor
+son v2. Los content digests `query-set-v1`, `schema-v1`, `constraints-v1`,
+`triggers-v1`, `snapshot-raw-v1`, `snapshot-normalized-v1` y `cohort-v1` se
+conservan intencionalmente y son validos dentro de v2; manifest/binding v1 sigue
+rechazado y no existe `q0-attestation-v2`.
+
+Los gates propuestos de preflight Free, DDL Free, Q0 Free y teardown Free, junto
+con `APPROVE_M3_FREE_READONLY`, estan no consumidos y no son ejecutables hasta
+merge protegido, CI/post-merge y aprobacion de payload exacto. La validacion
+PostgreSQL 17 networkless, con pull de imagen pinneada antes del firewall y
+`--pull never --network none` despues, es requisito del candidate, no prueba final en este
+corte. No hubo acceso remoto, Supabase, DDL remoto ni passwords. Certification,
+Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
+
+Una credencial usada previamente por un canary local requiere rotacion/revocacion
+fuera de banda y no puede reutilizarse. Su valor no se documenta. El hallazgo
+permanece abierto hasta atestacion sanitizada posterior.
