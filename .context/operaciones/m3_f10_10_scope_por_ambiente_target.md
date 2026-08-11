@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
@@ -289,8 +289,9 @@ STOP. La suite valida provision, edge del provisioner, estado NOLOGIN inicial,
 activacion/Q0, BYPASSRLS obligatorio, cuatro columnas exactas, predecessor
 mecanico, aislamiento Pro y teardown desde estado activo/inactivo.
 
-Los resultados locales son solo evidencia del candidate. Validacion final exige
-PR protegido, CI y checks post-merge.
+La validacion final del candidate quedo acreditada por PR #353, merge protegido
+`2cf614a4a44ffabc5e06ba08dc20707807db274f` y checks post-merge PASS. Esa
+evidencia no autoriza Free ni consume gates.
 
 ## Credencial Canary Local
 
@@ -310,8 +311,9 @@ APPROVE_M3_FREE_READONLY
 APPROVE_F10_10_M3_READER_TEARDOWN_FREE
 ```
 
-Son propuestos/no consumidos/no ejecutables hasta merge protegido, CI post-merge
-PASS y aprobacion humana del payload exacto. Ningun gate concede el siguiente.
+Son propuestos/no consumidos/no ejecutables. Merge protegido y CI post-merge ya
+quedaron PASS, pero falta atestacion sanitizada de rotacion/revocacion y aprobacion
+humana del payload exacto. Ningun gate concede el siguiente.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
 bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto, password ni
 consumo de gates.

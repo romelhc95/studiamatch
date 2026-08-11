@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Estado | `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -60,7 +60,7 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
-| `M3` | Preparar canal Free y luego diagnostico read-only por gates separados | Reader efimero, Q0 separado, cohorte doble y fingerprints | Candidate local pendiente; remoto bloqueado |
+| `M3` | Preparar canal Free y luego diagnostico read-only por gates separados | Reader efimero, Q0 separado, cohorte doble y fingerprints | Candidate post-merge verificado; remoto bloqueado |
 | `M4` | Generar propuestas privadas | Candidate atribuible, budget respetado, cero DB writes | Provider sin writer |
 | `M5` | Revision editorial | 100% outputs provider revisados; solo aprobados son elegibles | Humano |
 | `M6` | Pilot maximo 5 | exact-one, verify, cero no-cohorte | Writer acotado |
@@ -306,8 +306,9 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE`: collector v2,
-package `db/free_only_migrations/` fuera del glob Pro y compensacion fail-closed.
+es `M3_READER_POST_MERGE_VERIFIED_GATES_PENDING`: PR #353 promovio collector v2,
+package `db/free_only_migrations/` fuera del glob Pro y compensacion fail-closed;
+Security Audit `31497100919` y F9.7 `31497100928` terminaron PASS post-merge.
 DB Sync excluye `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y el path exacto de compensacion de
 su deteccion automatica Pro-relevant. El rol Free `studiamatch_m3_reader` nace con
 `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL`, obtiene solo
@@ -340,11 +341,10 @@ conservan intencionalmente y son validos dentro de v2; manifest/binding v1 sigue
 rechazado y no existe `q0-attestation-v2`.
 
 Los gates propuestos de preflight Free, DDL Free, Q0 Free y teardown Free, junto
-con `APPROVE_M3_FREE_READONLY`, estan no consumidos y no son ejecutables hasta
-merge protegido, CI/post-merge y aprobacion de payload exacto. La validacion
-PostgreSQL 17 networkless, con pull de imagen pinneada antes del firewall y
-`--pull never --network none` despues, es requisito del candidate, no prueba final en este
-corte. No hubo acceso remoto, Supabase, DDL remoto ni passwords. Certification,
+con `APPROVE_M3_FREE_READONLY`, estan no consumidos. Merge protegido, CI
+post-merge y PostgreSQL 17 networkless ya terminaron PASS; falta atestacion
+sanitizada de rotacion/revocacion y aprobacion de payload exacto antes del primer
+gate. No hubo acceso remoto, Supabase, DDL remoto ni passwords. Certification,
 Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
 
 Una credencial usada previamente por un canary local requiere rotacion/revocacion
