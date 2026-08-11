@@ -3,11 +3,15 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_COLLECTOR_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Estado | `M3_COLLECTOR_PROMOTED_REMOTE_GATES_PENDING` |
 | Base | `desarrollo@ea6ef79a450d691a93195b26bec2ecde1b4dc18d` |
 | Base tree | `fe5b8223e56f360bef930bd565cfa6318e37692c` |
 | Ejecuta acceso remoto | `NO` |
 | Autoriza M4 | `NO` |
+
+La [evidencia post-merge M3](./m3_f10_10_post_merge_evidence_2026_08_11.md)
+registra PR #350, tree promovido, query-set digest y checks post-merge PASS. Esta
+promocion no consume ninguna aprobacion remota.
 
 Esta definicion concreta M3 del
 [plan F10.10](./plan_remediacion_metadata_f10_10.md). El estado y la tarea viva
