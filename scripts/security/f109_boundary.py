@@ -43,6 +43,9 @@ F1010_M1_HEAD_REF = "feat/f10-10-m1-offline-tooling"
 F1010_M3_BASE = "ea6ef79a450d691a93195b26bec2ecde1b4dc18d"
 F1010_M3_BASE_TREE = "fe5b8223e56f360bef930bd565cfa6318e37692c"
 F1010_M3_HEAD_REF = "feat/f10-10-m3-readonly-collector-v2"
+F1010_M3_READER_BASE = "1adfc2a8bcabfd4b58ff2bc34f73e47626f1a838"
+F1010_M3_READER_BASE_TREE = "4b2e3245d2a87c7170b4241b87e1a8ae123c1bec"
+F1010_M3_READER_HEAD_REF = "feat/f10-10-m3-reader-rebaseline"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -262,6 +265,33 @@ F1010_M3_ALLOWED_STATUSES = {
 }
 
 F1010_M3_ALLOWED_MODES = {path: "100644" for path in F1010_M3_ALLOWED_STATUSES}
+
+F1010_M3_READER_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "A",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/db-sync-to-pro.yml": "M",
+    "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql": "A",
+    "db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql": "A",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/20260811_fase10_10_m3_free_reader_test.sql": "A",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "A",
+    "tests/test_f10_10_m3_reader_package.py": "A",
+    "tests/test_f10_10_m3_readonly_collector.py": "M",
+    "tests/test_fase10_8_db_sync.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_READER_ALLOWED_MODES = {
+    path: "100755" if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh" else "100644"
+    for path in F1010_M3_READER_ALLOWED_STATUSES
+}
 
 CONTEXT_IGNORED_PREFIXES = (
     ".context/.obsidian/",
@@ -911,6 +941,44 @@ def validate_f1010_m3(repo: Path, base: str, head: str, event: str) -> None:
     )
 
 
+def validate_f1010_m3_reader(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M3_READER_BASE, "unexpected F10.10 M3 reader protected baseline")
+    require_sha(repo, "F1010_M3_READER_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_READER_BASE_TREE,
+        "F10.10 M3 reader protected base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "F10.10 M3 reader base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 reader PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M3 reader push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M3 reader push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 reader merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 reader push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_READER_ALLOWED_STATUSES,
+        F1010_M3_READER_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 52, 363)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -950,6 +1018,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_HEAD_REF
     ):
         return "f1010_m3"
+    if base_ref == "desarrollo" and base == F1010_M3_READER_BASE and (
+        event == "push" or head_ref == F1010_M3_READER_HEAD_REF
+    ):
+        return "f1010_m3_reader"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -1039,6 +1111,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
                 raise BoundaryError("F10.10 M3 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_READER_HEAD_REF:
+                raise BoundaryError("F10.10 M3 reader branch requires the frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -1046,6 +1120,7 @@ def main() -> int:
             touched_p5 = set(actual).intersection(P5_ALLOWED_STATUSES)
             touched_f1010_m1 = set(actual).intersection(F1010_M1_ALLOWED_STATUSES)
             touched_f1010_m3 = set(actual).intersection(F1010_M3_ALLOWED_STATUSES)
+            touched_f1010_m3_reader = set(actual).intersection(F1010_M3_READER_ALLOWED_STATUSES)
             require(
                 sum(
                     bool(surface)
@@ -1056,6 +1131,7 @@ def main() -> int:
                         touched_p5,
                         touched_f1010_m1,
                         touched_f1010_m3,
+                        touched_f1010_m3_reader,
                     )
                 )
                 <= 1,
@@ -1145,6 +1221,8 @@ def main() -> int:
             )
         elif mode == "f1010_m3":
             validate_f1010_m3(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m3_reader":
+            validate_f1010_m3_reader(args.repo, args.base_sha, args.head_sha, args.event)
         else:
             validate_g2(
                 args.repo,

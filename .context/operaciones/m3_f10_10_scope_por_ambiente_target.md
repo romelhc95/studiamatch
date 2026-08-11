@@ -1,31 +1,35 @@
-# F10.10 M3 - Alcance Por Ambiente Y Target Fisico
+# F10.10 M3 - Scope Reader V2 Free-Only
 
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_COLLECTOR_PROMOTED_REMOTE_GATES_PENDING` |
-| Base | `desarrollo@ea6ef79a450d691a93195b26bec2ecde1b4dc18d` |
-| Base tree | `fe5b8223e56f360bef930bd565cfa6318e37692c` |
+| Estado | `M3_READER_REBASELINE_CANDIDATE_PENDING_PROTECTED_MERGE` |
+| Target unico | `FREE_DB` |
+| Collector | `f10.10-m3-readonly-collector-v2` |
+| Canonical | `f10.10-m3-canonical-v2` |
 | Ejecuta acceso remoto | `NO` |
-| Autoriza M4 | `NO` |
+| Gates consumidos | Ninguno |
+| Autoriza Certification / Pro / M4 | `NO / NO / NO` |
 
-La [evidencia post-merge M3](./m3_f10_10_post_merge_evidence_2026_08_11.md)
-registra PR #350, tree promovido, query-set digest y checks post-merge PASS. Esta
-promocion no consume ninguna aprobacion remota.
+Este documento es el scope autoritativo M3 reader v2. Sustituye todas las
+secciones ejecutables v1 del scope anterior. La
+[evidencia M3 de PR #350](./m3_f10_10_post_merge_evidence_2026_08_11.md)
+permanece antecedente historico del collector v1: no autoriza ejecucion v2, no
+acredita este candidate y no consume gates.
 
-Esta definicion concreta M3 del
-[plan F10.10](./plan_remediacion_metadata_f10_10.md). El estado y la tarea viva
-permanecen en [Estado del proyecto](../estado_del_proyecto.md) y
+Enlaces de autoridad: [rebaseline enfocado](./m3_reader_f10_10_rebaseline.md),
+[plan F10.10](./plan_remediacion_metadata_f10_10.md),
+[estado](../estado_del_proyecto.md) y
 [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
 
-La aprobacion de este documento autoriza el alcance, los aliases, query-set,
-orden y criterios de salida. No autoriza una llamada remota: cada target conserva
-un gate humano separado y el canal debe demostrar enforcement read-only antes de
-leer.
+## Frontera Free-Only
 
-## Objetivo Acotado
+El collector v2 acepta exclusivamente `--target-alias FREE_DB`. `PRO_DB`, otro
+alias o cualquier intento de continuar hacia Certification/Pro termina STOP.
+Certification no ejecuta collector, replay ni nueva red dentro de este rebaseline.
+No existe ruta M3 Pro autorizable desde este documento.
 
-M3 solo puede contener y diagnosticar el estado vigente de:
+M3 diagnostica exclusivamente:
 
 ```text
 public.courses.id
@@ -34,631 +38,280 @@ public.courses.syllabus
 public.courses.objectives
 ```
 
-Tambien puede inspeccionar metadata de catalogo estrictamente necesaria para
-esas cuatro columnas: tipos/nullability/defaults, PK/constraints relevantes,
-RLS/grants SELECT y triggers/funciones que reaccionen a syllabus/objectives.
+Puede inventariar catalogo estrictamente necesario para probar tipos,
+nullability, PK, RLS, grants y superficies de trigger/rutina relacionadas, sin
+otorgar al reader acceso ejecutable a esas rutinas. No genera contenido, no llama
+providers, no modifica datos y no habilita M4.
 
-No produce candidates editoriales, no llama providers y no modifica datos.
+## Package Free-Only
 
-## Ambientes Y Orden Obligatorio
-
-| Gate | Ambiente logico | Alias target | Accion remota | Prerrequisito |
-|---|---|---|---|---|
-| `M3-DEV-FREE` | Development | `FREE_DB` | Unica adquisicion fisica Free | `APPROVE_M3_FREE_READONLY` |
-| `M3-CERT-FREE` | Certification | `FREE_DB` | Replay del binding/artifact; cero nueva lectura por defecto | `M3-DEV-FREE=PASS` + `APPROVE_M3_CERTIFICATION_REPLAY` |
-| `M3-PRO` | Production | `PRO_DB` | Adquisicion fisica Pro separada | `M3-CERT-FREE=PASS` + tres approvals Pro exactos |
-
-Development y Certification comparten Free como target fisico segun la topologia
-vigente. Si sus configuraciones locales no resuelven al mismo binding, terminar
-`STOP_TARGET_MISMATCH`; no crear dos cohortes ni escoger una silenciosamente.
-
-Certification revalida el paquete Free. Una segunda lectura Free termina
-`STOP_REAPPROVAL_REQUIRED` y exige una nueva instancia de
-`APPROVE_M3_FREE_READONLY`, con nuevo approval ID y payload completo; nunca es
-continuidad automatica ni usa un token alternativo implicito.
-
-Pro no puede ser el primer target. Un HOLD/STOP en Free o Certification bloquea
-Pro.
-
-## Binding Privado Del Target
-
-Antes de cualquier lectura, resolver URL y project ref desde configuracion local
-gitignored del ambiente. Nunca imprimirlos ni versionarlos.
-
-Normalizacion host `f10.10-m3-host-v1`:
-
-1. exigir HTTPS;
-2. lowercase e IDNA ASCII;
-3. eliminar punto final;
-4. rechazar userinfo, query, fragment, redirects y puerto distinto de 443;
-5. comprobar que el project ref local corresponde al host resuelto.
+Provision:
 
 ```text
-host_fingerprint = sha256("f10.10-m3-host-v1\0" || normalized_host)
-physical_target = (local_project_ref, host_fingerprint)
-api_binding_digest = domain_separated_sha256(physical_target)
+db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql
 ```
 
-El artifact privado conserva el tuple. La evidencia Git conserva solo:
+Compensacion exacta:
 
 ```text
-target_alias
-target_binding_digest
-host_normalization_version
-approval_id
+db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql
 ```
 
-No publicar project ref, URL, hostname, IP, UUID de fila ni componentes que
-permitan reconstruirlos.
+`db-sync-to-pro` debe excluir mecanicamente el path exacto
+`db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y el path exacto
+`db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql` de toda
+deteccion automatica de cambios Pro-relevant. El migrador Pro descubre solo
+`db/migrations/*.sql`. Copiar, reflejar, detectar como Pro-relevant o aplicar
+cualquiera de los dos paths Free-only en Pro termina STOP.
 
-## Canal Read-Only Autoritativo
+## Provisioner PostgreSQL 17
 
-Free y Pro exigen un colector local ejecutado dentro de `studiamatch-dev` sobre
-una identidad SQL preexistente, full-population y read-only. El colector mantiene
-una sola conexion TLS durante cada snapshot y escribe el artifact privado solo en
-una ruta gitignored aprobada.
-
-Este documento no implementa ni autoriza ese colector. Antes de consumir
-`APPROVE_M3_FREE_READONLY` debe existir, revisarse y promoverse por PR protegido:
+La provision usa el edge administrado minimo de PostgreSQL 17. El provisioner
+aprobado se identifica privadamente mediante `F10_10_M3_PROVISIONER` y debe ser
+exactamente el unico member del reader en `pg_auth_members`: `roleid=reader` y
+`member=provisioner`. Ese unico edge debe tener:
 
 ```text
-scripts/maintenance/f10_10_m3_readonly_collector.py
-tests/test_f10_10_m3_readonly_collector.py
+admin_option = true
+inherit_option = false
+set_option = false
 ```
 
-El PR fija version, checksum, manifest del query-set, invocacion Docker,
-allowlist de sentencias estaticas, zero-write tests y artifact path gitignored.
-Tooling ad hoc, consola SQL y queries copiadas manualmente terminan
-`STOP_COLLECTOR_NOT_PROMOTED`.
+No se acepta un segundo edge `roleid=reader`, una opcion distinta, `SET ROLE`,
+session authorization, owner/superuser alternativo ni reparacion silenciosa. El
+reader `studiamatch_m3_reader` es member de cero roles (`member=reader` no existe).
+El unico edge inverso permitido es el provisioner aprobado como member/admin del
+reader (`roleid=reader`) con las opciones exactas anteriores. Cualquier otro edge
+termina STOP. El fingerprint domain-separated del provisioner aprobado forma
+parte de `target-binding-v2`; el nombre permanece solo en evidencia privada.
 
-No se crea rol, grant, policy ni funcion para M3. Si la identidad no existe o no
-cumple Q0, terminar `STOP_NEEDS_READONLY_CHANNEL`.
+## Estado Del Reader
 
-Antes de aprobar, la configuracion privada aporta el binding SQL esperado: host,
-puerto, database, CA bundle, atributos TLS soportados y `server_version_num`
-exacto esperados.
-El host SQL usa
-`f10.10-m3-sql-host-v1`: IDNA A-label ASCII lowercase, sin punto terminal,
-userinfo, query ni fragment; el puerto es entero explicito. La conexion exige
-TLS con validacion CA y hostname equivalente a `sslmode=verify-full`.
-
-La misma conexion PostgreSQL, no un probe separado, observa host, puerto,
-`current_database`, `server_version_num`, `ssl_in_use`, protocolo, cipher y
-library TLS mediante la API publica libpq. El artifact
-conserva binding esperado y observado; cualquier mismatch entre API alias,
-configuracion local y conexion real termina `STOP_TARGET_MISMATCH`. La aprobacion
-cita el digest esperado; el manifest PASS publica tambien el digest observado.
-
-### MCP Free Opcional Y No Autoritativo
-
-Supabase MCP puede usarse solo como sanity-check secundario de Q0-Q3 en Free:
+La provision inicial crea exactamente:
 
 ```text
-project_ref=<FREE_LOCAL_REF>
-read_only=true
-features=database
+role = studiamatch_m3_reader
+LOGIN = false
+PASSWORD = NULL
+rolvaliduntil = NULL
+BYPASSRLS = true
+SUPERUSER = false
+CREATEDB = false
+CREATEROLE = false
+REPLICATION = false
+INHERIT = false
+CONNECTION LIMIT = 1
 ```
 
-La aprobacion manual por llamada es un ajuste obligatorio del cliente MCP, no un
-parametro del servidor. Cada tool call puede contener exactamente una sentencia.
-Project scope debe deshabilitar account-management y `features=database` reducir
-la superficie.
+`BYPASSRLS=true` es obligatorio siempre: en provision, activacion, Q0 y collect.
+No se acepta RLS policy como equivalente de visibilidad full-population.
 
-MCP no ejecuta snapshots, no recibe textos/filas `courses` y no acredita
-poblacion, cohorte ni cero metadata. La publishable key/RLS tambien queda limitada
-a replay publico secundario: ambos canales pueden producir un falso cero.
+El reader recibe `CONNECT` solo al database aprobado, `USAGE` solo en `public` y
+SELECT de columna exactamente sobre `courses.id`, `courses.is_active`,
+`courses.syllabus` y `courses.objectives`. Debe conservar cero SELECT sobre otra
+columna/relacion, cero privilegio mutante, cero ownership, cero edges con
+`member=reader`, exactamente el edge provisioner permitido con `roleid=reader`, y
+cero acceso efectivo a rutinas no-sistema `SECURITY DEFINER`.
 
-### Pro
+## Activacion Privada Q0
 
-Supabase MCP queda prohibido para `PRO_DB`: la recomendacion oficial es no
-conectarlo a produccion. Pro usa exclusivamente el colector local y una identidad
-SQL preexistente que pase Q0.
+La provision DDL no activa el login. Bajo
+`APPROVE_F10_10_M3_READER_Q0_FREE`, la activacion privada debe:
 
-La conexion Pro se liga al target aprobado mediante un binding privado que agrega
-al binding API:
+1. verificar de nuevo package, target y provisioner binding;
+2. fijar `LOGIN` y un `VALID UNTIL` exacto, finito y futuro igual a
+   `F10_10_M3_VALID_UNTIL`;
+3. establecer el password exclusivamente con `psql` interactivo mediante
+   `\password studiamatch_m3_reader`;
+4. ejecutar `q0-only` dentro de la misma ventana;
+5. no ejecutar Q1-Q4.
+
+El password nunca aparece en SQL literal, argumento CLI, documentacion, Git,
+logs, artifacts o transcript. El collector puede recibirlo solo por el canal
+privado aprobado durante la ventana; esta documentacion no registra el valor.
+
+Q0 exige exactamente `session_user=current_user=studiamatch_m3_reader`,
+`BYPASSRLS=true`, `LOGIN=true`, `rolvaliduntil` igual al epoch exacto aprobado y
+aun futuro, read-only on, `search_path=pg_catalog`, `client_encoding=UTF8`, cero
+edges `member=reader`, exactamente un edge `roleid=reader` para el provisioner
+aprobado con `admin=true/inherit=false/set=false`, y el contrato cerrado de
+grants. Cualquier diferencia termina STOP.
+
+## Binding V2 Offline
+
+`target-binding-v2` se calcula sin red. Su payload privado incluye:
 
 ```text
-normalized_sql_dsn_host
-sql_port
-ca_certificate_sha256
-tls_protocol
-tls_cipher
-tls_library
-current_database
+schema = f10.10-m3-target-binding-v2
+target_alias = FREE_DB
+API host/project-ref fingerprints
+SQL host/port/database/user fingerprints
+provisioner fingerprint
+F10_10_M3_VALID_UNTIL exact epoch
+sslmode = verify-full
+approved CA sha256
 ```
 
-Solo el digest sale del artifact privado. Un mismatch de DSN, TLS, database o
-asociacion local con el alias aprobado termina `STOP_TARGET_MISMATCH`.
+No incluye valores exactos esperados de protocolo TLS negociado, cipher, library
+TLS ni `server_version_num`. Esas variables de entorno quedan eliminadas. Las
+entradas privadas requeridas incluyen `F10_10_M3_PROVISIONER` y
+`F10_10_M3_VALID_UNTIL`, ademas del binding Free, reader y CA aprobados.
 
-No usar service/secret key, password postgres owner ni superuser. Toda transaccion
-del colector comienza explicitamente `REPEATABLE READ READ ONLY`, ejecuta Q0 como
-primera sentencia y comprueba `transaction_read_only=on`; no se confia solo en el
-default del rol. La conexion fija `search_path=pg_catalog` antes de abrir la
-transaccion y Q0 atesta `search_path=pg_catalog` y `client_encoding=UTF8`,
-estabilizando toda renderizacion catalogo. Privilegio DML directo o transporte
-sin esos enforcements termina `STOP_NEEDS_READONLY_CHANNEL`.
+El CA se valida por digest, se copia a un `memfd` sellado y el mismo descriptor
+aprobado se entrega a libpq con `sslmode=verify-full`. No se usa probe separado,
+pooler ni conexion indirecta.
 
-### Adenda De Implementacion Aprobada
+## Observed Transport V2
 
-La API publica de alto nivel elegida (`ConnectionInfo`/`PQsslAttribute`) no expone
-el certificado leaf DER de la misma conexion. M3 no usa internals nativos,
-`PQsslStruct` ni un probe separado: el binding exige
-`sslmode=verify-full`, pin SHA-256 del CA file aprobado, hostname verification y
-atributos TLS soportados. Cualquier atributo ausente o distinto termina
-`STOP_TLS_CONTRACT` o `STOP_TARGET_MISMATCH`.
-
-El CA aprobado se copia a un `memfd` collector-owned sellado contra write/grow/
-shrink antes de entregarlo a libpq. Q1-Q3b usan named server-side cursors con
-fetch acotado; Q0, BEGIN/COMMIT y cada pagina Q4 conservan cursor regular.
-
-El collector usa `psycopg2-binary==2.9.12` ya fijado con hashes en
-`requirements-pipeline.txt`; el import es lazy y la invocacion runtime instala
-ese lock dentro de `studiamatch-dev`. No se agrega un segundo driver.
-
-Solo se acepta conexion directa `db.<project_ref>.supabase.co:5432`; session y
-transaction poolers terminan `STOP_TARGET_MISMATCH`. Asi el host liga fisicamente
-el project ref y Q0 compara el rol efectivo exacto, sin confundir login pooler con
-`current_user`.
-
-Query-set `f10.10-m3-query-set-v1` incluye exactamente, ordenados por path:
+`observed-transport-v2` se produce solo despues de abrir la conexion aprobada. La
+API publica libpq observa, desde esa misma conexion:
 
 ```text
-scripts/maintenance/f10_10_m3_readonly_collector.py
-tests/test_f10_10_m3_readonly_collector.py
+host
+port
+database
+user
+ssl_in_use
+protocol
+cipher
+library
+server_version_num
 ```
 
-El digest se calcula runtime sobre texto UTF-8 normalizado; no se incrusta en los
-archivos que hashea. Limites fail-closed: pagina `500`, poblacion `10000`, string
-`32768` chars, presupuesto remoto acumulado `16 MiB`, cada resultado catalogo
-`50000` filas, artifact `64 MiB`, connect timeout `10s` y
-statement/lock/idle-in-transaction timeout `60s`. Artifacts solo bajo
-`local/f10_10/m3/`, ruta ya gitignored; symlink, traversal u overwrite terminan
-STOP.
+Exige TLS activo, protocolo permitido y coincidencia de host/port/database/user
+con el binding offline. Protocolo, cipher, library y servidor son observaciones,
+no expected env vars.
 
-Invocacion reproducible, siempre dentro del contenedor:
+`target_binding_digest` y `observed_transport_digest` usan dominios y payloads
+distintos. Deben existir ambos y **NO deben ser iguales**. Igualdad termina
+`STOP_DIGEST_DOMAIN_COLLISION`; ausencia o mezcla de payloads termina
+`STOP_BINDING_CONTRACT`.
+
+## Canonical Manifest V2 Y Content Digests
+
+El collector, la serializacion/envelope del manifest canonical, el target
+binding, el observed transport y el contrato predecessor son v2. El JSON del
+manifest canonical v2 usa UTF-8, `ensure_ascii=true`, keys ordenadas y separadores
+compactos.
+
+La implementacion conserva intencionalmente los dominios content digest
+domain-separated existentes:
 
 ```text
-docker exec studiamatch-dev python3 -m venv /tmp/f10_10_m3_venv
-docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/pip install --require-hashes -r /app/requirements-pipeline.txt
+query-set-v1
+schema-v1
+constraints-v1
+triggers-v1
+snapshot-raw-v1
+snapshot-normalized-v1
+cohort-v1
+```
+
+Esos content digests v1 son validos dentro del manifest v2 y no implican aceptar
+un manifest o binding v1. Los artifacts/manifests canonical v1 y
+`target-binding-v1` historicos permanecen rechazados. No existe un dominio
+`q0-attestation-v2`; Q0 se acredita mediante el manifest canonical v2, su modo,
+decision, transcript sanitizado, binding, query-set y counters.
+
+La normalizacion editorial sigue `f10.9-metadata-v2`. La referencia historica
+`104/224` nunca es expected count ni allowlist.
+
+## Predecessor Mecanico Q0
+
+`collect` requiere mecanicamente un manifest predecessor `q0-only` canonical v2
+con decision PASS. No basta una afirmacion humana ni un artifact privado suelto.
+El predecessor debe:
+
+- existir bajo la ruta privada aprobada y no ser symlink/overwrite;
+- tener schema/modo `q0-only` v2 y decision `PASS`;
+- corresponder a `FREE_DB` y al approval Q0 aprobado;
+- probar mediante decision PASS y transcript sanitizado que Q0 valido
+  internamente BYPASSRLS, login, expiracion y edges de membresia;
+- tener `query_set_digest` igual al query-set runtime;
+- tener `target_binding_digest` igual al binding offline runtime;
+- conservar `observed_transport_digest` distinto de target binding;
+- contener los counters sanitizados esperados para modo Q0;
+- pasar verificacion de su digest canonical completo.
+
+El manifest sanitizado predecessor no contiene valores raw de `BYPASSRLS`,
+`rolvaliduntil`, password, nombres privados ni edges sin fingerprint. La prueba
+publicable es PASS/transcript/binding/query-set/counters; los valores crudos
+permanecen en la validacion interna y evidencia privada.
+
+`collect` recibe tanto el path como el digest esperado del predecessor. Ausencia,
+STOP/HOLD, expiracion, mismatch, canonical v1 o digest distinto termina
+`STOP_Q0_PREDECESSOR_REQUIRED` antes de Q1-Q4.
+
+## Invocacion V2 Ordenada
+
+Siempre dentro de `studiamatch-dev`; los placeholders se resuelven solo desde el
+payload privado aprobado:
+
+```text
 docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode query-set-digest
-docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode target-binding-digest --target-alias <ALIAS> --approval-id <APPROVAL_ID>
-docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode collect --target-alias <ALIAS> --approval-id <APPROVAL_ID> --expected-query-set-digest <DIGEST> --expected-target-binding-digest <DIGEST> --private-artifact local/f10_10/m3/<PRIVATE>.json --sanitized-manifest local/f10_10/m3/<MANIFEST>.json
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode target-binding-digest --target-alias FREE_DB --approval-id <Q0_APPROVAL>
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode q0-only --target-alias FREE_DB --approval-id <Q0_APPROVAL> --expected-query-set-digest <QUERY_DIGEST> --expected-target-binding-digest <TARGET_DIGEST> --private-artifact local/f10_10/m3/<Q0_PRIVATE>.json --sanitized-manifest local/f10_10/m3/<Q0_MANIFEST>.json
+docker exec studiamatch-dev /tmp/f10_10_m3_venv/bin/python /app/scripts/maintenance/f10_10_m3_readonly_collector.py --mode collect --target-alias FREE_DB --approval-id <READ_APPROVAL> --expected-query-set-digest <QUERY_DIGEST> --expected-target-binding-digest <TARGET_DIGEST> --q0-predecessor-manifest local/f10_10/m3/<Q0_MANIFEST>.json --expected-q0-predecessor-digest <Q0_MANIFEST_DIGEST> --private-artifact local/f10_10/m3/<COLLECT_PRIVATE>.json --sanitized-manifest local/f10_10/m3/<COLLECT_MANIFEST>.json
 ```
 
-La instalacion o ejecucion no ocurre hasta consumir el gate remoto exacto. El
-manifest sanitizado se publica ultimo como commit marker; un private artifact sin
-manifest se considera adquisicion incompleta y nunca PASS. El canal publico usa
-`approval_fingerprint`, no el approval ID crudo.
+`q0-only` debe terminar PASS antes de invocar collect. No se permite `PRO_DB`,
+omitir predecessor, reutilizar approval IDs ni derivar continuidad automatica.
 
-Referencias Supabase consultadas al definir este contrato:
+## Teardown Fail-Closed
 
-- https://supabase.com/docs/guides/ai-tools/mcp
-- https://supabase.com/docs/guides/api/securing-your-api
-- https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically
+El teardown acepta como entrada tanto el estado inicial inactivo como un estado
+activado con `LOGIN`, password no nulo y `VALID UNTIL` finito, sea aun futuro o ya
+expirado. No exige volver manual y previamente al estado inicial.
 
-## Query-Set Exacto
-
-Cada sentencia es estatica y se aprueba antes de ejecucion. No se permiten
-queries ad hoc. Q0 ocurre antes de cualquier catalogo o fila.
-
-### Q0 - Canal, Rol Y Visibilidad Completa
-
-```sql
-select
-  session_user,
-  current_user,
-  current_database(),
-  current_setting('transaction_read_only') as transaction_read_only,
-  current_setting('default_transaction_read_only') as default_transaction_read_only,
-  current_setting('search_path') as effective_search_path,
-  current_setting('client_encoding') as client_encoding,
-  r.rolsuper,
-  r.rolbypassrls,
-  r.rolcreaterole,
-  r.rolcreatedb,
-  exists (
-    select 1 from pg_catalog.pg_auth_members as m where m.member = r.oid
-  ) as has_role_memberships,
-  c.relrowsecurity,
-  c.relforcerowsecurity,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'SELECT') as can_select,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'INSERT') as can_insert,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'UPDATE') as can_update,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'DELETE') as can_delete,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'TRUNCATE') as can_truncate,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'REFERENCES') as can_reference,
-  pg_catalog.has_table_privilege(current_user, 'public.courses', 'TRIGGER') as can_trigger,
-  exists (
-    select 1
-    from pg_catalog.pg_attribute as a
-    where a.attrelid = 'public.courses'::regclass
-      and a.attnum > 0
-      and not a.attisdropped
-      and (
-        pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'INSERT')
-        or pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'UPDATE')
-        or pg_catalog.has_column_privilege(current_user, a.attrelid, a.attnum, 'REFERENCES')
-      )
-  ) as has_mutating_column_privilege
-from pg_catalog.pg_roles as r
-join pg_catalog.pg_class as c on c.oid = 'public.courses'::regclass
-where r.rolname = current_user;
-```
-
-Exigir exactamente una fila y:
+La primera transaccion siempre cuarentena el rol:
 
 ```text
-session_user = current_user
-transaction_read_only = on
-default_transaction_read_only = on
-effective_search_path = pg_catalog
-client_encoding = UTF8
-rolsuper = false
-rolcreaterole = false
-rolcreatedb = false
-has_role_memberships = false
-can_select = true
-can_insert = false
-can_update = false
-can_delete = false
-can_truncate = false
-can_reference = false
-can_trigger = false
-has_mutating_column_privilege = false
-full_population_visibility = (relrowsecurity = false OR rolbypassrls = true)
+NOLOGIN
+NOBYPASSRLS
+PASSWORD NULL
 ```
 
-Si RLS esta activo, solo se acepta un rol no-superuser con `rolbypassrls=true`,
-sin DML y read-only forzado. No se interpretan policies como prueba equivalente
-de visibilidad completa. Role/database names permanecen privados.
+Las sesiones del reader deben terminarse explicitamente bajo el gate de teardown
+antes de intentar el drop. Despues se revocan los grants y settings creados por el
+package. Solo al final ejecuta `DROP ROLE` si no hay sesiones, ownership ni
+dependencias bloqueantes. Grants/dependencias ajenos al package pueden permanecer,
+bloquear el DROP y exigir remediacion separada; no se describen como revocados por
+este package. Un fallo posterior conserva el rol cuarentenado con los
+grants/settings del package revocados, pero pueden persistir grants/dependencias
+ajenos al package; nunca revierte la cuarentena para restaurar el estado activo.
 
-### Q1 - Columnas
+## CI Local PostgreSQL 17
 
-```sql
-select
-  a.attname as column_name,
-  pg_catalog.format_type(a.atttypid, a.atttypmod) as data_type,
-  a.attnotnull as not_null,
-  pg_catalog.pg_get_expr(d.adbin, d.adrelid) as default_expression
-from pg_catalog.pg_attribute as a
-left join pg_catalog.pg_attrdef as d
-  on d.adrelid = a.attrelid and d.adnum = a.attnum
-where a.attrelid = 'public.courses'::regclass
-  and a.attnum > 0
-  and not a.attisdropped
-  and a.attname in ('id', 'is_active', 'syllabus', 'objectives')
-order by a.attnum;
-```
+La imagen PostgreSQL 17 debe estar pinneada por digest. CI la descarga antes de
+activar el firewall de egress. Despues del firewall, el runner inicia la prueba
+con `--pull never --network none`; cualquier pull tardio o red distinta termina
+STOP. La suite valida provision, edge del provisioner, estado NOLOGIN inicial,
+activacion/Q0, BYPASSRLS obligatorio, cuatro columnas exactas, predecessor
+mecanico, aislamiento Pro y teardown desde estado activo/inactivo.
 
-Exigir exactamente cuatro filas: `id=uuid NOT NULL`, `is_active=boolean NOT
-NULL`, `syllabus=text NULL` y `objectives=text NULL`. Un `is_active=NULL` o
-cualquier drift termina `STOP_SCHEMA_DRIFT`.
+Los resultados locales son solo evidencia del candidate. Validacion final exige
+PR protegido, CI y checks post-merge.
 
-### Q2 - Constraints Relevantes
+## Credencial Canary Local
 
-```sql
-select
-  c.conname,
-  c.contype,
-  pg_catalog.pg_get_constraintdef(c.oid, true) as constraint_definition,
-  case when c.contype = 'p' then k.ordinality::integer else null end as key_ordinality,
-  case when c.contype = 'p' then a.attname else null end as key_column_name
-from pg_catalog.pg_constraint as c
-left join lateral unnest(c.conkey) with ordinality as k(attnum, ordinality) on true
-left join pg_catalog.pg_attribute as a
-  on a.attrelid = c.conrelid and a.attnum = k.attnum
-where c.conrelid = 'public.courses'::regclass
-  and (
-    c.contype = 'p'
-    or pg_catalog.pg_get_constraintdef(c.oid, true) ~* '(syllabus|objectives)'
-  )
-order by c.conname, k.ordinality nulls first;
-```
+Una credencial usada previamente en un canary local queda
+`ROTATION_REQUIRED_OUT_OF_BAND` y no puede reutilizarse para provision, Q0,
+collect, teardown ni otro ambiente. Su valor no se registra ni se inspecciona en
+este rebaseline. La rotacion y revocacion deben realizarse fuera de banda por el
+propietario; solo una atestacion sanitizada futura puede cerrar el hallazgo.
 
-Q2 demuestra estructuralmente que existe exactamente una PK de una columna `id`;
-cualquier PK
-compuesta, ausencia de PK o unicidad/nullability ambigua termina
-`STOP_UNSTABLE_KEYSET`.
-
-### Q3 - Triggers Completos
-
-```sql
-select
-  t.oid as trigger_oid,
-  t.tgname,
-  pg_catalog.pg_get_triggerdef(t.oid, true),
-  p.oid as function_oid,
-  p.proname,
-  pg_catalog.pg_get_functiondef(p.oid)
-from pg_catalog.pg_trigger as t
-join pg_catalog.pg_proc as p on p.oid = t.tgfoid
-where t.tgrelid = 'public.courses'::regclass
-order by t.tgname, p.proname, t.oid;
-```
-
-Inventariar todos los triggers, incluidos internos, no solo coincidencias
-textuales.
-
-`pg_depend` no demuestra llamadas semanticas dentro de PL/pgSQL o SQL dinamico.
-Q3b no hace esa afirmacion: captura la superficie completa de rutinas no-sistema
-y extensiones del target, de modo que cualquier helper local, incluso invocado
-dinamicamente, cambie el fingerprint:
-
-```sql
-select
-  n.nspname,
-  p.proname,
-  p.prokind,
-  l.lanname,
-  pg_catalog.pg_get_function_identity_arguments(p.oid) as identity_arguments,
-  pg_catalog.pg_get_functiondef(p.oid) as function_definition
-from pg_catalog.pg_proc as p
-join pg_catalog.pg_namespace as n on n.oid = p.pronamespace
-join pg_catalog.pg_language as l on l.oid = p.prolang
-where n.nspname not in ('pg_catalog', 'information_schema')
-  and n.nspname !~ '^pg_toast'
-  and p.prokind in ('f', 'p', 'w')
-order by n.nspname, p.proname,
-         pg_catalog.pg_get_function_identity_arguments(p.oid);
-
-select e.extname, e.extversion, n.nspname
-from pg_catalog.pg_extension as e
-join pg_catalog.pg_namespace as n on n.oid = e.extnamespace
-order by e.extname;
-
-select
-  n.nspname,
-  p.proname,
-  pg_catalog.pg_get_function_identity_arguments(p.oid) as identity_arguments,
-  pg_catalog.pg_get_function_result(p.oid) as result_type,
-  a.aggkind,
-  a.aggnumdirectargs,
-  a.aggtransfn::regprocedure::text as transition_function,
-  a.aggfinalfn::regprocedure::text as final_function,
-  a.aggcombinefn::regprocedure::text as combine_function,
-  a.aggserialfn::regprocedure::text as serial_function,
-  a.aggdeserialfn::regprocedure::text as deserial_function,
-  pg_catalog.format_type(a.aggtranstype, null) as transition_type,
-  a.aggtransspace,
-  a.aggmtransfn::regprocedure::text as moving_transition_function,
-  a.aggminvtransfn::regprocedure::text as moving_inverse_function,
-  a.aggmfinalfn::regprocedure::text as moving_final_function,
-  pg_catalog.format_type(a.aggmtranstype, null) as moving_transition_type,
-  a.aggmtransspace,
-  a.aggfinalextra,
-  a.aggmfinalextra,
-  a.aggfinalmodify,
-  a.aggmfinalmodify,
-  a.agginitval,
-  a.aggminitval,
-  onsp.nspname as sort_operator_schema,
-  o.oprname as sort_operator_name,
-  olnsp.nspname as sort_operator_left_type_schema,
-  olt.typname as sort_operator_left_type_name,
-  ornsp.nspname as sort_operator_right_type_schema,
-  ort.typname as sort_operator_right_type_name
-from pg_catalog.pg_aggregate as a
-join pg_catalog.pg_proc as p on p.oid = a.aggfnoid
-join pg_catalog.pg_namespace as n on n.oid = p.pronamespace
-left join pg_catalog.pg_operator as o on o.oid = a.aggsortop
-left join pg_catalog.pg_namespace as onsp on onsp.oid = o.oprnamespace
-left join pg_catalog.pg_type as olt on olt.oid = o.oprleft
-left join pg_catalog.pg_namespace as olnsp on olnsp.oid = olt.typnamespace
-left join pg_catalog.pg_type as ort on ort.oid = o.oprright
-left join pg_catalog.pg_namespace as ornsp on ornsp.oid = ort.typnamespace
-where n.nspname not in ('pg_catalog', 'information_schema')
-  and n.nspname !~ '^pg_toast'
-order by n.nspname, p.proname,
-         pg_catalog.pg_get_function_identity_arguments(p.oid);
-
-select
-  e.extname,
-  d.classid::regclass::text as class_name,
-  d.objid,
-  d.objsubid
-from pg_catalog.pg_depend as d
-join pg_catalog.pg_extension as e on e.oid = d.refobjid
-where d.refclassid = 'pg_catalog.pg_extension'::regclass
-  and d.deptype = 'e'
-order by e.extname, d.classid::regclass::text, d.objid, d.objsubid;
-```
-
-Definiciones permanecen privadas; el artifact clasifica relevancia por separado.
-Una rutina/agregado cuya definicion no pueda obtenerse, una language no
-inventariable o drift en cualquier rutina, agregado, extension o membresia
-termina `STOP_OPAQUE_ROUTINE_SURFACE`. Q2/Q3/Q3b solo publican conteos y
-fingerprints.
-
-### Q4 - Dos Snapshots Completos
-
-Q0-Q3b corren primero en una transaccion propia. Cada traversal Q4 corre despues
-en su propia transaccion y conexion estable; Q0 es la primera sentencia de las
-tres transacciones:
-
-```sql
-begin transaction isolation level repeatable read read only;
-```
-
-Primera pagina:
-
-```sql
-select id, is_active, syllabus, objectives
-from public.courses
-order by id asc
-limit 500;
-```
-
-Paginas siguientes:
-
-```sql
-select id, is_active, syllabus, objectives
-from public.courses
-where id > %s
-order by id asc
-limit 500;
-```
-
-Continuar hasta una pagina menor a 500 filas y luego `commit`. Abrir una segunda
-transaccion repeatable-read/read-only y repetir Q4 desde cero. Prohibido
-`OFFSET`, `select=*`, joins, views o filtros de cohorte. El unico parametro `%s`
-recibe `last_private_id` como UUID privado mediante binding DB-API.
-
-La pagina terminal menor a 500 cuenta en `page_count`, incluida una pagina vacia
-solo cuando la poblacion es multiplo exacto de 500. Antes de conservar la fila
-10.001, terminar `STOP_POPULATION_LIMIT`.
-
-## Conteos Y Digests
-
-Por snapshot:
+## Gates No Consumidos
 
 ```text
-page_count
-total_count
-total_ids_digest
-active_count
-active_ids_digest
-missing_syllabus
-missing_objectives
-missing_both
-incomplete_active_courses
-incomplete_slots
-full_snapshot_raw_digest
-full_snapshot_normalized_digest
-cohort_fingerprint
-schema_fingerprint
-constraint_fingerprint
-trigger_fingerprint
-query_set_digest
-target_binding_digest
-```
-
-Todos los conteos missing usan exclusivamente filas `is_active=true`.
-`missing_both` cuenta cursos activos con ambos campos missing;
-`incomplete_active_courses` cuenta la union; `incomplete_slots` cuenta campos.
-
-Serializacion `f10.10-m3-canonical-v1`:
-
-```text
-canonical_json = UTF-8, ensure_ascii=true, sort_keys=true, separators=(",", ":")
-null = ["null"]
-string = ["string", value]
-boolean = ["boolean", true|false]
-integer = ["integer", decimal_ascii]
-digest(domain, value) = SHA256(
-  "f10.10-m3:" || domain || "\n" || uint64_be(len(canonical_json)) || canonical_json
-)
-```
-
-Todo preimage es exactamente
-`{"domain":<domain>,"version":1,"payload":<payload>}` bajo canonical JSON. No
-se omiten keys; SQL usa bytes UTF-8 con BOM prohibido y CRLF/CR normalizado a LF,
-incluido un unico LF final. Payloads exactos:
-
-```text
-total-ids-v1 / active-ids-v1 = [[typed_id], ...]
-snapshot-raw-v1 = [[typed_id, ["boolean",is_active], typed_syllabus, typed_objectives], ...]
-snapshot-normalized-v1 = misma matriz con strings normalizados y missing como ["null"]
-cohort-v1 = [[typed_id, ["boolean",missing_syllabus], ["boolean",missing_objectives]], ...]
-schema-v1 = filas Q1 como arrays en el orden exacto del SELECT
-constraints-v1 = filas Q2 como arrays en el orden exacto del SELECT
-triggers-v1 = {"triggers":filas_Q3,"routines":filas_Q3b,"extensions":filas_extensiones,"aggregates":filas_agregados,"extension_members":filas_membresias}
-query-set-v1 = {"collector_version":string,"files":[[relative_path,sha256_hex,normalized_utf8_text],...]}
-target-binding-v1 = {"alias":string,"api":[host_normalization_version,project_ref_fingerprint,host_fingerprint],"sql":[sql_host_normalization_version,sql_host_fingerprint,port,database_fingerprint,tls_mode,ca_sha256,[ssl_in_use,tls_protocol,tls_cipher,tls_library],server_version_num]}
-```
-
-Cada fila catalogo usa string etiquetado, boolean etiquetado o `["null"]` en el
-orden de columnas publicado; cada lista conserva el `ORDER BY` de su query.
-`typed_id` es `[data_type, textual_value]`, conserva el tipo PostgreSQL reportado
-por Q1 y una representacion textual sin locale. Ordenar snapshots por ese valor
-textual en UTF-8 bytewise. `full_snapshot_raw_digest` usa valores exactos
-etiquetados; `full_snapshot_normalized_digest` usa `f10.9-metadata-v2`: Unicode
-NFKC, eliminar `Cf`, colapsar whitespace y casefold. Missing incluye NULL, blank
-normalizado y placeholders `n/a`, `none`, `por definir`.
-
-Los fingerprints de project ref, SQL host y database usan SHA-256 con prefijos
-`project-ref-v1\0`, `sql-host-v1\0` y `database-v1\0`. Esperado y observado usan
-el mismo payload; su procedencia es metadata del artifact, no una key del
-preimage, por lo que igualdad de digests es posible sin publicar valores.
-
-Domains obligatorios: `total-ids-v1`, `active-ids-v1`, `snapshot-raw-v1`,
-`snapshot-normalized-v1`, `cohort-v1`, `schema-v1`, `constraints-v1`,
-`triggers-v1`, `query-set-v1` y `target-binding-v1`. Cada fingerprint usa el
-envelope, payload y domain exactos anteriores. Los snapshots deben coincidir en
-todos los conteos y ambos digests de contenido.
-
-La referencia historica `104/224` no es expected count ni allowlist.
-
-## Evidencia
-
-Artifact privado, fuera de Git:
-
-- binding fisico y aprobacion;
-- filas completas y paginas;
-- IDs, preimagenes y textos;
-- definiciones catalogo/trigger y role efectivo;
-- digests intermedios y errores crudos.
-
-Manifest sanitizado versionable:
-
-- alias y target binding digest;
-- query-set/normalization versions;
-- conteos agregados, fingerprints y reason codes;
-- igualdad de snapshots;
-- `provider_calls=0`, `writer_calls=0`, `dml=0`, `ddl=0`, `rpc=0`;
-- `backup_restore=0`, `schedule_changes=0`;
-- decision `PASS`, `HOLD` o `STOP`.
-
-## Datos Remotos No Confiables
-
-Todo valor remoto se trata exclusivamente como dato no confiable. El colector:
-
-- nunca evalua ni sigue instrucciones presentes en metadata o definiciones SQL;
-- no envia syllabus/objectives a un LLM, MCP, log o transcript;
-- escapa caracteres de control antes de cualquier diagnostico privado;
-- solo emite conteos/digests/reason codes por el canal sanitizado;
-- termina `STOP_UNTRUSTED_REMOTE_CONTENT` si un valor rompe encoding,
-  canonicalizacion o intenta salir del artifact privado.
-
-Q3/Q3b permanecen privadas y no se interpretan como instrucciones ejecutables.
-
-## Stop Conditions
-
-- target ambiguo, distinto o no aprobado;
-- Free/Certification no comparten binding esperado;
-- canal sin enforcement read-only verificable;
-- publishable/RLS usado como poblacion autoritativa;
-- schema, constraint o trigger drift;
-- pagina incompleta, duplicada o desordenada;
-- `cumulative_total_count > 10000` antes de retener la fila 10.001;
-- diferencia entre los dos snapshots;
-- necesidad de otra tabla, columna, RPC o query;
-- writers/schedules no contenidos por evidencia vigente;
-- fuga de IDs, textos, refs, hosts o secretos;
-- timeout, error o resultado parcial;
-- intento de continuar automaticamente de Free a Pro.
-
-## Gates Humanos Consumibles
-
-```text
+APPROVE_F10_10_M3_READER_PREFLIGHT_FREE
+APPROVE_F10_10_M3_READER_DDL_FREE
+APPROVE_F10_10_M3_READER_Q0_FREE
 APPROVE_M3_FREE_READONLY
-APPROVE_M3_CERTIFICATION_REPLAY
-APPROVE_M3_PRO_READONLY
-APPROVE_SDLC_M3_PRO
-APPROVE_PRODUCTION_M3_READONLY_WINDOW
+APPROVE_F10_10_M3_READER_TEARDOWN_FREE
 ```
 
-Cada aprobacion debe citar alias, target binding digest esperado, query-set digest
-del colector promovido, clase de credencial, artifact/digest predecesor y ventana.
-No es reutilizable entre targets. El digest observado se produce dentro de esa
-ventana y debe igualar al esperado para PASS.
-
-`M3-CERT-FREE=PASS` exige igualdad exacta de target binding, artifact privado,
-manifest digest, query-set, canonicalizacion, snapshot digests y decision Free;
-no ejecuta red. Cualquier diferencia termina `STOP_CERTIFICATION_REPLAY_DRIFT`.
-
-Para Pro, el orden obligatorio es: `APPROVE_SDLC_M3_PRO`, luego
-`APPROVE_PRODUCTION_M3_READONLY_WINDOW`, y finalmente
-`APPROVE_M3_PRO_READONLY`. Faltar uno bloquea la conexion.
-
-La frase decimal F10.10 por si sola no consume estos gates. M3 PASS no concede
-M4 ni reactiva F10.9/G4.
+Son propuestos/no consumidos/no ejecutables hasta merge protegido, CI post-merge
+PASS y aprobacion humana del payload exacto. Ningun gate concede el siguiente.
+Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
+bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto, password ni
+consumo de gates.

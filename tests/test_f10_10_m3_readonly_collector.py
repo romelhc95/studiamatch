@@ -16,6 +16,11 @@ import pytest
 from scripts.maintenance import f10_10_m3_readonly_collector as m3
 
 
+VALID_UNTIL = "2099-12-31T23:59:59Z"
+VALID_UNTIL_EPOCH = 4_102_444_799
+PROVISIONER = "m3_provisioner"
+
+
 def uid(number: int) -> uuid.UUID:
     return uuid.UUID(int=number)
 
@@ -30,8 +35,11 @@ def rows(count: int, *, missing: bool = False) -> list[tuple[object, ...]]:
 def valid_q0() -> tuple[object, ...]:
     return (
         "m3_reader", "m3_reader", "postgres", "on", "on", "pg_catalog", "UTF8",
-        False, False, False, False, False, False, False, True,
-        False, False, False, False, False, False, False,
+        False, True, False, False, True, False, False, 1,
+        VALID_UNTIL_EPOCH, True, False, 1, PROVISIONER, True, False, False,
+        False, False, False,
+        True, True, True, True, False,
+        False, False, False, False, False, False, False, False,
     )
 
 
@@ -181,10 +189,8 @@ def config(tmp_path: Path) -> m3.Config:
         password="hostile-password-value",
         ca_file=ca,
         ca_sha256="sha256:" + hashlib.sha256(ca.read_bytes()).hexdigest(),
-        server_version_num=170004,
-        tls_protocol="TLSv1.3",
-        tls_cipher="TLS_AES_256_GCM_SHA384",
-        tls_library="OpenSSL",
+        valid_until_epoch=VALID_UNTIL_EPOCH,
+        provisioner=PROVISIONER,
     )
 
 
@@ -199,10 +205,8 @@ def env_for(config: m3.Config) -> dict[str, str]:
         "F10_10_M3_PASSWORD": config.password,
         "F10_10_M3_CA_FILE": str(config.ca_file),
         "F10_10_M3_CA_SHA256": config.ca_sha256,
-        "F10_10_M3_SERVER_VERSION_NUM": str(config.server_version_num),
-        "F10_10_M3_TLS_PROTOCOL": config.tls_protocol,
-        "F10_10_M3_TLS_CIPHER": config.tls_cipher,
-        "F10_10_M3_TLS_LIBRARY": config.tls_library,
+        "F10_10_M3_VALID_UNTIL": VALID_UNTIL,
+        "F10_10_M3_PROVISIONER": PROVISIONER,
     }
 
 
@@ -212,18 +216,13 @@ def collect_fake(
     with m3.open_pinned_ca(config) as pinned_ca:
         return m3.collect(
             config, lambda _config, _ca: connection,
-            m3.query_set_digest(workspace), pinned_ca,
+            m3.query_set_digest(workspace), "sha256:" + "1" * 64, pinned_ca,
         )
 
 
 def configured_binding(config: m3.Config) -> str:
-    tls = {
-        "ssl_in_use": True, "protocol": config.tls_protocol,
-        "cipher": config.tls_cipher, "library": config.tls_library,
-        "server_version_num": config.server_version_num,
-    }
     with m3.open_pinned_ca(config) as pinned_ca:
-        return m3.target_binding(config, tls, pinned_ca.digest)[1]
+        return m3.target_binding(config, pinned_ca.digest)[1]
 
 
 def test_exact_transcript_has_three_q0_first_read_only_transactions(
@@ -233,6 +232,10 @@ def test_exact_transcript_has_three_q0_first_read_only_transactions(
     result = collect_fake(config, workspace, connection)
 
     assert result.manifest["decision"] == "PASS"
+    assert result.manifest["schema"] == "f10.10-m3-sanitized-manifest-v2"
+    assert result.manifest["collector_version"].endswith("collector-v2")
+    assert result.manifest["canonical_version"].endswith("canonical-v2")
+    assert result.manifest["target_binding_version"] == m3.TARGET_BINDING_VERSION
     assert result.manifest["summary"]["incomplete_active_courses"] == 1
     expected = [
         (m3.BEGIN_SQL, None), (m3.Q0_SQL, None),
@@ -271,7 +274,7 @@ def test_exact_transcript_has_three_q0_first_read_only_transactions(
         (lambda connection: connection.schema.__setitem__(2, ("syllabus", "text", True, None)), "STOP_SCHEMA_DRIFT"),
         (lambda connection: connection.constraints.__setitem__(0, ("pk", "p", "PRIMARY KEY", 1, "is_active")), "STOP_UNSTABLE_KEYSET"),
         (lambda connection: setattr(connection, "constraints", []), "STOP_UNSTABLE_KEYSET"),
-        (lambda connection: setattr(connection, "q0", valid_q0()[:15] + (True,) + valid_q0()[16:]), "STOP_NEEDS_READONLY_CHANNEL"),
+        (lambda connection: setattr(connection, "q0", valid_q0()[:25] + (True,) + valid_q0()[26:]), "STOP_NEEDS_READONLY_CHANNEL"),
     ],
 )
 def test_schema_pk_and_q0_fail_closed(workspace: Path, config: m3.Config, mutate, reason: str) -> None:
@@ -287,8 +290,13 @@ def test_schema_pk_and_q0_fail_closed(workspace: Path, config: m3.Config, mutate
     ("index", "value"),
     [
         (3, "off"), (4, "off"), (5, "public"), (6, "LATIN1"),
-        (7, True), (10, True), (11, True), (12, True), (14, False), (16, True),
-        (17, True), (18, True), (19, True), (20, True), (21, True),
+        (7, True), (8, False), (10, True), (11, False), (12, True), (13, True),
+        (14, -1), (14, True), (15, VALID_UNTIL_EPOCH + 1), (15, True),
+        (16, False), (17, True), (18, 0), (18, 2), (18, True),
+        (19, "other_provisioner"), (19, None), (20, False), (21, True),
+        (22, True), (25, True), (26, False), (27, False), (28, False),
+        (29, False), (30, True), (31, True), (32, True), (33, True),
+        (34, True), (35, True), (36, True), (37, True), (38, True),
     ],
 )
 def test_major_q0_contract_failures_stop(
@@ -352,7 +360,7 @@ def test_q0_drift_between_transactions_stops(workspace: Path, config: m3.Config)
             super().execute(sql, params)
             if sql == m3.Q0_SQL and self.transaction == 3:
                 changed = list(self.connection.q0)
-                changed[13] = True
+                changed[24] = True
                 self.result = [tuple(changed)]
 
     def cursor_factory(name: str | None = None) -> FakeCursor:
@@ -389,7 +397,23 @@ def test_collector_id_digest_uses_nested_typed_ids(workspace: Path, config: m3.C
     )
 
 
-def test_tls_config_and_binding_mismatches(workspace: Path, config: m3.Config) -> None:
+def test_config_and_target_binding_v2_are_pre_transport(
+    workspace: Path, config: m3.Config,
+) -> None:
+    loaded = m3.load_config(env_for(config), "FREE_DB", "M3-APPROVAL-000001")
+    assert loaded.valid_until_epoch == VALID_UNTIL_EPOCH
+    assert loaded.provisioner == PROVISIONER
+    assert not hasattr(loaded, "server_version_num")
+    assert not hasattr(loaded, "tls_protocol")
+    assert not hasattr(loaded, "tls_cipher")
+    assert not hasattr(loaded, "tls_library")
+    source = Path(m3.__file__).read_text(encoding="utf-8")
+    for removed_name in (
+        "F10_10_M3_SERVER_VERSION_NUM", "F10_10_M3_TLS_PROTOCOL",
+        "F10_10_M3_TLS_CIPHER", "F10_10_M3_TLS_LIBRARY",
+    ):
+        assert removed_name not in source
+
     bad_port = env_for(config) | {"F10_10_M3_SQL_PORT": "6543"}
     with pytest.raises(m3.CollectorError, match="STOP_CONFIG_INVALID"):
         m3.load_config(bad_port, "FREE_DB", "M3-APPROVAL-000001")
@@ -407,20 +431,248 @@ def test_tls_config_and_binding_mismatches(workspace: Path, config: m3.Config) -
     with pytest.raises(m3.CollectorError, match="STOP_TLS_CONTRACT"):
         collect_fake(wrong_pin, workspace, FakeConnection())
 
+    with m3.open_pinned_ca(config) as pinned:
+        binding, digest = m3.target_binding(config, pinned.digest)
+    serialized = json.dumps(binding)
+    assert binding["schema"] == m3.TARGET_BINDING_VERSION
+    assert binding["alias"] == config.target_alias
+    assert binding["api"][0] == m3.HOST_NORMALIZATION_VERSION
+    assert all(value.startswith("sha256:") for value in binding["api"][1:])
+    assert binding["sql"][0] == m3.SQL_HOST_NORMALIZATION_VERSION
+    assert binding["sql"][2] == 5432
+    assert all(
+        binding["sql"][index].startswith("sha256:") for index in (1, 3, 4, 5)
+    )
+    assert binding["sql"][6] == VALID_UNTIL_EPOCH
+    assert binding["sql"][-2:] == ["verify-full", config.ca_sha256]
+    assert config.user not in serialized
+    assert config.provisioner not in serialized
+    assert config.password not in serialized
+    assert "TLSv1" not in serialized and "OpenSSL" not in serialized
+    assert digest.startswith("sha256:")
+    other_user = deepcopy(config)
+    object.__setattr__(other_user, "user", "different_reader")
+    with m3.open_pinned_ca(other_user) as pinned:
+        assert m3.target_binding(other_user, pinned.digest)[1] != digest
+    other_provisioner = deepcopy(config)
+    object.__setattr__(other_provisioner, "provisioner", "other_provisioner")
+    with m3.open_pinned_ca(other_provisioner) as pinned:
+        assert m3.target_binding(other_provisioner, pinned.digest)[1] != digest
+
+
+def test_v2_rebaseline_rejects_pro_deterministically_without_connection(
+    workspace: Path, config: m3.Config,
+) -> None:
+    with pytest.raises(m3.CollectorError, match="STOP_CONFIG_INVALID"):
+        m3.load_config(env_for(config), "PRO_DB", config.approval_id)
+
+    called = False
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        raise AssertionError("PRO must stop before connection")
+
+    code, manifest = m3.run_cli(
+        [
+            "--mode", "target-binding-digest", "--target-alias", "PRO_DB",
+            "--approval-id", config.approval_id,
+        ],
+        env=env_for(config), workspace=workspace, connection_factory=factory,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_CONFIG_INVALID"]
+    assert called is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "", "2099-12-31T23:59:59+00:00", "2099-12-31t23:59:59Z",
+        "2099-12-31T23:59:59.000Z", "2099-02-29T00:00:00Z",
+        "1969-12-31T23:59:59Z", "9999-12-31T23:59:60Z",
+        " 2099-12-31T23:59:59Z", "2099-12-31T23:59:59Z\n",
+    ],
+)
+def test_valid_until_rejects_missing_malformed_noncanonical_and_out_of_range(
+    config: m3.Config, value: str,
+) -> None:
+    env = env_for(config)
+    if value == "":
+        del env["F10_10_M3_VALID_UNTIL"]
+    else:
+        env["F10_10_M3_VALID_UNTIL"] = value
+    with pytest.raises(m3.CollectorError, match="STOP_CONFIG_INVALID"):
+        m3.load_config(env, "FREE_DB", "M3-APPROVAL-000001")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "", "Provisioner", "1provisioner", "provisioner-role",
+        "provisioner.role", '"provisioner"', "provisioner role",
+        "a" * 64, "provisión",
+    ],
+)
+def test_provisioner_rejects_missing_or_unsafe_postgresql_names(
+    config: m3.Config, value: str,
+) -> None:
+    env = env_for(config)
+    if value == "":
+        del env["F10_10_M3_PROVISIONER"]
+    else:
+        env["F10_10_M3_PROVISIONER"] = value
+    with pytest.raises(m3.CollectorError, match="STOP_CONFIG_INVALID"):
+        m3.load_config(env, "FREE_DB", "M3-APPROVAL-000001")
+
+
+def test_past_canonical_valid_until_is_allowed_for_offline_binding_only(
+    workspace: Path, config: m3.Config,
+) -> None:
+    env = env_for(config) | {"F10_10_M3_VALID_UNTIL": "1970-01-01T00:00:00Z"}
+    called = False
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        raise AssertionError("offline mode must not connect")
+
+    code, binding = m3.run_cli(
+        [
+            "--mode", "target-binding-digest", "--target-alias", "FREE_DB",
+            "--approval-id", config.approval_id,
+        ],
+        env=env, workspace=workspace, connection_factory=factory,
+    )
+    assert code == 0
+    assert binding["target_binding_digest"].startswith("sha256:")
+    assert called is False
+
+
+@pytest.mark.parametrize(
+    ("mutate", "reason"),
+    [
+        (lambda info: setattr(info, "ssl_in_use", False), "STOP_TLS_CONTRACT"),
+        (lambda info: setattr(info, "server_version", 0), "STOP_TLS_CONTRACT"),
+        (
+            lambda info: setattr(
+                info, "ssl_attribute",
+                lambda name: "TLSv1.1" if name == "protocol" else FakeInfo().ssl_attribute(name),
+            ),
+            "STOP_TLS_CONTRACT",
+        ),
+        (
+            lambda info: setattr(
+                info, "ssl_attribute",
+                lambda name: None if name == "cipher" else FakeInfo().ssl_attribute(name),
+            ),
+            "STOP_TLS_CONTRACT",
+        ),
+        (
+            lambda info: setattr(
+                info, "ssl_attribute",
+                lambda name: "" if name == "library" else FakeInfo().ssl_attribute(name),
+            ),
+            "STOP_TLS_CONTRACT",
+        ),
+        (
+            lambda info: setattr(
+                info, "ssl_attribute",
+                lambda name: "x" * 257 if name == "cipher" else FakeInfo().ssl_attribute(name),
+            ),
+            "STOP_TLS_CONTRACT",
+        ),
+        (lambda info: setattr(info, "host", "aws-0-us-east-1.pooler.supabase.com"), "STOP_TARGET_MISMATCH"),
+        (lambda info: setattr(info, "port", 6543), "STOP_TARGET_MISMATCH"),
+        (lambda info: setattr(info, "dbname", "other"), "STOP_TARGET_MISMATCH"),
+        (lambda info: setattr(info, "user", "other"), "STOP_TARGET_MISMATCH"),
+    ],
+)
+def test_observed_transport_attestation_fails_closed(
+    workspace: Path, config: m3.Config, mutate, reason: str,
+) -> None:
+    connection = FakeConnection()
+    mutate(connection.info)
+    with pytest.raises(m3.CollectorError, match=reason):
+        collect_fake(config, workspace, connection)
+
+
+def test_observed_transport_accepts_allowlisted_tls_and_has_separate_digest(
+    workspace: Path, config: m3.Config,
+) -> None:
     connection = FakeConnection()
     connection.info.server_version = 160000
-    with pytest.raises(m3.CollectorError, match="STOP_TARGET_MISMATCH"):
-        collect_fake(config, workspace, connection)
+    connection.info.ssl_attribute = lambda name: (
+        "TLSv1.2" if name == "protocol" else FakeInfo().ssl_attribute(name)
+    )
+    result = collect_fake(config, workspace, connection)
+    observed = result.private["observed_transport"]
+    assert observed["protocol"] == "TLSv1.2"
+    assert observed["server_version_num"] == 160000
+    assert result.manifest["observed_transport_digest"].startswith("sha256:")
+    assert (
+        result.manifest["observed_transport_digest"]
+        != result.manifest["target_binding_digest"]
+    )
+
+
+@pytest.mark.parametrize("mode", ["q0-only", "collect"])
+def test_runtime_digest_domain_collision_stops_before_any_sql(
+    workspace: Path, config: m3.Config, monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+) -> None:
+    collision = configured_binding(config)
+    monkeypatch.setattr(
+        m3, "observed_transport_attestation",
+        lambda _connection, _config: ({"private": "transport"}, collision),
+    )
+    connection = FakeConnection()
+    with m3.open_pinned_ca(config) as pinned_ca:
+        with pytest.raises(m3.CollectorError) as raised:
+            if mode == "collect":
+                m3.collect(
+                    config, lambda _config, _ca: connection,
+                    m3.query_set_digest(workspace), "sha256:" + "1" * 64,
+                    pinned_ca,
+                )
+            else:
+                m3.collect_q0_only(
+                    config, lambda _config, _ca: connection,
+                    m3.query_set_digest(workspace), pinned_ca,
+                )
+    assert raised.value.reason_code == "STOP_DIGEST_DOMAIN_COLLISION"
+    assert connection.transcript == []
+    assert connection.closed is True
+
+
+def test_q0_sql_and_validation_cover_exact_reader_capabilities(
+    workspace: Path, config: m3.Config,
+) -> None:
+    lowered = m3.Q0_SQL.lower()
+    for role_attribute in (
+        "rolcanlogin", "rolinherit", "rolreplication", "rolconnlimit",
+        "rolvaliduntil",
+    ):
+        assert role_attribute in lowered
+    assert "m.member = r.oid" in lowered
+    assert "m.roleid = r.oid" in lowered
+    assert "role_member_count" in lowered
+    assert "member_role_name" in lowered
+    assert "m.admin_option" in lowered
+    assert "m.inherit_option" in lowered
+    assert "m.set_option" in lowered
+    assert "a.attname not in ('id', 'is_active', 'syllabus', 'objectives')" in lowered
+    assert "has_function_privilege" in lowered
+    assert "p.prosecdef" in lowered
+    assert "extract(epoch from r.rolvaliduntil)::bigint" in lowered
+    assert "rolvaliduntil_is_future" in lowered
 
     connection = FakeConnection()
-    connection.info.host = "aws-0-us-east-1.pooler.supabase.com"
-    with pytest.raises(m3.CollectorError, match="STOP_TARGET_MISMATCH"):
-        collect_fake(config, workspace, connection)
-
-    connection = FakeConnection()
-    connection.info.ssl_attribute = lambda name: None if name == "cipher" else FakeInfo().ssl_attribute(name)
-    with pytest.raises(m3.CollectorError, match="STOP_TARGET_MISMATCH"):
-        collect_fake(config, workspace, connection)
+    changed = list(connection.q0)
+    changed[8] = True
+    changed[23] = True
+    connection.q0 = tuple(changed)
+    assert collect_fake(config, workspace, connection).manifest["decision"] == "PASS"
 
 
 def test_ca_pin_rejects_symlink_nonregular_oversize_and_unsupported(
@@ -649,10 +901,6 @@ def test_hostile_data_and_raw_errors_never_enter_sanitized_manifest(
     def failing_factory(_config: m3.Config, _ca: m3.PinnedCA):
         raise RuntimeError(hostile)
 
-    tls = {
-        "ssl_in_use": True, "protocol": config.tls_protocol, "cipher": config.tls_cipher,
-        "library": config.tls_library, "server_version_num": config.server_version_num,
-    }
     expected = configured_binding(config)
     args = cli_args(workspace, config, expected_binding=expected)
     code, manifest = m3.run_cli(args, env=env_for(config), workspace=workspace, connection_factory=failing_factory)
@@ -667,8 +915,11 @@ def test_hostile_data_and_raw_errors_never_enter_sanitized_manifest(
     assert private["approval_id"] == config.approval_id
 
 
-def cli_args(workspace: Path, config: m3.Config, *, expected_binding: str) -> list[str]:
-    return [
+def cli_args(
+    workspace: Path, config: m3.Config, *, expected_binding: str,
+    mode: str = "collect",
+) -> list[str]:
+    args = [
         "--target-alias", config.target_alias,
         "--approval-id", config.approval_id,
         "--expected-query-set-digest", m3.query_set_digest(workspace),
@@ -676,13 +927,192 @@ def cli_args(workspace: Path, config: m3.Config, *, expected_binding: str) -> li
         "--private-artifact", "local/f10_10/m3/private.json",
         "--sanitized-manifest", "local/f10_10/m3/manifest.json",
     ]
+    if mode != "collect":
+        args[0:0] = ["--mode", mode]
+    else:
+        predecessor = m3.build_manifest(
+            decision="PASS", reason_codes=[], target_alias="FREE_DB",
+            approval_id=config.approval_id,
+            query_digest=m3.query_set_digest(workspace),
+            binding_digest=expected_binding,
+            transport_digest="sha256:" + "2" * 64,
+            mode="q0-only",
+            transcript=[
+                {"transaction": 1, "query_id": "TX_BEGIN", "parameter_count": 0},
+                {"transaction": 1, "query_id": "Q0", "parameter_count": 0},
+                {"transaction": 1, "query_id": "TX_COMMIT", "parameter_count": 0},
+            ],
+            summary={"rows_collected": 0, "content_bytes": 0},
+        )
+        predecessor_path = workspace / m3.ARTIFACT_ROOT_RELATIVE / "q0-pass.json"
+        predecessor_path.parent.mkdir(parents=True, exist_ok=True)
+        predecessor_bytes = m3.canonical_json(predecessor) + b"\n"
+        predecessor_path.write_bytes(predecessor_bytes)
+        predecessor_path.chmod(0o600)
+        args.extend([
+            "--q0-predecessor-manifest", "local/f10_10/m3/q0-pass.json",
+            "--expected-q0-predecessor-digest",
+            "sha256:" + hashlib.sha256(predecessor_bytes).hexdigest(),
+        ])
+    return args
+
+
+def rewrite_predecessor(
+    args: list[str], workspace: Path, mutate,
+) -> None:
+    path = workspace / m3.ARTIFACT_ROOT_RELATIVE / "q0-pass.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    mutate(payload)
+    raw = m3.canonical_json(payload) + b"\n"
+    path.write_bytes(raw)
+    path.chmod(0o600)
+    digest_index = args.index("--expected-q0-predecessor-digest") + 1
+    args[digest_index] = "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def test_collect_requires_q0_predecessor_arguments_before_connection(
+    workspace: Path, config: m3.Config,
+) -> None:
+    called = False
+    args = cli_args(workspace, config, expected_binding=configured_binding(config))
+    for flag in ("--q0-predecessor-manifest", "--expected-q0-predecessor-digest"):
+        index = args.index(flag)
+        del args[index:index + 2]
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        return FakeConnection()
+
+    code, manifest = m3.run_cli(
+        args, env=env_for(config), workspace=workspace, connection_factory=factory,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_CLI_INVALID"]
+    assert called is False
+
+
+def test_collect_missing_or_tampered_predecessor_stops_before_connection(
+    workspace: Path, config: m3.Config,
+) -> None:
+    called = False
+    args = cli_args(workspace, config, expected_binding=configured_binding(config))
+    predecessor = workspace / m3.ARTIFACT_ROOT_RELATIVE / "q0-pass.json"
+    predecessor.unlink()
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        return FakeConnection()
+
+    code, manifest = m3.run_cli(
+        args, env=env_for(config), workspace=workspace, connection_factory=factory,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_Q0_PREDECESSOR_INVALID"]
+    assert called is False
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(
+            lambda payload: payload.__setitem__("target_binding_digest", "sha256:" + "0" * 64),
+            id="wrong-binding",
+        ),
+        pytest.param(
+            lambda payload: payload.__setitem__("query_set_digest", "sha256:" + "0" * 64),
+            id="wrong-query",
+        ),
+        pytest.param(
+            lambda payload: payload.__setitem__("writer_calls", 1),
+            id="nonzero-writer",
+        ),
+        pytest.param(
+            lambda payload: payload.__setitem__(
+                "observed_transport_digest", payload["target_binding_digest"],
+            ),
+            id="digest-domain-collision",
+        ),
+        pytest.param(
+            lambda payload: payload["transcript"].pop(),
+            id="incomplete-transcript",
+        ),
+    ],
+)
+def test_collect_rejects_semantically_invalid_canonical_predecessor(
+    workspace: Path, config: m3.Config, mutate,
+) -> None:
+    called = False
+    args = cli_args(workspace, config, expected_binding=configured_binding(config))
+    rewrite_predecessor(args, workspace, mutate)
+
+    def factory(*_args):
+        nonlocal called
+        called = True
+        return FakeConnection()
+
+    code, manifest = m3.run_cli(
+        args, env=env_for(config), workspace=workspace, connection_factory=factory,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_Q0_PREDECESSOR_INVALID"]
+    assert called is False
+
+
+def test_collect_rejects_tampered_bytes_unsafe_path_and_symlink_predecessor(
+    workspace: Path, config: m3.Config,
+) -> None:
+    expected = configured_binding(config)
+    args = cli_args(workspace, config, expected_binding=expected)
+    predecessor = workspace / m3.ARTIFACT_ROOT_RELATIVE / "q0-pass.json"
+    predecessor.write_bytes(predecessor.read_bytes() + b" ")
+    predecessor.chmod(0o600)
+    code, manifest = m3.run_cli(args, env=env_for(config), workspace=workspace)
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_Q0_PREDECESSOR_INVALID"]
+
+    # A fresh workspace is not available inside one test after STOP artifacts,
+    # so path validation is exercised before artifact publication.
+    unsafe_workspace = workspace / "unsafe-case"
+    unsafe_workspace.mkdir(mode=0o700)
+    for relative in m3.QUERY_SET_FILES:
+        destination = unsafe_workspace / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((workspace / relative).read_bytes())
+    unsafe_args = cli_args(
+        unsafe_workspace, config, expected_binding=configured_binding(config),
+    )
+    unsafe_args[unsafe_args.index("--q0-predecessor-manifest") + 1] = (
+        "local/f10_10/m3/../q0-pass.json"
+    )
+    code, manifest = m3.run_cli(
+        unsafe_args, env=env_for(config), workspace=unsafe_workspace,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_PATH_UNSAFE"]
+
+    symlink_workspace = workspace / "symlink-case"
+    symlink_workspace.mkdir(mode=0o700)
+    for relative in m3.QUERY_SET_FILES:
+        destination = symlink_workspace / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((workspace / relative).read_bytes())
+    symlink_args = cli_args(
+        symlink_workspace, config, expected_binding=configured_binding(config),
+    )
+    symlink_path = symlink_workspace / m3.ARTIFACT_ROOT_RELATIVE / "q0-pass.json"
+    target = symlink_path.with_name("q0-target.json")
+    symlink_path.replace(target)
+    symlink_path.symlink_to(target.name)
+    code, manifest = m3.run_cli(
+        symlink_args, env=env_for(config), workspace=symlink_workspace,
+    )
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_Q0_PREDECESSOR_INVALID"]
 
 
 def test_cli_success_writes_only_two_0600_files(workspace: Path, config: m3.Config) -> None:
-    tls = {
-        "ssl_in_use": True, "protocol": config.tls_protocol, "cipher": config.tls_cipher,
-        "library": config.tls_library, "server_version_num": config.server_version_num,
-    }
     expected_binding = configured_binding(config)
     code, manifest = m3.run_cli(
         cli_args(workspace, config, expected_binding=expected_binding),
@@ -691,15 +1121,102 @@ def test_cli_success_writes_only_two_0600_files(workspace: Path, config: m3.Conf
     )
     assert code == 0 and manifest["decision"] == "PASS"
     outputs = sorted((workspace / m3.ARTIFACT_ROOT_RELATIVE).iterdir())
-    assert [path.name for path in outputs] == ["manifest.json", "private.json"]
+    assert [path.name for path in outputs] == [
+        "manifest.json", "private.json", "q0-pass.json",
+    ]
     assert json.loads(outputs[0].read_text(encoding="utf-8")) == manifest
+    predecessor_digest = "sha256:" + hashlib.sha256(outputs[2].read_bytes()).hexdigest()
+    assert manifest["q0_predecessor_digest"] == predecessor_digest
+    private = json.loads(outputs[1].read_text(encoding="utf-8"))
+    assert private["q0_predecessor_digest"] == predecessor_digest
+
+
+def test_q0_only_has_exact_transcript_and_never_runs_q1_through_q4(
+    workspace: Path, config: m3.Config,
+) -> None:
+    connection = FakeConnection()
+    code, manifest = m3.run_cli(
+        cli_args(
+            workspace, config, expected_binding=configured_binding(config),
+            mode="q0-only",
+        ),
+        env=env_for(config), workspace=workspace,
+        connection_factory=lambda _config, _ca: connection,
+    )
+
+    assert code == 0
+    assert connection.transcript == [
+        (m3.BEGIN_SQL, None), (m3.Q0_SQL, None), (m3.COMMIT_SQL, None),
+    ]
+    assert manifest["mode"] == "q0-only"
+    assert manifest["summary"] == {"rows_collected": 0, "content_bytes": 0}
+    assert manifest["observed_transport_digest"].startswith("sha256:")
+    assert manifest["snapshots_equal"] is False
+    assert [item["query_id"] for item in manifest["transcript"]] == [
+        "TX_BEGIN", "Q0", "TX_COMMIT",
+    ]
+    assert all(sql not in {query for _, query in m3.CATALOG_QUERIES} for sql, _ in connection.transcript)
+    assert all(sql not in {m3.Q4_FIRST_SQL, m3.Q4_NEXT_SQL} for sql, _ in connection.transcript)
+    serialized = json.dumps(manifest, sort_keys=True)
+    for private_value in (
+        config.api_url, config.project_ref, config.sql_host, config.database,
+        config.user, config.provisioner, config.password, str(config.ca_file),
+        config.approval_id,
+    ):
+        assert private_value not in serialized
+
+    private = json.loads(
+        (workspace / m3.ARTIFACT_ROOT_RELATIVE / "private.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert private["catalog"] == {}
+    assert private["snapshots"] == []
+    assert private["page_boundaries"] == []
+    assert PROVISIONER in json.dumps(private, sort_keys=True)
+
+
+@pytest.mark.parametrize(
+    ("index", "value"),
+    [
+        pytest.param(15, VALID_UNTIL_EPOCH + 1, id="expiry-mismatch"),
+        pytest.param(16, False, id="expiry-not-future"),
+        pytest.param(18, 0, id="missing-provisioner-edge"),
+        pytest.param(19, "other_provisioner", id="wrong-provisioner"),
+        pytest.param(20, False, id="provisioner-no-admin"),
+        pytest.param(21, True, id="provisioner-inherits"),
+        pytest.param(22, True, id="provisioner-can-set"),
+        pytest.param(38, True, id="security-definer-execute"),
+    ],
+)
+def test_q0_only_invalid_reader_stops_without_catalog_or_content_queries(
+    workspace: Path, config: m3.Config, index: int, value: object,
+) -> None:
+    connection = FakeConnection()
+    changed = list(connection.q0)
+    changed[index] = value
+    connection.q0 = tuple(changed)
+    code, manifest = m3.run_cli(
+        cli_args(
+            workspace, config, expected_binding=configured_binding(config),
+            mode="q0-only",
+        ),
+        env=env_for(config), workspace=workspace,
+        connection_factory=lambda _config, _ca: connection,
+    )
+
+    assert code == 2
+    assert manifest["reason_codes"] == ["STOP_NEEDS_READONLY_CHANNEL"]
+    assert manifest["summary"] == {"rows_collected": 0, "content_bytes": 0}
+    assert manifest["observed_transport_digest"].startswith("sha256:")
+    assert [item["query_id"] for item in manifest["transcript"]] == [
+        "TX_BEGIN", "Q0",
+    ]
+    assert connection.transcript == [(m3.BEGIN_SQL, None), (m3.Q0_SQL, None)]
+    assert connection.rolled_back is True
 
 
 def test_cli_failure_persists_sanitized_stop_evidence(workspace: Path, config: m3.Config) -> None:
-    tls = {
-        "ssl_in_use": True, "protocol": config.tls_protocol, "cipher": config.tls_cipher,
-        "library": config.tls_library, "server_version_num": config.server_version_num,
-    }
     expected_binding = configured_binding(config)
     connection = FakeConnection()
     connection.schema[0] = ("id", "text", True, None)
@@ -787,10 +1304,6 @@ def test_binding_and_unsafe_paths_stop_before_connection(workspace: Path, config
     (root / "private.json").unlink()
     (root / "manifest.json").unlink()
 
-    tls = {
-        "ssl_in_use": True, "protocol": config.tls_protocol, "cipher": config.tls_cipher,
-        "library": config.tls_library, "server_version_num": config.server_version_num,
-    }
     expected = configured_binding(config)
     unsafe = cli_args(workspace, config, expected_binding=expected)
     unsafe[unsafe.index("--private-artifact") + 1] = "outside.json"
@@ -852,6 +1365,7 @@ def test_cli_has_no_dsn_host_password_sql_or_mutating_flags() -> None:
     assert flags == {
         "-h", "--help", "--mode", "--target-alias", "--approval-id",
         "--expected-query-set-digest", "--expected-target-binding-digest",
+        "--q0-predecessor-manifest", "--expected-q0-predecessor-digest",
         "--private-artifact", "--sanitized-manifest",
     }
     assert not any(token in " ".join(flags) for token in ("dsn", "password", "host", "sql", "execute"))
@@ -879,6 +1393,7 @@ def test_offline_digest_modes_do_not_connect_or_import_driver(
         connection_factory=lambda *_args: pytest.fail("must not connect"),
     )
     assert code == 0 and binding["target_binding_digest"] == configured_binding(config)
+    assert binding["target_binding_version"] == m3.TARGET_BINDING_VERSION
 
 
 def test_unexpected_internal_exception_returns_stable_result_without_raw_text(
@@ -933,7 +1448,7 @@ def test_query_set_digest_normalizes_newlines_rejects_bom_and_binds_both_files(
 
 def test_import_does_not_require_psycopg2(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "psycopg2", None)
-    assert importlib.reload(m3).COLLECTOR_VERSION == "f10.10-m3-readonly-collector-v1"
+    assert importlib.reload(m3).COLLECTOR_VERSION == "f10.10-m3-readonly-collector-v2"
 
 
 def test_protected_f97_workflow_runs_m3_zero_write_suite() -> None:
