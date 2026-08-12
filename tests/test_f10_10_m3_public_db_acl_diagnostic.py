@@ -16,6 +16,7 @@ def valid_row() -> dict[str, int | bool]:
     return {
         "transaction_read_only": True,
         "transaction_repeatable_read": True,
+        "postgres_major_17": True,
         "target_count": 1,
         "target_connectable": True,
         "target_public_connect_count": 1,
@@ -36,6 +37,7 @@ def test_sql_is_single_counts_only_pg_catalog_query() -> None:
     assert DIAGNOSTIC_SQL.count("COMMIT;") == 1
     assert "current_setting('transaction_read_only') = 'on'" in DIAGNOSTIC_SQL
     assert "current_setting('transaction_isolation') = 'repeatable read'" in DIAGNOSTIC_SQL
+    assert "current_setting('server_version_num')::integer BETWEEN 170000 AND 179999" in DIAGNOSTIC_SQL
     assert "pg_catalog.pg_database" in DIAGNOSTIC_SQL
     assert "TARGET" in DIAGNOSTIC_SQL
     assert "OTHER_CONNECTABLE" in DIAGNOSTIC_SQL
@@ -44,7 +46,7 @@ def test_sql_is_single_counts_only_pg_catalog_query() -> None:
     assert not any(word in DIAGNOSTIC_SQL.upper() for word in ("INSERT ", "UPDATE ", "DELETE ", "GRANT ", "REVOKE "))
 
 
-@pytest.mark.parametrize("field", ["transaction_read_only", "transaction_repeatable_read"])
+@pytest.mark.parametrize("field", ["transaction_read_only", "transaction_repeatable_read", "postgres_major_17"])
 def test_transaction_attestation_is_fail_closed(field: str) -> None:
     row = valid_row()
     row[field] = False
@@ -108,8 +110,8 @@ def test_consumed_v1_payload_preserves_historical_digest() -> None:
     assert payload["diagnostic_query_digest"] != manifest_digest()
 
 
-def test_successor_envelope_digest_is_frozen() -> None:
-    assert manifest_digest() == "sha256:cc99a97ce134548ac21dc040ed9ed85e9777d1c724daa0313a9003aad83980fd"
+def test_v2_envelope_is_superseded_by_v3() -> None:
+    assert manifest_digest() == "sha256:82a5848a8ac5958aa781424a436687117f1c39b7dc07f686993b0765bf110a6d"
 
 
 def manifest_digest() -> str:

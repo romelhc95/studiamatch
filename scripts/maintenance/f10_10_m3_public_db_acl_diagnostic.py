@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any, Sequence
 
 
-SCHEMA = "f10.10-m3-public-db-acl-diagnostic-v1"
-GATE = "APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE"
+SCHEMA = "f10.10-m3-public-db-acl-diagnostic-v3"
+GATE = "APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3"
 MAX_INPUT_BYTES = 4096
 
 DIAGNOSTIC_SQL = """BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
@@ -39,6 +39,7 @@ WITH database_acl AS (
 SELECT
   pg_catalog.current_setting('transaction_read_only') = 'on' AS transaction_read_only,
   pg_catalog.current_setting('transaction_isolation') = 'repeatable read' AS transaction_repeatable_read,
+  pg_catalog.current_setting('server_version_num')::integer BETWEEN 170000 AND 179999 AS postgres_major_17,
   count(*) FILTER (WHERE database_class = 'TARGET')::integer AS target_count,
   COALESCE(bool_and(datallowconn) FILTER (WHERE database_class = 'TARGET'), false) AS target_connectable,
   count(*) FILTER (WHERE database_class = 'TARGET' AND public_connect)::integer AS target_public_connect_count,
@@ -55,6 +56,7 @@ COMMIT;"""
 FIELDS = (
     "transaction_read_only",
     "transaction_repeatable_read",
+    "postgres_major_17",
     "target_count",
     "target_connectable",
     "target_public_connect_count",
@@ -82,7 +84,7 @@ def validate_row(row: Any) -> dict[str, Any]:
     values: dict[str, int | bool] = {}
     for field in FIELDS:
         value = row[field]
-        if field in {"transaction_read_only", "transaction_repeatable_read", "target_connectable"}:
+        if field in {"transaction_read_only", "transaction_repeatable_read", "postgres_major_17", "target_connectable"}:
             if not isinstance(value, bool):
                 raise ValueError("STOP_DIAGNOSTIC_SCHEMA")
         elif isinstance(value, bool) or not isinstance(value, int) or value < 0:
@@ -92,6 +94,7 @@ def validate_row(row: Any) -> dict[str, Any]:
     policy_conformant = (
         values["transaction_read_only"] is True
         and values["transaction_repeatable_read"] is True
+        and values["postgres_major_17"] is True
         and values["target_count"] == 1
         and values["target_connectable"] is True
         and values["target_violation_count"] == 0
