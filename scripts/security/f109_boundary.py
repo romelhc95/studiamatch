@@ -65,6 +65,9 @@ F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF = "docs/f10-10-m3-preflight-evidence"
 F1010_M3_FINAL_READINESS_BASE = "68cc282f27945891b52fc3b574a14606bcb62e2c"
 F1010_M3_FINAL_READINESS_BASE_TREE = "c580d12ac9c9b6f01a5f026dc59376402504419a"
 F1010_M3_FINAL_READINESS_HEAD_REF = "fix/f10-10-m3-postgres-final-readiness"
+F1010_M3_APPLY_PROJECTION_BASE = "b6fe593ec649d3421aa153e4049f48af3ad0c12d"
+F1010_M3_APPLY_PROJECTION_BASE_TREE = "662f07b2c1fa2d592545de18bd9dfccb2219a82c"
+F1010_M3_APPLY_PROJECTION_HEAD_REF = "feat/f10-10-m3-apply-projection"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -407,6 +410,29 @@ F1010_M3_FINAL_READINESS_ALLOWED_STATUSES = {
 
 F1010_M3_FINAL_READINESS_ALLOWED_MODES = {
     path: "100644" for path in F1010_M3_FINAL_READINESS_ALLOWED_STATUSES
+}
+
+F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_apply_projection.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+    "tests/test_f10_10_m3_apply_projection.py": "A",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_APPLY_PROJECTION_ALLOWED_MODES = {
+    path: (
+        "100755"
+        if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+        else "100644"
+    )
+    for path in F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -1394,6 +1420,54 @@ def validate_f1010_m3_final_readiness(
     validate_context_graph(repo, 55, 379)
 
 
+def validate_f1010_m3_apply_projection(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_APPLY_PROJECTION_BASE,
+        "unexpected F10.10 M3 apply projection baseline",
+    )
+    require_sha(repo, "F1010_M3_APPLY_PROJECTION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_APPLY_PROJECTION_BASE_TREE,
+        "F10.10 M3 apply projection base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 apply projection base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 apply projection PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 apply projection push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 apply projection merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 apply projection push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+        F1010_M3_APPLY_PROJECTION_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1461,6 +1535,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_FINAL_READINESS_HEAD_REF
     ):
         return "f1010_m3_final_readiness"
+    if base_ref == "desarrollo" and base == F1010_M3_APPLY_PROJECTION_BASE and (
+        event == "push" or head_ref == F1010_M3_APPLY_PROJECTION_HEAD_REF
+    ):
+        return "f1010_m3_apply_projection"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -1564,6 +1642,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 preflight evidence branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_FINAL_READINESS_HEAD_REF:
                 raise BoundaryError("F10.10 M3 final readiness branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_APPLY_PROJECTION_HEAD_REF:
+                raise BoundaryError("F10.10 M3 apply projection branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -1738,6 +1818,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_final_readiness":
             validate_f1010_m3_final_readiness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_apply_projection":
+            validate_f1010_m3_apply_projection(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

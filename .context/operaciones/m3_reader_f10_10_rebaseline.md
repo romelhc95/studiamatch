@@ -12,6 +12,7 @@
 | Query-set content digest `query-set-v1` candidate | `sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7` |
 | Package Free-only candidate | `sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906` |
 | Compensacion candidate | `sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0` |
+| Proyeccion local `apply_migration` v1 ligada al provisioner aprobado | `sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137` |
 
 Esta nota es la autoridad enfocada del rebaseline M3 reader y sustituye, para la
 proxima ejecucion Free, las partes operativas del scope M3 anterior que asumian
@@ -153,6 +154,37 @@ habilita unicamente revisar payloads futuros; no concede Free, DDL ni passwords.
 La preparacion offline de `target-binding-digest` debe omitir
 `F10_10_M3_PASSWORD`; solo `q0-only` y `collect`, bajo sus gates posteriores,
 pueden requerirla y cualquier ausencia detiene antes de driver o conexion.
+
+## Proyeccion DDL Para Apply Migration
+
+La investigacion read-only del cliente MCP oficial confirmo que `apply_migration`
+envia `name` y `query` a `POST /v1/projects/{ref}/database/migrations`. La
+documentacion publica declara rollback si la migration falla; la implementacion
+self-hosted publica construye `BEGIN; <query>; INSERT ledger; COMMIT;`.
+
+El package canonico conserva `BEGIN/COMMIT` porque tambien debe ser atomico con
+`psql`. Enviarlo sin transformar cerraria anticipadamente el envelope externo:
+PostgreSQL 17 emite warning ante el `BEGIN` anidado y el `COMMIT` interno persiste
+DDL antes del ledger. Un probe local reprodujo ese split. El package sin proyectar
+queda prohibido para `apply_migration`.
+
+`scripts/maintenance/f10_10_m3_apply_projection.py` implementa una proyeccion
+local, determinista y sin red: valida el digest LF exacto, elimina solo los
+statements externos `BEGIN;`/`COMMIT;`, rechaza otros controles transaccionales
+top-level, liga `current_user=session_user` al fingerprint aprobado sin serializar
+el nombre privado y produce artifacts `0600` bajo `local/f10_10/m3/`.
+
+Package y `query-set-v1` permanecen byte-identicos. Para el fingerprint del
+provisioner aprobado, la proyeccion candidate queda ligada a
+`sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137`;
+otro provisioner produce necesariamente otro digest y termina STOP.
+PostgreSQL 17 local acredito rollback del reader ante fallo de ledger o executor
+distinto, y commit conjunto de DDL+ledger en success path. No hubo Free ni gate.
+
+El payload preflight anterior y su ventana terminada son evidencia historica. El
+payload DDL futuro debe usar candidate/tree post-merge, binding vigente y una
+identidad de migration/idempotencia unica. Timeout, 5xx o respuesta ambigua
+terminan STOP sin retry con otra identidad.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de

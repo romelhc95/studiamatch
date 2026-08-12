@@ -64,6 +64,22 @@ deteccion automatica de cambios Pro-relevant. El migrador Pro descubre solo
 `db/migrations/*.sql`. Copiar, reflejar, detectar como Pro-relevant o aplicar
 cualquiera de los dos paths Free-only en Pro termina STOP.
 
+Para `apply_migration`, el SQL enviado no puede ser el blob canonico sin
+transformar: su `COMMIT` cerraria el envelope transaccional que debe incluir el
+ledger. La unica representacion admisible es
+`f10.10-m3-apply-projection-v1`, generada localmente por
+`scripts/maintenance/f10_10_m3_apply_projection.py`. Esta valida el package,
+elimina solo sus wrappers externos, liga `current_user=session_user` al
+fingerprint aprobado del provisioner y fija un `applied_query_digest` separado sin
+imprimir ni versionar el nombre. Fingerprint y digest son bindings publicos no
+secretos; el nombre literal no se serializa. Package, query-set y compensacion
+quedan byte-identicos.
+
+`apply_migration` se invoca como maximo una vez con migration name e identidad de
+idempotencia fijados por el payload DDL. Timeout, 5xx, respuesta ambigua, mismatch
+de digest/executor/target o ausencia de garantia rollback+ledger terminan STOP;
+no se permite fallback a `execute_sql`, cambio de nombre ni retry automatico.
+
 ## Provisioner PostgreSQL 17
 
 La provision usa el edge administrado minimo de PostgreSQL 17. El provisioner
@@ -321,6 +337,8 @@ ejecutables. Ningun gate concede el siguiente.
 El [payload exacto de preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json)
 congela candidate, digests, binding offline, roles, CA y ventana de cuatro horas.
 Su ejecucion no uso red ni password y termino PASS. No autoriza el gate DDL.
+La ventana del preflight no se reutiliza para DDL. El payload DDL separado exige
+el candidate de proyeccion promovido y un binding offline nuevamente vigente.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
 bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto ni password; solo
 se consumio el gate preflight local passwordless.

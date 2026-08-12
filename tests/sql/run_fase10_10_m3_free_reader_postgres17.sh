@@ -18,6 +18,9 @@ readonly TEST_SQL='tests/sql/20260811_fase10_10_m3_free_reader_test.sql'
 readonly LOCAL_TEST_PASSWORD='F10_10_M3_LOCAL_TEST_ONLY_2026!'
 readonly LOCAL_TEST_EXPIRY='2099-12-31 23:59:59+00'
 readonly LOCAL_TEST_EXPIRED='2000-01-01 00:00:00+00'
+projection_sql="$(mktemp /tmp/f10_10_m3_projection.XXXXXX.sql)"
+wrong_projection_sql="$(mktemp /tmp/f10_10_m3_wrong_projection.XXXXXX.sql)"
+trap 'rm -f "$projection_sql" "$wrong_projection_sql"' EXIT
 
 if [[ "${TEST_DATABASE_URL:-}" != "$EXPECTED_URL" ]]; then
   echo 'TEST_DATABASE_URL must exactly equal the dedicated local PostgreSQL 17 URL' >&2
@@ -216,6 +219,55 @@ SET search_path = pg_catalog
 AS 'SELECT 1';
 REVOKE ALL ON FUNCTION public.fixture_safe_definer() FROM PUBLIC;
 SQL
+
+# Supabase apply_migration wraps the submitted query and ledger insert in one
+# transaction.  The projected body must preserve that atomic boundary.
+python3 - "$projection_sql" "$wrong_projection_sql" <<'PY'
+import sys
+from pathlib import Path
+
+from scripts.maintenance.f10_10_m3_apply_projection import (
+    project_apply_migration_query,
+    provisioner_fingerprint,
+)
+
+source = Path("db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql").read_bytes()
+package_digest = "sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906"
+for output, role in ((sys.argv[1], "postgres"), (sys.argv[2], "wrong_executor")):
+    fingerprint = provisioner_fingerprint(role)
+    projection = project_apply_migration_query(
+        source,
+        expected_source_package_digest=package_digest,
+        provisioner=role,
+        expected_provisioner_fingerprint=fingerprint,
+    )
+    Path(output).write_bytes(projection.applied_query)
+PY
+
+expect_failure projected_wrong_executor "${psql_safe[@]}" \
+  -c 'BEGIN' -f "$wrong_projection_sql" -c 'COMMIT'
+assert_reader_absent
+
+"${psql_safe[@]}" -c 'CREATE TABLE public.m3_migration_ledger (name text PRIMARY KEY)'
+"${psql_safe[@]}" -c \
+  "INSERT INTO public.m3_migration_ledger VALUES ('f10_10_m3_reader_duplicate')"
+expect_failure projected_duplicate_ledger "${psql_safe[@]}" \
+  -c 'BEGIN' -f "$projection_sql" \
+  -c "INSERT INTO public.m3_migration_ledger VALUES ('f10_10_m3_reader_duplicate')" \
+  -c 'COMMIT'
+assert_reader_absent
+"${psql_safe[@]}" -Atqc \
+  "select count(*) from public.m3_migration_ledger where name='f10_10_m3_reader_duplicate'" \
+  | grep -qx '1'
+
+"${psql_safe[@]}" -c 'BEGIN' -f "$projection_sql" \
+  -c "INSERT INTO public.m3_migration_ledger VALUES ('f10_10_m3_reader')" -c 'COMMIT'
+"${psql_safe[@]}" -Atqc \
+  "select count(*) from public.m3_migration_ledger where name='f10_10_m3_reader'" \
+  | grep -qx '1'
+"${psql_safe[@]}" -f "$ROLLBACK"
+assert_reader_absent
+"${psql_safe[@]}" -c 'DROP TABLE public.m3_migration_ledger'
 
 # Hosted-feasibility path: execute the actual migration and rollback under a
 # direct non-superuser CREATEROLE+BYPASSRLS session with only the required grant
