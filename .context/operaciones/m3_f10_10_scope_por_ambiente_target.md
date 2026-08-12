@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING` |
+| Estado | `M3_DDL_NULLABILITY_REMEDIATION_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
 | Ejecuta acceso remoto | `NO` |
-| Gates consumidos | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` una vez |
+| Gates consumidos | Preflight una vez PASS; DDL v1 una vez FAIL+rollback |
 | Autoriza Certification / Pro / M4 | `NO / NO / NO` |
 
 Este documento es el scope autoritativo M3 reader v2. Sustituye todas las
@@ -81,11 +81,18 @@ de digest/executor/target o ausencia de garantia rollback+ledger terminan STOP;
 no se permite fallback a `execute_sql`, cambio de nombre ni retry automatico.
 El [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json)
 congela `fase10_10_m3_free_reader_free_ddl_v1` como migration name e identidad de
-idempotencia unica. Su estado es `PROPOSED_NOT_EXECUTED`, mantiene capacidades
-remotas en `false` y no consume DDL, Q0, lectura ni teardown.
+idempotencia unica. Historicamente fue promovido como `PROPOSED_NOT_EXECUTED`;
+su unica llamada posterior termino rollback y ahora queda
+`CONSUMED_FAILED_SUPERSEDED`. No consumio Q0, lectura ni teardown.
 Tras el merge protegido de PR #361, su binding `target-binding-v2` se renueva
 exclusivamente offline; candidate/tree pasan al merge post-PR #361 sin cambiar
 la identidad de migration, los digests del package/proyeccion ni las capacidades.
+
+La unica ejecucion v1 termino `STOP_COURSES_COLUMN_CONTRACT_DRIFT` y rollback.
+El diagnostico DB-as-Code identifica una precondicion obsoleta: `is_active` es
+`boolean DEFAULT true` nullable, no `NOT NULL`. La remediacion corrige package,
+collector y fixture, reserva `fase10_10_m3_free_reader_free_ddl_v2` y no genera
+binding ni capacidad ejecutable. La identidad v1 no puede reutilizarse.
 
 ## Provisioner PostgreSQL 17
 
@@ -331,15 +338,16 @@ otro ambiente.
 
 ```text
 APPROVE_F10_10_M3_READER_PREFLIGHT_FREE = CONSUMED_ONCE_PASS
-APPROVE_F10_10_M3_READER_DDL_FREE = NOT_CONSUMED
+APPROVE_F10_10_M3_READER_DDL_FREE = CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED
 APPROVE_F10_10_M3_READER_Q0_FREE = NOT_CONSUMED
 APPROVE_M3_FREE_READONLY = NOT_CONSUMED
 APPROVE_F10_10_M3_READER_TEARDOWN_FREE = NOT_CONSUMED
 ```
 
 El gate preflight fue consumido una vez y produjo [PASS sanitizado](./m3_reader_f10_10_preflight_evidence_2026_08_11.md).
-Los gates DDL Free, Q0 Free, lectura y teardown siguen no consumidos/no
-ejecutables. Ningun gate concede el siguiente.
+DDL v1 fue consumido una vez y termino rollback; no puede reutilizarse. Q0 Free,
+lectura y teardown siguen no consumidos/no ejecutables. Ningun gate concede el
+siguiente.
 
 El [payload exacto de preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json)
 congela candidate, digests, binding offline, roles, CA y ventana de cuatro horas.

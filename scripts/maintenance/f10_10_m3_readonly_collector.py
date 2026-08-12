@@ -903,7 +903,7 @@ def _q0(
 def _validate_schema(raw: list[Sequence[Any]]) -> None:
     expected = {
         "id": ("uuid", True),
-        "is_active": ("boolean", True),
+        "is_active": ("boolean", False),
         "syllabus": ("text", False),
         "objectives": ("text", False),
     }
