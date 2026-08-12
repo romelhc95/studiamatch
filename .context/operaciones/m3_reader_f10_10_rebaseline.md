@@ -183,7 +183,7 @@ distinto, y commit conjunto de DDL+ledger en success path. No hubo Free ni gate.
 
 El payload preflight anterior y su ventana terminada son evidencia historica. El
 [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json) usa el
-merge/tree post-PR #360, binding offline vigente y la identidad unica
+merge/tree post-PR #361, binding offline renovado y la identidad unica
 `fase10_10_m3_free_reader_free_ddl_v1`. Queda `PROPOSED_NOT_EXECUTED`: timeout,
 5xx o respuesta ambigua terminan STOP sin retry con otra identidad ni fallback.
 

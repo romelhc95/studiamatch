@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`; PR #360 promovio la proyeccion local fail-closed y quedo mergeado en `desarrollo@ac9bda0374930339268f9e59af15ea7416fb320f` / tree `43337b48bfe460f6305ca703a8e194b1ebd55942`. El [payload DDL Free](../../operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json) congela migration/idempotencia `fase10_10_m3_free_reader_free_ddl_v1`, binding offline vigente y todos los digests para revision humana. Permanece `PROPOSED_NOT_EXECUTED`: DDL Free, Q0, lectura y teardown no iniciaron y requieren gates exactos independientes.
+4. `M3`: `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`; PR #361 promovio el payload DDL y quedo mergeado en `desarrollo@49d9c0cbdc526854cb1414965ded8c2ca35ab2ad` / tree `ffd726e3881893437bb482773c44e6dfa1b60a05`. El [payload DDL Free](../../operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json) renueva offline el binding y conserva migration/idempotencia `fase10_10_m3_free_reader_free_ddl_v1` y todos los digests congelados. Permanece `PROPOSED_NOT_EXECUTED`: DDL Free, Q0, lectura y teardown no iniciaron.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.

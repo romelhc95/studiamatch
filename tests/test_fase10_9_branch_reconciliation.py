@@ -77,6 +77,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_DDL_PAYLOAD_BASE,
     F1010_M3_DDL_PAYLOAD_BASE_TREE,
     F1010_M3_DDL_PAYLOAD_HEAD_REF,
+    F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES,
+    F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES,
+    F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+    F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE,
+    F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -126,6 +131,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_final_readiness,
     validate_f1010_m3_apply_projection,
     validate_f1010_m3_ddl_payload,
+    validate_f1010_m3_ddl_payload_refresh,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -579,6 +585,24 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_DDL_PAYLOAD_BASE,
             ),
             "skip",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF,
+                F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+            ),
+            "f1010_m3_ddl_payload_refresh",
+        )
+        self.assertEqual(
+            detect_mode(
+                "push",
+                "desarrollo",
+                "desarrollo",
+                F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+            ),
+            "f1010_m3_ddl_payload_refresh",
         )
         self.assertEqual(
             detect_mode(
@@ -2288,8 +2312,8 @@ class F109BoundaryTest(unittest.TestCase):
 
         self.assertEqual(raw, canonical)
         self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_READER_DDL_FREE")
-        self.assertEqual(payload["candidate_commit"], F1010_M3_DDL_PAYLOAD_BASE)
-        self.assertEqual(payload["candidate_tree"], F1010_M3_DDL_PAYLOAD_BASE_TREE)
+        self.assertEqual(payload["candidate_commit"], F1010_M3_DDL_PAYLOAD_REFRESH_BASE)
+        self.assertEqual(payload["candidate_tree"], F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE)
         self.assertEqual(payload["target_alias"], "FREE_DB")
         self.assertEqual(payload["migration_name"], payload["idempotency_identity"])
         self.assertEqual(payload["apply_migration_max_calls"], 1)
@@ -2318,7 +2342,7 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(
             payload["target_binding_digest"],
-            "sha256:858d4c70602587882e935f7692b5490d670ca5324e53194da3c81d761f79fac7",
+            "sha256:b4c3ee726d1a4707bc4e0adc363b317657941b55be090b61253db470588469c7",
         )
         for field in (
             "network_allowed",
@@ -2347,6 +2371,78 @@ class F109BoundaryTest(unittest.TestCase):
             "execute_sql\"",
         ):
             self.assertNotIn(forbidden, serialized)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_ddl_payload_refresh_accepts_direct_candidate(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE
+        parents_mock.return_value = [F1010_M3_DDL_PAYLOAD_REFRESH_BASE]
+
+        validate_f1010_m3_ddl_payload_refresh(
+            Path("."), F1010_M3_DDL_PAYLOAD_REFRESH_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+            head,
+            F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES,
+            F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 382)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_ddl_payload_refresh_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        candidate = "c" * 40
+        merge = "d" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_DDL_PAYLOAD_REFRESH_BASE, candidate],
+            [F1010_M3_DDL_PAYLOAD_REFRESH_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE,
+            "e" * 40,
+            "e" * 40,
+        ]
+
+        validate_f1010_m3_ddl_payload_refresh(
+            Path("."), F1010_M3_DDL_PAYLOAD_REFRESH_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+            candidate,
+            F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES,
+            F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 382)
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
