@@ -67,6 +67,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_FINAL_READINESS_BASE,
     F1010_M3_FINAL_READINESS_BASE_TREE,
     F1010_M3_FINAL_READINESS_HEAD_REF,
+    F1010_M3_APPLY_PROJECTION_ALLOWED_MODES,
+    F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+    F1010_M3_APPLY_PROJECTION_BASE,
+    F1010_M3_APPLY_PROJECTION_BASE_TREE,
+    F1010_M3_APPLY_PROJECTION_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -114,6 +119,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_preflight_payload,
     validate_f1010_m3_preflight_evidence,
     validate_f1010_m3_final_readiness,
+    validate_f1010_m3_apply_projection,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -513,6 +519,42 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_FINAL_READINESS_BASE,
             ),
             "f1010_m3_final_readiness",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_APPLY_PROJECTION_HEAD_REF,
+                F1010_M3_APPLY_PROJECTION_BASE,
+            ),
+            "f1010_m3_apply_projection",
+        )
+        self.assertEqual(
+            detect_mode(
+                "push",
+                "desarrollo",
+                "desarrollo",
+                F1010_M3_APPLY_PROJECTION_BASE,
+            ),
+            "f1010_m3_apply_projection",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                "feat/not-the-projection-branch",
+                F1010_M3_APPLY_PROJECTION_BASE,
+            ),
+            "skip",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_APPLY_PROJECTION_HEAD_REF,
+                "7" * 40,
+            ),
+            "skip",
         )
         self.assertEqual(
             detect_mode(
@@ -2033,6 +2075,100 @@ class F109BoundaryTest(unittest.TestCase):
         )
         context_mock.assert_called_once_with(Path("."), 55, 379)
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_apply_projection_accepts_direct_candidate(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_APPLY_PROJECTION_BASE_TREE
+        parents_mock.return_value = [F1010_M3_APPLY_PROJECTION_BASE]
+
+        validate_f1010_m3_apply_projection(
+            Path("."), F1010_M3_APPLY_PROJECTION_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_APPLY_PROJECTION_BASE,
+            head,
+            F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+            F1010_M3_APPLY_PROJECTION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_apply_projection_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        candidate = "c" * 40
+        merge = "d" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_APPLY_PROJECTION_BASE, candidate],
+            [F1010_M3_APPLY_PROJECTION_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_APPLY_PROJECTION_BASE_TREE,
+            "e" * 40,
+            "e" * 40,
+        ]
+
+        validate_f1010_m3_apply_projection(
+            Path("."), F1010_M3_APPLY_PROJECTION_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_APPLY_PROJECTION_BASE,
+            candidate,
+            F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+            F1010_M3_APPLY_PROJECTION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=["0" * 40])
+    @mock.patch(
+        "scripts.security.f109_boundary.commit_tree",
+        return_value=F1010_M3_APPLY_PROJECTION_BASE_TREE,
+    )
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_apply_projection_rejects_non_direct_pr(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+    ) -> None:
+        with self.assertRaises(BoundaryError):
+            validate_f1010_m3_apply_projection(
+                Path("."),
+                F1010_M3_APPLY_PROJECTION_BASE,
+                "c" * 40,
+                "pull_request",
+            )
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -2365,6 +2501,35 @@ class F109BoundaryTest(unittest.TestCase):
             all(
                 mode == "100644"
                 for mode in F1010_M3_FINAL_READINESS_ALLOWED_MODES.values()
+            )
+        )
+        self.assertEqual(
+            F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+                ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/maintenance/f10_10_m3_apply_projection.py": "A",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+                "tests/test_f10_10_m3_apply_projection.py": "A",
+                "tests/test_f10_10_m3_reader_package.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertEqual(
+            F1010_M3_APPLY_PROJECTION_ALLOWED_MODES[
+                "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+            ],
+            "100755",
+        )
+        self.assertTrue(
+            all(
+                mode == "100644"
+                for path, mode in F1010_M3_APPLY_PROJECTION_ALLOWED_MODES.items()
+                if path != "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
             )
         )
         for existing in (P1_ALLOWED_STATUSES, P2_ALLOWED_STATUSES, G2_ALLOWED_STATUSES, P5_ALLOWED_STATUSES):

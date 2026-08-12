@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql"
 ROLLBACK = ROOT / "db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql"
 RUNNER = ROOT / "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+PROJECTION = ROOT / "scripts/maintenance/f10_10_m3_apply_projection.py"
 WORKFLOW = ROOT / ".github/workflows/f9-7-contract.yml"
 DB_SYNC_WORKFLOW = ROOT / ".github/workflows/db-sync-to-pro.yml"
 
@@ -90,3 +91,5 @@ def test_ci_runs_package_on_networkless_postgresql_17() -> None:
     assert "F10_10_M3_READER_LOCAL_POSTGRES17_ONLY" in workflow
     assert "TEST_DATABASE_URL must exactly equal" in runner
     assert "refusing non-local/non-PostgreSQL-17 target" in runner
+    assert PROJECTION.is_file()
+    assert "f10_10_m3_apply_projection.py" in workflow

@@ -25,6 +25,8 @@ on:
       - 'db/migrations/20260729_fase09_7_leads_email_security_hold.sql'
       - 'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'
       - 'db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql'
+      - 'scripts/maintenance/f10_10_m3_apply_projection.py'
+      - 'tests/test_f10_10_m3_apply_projection.py'
       - 'db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql'
       - 'db/restore_full_schema.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
@@ -246,6 +248,7 @@ jobs:
           fi
       - name: Run M3 reader PostgreSQL 17 contract
         run: |
+          python3 -m pytest -q tests/test_f10_10_m3_apply_projection.py
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" \
