@@ -53,6 +53,18 @@ def test_package_matches_nullable_courses_schema_contract() -> None:
     assert "('objectives', 'text'::pg_catalog.regtype, false)" in migration
 
 
+def test_database_capability_contract_classifies_connectability() -> None:
+    migration = MIGRATION.read_text(encoding="utf-8")
+
+    assert "TARGET database must be connectable" in migration
+    assert migration.count("d.datallowconn") >= 3
+    assert "OTHER_CONNECTABLE database capability" in migration
+    assert "x.privilege_type IN ('TEMPORARY', 'CREATE')" in migration
+    assert "x.privilege_type IN ('CONNECT', 'TEMPORARY', 'CREATE')" in migration
+    assert "REVOKE" not in migration
+    assert migration.index("WHERE d.datallowconn") < migration.index("CREATE ROLE studiamatch_m3_reader")
+
+
 def test_compensation_quarantines_before_revoking_or_dropping() -> None:
     rollback = ROLLBACK.read_text(encoding="utf-8")
 

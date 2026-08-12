@@ -3,19 +3,19 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_DDL_V2_PAYLOAD_PENDING_HUMAN_APPROVAL` |
+| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
-| Acceso remoto / DDL remoto | `Una llamada DDL v1 fallida con rollback / NO capacidad vigente` |
-| Gates consumidos | Preflight una vez PASS; DDL v1 una vez FAIL+rollback |
+| Acceso remoto / DDL remoto | `Una llamada v1 y una v2, ambas fallidas con rollback / NO capacidad vigente` |
+| Gates consumidos | Preflight una vez PASS; DDL v1 y v2 una vez cada una FAIL+rollback |
 | Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
 | Query-set content digest `query-set-v1` candidate v2 | `sha256:d3bc8fddf7d0d8b39497e4f184c7669bec3cbc4537dde7aeb3757d4afe53957a` |
-| Package Free-only candidate v2 | `sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa` |
+| Package rebaselined offline, no identity v3 | `sha256:53dfeb7e67e7699d7314dd174e923418e49a5230acd5ae858697c410d95875e3` |
 | Compensacion candidate | `sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0` |
 | Proyeccion local `apply_migration` v2 ligada al provisioner aprobado | `sha256:a13e0e814185f756d612d8b092561a5baa71442a2cff2e83db081eb32ddd2f3f` |
 
-Esta nota es la autoridad enfocada del rebaseline M3 reader y sustituye, para la
-proxima ejecucion Free, las partes operativas del scope M3 anterior que asumian
+Esta nota es la autoridad enfocada del rebaseline M3 reader y sustituye las
+partes operativas del scope M3 anterior que asumian
 una identidad SQL preexistente y un unico gate de lectura. La
 [evidencia post-merge M3](./m3_f10_10_post_merge_evidence_2026_08_11.md) de PR
 #350 permanece inmutable como antecedente del collector v1 promovido; no acredita
@@ -88,8 +88,9 @@ caducidad finita. Cualquier grant heredado, `PUBLIC` amplio, colision de rol,
 edge distinto del provisioner permitido, ownership, acceso a otra
 relacion/columna, capacidad mutante o `SECURITY DEFINER` termina STOP.
 
-La provision remota futura deja `NOLOGIN`, `PASSWORD NULL` y `rolvaliduntil=NULL`.
-Solo durante una activacion privada bajo el gate Q0 se fija `LOGIN` y un `VALID
+El contrato de provision, si una nueva identidad y aprobacion separadas se
+promueven despues del rebaseline requerido, debe dejar `NOLOGIN`, `PASSWORD NULL`
+y `rolvaliduntil=NULL`. Solo durante una activacion privada bajo el gate Q0 se fija `LOGIN` y un `VALID
 UNTIL` exacto, finito y futuro igual a `F10_10_M3_VALID_UNTIL`. El password
 se establece exclusivamente mediante `psql` interactivo con `\password
 studiamatch_m3_reader`; nunca mediante SQL literal, argumento CLI, variable
@@ -190,9 +191,11 @@ merge/tree post-PR #361, binding offline renovado y la identidad unica
 PR #363 fusiono la remediacion de `is_active` nullable. Sobre su merge protegido
 `bc268f119e04791bc17439aaa096e9e06c8b5e8b` / tree
 `fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68`, la preparacion offline genero un
-binding fresco y la proyeccion privada v2. El payload sanitizado reserva una sola
-llamada futura con `fase10_10_m3_free_reader_free_ddl_v2`, cero retry y cero
-fallback; no hubo operacion remota ni consumo de gate.
+binding fresco y la proyeccion privada v2. PR #364 promovio el payload sanitizado
+y la unica llamada `fase10_10_m3_free_reader_free_ddl_v2` termino
+`STOP_BROAD_PUBLIC_DATABASE_PRIVILEGES` antes de `CREATE ROLE`, con rollback,
+cero retry y cero fallback. La identidad y el gate v2 quedan consumidos y no son
+reutilizables.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
@@ -201,20 +204,22 @@ prohibida en provision, Q0, collect, teardown y cualquier otro ambiente.
 
 ## Ledger De Gates
 
-Orden propuesto para una operacion Free futura:
+Ledger vigente:
 
 | Gate | Capacidad maxima propuesta | Estado |
 |---|---|---|
 | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `CONSUMED_ONCE_PASS` |
 | `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED` |
-| `APPROVE_F10_10_M3_READER_DDL_FREE_V2` | Una unica llamada futura para provision Free-only v2; cero retry/fallback | `PROPOSED_NOT_CONSUMED` |
+| `APPROVE_F10_10_M3_READER_DDL_FREE_V2` | Unica llamada Free-only v2 ya consumida; cero retry/fallback | `CONSUMED_ONCE_FAILED_ROLLBACK` |
+| `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE` | Una lectura agregada de `pg_catalog.pg_database`; counts/flags-only | `CONSUMED_ONCE_STOP_CANDIDATE_BINDING_PENDING_ZERO_REMOTE_CALLS` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
-El gate preflight fue aprobado/consumido una vez y termino PASS. El gate DDL v1
-fue consumido una vez y termino rollback; Q0, lectura y teardown siguen no
-consumidos y no ejecutables. Cada aprobacion
+El gate preflight fue aprobado/consumido una vez y termino PASS. Los gates DDL v1
+y v2 fueron consumidos una vez cada uno y terminaron rollback; sus identidades no
+son reutilizables. Q0, lectura y teardown siguen no consumidos y no ejecutables.
+Cada aprobacion
 humana posterior debe citar su payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
@@ -225,8 +230,8 @@ El [payload preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json) ya
 congela esos campos en forma sanitizada. Su digest canonico es
 `sha256:68fd845808dbe694984ffbdd087b44e19754b4c76c14da862d74dad232971613`.
 La [ejecucion local passwordless](./m3_reader_f10_10_preflight_evidence_2026_08_11.md)
-consumio exclusivamente el gate preflight y termino PASS. DDL v1 termino rollback;
-Q0, lectura y teardown permanecen no consumidos.
+consumio exclusivamente el gate preflight y termino PASS. DDL v1 y v2 terminaron
+rollback; Q0, lectura y teardown permanecen no consumidos.
 
 ## Bloqueos Preservados
 

@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_DDL_NULLABILITY_REMEDIATION_PENDING` |
+| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
-| Ejecuta acceso remoto | `NO` |
-| Gates consumidos | Preflight una vez PASS; DDL v1 una vez FAIL+rollback |
+| Acceso remoto vigente | `BLOQUEADO_POST_DDL_V2` |
+| Gates consumidos | Preflight una vez PASS; DDL v1 y v2 una vez cada una FAIL+rollback |
 | Autoriza Certification / Pro / M4 | `NO / NO / NO` |
 
 Este documento es el scope autoritativo M3 reader v2. Sustituye todas las
@@ -45,6 +45,15 @@ providers, no modifica datos y no habilita M4.
 
 ## Package Free-Only
 
+Las bases se clasifican exactamente como `TARGET` (`postgres`),
+`OTHER_CONNECTABLE` (`datallowconn=true`) o `NON_CONNECTABLE`
+(`datallowconn=false`). `TARGET` permite solo `PUBLIC CONNECT` y prohibe
+`TEMPORARY/CREATE`; `OTHER_CONNECTABLE` prohibe los tres privilegios.
+`NON_CONNECTABLE` tolera solo el ACL formal `CONNECT` mientras
+`datallowconn=false`; `TEMPORARY/CREATE` siguen prohibidos para evitar capacidad
+mutante latente. Un cambio a conectable convierte `CONNECT` inmediatamente en
+capability bloqueante. El package no ejecuta `GRANT`/`REVOKE` sobre `PUBLIC`.
+
 Provision:
 
 ```text
@@ -75,11 +84,12 @@ imprimir ni versionar el nombre. Fingerprint y digest son bindings publicos no
 secretos; el nombre literal no se serializa. Package, query-set y compensacion
 quedan byte-identicos.
 
-`apply_migration` se podra invocar como maximo una vez con migration name e
-identidad de idempotencia fijados por el payload DDL v2 y solo tras
-`APPROVE_F10_10_M3_READER_DDL_FREE_V2`. Timeout, 5xx, respuesta ambigua, mismatch
-de digest/executor/target o ausencia de garantia rollback+ledger terminan STOP;
-no se permite fallback a `execute_sql`, cambio de nombre ni retry automatico.
+`apply_migration` fue invocado exactamente una vez con el migration name e
+identidad de idempotencia fijados por el payload DDL v2 tras
+`APPROVE_F10_10_M3_READER_DDL_FREE_V2`. Termino
+`STOP_BROAD_PUBLIC_DATABASE_PRIVILEGES` antes de `CREATE ROLE`, con rollback.
+No hubo fallback a `execute_sql`, cambio de nombre ni retry; el gate y la
+identidad v2 quedan consumidos y no reutilizables.
 El [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json)
 congela ahora `fase10_10_m3_free_reader_free_ddl_v2` como migration name e
 identidad de idempotencia unica. Candidate/tree corresponden al merge protegido
@@ -88,12 +98,12 @@ offline con nombres nuevos, `0600`, `O_EXCL` y no-follow. La identidad v1 queda
 `CONSUMED_FAILED_SUPERSEDED`; no consumio Q0, lectura ni teardown.
 
 La unica ejecucion v1 termino `STOP_COURSES_COLUMN_CONTRACT_DRIFT` y rollback.
-El diagnostico DB-as-Code identifica una precondicion obsoleta: `is_active` es
+El diagnostico DB-as-Code v1 identifico una precondicion obsoleta: `is_active` es
 `boolean DEFAULT true` nullable, no `NOT NULL`. La remediacion corrige package,
 collector y fixture, reserva `fase10_10_m3_free_reader_free_ddl_v2` y no genera
 binding ni capacidad ejecutable hasta PR #363. La preparacion posterior genero
-el payload v2, pero no ejecuta ni consume el nuevo gate. La identidad v1 no puede
-reutilizarse.
+el payload v2; PR #364 lo promovio y su unica llamada fallo con rollback por
+privilegios efectivos `PUBLIC`. Las identidades v1 y v2 no pueden reutilizarse.
 
 ## Provisioner PostgreSQL 17
 
@@ -340,13 +350,19 @@ otro ambiente.
 ```text
 APPROVE_F10_10_M3_READER_PREFLIGHT_FREE = CONSUMED_ONCE_PASS
 APPROVE_F10_10_M3_READER_DDL_FREE = CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED
+APPROVE_F10_10_M3_READER_DDL_FREE_V2 = CONSUMED_ONCE_FAILED_ROLLBACK
+APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE = CONSUMED_ONCE_STOP_CANDIDATE_BINDING_PENDING_ZERO_REMOTE_CALLS
 APPROVE_F10_10_M3_READER_Q0_FREE = NOT_CONSUMED
 APPROVE_M3_FREE_READONLY = NOT_CONSUMED
 APPROVE_F10_10_M3_READER_TEARDOWN_FREE = NOT_CONSUMED
 ```
 
 El gate preflight fue consumido una vez y produjo [PASS sanitizado](./m3_reader_f10_10_preflight_evidence_2026_08_11.md).
-DDL v1 fue consumido una vez y termino rollback; no puede reutilizarse. Q0 Free,
+DDL v1 fue consumido una vez y termino rollback; no puede reutilizarse. DDL v2
+tambien fue consumido una vez y termino `STOP_BROAD_PUBLIC_DATABASE_PRIVILEGES`
+antes de `CREATE ROLE`, con rollback transaccional y sin retry/fallback; ver
+[evidencia DDL v2](./m3_reader_f10_10_ddl_free_v2_execution_evidence_2026_08_12.md).
+Su identidad tampoco puede reutilizarse. Q0 Free,
 lectura y teardown siguen no consumidos/no ejecutables. Ningun gate concede el
 siguiente.
 
@@ -356,5 +372,6 @@ Su ejecucion no uso red ni password y termino PASS. No autoriza el gate DDL.
 La ventana del preflight no se reutiliza para DDL. El payload DDL separado exige
 el candidate de proyeccion promovido y un binding offline nuevamente vigente.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
-bloqueados. En este corte no hubo red, Supabase, DDL/DML remoto ni password; solo
-se consumio el gate preflight local passwordless.
+bloqueados. En este corte hubo exactamente una llamada Supabase
+`apply_migration` DDL v2, fallida y revertida antes de `CREATE ROLE`; no hubo
+password, retry, fallback, Q0, lectura ni teardown.
