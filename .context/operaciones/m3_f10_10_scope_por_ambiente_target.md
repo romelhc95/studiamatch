@@ -75,24 +75,25 @@ imprimir ni versionar el nombre. Fingerprint y digest son bindings publicos no
 secretos; el nombre literal no se serializa. Package, query-set y compensacion
 quedan byte-identicos.
 
-`apply_migration` se invoca como maximo una vez con migration name e identidad de
-idempotencia fijados por el payload DDL. Timeout, 5xx, respuesta ambigua, mismatch
+`apply_migration` se podra invocar como maximo una vez con migration name e
+identidad de idempotencia fijados por el payload DDL v2 y solo tras
+`APPROVE_F10_10_M3_READER_DDL_FREE_V2`. Timeout, 5xx, respuesta ambigua, mismatch
 de digest/executor/target o ausencia de garantia rollback+ledger terminan STOP;
 no se permite fallback a `execute_sql`, cambio de nombre ni retry automatico.
 El [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json)
-congela `fase10_10_m3_free_reader_free_ddl_v1` como migration name e identidad de
-idempotencia unica. Historicamente fue promovido como `PROPOSED_NOT_EXECUTED`;
-su unica llamada posterior termino rollback y ahora queda
-`CONSUMED_FAILED_SUPERSEDED`. No consumio Q0, lectura ni teardown.
-Tras el merge protegido de PR #361, su binding `target-binding-v2` se renueva
-exclusivamente offline; candidate/tree pasan al merge post-PR #361 sin cambiar
-la identidad de migration, los digests del package/proyeccion ni las capacidades.
+congela ahora `fase10_10_m3_free_reader_free_ddl_v2` como migration name e
+identidad de idempotencia unica. Candidate/tree corresponden al merge protegido
+post-PR #363. Binding `target-binding-v2`, SQL y manifest privados se generaron
+offline con nombres nuevos, `0600`, `O_EXCL` y no-follow. La identidad v1 queda
+`CONSUMED_FAILED_SUPERSEDED`; no consumio Q0, lectura ni teardown.
 
 La unica ejecucion v1 termino `STOP_COURSES_COLUMN_CONTRACT_DRIFT` y rollback.
 El diagnostico DB-as-Code identifica una precondicion obsoleta: `is_active` es
 `boolean DEFAULT true` nullable, no `NOT NULL`. La remediacion corrige package,
 collector y fixture, reserva `fase10_10_m3_free_reader_free_ddl_v2` y no genera
-binding ni capacidad ejecutable. La identidad v1 no puede reutilizarse.
+binding ni capacidad ejecutable hasta PR #363. La preparacion posterior genero
+el payload v2, pero no ejecuta ni consume el nuevo gate. La identidad v1 no puede
+reutilizarse.
 
 ## Provisioner PostgreSQL 17
 

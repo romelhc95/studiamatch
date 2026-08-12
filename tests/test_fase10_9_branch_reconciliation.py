@@ -87,6 +87,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_NULLABILITY_REMEDIATION_BASE,
     F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE,
     F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF,
+    F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES,
+    F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES,
+    F1010_M3_DDL_V2_PAYLOAD_BASE,
+    F1010_M3_DDL_V2_PAYLOAD_BASE_TREE,
+    F1010_M3_DDL_V2_PAYLOAD_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -138,6 +143,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_ddl_payload,
     validate_f1010_m3_ddl_payload_refresh,
     validate_f1010_m3_nullability_remediation,
+    validate_f1010_m3_ddl_v2_payload,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2327,9 +2333,9 @@ class F109BoundaryTest(unittest.TestCase):
         ).encode("ascii")
 
         self.assertEqual(raw, canonical)
-        self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_READER_DDL_FREE")
-        self.assertEqual(payload["candidate_commit"], F1010_M3_DDL_PAYLOAD_REFRESH_BASE)
-        self.assertEqual(payload["candidate_tree"], F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE)
+        self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_READER_DDL_FREE_V2")
+        self.assertEqual(payload["candidate_commit"], "bc268f119e04791bc17439aaa096e9e06c8b5e8b")
+        self.assertEqual(payload["candidate_tree"], "fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68")
         self.assertEqual(payload["target_alias"], "FREE_DB")
         self.assertEqual(payload["migration_name"], payload["idempotency_identity"])
         self.assertEqual(payload["apply_migration_max_calls"], 1)
@@ -2338,11 +2344,11 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(payload["status"], "PROPOSED_NOT_EXECUTED")
         self.assertEqual(
             payload["applied_query_digest"],
-            "sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137",
+            "sha256:a13e0e814185f756d612d8b092561a5baa71442a2cff2e83db081eb32ddd2f3f",
         )
         self.assertEqual(
             payload["package_digest"],
-            "sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906",
+            "sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa",
         )
         self.assertEqual(
             payload["compensation_digest"],
@@ -2350,7 +2356,7 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(
             payload["query_set_digest"],
-            "sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7",
+            "sha256:d3bc8fddf7d0d8b39497e4f184c7669bec3cbc4537dde7aeb3757d4afe53957a",
         )
         self.assertEqual(
             payload["provisioner_fingerprint"],
@@ -2358,7 +2364,7 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(
             payload["target_binding_digest"],
-            "sha256:b4c3ee726d1a4707bc4e0adc363b317657941b55be090b61253db470588469c7",
+            "sha256:68fa6d9566799eb19c99b2415fabad472a8a3a4e51eefb54510c93afbfe91715",
         )
         for field in (
             "network_allowed",
@@ -2541,6 +2547,56 @@ class F109BoundaryTest(unittest.TestCase):
             "teardown_allowed",
         ):
             self.assertFalse(payload[field])
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_ddl_v2_payload_accepts_direct_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_DDL_V2_PAYLOAD_BASE_TREE
+        parents_mock.return_value = [F1010_M3_DDL_V2_PAYLOAD_BASE]
+
+        validate_f1010_m3_ddl_v2_payload(
+            Path("."), F1010_M3_DDL_V2_PAYLOAD_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_DDL_V2_PAYLOAD_BASE, head,
+            F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES,
+            F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 376)
+
+    def test_f1010_m3_ddl_v2_payload_contract(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        path = root / ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json"
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+
+        canonical = (
+            json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+        ).encode("ascii")
+        self.assertEqual(raw, canonical)
+        self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_READER_DDL_FREE_V2")
+        self.assertEqual(payload["migration_name"], "fase10_10_m3_free_reader_free_ddl_v2")
+        self.assertEqual(payload["idempotency_identity"], payload["migration_name"])
+        self.assertEqual(payload["apply_migration_max_calls"], 1)
+        self.assertEqual(payload["automatic_retries"], 0)
+        self.assertFalse(payload["execute_sql_fallback_allowed"])
+        self.assertFalse(payload["network_allowed"])
+        self.assertFalse(payload["password_allowed"])
+        self.assertFalse(payload["remote_ddl_allowed"])
+        self.assertFalse(payload["remote_dml_allowed"])
+        self.assertFalse(payload["remote_read_allowed"])
+        self.assertFalse(payload["q0_allowed"])
+        self.assertFalse(payload["teardown_allowed"])
+        self.assertEqual(payload["status"], "PROPOSED_NOT_EXECUTED")
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

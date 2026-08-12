@@ -77,6 +77,9 @@ F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF = "docs/f10-10-m3-ddl-free-payload-refresh
 F1010_M3_NULLABILITY_REMEDIATION_BASE = "16265817e89e1ac00bbce498f3532e05bd0c9a55"
 F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE = "8d89cbc6642e44a5bb380c754df09900266ed416"
 F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF = "fix/f10-10-m3-is-active-nullability"
+F1010_M3_DDL_V2_PAYLOAD_BASE = "bc268f119e04791bc17439aaa096e9e06c8b5e8b"
+F1010_M3_DDL_V2_PAYLOAD_BASE_TREE = "fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68"
+F1010_M3_DDL_V2_PAYLOAD_HEAD_REF = "docs/f10-10-m3-ddl-free-v2-payload"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -498,6 +501,20 @@ F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES = {
         else "100644"
     )
     for path in F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -1665,6 +1682,49 @@ def validate_f1010_m3_nullability_remediation(
     validate_context_graph(repo, 55, 379)
 
 
+def validate_f1010_m3_ddl_v2_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_DDL_V2_PAYLOAD_BASE,
+        "unexpected M3 DDL v2 payload baseline",
+    )
+    require_sha(repo, "F1010_M3_DDL_V2_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_DDL_V2_PAYLOAD_BASE_TREE,
+        "M3 DDL v2 payload base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 DDL v2 payload base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "M3 DDL v2 PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "M3 DDL v2 push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "merged M3 DDL v2 PR must be direct",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 DDL v2 push tree drift",
+        )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 376)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1748,6 +1808,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF
     ):
         return "f1010_m3_nullability_remediation"
+    if base_ref == "desarrollo" and base == F1010_M3_DDL_V2_PAYLOAD_BASE and (
+        event == "push" or head_ref == F1010_M3_DDL_V2_PAYLOAD_HEAD_REF
+    ):
+        return "f1010_m3_ddl_v2_payload"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2049,6 +2113,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_nullability_remediation":
             validate_f1010_m3_nullability_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_ddl_v2_payload":
+            validate_f1010_m3_ddl_v2_payload(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

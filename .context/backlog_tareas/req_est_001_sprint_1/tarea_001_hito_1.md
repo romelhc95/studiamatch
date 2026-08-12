@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_DDL_NULLABILITY_REMEDIATION_PENDING`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. Preflight termino PASS; DDL v1 fue consumida una vez y revertida por `STOP_COURSES_COLUMN_CONTRACT_DRIFT`. La remediacion v2 es offline, sin binding ni ejecucion. Q0, lectura y teardown siguen no consumidos. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_DDL_V2_PAYLOAD_PENDING_HUMAN_APPROVAL`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. PR #363 cerro la remediacion de nullability; binding, SQL y manifest v2 se generaron offline sin ejecucion. DDL v1 permanece consumida/fallida/superseded; Q0, lectura y teardown siguen no consumidos. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_DDL_NULLABILITY_REMEDIATION_PENDING`; la unica llamada DDL v1 termino `STOP_COURSES_COLUMN_CONTRACT_DRIFT` y rollback completo, sin reader ni ledger persistidos, retry, fallback o lectura. DB-as-Code demuestra que `courses.is_active` es `boolean DEFAULT true` nullable; package, collector y fixture exigian incorrectamente `NOT NULL`. La [remediacion offline](../../operaciones/m3_reader_f10_10_nullability_remediation_2026_08_12.json) corrige esa precondicion, reserva `fase10_10_m3_free_reader_free_ddl_v2` y permanece sin binding/no ejecutable. Q0, lectura y teardown no iniciaron.
+4. `M3`: `M3_DDL_V2_PAYLOAD_PENDING_HUMAN_APPROVAL`; PR #363 fusiono la remediacion de nullability en `desarrollo@bc268f119e04791bc17439aaa096e9e06c8b5e8b` / tree `fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68`. Binding, SQL y manifest v2 fueron generados offline para `fase10_10_m3_free_reader_free_ddl_v2`; el payload permite como maximo una llamada futura solo bajo `APPROVE_F10_10_M3_READER_DDL_FREE_V2`, cero retry y cero fallback. No hubo DDL/DML, Q0, lectura ni teardown.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.

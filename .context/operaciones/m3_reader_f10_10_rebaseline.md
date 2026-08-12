@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_DDL_NULLABILITY_REMEDIATION_PENDING` |
+| Estado | `M3_DDL_V2_PAYLOAD_PENDING_HUMAN_APPROVAL` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `Una llamada DDL v1 fallida con rollback / NO capacidad vigente` |
@@ -187,8 +187,12 @@ El payload preflight anterior y su ventana terminada son evidencia historica. El
 merge/tree post-PR #361, binding offline renovado y la identidad unica
 `fase10_10_m3_free_reader_free_ddl_v1`. Su unica ejecucion termino rollback por
 `STOP_COURSES_COLUMN_CONTRACT_DRIFT`; v1 queda superseded y no reutilizable.
-La remediacion offline corrige `is_active` nullable, reserva la identidad v2 y
-permanece sin binding ni capacidad ejecutable.
+PR #363 fusiono la remediacion de `is_active` nullable. Sobre su merge protegido
+`bc268f119e04791bc17439aaa096e9e06c8b5e8b` / tree
+`fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68`, la preparacion offline genero un
+binding fresco y la proyeccion privada v2. El payload sanitizado reserva una sola
+llamada futura con `fase10_10_m3_free_reader_free_ddl_v2`, cero retry y cero
+fallback; no hubo operacion remota ni consumo de gate.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
@@ -203,6 +207,7 @@ Orden propuesto para una operacion Free futura:
 |---|---|---|
 | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `CONSUMED_ONCE_PASS` |
 | `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED` |
+| `APPROVE_F10_10_M3_READER_DDL_FREE_V2` | Una unica llamada futura para provision Free-only v2; cero retry/fallback | `PROPOSED_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
