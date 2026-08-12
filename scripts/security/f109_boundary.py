@@ -89,6 +89,9 @@ F1010_M3_PUBLIC_ACL_V2_PAYLOAD_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnost
 F1010_M3_PUBLIC_ACL_V3_BASE = "8e6d569dcc2d91479e48172bf18f3024571b95ac"
 F1010_M3_PUBLIC_ACL_V3_BASE_TREE = "09e15518f24f6b120c09962296f3d13763dd7bd7"
 F1010_M3_PUBLIC_ACL_V3_HEAD_REF = "fix/f10-10-m3-public-db-acl-diagnostic-v3"
+F1010_M3_PUBLIC_ACL_V3_BOUND_BASE = "daf3e5babb2f6185304973e4f7607d95d85ab130"
+F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE = "da047276b78cea8c1a2b8bf7048a6f40c0146f2b"
+F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnostic-v3-execution-binding"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -587,6 +590,22 @@ F1010_M3_PUBLIC_ACL_V3_ALLOWED_STATUSES = {
 }
 F1010_M3_PUBLIC_ACL_V3_ALLOWED_MODES = {
     path: "100644" for path in F1010_M3_PUBLIC_ACL_V3_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_execution_binding_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -1870,6 +1889,27 @@ def validate_f1010_m3_public_acl_v3(
     validate_context_graph(repo, 56, 377)
 
 
+def validate_f1010_m3_public_acl_v3_bound(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE, "unexpected M3 PUBLIC ACL v3 bound baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V3_BOUND_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE, "M3 PUBLIC ACL v3 bound base tree drift")
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v3 bound base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "M3 PUBLIC ACL v3 bound PR must be one direct commit")
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL v3 bound push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged M3 PUBLIC ACL v3 bound PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL v3 bound push tree drift")
+    require_exact_delta(repo, base, candidate_head, F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES, F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES)
+    validate_context_graph(repo, 56, 377)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1969,6 +2009,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V3_HEAD_REF
     ):
         return "f1010_m3_public_acl_v3"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_v3_bound"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2080,6 +2124,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 DDL payload refresh branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF:
                 raise BoundaryError("F10.10 M3 nullability remediation branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF:
+                raise BoundaryError("F10.10 M3 PUBLIC ACL v3 bound branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2095,6 +2141,9 @@ def main() -> int:
             touched_f1010_m3_preflight_evidence = set(actual).intersection(
                 F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES
             )
+            touched_f1010_m3_public_acl_v3_bound = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES
+            )
             require(
                 sum(
                     bool(surface)
@@ -2109,6 +2158,7 @@ def main() -> int:
                         touched_f1010_m3_rotation,
                         touched_f1010_m3_preflight_payload,
                         touched_f1010_m3_preflight_evidence,
+                        touched_f1010_m3_public_acl_v3_bound,
                     )
                 )
                 <= 1,
@@ -2172,6 +2222,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 preflight evidence delta is forbidden",
                 )
                 mode = "f1010_m3_preflight_evidence"
+            elif touched_f1010_m3_public_acl_v3_bound:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL v3 bound paths require the protected binding branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL v3 bound delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_v3_bound"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2286,6 +2347,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_v3":
             validate_f1010_m3_public_acl_v3(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v3_bound":
+            validate_f1010_m3_public_acl_v3_bound(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

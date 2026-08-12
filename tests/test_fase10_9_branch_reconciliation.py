@@ -107,6 +107,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_V3_BASE,
     F1010_M3_PUBLIC_ACL_V3_BASE_TREE,
     F1010_M3_PUBLIC_ACL_V3_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES,
+    F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_V3_BOUND_BASE,
+    F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE,
+    F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -162,6 +167,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_rebaseline,
     validate_f1010_m3_public_acl_v2_payload,
     validate_f1010_m3_public_acl_v3,
+    validate_f1010_m3_public_acl_v3_bound,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2097,7 +2103,7 @@ class F109BoundaryTest(unittest.TestCase):
             (root / path).read_text(encoding="utf-8") for path in authority_paths
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_PAYLOAD_PENDING_HUMAN_APPROVAL" in authority
+        assert "M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL" in authority
         assert "CONSUMED_ONCE_PASS" in authority
         assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
         for gate in (
@@ -2749,6 +2755,53 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertIsNone(payload["candidate_tree"])
         for field in ("automatic_continuation", "ddl_allowed", "dml_allowed", "rpc_allowed", "password_allowed", "pro_allowed", "q0_allowed"):
             self.assertFalse(payload[field])
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_public_acl_v3_bound_accepts_direct_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE
+        parents_mock.return_value = [F1010_M3_PUBLIC_ACL_V3_BOUND_BASE]
+        validate_f1010_m3_public_acl_v3_bound(
+            Path("."), F1010_M3_PUBLIC_ACL_V3_BOUND_BASE, head, "pull_request"
+        )
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_PUBLIC_ACL_V3_BOUND_BASE, head,
+            F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES,
+            F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 56, 377)
+
+    def test_f1010_m3_public_acl_v3_execution_binding_contract(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        path = root / ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_execution_binding_2026_08_12.json"
+        raw = path.read_bytes()
+        binding = json.loads(raw)
+        self.assertEqual(raw, (json.dumps(binding, sort_keys=True, separators=(",", ":")) + "\n").encode("ascii"))
+        self.assertEqual(binding["schema"], "f10.10-m3-public-db-acl-diagnostic-execution-binding-v1")
+        self.assertEqual(binding["gate"], "APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND")
+        self.assertEqual(binding["execution_candidate_merge_commit"], F1010_M3_PUBLIC_ACL_V3_BOUND_BASE)
+        self.assertEqual(binding["execution_candidate_tree"], F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE)
+        self.assertEqual(binding["execution_candidate_head_commit"], "4de7816f6b73405ec55bff3d257c5cc72e137699")
+        self.assertEqual(binding["execution_candidate_parent"], "8e6d569dcc2d91479e48172bf18f3024571b95ac")
+        self.assertEqual(binding["execution_candidate_pr"], 367)
+        self.assertEqual(binding["payload_git_blob_sha1"], "d76b75a4876e600d1a7203c24456ab34ad49c1af")
+        self.assertEqual(binding["payload_content_sha256"], "sha256:c3a9279ad789b7809af030f3b68ab8e5491aef4789cb89adcd7e433caf3ece2c")
+        self.assertEqual(binding["envelope_digest"], "sha256:82a5848a8ac5958aa781424a436687117f1c39b7dc07f686993b0765bf110a6d")
+        self.assertEqual(binding["max_execute_sql_calls"], 1)
+        self.assertEqual(binding["expected_rows"], 1)
+        self.assertTrue(binding["self_binding_forbidden"])
+        forbidden = {"binding_merge_commit", "binding_tree", "binding_digest", "approved", "executed"}
+        self.assertTrue(forbidden.isdisjoint(binding))
+        for field in ("automatic_continuation", "automatic_retry", "ddl_allowed", "dml_allowed", "rpc_allowed", "password_allowed", "pro_allowed", "q0_allowed"):
+            self.assertFalse(binding[field])
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
@@ -3574,7 +3627,11 @@ class F109BoundaryTest(unittest.TestCase):
         parse_args_mock,
         changed_statuses_mock,
     ) -> None:
-        for head_ref in (F1010_M2A_HEAD_REF, F1010_M1_HEAD_REF):
+        for head_ref in (
+            F1010_M2A_HEAD_REF,
+            F1010_M1_HEAD_REF,
+            F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF,
+        ):
             with self.subTest(head_ref=head_ref):
                 parse_args_mock.return_value = self.cli_args(head_ref=head_ref)
                 self.assertEqual(main(), 1)
