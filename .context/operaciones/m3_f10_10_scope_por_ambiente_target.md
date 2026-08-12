@@ -83,6 +83,9 @@ El [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json)
 congela `fase10_10_m3_free_reader_free_ddl_v1` como migration name e identidad de
 idempotencia unica. Su estado es `PROPOSED_NOT_EXECUTED`, mantiene capacidades
 remotas en `false` y no consume DDL, Q0, lectura ni teardown.
+Tras el merge protegido de PR #361, su binding `target-binding-v2` se renueva
+exclusivamente offline; candidate/tree pasan al merge post-PR #361 sin cambiar
+la identidad de migration, los digests del package/proyeccion ni las capacidades.
 
 ## Provisioner PostgreSQL 17
 
