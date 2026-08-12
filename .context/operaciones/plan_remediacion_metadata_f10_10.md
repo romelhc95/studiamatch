@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED` |
+| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V2_PAYLOAD_PENDING_HUMAN_APPROVAL` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -306,7 +306,7 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED`: PR #353 promovio collector
+es `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V2_PAYLOAD_PENDING_HUMAN_APPROVAL`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
 El run `31513546109` preserva intento 1 `FAIL_TRANSIENT_LOCAL_SOCKET_AFTER_READY`

@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED`. El gate diagnostico fue consumido una vez y termino `STOP_CANDIDATE_BINDING_PENDING` antes de red porque candidate commit/tree seguian nulos. Hubo cero llamadas, retries, transacciones o lecturas. DDL v1/v2 permanecen consumidas/fallidas; Q0, lectura y teardown siguen no consumidos. Certification, Pro y M4-M10 no estan autorizados. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V2_PAYLOAD_PENDING_HUMAN_APPROVAL`. PR #365 promovio el envelope y checks post-merge PASS; payload v2 enlazado sin ejecutar. Gate v1 consumido, gate v2 pendiente. Q0, lectura y teardown siguen no consumidos. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED`; `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE` fue consumido en STOP pre-red por bindings candidate nulos. Requiere candidate protegido, payload e identidad sucesores; cero continuidad automatica.
+4. `M3`: `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V2_PAYLOAD_PENDING_HUMAN_APPROVAL`; PR #365 queda enlazado por merge/tree/checks y digest. V1 no reutilizable; v2 no ejecutado y sin continuidad automatica.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
