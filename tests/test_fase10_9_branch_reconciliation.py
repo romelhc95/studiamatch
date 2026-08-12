@@ -72,6 +72,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_APPLY_PROJECTION_BASE,
     F1010_M3_APPLY_PROJECTION_BASE_TREE,
     F1010_M3_APPLY_PROJECTION_HEAD_REF,
+    F1010_M3_DDL_PAYLOAD_ALLOWED_MODES,
+    F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES,
+    F1010_M3_DDL_PAYLOAD_BASE,
+    F1010_M3_DDL_PAYLOAD_BASE_TREE,
+    F1010_M3_DDL_PAYLOAD_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -120,6 +125,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_preflight_evidence,
     validate_f1010_m3_final_readiness,
     validate_f1010_m3_apply_projection,
+    validate_f1010_m3_ddl_payload,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -544,6 +550,33 @@ class F109BoundaryTest(unittest.TestCase):
                 "desarrollo",
                 "feat/not-the-projection-branch",
                 F1010_M3_APPLY_PROJECTION_BASE,
+            ),
+            "skip",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_DDL_PAYLOAD_HEAD_REF,
+                F1010_M3_DDL_PAYLOAD_BASE,
+            ),
+            "f1010_m3_ddl_payload",
+        )
+        self.assertEqual(
+            detect_mode(
+                "push",
+                "desarrollo",
+                "desarrollo",
+                F1010_M3_DDL_PAYLOAD_BASE,
+            ),
+            "f1010_m3_ddl_payload",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                "docs/not-the-ddl-payload",
+                F1010_M3_DDL_PAYLOAD_BASE,
             ),
             "skip",
         )
@@ -2168,6 +2201,152 @@ class F109BoundaryTest(unittest.TestCase):
                 "c" * 40,
                 "pull_request",
             )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_ddl_payload_accepts_direct_candidate(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_DDL_PAYLOAD_BASE_TREE
+        parents_mock.return_value = [F1010_M3_DDL_PAYLOAD_BASE]
+
+        validate_f1010_m3_ddl_payload(
+            Path("."), F1010_M3_DDL_PAYLOAD_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_DDL_PAYLOAD_BASE,
+            head,
+            F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES,
+            F1010_M3_DDL_PAYLOAD_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 382)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_ddl_payload_accepts_protected_push(
+        self,
+        require_sha_mock,
+        ancestor_mock,
+        tree_mock,
+        parents_mock,
+        delta_mock,
+        context_mock,
+    ) -> None:
+        candidate = "c" * 40
+        merge = "d" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_DDL_PAYLOAD_BASE, candidate],
+            [F1010_M3_DDL_PAYLOAD_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_DDL_PAYLOAD_BASE_TREE,
+            "e" * 40,
+            "e" * 40,
+        ]
+
+        validate_f1010_m3_ddl_payload(
+            Path("."), F1010_M3_DDL_PAYLOAD_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."),
+            F1010_M3_DDL_PAYLOAD_BASE,
+            candidate,
+            F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES,
+            F1010_M3_DDL_PAYLOAD_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 382)
+
+    def test_f1010_m3_ddl_payload_is_canonical_and_non_executable(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        payload_path = (
+            root
+            / ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json"
+        )
+        raw = payload_path.read_bytes()
+        payload = json.loads(raw)
+        canonical = (
+            json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+        ).encode("ascii")
+
+        self.assertEqual(raw, canonical)
+        self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_READER_DDL_FREE")
+        self.assertEqual(payload["candidate_commit"], F1010_M3_DDL_PAYLOAD_BASE)
+        self.assertEqual(payload["candidate_tree"], F1010_M3_DDL_PAYLOAD_BASE_TREE)
+        self.assertEqual(payload["target_alias"], "FREE_DB")
+        self.assertEqual(payload["migration_name"], payload["idempotency_identity"])
+        self.assertEqual(payload["apply_migration_max_calls"], 1)
+        self.assertEqual(payload["automatic_retries"], 0)
+        self.assertFalse(payload["execute_sql_fallback_allowed"])
+        self.assertEqual(payload["status"], "PROPOSED_NOT_EXECUTED")
+        self.assertEqual(
+            payload["applied_query_digest"],
+            "sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137",
+        )
+        self.assertEqual(
+            payload["package_digest"],
+            "sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906",
+        )
+        self.assertEqual(
+            payload["compensation_digest"],
+            "sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0",
+        )
+        self.assertEqual(
+            payload["query_set_digest"],
+            "sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7",
+        )
+        self.assertEqual(
+            payload["provisioner_fingerprint"],
+            "sha256:e8bb3d66f6efdfb2699307759b8729d9b586bd42856c3600e43d93e78bcd9381",
+        )
+        self.assertEqual(
+            payload["target_binding_digest"],
+            "sha256:858d4c70602587882e935f7692b5490d670ca5324e53194da3c81d761f79fac7",
+        )
+        for field in (
+            "network_allowed",
+            "password_allowed",
+            "remote_ddl_allowed",
+            "remote_dml_allowed",
+            "remote_read_allowed",
+            "q0_allowed",
+            "teardown_allowed",
+        ):
+            self.assertFalse(payload[field])
+        self.assertNotEqual(
+            payload["target_binding_digest"],
+            "sha256:013972e22906ea23d2aa6d4f7caaa9a92f93d6c4618d5e44e93f49c897ae0f01",
+        )
+        for key, value in payload.items():
+            if key.endswith("digest") or key.endswith("fingerprint"):
+                self.assertRegex(value, r"^sha256:[0-9a-f]{64}$")
+        serialized = raw.decode("ascii").lower()
+        for forbidden in (
+            "project_ref",
+            "sql_host",
+            "api_url",
+            "password_value",
+            "q0_predecessor",
+            "execute_sql\"",
+        ):
+            self.assertNotIn(forbidden, serialized)
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

@@ -182,9 +182,10 @@ PostgreSQL 17 local acredito rollback del reader ante fallo de ledger o executor
 distinto, y commit conjunto de DDL+ledger en success path. No hubo Free ni gate.
 
 El payload preflight anterior y su ventana terminada son evidencia historica. El
-payload DDL futuro debe usar candidate/tree post-merge, binding vigente y una
-identidad de migration/idempotencia unica. Timeout, 5xx o respuesta ambigua
-terminan STOP sin retry con otra identidad.
+[payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json) usa el
+merge/tree post-PR #360, binding offline vigente y la identidad unica
+`fase10_10_m3_free_reader_free_ddl_v1`. Queda `PROPOSED_NOT_EXECUTED`: timeout,
+5xx o respuesta ambigua terminan STOP sin retry con otra identidad ni fallback.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
@@ -198,7 +199,7 @@ Orden propuesto para una operacion Free futura:
 | Gate | Capacidad maxima propuesta | Estado |
 |---|---|---|
 | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `CONSUMED_ONCE_PASS` |
-| `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` | `PROPOSED_NOT_EXECUTABLE` |
+| `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `PROPOSED_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |

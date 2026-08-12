@@ -79,6 +79,10 @@ quedan byte-identicos.
 idempotencia fijados por el payload DDL. Timeout, 5xx, respuesta ambigua, mismatch
 de digest/executor/target o ausencia de garantia rollback+ledger terminan STOP;
 no se permite fallback a `execute_sql`, cambio de nombre ni retry automatico.
+El [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json)
+congela `fase10_10_m3_free_reader_free_ddl_v1` como migration name e identidad de
+idempotencia unica. Su estado es `PROPOSED_NOT_EXECUTED`, mantiene capacidades
+remotas en `false` y no consume DDL, Q0, lectura ni teardown.
 
 ## Provisioner PostgreSQL 17
 
