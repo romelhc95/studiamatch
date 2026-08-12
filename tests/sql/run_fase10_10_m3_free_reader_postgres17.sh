@@ -186,9 +186,6 @@ BEGIN
 END
 $fresh_cluster$;
 
-REVOKE ALL ON DATABASE postgres FROM PUBLIC;
-REVOKE ALL ON DATABASE template0 FROM PUBLIC;
-REVOKE ALL ON DATABASE template1 FROM PUBLIC;
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public AUTHORIZATION postgres;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
@@ -218,7 +215,32 @@ SECURITY DEFINER
 SET search_path = pg_catalog
 AS 'SELECT 1';
 REVOKE ALL ON FUNCTION public.fixture_safe_definer() FROM PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE postgres TO PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE template0 TO PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE template1 TO PUBLIC;
 SQL
+
+# Stock PostgreSQL 17 defaults reproduce the v2 stop. Keep template0 untouched
+# to prove NON_CONNECTABLE ACLs are latent rather than usable capability.
+expect_failure stock_pg17_defaults "${psql_safe[@]}" -f "$MIGRATION"
+assert_reader_absent
+"${psql_safe[@]}" -Atqc "
+  select case when not datallowconn
+    and has_database_privilege('public', oid, 'CONNECT')
+    and has_database_privilege('public', oid, 'TEMPORARY')
+  then 1 else 0 end
+  from pg_database where datname='template0'" | grep -qx '1'
+
+# Establish the exact contract only on connectable databases. The package never
+# performs these revocations itself.
+"${psql_safe[@]}" <<'SQL'
+REVOKE TEMPORARY, CREATE ON DATABASE postgres FROM PUBLIC;
+REVOKE TEMPORARY, CREATE ON DATABASE template0 FROM PUBLIC;
+REVOKE CONNECT, TEMPORARY, CREATE ON DATABASE template1 FROM PUBLIC;
+SQL
+"${psql_safe[@]}" -c 'DROP DATABASE IF EXISTS m3_nonconnectable'
+"${psql_safe[@]}" -c 'CREATE DATABASE m3_nonconnectable WITH ALLOW_CONNECTIONS false'
+"${psql_safe[@]}" -c 'REVOKE TEMPORARY, CREATE ON DATABASE m3_nonconnectable FROM PUBLIC'
 
 # Supabase apply_migration wraps the submitted query and ledger insert in one
 # transaction.  The projected body must preserve that atomic boundary.
@@ -232,7 +254,7 @@ from scripts.maintenance.f10_10_m3_apply_projection import (
 )
 
 source = Path("db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql").read_bytes()
-package_digest = "sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa"
+package_digest = "sha256:53dfeb7e67e7699d7314dd174e923418e49a5230acd5ae858697c410d95875e3"
 for output, role in ((sys.argv[1], "postgres"), (sys.argv[2], "wrong_executor")):
     fingerprint = provisioner_fingerprint(role)
     projection = project_apply_migration_query(
@@ -321,11 +343,21 @@ REVOKE SELECT ON pg_catalog.pg_authid FROM m3_non_super_executor;
 DROP ROLE m3_non_super_executor;
 SQL
 
+# A stock second database is OTHER_CONNECTABLE and must fail before role creation.
+"${psql_safe[@]}" -c 'CREATE DATABASE m3_other_connectable'
+expect_failure public_other_connectable "${psql_safe[@]}" -f "$MIGRATION"
+assert_reader_absent
+"${psql_safe[@]}" -c 'DROP DATABASE m3_other_connectable'
+
 # PUBLIC defaults are never changed by the package itself.
 "${psql_safe[@]}" -c 'GRANT TEMPORARY ON DATABASE postgres TO PUBLIC'
 expect_failure public_temporary "${psql_safe[@]}" -f "$MIGRATION"
 assert_reader_absent
 "${psql_safe[@]}" -c 'REVOKE TEMPORARY ON DATABASE postgres FROM PUBLIC'
+"${psql_safe[@]}" -c 'GRANT CREATE ON DATABASE postgres TO PUBLIC'
+expect_failure public_create "${psql_safe[@]}" -f "$MIGRATION"
+assert_reader_absent
+"${psql_safe[@]}" -c 'REVOKE CREATE ON DATABASE postgres FROM PUBLIC'
 
 # Unknown-role collision fails without repair.
 "${psql_safe[@]}" -c \
@@ -458,5 +490,7 @@ wait "$reader_client_pid" 2>/dev/null || true
 rm -f "$session_output"
 "${psql_safe[@]}" -f "$ROLLBACK"
 assert_reader_absent
+
+"${psql_safe[@]}" -c 'DROP DATABASE m3_nonconnectable'
 
 echo 'F10.10 M3 Free reader PostgreSQL 17 networkless tests: PASS'

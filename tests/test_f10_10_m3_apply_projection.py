@@ -19,7 +19,7 @@ from scripts.maintenance.f10_10_m3_apply_projection import (
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql"
-PACKAGE_DIGEST = "sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa"
+PACKAGE_DIGEST = "sha256:53dfeb7e67e7699d7314dd174e923418e49a5230acd5ae858697c410d95875e3"
 ROLE = "synthetic_m3_provisioner"
 FINGERPRINT = provisioner_fingerprint(ROLE)
 SCRIPT = ROOT / "scripts/maintenance/f10_10_m3_apply_projection.py"
@@ -46,7 +46,7 @@ def test_projects_exact_package_without_outer_transaction_or_private_name() -> N
     assert b"SET LOCAL search_path = pg_catalog;" in result.applied_query
     assert not result.applied_query.rstrip().endswith(b"COMMIT;")
     assert ROLE.encode() not in result.applied_query
-    assert result.applied_query_digest == "sha256:75bc9211fd7a620ee11198db7728183bb75edf5d2c3b89f24a753b70139a233d"
+    assert result.applied_query_digest == "sha256:0b77203518751ae670cb130fb0ed6b11f1b9280f424b7d0fff87582287016238"
     normalized = MIGRATION.read_bytes().replace(b"\r\n", b"\n")
     expected_body = normalized.replace(b"BEGIN;", b"", 1)
     commit = expected_body.rfind(b"COMMIT;")

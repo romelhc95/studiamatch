@@ -92,6 +92,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_DDL_V2_PAYLOAD_BASE,
     F1010_M3_DDL_V2_PAYLOAD_BASE_TREE,
     F1010_M3_DDL_V2_PAYLOAD_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_MODES,
+    F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_REBASELINE_BASE,
+    F1010_M3_PUBLIC_ACL_REBASELINE_BASE_TREE,
+    F1010_M3_PUBLIC_ACL_REBASELINE_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -144,6 +149,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_ddl_payload_refresh,
     validate_f1010_m3_nullability_remediation,
     validate_f1010_m3_ddl_v2_payload,
+    validate_f1010_m3_public_acl_rebaseline,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2079,7 +2085,7 @@ class F109BoundaryTest(unittest.TestCase):
             (root / path).read_text(encoding="utf-8") for path in authority_paths
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_DDL_NULLABILITY_REMEDIATION_PENDING" in authority
+        assert "M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED" in authority
         assert "CONSUMED_ONCE_PASS" in authority
         assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
         for gate in (
@@ -2597,6 +2603,47 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertFalse(payload["q0_allowed"])
         self.assertFalse(payload["teardown_allowed"])
         self.assertEqual(payload["status"], "PROPOSED_NOT_EXECUTED")
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_public_acl_rebaseline_accepts_direct_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        head = "d" * 40
+        tree_mock.return_value = F1010_M3_PUBLIC_ACL_REBASELINE_BASE_TREE
+        parents_mock.return_value = [F1010_M3_PUBLIC_ACL_REBASELINE_BASE]
+
+        validate_f1010_m3_public_acl_rebaseline(
+            Path("."), F1010_M3_PUBLIC_ACL_REBASELINE_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_PUBLIC_ACL_REBASELINE_BASE, head,
+            F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_STATUSES,
+            F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 56, 377)
+
+    def test_f1010_m3_public_acl_diagnostic_payload_contract(self) -> None:
+        path = Path(__file__).resolve().parents[1] / ".context/operaciones/m3_public_db_acl_diagnostic_free_payload_2026_08_12.json"
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+
+        self.assertEqual(raw, (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("ascii"))
+        self.assertEqual(payload["gate"], "APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE")
+        self.assertEqual(payload["max_calls"], 1)
+        self.assertEqual(payload["remote_read_scope"], "PG_CATALOG_COUNTS_AND_FLAGS_ONLY")
+        self.assertEqual(payload["application_rows_allowed"], 0)
+        self.assertFalse(payload["ddl_allowed"])
+        self.assertFalse(payload["dml_allowed"])
+        self.assertFalse(payload["automatic_continuation"])
+        self.assertIsNone(payload["candidate_commit"])
+        self.assertIsNone(payload["candidate_tree"])
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

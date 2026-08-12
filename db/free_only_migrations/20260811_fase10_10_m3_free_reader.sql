@@ -42,6 +42,15 @@ BEGIN
     RAISE EXCEPTION 'F10.10 M3 reader: PostgreSQL 17 is required';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_database AS d
+    WHERE d.datname = 'postgres'
+      AND d.datallowconn
+  ) THEN
+    RAISE EXCEPTION 'F10.10 M3 reader: TARGET database must be connectable';
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'studiamatch_m3_reader'
   ) THEN
@@ -74,18 +83,27 @@ BEGIN
     RAISE EXCEPTION 'F10.10 M3 reader: required courses column contract is absent or drifted';
   END IF;
 
-  -- PUBLIC is not modified here.  Standard grants on a fresh cluster must be
-  -- hardened by the environment owner when they would broaden this role.
+  -- PUBLIC is not modified here. ACLs on NON_CONNECTABLE databases are latent;
+  -- only TARGET and OTHER_CONNECTABLE databases contribute usable capability.
   IF EXISTS (
     SELECT 1
     FROM pg_catalog.pg_database AS d
     CROSS JOIN LATERAL pg_catalog.aclexplode(
       COALESCE(d.datacl, pg_catalog.acldefault('d', d.datdba))
     ) AS x
-    WHERE x.grantee = 0
+    WHERE d.datallowconn
+      AND x.grantee = 0
       AND (
-        x.privilege_type = 'TEMPORARY'
-        OR (x.privilege_type = 'CONNECT' AND d.datname <> 'postgres')
+        (d.datname = 'postgres' AND x.privilege_type IN ('TEMPORARY', 'CREATE'))
+        OR (
+          d.datname <> 'postgres'
+          AND x.privilege_type IN ('CONNECT', 'TEMPORARY', 'CREATE')
+        )
+      )
+      OR (
+        NOT d.datallowconn
+        AND x.grantee = 0
+        AND x.privilege_type IN ('TEMPORARY', 'CREATE')
       )
   ) THEN
     RAISE EXCEPTION 'F10.10 M3 reader: broad PUBLIC database privileges must be hardened separately';
@@ -255,12 +273,26 @@ BEGIN
     RAISE EXCEPTION 'F10.10 M3 reader: database-specific settings differ from the closed contract';
   END IF;
 
-  FOR v_database IN SELECT d.oid, d.datname FROM pg_catalog.pg_database AS d LOOP
-    IF pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CONNECT')
-         IS DISTINCT FROM (v_database.datname = 'postgres')
-       OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'TEMPORARY')
+  FOR v_database IN
+    SELECT d.oid, d.datname, d.datallowconn
+    FROM pg_catalog.pg_database AS d
+  LOOP
+    IF v_database.datname = 'postgres' THEN
+      IF NOT v_database.datallowconn
+         OR NOT pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CONNECT')
+         OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'TEMPORARY')
+         OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CREATE') THEN
+        RAISE EXCEPTION 'F10.10 M3 reader: unexpected TARGET database capability';
+      END IF;
+    ELSIF v_database.datallowconn THEN
+      IF pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CONNECT')
+         OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'TEMPORARY')
+         OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CREATE') THEN
+        RAISE EXCEPTION 'F10.10 M3 reader: unexpected OTHER_CONNECTABLE database capability';
+      END IF;
+    ELSIF pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'TEMPORARY')
        OR pg_catalog.has_database_privilege(v_role_oid, v_database.oid, 'CREATE') THEN
-      RAISE EXCEPTION 'F10.10 M3 reader: unexpected effective database privilege on %', v_database.datname;
+      RAISE EXCEPTION 'F10.10 M3 reader: unexpected NON_CONNECTABLE latent mutating privilege';
     END IF;
   END LOOP;
 
