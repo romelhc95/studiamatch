@@ -195,7 +195,7 @@ REVOKE ALL ON SCHEMA public FROM PUBLIC;
 
 CREATE TABLE public.courses (
   id uuid PRIMARY KEY,
-  is_active boolean NOT NULL,
+  is_active boolean DEFAULT true,
   syllabus text,
   objectives text,
   internal_notes text,
@@ -232,7 +232,7 @@ from scripts.maintenance.f10_10_m3_apply_projection import (
 )
 
 source = Path("db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql").read_bytes()
-package_digest = "sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906"
+package_digest = "sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa"
 for output, role in ((sys.argv[1], "postgres"), (sys.argv[2], "wrong_executor")):
     fingerprint = provisioner_fingerprint(role)
     projection = project_apply_migration_query(

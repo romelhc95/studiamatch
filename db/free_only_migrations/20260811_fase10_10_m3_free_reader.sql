@@ -66,7 +66,7 @@ BEGIN
       AND NOT a.attisdropped
       AND (a.attname, a.atttypid, a.attnotnull) IN (
         ('id', 'uuid'::pg_catalog.regtype, true),
-        ('is_active', 'boolean'::pg_catalog.regtype, true),
+        ('is_active', 'boolean'::pg_catalog.regtype, false),
         ('syllabus', 'text'::pg_catalog.regtype, false),
         ('objectives', 'text'::pg_catalog.regtype, false)
       )

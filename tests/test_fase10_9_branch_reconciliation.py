@@ -82,6 +82,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
     F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE,
     F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF,
+    F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES,
+    F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES,
+    F1010_M3_NULLABILITY_REMEDIATION_BASE,
+    F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE,
+    F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -132,6 +137,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_apply_projection,
     validate_f1010_m3_ddl_payload,
     validate_f1010_m3_ddl_payload_refresh,
+    validate_f1010_m3_nullability_remediation,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -594,6 +600,15 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
             ),
             "f1010_m3_ddl_payload_refresh",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF,
+                F1010_M3_NULLABILITY_REMEDIATION_BASE,
+            ),
+            "f1010_m3_nullability_remediation",
         )
         self.assertEqual(
             detect_mode(
@@ -2058,8 +2073,9 @@ class F109BoundaryTest(unittest.TestCase):
             (root / path).read_text(encoding="utf-8") for path in authority_paths
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING" in authority
+        assert "M3_DDL_NULLABILITY_REMEDIATION_PENDING" in authority
         assert "CONSUMED_ONCE_PASS" in authority
+        assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
         for gate in (
             "APPROVE_F10_10_M3_READER_DDL_FREE",
             "APPROVE_F10_10_M3_READER_Q0_FREE",
@@ -2443,6 +2459,88 @@ class F109BoundaryTest(unittest.TestCase):
             F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(Path("."), 55, 382)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_nullability_remediation_accepts_direct_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        head = "c" * 40
+        tree_mock.return_value = F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE
+        parents_mock.return_value = [F1010_M3_NULLABILITY_REMEDIATION_BASE]
+
+        validate_f1010_m3_nullability_remediation(
+            Path("."), F1010_M3_NULLABILITY_REMEDIATION_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_NULLABILITY_REMEDIATION_BASE, head,
+            F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES,
+            F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_m3_nullability_remediation_accepts_protected_push(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        candidate = "c" * 40
+        merge = "d" * 40
+        parents_mock.side_effect = [
+            [F1010_M3_NULLABILITY_REMEDIATION_BASE, candidate],
+            [F1010_M3_NULLABILITY_REMEDIATION_BASE],
+        ]
+        tree_mock.side_effect = [
+            F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE, "e" * 40, "e" * 40,
+        ]
+
+        validate_f1010_m3_nullability_remediation(
+            Path("."), F1010_M3_NULLABILITY_REMEDIATION_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_M3_NULLABILITY_REMEDIATION_BASE, candidate,
+            F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES,
+            F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 55, 379)
+
+    def test_f1010_m3_nullability_remediation_payload_is_non_executable(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        path = root / ".context/operaciones/m3_reader_f10_10_nullability_remediation_2026_08_12.json"
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+
+        self.assertEqual(
+            raw,
+            (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("ascii"),
+        )
+        self.assertEqual(payload["baseline_commit"], F1010_M3_NULLABILITY_REMEDIATION_BASE)
+        self.assertEqual(payload["baseline_tree"], F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE)
+        self.assertEqual(payload["superseded_migration_identity"], "fase10_10_m3_free_reader_free_ddl_v1")
+        self.assertEqual(payload["next_migration_identity"], "fase10_10_m3_free_reader_free_ddl_v2")
+        self.assertEqual(payload["apply_migration_max_calls"], 0)
+        self.assertFalse(payload["ddl_binding_generated"])
+        self.assertIsNone(payload["target_binding_digest"])
+        self.assertIsNone(payload["private_projection_sql_path"])
+        self.assertIsNone(payload["private_projection_manifest_path"])
+        for field in (
+            "network_allowed", "password_allowed", "remote_ddl_allowed",
+            "remote_dml_allowed", "remote_read_allowed", "q0_allowed",
+            "teardown_allowed",
+        ):
+            self.assertFalse(payload[field])
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

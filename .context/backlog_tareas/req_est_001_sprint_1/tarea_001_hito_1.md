@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. PR #357 promovio el payload y CI post-merge termino PASS. La [evidencia preflight](../../operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md) registra PASS local passwordless, network none y cero capacidad remota. Solo preflight esta consumido; DDL, Q0, lectura y teardown siguen pendientes. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_DDL_NULLABILITY_REMEDIATION_PENDING`. F10.9 conserva `G4=STOP_REQUIRES_REBASELINE`. Preflight termino PASS; DDL v1 fue consumida una vez y revertida por `STOP_COURSES_COLUMN_CONTRACT_DRIFT`. La remediacion v2 es offline, sin binding ni ejecucion. Q0, lectura y teardown siguen no consumidos. Certification, Pro y M4-M10 no estan autorizados. Hito 1 permanece `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`; PR #361 promovio el payload DDL y quedo mergeado en `desarrollo@49d9c0cbdc526854cb1414965ded8c2ca35ab2ad` / tree `ffd726e3881893437bb482773c44e6dfa1b60a05`. El [payload DDL Free](../../operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json) renueva offline el binding y conserva migration/idempotencia `fase10_10_m3_free_reader_free_ddl_v1` y todos los digests congelados. Permanece `PROPOSED_NOT_EXECUTED`: DDL Free, Q0, lectura y teardown no iniciaron.
+4. `M3`: `M3_DDL_NULLABILITY_REMEDIATION_PENDING`; la unica llamada DDL v1 termino `STOP_COURSES_COLUMN_CONTRACT_DRIFT` y rollback completo, sin reader ni ledger persistidos, retry, fallback o lectura. DB-as-Code demuestra que `courses.is_active` es `boolean DEFAULT true` nullable; package, collector y fixture exigian incorrectamente `NOT NULL`. La [remediacion offline](../../operaciones/m3_reader_f10_10_nullability_remediation_2026_08_12.json) corrige esa precondicion, reserva `fase10_10_m3_free_reader_free_ddl_v2` y permanece sin binding/no ejecutable. Q0, lectura y teardown no iniciaron.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
@@ -157,7 +157,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados, M3 reader v2 promovido/reconciliado, rotacion atestada y preflight local passwordless PASS | Gate preflight consumido una vez; DDL/Q0/lectura/teardown no consumidos; M4-M10, handoff superior a F10.9/G4, observacion de schedules y F11.1 conformidad/cierre |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados y M3 preflight PASS | DDL v1 consumida/fallida con rollback; remediacion v2 offline pendiente, sin binding; Q0/lectura/teardown no consumidos; M4-M10, handoff superior a F10.9/G4, observacion y F11.1 pendientes |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 

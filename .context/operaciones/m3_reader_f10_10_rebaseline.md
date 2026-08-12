@@ -3,16 +3,16 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING` |
+| Estado | `M3_DDL_NULLABILITY_REMEDIATION_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
-| Acceso remoto / DDL remoto | `NO / NO` |
-| Gates consumidos | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` una vez |
+| Acceso remoto / DDL remoto | `Una llamada DDL v1 fallida con rollback / NO capacidad vigente` |
+| Gates consumidos | Preflight una vez PASS; DDL v1 una vez FAIL+rollback |
 | Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
-| Query-set content digest `query-set-v1` candidate | `sha256:e18d56ae0cbae4e547c1e4e9706db8306a24e3a748da1ce167c54f8b808c84b7` |
-| Package Free-only candidate | `sha256:45ae79dec9810e537df31cca4e626478d0ac95ed99f2b7ec3db85e2d23fd1906` |
+| Query-set content digest `query-set-v1` candidate v2 | `sha256:d3bc8fddf7d0d8b39497e4f184c7669bec3cbc4537dde7aeb3757d4afe53957a` |
+| Package Free-only candidate v2 | `sha256:d68d44c6ae61bac120f460955f86547082c0e42b70868a35a330fda8fb7883aa` |
 | Compensacion candidate | `sha256:609a5b22202021de44ff1fa484ddb1a35fbb7bb15f495bc9afe304542d288fe0` |
-| Proyeccion local `apply_migration` v1 ligada al provisioner aprobado | `sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137` |
+| Proyeccion local `apply_migration` v2 ligada al provisioner aprobado | `sha256:a13e0e814185f756d612d8b092561a5baa71442a2cff2e83db081eb32ddd2f3f` |
 
 Esta nota es la autoridad enfocada del rebaseline M3 reader y sustituye, para la
 proxima ejecucion Free, las partes operativas del scope M3 anterior que asumian
@@ -174,9 +174,10 @@ statements externos `BEGIN;`/`COMMIT;`, rechaza otros controles transaccionales
 top-level, liga `current_user=session_user` al fingerprint aprobado sin serializar
 el nombre privado y produce artifacts `0600` bajo `local/f10_10/m3/`.
 
-Package y `query-set-v1` permanecen byte-identicos. Para el fingerprint del
-provisioner aprobado, la proyeccion candidate queda ligada a
-`sha256:ba67d2645a5f9f373007cd91df97eb185c470e65b7e82990f0d27849a8ed3137`;
+La remediacion v2 cambia package y `query-set-v1` para aceptar la nullability
+canonica de `is_active`. Para el fingerprint del provisioner aprobado, la
+proyeccion candidate v2 queda ligada a
+`sha256:a13e0e814185f756d612d8b092561a5baa71442a2cff2e83db081eb32ddd2f3f`;
 otro provisioner produce necesariamente otro digest y termina STOP.
 PostgreSQL 17 local acredito rollback del reader ante fallo de ledger o executor
 distinto, y commit conjunto de DDL+ledger en success path. No hubo Free ni gate.
@@ -184,8 +185,10 @@ distinto, y commit conjunto de DDL+ledger en success path. No hubo Free ni gate.
 El payload preflight anterior y su ventana terminada son evidencia historica. El
 [payload DDL Free](./m3_reader_f10_10_ddl_free_payload_2026_08_12.json) usa el
 merge/tree post-PR #361, binding offline renovado y la identidad unica
-`fase10_10_m3_free_reader_free_ddl_v1`. Queda `PROPOSED_NOT_EXECUTED`: timeout,
-5xx o respuesta ambigua terminan STOP sin retry con otra identidad ni fallback.
+`fase10_10_m3_free_reader_free_ddl_v1`. Su unica ejecucion termino rollback por
+`STOP_COURSES_COLUMN_CONTRACT_DRIFT`; v1 queda superseded y no reutilizable.
+La remediacion offline corrige `is_active` nullable, reserva la identidad v2 y
+permanece sin binding ni capacidad ejecutable.
 
 La [atestacion sanitizada de rotacion](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
 confirma que la contrasena SQL canary anterior fue rotada y revocada fuera de
@@ -199,13 +202,14 @@ Orden propuesto para una operacion Free futura:
 | Gate | Capacidad maxima propuesta | Estado |
 |---|---|---|
 | `APPROVE_F10_10_M3_READER_PREFLIGHT_FREE` | Preflight sanitizado del target y package; sin DDL ni password | `CONSUMED_ONCE_PASS` |
-| `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `PROPOSED_NOT_CONSUMED` |
+| `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
-El gate preflight fue aprobado/consumido una vez y termino PASS. Los gates DDL,
-Q0, lectura y teardown siguen no consumidos y no ejecutables. Cada aprobacion
+El gate preflight fue aprobado/consumido una vez y termino PASS. El gate DDL v1
+fue consumido una vez y termino rollback; Q0, lectura y teardown siguen no
+consumidos y no ejecutables. Cada aprobacion
 humana posterior debe citar su payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
 offline, clase de executor/reader, ventana, `VALID UNTIL`, artifacts privados,
@@ -216,8 +220,8 @@ El [payload preflight](./m3_reader_f10_10_preflight_payload_2026_08_11.json) ya
 congela esos campos en forma sanitizada. Su digest canonico es
 `sha256:68fd845808dbe694984ffbdd087b44e19754b4c76c14da862d74dad232971613`.
 La [ejecucion local passwordless](./m3_reader_f10_10_preflight_evidence_2026_08_11.md)
-consumio exclusivamente el gate preflight y termino PASS. DDL, Q0, lectura y
-teardown permanecen no consumidos.
+consumio exclusivamente el gate preflight y termino PASS. DDL v1 termino rollback;
+Q0, lectura y teardown permanecen no consumidos.
 
 ## Bloqueos Preservados
 

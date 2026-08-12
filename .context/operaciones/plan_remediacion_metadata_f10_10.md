@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING` |
+| Estado | `M3_DDL_NULLABILITY_REMEDIATION_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -306,7 +306,7 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_READER_PREFLIGHT_PASS_DDL_GATE_PENDING`: PR #353 promovio collector
+es `M3_DDL_NULLABILITY_REMEDIATION_PENDING`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
 El run `31513546109` preserva intento 1 `FAIL_TRANSIENT_LOCAL_SOCKET_AFTER_READY`
@@ -344,11 +344,12 @@ son v2. Los content digests `query-set-v1`, `schema-v1`, `constraints-v1`,
 conservan intencionalmente y son validos dentro de v2; manifest/binding v1 sigue
 rechazado y no existe `q0-attestation-v2`.
 
-El gate preflight Free fue consumido una vez y termino PASS. DDL Free, Q0 Free,
+El gate preflight Free fue consumido una vez y termino PASS. DDL v1 fue consumida
+una vez y termino rollback por drift de nullability; queda superseded. Q0 Free,
 lectura y teardown Free estan no consumidos. Los CI anteriores al run
 `31533516407`, PostgreSQL 17 local y rotacion atestada conservan su evidencia
-historica PASS, pero no sustituyen el final-readiness post-merge fallido. No hubo
-acceso remoto, Supabase, DDL remoto ni passwords. El gate DDL sigue pendiente. Certification,
+historica PASS, pero no sustituyen la remediacion v2 offline sin binding. No hubo
+passwords ni lectura remota; la unica llamada DDL v1 fallo y revirtio. Certification,
 Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
 
 La contrasena SQL usada previamente por un canary local fue rotada/revocada fuera

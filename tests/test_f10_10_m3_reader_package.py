@@ -44,6 +44,15 @@ def test_provisioning_package_contains_no_password_or_remote_operation() -> None
     assert "http://" not in combined and "https://" not in combined
 
 
+def test_package_matches_nullable_courses_schema_contract() -> None:
+    migration = MIGRATION.read_text(encoding="utf-8")
+
+    assert "('id', 'uuid'::pg_catalog.regtype, true)" in migration
+    assert "('is_active', 'boolean'::pg_catalog.regtype, false)" in migration
+    assert "('syllabus', 'text'::pg_catalog.regtype, false)" in migration
+    assert "('objectives', 'text'::pg_catalog.regtype, false)" in migration
+
+
 def test_compensation_quarantines_before_revoking_or_dropping() -> None:
     rollback = ROLLBACK.read_text(encoding="utf-8")
 

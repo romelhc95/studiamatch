@@ -74,6 +74,9 @@ F1010_M3_DDL_PAYLOAD_HEAD_REF = "docs/f10-10-m3-ddl-free-payload"
 F1010_M3_DDL_PAYLOAD_REFRESH_BASE = "49d9c0cbdc526854cb1414965ded8c2ca35ab2ad"
 F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE = "ffd726e3881893437bb482773c44e6dfa1b60a05"
 F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF = "docs/f10-10-m3-ddl-free-payload-refresh"
+F1010_M3_NULLABILITY_REMEDIATION_BASE = "16265817e89e1ac00bbce498f3532e05bd0c9a55"
+F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE = "8d89cbc6642e44a5bb380c754df09900266ed416"
+F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF = "fix/f10-10-m3-is-active-nullability"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -467,6 +470,34 @@ F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES = {
 
 F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES = {
     path: "100644" for path in F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES
+}
+
+F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_nullability_remediation_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql": "M",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+    "tests/test_f10_10_m3_apply_projection.py": "M",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_f10_10_m3_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES = {
+    path: (
+        "100755"
+        if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+        else "100644"
+    )
+    for path in F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES
 }
 
 CONTEXT_IGNORED_PREFIXES = (
@@ -1598,6 +1629,42 @@ def validate_f1010_m3_ddl_payload_refresh(
     validate_context_graph(repo, 55, 382)
 
 
+def validate_f1010_m3_nullability_remediation(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_NULLABILITY_REMEDIATION_BASE,
+        "unexpected F10.10 M3 nullability remediation baseline",
+    )
+    require_sha(repo, "F1010_M3_NULLABILITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE,
+        "F10.10 M3 nullability remediation base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "nullability remediation base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "nullability PR must be one direct commit")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "nullability push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged nullability PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "nullability push tree drift")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES,
+        F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -1677,6 +1744,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF
     ):
         return "f1010_m3_ddl_payload_refresh"
+    if base_ref == "desarrollo" and base == F1010_M3_NULLABILITY_REMEDIATION_BASE and (
+        event == "push" or head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF
+    ):
+        return "f1010_m3_nullability_remediation"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -1786,6 +1857,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 DDL payload branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF:
                 raise BoundaryError("F10.10 M3 DDL payload refresh branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError("F10.10 M3 nullability remediation branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -1972,6 +2045,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_ddl_payload_refresh":
             validate_f1010_m3_ddl_payload_refresh(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_nullability_remediation":
+            validate_f1010_m3_nullability_remediation(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

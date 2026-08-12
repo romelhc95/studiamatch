@@ -45,7 +45,7 @@ def valid_q0() -> tuple[object, ...]:
 
 SCHEMA = [
     ("id", "uuid", True, None),
-    ("is_active", "boolean", True, None),
+    ("is_active", "boolean", False, "true"),
     ("syllabus", "text", False, None),
     ("objectives", "text", False, None),
 ]
@@ -271,6 +271,7 @@ def test_exact_transcript_has_three_q0_first_read_only_transactions(
     ("mutate", "reason"),
     [
         (lambda connection: connection.schema.__setitem__(0, ("id", "text", True, None)), "STOP_SCHEMA_DRIFT"),
+        (lambda connection: connection.schema.__setitem__(1, ("is_active", "boolean", True, "true")), "STOP_SCHEMA_DRIFT"),
         (lambda connection: connection.schema.__setitem__(2, ("syllabus", "text", True, None)), "STOP_SCHEMA_DRIFT"),
         (lambda connection: connection.constraints.__setitem__(0, ("pk", "p", "PRIMARY KEY", 1, "is_active")), "STOP_UNSTABLE_KEYSET"),
         (lambda connection: setattr(connection, "constraints", []), "STOP_UNSTABLE_KEYSET"),
