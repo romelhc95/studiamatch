@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_STOP_BINDING_REQUIRED` |
+| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V2_PAYLOAD_PENDING_HUMAN_APPROVAL` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `Una llamada v1 y una v2, ambas fallidas con rollback / NO capacidad vigente` |
@@ -212,6 +212,7 @@ Ledger vigente:
 | `APPROVE_F10_10_M3_READER_DDL_FREE` | Provision Free-only del rol `NOLOGIN/PASSWORD NULL/rolvaliduntil NULL` mediante el payload DDL promovido | `CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED` |
 | `APPROVE_F10_10_M3_READER_DDL_FREE_V2` | Unica llamada Free-only v2 ya consumida; cero retry/fallback | `CONSUMED_ONCE_FAILED_ROLLBACK` |
 | `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE` | Una lectura agregada de `pg_catalog.pg_database`; counts/flags-only | `CONSUMED_ONCE_STOP_CANDIDATE_BINDING_PENDING_ZERO_REMOTE_CALLS` |
+| `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V2` | Envelope promovido por PR #365, una llamada Free counts/flags-only | `PENDING_HUMAN_APPROVAL_NOT_EXECUTED` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
