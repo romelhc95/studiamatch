@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -61,7 +61,7 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
-| `M3` | Remediar ACL PUBLIC Free por gates separados y luego preparar reader v3 | Preflight privado, remediacion, postflight conforme; Q0 posterior separado | Diagnostico STOP; candidate de preflight privado pendiente de promocion |
+| `M3` | Remediar ACL PUBLIC Free por gates separados y luego preparar reader v3 | Preflight privado, remediacion, postflight conforme; Q0 posterior separado | Diagnostico STOP; payload v2 promovido, consumer binding pendiente |
 | `M4` | Generar propuestas privadas | Candidate atribuible, budget respetado, cero DB writes | Provider sin writer |
 | `M5` | Revision editorial | 100% outputs provider revisados; solo aprobados son elegibles | Humano |
 | `M6` | Pilot maximo 5 | exact-one, verify, cero no-cohorte | Writer acotado |
@@ -313,9 +313,14 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED`: PR #353 promovio collector
+es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
+PR #371 promovio el payload v2 null-bound. Su primer F9.7 post-merge fallo
+fail-closed antes de crear PostgreSQL; PR #372 remedio exclusivamente el harness
+y su merge `89cbeda226c6e04c6c1b6e091e6b94fc36273645` obtuvo Security Audit
+`31720301586=PASS` y F9.7 `31720301577=PASS`. El consumer binding canónico no fue
+implementado por esas promociones.
 El run `31513546109` preserva intento 1 `FAIL_TRANSIENT_LOCAL_SOCKET_AFTER_READY`
 y un unico rerun sin cambios, intento 2 `PASS`; no se repitio ningun acceso remoto.
 El package `db/free_only_migrations/` permanece fuera del glob Pro y la

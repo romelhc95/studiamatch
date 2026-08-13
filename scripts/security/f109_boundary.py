@@ -111,6 +111,11 @@ F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE_TREE = "921e6f23c522ab4d75c816040e6c
 F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF = (
     "fix/f10-10-m3-public-acl-postmerge-harness"
 )
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE = "89cbeda226c6e04c6c1b6e091e6b94fc36273645"
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE_TREE = "da92dfa4baf89cc04bc2a67c97f678f3273e152b"
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-v2-post-merge-evidence"
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -393,6 +398,25 @@ F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_MODES = {
 F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS = {
     ".github/workflows/f9-7-contract.yml",
     "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh",
+}
+
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md"
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2270,6 +2294,58 @@ def validate_f1010_m3_public_acl_post_merge_harness(
     )
 
 
+def validate_f1010_m3_public_acl_v2_evidence(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE, "unexpected M3 PUBLIC ACL v2 evidence baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE_TREE,
+        "M3 PUBLIC ACL v2 evidence base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v2 evidence ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL v2 evidence push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL v2 evidence merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL v2 evidence must contain one direct commit",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_MODES,
+    )
+    evidence = (
+        repo
+        / ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md"
+    ).read_text(encoding="utf-8")
+    for required in (
+        "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED",
+        "payload_merge = b2956820295d0476ebb0580e2363fccd3bbbfae8",
+        "payload_post_merge_f9_7 = 31716674957:FAIL_CLOSED",
+        "harness_merge = 89cbeda226c6e04c6c1b6e091e6b94fc36273645",
+        "harness_merge_tree = da92dfa4baf89cc04bc2a67c97f678f3273e152b",
+        "harness_post_merge_security_audit = 31720301586:PASS",
+        "harness_post_merge_f9_7 = 31720301577:PASS",
+        "CONSUMER_BINDING = REQUIRED_NOT_IMPLEMENTED",
+        "PROPOSED_NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "M4_M10 = NOT_AUTHORIZED",
+    ):
+        require(required in evidence, "M3 PUBLIC ACL v2 evidence contract drift")
+    validate_context_graph(repo, 59, 378)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2404,6 +2480,12 @@ def detect_mode(
         )
     ):
         return "f1010_m3_public_acl_post_merge_harness"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE
+        and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF)
+    ):
+        return "f1010_m3_public_acl_v2_evidence"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2540,6 +2622,13 @@ def main() -> int:
                 raise BoundaryError(
                     "F10.10 M3 PUBLIC ACL post-merge harness branch requires its frozen protected desarrollo baseline"
                 )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL v2 evidence branch requires its frozen protected desarrollo baseline"
+                )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2570,6 +2659,11 @@ def main() -> int:
             touched_f1010_m3_public_acl_post_merge_harness = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS
             )
+            touched_f1010_m3_public_acl_v2_evidence = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS
+            )
+            if touched_f1010_m3_public_acl_v2_evidence:
+                touched_f1010_m3_public_acl_preflight = set()
             if (
                 touched_f1010_m3_public_acl_post_merge_harness
                 and args.base_sha == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE
@@ -2601,6 +2695,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_preflight_post_merge,
                         touched_f1010_m3_public_acl_private_preflight_v2_payload,
                         touched_f1010_m3_public_acl_post_merge_harness,
+                        touched_f1010_m3_public_acl_v2_evidence,
                     )
                 )
                 <= 1,
@@ -2720,6 +2815,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL post-merge harness delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_post_merge_harness"
+            elif touched_f1010_m3_public_acl_v2_evidence:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL v2 evidence paths require the protected evidence branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL v2 evidence delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_v2_evidence"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2854,6 +2960,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_post_merge_harness":
             validate_f1010_m3_public_acl_post_merge_harness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v2_evidence":
+            validate_f1010_m3_public_acl_v2_evidence(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
