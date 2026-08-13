@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
 | Acceso remoto / DDL remoto | `Diagnostico bound read-only consumido / DDL reader v1 y v2 fallidas con rollback / NO capacidad vigente` |
