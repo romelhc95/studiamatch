@@ -92,6 +92,9 @@ F1010_M3_PUBLIC_ACL_V3_HEAD_REF = "fix/f10-10-m3-public-db-acl-diagnostic-v3"
 F1010_M3_PUBLIC_ACL_V3_BOUND_BASE = "daf3e5babb2f6185304973e4f7607d95d85ab130"
 F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE = "da047276b78cea8c1a2b8bf7048a6f40c0146f2b"
 F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnostic-v3-execution-binding"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE = "7034d93059da92b34fb77b06b870ad254f192623"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE = "a86b31d562d3ae094afe1b46da297827eee07020"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF = "feat/f10-10-m3-public-db-acl-private-preflight"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -295,6 +298,29 @@ F1010_M1_ALLOWED_STATUSES = {
 }
 
 F1010_M1_ALLOWED_MODES = {path: "100644" for path in F1010_M1_ALLOWED_STATUSES}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_bound_result_2026_08_12.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_public_db_acl_preflight.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/f10_10_m3_public_db_acl_preflight_assert.sql": "A",
+    "tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql": "A",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "A",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
+}
 
 F1010_M3_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
@@ -1910,6 +1936,49 @@ def validate_f1010_m3_public_acl_v3_bound(
     validate_context_graph(repo, 56, 377)
 
 
+def validate_f1010_m3_public_acl_preflight(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE, "unexpected M3 PUBLIC ACL preflight baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE,
+        "M3 PUBLIC ACL preflight base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL preflight base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        pass
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL preflight push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL preflight push tree drift")
+    linear_chain = str(
+        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{candidate_head}")
+    ).split()
+    require(bool(linear_chain), "M3 PUBLIC ACL preflight candidate is empty")
+    previous = base
+    for commit in linear_chain:
+        require(
+            commit_parents(repo, commit) == [previous],
+            "M3 PUBLIC ACL preflight candidate must be a linear no-merge chain",
+        )
+        previous = commit
+    require(previous == candidate_head, "M3 PUBLIC ACL preflight first-parent chain drift")
+    require(
+        set(str(git(repo, "rev-list", f"{base}..{candidate_head}")).split()) == set(linear_chain),
+        "M3 PUBLIC ACL preflight contains side history",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 57, 377)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2013,6 +2082,10 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF
     ):
         return "f1010_m3_public_acl_v3_bound"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_preflight"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2126,6 +2199,8 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 nullability remediation branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF:
                 raise BoundaryError("F10.10 M3 PUBLIC ACL v3 bound branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF:
+                raise BoundaryError("F10.10 M3 PUBLIC ACL preflight branch requires its frozen protected desarrollo baseline")
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2144,6 +2219,9 @@ def main() -> int:
             touched_f1010_m3_public_acl_v3_bound = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES
             )
+            touched_f1010_m3_public_acl_preflight = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
+            )
             require(
                 sum(
                     bool(surface)
@@ -2159,6 +2237,7 @@ def main() -> int:
                         touched_f1010_m3_preflight_payload,
                         touched_f1010_m3_preflight_evidence,
                         touched_f1010_m3_public_acl_v3_bound,
+                        touched_f1010_m3_public_acl_preflight,
                     )
                 )
                 <= 1,
@@ -2233,6 +2312,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL v3 bound delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_v3_bound"
+            elif touched_f1010_m3_public_acl_preflight:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL preflight paths require the protected preflight branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL preflight delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_preflight"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2351,6 +2441,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_v3_bound":
             validate_f1010_m3_public_acl_v3_bound(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_preflight":
+            validate_f1010_m3_public_acl_preflight(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

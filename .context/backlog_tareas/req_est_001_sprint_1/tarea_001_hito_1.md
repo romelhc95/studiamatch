@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL`. Candidate PR #367 promovido y binding externo pendiente; no hubo ejecucion Supabase. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION`. El diagnostico bound fue consumido una vez y termino `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`; el siguiente candidate es solo local/documental. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL`; v1 consumido, v2 superseded, v3 no ligado superseded y gate bound pendiente sin continuidad automatica.
+4. `M3`: `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION`; v1 consumido, v2 superseded, v3 no ligado superseded y gate bound consumido una vez con STOP, sin continuidad automatica.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
@@ -135,7 +135,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 10. `M9`: metadata cero y cero cambios no-cohorte/ETL.
 11. `M10`: decision superior de handoff a F10.9/G4.
 
-F10.10 no habilita Certification, Pro, M4, F10.9/G4, schedules ni F11.1 y no copia datos entre ambientes. Hubo exactamente una llamada Supabase `apply_migration` DDL v2, fallida y revertida antes de `CREATE ROLE`; no hubo password, retry, fallback ni consumo de `APPROVE_M3_FREE_READONLY`.
+F10.10 no habilita Certification, Pro, M4-M10, F10.9/G4, schedules ni F11.1 y no copia datos entre ambientes. DDL reader v1/v2 fueron consumidas y revertidas. El diagnostico bound uso exactamente una llamada `execute_sql`, sin retry, en `REPEATABLE READ READ ONLY` sobre PostgreSQL 17; no hubo filas de aplicacion, DDL/DML, RPC, provider, writer ni Pro. Q0, lectura funcional y teardown siguen no consumidos.
 
 DB Sync Pro debe excluir `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y la compensacion exacta
 M3 reader de deteccion automatica Pro-relevant. CI final debe descargar la imagen
@@ -157,7 +157,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados y M3 preflight PASS | DDL v1/v2 consumidas/fallidas con rollback; v2 exige rebaseline por privilegios efectivos `PUBLIC`; Q0/lectura/teardown no consumidos; M4-M10, handoff superior a F10.9/G4, observacion y F11.1 pendientes |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados y diagnostico M3 consumido con STOP | TARGET y OTHER_CONNECTABLE no conformes; NON_CONNECTABLE conforme e inmutable; Q0/lectura/teardown no consumidos; preflight/remediacion/postflight ACL, reader v3 posterior, M4-M10, handoff superior a F10.9/G4, observacion y F11.1 pendientes |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 

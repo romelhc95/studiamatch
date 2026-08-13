@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -96,13 +96,15 @@ usa una frontera por patch:
 8. F10.8 ejecuta canary Production con schedules apagados.
 9. F10.9 planificaba habilitar schedules y observar la operacion, pero
    G4=`STOP_REQUIRES_REBASELINE` suspendio esa ruta.
-10. F10.10 remedia metadata en una fase separada y devuelve evidencia a una nueva
-    decision F10.9/G4; no habilita schedules automaticamente.
-11. El [rebaseline M3 reader](./m3_reader_f10_10_rebaseline.md) fue promovido por
-    PR #353; PR #354 reconcilio evidencia/boundary y paso CI post-merge. La
-    rotacion SQL canary esta atestada.
-    Cualquier preflight/DDL/Q0 o lectura Free exige payload y gate exactos;
-    Certification, Pro y M4 permanecen bloqueados.
+10. F10.10 queda en una fase separada y devuelve evidencia a una nueva decision
+    F10.9/G4; no habilita schedules automaticamente.
+11. El diagnostico bound fue `CONSUMED_ONCE`: un unico `execute_sql`, sin retry,
+    read-only sobre PostgreSQL 17, termino
+    `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`. TARGET y OTHER_CONNECTABLE son no
+    conformes; NON_CONNECTABLE es conforme e inmutable. Q0, lectura, teardown,
+    M4+, Certification y Pro permanecen bloqueados. El unico gate siguiente
+    propuesto es `APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`;
+    remediacion, postflight y gates reader no estan autorizados.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -818,10 +820,10 @@ La primera observacion F10.9 registra `0` pares aceptados. Los intentos
 documentados en `EVID-H1-OBS-F10.9-001` son evidencia fail-closed y no cambian los
 estados `PENDING` de `EVID-H1-011..013`.
 
-El candidate M3 reader no cambia esta matriz. Sus pruebas locales PostgreSQL 17
-networkless no son evidencia final: requiere CI/post-merge antes de preparar
-cualquier payload remoto. No hubo acceso remoto, DDL remoto, Supabase, password
-ni consumo de `APPROVE_M3_FREE_READONLY` en este rebaseline.
+El resultado M3 no cambia esta matriz. El diagnostico bound fue consumido una
+sola vez mediante un `execute_sql` read-only PostgreSQL 17, sin retry, y produjo
+`STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`; no autoriza Q0, lectura, teardown,
+M4+, Certification, Pro, remediacion, postflight ni gates reader.
 
 ## Stop Conditions
 
@@ -900,7 +902,7 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`); `EVID-H1-010=VERIFIED`. |
 | `F10.9` | `STOP_REQUIRES_REBASELINE` | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) registra cero pares aceptados; [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) cerro G3/P5 y detuvo G4. G5-G13 no son autorizables mediante otra frase F10.9; requieren decision de autoridad superior. |
-| `F10.10` | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL` | [Scope M3 v2](./m3_f10_10_scope_por_ambiente_target.md): candidate PR #367 y binding pendiente. Q0/lectura/teardown y M4+ pendientes. |
+| `F10.10` | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` | [Scope M3 v2](./m3_f10_10_scope_por_ambiente_target.md): diagnostico bound `CONSUMED_ONCE`, un `execute_sql` sin retry, read-only PostgreSQL 17; `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`. TARGET/OTHER_CONNECTABLE no conformes; NON_CONNECTABLE conforme e inmutable. Q0/lectura/teardown, M4+, Certification y Pro bloqueados. Solo se propone `APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`; remediacion/postflight/reader no autorizados. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida

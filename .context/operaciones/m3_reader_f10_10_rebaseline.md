@@ -3,11 +3,11 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.10` |
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
 | Autoridad de ejecucion recibida | `Ejecuta las tareas pendientes de la Fase F10.10` |
 | Alcance consumido | Preparacion local y documentacion del candidate `studiamatch_m3_reader` |
-| Acceso remoto / DDL remoto | `Una llamada v1 y una v2, ambas fallidas con rollback / NO capacidad vigente` |
-| Gates consumidos | Preflight una vez PASS; DDL v1 y v2 una vez cada una FAIL+rollback |
+| Acceso remoto / DDL remoto | `Diagnostico bound read-only consumido / DDL reader v1 y v2 fallidas con rollback / NO capacidad vigente` |
+| Gates consumidos | Preflight reader PASS; DDL reader v1/v2 FAIL+rollback; diagnostico bound STOP, una vez cada uno |
 | Autoriza M4, F10.9/G4, schedules o F11.1 | `NO` |
 | Query-set content digest `query-set-v1` candidate v2 | `sha256:d3bc8fddf7d0d8b39497e4f184c7669bec3cbc4537dde7aeb3757d4afe53957a` |
 | Package rebaselined offline, no identity v3 | `sha256:53dfeb7e67e7699d7314dd174e923418e49a5230acd5ae858697c410d95875e3` |
@@ -32,10 +32,10 @@ protegido `2cf614a4a44ffabc5e06ba08dc20707807db274f` / tree
 [evidencia post-merge](./m3_reader_f10_10_post_merge_evidence_2026_08_11.md)
 acredita el candidate, pero no autoriza una operacion remota ni consume gates.
 
-La autorizacion decimal recibida permite esta preparacion local. No permite
-Supabase, red remota, DDL remoto, manejo de passwords, activacion privada ni el
-consumo de `APPROVE_M3_FREE_READONLY`. En esta preparacion no ocurrio acceso
-remoto, conexion Supabase, DDL/DML remoto, cambio de password ni consumo de gate.
+La autorizacion decimal recibida permitio la preparacion local. La operacion
+remota posterior quedo limitada por su gate bound ya consumido: una lectura
+counts/flags-only, sin filas de aplicacion ni DDL/DML/RPC/provider/writer/Pro.
+No habilito passwords, activacion privada ni `APPROVE_M3_FREE_READONLY`.
 
 ## Contrato Del Collector V2
 
@@ -214,14 +214,15 @@ Ledger vigente:
 | `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE` | Una lectura agregada de `pg_catalog.pg_database`; counts/flags-only | `CONSUMED_ONCE_STOP_CANDIDATE_BINDING_PENDING_ZERO_REMOTE_CALLS` |
 | `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V2` | Envelope sin atestacion PostgreSQL 17 | `SUPERSEDED_NOT_EXECUTED` |
 | `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3` | Identidad no ligada | `SUPERSEDED_BY_BOUND_IDENTITY_NOT_EXECUTED` |
-| `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND` | Candidate PR #367 + payload blob + envelope digest | `PENDING_HUMAN_APPROVAL_NOT_EXECUTED` |
+| `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND` | Candidate PR #367 + payload blob + envelope digest; decision `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED` | `CONSUMED_ONCE` |
 | `APPROVE_F10_10_M3_READER_Q0_FREE` | Activacion privada finita y ejecucion `q0-only`; sin Q1-Q4 | `PROPOSED_NOT_EXECUTABLE` |
 | `APPROVE_M3_FREE_READONLY` | Lectura completa Q1-Q4 solo tras Q0 PASS | `EXISTING_NOT_CONSUMED` |
 | `APPROVE_F10_10_M3_READER_TEARDOWN_FREE` | Cuarentena, revocacion y drop fail-closed | `PROPOSED_NOT_EXECUTABLE` |
 
 El gate preflight fue aprobado/consumido una vez y termino PASS. Los gates DDL v1
 y v2 fueron consumidos una vez cada uno y terminaron rollback; sus identidades no
-son reutilizables. Q0, lectura y teardown siguen no consumidos y no ejecutables.
+son reutilizables. El diagnostico bound fue consumido una vez, sin retry, y
+termino STOP. Q0, lectura y teardown siguen no consumidos y no ejecutables.
 Cada aprobacion
 humana posterior debe citar su payload exacto:
 candidate SHA/tree, digests de package/compensacion/query-set, target binding
@@ -241,8 +242,12 @@ rollback; Q0, lectura y teardown permanecen no consumidos.
 Certification y Pro no reciben este rol ni este DDL Free-only. Certification
 replay y toda ruta de collector/lectura/DDL Pro quedan superseded y bloqueadas en
 este rebaseline. M4-M10, F10.9/G4, G5-G13, schedules,
-observacion y F11.1 permanecen bloqueados. Un PASS operativo Free futuro tampoco
-los habilitaria automaticamente; requieren sus autoridades y gates posteriores.
+observacion y F11.1 permanecen bloqueados. Los gates
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_REMEDIATION_FREE_V1`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_POSTFLIGHT_FREE_V1` y el reader v3 posterior quedan solo
+propuestos, no creados ni consumidos. Un PASS operativo Free futuro tampoco los
+habilitaria automaticamente; requieren sus autoridades y gates posteriores.
 
 Enlaces: [Estado](../estado_del_proyecto.md) |
 [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md) |

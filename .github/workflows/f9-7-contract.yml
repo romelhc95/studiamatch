@@ -26,7 +26,9 @@ on:
       - 'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'
       - 'db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql'
       - 'scripts/maintenance/f10_10_m3_apply_projection.py'
+      - 'scripts/maintenance/f10_10_m3_public_db_acl_preflight.py'
       - 'tests/test_f10_10_m3_apply_projection.py'
+      - 'tests/test_f10_10_m3_public_db_acl_preflight.py'
       - 'db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql'
       - 'db/restore_full_schema.sql'
       - 'scripts/maintenance/fase09_7_candidate.py'
@@ -57,6 +59,9 @@ on:
       - 'tests/sql/run_fase09_7_leads_email_security_hold_postgres.sh'
       - 'tests/sql/20260811_fase10_10_m3_free_reader_test.sql'
       - 'tests/sql/run_fase10_10_m3_free_reader_postgres17.sh'
+      - 'tests/sql/f10_10_m3_public_db_acl_preflight_assert.sql'
+      - 'tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql'
+      - 'tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh'
       - 'tests/test_fase09_7_backend_identity.py'
       - 'tests/test_fase09_7_acl_source_attestation.py'
       - 'tests/test_fase09_7_gate_b_readonly.py'
@@ -139,11 +144,14 @@ jobs:
           pip install --require-hashes \
             -r "$RUNNER_TEMP/requirements-db-migrate.txt" \
             -r "$RUNNER_TEMP/requirements-test.txt"
-      - name: Materialize pinned PostgreSQL 17 image
+      - name: Materialize pinned PostgreSQL 17 and Python images
         run: |
-          image="postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
-          docker pull "$image"
-          test -n "$(docker image inspect --format '{{.Id}}' "$image")"
+          postgres_image="postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
+          python_image="python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93"
+          docker pull "$postgres_image"
+          docker pull "$python_image"
+          test -n "$(docker image inspect --format '{{.Id}}' "$postgres_image")"
+          test -n "$(docker image inspect --format '{{.Id}}' "$python_image")"
       - name: Prepare M3 firewall cleanup state
         run: |
           state_dir="$(mktemp -d "$RUNNER_TEMP/f1010-m3-firewall.XXXXXXXX")"
@@ -157,6 +165,11 @@ jobs:
         run: >-
           "$F1010_M3_FIREWALL_GUARD" setup
           FASE097_AUDIT_EGRESS "$F1010_M3_FIREWALL_STATE"
+      - name: Run M3 PUBLIC database ACL preflight contract
+        run: |
+          python3 -m pytest -q -p no:cacheprovider \
+            tests/test_f10_10_m3_public_db_acl_preflight.py
+          bash tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh
       - name: Run M3 zero-write collector contract
         run: |
           workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
