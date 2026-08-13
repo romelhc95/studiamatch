@@ -135,6 +135,9 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES,
     F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE,
     F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE,
+    F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -196,6 +199,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_private_preflight_v2_payload,
     validate_f1010_m3_public_acl_post_merge_harness,
     validate_f1010_m3_public_acl_v2_evidence,
+    validate_f1010_m3_public_acl_final_readiness,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -3296,6 +3300,52 @@ class F109BoundaryTest(unittest.TestCase):
         }[commit]
         with self.assertRaises(BoundaryError):
             validate_f1010_m3_public_acl_v2_evidence(Path("."), base, merge, "push")
+
+    def test_f1010_public_acl_final_readiness_accepts_exact_candidate(self) -> None:
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for path, status in F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if status == "M":
+                target.write_text("before\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        base_tree = run(repo, "rev-parse", f"{base}^{{tree}}")
+        for path in F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES:
+            target = repo / path
+            target.write_text((source_root / path).read_text(encoding="utf-8"), encoding="utf-8")
+        head = self.commit(repo, "readiness")
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE", base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE", base_tree,
+        ), mock.patch("scripts.security.f109_boundary.validate_context_graph") as context_mock:
+            validate_f1010_m3_public_acl_final_readiness(repo, base, head, "pull_request")
+        context_mock.assert_called_once_with(repo, 60, 378)
+
+    def test_f1010_public_acl_final_readiness_rejects_extra_path(self) -> None:
+        repo = self.make_repo()
+        (repo / "README.md").write_text("base\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        (repo / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+        head = self.commit(repo, "expanded")
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE", base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_final_readiness(repo, base, head, "pull_request")
+
+    def test_detect_mode_selects_f1010_public_acl_final_readiness(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo",
+                F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF,
+                F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE,
+            ),
+            "f1010_m3_public_acl_final_readiness",
+        )
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

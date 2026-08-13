@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`. Payload v2 null-bound promovido y verificado post-merge; consumer binding sigue pendiente. |
+| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_FINAL_READINESS_RACE_REMEDIATION_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED`. Run post-merge `31724004476` fallo fail-closed por carrera local de init; readiness candidate pendiente de promocion y consumer binding fuera de alcance. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -126,7 +126,7 @@ documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`; PR #371 promovio el payload, PR #372 remedio el harness post-merge y `desarrollo@89cbeda226c6e04c6c1b6e091e6b94fc36273645` obtuvo checks post-merge PASS. Consumer/binding/aprobacion siguen pendientes, sin continuidad automatica.
+4. `M3`: `M3_PUBLIC_DB_ACL_FINAL_READINESS_RACE_REMEDIATION_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED`; PR #373 quedo en `desarrollo@51dac8f4906725aeb9d11172e674eafb5df87b8b`. Security Audit `31724004474=PASS`; F9.7 `31724004476=FAIL_CLOSED_LOCAL_POSTGRES_INIT_RACE` tras 34 pruebas Python PASS, cero red remota y cleanup/firewall PASS. Consumer/binding/aprobacion siguen pendientes, sin continuidad automatica.
 5. `M4`: generacion privada atribuible.
 6. `M5`: revision editorial total de outputs provider.
 7. `M6`: pilot maximo 5.
