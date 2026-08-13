@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -313,7 +313,7 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION`: PR #353 promovio collector
+es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
 El run `31513546109` preserva intento 1 `FAIL_TRANSIENT_LOCAL_SOCKET_AFTER_READY`

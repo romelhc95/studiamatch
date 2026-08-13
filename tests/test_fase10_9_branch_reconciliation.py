@@ -119,6 +119,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE,
     F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE,
     F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -176,6 +181,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_v3,
     validate_f1010_m3_public_acl_v3_bound,
     validate_f1010_m3_public_acl_preflight,
+    validate_f1010_m3_public_acl_preflight_post_merge,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2111,7 +2117,8 @@ class F109BoundaryTest(unittest.TestCase):
             (root / path).read_text(encoding="utf-8") for path in authority_paths
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" in authority
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in authority
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" in authority
         assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in authority
         assert "CONSUMED_ONCE_PASS" in authority
         assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
@@ -2901,6 +2908,122 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE,
             ),
             "f1010_m3_public_acl_preflight",
+        )
+
+    def test_f1010_public_acl_preflight_post_merge_accepts_direct_candidate(self) -> None:
+        repo = self.make_repo()
+        for path, status in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if status == "M":
+                target.write_text("before\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        for path, status in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.write_text("after\n" if status == "M" else "new\n", encoding="utf-8")
+        head = self.commit(repo, "post-merge evidence")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), mock.patch("scripts.security.f109_boundary.validate_context_graph") as context_mock:
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                repo, base, head, "pull_request"
+            )
+
+        context_mock.assert_called_once_with(repo, 58, 377)
+
+    def test_f1010_public_acl_preflight_post_merge_rejects_extra_path(self) -> None:
+        repo = self.make_repo()
+        (repo / "README.md").write_text("base\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        (repo / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+        head = self.commit(repo, "expanded evidence")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                repo, base, head, "pull_request"
+            )
+
+    def test_f1010_public_acl_preflight_post_merge_accepts_protected_push(self) -> None:
+        repo = self.make_repo()
+        for path, status in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if status == "M":
+                target.write_text("before\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        run(repo, "switch", "-c", "candidate")
+        for path, status in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.write_text("after\n" if status == "M" else "new\n", encoding="utf-8")
+        candidate = self.commit(repo, "post-merge evidence")
+        run(repo, "switch", "master")
+        run(repo, "merge", "--no-ff", "candidate", "-m", "protected merge")
+        merge = run(repo, "rev-parse", "HEAD")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), mock.patch("scripts.security.f109_boundary.validate_context_graph"):
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                repo, base, merge, "push"
+            )
+
+        self.assertEqual(run(repo, "rev-parse", f"{merge}^2"), candidate)
+
+    def test_f1010_public_acl_preflight_post_merge_rejects_push_tree_drift(self) -> None:
+        base = "1" * 40
+        candidate = "2" * 40
+        merge = "3" * 40
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE",
+            "4" * 40,
+        ), mock.patch("scripts.security.f109_boundary.require_sha"), mock.patch(
+            "scripts.security.f109_boundary.commit_tree",
+            side_effect=lambda _repo, commit: {
+                base: "4" * 40, candidate: "5" * 40, merge: "6" * 40,
+            }[commit],
+        ), mock.patch(
+            "scripts.security.f109_boundary.is_ancestor", return_value=True,
+        ), mock.patch(
+            "scripts.security.f109_boundary.commit_parents",
+            return_value=[base, candidate],
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                Path("."), base, merge, "push"
+            )
+
+    def test_f1010_public_acl_preflight_post_merge_rejects_wrong_baseline(self) -> None:
+        with self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                Path("."), "1" * 40, "2" * 40, "pull_request"
+            )
+
+    def test_detect_mode_selects_f1010_public_acl_preflight_post_merge(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request",
+                "desarrollo",
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF,
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
+            ),
+            "f1010_m3_public_acl_preflight_post_merge",
         )
 
     @mock.patch("scripts.security.f109_boundary.git")

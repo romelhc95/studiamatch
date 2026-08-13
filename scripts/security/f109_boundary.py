@@ -95,6 +95,11 @@ F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnostic
 F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE = "7034d93059da92b34fb77b06b870ad254f192623"
 F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE = "a86b31d562d3ae094afe1b46da297827eee07020"
 F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF = "feat/f10-10-m3-public-db-acl-private-preflight"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE = "6068f2ac9ef623e06dcc23d9828980641e396c39"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE = "6a7ebe58b0acdc79bafe8362239c797e7256e31f"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-preflight-post-merge"
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -320,6 +325,27 @@ F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES = {
 
 F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES = {
     path: "100644" for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES = {
+    path: "100644"
+    for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md"
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -1979,6 +2005,46 @@ def validate_f1010_m3_public_acl_preflight(
     validate_context_graph(repo, 57, 377)
 
 
+def validate_f1010_m3_public_acl_preflight_post_merge(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
+        "unexpected M3 PUBLIC ACL preflight post-merge baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE,
+        "M3 PUBLIC ACL preflight post-merge base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL preflight post-merge base is not ancestor")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL preflight post-merge push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL preflight post-merge push tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL preflight post-merge candidate must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 58, 377)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2086,6 +2152,15 @@ def detect_mode(
         event == "push" or head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF
     ):
         return "f1010_m3_public_acl_preflight"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_preflight_post_merge"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2201,6 +2276,13 @@ def main() -> int:
                 raise BoundaryError("F10.10 M3 PUBLIC ACL v3 bound branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF:
                 raise BoundaryError("F10.10 M3 PUBLIC ACL preflight branch requires its frozen protected desarrollo baseline")
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL preflight post-merge branch requires its frozen protected desarrollo baseline"
+                )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2222,6 +2304,11 @@ def main() -> int:
             touched_f1010_m3_public_acl_preflight = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
             )
+            touched_f1010_m3_public_acl_preflight_post_merge = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS
+            )
+            if touched_f1010_m3_public_acl_preflight_post_merge:
+                touched_f1010_m3_public_acl_preflight = set()
             require(
                 sum(
                     bool(surface)
@@ -2238,6 +2325,7 @@ def main() -> int:
                         touched_f1010_m3_preflight_evidence,
                         touched_f1010_m3_public_acl_v3_bound,
                         touched_f1010_m3_public_acl_preflight,
+                        touched_f1010_m3_public_acl_preflight_post_merge,
                     )
                 )
                 <= 1,
@@ -2323,6 +2411,18 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL preflight delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_preflight"
+            elif touched_f1010_m3_public_acl_preflight_post_merge:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL preflight post-merge paths require the protected post-merge branch",
+                )
+                require(
+                    actual
+                    == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL preflight post-merge delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_preflight_post_merge"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2445,6 +2545,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_preflight":
             validate_f1010_m3_public_acl_preflight(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_preflight_post_merge":
+            validate_f1010_m3_public_acl_preflight_post_merge(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

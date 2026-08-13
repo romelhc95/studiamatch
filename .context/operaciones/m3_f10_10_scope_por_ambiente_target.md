@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
@@ -21,6 +21,10 @@ Enlaces de autoridad: [rebaseline enfocado](./m3_reader_f10_10_rebaseline.md),
 [plan F10.10](./plan_remediacion_metadata_f10_10.md),
 [estado](../estado_del_proyecto.md) y
 [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
+
+La [evidencia post-merge del preflight privado](./m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md)
+registra PR #369, merge/tree y CI post-merge PASS sin crear ni consumir el gate
+Free v2.
 
 ## Frontera Free-Only
 
