@@ -273,12 +273,12 @@ jobs:
         if: always()
         run: |
           cleanup_status=0
-          docker rm --force studiamatch-m3-reader-postgres || cleanup_status=$?
+          if docker container inspect studiamatch-m3-reader-postgres >/dev/null 2>&1; then
+            docker rm --force studiamatch-m3-reader-postgres || cleanup_status=$?
+          fi
           state_dir="${F1010_M3_READER_STATE:-}"
-          if [ -n "$state_dir" ] && [ -d "$state_dir" ]; then
+          if [ -n "$state_dir" ] && [ -e "$state_dir" ]; then
             sudo rm -rf -- "$state_dir" || cleanup_status=1
-          else
-            cleanup_status=1
           fi
           exit "$cleanup_status"
       - name: Restore M3 external egress

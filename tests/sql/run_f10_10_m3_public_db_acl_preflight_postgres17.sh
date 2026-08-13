@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 umask 077
 
 readonly IMAGE='postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193'
@@ -7,23 +7,56 @@ readonly PYTHON_IMAGE='python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d
 readonly CONTAINER="f1010-acl-preflight-${RANDOM}-${RANDOM}"
 readonly COLLECTOR_CONTAINER="f1010-acl-collector-${RANDOM}-${RANDOM}"
 readonly PYTHON_CONTAINER="f1010-acl-generator-${RANDOM}-${RANDOM}"
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/f10_10_acl_preflight.XXXXXX")"
-readonly WORK
+STAGE='initialize'
+WORK=''
+CONTAINER_CREATED=0
+COLLECTOR_CONTAINER_CREATED=0
+PYTHON_CONTAINER_CREATED=0
+
+stop_with_context() {
+  local status="$1"
+  local line="$2"
+  printf 'F10.10 ACL preflight harness STOP: stage=%s line=%s status=%s\n' \
+    "$STAGE" "$line" "$status" >&2
+  exit "$status"
+}
 
 cleanup() {
-  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
-  docker rm -f "$COLLECTOR_CONTAINER" >/dev/null 2>&1 || true
-  docker rm -f "$PYTHON_CONTAINER" >/dev/null 2>&1 || true
-  rm -rf "$WORK"
+  local status="$?"
+  local cleanup_status=0
+  trap - ERR EXIT
+  if [ "$CONTAINER_CREATED" -eq 1 ]; then
+    docker rm -f "$CONTAINER" >/dev/null 2>&1 || cleanup_status=1
+  fi
+  if [ "$COLLECTOR_CONTAINER_CREATED" -eq 1 ]; then
+    docker rm -f "$COLLECTOR_CONTAINER" >/dev/null 2>&1 || cleanup_status=1
+  fi
+  if [ "$PYTHON_CONTAINER_CREATED" -eq 1 ]; then
+    docker rm -f "$PYTHON_CONTAINER" >/dev/null 2>&1 || cleanup_status=1
+  fi
+  if [ -n "$WORK" ] && [ -d "$WORK" ]; then
+    rm -rf -- "$WORK" || cleanup_status=1
+  fi
+  if [ "$cleanup_status" -ne 0 ]; then
+    printf 'F10.10 ACL preflight harness STOP: stage=cleanup status=1\n' >&2
+    if [ "$status" -eq 0 ]; then
+      status=1
+    fi
+  fi
+  exit "$status"
 }
+trap 'stop_with_context "$?" "$LINENO"' ERR
 trap cleanup EXIT
 
-docker image inspect "$IMAGE" >/dev/null || {
-  echo 'pinned PostgreSQL 17 image unavailable locally' >&2
-  exit 1
-}
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/f10_10_acl_preflight.XXXXXX")"
+readonly WORK
+STAGE='work-created'
+docker image inspect "$IMAGE" >/dev/null || stop_with_context "$?" "$LINENO"
+STAGE='image-present'
 docker run -d --rm --pull never --network none --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null
+CONTAINER_CREATED=1
+STAGE='postgres-container-created'
 
 for _ in $(seq 1 60); do
   if docker exec "$CONTAINER" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
@@ -54,11 +87,13 @@ print(output["sql"], end="")
 PY
 docker create --name "$COLLECTOR_CONTAINER" --pull never --network none "$PYTHON_IMAGE" \
   python3 /tmp/collect.py >/dev/null
+COLLECTOR_CONTAINER_CREATED=1
 docker cp scripts/maintenance/f10_10_m3_public_db_acl_preflight.py \
   "$COLLECTOR_CONTAINER:/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
 docker cp "$WORK/collect.py" "$COLLECTOR_CONTAINER:/tmp/collect.py"
 docker start --attach "$COLLECTOR_CONTAINER" > "$WORK/collector.sql"
 docker rm "$COLLECTOR_CONTAINER" >/dev/null
+COLLECTOR_CONTAINER_CREATED=0
 echo 'F10.10 ACL stage: collector-ready'
 docker cp "$WORK/collector.sql" "$CONTAINER:/tmp/collector.sql"
 docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
@@ -105,6 +140,7 @@ pathlib.Path("/tmp/projected.sql").write_text(preflight.project_apply_migration_
 PY
 docker create --name "$PYTHON_CONTAINER" --pull never --network none \
   "$PYTHON_IMAGE" python3 /tmp/generate.py >/dev/null
+PYTHON_CONTAINER_CREATED=1
 docker cp scripts/maintenance/f10_10_m3_public_db_acl_preflight.py \
   "$PYTHON_CONTAINER:/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
 docker cp "$WORK/generate.py" "$PYTHON_CONTAINER:/tmp/generate.py"
@@ -113,6 +149,7 @@ docker start --attach "$PYTHON_CONTAINER" >/dev/null
 docker cp "$PYTHON_CONTAINER:/tmp/candidate.sql" "$WORK/candidate.sql"
 docker cp "$PYTHON_CONTAINER:/tmp/projected.sql" "$WORK/projected.sql"
 docker rm "$PYTHON_CONTAINER" >/dev/null
+PYTHON_CONTAINER_CREATED=0
 echo 'F10.10 ACL stage: candidate-ready'
 
 docker cp "$WORK/candidate.sql" "$CONTAINER:/tmp/candidate.sql"

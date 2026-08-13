@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -124,6 +125,31 @@ def test_collector_is_pg17_readonly_catalog_only_and_no_query_text() -> None:
     assert not __import__("re").search(r"\ba\.query\b|query_start|backend_start", COLLECTOR_SQL)
     assert "public." not in COLLECTOR_SQL
     assert not any(token in upper for token in (" INSERT ", " UPDATE ", " DELETE ", " REVOKE ", " GRANT "))
+
+
+def test_postgres17_runner_reports_early_failure_and_cleans_workdir(tmp_path: Path) -> None:
+    runner = Path(__file__).resolve().parent / "sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh"
+    fake_bin = tmp_path / "bin"
+    work_root = tmp_path / "work"
+    fake_bin.mkdir()
+    work_root.mkdir()
+    fake_docker = fake_bin / "docker"
+    fake_docker.write_text("#!/usr/bin/env bash\nexit 2\n", encoding="utf-8", newline="\n")
+    fake_docker.chmod(0o755)
+
+    result = subprocess.run(
+        ["bash", str(runner)],
+        cwd=Path(__file__).resolve().parents[1],
+        env={**os.environ, "PATH": f"{fake_bin}:{os.environ['PATH']}", "TMPDIR": str(work_root)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "stage=work-created" in result.stderr
+    assert "status=2" in result.stderr
+    assert list(work_root.iterdir()) == []
 
 
 @pytest.mark.parametrize(

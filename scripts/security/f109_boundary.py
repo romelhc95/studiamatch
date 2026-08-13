@@ -106,6 +106,11 @@ F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE = "65fb4d4a54df4e4bf3
 F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF = (
     "docs/f10-10-m3-public-acl-private-preflight-v2-payload"
 )
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE = "b2956820295d0476ebb0580e2363fccd3bbbfae8"
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE_TREE = "921e6f23c522ab4d75c816040e6cf15e4c8934bb"
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF = (
+    "fix/f10-10-m3-public-acl-postmerge-harness"
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -372,6 +377,22 @@ F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES = {
 }
 F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS = {
     ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
+}
+
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "M",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "M",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS = {
+    ".github/workflows/f9-7-contract.yml",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh",
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2210,6 +2231,45 @@ def validate_f1010_m3_public_acl_private_preflight_v2_payload(
     validate_context_graph(repo, 58, 377)
 
 
+def validate_f1010_m3_public_acl_post_merge_harness(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE,
+        "unexpected M3 PUBLIC ACL post-merge harness baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE_TREE,
+        "M3 PUBLIC ACL post-merge harness base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL post-merge harness ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL post-merge harness push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL post-merge harness merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL post-merge harness must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_MODES,
+    )
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2335,6 +2395,15 @@ def detect_mode(
         )
     ):
         return "f1010_m3_public_acl_private_preflight_v2_payload"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_post_merge_harness"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2464,6 +2533,13 @@ def main() -> int:
                 raise BoundaryError(
                     "F10.10 M3 PUBLIC ACL private preflight v2 payload branch requires its frozen protected desarrollo baseline"
                 )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL post-merge harness branch requires its frozen protected desarrollo baseline"
+                )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2491,6 +2567,16 @@ def main() -> int:
             touched_f1010_m3_public_acl_private_preflight_v2_payload = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS
             )
+            touched_f1010_m3_public_acl_post_merge_harness = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS
+            )
+            if (
+                touched_f1010_m3_public_acl_post_merge_harness
+                and args.base_sha == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE
+            ):
+                touched_f1010_m3_public_acl_preflight = set()
+            else:
+                touched_f1010_m3_public_acl_post_merge_harness = set()
             if touched_f1010_m3_public_acl_private_preflight_v2_payload:
                 touched_f1010_m3_public_acl_preflight = set()
                 touched_f1010_m3_public_acl_preflight_post_merge = set()
@@ -2514,6 +2600,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_preflight,
                         touched_f1010_m3_public_acl_preflight_post_merge,
                         touched_f1010_m3_public_acl_private_preflight_v2_payload,
+                        touched_f1010_m3_public_acl_post_merge_harness,
                     )
                 )
                 <= 1,
@@ -2622,6 +2709,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL private preflight v2 payload delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_private_preflight_v2_payload"
+            elif touched_f1010_m3_public_acl_post_merge_harness:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL post-merge harness paths require the protected harness branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL post-merge harness delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_post_merge_harness"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2752,6 +2850,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_private_preflight_v2_payload":
             validate_f1010_m3_public_acl_private_preflight_v2_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_post_merge_harness":
+            validate_f1010_m3_public_acl_post_merge_harness(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
