@@ -53,18 +53,13 @@ readonly WORK
 STAGE='work-created'
 docker image inspect "$IMAGE" >/dev/null || stop_with_context "$?" "$LINENO"
 STAGE='image-present'
+. tests/sql/f10_10_m3_postgres_final_readiness.sh
 docker run -d --rm --pull never --network none --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null
 CONTAINER_CREATED=1
-STAGE='postgres-container-created'
-
-for _ in $(seq 1 60); do
-  if docker exec "$CONTAINER" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-docker exec "$CONTAINER" pg_isready -U postgres -d postgres >/dev/null
+STAGE='postgres-final-readiness'
+f1010_wait_for_final_postgres "$CONTAINER"
+STAGE='postgres-final-ready'
 
 docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql

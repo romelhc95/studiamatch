@@ -152,6 +152,118 @@ def test_postgres17_runner_reports_early_failure_and_cleans_workdir(tmp_path: Pa
     assert list(work_root.iterdir()) == []
 
 
+def run_readiness_scenario(tmp_path: Path, scenario: str) -> tuple[subprocess.CompletedProcess[str], int]:
+    root = Path(__file__).resolve().parents[1]
+    helper = root / "tests/sql/f10_10_m3_postgres_final_readiness.sh"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    state = tmp_path / "state"
+    state.mkdir()
+    fake_docker = fake_bin / "docker"
+    fake_docker.write_text(
+        """#!/usr/bin/env bash
+set -eu
+scenario="$F1010_FAKE_SCENARIO"
+state="$F1010_FAKE_STATE"
+command="$1"
+shift
+case "$command" in
+  inspect)
+    if [ "$scenario" = stopped ]; then
+      printf 'false\n'
+    elif [ "$scenario" = temporary_ready ] && [ -f "$state/pg-count" ]; then
+      printf 'false\n'
+    else
+      printf 'true\n'
+    fi
+    ;;
+  logs)
+    if [ "$scenario" != no_marker ]; then
+      printf 'PostgreSQL init process complete; ready for start up.\n'
+    fi
+    ;;
+  exec)
+    shift
+    if [ "${1:-}" = test ]; then
+      [ "$scenario" != socket_absent ]
+      exit
+    fi
+    count_file="$state/pg-count"
+    count=0
+    [ ! -f "$count_file" ] || count="$(cat "$count_file")"
+    count=$((count + 1))
+    printf '%s' "$count" > "$count_file"
+    case "$scenario" in
+      probe_reset) [ "$count" -ne 3 ] ;;
+      temporary_ready) [ "$count" -eq 1 ] ;;
+      *) exit 0 ;;
+    esac
+    ;;
+  *) exit 2 ;;
+esac
+""",
+        encoding="utf-8",
+        newline="\n",
+    )
+    fake_docker.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", f'. "{helper}"; f1010_wait_for_final_postgres synthetic-postgres'],
+        cwd=root,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "F1010_FAKE_SCENARIO": scenario,
+            "F1010_FAKE_STATE": str(state),
+            "F1010_ACL_INIT_ATTEMPTS": "3",
+            "F1010_ACL_FINAL_ATTEMPTS": "3",
+            "F1010_ACL_STABLE_ATTEMPTS": "7",
+            "F1010_ACL_READINESS_SLEEP_SECONDS": "0",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    count_file = state / "pg-count"
+    return result, int(count_file.read_text()) if count_file.exists() else 0
+
+
+def test_final_readiness_rejects_temporary_server_before_init_marker(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "temporary_ready")
+    assert result.returncode != 0
+    assert probes == 1
+    assert "diagnostics:" in result.stderr
+
+
+def test_final_readiness_rejects_missing_init_marker(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "no_marker")
+    assert result.returncode != 0
+    assert probes == 0
+
+
+def test_final_readiness_rejects_stopped_container(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "stopped")
+    assert result.returncode != 0
+    assert probes == 0
+
+
+def test_final_readiness_rejects_missing_final_socket(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "socket_absent")
+    assert result.returncode != 0
+    assert probes == 0
+
+
+def test_final_readiness_resets_counter_after_failed_probe(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "probe_reset")
+    assert result.returncode == 0
+    assert probes == 6
+
+
+def test_final_readiness_accepts_three_consecutive_probes(tmp_path: Path) -> None:
+    result, probes = run_readiness_scenario(tmp_path, "success")
+    assert result.returncode == 0
+    assert probes == 4
+
+
 @pytest.mark.parametrize(
     ("path", "value", "reason"),
     [

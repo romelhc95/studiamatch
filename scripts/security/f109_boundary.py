@@ -116,6 +116,11 @@ F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE_TREE = "da92dfa4baf89cc04bc2a67c97f678f3273
 F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF = (
     "docs/f10-10-m3-public-acl-v2-post-merge-evidence"
 )
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE = "51dac8f4906725aeb9d11172e674eafb5df87b8b"
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE = "0382efc31ea3540ac8efa82046210520cd7da1a4"
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF = (
+    "fix/f10-10-m3-public-acl-final-readiness"
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -417,6 +422,23 @@ F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_MODES = {
 }
 F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS = {
     ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md"
+}
+
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/f10_10_m3_postgres_final_readiness.sh": "A",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "M",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md"
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2346,6 +2368,56 @@ def validate_f1010_m3_public_acl_v2_evidence(
     validate_context_graph(repo, 59, 378)
 
 
+def validate_f1010_m3_public_acl_final_readiness(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE, "unexpected M3 PUBLIC ACL final readiness baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE,
+        "M3 PUBLIC ACL final readiness base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL final readiness ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL final readiness push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL final readiness merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL final readiness must contain one direct commit",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_MODES,
+    )
+    incident = (
+        repo / ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md"
+    ).read_text(encoding="utf-8")
+    helper = (repo / "tests/sql/f10_10_m3_postgres_final_readiness.sh").read_text(encoding="utf-8")
+    for required in (
+        "31724004476", "FAIL_CLOSED_LOCAL_POSTGRES_INIT_RACE", "34_PASS",
+        "REQUIRED_NOT_IMPLEMENTED", "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+    ):
+        require(required in incident, "M3 PUBLIC ACL final readiness incident drift")
+    for required in (
+        "PostgreSQL init process complete; ready for start up.",
+        "/var/run/postgresql/.s.PGSQL.5432", "stable_probes=0",
+        "stable_probes=$((stable_probes + 1))", 'if [ "$stable_probes" -eq 3 ]',
+    ):
+        require(required in helper, "M3 PUBLIC ACL final readiness helper drift")
+    validate_context_graph(repo, 60, 378)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2486,6 +2558,12 @@ def detect_mode(
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF)
     ):
         return "f1010_m3_public_acl_v2_evidence"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
+        and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
+    ):
+        return "f1010_m3_public_acl_final_readiness"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2629,6 +2707,13 @@ def main() -> int:
                 raise BoundaryError(
                     "F10.10 M3 PUBLIC ACL v2 evidence branch requires its frozen protected desarrollo baseline"
                 )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL final readiness branch requires its frozen protected desarrollo baseline"
+                )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2662,6 +2747,11 @@ def main() -> int:
             touched_f1010_m3_public_acl_v2_evidence = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS
             )
+            touched_f1010_m3_public_acl_final_readiness = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS
+            )
+            if touched_f1010_m3_public_acl_final_readiness:
+                touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
                 touched_f1010_m3_public_acl_preflight = set()
             if (
@@ -2696,6 +2786,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_private_preflight_v2_payload,
                         touched_f1010_m3_public_acl_post_merge_harness,
                         touched_f1010_m3_public_acl_v2_evidence,
+                        touched_f1010_m3_public_acl_final_readiness,
                     )
                 )
                 <= 1,
@@ -2826,6 +2917,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL v2 evidence delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_v2_evidence"
+            elif touched_f1010_m3_public_acl_final_readiness:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL final readiness paths require the protected readiness branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL final readiness delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_final_readiness"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2964,6 +3066,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_v2_evidence":
             validate_f1010_m3_public_acl_v2_evidence(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_final_readiness":
+            validate_f1010_m3_public_acl_final_readiness(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
