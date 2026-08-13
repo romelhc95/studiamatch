@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
@@ -26,7 +26,9 @@ La [evidencia post-merge del preflight privado](./m3_public_db_acl_private_prefl
 registra PR #369, merge/tree y CI post-merge PASS sin crear ni consumir el gate
 Free v2.
 
-El payload v2 sanitizado queda preparado tras PR #370. El binding fisico no se
+La [evidencia post-merge del payload v2](./m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md)
+registra PR #371, el incidente fail-closed y la remediacion de harness PR #372
+con CI post-merge PASS. El payload queda promovido pero null-bound. El binding fisico no se
 genera hasta reponer privadamente `API_URL`, `PROJECT_REF`, `SQL_HOST`,
 `CA_SHA256`, provisioner y ventana; esos valores no se registran. Debe reutilizar
 el contrato canonico `target-binding-v2`, incluida CA/`verify-full`, y exigir
