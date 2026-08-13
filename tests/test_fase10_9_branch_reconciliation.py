@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import subprocess
 import tempfile
@@ -112,6 +114,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_V3_BOUND_BASE,
     F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE,
     F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE,
+    F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -168,6 +175,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_v2_payload,
     validate_f1010_m3_public_acl_v3,
     validate_f1010_m3_public_acl_v3_bound,
+    validate_f1010_m3_public_acl_preflight,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2103,7 +2111,8 @@ class F109BoundaryTest(unittest.TestCase):
             (root / path).read_text(encoding="utf-8") for path in authority_paths
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL" in authority
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" in authority
+        assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in authority
         assert "CONSUMED_ONCE_PASS" in authority
         assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
         for gate in (
@@ -2802,6 +2811,97 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertTrue(forbidden.isdisjoint(binding))
         for field in ("automatic_continuation", "automatic_retry", "ddl_allowed", "dml_allowed", "rpc_allowed", "password_allowed", "pro_allowed", "q0_allowed"):
             self.assertFalse(binding[field])
+
+    def test_f1010_m3_public_acl_preflight_accepts_linear_candidate(self) -> None:
+        repo = self.make_repo()
+        for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES:
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES[path] == "M":
+                target.write_text("before\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        paths = list(F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES.items())
+        for path, status in paths[:8]:
+            target = repo / path
+            target.write_text("after\n" if status == "M" else "new\n", encoding="utf-8")
+        self.commit(repo, "candidate part one")
+        for path, status in paths[8:]:
+            target = repo / path
+            target.write_text("after\n" if status == "M" else "new\n", encoding="utf-8")
+        head = self.commit(repo, "candidate part two")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE", base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), mock.patch("scripts.security.f109_boundary.validate_context_graph") as context_mock:
+            validate_f1010_m3_public_acl_preflight(repo, base, head, "pull_request")
+
+        context_mock.assert_called_once_with(repo, 57, 377)
+
+    def test_f1010_m3_public_acl_preflight_rejects_extra_path(self) -> None:
+        repo = self.make_repo()
+        (repo / "README.md").write_text("base\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        (repo / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+        head = self.commit(repo, "expanded candidate")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE", base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_preflight(repo, base, head, "pull_request")
+
+    def test_f1010_m3_public_acl_preflight_rejects_merge_history(self) -> None:
+        repo = self.make_repo()
+        (repo / "README.md").write_text("base\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        run(repo, "switch", "-c", "side")
+        (repo / "side.txt").write_text("side\n", encoding="utf-8")
+        self.commit(repo, "side")
+        run(repo, "switch", "-c", "candidate", base)
+        (repo / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+        self.commit(repo, "candidate")
+        run(repo, "merge", "--no-ff", "side", "-m", "merge side")
+        head = run(repo, "rev-parse", "HEAD")
+
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE", base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_preflight(repo, base, head, "pull_request")
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_f1010_public_acl_preflight_paths_from_wrong_branch(
+        self, parse_args_mock, changed_statuses_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            head_ref="wrong-branch",
+            base_ref="desarrollo",
+            base_sha=F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE,
+        )
+        changed_statuses_mock.return_value = {
+            "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "A",
+        }
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            self.assertEqual(main(), 1)
+        self.assertIn("require the protected preflight branch", stderr.getvalue())
+
+    def test_detect_mode_selects_f1010_public_acl_preflight(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF,
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE,
+            ),
+            "f1010_m3_public_acl_preflight",
+        )
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

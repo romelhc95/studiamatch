@@ -5,11 +5,15 @@ umask 077
 readonly IMAGE='postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193'
 readonly PYTHON_IMAGE='python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93'
 readonly CONTAINER="f1010-acl-preflight-${RANDOM}-${RANDOM}"
+readonly COLLECTOR_CONTAINER="f1010-acl-collector-${RANDOM}-${RANDOM}"
+readonly PYTHON_CONTAINER="f1010-acl-generator-${RANDOM}-${RANDOM}"
 WORK="$(mktemp -d /tmp/f10_10_acl_preflight.XXXXXX)"
 readonly WORK
 
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$COLLECTOR_CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$PYTHON_CONTAINER" >/dev/null 2>&1 || true
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -32,30 +36,49 @@ docker exec "$CONTAINER" pg_isready -U postgres -d postgres >/dev/null
 docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql
 
-docker run --rm --pull never --network none -v "$PWD:/app" -w /app "$PYTHON_IMAGE" \
-  python3 -c 'import json,subprocess; result=subprocess.run(["python3","scripts/maintenance/f10_10_m3_public_db_acl_preflight.py","--mode","sql"],check=True,capture_output=True,text=True); print(json.loads(result.stdout)["sql"],end="")' \
-  > "$WORK/collector.sql"
+cat > "$WORK/collect.py" <<'PY'
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location(
+    "preflight", "/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
+)
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+code, output = module.run(["--mode", "sql"])
+if code != 0:
+    raise SystemExit(code)
+print(output["sql"], end="")
+PY
+docker create --name "$COLLECTOR_CONTAINER" --pull never --network none "$PYTHON_IMAGE" \
+  python3 /tmp/collect.py >/dev/null
+docker cp scripts/maintenance/f10_10_m3_public_db_acl_preflight.py \
+  "$COLLECTOR_CONTAINER:/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
+docker cp "$WORK/collect.py" "$COLLECTOR_CONTAINER:/tmp/collect.py"
+docker start --attach "$COLLECTOR_CONTAINER" > "$WORK/collector.sql"
+docker rm "$COLLECTOR_CONTAINER" >/dev/null
 docker cp "$WORK/collector.sql" "$CONTAINER:/tmp/collector.sql"
 docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
   -f /tmp/collector.sql > "$WORK/result.json"
 
-docker run --rm --pull never --network none -v "$PWD:/app" -v "$WORK:/work" -w /app "$PYTHON_IMAGE" \
-  python3 - /work/result.json /work/candidate.sql /work/projected.sql <<'PY'
+cat > "$WORK/generate.py" <<'PY'
+import importlib.util
 import json
 import pathlib
 import sys
 
-from scripts.maintenance.f10_10_m3_public_db_acl_preflight import (
-    build_target_attestation,
-    generate_candidate_sql,
-    project_apply_migration_candidate,
-    validate_private_result,
+spec = importlib.util.spec_from_file_location(
+    "preflight", "/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
 )
+preflight = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = preflight
+spec.loader.exec_module(preflight)
 
-raw = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+raw = pathlib.Path("/tmp/result.json").read_text(encoding="utf-8").splitlines()
 result = json.loads(next(line for line in raw if line.startswith("{")))
 expected_target_binding_digest = "sha256:09467d8124e639534aae8bc2d28e6ad3150144ec860e15ef05fdf87020976a56"
-target_attestation = build_target_attestation("sha256:" + "1" * 64, "sha256:" + "2" * 64)
+target_attestation = preflight.build_target_attestation("sha256:" + "1" * 64, "sha256:" + "2" * 64)
 result["target_binding"] = target_attestation
 entries = []
 for dependency in result["login_public_dependencies"]:
@@ -73,10 +96,20 @@ for dependency in result["login_public_dependencies"]:
 result["managed_service_evaluation"] = {
     "schema": "f10.10-m3-managed-dependency-attestation-v1", "entries": entries,
 }
-validated = validate_private_result(result, expected_target_binding_digest)
-pathlib.Path(sys.argv[2]).write_text(generate_candidate_sql(validated), encoding="utf-8", newline="\n")
-pathlib.Path(sys.argv[3]).write_text(project_apply_migration_candidate(validated), encoding="utf-8", newline="\n")
+validated = preflight.validate_private_result(result, expected_target_binding_digest)
+pathlib.Path("/tmp/candidate.sql").write_text(preflight.generate_candidate_sql(validated), encoding="utf-8", newline="\n")
+pathlib.Path("/tmp/projected.sql").write_text(preflight.project_apply_migration_candidate(validated), encoding="utf-8", newline="\n")
 PY
+docker create --name "$PYTHON_CONTAINER" --pull never --network none \
+  "$PYTHON_IMAGE" python3 /tmp/generate.py >/dev/null
+docker cp scripts/maintenance/f10_10_m3_public_db_acl_preflight.py \
+  "$PYTHON_CONTAINER:/usr/local/lib/f10_10_m3_public_db_acl_preflight.py"
+docker cp "$WORK/generate.py" "$PYTHON_CONTAINER:/tmp/generate.py"
+docker cp "$WORK/result.json" "$PYTHON_CONTAINER:/tmp/result.json"
+docker start --attach "$PYTHON_CONTAINER" >/dev/null
+docker cp "$PYTHON_CONTAINER:/tmp/candidate.sql" "$WORK/candidate.sql"
+docker cp "$PYTHON_CONTAINER:/tmp/projected.sql" "$WORK/projected.sql"
+docker rm "$PYTHON_CONTAINER" >/dev/null
 
 docker cp "$WORK/candidate.sql" "$CONTAINER:/tmp/candidate.sql"
 docker cp "$WORK/projected.sql" "$CONTAINER:/tmp/projected.sql"
