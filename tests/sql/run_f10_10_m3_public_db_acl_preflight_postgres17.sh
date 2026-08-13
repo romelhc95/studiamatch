@@ -7,7 +7,7 @@ readonly PYTHON_IMAGE='python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d
 readonly CONTAINER="f1010-acl-preflight-${RANDOM}-${RANDOM}"
 readonly COLLECTOR_CONTAINER="f1010-acl-collector-${RANDOM}-${RANDOM}"
 readonly PYTHON_CONTAINER="f1010-acl-generator-${RANDOM}-${RANDOM}"
-WORK="$(mktemp -d /tmp/f10_10_acl_preflight.XXXXXX)"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/f10_10_acl_preflight.XXXXXX")"
 readonly WORK
 
 cleanup() {
@@ -35,6 +35,7 @@ docker exec "$CONTAINER" pg_isready -U postgres -d postgres >/dev/null
 
 docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql
+echo 'F10.10 ACL stage: fixture-ready'
 
 cat > "$WORK/collect.py" <<'PY'
 import importlib.util
@@ -58,9 +59,11 @@ docker cp scripts/maintenance/f10_10_m3_public_db_acl_preflight.py \
 docker cp "$WORK/collect.py" "$COLLECTOR_CONTAINER:/tmp/collect.py"
 docker start --attach "$COLLECTOR_CONTAINER" > "$WORK/collector.sql"
 docker rm "$COLLECTOR_CONTAINER" >/dev/null
+echo 'F10.10 ACL stage: collector-ready'
 docker cp "$WORK/collector.sql" "$CONTAINER:/tmp/collector.sql"
 docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
   -f /tmp/collector.sql > "$WORK/result.json"
+echo 'F10.10 ACL stage: result-ready'
 
 cat > "$WORK/generate.py" <<'PY'
 import importlib.util
@@ -110,6 +113,7 @@ docker start --attach "$PYTHON_CONTAINER" >/dev/null
 docker cp "$PYTHON_CONTAINER:/tmp/candidate.sql" "$WORK/candidate.sql"
 docker cp "$PYTHON_CONTAINER:/tmp/projected.sql" "$WORK/projected.sql"
 docker rm "$PYTHON_CONTAINER" >/dev/null
+echo 'F10.10 ACL stage: candidate-ready'
 
 docker cp "$WORK/candidate.sql" "$CONTAINER:/tmp/candidate.sql"
 docker cp "$WORK/projected.sql" "$CONTAINER:/tmp/projected.sql"
@@ -137,6 +141,7 @@ SELECT
   count(*) FILTER (WHERE datname='other_nonconformant' AND grantee=0)
 FROM acl;
 SQL
+echo 'F10.10 ACL stage: rollback-ready'
 
 # A stale executor must fail before any revoke.
 if docker exec "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
@@ -180,6 +185,7 @@ SELECT
   count(*) FILTER (WHERE datname='other_nonconformant' AND grantee=0)
 FROM acl;
 SQL
+echo 'F10.10 ACL stage: ledger-rollback-ready'
 docker exec "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   -c 'BEGIN' -f /tmp/projected.sql \
   -c "INSERT INTO public.local_migration_ledger VALUES ('acl-success')" -c 'COMMIT' >/dev/null
@@ -191,6 +197,7 @@ docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 
 
 docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
   < tests/sql/f10_10_m3_public_db_acl_preflight_assert.sql | grep -qx '1|0|0|0|0|1|6'
+echo 'F10.10 ACL stage: apply-ready'
 
 if docker exec "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   -c 'BEGIN' -f /tmp/projected.sql -c 'COMMIT' >/dev/null 2>&1; then
