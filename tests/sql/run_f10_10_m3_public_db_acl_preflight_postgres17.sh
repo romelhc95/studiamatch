@@ -120,15 +120,16 @@ docker cp "$WORK/projected.sql" "$CONTAINER:/tmp/projected.sql"
 docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 \
   -c "SELECT pg_catalog.md5(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(d.oid,d.datacl::text) ORDER BY d.oid)::text) FROM pg_catalog.pg_database AS d WHERE NOT d.datallowconn" \
   > "$WORK/nonconnectable-before.txt"
-awk '1; !injected && /^REVOKE / { print "SELECT 1 / 0;"; injected=1 }' \
+awk '1; !injected && /^REVOKE .*"other_nonconformant"/ { print "SELECT 1 / 0;"; injected=1 }' \
   "$WORK/projected.sql" > "$WORK/projected-failure.sql"
+grep -qx 'SELECT 1 / 0;' "$WORK/projected-failure.sql"
 docker cp "$WORK/projected-failure.sql" "$CONTAINER:/tmp/projected-failure.sql"
 if docker exec "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   -c 'BEGIN' -f /tmp/projected-failure.sql -c 'COMMIT' >/dev/null 2>&1; then
   echo 'injected failure unexpectedly committed' >&2
   exit 1
 fi
-docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 <<'SQL' \
+docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 <<'SQL' \
   | grep -qx '3|3'
 WITH acl AS (
   SELECT d.datname, x.grantee, x.privilege_type
@@ -172,7 +173,7 @@ if docker exec "$CONTAINER" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
   echo 'ledger failure unexpectedly committed' >&2
   exit 1
 fi
-docker exec "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 <<'SQL' \
+docker exec -i "$CONTAINER" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 <<'SQL' \
   | grep -qx '3|3'
 WITH acl AS (
   SELECT d.datname, x.grantee
