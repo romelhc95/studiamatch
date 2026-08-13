@@ -106,7 +106,10 @@ def test_ci_runs_package_on_networkless_postgresql_17() -> None:
         'if [ "$init_complete" -ne 1 ]', 1
     )[0]
     assert 'state_dir="${F1010_M3_READER_STATE:-}"' in cleanup
+    assert "docker container inspect studiamatch-m3-reader-postgres" in cleanup
+    assert 'if [ -n "$state_dir" ] && [ -e "$state_dir" ]' in cleanup
     assert 'sudo rm -rf -- "$state_dir"' in cleanup
+    assert "else\n            cleanup_status=1" not in cleanup
     assert "postgres:17-alpine@sha256:742f40" in workflow
     assert "run_fase10_10_m3_free_reader_postgres17.sh" in workflow
     assert "F10_10_M3_READER_LOCAL_POSTGRES17_ONLY" in workflow
