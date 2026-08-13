@@ -124,6 +124,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
     F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE,
     F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF,
+    F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES,
+    F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES,
+    F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE,
+    F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE,
+    F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -182,6 +187,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_v3_bound,
     validate_f1010_m3_public_acl_preflight,
     validate_f1010_m3_public_acl_preflight_post_merge,
+    validate_f1010_m3_public_acl_private_preflight_v2_payload,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2118,7 +2124,10 @@ class F109BoundaryTest(unittest.TestCase):
         )
         assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
         assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" in authority
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" not in authority
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED" in authority
+        assert "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2" in authority
+        assert "no aprobado y no consumido" in authority
         assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in authority
         assert "CONSUMED_ONCE_PASS" in authority
         assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
@@ -3024,6 +3033,105 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
             ),
             "f1010_m3_public_acl_preflight_post_merge",
+        )
+
+    def test_f1010_private_preflight_v2_payload_contract(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        path = root / ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+        assert raw == json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii") + b"\n"
+        assert set(payload) == {
+            "application_rows_allowed", "authority_commit", "authority_head_commit",
+            "authority_parent", "authority_pr", "authority_tree", "automatic_continuation",
+            "automatic_retry", "candidate_merge_commit", "candidate_tree",
+            "collector_result_schema", "collector_sql_digest", "database_classes",
+            "ddl_allowed", "dml_allowed", "expected_rows", "gate",
+            "managed_dependency_attestation_schema", "max_calls",
+            "observed_transport_schema", "password_allowed", "post_merge_checks",
+            "postgres_major_required", "private_artifact_schema",
+            "private_dependency_attestation_path", "private_env_path",
+            "private_result_path", "private_target_binding_path", "pro_allowed",
+            "q0_allowed", "reader_required", "remediation_allowed", "remote_read_scope",
+            "rpc_allowed", "sanitized_manifest_schema", "schema", "status",
+            "target_alias", "target_binding_schema", "transaction",
+        }
+        assert payload["schema"] == "f10.10-m3-public-db-acl-private-preflight-payload-v2"
+        assert payload["gate"] == "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2"
+        assert payload["authority_commit"] == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE
+        assert payload["authority_tree"] == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE
+        assert payload["candidate_merge_commit"] is None
+        assert payload["candidate_tree"] is None
+        assert payload["max_calls"] == 1 and payload["expected_rows"] == 1
+        assert payload["transaction"] == "REPEATABLE_READ_READ_ONLY"
+        for field in (
+            "automatic_continuation", "automatic_retry", "ddl_allowed", "dml_allowed",
+            "password_allowed", "pro_allowed", "q0_allowed", "reader_required",
+            "remediation_allowed", "rpc_allowed",
+        ):
+            assert payload[field] is False
+        assert payload["collector_sql_digest"] == "sha256:c109752ce46d3528920527ea034c929ff4e4e6b477576c1fa7514b3fe26f3d35"
+        assert payload["target_binding_schema"] == "f10.10-m3-target-binding-v2"
+        assert payload["observed_transport_schema"] == "f10.10-m3-observed-transport-v2"
+        assert payload["status"] == "PENDING_CANONICAL_TARGET_AND_OBSERVED_TRANSPORT_BINDING_HUMAN_APPROVAL_NOT_EXECUTED"
+
+    def test_f1010_private_preflight_v2_payload_accepts_direct_candidate(self) -> None:
+        repo = self.make_repo()
+        for path, status in F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES.items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if status == "M":
+                target.write_text("before\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        base_tree = run(repo, "rev-parse", f"{base}^{{tree}}")
+        for path, status in F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES.items():
+            target = repo / path
+            if path.endswith("private_preflight_free_v2_payload_2026_08_13.json"):
+                payload = json.loads(
+                    (Path(__file__).resolve().parents[1] / path).read_text(encoding="ascii")
+                )
+                payload["authority_commit"] = base
+                payload["authority_tree"] = base_tree
+                target.write_text(
+                    json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n",
+                    encoding="ascii",
+                )
+            else:
+                target.write_text("after\n" if status == "M" else "new\n", encoding="utf-8")
+        head = self.commit(repo, "payload")
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE",
+            base_tree,
+        ), mock.patch("scripts.security.f109_boundary.validate_context_graph") as context_mock:
+            validate_f1010_m3_public_acl_private_preflight_v2_payload(repo, base, head, "pull_request")
+        context_mock.assert_called_once_with(repo, 58, 377)
+
+    def test_f1010_private_preflight_v2_payload_rejects_extra_path(self) -> None:
+        repo = self.make_repo()
+        (repo / "README.md").write_text("base\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        (repo / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+        head = self.commit(repo, "expanded")
+        with mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE",
+            base,
+        ), mock.patch(
+            "scripts.security.f109_boundary.F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE",
+            run(repo, "rev-parse", f"{base}^{{tree}}"),
+        ), self.assertRaises(BoundaryError):
+            validate_f1010_m3_public_acl_private_preflight_v2_payload(repo, base, head, "pull_request")
+
+    def test_detect_mode_selects_f1010_private_preflight_v2_payload(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo",
+                F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF,
+                F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE,
+            ),
+            "f1010_m3_public_acl_private_preflight_v2_payload",
         )
 
     @mock.patch("scripts.security.f109_boundary.git")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -99,6 +100,11 @@ F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE = "6068f2ac9ef623e06dcc23d98289806
 F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE = "6a7ebe58b0acdc79bafe8362239c797e7256e31f"
 F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF = (
     "docs/f10-10-m3-public-acl-preflight-post-merge"
+)
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE = "f78713087813bea950e320bc37c55cdd36c95a70"
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE = "65fb4d4a54df4e4bf32955dfce0847bf03b10cc2"
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-private-preflight-v2-payload"
 )
 
 CONTEXT_EXPECTED_BLOBS = {
@@ -346,6 +352,26 @@ F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES = {
 }
 F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS = {
     ".context/operaciones/m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md"
+}
+
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES = {
+    path: "100644"
+    for path in F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2045,6 +2071,145 @@ def validate_f1010_m3_public_acl_preflight_post_merge(
     validate_context_graph(repo, 58, 377)
 
 
+def validate_f1010_m3_public_acl_private_preflight_v2_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE,
+        "unexpected M3 PUBLIC ACL private preflight v2 payload baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE,
+        "M3 PUBLIC ACL private preflight v2 payload base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL private preflight v2 payload ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL private preflight v2 payload push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL private preflight v2 payload merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL private preflight v2 payload must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES,
+    )
+    payload_path = (
+        repo
+        / ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
+    )
+    raw = payload_path.read_bytes()
+    payload = json.loads(raw)
+    require(
+        set(payload) == {
+            "application_rows_allowed", "authority_commit", "authority_head_commit",
+            "authority_parent", "authority_pr", "authority_tree", "automatic_continuation",
+            "automatic_retry", "candidate_merge_commit", "candidate_tree",
+            "collector_result_schema", "collector_sql_digest", "database_classes",
+            "ddl_allowed", "dml_allowed", "expected_rows", "gate",
+            "managed_dependency_attestation_schema", "max_calls",
+            "observed_transport_schema", "password_allowed", "post_merge_checks",
+            "postgres_major_required", "private_artifact_schema",
+            "private_dependency_attestation_path", "private_env_path",
+            "private_result_path", "private_target_binding_path", "pro_allowed",
+            "q0_allowed", "reader_required", "remediation_allowed", "remote_read_scope",
+            "rpc_allowed", "sanitized_manifest_schema", "schema", "status",
+            "target_alias", "target_binding_schema", "transaction",
+        },
+        "M3 PUBLIC ACL private preflight v2 payload shape drift",
+    )
+    require(
+        raw
+        == json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("ascii")
+        + b"\n",
+        "M3 PUBLIC ACL private preflight v2 payload is not canonical JSON",
+    )
+    require(
+        payload.get("schema") == "f10.10-m3-public-db-acl-private-preflight-payload-v2"
+        and payload.get("gate")
+        == "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2"
+        and payload.get("authority_commit") == base
+        and payload.get("authority_tree")
+        == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE
+        and payload.get("authority_pr") == 370
+        and payload.get("authority_head_commit")
+        == "f6e34a7211ac7bd54c7242d65e9ed2d721d544a3"
+        and payload.get("authority_parent")
+        == "6068f2ac9ef623e06dcc23d9828980641e396c39"
+        and payload.get("candidate_merge_commit") is None
+        and payload.get("candidate_tree") is None,
+        "M3 PUBLIC ACL private preflight v2 payload authority drift",
+    )
+    require(
+        payload.get("collector_sql_digest")
+        == "sha256:c109752ce46d3528920527ea034c929ff4e4e6b477576c1fa7514b3fe26f3d35"
+        and payload.get("target_binding_schema") == "f10.10-m3-target-binding-v2"
+        and payload.get("observed_transport_schema")
+        == "f10.10-m3-observed-transport-v2"
+        and payload.get("collector_result_schema")
+        == "f10.10-m3-public-db-acl-private-result-v1"
+        and payload.get("managed_dependency_attestation_schema")
+        == "f10.10-m3-managed-dependency-attestation-v1"
+        and payload.get("private_artifact_schema")
+        == "f10.10-m3-public-db-acl-private-artifact-v1"
+        and payload.get("sanitized_manifest_schema")
+        == "f10.10-m3-public-db-acl-sanitized-manifest-v1"
+        and payload.get("private_env_path") == "local/f10_10/m3/preflight.env"
+        and payload.get("private_target_binding_path")
+        == "local/f10_10/m3/public-db-acl-target-binding-v2.json"
+        and payload.get("private_dependency_attestation_path")
+        == "local/f10_10/m3/public-db-acl-managed-dependency-attestation-v1.json"
+        and payload.get("private_result_path")
+        == "local/f10_10/m3/public-db-acl-private-result-v1.json"
+        and payload.get("transaction") == "REPEATABLE_READ_READ_ONLY"
+        and payload.get("target_alias") == "FREE_DB"
+        and payload.get("max_calls") == 1
+        and payload.get("expected_rows") == 1,
+        "M3 PUBLIC ACL private preflight v2 payload contract drift",
+    )
+    require(
+        payload.get("application_rows_allowed") == 0
+        and payload.get("postgres_major_required") == 17
+        and payload.get("database_classes")
+        == ["TARGET", "OTHER_CONNECTABLE", "NON_CONNECTABLE"]
+        and payload.get("post_merge_checks")
+        == [
+            {"conclusion": "success", "name": "Security Audit Gate", "run_id": 31707738912},
+            {
+                "conclusion": "success",
+                "name": "F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract",
+                "run_id": 31707738896,
+            },
+        ]
+        and payload.get("status")
+        == "PENDING_CANONICAL_TARGET_AND_OBSERVED_TRANSPORT_BINDING_HUMAN_APPROVAL_NOT_EXECUTED",
+        "M3 PUBLIC ACL private preflight v2 payload evidence drift",
+    )
+    for field in (
+        "automatic_continuation", "automatic_retry", "ddl_allowed", "dml_allowed",
+        "password_allowed", "pro_allowed", "q0_allowed", "reader_required",
+        "remediation_allowed", "rpc_allowed",
+    ):
+        require(payload.get(field) is False, f"M3 PUBLIC ACL private preflight v2 enables {field}")
+    validate_context_graph(repo, 58, 377)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2161,6 +2326,15 @@ def detect_mode(
         )
     ):
         return "f1010_m3_public_acl_preflight_post_merge"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_private_preflight_v2_payload"
     if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
     if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
@@ -2283,6 +2457,13 @@ def main() -> int:
                 raise BoundaryError(
                     "F10.10 M3 PUBLIC ACL preflight post-merge branch requires its frozen protected desarrollo baseline"
                 )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL private preflight v2 payload branch requires its frozen protected desarrollo baseline"
+                )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
@@ -2307,6 +2488,12 @@ def main() -> int:
             touched_f1010_m3_public_acl_preflight_post_merge = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS
             )
+            touched_f1010_m3_public_acl_private_preflight_v2_payload = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS
+            )
+            if touched_f1010_m3_public_acl_private_preflight_v2_payload:
+                touched_f1010_m3_public_acl_preflight = set()
+                touched_f1010_m3_public_acl_preflight_post_merge = set()
             if touched_f1010_m3_public_acl_preflight_post_merge:
                 touched_f1010_m3_public_acl_preflight = set()
             require(
@@ -2326,6 +2513,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_v3_bound,
                         touched_f1010_m3_public_acl_preflight,
                         touched_f1010_m3_public_acl_preflight_post_merge,
+                        touched_f1010_m3_public_acl_private_preflight_v2_payload,
                     )
                 )
                 <= 1,
@@ -2423,6 +2611,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL preflight post-merge delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_preflight_post_merge"
+            elif touched_f1010_m3_public_acl_private_preflight_v2_payload:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL private preflight v2 payload paths require the protected payload branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL private preflight v2 payload delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_private_preflight_v2_payload"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -2549,6 +2748,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_preflight_post_merge":
             validate_f1010_m3_public_acl_preflight_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_private_preflight_v2_payload":
+            validate_f1010_m3_public_acl_private_preflight_v2_payload(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
