@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Gate | `F10.10/M3` |
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
 | Target unico | `FREE_DB` |
 | Collector | `f10.10-m3-readonly-collector-v2` |
 | Canonical | `f10.10-m3-canonical-v2` |
-| Acceso remoto vigente | `BLOQUEADO_POST_DDL_V2` |
-| Gates consumidos | Preflight una vez PASS; DDL v1 y v2 una vez cada una FAIL+rollback |
+| Acceso remoto vigente | `BLOQUEADO_POST_DIAGNOSTIC_STOP` |
+| Gates consumidos | Preflight reader PASS; DDL reader v1/v2 FAIL+rollback; diagnostico bound STOP, una vez cada uno |
 | Autoriza Certification / Pro / M4 | `NO / NO / NO` |
 
 Este documento es el scope autoritativo M3 reader v2. Sustituye todas las
@@ -104,6 +104,25 @@ collector y fixture, reserva `fase10_10_m3_free_reader_free_ddl_v2` y no genera
 binding ni capacidad ejecutable hasta PR #363. La preparacion posterior genero
 el payload v2; PR #364 lo promovio y su unica llamada fallo con rollback por
 privilegios efectivos `PUBLIC`. Las identidades v1 y v2 no pueden reutilizarse.
+
+## Resultado Del Diagnostico Bound
+
+El gate `APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND` fue consumido
+una vez contra el candidate y binding promovidos. Hubo exactamente una llamada
+`execute_sql`, sin retry, con transaccion PostgreSQL 17 `REPEATABLE READ READ
+ONLY`; la decision fue `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`.
+
+| Clase | Conteos publicados | Resultado |
+|---|---|---|
+| `TARGET` (`postgres`) | total 1; conectable `true`; `PUBLIC CONNECT=1`; violaciones 1 | `NONCONFORMANT` |
+| `OTHER_CONNECTABLE` | conectables 1; violaciones 1 | `NONCONFORMANT` |
+| `NON_CONNECTABLE` | total 1; `PUBLIC CONNECT=1`; `PUBLIC TEMPORARY=0`; `PUBLIC CREATE=0` | `CONFORMANT_IMMUTABLE` |
+
+La tolerancia formal de `CONNECT` para `NON_CONNECTABLE` permanece conforme solo
+mientras la clase siga no conectable; este resultado se congela como inmutable.
+La ejecucion produjo cero filas de aplicacion y cero DDL, DML, RPC, provider,
+writer o Pro. La evidencia sanitizada enlazada conserva bindings y conteos sin
+nombres privados, OIDs, owners, grantors, referencias de proyecto ni secretos.
 
 ## Provisioner PostgreSQL 17
 
@@ -354,7 +373,7 @@ APPROVE_F10_10_M3_READER_DDL_FREE_V2 = CONSUMED_ONCE_FAILED_ROLLBACK
 APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE = CONSUMED_ONCE_STOP_CANDIDATE_BINDING_PENDING_ZERO_REMOTE_CALLS
 APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V2 = SUPERSEDED_NOT_EXECUTED
 APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3 = SUPERSEDED_BY_BOUND_IDENTITY_NOT_EXECUTED
-APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND = PENDING_HUMAN_APPROVAL_NOT_EXECUTED
+APPROVE_F10_10_M3_PUBLIC_DB_ACL_DIAGNOSTIC_FREE_V3_BOUND = CONSUMED_ONCE
 APPROVE_F10_10_M3_READER_Q0_FREE = NOT_CONSUMED
 APPROVE_M3_FREE_READONLY = NOT_CONSUMED
 APPROVE_F10_10_M3_READER_TEARDOWN_FREE = NOT_CONSUMED
@@ -365,7 +384,8 @@ DDL v1 fue consumido una vez y termino rollback; no puede reutilizarse. DDL v2
 tambien fue consumido una vez y termino `STOP_BROAD_PUBLIC_DATABASE_PRIVILEGES`
 antes de `CREATE ROLE`, con rollback transaccional y sin retry/fallback; ver
 [evidencia DDL v2](./m3_reader_f10_10_ddl_free_v2_execution_evidence_2026_08_12.md).
-Su identidad tampoco puede reutilizarse. Q0 Free,
+Su identidad tampoco puede reutilizarse. El [resultado sanitizado del diagnostico bound](./m3_public_db_acl_diagnostic_free_v3_bound_result_2026_08_12.md)
+registra `CONSUMED_ONCE` y `STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`. Q0 Free,
 lectura y teardown siguen no consumidos/no ejecutables. Ningun gate concede el
 siguiente.
 
@@ -375,6 +395,9 @@ Su ejecucion no uso red ni password y termino PASS. No autoriza el gate DDL.
 La ventana del preflight no se reutiliza para DDL. El payload DDL separado exige
 el candidate de proyeccion promovido y un binding offline nuevamente vigente.
 Certification, Pro, M4-M10, F10.9/G4, schedules, observacion y F11.1 permanecen
-bloqueados. En este corte hubo exactamente una llamada Supabase
-`apply_migration` DDL v2, fallida y revertida antes de `CREATE ROLE`; no hubo
-password, retry, fallback, Q0, lectura ni teardown.
+bloqueados. Q0, lectura y teardown no fueron consumidos. Los unicos gates futuros
+propuestos son `APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_REMEDIATION_FREE_V1`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_POSTFLIGHT_FREE_V1` y, solo despues de
+postflight conforme, reader v3; ninguno
+esta creado, aprobado o consumido.

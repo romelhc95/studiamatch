@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL` |
+| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` con metadata cero preservada |
@@ -19,8 +19,9 @@ fisico.
 El [rebaseline M3 reader](./m3_reader_f10_10_rebaseline.md) introduce una
 excepcion preparatoria Free-only al veto general de DDL de esta version del plan:
 un package local para crear y retirar exclusivamente el rol efimero
-`studiamatch_m3_reader`. La excepcion no esta ejecutada ni autorizada remotamente,
-no modifica schema de aplicacion, tablas, RLS, policies, triggers ni datos, y solo
+`studiamatch_m3_reader`. Las DDL reader v1/v2 fueron consumidas y revertidas; no
+existe capacidad vigente. El diagnostico ACL posterior fue read-only y termino
+STOP. La excepcion no modifica schema de aplicacion, tablas, RLS, policies, triggers ni datos, y solo
 podra ser operativa despues de merge protegido, CI/post-merge y gates/payload
 separados. Certification y Pro quedan fuera de la excepcion.
 
@@ -60,7 +61,7 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
-| `M3` | Preparar canal Free y luego diagnostico read-only por gates separados | Reader efimero, Q0 separado, cohorte doble y fingerprints | Candidate post-merge verificado; remoto bloqueado |
+| `M3` | Remediar ACL PUBLIC Free por gates separados y luego preparar reader v3 | Preflight privado, remediacion, postflight conforme; Q0 posterior separado | Diagnostico STOP; candidate de preflight privado pendiente de promocion |
 | `M4` | Generar propuestas privadas | Candidate atribuible, budget respetado, cero DB writes | Provider sin writer |
 | `M5` | Revision editorial | 100% outputs provider revisados; solo aprobados son elegibles | Humano |
 | `M6` | Pilot maximo 5 | exact-one, verify, cero no-cohorte | Writer acotado |
@@ -70,7 +71,13 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M10` | Handoff de autoridad | Decision separada sobre F10.9/G4 | Docs/Git |
 
 Ningun gate concede el siguiente. M0 no autoriza M1. M2 no autoriza environments.
-El M3 reader v2 tiene un unico target `FREE_DB` y approvals Free separados. La
+El M3 reader tiene un unico target `FREE_DB` y approvals Free separados. El
+diagnostico bound observo TARGET y OTHER_CONNECTABLE no conformes y
+NON_CONNECTABLE conforme e inmutable. Solo se proponen como gates futuros
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_REMEDIATION_FREE_V1`,
+`APPROVE_F10_10_M3_PUBLIC_DB_ACL_POSTFLIGHT_FREE_V1` y, despues, reader v3; no
+estan creados, aprobados ni consumidos. La
 unidad de datos es el target fisico inmutable `(project_ref, host_fingerprint)`.
 Certification y Pro no reciben replay, collector, cohorte ni apply en este
 rebaseline; toda secuencia anterior entre ambientes queda superseded.
@@ -306,7 +313,7 @@ ejecutable. Ningun gate historico concede M4.
 ### Rebaseline Posterior Del Reader
 
 El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_PUBLIC_DB_ACL_DIAGNOSTIC_V3_BOUND_PENDING_HUMAN_APPROVAL`: PR #353 promovio collector
+es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
 El run `31513546109` preserva intento 1 `FAIL_TRANSIENT_LOCAL_SOCKET_AFTER_READY`
@@ -345,13 +352,17 @@ conservan intencionalmente y son validos dentro de v2; manifest/binding v1 sigue
 rechazado y no existe `q0-attestation-v2`.
 
 El gate preflight Free fue consumido una vez y termino PASS. DDL v1 y v2 fueron
-consumidas una vez cada una y terminaron rollback; ambas quedan no reutilizables. Q0 Free,
-lectura y teardown Free estan no consumidos. Los CI anteriores al run
-`31533516407`, PostgreSQL 17 local y rotacion atestada conservan su evidencia
-historica PASS. El rebaseline offline clasifica bases por conectabilidad y prepara
-un diagnostico `pg_catalog` counts/flags-only bajo gate separado, aun no ejecutado.
-No hubo passwords ni lectura funcional remota. Certification,
-Pro, M4-M10, F10.9/G4, schedules y F11.1 permanecen bloqueados.
+consumidas una vez cada una y terminaron rollback; ambas quedan no reutilizables.
+El diagnostico bound consumio una llamada `execute_sql` sin retry bajo PostgreSQL
+17 `REPEATABLE READ READ ONLY` y termino
+`STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED`: TARGET y OTHER_CONNECTABLE no
+conformes; NON_CONNECTABLE conforme e inmutable. Hubo cero filas de aplicacion,
+DDL/DML/RPC/provider/writer/Pro. Q0 Free, lectura y teardown Free estan no
+consumidos. Los CI anteriores al run `31533516407`, PostgreSQL 17 local y
+rotacion atestada conservan su evidencia historica PASS. El diagnostico
+`pg_catalog` counts/flags-only bajo gate separado fue consumido una vez y produjo
+STOP. No hubo passwords ni lectura funcional remota. Certification, Pro, M4-M10,
+F10.9/G4, schedules y F11.1 permanecen bloqueados.
 
 La contrasena SQL usada previamente por un canary local fue rotada/revocada fuera
 de banda segun [atestacion sanitizada](./m3_reader_f10_10_rotation_attestation_2026_08_11.md)
