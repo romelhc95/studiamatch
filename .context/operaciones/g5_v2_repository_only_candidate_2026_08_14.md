@@ -42,6 +42,19 @@ merge tienen tree identico. G5 v2 conserva el mismo estado, gate y STOP.
 
 ## Reconciliacion
 
+PR #379 integro el contrato offline v1 mediante merge
+`c28e5b86e6be29bbb2444bedd9b9407d1e7b0974`, tree
+`22de9d315ff26b0a8b0e8ae991a338473fbdbe11`, parents
+`bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3` y
+`e1d2ebce7db8955af3eede4b85293ec9144c05f3`. Security Audit
+`31839739068=PASS` y F9.7 `31839739054=PASS`. Su resultado se reclasifica
+`MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED`: v1 queda congelado como
+`HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE` porque aceptaba providers
+ejecutables y atestaciones hash sin autoridad no forjable. No puede
+reinterpretarse; todo sucesor usa contrato/schema/algoritmo v2 y conserva gate
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y connected mode
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
+
 El [candidate G5 v1](./g5_production_readonly_candidate_2026_08_14.md) queda
 `COMPLETED_POST_MERGE_VERIFIED`: PR #376 integro candidate
 `520b0fc3f039d279faadb102fa0f13f3725a58ee` mediante merge protegido

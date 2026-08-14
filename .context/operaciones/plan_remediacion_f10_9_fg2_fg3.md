@@ -39,7 +39,7 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
 | `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
 | `ADR-0011` | `COMPLETED_POST_MERGE_VERIFIED` | PR #375 integrado en `desarrollo@2c9d2438c5fc309d3692d1a1de1233e0fcc95afc` / tree `161a8df69bf5e527c4ba863891504551ec5f7aa7`; Security Audit `31768101859=PASS` y F9.7 `31768101887=PASS`. |
-| `G5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #378 congelo [G5 v2 repository-only](./g5_v2_repository_only_candidate_2026_08_14.md) en `desarrollo@bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3` / tree `dabf61ced4012419c4cd9f688506b4fe77e613dd`; Security Audit `31824928169=PASS` y F9.7 `31824928240=PASS`. El [contrato offline GET-only](./g5_get_only_adapter_contract_2026_08_14.md) queda preparado para review, sin adapter de red o gate conectado; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`. |
+| `G5` | `MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED` | PR #379 fue verificado en `desarrollo@c28e5b86e6be29bbb2444bedd9b9407d1e7b0974` / tree `22de9d315ff26b0a8b0e8ae991a338473fbdbe11`; Security Audit `31839739068=PASS` y F9.7 `31839739054=PASS`. V1 queda antecedente no apto para connected mode. El [sucesor offline GET-only v2](./g5_get_only_adapter_contract_2026_08_14.md) valida estructura y termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`, connected mode `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. |
 | `P7` | `REOPENED_AUTHORIZATION_REQUIRED` | Integracion CA1 FG2/FG3 despues de cerrar gates operativos separados. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
@@ -485,11 +485,16 @@ no relacionados quedan fuera. El gate permanece
 `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y el entrypoint conectado termina
 `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` aun con precondiciones simuladas.
 
-PR #378 congelo v2 post-merge. El
-[contrato offline GET-only](./g5_get_only_adapter_contract_2026_08_14.md) define
-trust model, target binding, orden de autorizacion, capabilities, paginacion,
-clock/timing y providers independientes sin implementar transport. Connected
-mode y el gate permanecen intactos.
+PR #379 fue fusionado y verificado, pero su contrato v1 queda
+`MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED`: aceptaba objetos ejecutables y
+hashes auto-forjables como autoridad aparente. V1 se congela como antecedente no
+apto para connected mode, sin reinterpretacion silenciosa. El
+[contrato offline GET-only](./g5_get_only_adapter_contract_2026_08_14.md) sucesor
+versiona contrato/schema/algoritmo v2, consume solo datos pre-materializados y,
+despues de validar estructura, termina
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Connected mode y gate permanecen
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` y
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`.
 
 ### G6 - Remediaciones Operativas CA1 Separadas
 

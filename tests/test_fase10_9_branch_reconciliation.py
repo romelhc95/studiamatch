@@ -3724,6 +3724,26 @@ class F109BoundaryTest(unittest.TestCase):
     def test_g5_get_only_adapter_accepts_exact_candidate(
         self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
     ) -> None:
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_BASE,
+            "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_BASE_TREE,
+            "22de9d315ff26b0a8b0e8ae991a338473fbdbe11",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
+            "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_CANDIDATE,
+            "e1d2ebce7db8955af3eede4b85293ec9144c05f3",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_HEAD_REF,
+            "fix/f10-9-g5-get-only-contract-v2",
+        )
         head = "a" * 40
         tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
         parents_mock.side_effect = lambda _repo, commit: {
@@ -3743,7 +3763,41 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 67, 407)
+        context_mock.assert_called_once_with(Path("."), 67, 405)
+
+    def test_g5_get_only_adapter_successor_allowlist_is_exact_nine_modified_paths(self) -> None:
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+                ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+            },
+        )
+        self.assertEqual(set(G5_GET_ONLY_ADAPTER_ALLOWED_MODES.values()), {"100644"})
+
+    def test_g5_get_only_adapter_v2_required_security_markers(self) -> None:
+        source = Path(
+            "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+        ).read_text(encoding="utf-8")
+        for marker in (
+            "class FrozenRow",
+            "class LifecycleEvidence",
+            "historical_observation_fingerprint",
+            "prior_mutation_fingerprint",
+            "validate_source_coverage",
+            "validate_lifecycle_evidence",
+            "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        ):
+            self.assertIn(marker, source)
+        for forbidden in ("asdict", "row: Mapping", "Protocol", "runtime_checkable"):
+            self.assertNotIn(forbidden, source)
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")
@@ -3773,7 +3827,7 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 67, 407)
+        context_mock.assert_called_once_with(Path("."), 67, 405)
 
     @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="0" * 40)
     @mock.patch("scripts.security.f109_boundary.require_sha")

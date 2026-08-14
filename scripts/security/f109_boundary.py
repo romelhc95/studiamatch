@@ -136,11 +136,12 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "dabf61ced4012419c4cd9f688506b4fe77e613dd"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = G5_V2_POST_MERGE_BASE
-G5_GET_ONLY_ADAPTER_CANDIDATE = "9dbf6171a340fc0ca3905369f73d99e1056ffee9"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-adapter-contract"
+G5_GET_ONLY_ADAPTER_BASE = "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "22de9d315ff26b0a8b0e8ae991a338473fbdbe11"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3"
+# PR #379 is the protected base's second parent. The successor commit does not exist yet.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "e1d2ebce7db8955af3eede4b85293ec9144c05f3"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -529,13 +530,13 @@ G5_V2_POST_MERGE_ALLOWED_MODES = {
 G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
     ".context/estado_del_proyecto.md": "M",
-    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "A",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
     ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
     "scripts/security/f109_boundary.py": "M",
-    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "A",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
     "tests/test_fase10_9_branch_reconciliation.py": "M",
-    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "A",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
 }
 G5_GET_ONLY_ADAPTER_ALLOWED_MODES = {
     path: "100644" for path in G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES
@@ -2916,10 +2917,37 @@ def validate_g5_get_only_adapter(
         },
         "G5 adapter forbidden indirect capability",
     )
+    for forbidden in (
+        "class GateAttestation",
+        "class CredentialAvailabilityAttestation",
+        "class HistoricalFG3AnchorProvider",
+        "class SourceObservationProvider",
+        "Protocol",
+        "runtime_checkable",
+        "obtain_independent_historical_anchor",
+        "asdict",
+        "row: Mapping",
+    ):
+        require(forbidden not in contract, "G5 adapter v1 trust surface returned")
     for required in (
-        "f10.9-g5-get-only-adapter-contract.v1",
-        "HistoricalFG3AnchorProvider",
-        "SourceObservationProvider",
+        "f10.9-g5-get-only-adapter-contract.v2",
+        "f10.9-g5-get-only-adapter-schema.v2",
+        "f10.9-g5-get-only-adapter-v2",
+        "ManifestBuilderEvidenceReceipt",
+        "AnchorProviderEvidenceReceipt",
+        "class FrozenRow",
+        "class LifecycleEvidence",
+        "historical_observation_fingerprint",
+        "prior_mutation_fingerprint",
+        "validate_source_coverage",
+        "validate_lifecycle_evidence",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "STOP_G5_SNAPSHOT_CONTENT_DRIFT",
+        "CLOCK_DURATION_TOLERANCE_NS = 250_000_000",
+        "MAX_IMMUTABLE_DEPTH = 8",
+        "MAX_IMMUTABLE_NODES = 256",
+        "MAX_IMMUTABLE_STRING_BYTES = 8_192",
+        "MAX_IMMUTABLE_INTEGER_ABS = 2**63 - 1",
         "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         G5_GET_ONLY_ADAPTER_BASE,
@@ -2927,13 +2955,15 @@ def validate_g5_get_only_adapter(
     ):
         require(required in contract, "G5 adapter contract drift")
     for required in (
-        "PREPARED_REPOSITORY_ONLY_REVIEW_PENDING",
+        "REMEDIATED_REPOSITORY_ONLY_TRUST_STOP",
+        "MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED",
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31824928169=PASS",
-        "31824928240=PASS",
+        "31839739068=PASS",
+        "31839739054=PASS",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
         "ZERO_NOT_IMPLEMENTED",
     ):
@@ -2944,7 +2974,7 @@ def validate_g5_get_only_adapter(
         and 'raise G5Error("STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED")' in collector,
         "G5 connected-mode unconditional STOP drift",
     )
-    validate_context_graph(repo, 67, 407)
+    validate_context_graph(repo, 67, 405)
 
 
 def detect_mode(
