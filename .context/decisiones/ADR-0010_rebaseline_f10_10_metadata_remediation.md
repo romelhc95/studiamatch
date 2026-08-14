@@ -2,12 +2,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `APPROVED_EFFECTIVE` |
+| Estado | `SUPERSEDED_FOR_HITO_1_PRESERVED_AS_H2_CA2_ANTECEDENT` |
 | Fecha | `2026-08-10` |
 | Autoridad | Decision superior humana del Hito 1 |
 | Subfase creada | `F10.10` |
 | Fase preservada | `F10.9=STOP_REQUIRES_REBASELINE` |
 | Criterio preservado | Cero cursos activos con syllabus/objectives incompletos |
+
+> Superseded para Hito 1 por
+> [ADR-0011](./ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md). La
+> investigacion se conserva como antecedente H2-CA2, sin capacidad heredada.
 
 ## Contexto
 
@@ -93,3 +97,11 @@ Este ADR quedo integrado por PR #343 en
 `31419218575=PASS` y F9.7 `31419218779=PASS` post-merge. M0 queda PASS. M1 fue
 autorizado por alcance humano separado solo para tooling, fixtures y pruebas
 offline; no concede acceso remoto.
+
+## Supersession Acotada
+
+ADR-0011 retira F10.10/M3-M9 de la ruta critica de Hito 1 y transfiere metadata
+a H2-CA2. Esta supersession no reescribe decisiones, evidencia ni gates
+historicos. Hito 2 no puede reutilizar gates, payloads, readers, ACL,
+credentials, bindings, cohortes o aprobaciones descritos aqui; requiere un
+rebaseline nuevo.

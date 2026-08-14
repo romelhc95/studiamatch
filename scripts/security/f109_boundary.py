@@ -121,6 +121,9 @@ F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE = "0382efc31ea3540ac8efa8204621052
 F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF = (
     "fix/f10-10-m3-public-acl-final-readiness"
 )
+F1010_H1_CA1_REBASELINE_BASE = "d8859a52254135561be996a706590f9a005fc7da"
+F1010_H1_CA1_REBASELINE_BASE_TREE = "25a05352b0a3f1319328927539a4f32bb9af827f"
+F1010_H1_CA1_REBASELINE_HEAD_REF = "docs/f10-10-h1-ca1-rebaseline"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -439,6 +442,31 @@ F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_MODES = {
 }
 F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS = {
     ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md"
+}
+
+F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/_index.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md": "A",
+    ".context/decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md": "M",
+    ".context/decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": "M",
+    ".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": "M",
+    ".context/hitos/hito_001.md": "M",
+    ".context/hitos/hito_002.md": "A",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".context/operaciones/rebaseline_f10_10_h1_h2_ca2_2026_08_13.md": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_H1_CA1_REBASELINE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2418,6 +2446,45 @@ def validate_f1010_m3_public_acl_final_readiness(
     validate_context_graph(repo, 60, 378)
 
 
+def validate_f1010_h1_ca1_rebaseline(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_H1_CA1_REBASELINE_BASE,
+        "unexpected F10.10 Hito 1 CA1 rebaseline base",
+    )
+    require_sha(repo, "F1010_H1_CA1_REBASELINE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_H1_CA1_REBASELINE_BASE_TREE,
+        "F10.10 Hito 1 CA1 rebaseline base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "F10.10 Hito 1 CA1 rebaseline push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 Hito 1 CA1 rebaseline merge tree drift",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "F10.10 Hito 1 CA1 rebaseline base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+        F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 64, 391)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2560,6 +2627,12 @@ def detect_mode(
         return "f1010_m3_public_acl_v2_evidence"
     if (
         base_ref == "desarrollo"
+        and base == F1010_H1_CA1_REBASELINE_BASE
+        and (event == "push" or head_ref == F1010_H1_CA1_REBASELINE_HEAD_REF)
+    ):
+        return "f1010_h1_ca1_rebaseline"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -2649,6 +2722,13 @@ def main() -> int:
                 raise BoundaryError("P5 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M2A_HEAD_REF:
                 raise BoundaryError("F10.10 M2a wiring branch requires its frozen baseline")
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_H1_CA1_REBASELINE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 Hito 1 CA1 rebaseline branch requires its frozen baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -3070,6 +3150,10 @@ def main() -> int:
             )
         elif mode == "f1010_m3_public_acl_final_readiness":
             validate_f1010_m3_public_acl_final_readiness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_h1_ca1_rebaseline":
+            validate_f1010_h1_ca1_rebaseline(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

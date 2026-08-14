@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-REM-F10.9-001` |
-| Estado | `G4_STOP_REQUIRES_REBASELINE` |
+| Estado | `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` |
 | Incidente | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) |
 | Subfase | `F10.9` |
 | Hito | `HITO-001` |
@@ -21,12 +21,9 @@ Este plan es subordinado a
 [PLAN-H1-CA1-ONLY-001](./plan_cierre_hito1_ca1_only.md). No crea tarea,
 criterio, subfase ni autorizacion paralela.
 
-Ninguna seccion, estado, gate o fila denominada `Aprobacion pendiente` concede
-capacidad de ejecucion. La regla de autorizacion decimal aplicaba mientras el
-gate anterior permitiera avanzar. Desde G4=`STOP_REQUIRES_REBASELINE`, ninguna
-frase F10.9 autoriza G5-G13: solo una decision de autoridad superior fuera de
-F10.9 puede rebaselinar o trasladar el blocker. Un gate en `PASS` tampoco concede
-el siguiente.
+Ninguna seccion o gate concede ejecucion. ADR-0011 fija
+`G4=PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2` y reabre G5-G13 solo para
+aprobaciones separadas. Un gate en PASS tampoco concede el siguiente.
 
 ## Estado De Ejecucion Del Plan
 
@@ -41,10 +38,10 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P2` | `COMPLETED_POST_MERGE_VERIFIED` | PR #335 integro los cuatro paths exactos mediante `desarrollo@0d87060837586603055ca91629b20815803b3239` / tree `9c04cd75d47654fd8cfb3058b65e8846afd3c5e5`; Security Audit `31361988478=PASS` y F9.7 `31361988498=PASS` post-merge. Ver [evidencia G1/P2](./g1_p2_post_merge_evidence_2026_08_10.md). |
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
 | `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
-| `P7` | `BLOCKED_BY_G4_STOP_REQUIRES_REBASELINE` | G4 no puede demostrar metadata cero y una correccion mutante esta fuera de F10.9. |
+| `P7` | `REOPENED_AUTHORIZATION_REQUIRED` | Integracion CA1 FG2/FG3 despues de cerrar gates operativos separados. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
-| Observacion | `NOT_STARTED` | Pares aceptados `0`; cualquier secuencia empieza despues de remediacion promovida y habilitacion operacional nueva. |
+| Observacion | `NOT_STARTED` | Pares aceptados `0`; exige tres pares naturales consecutivos durante al menos 72 horas. |
 
 Validacion documental local vigente de este snapshot:
 
@@ -54,8 +51,8 @@ Validacion documental local vigente de este snapshot:
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;
-- G1/P2, G2/P3-P4 y G3/P5 quedan trazados por evidencia separada sin importar
-  CA2; G4 queda en STOP y no concede G5.
+- G1/P2, G2/P3-P4 y G3/P5 quedan trazados por evidencia separada. El resultado
+  consumido G4=STOP permanece historico; ADR-0011 lo supersede para estado vivo.
 
 ### R0 - Reconciliacion De Repositorio Y Boundaries
 
@@ -136,7 +133,7 @@ siguen siendo la taxonomia funcional del plan y no cambian de identidad.
 | `P4` | FG3 `probe -> classify -> aggregate -> apply -> verify` | `07`, `09` | Cero mutaciones ante inconcluso; GET confirmatorio; exact-one y segundo NOOP. |
 | `P5` | Gate metadata exclusivamente read-only/fail-closed | Parte no mutante de `08` | Cohorte/digest exactos y salida no cero; sin provider, writer, re-enrichment ni backfill. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | Propuestas mutantes de `03`, `04`, `05` y `08` | No produce SQL, migrations, DDL/DML ni tooling dentro de F10.9. |
-| `P7` | Candidate integrado CA1 runtime, workflows, evidencia y regresion | Partes no mutantes/runtime de `02`, `06`, `07`, `08` y `09` | Candidate inmutable validado en `desarrollo`; promociones quedan en gates posteriores. |
+| `P7` | Candidate integrado CA1 runtime, workflows, evidencia y regresion | Partes CA1 de `02`, `06`, `07` y `09`; `08` transferido a H2 | Candidate inmutable validado en `desarrollo`; promociones quedan en gates posteriores. |
 
 `WP-REM-01` es contencion operacional y no se considera completado por codigo
 local. Requiere una atestacion remota separada antes de cualquier lectura o
@@ -154,8 +151,9 @@ writer contra ambientes.
 | Cursos activos totales post-run | `224` |
 
 Las cantidades son un snapshot diagnostico y deben recalcularse con fingerprint
-antes de decidir si la remediacion cabe en CA1. No autorizan apply. Si alcanzar
-los umbrales exige DDL/DML/backfill, F10.9 produce `STOP_REQUIRES_REBASELINE`.
+antes de decidir si la remediacion cabe en CA1. No autorizan apply. DDL,
+backfill o DML fuera de los applies cohort-bound G6 expresamente aprobados
+produce `STOP_REQUIRES_REBASELINE`.
 
 ## Frontera De Este Plan
 
@@ -224,8 +222,9 @@ SOURCE_TIMEOUT
 
 ## WP-REM-03 - Recuperacion De Lifecycle
 
-El planner read-only pertenece a F10.9. Cualquier apply de transicion de estado
-queda `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE`.
+El planner read-only historico pertenece a F10.9. ADR-0011 reabre cualquier apply
+de transicion solo bajo `G6-B`, con candidate, manifest, aprobacion y rollback
+separados; no autoriza SQL ad hoc, DDL ni ejecucion desde este documento.
 
 Antes de deduplicar, un planner debe clasificar las `798` filas stale:
 
@@ -238,12 +237,14 @@ Antes de deduplicar, un planner debe clasificar las `798` filas stale:
 | Dependencias incompatibles | `HOLD_DEPENDENCY_CONFLICT` |
 
 La antiguedad por si sola nunca autoriza transicion. El planner termina en
-clasificacion/fingerprint; cualquier apply produce `STOP_REQUIRES_REBASELINE`.
+clasificacion/fingerprint. Solo un apply cohort-bound aprobado expresamente en
+`G6-B` puede continuar; cualquier otro apply produce `STOP_REQUIRES_REBASELINE`.
 
 ## WP-REM-04 - Deduplicacion Determinista
 
-La clasificacion/fingerprint read-only pertenece a F10.9. Repoint, archive,
-retire o DELETE quedan `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE`.
+La clasificacion/fingerprint read-only pertenece a F10.9. ADR-0011 reabre
+repoint/archive/retire solo bajo `G6-A`, con candidate, manifest, aprobacion y
+rollback separados. DELETE masivo y SQL ad hoc permanecen prohibidos.
 
 La unidad de reparacion es `normalization_version + normalized_url`. La
 seleccion de survivor prioriza:
@@ -320,16 +321,12 @@ validacion SSRF/pinning en cada redirect. Un inconcluso nunca cambia
 Las mutaciones deben ser condicionales, exact-one, idempotentes y capaces de
 reconciliar `ALREADY_APPLIED` sin aceptar conflicto.
 
-## WP-REM-08 - Gate De Metadata
+## WP-REM-08 - Referencia Metadata Transferida
 
-La decision humana vigente establece gate cero para cursos activos con syllabus
-u objectives faltantes. El conteo incluye null, blank y placeholders.
-
-Los `104` registros tienen texto limpio atribuible, pero no campos enriquecidos
-utiles para backfill directo. F10.9 solo puede medir y bloquear. Re-enrichment,
-fill-only o cualquier writer/backfill estan prohibidos por la frontera CA1-only.
-Si el conteo no puede llegar a cero sin mutacion editorial, el resultado es
-`STOP_REQUIRES_REBASELINE`, no una autorizacion de writer.
+El snapshot `104/224` permanece visible e inmutable como
+`TRANSFERRED_NON_BLOCKING_H2_CA2`. WP-REM-08 deja de ser gate bloqueante de Hito
+1 y se conserva solo como referencia transferida. Re-enrichment, fill-only y
+backfill siguen prohibidos en F10.9.
 
 ## WP-REM-09 - Verificacion De Mutaciones Previas
 
@@ -360,7 +357,6 @@ FG3 debe cubrir:
 - inconcluso cero mutaciones;
 - exact-one, idempotencia y conflicto;
 - paginacion mayor a 1000 y TimeGuard;
-- gate metadata `0`.
 
 ## Rollout
 
@@ -461,144 +457,74 @@ Acciones: determinar si duplicados, stale lifecycle o metadata pueden resolverse
 solo con runtime CA1 y sin modificar schema/datos. No se redacta SQL ni se
 ejecutan providers.
 
-Salida: `PASS_CA1_RUNTIME_ONLY` o `STOP_REQUIRES_REBASELINE`. El segundo resultado
-bloquea G5 y exige una decision de la autoridad superior fuera de F10.9.
+Resultado historico consumido: `STOP_REQUIRES_REBASELINE`; permanece inmutable.
+Decision superior efectiva ADR-0011:
+`PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`. El snapshot `104/224` queda
+visible como deuda H2 no bloqueante. G5-G13 se reabren bajo aprobaciones
+separadas; no se autorizan P6, metadata, SQL ad hoc, DDL, backfill,
+re-enrichment ni cambios editoriales.
 
-Decision registrada: `STOP_REQUIRES_REBASELINE`. El snapshot conocido conserva
-`104/224` cursos activos incompletos, no existe una atestacion vigente que
-demuestre cero y cualquier correccion necesaria exige capacidades mutantes
-prohibidas en F10.9. G5/P7 y todos los gates posteriores quedan bloqueados hasta
-una decision de autoridad superior fuera de F10.9. No autoriza P6, SQL, DDL/DML,
-backfill, re-enrichment ni cambios editoriales.
+### G5 - Diagnostico Production Read-Only
 
-### G5 - P7 Candidate Integrado
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Ejecuta solo conteos/reason codes y
+fingerprints sanitizados. Debe identificar blockers CA1 de duplicados,
+lifecycle, perfiles/fuentes, FG3 inconcluso, 404 y desactivacion. No incluye gate
+metadata ni writers.
 
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+### G6 - Remediaciones Operativas CA1 Separadas
 
-Entrada: G1-G3 PASS y G4=`PASS_CA1_RUNTIME_ONLY`.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Cada subgate requiere manifest,
+aprobacion y rollback propios; ninguno concede el siguiente:
 
-Acciones: integrar P2-P5 dentro de la frontera CA1, workflows en estado pausado,
-tests y evidencia; abrir PR protegido a `desarrollo` y ejecutar security-auditor.
+- `G6-A`: deduplicacion, repoint y archive; cero DELETE masivo.
+- `G6-B`: transiciones lifecycle justificadas por evidencia.
+- `G6-C`: correcciones de perfiles y fuentes sin debilitar SSRF.
+- `G6-D`: revalidacion GET y restauracion FG3 de flags/404/desactivacion.
 
-Salida: candidate commit/tree/digest inmutable y CI de `desarrollo` PASS. No
-promueve a `certificacion` ni exige QA Certification en este gate.
+### G7 - Integracion P7 En Desarrollo
 
-Autorizacion suspendida: ninguna frase F10.9 habilita P7 mientras G4 permanezca
-en STOP. Requiere rebaseline de autoridad superior fuera de F10.9.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Integra exclusivamente runtime CA1,
+tests y evidencia por PR protegido a `desarrollo`; exige candidate inmutable, CI,
+credential scan y security review PASS.
 
-### G6 - Contencion Operacional Atestada
+### G8 - Certification
 
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Reconstruye el patch CA1 sobre el tip
+protegido de `certificacion`; exige equivalencia, CI y QA. No ejecuta metadata.
 
-Entrada: antes del primer acceso remoto a environments o data plane. Los pushes,
-CI, reviews y merges Git de G0/G5 no cuentan como acceso data plane.
+### G9 - Main
 
-Acciones: verificar kill switches de FG2/FG3, cero runs activos y metadata de
-environments sin leer valores secretos.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Promueve solo el patch CA1 certificado
+por PR protegido a `main`, con writers/schedules pausados. La salida exige CI
+post-merge PASS y cero paths CA2/editoriales; metadata cero no es umbral.
 
-Salida: atestacion sanitizada con SHA/tree y estado fail-closed.
+### G10 - Freeze Operacional Pre-Schedules
 
-Autorizacion suspendida por G4 STOP; no ejecutar operacion GitHub de contencion.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Congela SHA/tree/runtime/config y
+revalida kill switches, branch policy, cron main-only y ausencia de runs activos.
 
-### G7 - Promocion Certification
+### G11 - GO_SCHEDULES
 
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Confirma cero blockers CA1 de
+duplicados, lifecycle, perfiles/fuentes, inconclusos FG3, 404 y desactivacion.
+Salida: `GO_SCHEDULES` o STOP. Metadata cero no participa.
 
-Entrada: G5 y G6 PASS.
+### G12 - Habilitacion Gradual Y Primer Par Natural
 
-Acciones: reconstruir el patch CA1 sobre el tip protegido de `certificacion`,
-ejecutar CI, canary acotado permitido y QA independiente.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Habilita FG2 y, solo despues de su run
+natural completo, FG3. Salida: primer par natural valido. Dispatches y reruns no
+cuentan.
 
-Salida: equivalencia patch/tree/digest, CI PASS, canary sin mutacion fuera de la
-frontera y QA PASS.
+### G13 - Observacion Natural Y Cierre F10.9
 
-Autorizacion suspendida por G4 STOP; no promover ni ejecutar canary Certification.
+Estado: `REOPENED_AUTHORIZATION_REQUIRED`. Registra tres pares naturales FG2 ->
+FG3 consecutivos durante al menos 72 horas, medidos desde el inicio del primer
+FG2 aceptado hasta el cierre del tercer FG3 aceptado, sin drift.
 
-### G8 - Promocion Main
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: G7 PASS y candidate certificado inmutable.
-
-Acciones: promover exclusivamente el patch CA1 certificado mediante PR protegido
-a `main`; observar checks y deployment sin ejecutar schedules.
-
-Salida: main SHA/tree/digest, CI post-merge PASS, cero paths CA2/DB/editoriales y
-writers programados aun pausados.
-
-Autorizacion suspendida por G4 STOP; no promover a Main ni ejecutar release.
-
-### G9 - Diagnostico Production Read-Only
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: G8 PASS y contencion G6 revalidada.
-
-Acciones: ejecutar preflight FG2, source probes autorizados, FG3 probe-only y
-gate metadata sin writers. No se usa Free como ruta de aplicacion.
-
-Salida: cero blockers runtime CA1, cero inconclusos, cero perfiles invalidos y
-cero cursos activos incompletos. Cualquier necesidad de mutacion produce STOP.
-
-Autorizacion suspendida por G4 STOP; no acceder a Production ni al data plane.
-
-### G10 - Gate Final Antes De Schedules
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: G9 PASS.
-
-Acciones: congelar candidate/runtime/config, revalidar kill switches, branch
-policy, cron main-only y ausencia de runs activos.
-
-Salida: autorizacion-ready manifest para habilitacion gradual, sin cambiar
-variables ni schedules en este gate.
-
-Autorizacion suspendida por G4 STOP; no preparar manifest operativo ni schedules.
-
-### G11 - Decision GO/NO-GO De Habilitacion
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: G10 PASS y manifests vigentes.
-
-Acciones: confirmar que todos los hallazgos estan en cero sin DDL/DML/backfill y
-que la remediacion permanece CA1-only.
-
-Salida: `GO_SCHEDULES` o `STOP_REQUIRES_REBASELINE`.
-
-Decision suspendida por G4 STOP; `GO_SCHEDULES` no es alcanzable en este baseline.
-
-### G12 - Diagnostico Y Habilitacion Gradual
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: G11=`GO_SCHEDULES`.
-
-Acciones: FG2 preflight global, source probes autorizados, FG3 probe-only y gate
-metadata; despues habilitar FG2 y, solo tras su primer natural completo, FG3.
-
-Salida: primer par natural valido. Dispatches y reruns no cuentan.
-
-Autorizaciones suspendidas por G4 STOP; no cambiar diagnosticos, variables ni
-schedules.
-
-### G13 - Observacion Y Cierre F10.9
-
-Estado: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-
-Entrada: primer FG2 natural valido posterior a remediacion.
-
-Acciones: registrar tres pares naturales FG2 -> FG3 consecutivos durante al
-menos 72 horas, sin drift de SHA, config, profile, secrets o runtime.
-
-Salida: `EVID-H1-011/012=VERIFIED` solo si se cumplen todos los umbrales. Para
-`EVID-H1-013` tambien se exige Production Canary FG1 PASS y cron mensual FG1
-activo/main-only; cualquier waiver requiere decision separada. `EVID-H1-016` y
-F11.1 permanecen como aprobacion/cierre posterior separado.
-
-Autorizacion suspendida por G4 STOP; no habilitar observacion. F11.1 no queda
-autorizada.
+`EVID-H1-011/012=VERIFIED` exige los tres pares. `EVID-H1-013` exige ademas FG1
+Production PASS y cron mensual activo/main-only. `EVID-H1-016` y F11.1 son
+posteriores y separados. Dispatches, reruns y ejecuciones manuales acreditan cero
+evidencia natural.
 
 ## Manifest Minimo Por Gate
 
@@ -647,7 +573,8 @@ mutaciones ante blocker.
 - Drift de cantidades, schema, SHA, profile o dependency produce STOP.
 - Fallo de backup/restore, exact-one, segundo NOOP o non-cohort attestation
   produce STOP.
-- Cualquier necesidad de SQL, DDL/DML o mutacion editorial produce
+- SQL ad hoc, DDL, metadata/backfill o DML fuera de los applies cohort-bound
+  aprobados expresamente en `G6-A`, `G6-B` o `G6-D` produce
   `STOP_REQUIRES_REBASELINE`; no se improvisa una ruta de apply.
 - Cualquier cambio runtime/config durante observacion reinicia la secuencia.
 
@@ -657,13 +584,16 @@ mutaciones ante blocker.
 |---|---|
 | Boundaries/reconciliacion R0 | F10.9 Git/CI y review humano por PR |
 | P1-P5 codigo/tests/docs | Consumido por packages y PRs protegidos ya verificados |
-| P7/G5-G13 | Suspendidos por G4 STOP; requieren rebaseline de autoridad superior fuera de F10.9 |
-| Kill switch | Suspendido por G4 STOP |
-| Promocion/canary Certification | Suspendida por G4 STOP |
-| Promocion a main | Suspendida por G4 STOP |
-| Diagnostico Production read-only | Suspendido por G4 STOP |
-| Schedules/retries/dispatches | Suspendidos por G4 STOP |
-| Observacion natural 72h | Suspendida por G4 STOP |
+| Diagnostico Production read-only G5 | Reabierto; aprobacion separada pendiente |
+| Deduplicacion/repoint/archive G6-A | Reabierto; aprobacion separada pendiente |
+| Lifecycle G6-B | Reabierto; aprobacion separada pendiente |
+| Perfiles/fuentes G6-C | Reabierto; aprobacion separada pendiente |
+| Revalidacion/restauracion FG3 G6-D | Reabierto; aprobacion separada pendiente |
+| Integracion P7 G7 | Reabierta; PR protegido separado |
+| Certification G8 | Reabierta; aprobacion separada pendiente |
+| Main G9 | Reabierta; aprobacion separada pendiente |
+| GO_SCHEDULES G11 | Reabierto; aprobacion separada pendiente |
+| Observacion natural 72h G13 | Reabierta despues de G12; aprobacion separada pendiente |
 | Conformidad y cierre | F11.1 y aprobacion cliente separadas |
 
 DDL, DML de reparacion ad hoc, SQL/migrations y re-enrichment/backfill no tienen
@@ -676,10 +606,11 @@ ordinarias y cohort-bound de FG2/FG3 posteriores a `GO_SCHEDULES`.
 - Cero duplicados normalizados y cero stale `processing`.
 - Cero perfiles invalidos habilitados.
 - FG2 completo SUCCESS/NOOP en todas sus estaciones.
-- Cero cursos activos incompletos.
 - FG3 cohorte completa, cero inconclusos y mutaciones confirmadas.
 - Tres pares naturales FG2 -> FG3 consecutivos durante al menos 72h.
 - `EVID-H1-011..013=VERIFIED` solo despues de cumplir todos los umbrales.
+- `EVID-H1-016` posterior a la observacion.
+- Metadata `104/224` visible como `TRANSFERRED_NON_BLOCKING_H2_CA2`.
 
 ## Evidencia
 

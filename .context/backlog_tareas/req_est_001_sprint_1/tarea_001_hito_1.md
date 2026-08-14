@@ -6,7 +6,7 @@
 | Estado | `IN_PROGRESS` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
-| Fase vigente | Macrofase `F9` completada y `F10.10` en `M3_PUBLIC_DB_ACL_FINAL_READINESS_RACE_REMEDIATION_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED`. Run post-merge `31724004476` fallo fail-closed por carrera local de init; readiness candidate pendiente de promocion y consumer binding fuera de alcance. |
+| Fase vigente | `F10.9=REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION`; `F10.10=SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2`. |
 | Criterios activos | `H1-CA1` |
 | Criterios historicos | `H1-CA2P` y `H1-CA7P` preservados como antecedentes; alcance pendiente trasladado a `H2-CA2` y `H4-CA7` |
 | Adenda vigente | [ADENDA-REQ-EST-001-001](./adenda_cliente_001_sanitizada.md), `APPROVED_EFFECTIVE` |
@@ -19,7 +19,9 @@ El [seguimiento detallado de Hito 1](./seguimiento_detallado_hito_1.md) es una v
 
 ## Objetivo Contractual
 
-Cerrar Hito 1 con `H1-CA1` exclusivamente: schedules y operacion segura de FG2/FG3, con FG1 como soporte operativo, sin saltar gates, circuit breakers ni controles de credenciales.
+Cerrar Hito 1 con `H1-CA1` exclusivamente: schedules y operacion segura de
+FG2/FG3, con FG1 como soporte, sin saltar gates/circuit breakers, y tres pares
+naturales FG2 -> FG3 consecutivos durante al menos 72 horas.
 
 ## Rebaseline Vigente CA1-Only
 
@@ -84,32 +86,33 @@ pares vuelve a `0` y la ventana de 72h queda `NOT_STARTED` segun
 
 [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md)
 registra contencion, hardening, planners y gates separados. El plan no autoriza
-kill switch, codigo, DDL/DML, backfill, schedules ni retries por si mismo. La
-decision humana vigente exige cero cursos activos sin syllabus/objectives antes
-del cierre. `H1-CA1` no cambia y no se crean subtareas ni criterios nuevos.
+ejecucion por si mismo. [ADR-0011](../../decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
+reclasifica los `104/224` incompletos como
+`TRANSFERRED_NON_BLOCKING_H2_CA2`; metadata cero deja de ser criterio de cierre.
 
 ### Secuencia Paso A Paso F10.9
 
-La secuencia historicamente planificada se documenta en
+La secuencia vigente se documenta en
 [PLAN-REM-F10.9-001](../../operaciones/plan_remediacion_f10_9_fg2_fg3.md). G0-G3
-fueron consumidos; G4 produjo STOP. Ninguna frase F10.9 habilita ahora G5-G13:
-requieren primero una decision de autoridad superior fuera de F10.9.
+permanecen consumidos e inmutables. ADR-0011 cambia solo G4 y reabre G5-G13 bajo
+aprobaciones separadas; este documento no las concede.
 
 1. `G0`: cerrar R0 y estabilizar/integrar P1 sobre ancestry protegido conforme a
    [G0-R0-F10.9](../../operaciones/g0_r0_reconciliacion_f10_9.md).
 2. `G1`: `PASS`; P2 planners read-only/offline integrados por PR #335.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
-5. `G4`: `STOP_REQUIRES_REBASELINE`; bloquea P7/G5 y gates posteriores.
-6. `G5`: `BLOCKED_NOT_AUTHORIZED` hasta decision de autoridad superior.
-7. `G6`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-8. `G7`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-9. `G8`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-10. `G9`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-11. `G10`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-12. `G11`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-13. `G12`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
-14. `G13`: `SUSPENDED_BY_G4_STOP_REQUIRES_REBASELINE`.
+5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
+6. `G5`: diagnostico Production read-only.
+7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
+   perfiles/fuentes y revalidacion/restauracion FG3.
+8. `G7`: integracion P7 en `desarrollo`.
+9. `G8`: promocion Certification.
+10. `G9`: promocion Main, sin gate metadata.
+11. `G10`: freeze operacional pre-schedules.
+12. `G11`: decision `GO_SCHEDULES`, sin gate metadata.
+13. `G12`: primer par natural FG2 -> FG3.
+14. `G13`: tres pares naturales consecutivos durante minimo 72 horas.
 
 Ningun gate concede el siguiente. G0 cerro el
 `BLOCKED_INHERITED_CONTEXT_GRAPH` registrado en el plan, sin importar CA2 ni
@@ -118,24 +121,21 @@ environment, dependencias o normalization version invalida el manifest y produce
 `STOP`. F11.1 y `EVID-H1-016` siguen fuera de esta secuencia hasta que
 `EVID-H1-011..013` sean verificadas.
 
-### Secuencia F10.10
+### Secuencia F10.10 Transferida
 
-F10.10 es la subfase activa para registrar el rebaseline mutante separado. M0 es
-documental; M1-M10 requieren frase decimal F10.10 y alcance adicional por gate:
+F10.10 queda `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2`. La secuencia se
+preserva como historia y no es ejecutable para Hito 1:
 
 1. `M0`: `PASS`; ADR, plan y autoridad integrados por PR #343.
 2. `M1`: `COMPLETED_POST_MERGE_VERIFIED`; tooling y pruebas offline, sin red/DB/provider.
 3. `M2`: `PASS`; promocion de codigo completada por PR #345/#346 y checks post-merge.
-4. `M3`: `M3_PUBLIC_DB_ACL_FINAL_READINESS_RACE_REMEDIATION_CANDIDATE_PENDING_PROMOTION_CONSUMER_BINDING_REQUIRED`; PR #373 quedo en `desarrollo@51dac8f4906725aeb9d11172e674eafb5df87b8b`. Security Audit `31724004474=PASS`; F9.7 `31724004476=FAIL_CLOSED_LOCAL_POSTGRES_INIT_RACE` tras 34 pruebas Python PASS, cero red remota y cleanup/firewall PASS. Consumer/binding/aprobacion siguen pendientes, sin continuidad automatica.
-5. `M4`: generacion privada atribuible.
-6. `M5`: revision editorial total de outputs provider.
-7. `M6`: pilot maximo 5.
-8. `M7`: restore y pruebas NOOP.
-9. `M8`: lotes maximo 10 con stop-on-drift.
-10. `M9`: metadata cero y cero cambios no-cohorte/ETL.
-11. `M10`: decision superior de handoff a F10.9/G4.
+4. `M3`: historia preservada; el worktree/candidate local no promovido queda
+   `HISTORICAL_NON_PROMOTABLE` y no se mezcla en este rebaseline.
+5. `M4-M9`: `NOT_EXECUTED_TRANSFERRED_TO_H2`.
+6. `M10`: `SUPERSEDED_BY_ADR_0011`.
 
-F10.10 no habilita Certification, Pro, M4-M10, F10.9/G4, schedules ni F11.1 y no copia datos entre ambientes. DDL reader v1/v2 fueron consumidas y revertidas. El diagnostico bound uso exactamente una llamada `execute_sql`, sin retry, en `REPEATABLE READ READ ONLY` sobre PostgreSQL 17; no hubo filas de aplicacion, DDL/DML, RPC, provider, writer ni Pro. Q0, lectura funcional y teardown siguen no consumidos.
+Ningun gate, payload, reader, ACL, credential, binding, cohorte o aprobacion de
+F10.10 se reutiliza. H2-CA2 requiere rebaseline nuevo.
 
 DB Sync Pro debe excluir `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` y la compensacion exacta
 M3 reader de deteccion automatica Pro-relevant. CI final debe descargar la imagen
@@ -157,7 +157,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows automaticos, schedules, gates y circuit breakers de F7; candidate local CA1-only F9.8 replay-validado post-merge; candidate selectivo PR #277 aprobado/fusionado en Certification con fail-closed 403 documentado; controles pre-main PR #280/#282/#283/#285; QA independiente `PASS`; F10.6 control-plane completado fail-closed; F10.7 entrega tecnica post-main por PR #291; F10.8 Production Canary `31272290614=PASS`; F10.10 M1/M2 integrados y diagnostico M3 consumido con STOP | TARGET y OTHER_CONNECTABLE no conformes; NON_CONNECTABLE conforme e inmutable; Q0/lectura/teardown no consumidos; preflight/remediacion/postflight ACL, reader v3 posterior, M4-M10, handoff superior a F10.9/G4, observacion y F11.1 pendientes |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows, schedules, gates/circuit breakers, QA, entrega tecnica y Production Canary `31272290614=PASS` | Remediacion operacional FG2/FG3, promociones protegidas, `GO_SCHEDULES`, tres pares naturales consecutivos durante al menos 72 horas, `EVID-H1-011..013` y `EVID-H1-016` posterior |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -342,11 +342,12 @@ writers, schedules, Production canary, sincronizacion o modificacion de ramas
 protegidas, y cambios en `.github/workflows/**` salvo que una validacion local
 demuestre necesidad estricta y se solicite otra decision.
 
-## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth
+## F10.8 Reconciliacion Post-Main, DB Sync Y DDL Auth - Corte Historico
 
-F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED`; F10.9 queda
-`STOP_REQUIRES_REBASELINE` en G4. G5-G13, habilitacion y observacion estan
-suspendidos hasta una decision de autoridad superior fuera de F10.9.
+En este corte historico F10.8 quedo `COMPLETED_PRODUCTION_CANARY_VERIFIED` y G4
+produjo `STOP_REQUIRES_REBASELINE`. ADR-0011 supersede ese bloqueo para el estado
+vivo: F10.9 queda `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` y G5-G13 se
+reabren bajo aprobaciones separadas.
 La remediacion de Production Canary fue promovida por PR #297 y fusionada en
 `main@260900a268ab8eb194140ea7311aec2a170b6e17`. La validacion previa al cierre
 documental reconfirmo:
@@ -446,9 +447,10 @@ H-00 no forma parte del paquete promocionable. F9.6 verifico la remediacion hist
 
 ## Criterio De Salida
 
-1. `EVID-H1-001..016` completos, con `EVID-H1-001` ya verificado y las demas evidencias generadas por candidate/ambientes/observacion/conformidad.
-2. Candidate CA1-only inmutable con cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill, admin, Home, Resultados, cards, filtros y campos CA2.
-3. Tests CA1, CI, seguridad, QA, desviacion Certification aceptada o canary Certification positivo, `USER_PERSONAL_UAT`, readiness F10, canary Production y observacion en estado aprobado segun [PLAN-H1-CA1-ONLY-001](../../operaciones/plan_cierre_hito1_ca1_only.md).
-4. Hitos 2 a 5 permanecen `PENDING` hasta activacion individual.
+1. `EVID-H1-011/012/013=VERIFIED` mediante tres pares naturales consecutivos
+   durante al menos 72 horas; dispatches y reruns no cuentan.
+2. `EVID-H1-016=VERIFIED` solo despues de la observacion.
+3. Candidate CA1-only inmutable sin alcance CA2.
+4. Metadata incompleta permanece visible en H2-CA2 y no bloquea Hito 1.
 
 Ver [Arquitectura](../../arquitectura_pipeline.md), [Estimacion](../../estimaciones/est_001.md) y [Release minimo](../../operaciones/flujo_release_minimo.md).

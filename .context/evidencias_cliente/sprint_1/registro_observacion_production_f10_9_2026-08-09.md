@@ -38,6 +38,10 @@ aplicables sobre el candidate congelado. No cuentan reruns, workflow_dispatch,
 skipped, cancelled, timeout, parcial, false-green, `401/403/429/5xx`, error de
 red, TimeGuard o mutacion no demostrada.
 
+La salida requiere tres pares FG2 -> FG3 consecutivos y al menos 72 horas desde
+el inicio del primer FG2 aceptado hasta el cierre del tercer FG3 aceptado. Cero
+dispatches, reruns o ejecuciones manuales pueden completar ese intervalo.
+
 Cada nuevo par aceptable debe registrar run IDs, SHA/tree, environment,
 conclusion, conteos sanitizados, mutaciones/NOOP demostrados y ausencia de drift.
 

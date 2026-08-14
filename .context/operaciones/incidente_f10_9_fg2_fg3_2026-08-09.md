@@ -11,6 +11,7 @@
 | Base observada | `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4` |
 | Evidencia afectada | `EVID-H1-011`, `EVID-H1-012`, `EVID-H1-013` |
 | Contencion | `PENDING_SEPARATE_OPERATIONAL_ATTESTATION` |
+| Metadata incompleta | `TRANSFERRED_NON_BLOCKING_H2_CA2` |
 
 ## Contexto
 
@@ -61,8 +62,8 @@ son de autenticacion.
   carecen solo de syllabus y `2` carecen de syllabus y objectives.
 - Los `104` tienen texto limpio atribuible para re-enrichment, pero no existe
   contenido enriquecido valido para un backfill directo.
-- La decision humana vigente establece que reducir este gate a cero es
-  condicion de cierre de Hito 1.
+- Los `104/224` se preservan como conteo historico y quedan
+  `TRANSFERRED_NON_BLOCKING_H2_CA2`; no son gate de cierre Hito 1.
 
 ## Impacto En Evidencias
 
@@ -75,6 +76,9 @@ son de autenticacion.
 - Inicio de observacion de 72h: `NOT_STARTED`.
 - La secuencia consecutiva debe reiniciarse despues de remediacion promovida y
   autorizacion operacional nueva.
+
+La reclasificacion por ADR-0011 no altera ningun conteo, run ni evidencia
+historica. Metadata permanece visible como deuda H2 no bloqueante.
 
 ## Stop Conditions
 

@@ -138,6 +138,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE,
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF,
+    F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+    F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+    F1010_H1_CA1_REBASELINE_BASE,
+    F1010_H1_CA1_REBASELINE_BASE_TREE,
+    F1010_H1_CA1_REBASELINE_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -200,6 +205,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_post_merge_harness,
     validate_f1010_m3_public_acl_v2_evidence,
     validate_f1010_m3_public_acl_final_readiness,
+    validate_f1010_h1_ca1_rebaseline,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -2124,32 +2130,67 @@ class F109BoundaryTest(unittest.TestCase):
         assert result["remote_dml"] is False
         assert result["executed_at"] < result["valid_until"]
 
-        authority_paths = (
-            ".context/estado_del_proyecto.md",
-            ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md",
-            ".context/operaciones/m3_reader_f10_10_rebaseline.md",
-            ".context/operaciones/plan_remediacion_metadata_f10_10.md",
-            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+        project_state = (root / ".context/estado_del_proyecto.md").read_text(
+            encoding="utf-8"
         )
-        authority = "\n".join(
-            (root / path).read_text(encoding="utf-8") for path in authority_paths
+        metadata_plan = (
+            root / ".context/operaciones/plan_remediacion_metadata_f10_10.md"
+        ).read_text(encoding="utf-8")
+        hito_task = (
+            root
+            / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+        ).read_text(encoding="utf-8")
+        project_state_flat = " ".join(project_state.split())
+        metadata_plan_flat = " ".join(metadata_plan.split())
+        hito_task_flat = " ".join(hito_task.split())
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in project_state
+        assert "HISTORICAL_NON_PROMOTABLE" in project_state
+        assert "REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION" in project_state
+        assert "exclusivamente para blockers CA1 FG2/FG3" in project_state_flat
+        assert (
+            "No se heredan gates, payloads, readers, ACL, credentials ni bindings"
+        ) in project_state_flat
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in hito_task
+        assert "HISTORICAL_NON_PROMOTABLE" in hito_task
+        assert (
+            "Ningun gate, payload, reader, ACL, credential, binding, cohorte o "
+            "aprobacion de F10.10 se reutiliza"
+        ) in hito_task_flat
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in metadata_plan
+        assert "HISTORICAL_NON_PROMOTABLE" in metadata_plan
+        assert "SUPERSEDED_NON_AUTHORIZABLE" in metadata_plan
+        assert "no existe gate sucesor F10.10" in metadata_plan_flat
+
+        historical_scope = (
+            root / ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md"
+        ).read_text(encoding="utf-8")
+        historical_reader = (
+            root / ".context/operaciones/m3_reader_f10_10_rebaseline.md"
+        ).read_text(encoding="utf-8")
+        historical_m3 = "\n".join((historical_scope, historical_reader))
+        assert "BLOQUEADO_POST_DIAGNOSTIC_STOP" in historical_scope
+        assert "No existe ruta M3 Pro autorizable desde este documento" in historical_scope
+        assert "evidencia no autoriza Free ni consume gates" in historical_scope
+        assert "NO capacidad vigente" in historical_reader
+        assert (
+            "El payload preflight anterior y su ventana terminada son evidencia historica"
+            in historical_reader
         )
-        assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED" in authority
-        assert "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2" in authority
-        assert "no aprobado y no consumido" in authority
-        assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in authority
-        assert "CONSUMED_ONCE_PASS" in authority
-        assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
+        assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED" in historical_m3
+        assert "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2" in historical_m3
+        assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in historical_m3
+        assert "CONSUMED_ONCE_PASS" in historical_m3
+        assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in historical_m3
         for gate in (
             "APPROVE_F10_10_M3_READER_DDL_FREE",
             "APPROVE_F10_10_M3_READER_Q0_FREE",
             "APPROVE_M3_FREE_READONLY",
             "APPROVE_F10_10_M3_READER_TEARDOWN_FREE",
         ):
-            assert gate in authority
+            assert gate in historical_m3
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")
@@ -3347,6 +3388,67 @@ class F109BoundaryTest(unittest.TestCase):
             "f1010_m3_public_acl_final_readiness",
         )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_h1_ca1_rebaseline_accepts_exact_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = F1010_H1_CA1_REBASELINE_BASE_TREE
+
+        validate_f1010_h1_ca1_rebaseline(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, head,
+            F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+            F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 64, 391)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_h1_ca1_rebaseline_requires_protected_merge_push(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        candidate = "b" * 40
+        merge = "c" * 40
+        tree_mock.side_effect = lambda _repo, commit: {
+            F1010_H1_CA1_REBASELINE_BASE: F1010_H1_CA1_REBASELINE_BASE_TREE,
+            candidate: "d" * 40,
+            merge: "d" * 40,
+        }[commit]
+        parents_mock.return_value = [F1010_H1_CA1_REBASELINE_BASE, candidate]
+
+        validate_f1010_h1_ca1_rebaseline(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, candidate,
+            F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+            F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 64, 391)
+
+    def test_detect_mode_selects_f1010_h1_ca1_rebaseline(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", F1010_H1_CA1_REBASELINE_HEAD_REF,
+                F1010_H1_CA1_REBASELINE_BASE,
+            ),
+            "f1010_h1_ca1_rebaseline",
+        )
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -4175,6 +4277,7 @@ class F109BoundaryTest(unittest.TestCase):
             F1010_M2A_HEAD_REF,
             F1010_M1_HEAD_REF,
             F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF,
+            F1010_H1_CA1_REBASELINE_HEAD_REF,
         ):
             with self.subTest(head_ref=head_ref):
                 parse_args_mock.return_value = self.cli_args(head_ref=head_ref)

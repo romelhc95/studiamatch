@@ -3,7 +3,8 @@
 | Campo | Valor |
 |---|---|
 | ID | `EVID-PACK-H1-001` |
-| Estado | `DRAFT_F10_9_REMEDIATION_REQUIRED` |
+| Estado | `DRAFT_FORMAL_CLOSURE_PENDING` |
+| F10.9 | `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` vigente por adenda |
 | Candidate | `desarrollo@5b282461149b7319685cf090534e28051e5eb32c` (F9.8 local), `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` (PR #277), entrega tecnica `main@64e4ed895d43121c5683e26a355993f18e528a5c` (PR #291), remediacion F10.8 `main@260900a268ab8eb194140ea7311aec2a170b6e17` (PR #297), remediacion DB Sync `main@529ca111f1fef40efb15676ad6f07d002a54ae92` (PR #307), remediacion cleansing provenance `main@1885806f0d9f189600d410d353fcf13fb8dd4676` (PR #320), verify-only F10.8 `main@675ade43f41a2f5d04f05a40f9837b514a8705ce` / tree `90868898778a1039006e45b870fbc03e6e65291b` (PR #324), canary PASS F10.8 `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98` (PR #325), cierre documental F10.8 `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4` (PR #326) |
@@ -62,11 +63,15 @@ runs en
 Pares aceptados `0`; ventana 72h `NOT_STARTED`; `EVID-H1-011..013/016` siguen
 pendientes. F10.8 y `EVID-H1-010=VERIFIED` no cambian.
 
+ADR-0011 transfiere los `104/224` incompletos y F10.10/M3-M9 a H2-CA2 como
+`TRANSFERRED_NON_BLOCKING_H2_CA2`. Los conteos y evidencia historica permanecen
+inmutables. Metadata cero deja de ser umbral de este paquete.
+
 ## Alcance Entregado
 
 | Elemento | Resultado | Evidencia |
 |---|---|---|
-| Schedules FG2/FG3 | `F10_9_BLOCKED_REMEDIATION_REQUIRED` | Workflows con kill switch y environments dedicados; primera observacion global fail-closed; cero pares aceptados y remediacion documentada |
+| Schedules FG2/FG3 | `REMEDIATION_REQUIRED` | F10.9=`REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION`; gates separados pendientes; cero pares aceptados |
 | Gates/circuit breaker | `FAIL_CLOSED_CERTIFICATION_QA_VERIFIED` | Runs F9.9 fallaron con salida no cero y cleanup/idempotencia cuando hubo snapshot; QA independiente `PASS` |
 | Secrets solo CI | `CI_SECURITY_PASS` | PR #277 `security-audit` y credential scan PASS; no secretos en evidencia F9.9 |
 | Development/Certification/Production | `TECHNICALLY_DELIVERED_FORMAL_CLOSURE_PENDING` | PR #277/#282/#285/#288/#289/#291/#297/#304/#305/#306/#307/#319/#320/#325/#326 Approved/Merged; `main` promovido tecnicamente; Certification Canary final PASS; DB Sync remediado y verificado en `main`; Pro DDL aplicada una sola vez; Production Canary `31272290614=PASS`; primera observacion global fail-closed y remediacion F10.9 pendiente |
@@ -120,6 +125,10 @@ parte del alcance entregado ni de la conformidad contractual CA1.
 - Definicion QA: [QA-F9.9-DEVIATION-001](../../operaciones/qa_desviacion_f9_9.md); resultado `PASS` sanitizado en [QA-F9.9-DEVIATION-001-RESULT](../../operaciones/qa_desviacion_f9_9_resultado.md).
 - Canary Production: `31272290614=PASS`; constituye evidencia positiva para `EVID-H1-010`, sin sustituir schedules ni conformidad.
 - Schedule observado: pendiente.
+
+El cierre exige `EVID-H1-011/012/013`, tres pares naturales consecutivos durante
+al menos 72 horas y `EVID-H1-016` posterior. Ningun `workflow_dispatch` o rerun
+se acepta como evidencia natural.
 
 ## Desviacion F9.9 Certification
 

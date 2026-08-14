@@ -8,6 +8,8 @@ trazabilidad; no mantiene estado vivo.
 
 - `H1-CA1`: orquestacion automatica FG2/FG3, schedules y gates aplicables.
 - FG1: soporte operativo de inventario, sin crear criterio adicional.
+- Cierre: tres pares naturales FG2 -> FG3 consecutivos durante al menos 72 horas
+  y conformidad posterior; dispatches/reruns no cuentan.
 
 ## Antecedentes Historicos Preservados
 
@@ -51,6 +53,11 @@ El hallazgo no reabre F10.8 ni cambia `H1-CA1`. Hito 1 permanece tecnicamente
 entregado y formalmente pendiente; cero pares FG2 -> FG3 fueron aceptados. Los
 estados vivos se consultan exclusivamente en TASK y Estado del Proyecto.
 
+[ADR-0011](../decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
+reclasifica los `104` incompletos como `TRANSFERRED_NON_BLOCKING_H2_CA2`, elimina
+metadata cero del cierre Hito 1 y reactiva F10.9 solo para remediacion operacional
+FG2/FG3. Los conteos historicos permanecen inmutables.
+
 ## Trazabilidad
 
 - Complejidad y estimacion tecnica original: [EST-001](../estimaciones/est_001.md)
@@ -70,3 +77,5 @@ estados vivos se consultan exclusivamente en TASK y Estado del Proyecto.
 - Registro observacion F10.9: [EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md)
 - Autorizacion DDL F10.8: [DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO](../operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md)
 - Matriz de evidencias: [Evidencia de salida](../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida)
+- Rebaseline superior: [ADR-0011](../decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
+- Hito 2 receptor: [HITO-002](./hito_002.md)

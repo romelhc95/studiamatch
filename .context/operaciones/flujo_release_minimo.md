@@ -36,9 +36,9 @@ se conserva solo como antecedente CA2 de Hito 2.
 13. F10.8 promovio por PR #297 la remediacion de Production Canary, remedio DB Sync por PR #304/#305/#306/#307 hasta `main@529ca111f1fef40efb15676ad6f07d002a54ae92`, y promovio la remediacion cleansing provenance por PR #319/#320 hasta `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; `DB Sync to Production` run `31243797695=SUCCESS_REPORT_ONLY` detecto exactamente una migracion Pro pendiente y no aplico DDL.
 14. F10.8 aplico Pro una sola vez mediante `DB Sync to Production` run `31263024890`, bajo registro `DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO`, `candidate_sha` exacto igual a `origin/main`, dispatch manual, approval `Production`, Backup/RPO runtime aceptado y writers pausados; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS.
 15. F10.8 ejecuto Production Canary manual con schedules apagados sobre `main@859d2f7d83f83950d10858fe27bd035febba7f68`, snapshot privado, restore always, segundo restore NOOP y artifacts sanitizados; run `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`.
-16. F10.9 planificaba habilitar schedules y observar FG2/FG3, pero G4=`STOP_REQUIRES_REBASELINE` suspendio G5-G13.
-17. F10.10 queda `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`: PR #371 promovio el payload v2 null-bound y PR #372 remedio el harness; Security Audit `31720301586` y F9.7 `31720301577` quedaron PASS sobre `desarrollo@89cbeda226c6e04c6c1b6e091e6b94fc36273645`. Debe adaptarse/promoverse el consumidor canónico target/transport antes de cualquier aprobación o consumo.
-18. F11.1 cierra documentalmente el Hito 1 y la evidencia final solo tras los gates productivos aplicables.
+16. ADR-0011 transfiere metadata y F10.10/M3-M9 a H2-CA2; F10.10 queda `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2`.
+17. F10.9 queda `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION`; G5-G13 requieren gates separados para diagnostico, remediaciones CA1, P7, Certification, Main, `GO_SCHEDULES` y observacion.
+18. F11.1 cierra Hito 1 solo tras `EVID-H1-011/012/013`, tres pares naturales consecutivos durante minimo 72 horas y `EVID-H1-016` posterior.
 
 ## Stop Conditions
 
@@ -54,6 +54,8 @@ se conserva solo como antecedente CA2 de Hito 2.
 - Tener un deployment Cloudflare Pages de `main` no observado, no documentado o usado como sustituto de canary Production.
 - Ejecutar M3 reader fuera de `FREE_DB`, antes de merge/CI post-merge, sin predecessor Q0 canonical v2 PASS, con digests target/observed iguales, `BYPASSRLS=false`, provisioner drifted, activacion sin expiracion exacta o password fuera de `psql \password`.
 - Detectar como Pro-relevant `db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql` o `db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql`; reutilizar la identidad canary anterior ya rotada/revocada.
+- Reutilizar gates, payloads, readers, ACL, credentials, bindings o cohortes
+  F10.10/M3 en Hito 1 o Hito 2.
 
 ## Schedules
 
@@ -70,7 +72,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED` con Pro DDL aplicada una sola vez, DB Sync verify `31268229878=PASS`, PR #325 en `main@859d2f7d83f83950d10858fe27bd035febba7f68`, Production Canary `31272290614=PASS`, artifact `9026139906` y `EVID-H1-010=VERIFIED`; F10.9 queda `STOP_REQUIRES_REBASELINE` en G4 y ninguna autorizacion decimal F10.9 habilita G5-G13 sin decision superior.
+- La macrofase F10 Produccion inicio en F10.6; F10.8 queda `COMPLETED_PRODUCTION_CANARY_VERIFIED` y `EVID-H1-010=VERIFIED`; ADR-0011 transfiere F10.10 a H2-CA2 y deja F10.9 `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` con G5-G13 sujetos a aprobaciones separadas.
 
 ## Subfases F10 CA1-Only
 
@@ -80,8 +82,8 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane y limpieza de runs antiguos antes de promover a `main`: environments programados fail-closed, branch policy `main`, reviewer humano y runs `30681941694`, `29678093566`, `29677885934` cancelados con cero pasos. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary post-merge 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Remediacion Production Canary promovida por PR #297 a `main@260900a268ab8eb194140ea7311aec2a170b6e17`; Certification Canary `31140933096=PASS`; DB Sync historico `31142826000` fallo fail-closed antes de Supabase; remediacion DB Sync promovida por PR #304/#305/#306/#307 a `main@529ca111f1fef40efb15676ad6f07d002a54ae92`; remediacion cleansing provenance promovida por PR #319/#320 a `main@1885806f0d9f189600d410d353fcf13fb8dd4676`; Pro DDL aplicada una sola vez por `31263024890`; DB Sync verify `31268229878=PASS`; PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS`, artifact `9026139906`, `EVID-H1-010=VERIFIED`. |
-| `F10.9` | `STOP_REQUIRES_REBASELINE` | G3/P5 cerrado; G4 detiene P7, promociones, schedules y observacion hasta decision de autoridad superior. |
-| `F10.10` | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED` | [Scope v2 Free-only](./m3_f10_10_scope_por_ambiente_target.md): payload v2 null-bound promovido y verificado post-merge. Consumer/binding canónico, gate, red Free y etapas posteriores no autorizados. |
+| `F10.9` | `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` | G4=`PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`; G5-G13 reabiertos bajo aprobaciones separadas. |
+| `F10.10` | `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2` | M4-M9=`NOT_EXECUTED_TRANSFERRED_TO_H2`; historia M3 preservada y no reutilizable. |
 | `F11.1` | `PENDING` | Cierre final y conformidad cliente. |
 
 ## Maquina De Promocion Hito 1

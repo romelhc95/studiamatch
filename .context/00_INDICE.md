@@ -50,14 +50,14 @@
 ## Alcance Y Trabajo
 
 - [HITO-001](hitos/hito_001.md)
-- HITO-002
+- [HITO-002](hitos/hito_002.md)
 - HITO-003
 - HITO-004
 - HITO-005
 - [Backlog REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md)
 - [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
 - [Seguimiento detallado de Hito 1](backlog_tareas/req_est_001_sprint_1/seguimiento_detallado_hito_1.md)
-- TASK-H2-001
+- [TASK-H2-001](backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
 - TASK-H3-001
 - TASK-H4-001
 - TASK-H5-001
@@ -79,6 +79,8 @@
 - [ADR-0007](decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
 - [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md)
 - [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md)
+- [ADR-0010](decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md)
+- [ADR-0011](decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04
@@ -105,7 +107,7 @@
 | Estado DB aplicado | [Snapshot canonico vivo](estado_del_proyecto.md); [sistema DB](sistema_db_supabase.md) y [matriz DB](operaciones/matriz_adopcion_db.md) quedan como referencias historicas pre-F10.8 | Ninguna nota historica puede sustituir la DDL Pro F10.8 aplicada/verificada ni autorizar adopcion nueva. |
 | Estado de tareas | TASK canonica de cada Hito, enlazada desde [REQ-EST-001](backlog_tareas/req_est_001_sprint_1/_index.md) | Cada tarea es la unica autoridad de su avance y criterios; solo una puede estar activa. |
 | Estado del proyecto | [Snapshot canonico](estado_del_proyecto.md) | Sustituye cualquier resumen vivo en hitos, estimaciones, indices o changelogs. |
-| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), ADR-0004/0005, ADR-0006, [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md) y macrofase F9 | F0-F11 son macrofases; ADR-0006 adopta la rebaseline CA1-only efectiva; ADR-0008 registra el rebaseline F10.7; ADR-0009 registra entrega tecnica post-main sin cierre contractual; aliases historicos no autorizan trabajo nuevo. |
+| Taxonomia de fases | [ADR-0003](decisiones/ADR-0003_taxonomia_macrofases_subfases.md), ADR-0004/0005, ADR-0006, [ADR-0008](decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md), [ADR-0011](decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md) y macrofase F9 | F0-F11 son macrofases; ADR-0011 supersede F10.10/ADR-0010 solo para Hito 1, transfiere metadata a H2-CA2 y reactiva F10.9 solo para FG2/FG3. |
 | Readiness de release | Candidate y gates registrados en `.context/` segun el [flujo de release](operaciones/flujo_release_minimo.md) | Se deriva de evidencia verificable y aprobacion humana; no existe candidate en F5. |
 | Historia | Changelog no autoritativo | Registra eventos y nunca determina vigencia. |
 | Plan de implementacion legacy `../IMPLEMENTATION_PLAN.md` | Ninguna | Es antecedente no canonico, no es dependencia y esta fuera del flujo vigente. |
