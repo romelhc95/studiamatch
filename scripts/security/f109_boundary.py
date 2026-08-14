@@ -127,6 +127,9 @@ F1010_H1_CA1_REBASELINE_HEAD_REF = "docs/f10-10-h1-ca1-rebaseline"
 G5_PRODUCTION_READONLY_BASE = "2c9d2438c5fc309d3692d1a1de1233e0fcc95afc"
 G5_PRODUCTION_READONLY_BASE_TREE = "161a8df69bf5e527c4ba863891504551ec5f7aa7"
 G5_PRODUCTION_READONLY_HEAD_REF = "feat/f10-9-g5-production-readonly"
+G5_V2_ATTRIBUTION_BASE = "30f77b88778372de112c6a8fb51a1344155db025"
+G5_V2_ATTRIBUTION_BASE_TREE = "b25fca6fc4e37db5b1e2c0e048748ee0ec3d839c"
+G5_V2_ATTRIBUTION_HEAD_REF = "feat/f10-9-g5-v2-attribution"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -485,6 +488,21 @@ G5_PRODUCTION_READONLY_ALLOWED_STATUSES = {
 }
 G5_PRODUCTION_READONLY_ALLOWED_MODES = {
     path: "100644" for path in G5_PRODUCTION_READONLY_ALLOWED_STATUSES
+}
+
+G5_V2_ATTRIBUTION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md": "M",
+    ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_production_readonly.py": "M",
+}
+G5_V2_ATTRIBUTION_ALLOWED_MODES = {
+    path: "100644" for path in G5_V2_ATTRIBUTION_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2569,6 +2587,80 @@ def validate_g5_production_readonly(
     validate_context_graph(repo, 65, 400)
 
 
+def validate_g5_v2_attribution(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_V2_ATTRIBUTION_BASE, "unexpected G5 v2 attribution base")
+    require_sha(repo, "G5_V2_ATTRIBUTION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_V2_ATTRIBUTION_BASE_TREE,
+        "G5 v2 attribution base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 v2 attribution push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 v2 attribution merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 v2 attribution candidate must be one direct commit",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "G5 v2 attribution base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
+        G5_V2_ATTRIBUTION_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "f10_9_metadata_planner",
+        "select_all_service",
+        "select_all_pipeline",
+        "patch_exact_one_raise",
+        "db_client",
+        "safe_http",
+        "import requests",
+        "import httpx",
+        "import socket",
+        "import urllib",
+        "import subprocess",
+        "import supabase",
+        "import importlib",
+        "eval(",
+        "exec(",
+    ):
+        require(forbidden not in collector, "G5 v2 collector capability drift")
+    for required in (
+        "f10.9-g5-production-readonly-projection.v2",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "30f77b88778372de112c6a8fb51a1344155db025",
+        "31771823387=PASS",
+        "31771823386=PASS",
+    ):
+        require(required in evidence, "G5 v2 repository-only evidence drift")
+    validate_context_graph(repo, 66, 403)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2723,6 +2815,12 @@ def detect_mode(
         return "g5_production_readonly"
     if (
         base_ref == "desarrollo"
+        and base == G5_V2_ATTRIBUTION_BASE
+        and (event == "push" or head_ref == G5_V2_ATTRIBUTION_HEAD_REF)
+    ):
+        return "g5_v2_attribution"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -2825,6 +2923,13 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "G5 Production read-only branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_V2_ATTRIBUTION_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 v2 attribution branch requires its frozen baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -3255,6 +3360,10 @@ def main() -> int:
             )
         elif mode == "g5_production_readonly":
             validate_g5_production_readonly(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_v2_attribution":
+            validate_g5_v2_attribution(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

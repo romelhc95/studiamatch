@@ -1,4 +1,4 @@
-"""Repository-only G5 diagnostic over two pre-materialized private snapshots."""
+"""Repository-only G5 v2 attribution over private, pre-materialized evidence."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import copy
 import hashlib
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
@@ -15,14 +15,36 @@ from .f10_9_readonly_planner import canonical_json
 from .url_identity import URL_IDENTITY_VERSION, build_url_identity
 
 
-SCHEMA = "f10.9-g5-production-readonly-projection.v1"
-ALGORITHM_VERSION = "f10.9-g5-production-readonly-v1"
+LEGACY_SCHEMA_V1 = "f10.9-g5-production-readonly-projection.v1"
+LEGACY_ALGORITHM_VERSION_V1 = "f10.9-g5-production-readonly-v1"
+SCHEMA_V1 = LEGACY_SCHEMA_V1
+ALGORITHM_VERSION_V1 = LEGACY_ALGORITHM_VERSION_V1
+SCHEMA = "f10.9-g5-production-readonly-projection.v2"
+ALGORITHM_VERSION = "f10.9-g5-production-readonly-v2"
 GATE = "APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1"
 GATE_CANDIDATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 DEFAULT_PAGE_SIZE = 1000
 DEFAULT_MAX_ROWS_PER_TABLE = 50_000
 DEFAULT_MAX_SNAPSHOT_BYTES = 32_000_000
 STOP_SNAPSHOT_DRIFT = "STOP_G5_SNAPSHOT_DRIFT"
+SNAPSHOT_DECLARATION = "DOUBLE_READ_STABILITY_NOT_SINGLE_POSTGRES_TRANSACTION"
+EXCLUDED_SURFACES = frozenset(
+    {
+        "SYLLABUS",
+        "OBJECTIVES",
+        "METADATA",
+        "PROVIDERS",
+        "EDITORIAL_LINEAGE",
+        "H2_CA2",
+        "SQL",
+        "DDL",
+        "DML",
+        "RPC",
+        "WORKERS",
+        "SCHEDULES",
+    }
+)
+
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -50,14 +72,128 @@ _STAGING_STATUSES = frozenset(
 _DISCOVERY_MODES = frozenset(
     {"hardcoded_urls", "catalog_link_extraction", "paginated_catalog", "sitemap_bfs"}
 )
-_SOURCE_OUTCOMES = frozenset(
-    {"ACCESSIBLE", "SOURCE_ACCESS_403", "SOURCE_TIMEOUT", "SOURCE_FAILURE"}
+_INVENTORY_CODES = frozenset(
+    {"INVENTORY_OK", "INVENTORY_QUERY_FAILED", "INVENTORY_INCOMPLETE"}
 )
-_FG3_OUTCOMES = frozenset({"HEALTHY", "GONE", "INCONCLUSIVE"})
+_SOURCE_CODES = frozenset(
+    {
+        "SOURCE_ACCESSIBLE",
+        "SOURCE_GET_403",
+        "SOURCE_TIMEOUT",
+        "SOURCE_DNS_FAILURE",
+        "SOURCE_TLS_FAILURE",
+        "SOURCE_TRANSPORT_FAILURE",
+    }
+)
+_FG3_CLASSIFICATIONS = frozenset(
+    {
+        "HEALTHY",
+        "GET_404",
+        "GET_410",
+        "GET_403",
+        "TIMEOUT",
+        "DNS_FAILURE",
+        "TLS_FAILURE",
+        "TRANSPORT_FAILURE",
+    }
+)
+_FG3_INCONCLUSIVE = frozenset(
+    {"GET_403", "TIMEOUT", "DNS_FAILURE", "TLS_FAILURE", "TRANSPORT_FAILURE"}
+)
+_LIFECYCLE_CLASSES = frozenset(
+    {"STALE", "NOT_STALE", "AGE_UNKNOWN", "FUTURE_TIMESTAMP"}
+)
+_TIMESTAMP_ORIGINS = frozenset(
+    {"LAST_HARVESTED_AT_PROXY", "CREATED_AT_PROXY", "NONE"}
+)
+_MUTATION_KINDS = frozenset(
+    {
+        "NONE",
+        "FIRST_GET_404",
+        "FIRST_GET_410",
+        "DEACTIVATE_PERSISTENT_GONE",
+        "RECOVER",
+    }
+)
+_APPLY_OUTCOMES = frozenset({"NOT_APPLIED_READ_ONLY", "APPLIED_PRIOR_EXACT_ONE"})
+
+# These definitions are the complete public vocabulary. Adding a public count
+# requires adding a unit and denominator here first.
+REASON_DEFINITIONS: Mapping[str, tuple[str, str]] = MappingProxyType(
+    {
+        "STOP_G5_SNAPSHOT_DRIFT": ("snapshot_pairs", "snapshot_pairs"),
+        "INVENTORY_OK": ("profiles", "enabled_profiles"),
+        "INVENTORY_QUERY_FAILED": ("profiles", "enabled_profiles"),
+        "INVENTORY_INCOMPLETE": ("profiles", "enabled_profiles"),
+        "SOURCE_ACCESSIBLE": ("source_observations", "enabled_profiles"),
+        "SOURCE_GET_403": ("source_observations", "enabled_profiles"),
+        "SOURCE_TIMEOUT": ("source_observations", "enabled_profiles"),
+        "SOURCE_DNS_FAILURE": ("source_observations", "enabled_profiles"),
+        "SOURCE_TLS_FAILURE": ("source_observations", "enabled_profiles"),
+        "SOURCE_TRANSPORT_FAILURE": ("source_observations", "enabled_profiles"),
+        "CONTENT_HASH_INVALID": ("staging_rows", "hash_evidence_targets"),
+        "INVALID_URL_IDENTITY": ("staging_rows", "staging_rows"),
+        "UNKNOWN_STAGING_STATUS": ("staging_rows", "staging_rows"),
+        "INCOMPLETE_CONTENT_EVIDENCE": ("staging_rows", "hash_evidence_targets"),
+        "PROCESSING_AGE_UNKNOWN": ("staging_rows", "processing_rows"),
+        "PROCESSING_FUTURE_TIMESTAMP": ("staging_rows", "processing_rows"),
+        "PROCESSING_STALE": ("staging_rows", "processing_rows"),
+        "DUPLICATE_NORMALIZED_URL": ("groups", "normalized_url_groups"),
+        "CONFLICTING_CONTENT_HASH": ("groups", "duplicate_groups"),
+        "DOWNSTREAM_REFERENCE_CONFLICT": ("references", "downstream_references"),
+        "INVALID_EMPTY_HARDCODED_PROFILE": ("profiles", "enabled_profiles"),
+        "INVALID_ENABLED_DISCOVERY_PROFILE": ("profiles", "enabled_profiles"),
+        "FG3_GET_403": ("courses", "fg3_evaluated_courses"),
+        "FG3_TIMEOUT": ("courses", "fg3_evaluated_courses"),
+        "FG3_DNS_FAILURE": ("courses", "fg3_evaluated_courses"),
+        "FG3_TLS_FAILURE": ("courses", "fg3_evaluated_courses"),
+        "FG3_TRANSPORT_FAILURE": ("courses", "fg3_evaluated_courses"),
+    }
+)
+AGGREGATE_DEFINITIONS: Mapping[str, tuple[str, str]] = MappingProxyType(
+    {
+        "duplicate_groups": ("groups", "normalized_url_groups"),
+        "duplicate_excess_rows": ("staging_rows", "staging_rows"),
+        "conflicting_hash_groups": ("groups", "duplicate_groups"),
+        "downstream_reference_conflicts": ("references", "downstream_references"),
+        "processing_stale": ("staging_rows", "processing_rows"),
+        "processing_not_stale": ("staging_rows", "processing_rows"),
+        "processing_age_unknown": ("staging_rows", "processing_rows"),
+        "processing_future_timestamp": ("staging_rows", "processing_rows"),
+        "fg3_evaluated_courses": ("courses", "fg3_evaluated_courses"),
+        "fg3_primary_cohort_courses": ("courses", "fg3_primary_cohort"),
+        "fg3_prior_mutation_courses": ("courses", "fg3_prior_mutation_cohort"),
+        "fg3_active_before": ("courses", "fg3_evaluated_courses"),
+        "fg3_active_after": ("courses", "fg3_evaluated_courses"),
+        "fg3_inconclusive_total": ("courses", "fg3_evaluated_courses"),
+        "fg3_inconclusive_by_reason": ("courses_by_reason", "fg3_inconclusive_total"),
+        "first_get_404_observations": ("courses", "fg3_evaluated_courses"),
+        "first_get_410_observations": ("courses", "fg3_evaluated_courses"),
+        "deactivations_persistent_gone": ("courses", "fg3_evaluated_courses"),
+        "recoveries_required": ("courses", "fg3_evaluated_courses"),
+        "prior_mutations_revalidated": (
+            "courses",
+            "fg3_attributable_prior_mutations",
+        ),
+    }
+)
+SNAPSHOT_PAIR_DEFINITIONS: Mapping[str, tuple[str, str]] = MappingProxyType(
+    {
+        "table_initial_count": ("rows", "snapshot_pairs"),
+        "table_final_count": ("rows", "snapshot_pairs"),
+        "table_pages": ("pages", "snapshot_pairs"),
+        "global_initial_count": ("rows", "snapshot_pairs"),
+        "global_final_count": ("rows", "snapshot_pairs"),
+    }
+)
+_BLOCKING_CODES = frozenset(REASON_DEFINITIONS) - {
+    "INVENTORY_OK",
+    "SOURCE_ACCESSIBLE",
+}
 
 
 class G5Error(RuntimeError):
-    """Sanitized G5 failure containing only a closed reason code."""
+    """Sanitized failure containing only a closed reason code."""
 
 
 class G5ReadOnlyFacade:
@@ -80,7 +216,7 @@ class G5ReadOnlyFacade:
                 rows = snapshot[table]
                 if len(rows) > DEFAULT_MAX_ROWS_PER_TABLE:
                     raise G5Error("STOP_G5_LIMIT_EXCEEDED")
-                normalized_rows: list[dict[str, Any]] = []
+                parsed_rows = []
                 for row in rows:
                     parsed = dict(row)
                     if set(parsed) != _TABLE_KEYS[table]:
@@ -88,8 +224,8 @@ class G5ReadOnlyFacade:
                     total_bytes += len(canonical_json(parsed).encode("utf-8"))
                     if total_bytes > DEFAULT_MAX_SNAPSHOT_BYTES:
                         raise G5Error("STOP_G5_LIMIT_EXCEEDED")
-                    normalized_rows.append(copy.deepcopy(parsed))
-                normalized[table] = tuple(normalized_rows)
+                    parsed_rows.append(copy.deepcopy(parsed))
+                normalized[table] = tuple(parsed_rows)
             snapshots.append(normalized)
         self.__snapshots = tuple(snapshots)
 
@@ -108,11 +244,15 @@ class G5ReadOnlyFacade:
             or table not in _TABLES
             or columns != _TABLES[table]
             or order != "id.asc"
+            or isinstance(limit, bool)
+            or not isinstance(limit, int)
             or not 1 <= limit <= 1000
+            or isinstance(offset, bool)
+            or not isinstance(offset, int)
             or offset < 0
         ):
             raise G5Error("STOP_G5_FACADE_SCOPE")
-        rows = sorted(self.__snapshots[snapshot][table], key=lambda row: str(row.get("id")))
+        rows = sorted(self.__snapshots[snapshot][table], key=lambda row: str(row["id"]))
         return copy.deepcopy(rows[offset : offset + limit])
 
     def count(self, snapshot: int, table: str) -> int:
@@ -122,22 +262,94 @@ class G5ReadOnlyFacade:
 
 
 @dataclass(frozen=True)
+class InventoryObservation:
+    institution_id: str
+    profile_fingerprint: str
+    source_fingerprint: str
+    stage: str
+    terminal_reason: str
+    method_sequence: tuple[str, ...]
+    attempts: int
+    observed_at: datetime
+    run_fingerprint: str
+    cohort_fingerprint: str
+
+
+@dataclass(frozen=True)
 class SourceObservation:
     institution_id: str
-    inventory_loaded: bool
-    outcome: str
+    profile_fingerprint: str
+    source_fingerprint: str
+    stage: str
+    terminal_reason: str
+    method_sequence: tuple[str, ...]
+    attempts: int
+    observed_at: datetime
+    run_fingerprint: str
+    cohort_fingerprint: str
+
+
+@dataclass(frozen=True)
+class ProcessingLifecycleObservation:
+    staging_id: str
+    timestamp_used: str | None
+    timestamp_origin: str
+    calculated_age_seconds: int | None
+    classification: str
 
 
 @dataclass(frozen=True)
 class FG3Observation:
     course_id: str
-    outcome: str
+    run_fingerprint: str
+    cohort_fingerprint: str
+    observed_at: datetime
+    pre_is_active: bool
+    post_is_active: bool
+    pre_last_404_at: str | None
+    post_last_404_at: str | None
+    classification: str
+    method_sequence: tuple[str, ...]
+    attempts: int
+    mutation_kind: str
+    apply_outcome: str
+    exact_one_verified: bool
+    antecedent_run_fingerprint: str | None
+    antecedent_mutation_fingerprint: str | None
+    antecedent_applied_at: datetime | None
 
 
 @dataclass(frozen=True)
 class HashObservation:
     staging_id: str
     content_hash_valid: bool
+
+
+@dataclass(frozen=True)
+class SnapshotPairEvidence:
+    snapshot_pair_id: str
+    snapshot_1_started_at: datetime
+    snapshot_1_ended_at: datetime
+    observations_started_at: datetime
+    observations_ended_at: datetime
+    snapshot_2_started_at: datetime
+    snapshot_2_ended_at: datetime
+
+
+@dataclass(frozen=True)
+class HistoricalFG3Manifest:
+    manifest_fingerprint: str
+    complete: bool
+    expected_observation_fingerprints: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class HistoricalFG3Anchor:
+    expected_manifest_fingerprint: str
+    base_sha: str
+    base_tree: str
+    candidate_sha: str
+    candidate_tree: str
 
 
 @dataclass(frozen=True)
@@ -157,9 +369,16 @@ class PrivateObservations:
     candidate_sha: str
     candidate_tree: str
     observed_at: datetime
+    run_fingerprint: str
+    source_cohort_fingerprint: str
+    fg3_cohort_fingerprint: str
+    fg3_historical_manifest: HistoricalFG3Manifest
+    pair: SnapshotPairEvidence
+    inventories: tuple[InventoryObservation, ...]
     sources: tuple[SourceObservation, ...]
     fg3: tuple[FG3Observation, ...]
     hashes: tuple[HashObservation, ...]
+    lifecycle: tuple[ProcessingLifecycleObservation, ...]
 
 
 @dataclass(frozen=True)
@@ -176,19 +395,45 @@ class ConnectedAuthorization:
 
 
 def _fingerprint(domain: str, value: object) -> str:
-    material = f"studiamatch:f10.9:g5:{domain}:v1\0{canonical_json(value)}"
+    material = f"studiamatch:f10.9:g5:{domain}:v2\0{canonical_json(value)}"
     return "sha256:" + hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
-def snapshot_fingerprint(
-    tables: Mapping[str, Sequence[Mapping[str, Any]]],
-) -> str:
-    """Bind a private snapshot without publishing its rows or identifiers."""
+def _canonical_private(value: object) -> object:
+    if is_dataclass(value) and not isinstance(value, type):
+        return _canonical_private(asdict(value))
+    if isinstance(value, datetime):
+        return _timestamp_text(value)
+    if isinstance(value, Mapping):
+        return {str(key): _canonical_private(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_private(item) for item in value]
+    return value
+
+
+def profile_fingerprint(profile: Mapping[str, Any]) -> str:
+    """Fingerprint one exact private profile without publishing its fields."""
+    return _fingerprint("profile", dict(profile))
+
+
+def source_fingerprint(profile: Mapping[str, Any]) -> str:
+    """Fingerprint only the source-defining private profile fields."""
+    return _fingerprint(
+        "source",
+        {
+            "institution_id": profile.get("institution_id"),
+            "discovery_mode": profile.get("discovery_mode"),
+            "seed_urls": profile.get("seed_urls"),
+            "catalog_url_patterns": profile.get("catalog_url_patterns"),
+            "allowed_url_patterns": profile.get("allowed_url_patterns"),
+        },
+    )
+
+
+def snapshot_fingerprint(tables: Mapping[str, Sequence[Mapping[str, Any]]]) -> str:
+    """Bind a private snapshot without publishing rows or identifiers."""
     canonical_tables = {
-        table: sorted(
-            (dict(row) for row in tables[table]),
-            key=lambda row: str(row.get("id")),
-        )
+        table: sorted((dict(row) for row in tables[table]), key=lambda row: str(row["id"]))
         for table in sorted(_TABLES)
     }
     return _fingerprint(
@@ -197,17 +442,151 @@ def snapshot_fingerprint(
     )
 
 
+def _table_fingerprint(table: str, rows: Sequence[Mapping[str, Any]]) -> str:
+    return _fingerprint(
+        f"table:{table}",
+        sorted((dict(row) for row in rows), key=lambda row: str(row["id"])),
+    )
+
+
+def source_cohort_fingerprint(profile_fingerprints: Sequence[str]) -> str:
+    """Derive the enabled-profile cohort without institution-level collapsing."""
+    return _fingerprint("source-cohort", sorted(str(value) for value in profile_fingerprints))
+
+
+def fg3_cohort_fingerprint(
+    active_course_ids: Sequence[str],
+    prior_mutation_course_ids: Sequence[str],
+) -> str:
+    """Derive disjoint primary and attributable prior-mutation FG3 cohorts."""
+    return _fingerprint(
+        "fg3-cohort",
+        {
+            "active_snapshot_1": sorted(str(value) for value in active_course_ids),
+            "inactive_prior_mutations": sorted(
+                str(value) for value in prior_mutation_course_ids
+            ),
+        },
+    )
+
+
+def snapshot_pair_fingerprint(
+    first: Mapping[str, Sequence[Mapping[str, Any]]],
+    second: Mapping[str, Sequence[Mapping[str, Any]]],
+    pair: SnapshotPairEvidence,
+    binding: CandidateBinding,
+) -> str:
+    """Derive pair identity without including the identity itself."""
+    return _fingerprint(
+        "snapshot-pair",
+        {
+            "global": (snapshot_fingerprint(first), snapshot_fingerprint(second)),
+            "tables": {
+                table: (
+                    _table_fingerprint(table, first[table]),
+                    _table_fingerprint(table, second[table]),
+                )
+                for table in sorted(_TABLES)
+            },
+            "intervals": (
+                _timestamp_text(pair.snapshot_1_started_at),
+                _timestamp_text(pair.snapshot_1_ended_at),
+                _timestamp_text(pair.observations_started_at),
+                _timestamp_text(pair.observations_ended_at),
+                _timestamp_text(pair.snapshot_2_started_at),
+                _timestamp_text(pair.snapshot_2_ended_at),
+            ),
+            "binding": _canonical_private(binding),
+        },
+    )
+
+
+def run_fingerprint(snapshot_pair_id: str, binding: CandidateBinding) -> str:
+    """Derive one diagnostic run from its pair and immutable candidate binding."""
+    return _fingerprint(
+        "run",
+        {"snapshot_pair_id": snapshot_pair_id, "binding": _canonical_private(binding)},
+    )
+
+
+def mutation_fingerprint(
+    course_id: str,
+    antecedent_run_fingerprint: str,
+    antecedent_applied_at: datetime,
+    mutation_kind: str,
+    apply_outcome: str,
+    exact_one_verified: bool,
+) -> str:
+    """Bind private evidence of a mutation that predates this read-only run."""
+    return _fingerprint(
+        "prior-mutation",
+        {
+            "course_id": course_id,
+            "antecedent_run_fingerprint": antecedent_run_fingerprint,
+            "antecedent_applied_at": _timestamp_text(antecedent_applied_at),
+            "mutation_kind": mutation_kind,
+            "apply_outcome": apply_outcome,
+            "exact_one_verified": exact_one_verified,
+        },
+    )
+
+
+def historical_observation_fingerprint(item: FG3Observation) -> str:
+    """Bind one private historical FG3 result without publishing its fields."""
+    return _fingerprint("historical-fg3-observation", _canonical_private(item))
+
+
+def historical_manifest_fingerprint(
+    complete: bool, expected_observation_fingerprints: Sequence[str]
+) -> str:
+    """Bind the independently materialized historical FG3 evidence inventory."""
+    return _fingerprint(
+        "historical-fg3-manifest",
+        {
+            "complete": complete,
+            "expected_observation_fingerprints": sorted(
+                str(value) for value in expected_observation_fingerprints
+            ),
+        },
+    )
+
+
 def _validate_binding(binding: CandidateBinding) -> None:
-    if any(
-        not _SHA_RE.fullmatch(value)
-        for value in (
-            binding.base_sha,
-            binding.base_tree,
-            binding.candidate_sha,
-            binding.candidate_tree,
-        )
-    ) or binding.observed_at.tzinfo is None:
+    if type(binding) is not CandidateBinding:
         raise G5Error("STOP_G5_BINDING_INVALID")
+
+
+def _validate_historical_anchor(
+    anchor: HistoricalFG3Anchor | None,
+    manifest: HistoricalFG3Manifest,
+    binding: CandidateBinding,
+) -> None:
+    if (
+        type(anchor) is not HistoricalFG3Anchor
+        or not _DIGEST_RE.fullmatch(anchor.expected_manifest_fingerprint)
+        or anchor.expected_manifest_fingerprint != manifest.manifest_fingerprint
+        or anchor.base_sha != binding.base_sha
+        or anchor.base_tree != binding.base_tree
+        or anchor.candidate_sha != binding.candidate_sha
+        or anchor.candidate_tree != binding.candidate_tree
+    ):
+        raise G5Error("STOP_G5_FG3_HISTORICAL_EVIDENCE_ANCHOR_MISSING")
+    identities = (
+        binding.base_sha,
+        binding.base_tree,
+        binding.candidate_sha,
+        binding.candidate_tree,
+    )
+    if (
+        any(type(value) is not str for value in identities)
+        or any(not _SHA_RE.fullmatch(value) for value in identities)
+        or not _is_utc(binding.observed_at)
+    ):
+        raise G5Error("STOP_G5_BINDING_INVALID")
+
+
+def _is_utc(value: object) -> bool:
+    return type(value) is datetime and value.tzinfo is not None and value.utcoffset() == timedelta(0)
 
 
 def _collect_table(
@@ -227,11 +606,8 @@ def _collect_table(
         raise G5Error("STOP_G5_COLLECTION_ERROR")
     if expected > max_rows:
         raise G5Error("STOP_G5_LIMIT_EXCEEDED")
-
     rows: list[dict[str, Any]] = []
-    offset = 0
-    pages = 0
-    observed_bytes = 0
+    offset = pages = observed_bytes = 0
     while offset < expected:
         try:
             page = facade.select(
@@ -256,7 +632,6 @@ def _collect_table(
             rows.append(normalized)
         offset += len(page)
         pages += 1
-
     try:
         final_count = facade.count(snapshot, table)
     except Exception:
@@ -296,14 +671,20 @@ def _collect_snapshot(
     return tables, pages, total_bytes
 
 
-def _parse_timestamp(value: object, reason: str) -> datetime | None:
+def _parse_utc(value: object) -> datetime | None:
     if value is None:
         return None
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (TypeError, ValueError):
-        raise G5Error(reason) from None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def _timestamp_text(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat()
 
 
 def _json_list(value: object) -> tuple[str, ...]:
@@ -327,12 +708,105 @@ def _enabled(profile: Mapping[str, Any]) -> bool:
     return bool(profile.get("discovery_enabled") and pipeline)
 
 
+def _validate_pair(pair: SnapshotPairEvidence) -> None:
+    if type(pair) is not SnapshotPairEvidence or not _DIGEST_RE.fullmatch(pair.snapshot_pair_id):
+        raise G5Error("STOP_G5_SNAPSHOT_PAIR_INVALID")
+    points = (
+        pair.snapshot_1_started_at,
+        pair.snapshot_1_ended_at,
+        pair.observations_started_at,
+        pair.observations_ended_at,
+        pair.snapshot_2_started_at,
+        pair.snapshot_2_ended_at,
+    )
+    if not all(_is_utc(point) for point in points) or list(points) != sorted(points):
+        raise G5Error("STOP_G5_SNAPSHOT_PAIR_ORDER_INVALID")
+    if (
+        pair.snapshot_1_started_at == pair.snapshot_1_ended_at
+        or pair.observations_started_at == pair.observations_ended_at
+        or pair.snapshot_2_started_at == pair.snapshot_2_ended_at
+    ):
+        raise G5Error("STOP_G5_SNAPSHOT_PAIR_ORDER_INVALID")
+
+
+def _validate_common_observation(
+    item: InventoryObservation | SourceObservation,
+    *,
+    profile: Mapping[str, Any],
+    reasons: frozenset[str],
+    observations: PrivateObservations,
+) -> None:
+    if (
+        item.institution_id != str(profile["institution_id"])
+        or item.profile_fingerprint != profile_fingerprint(profile)
+        or item.source_fingerprint != source_fingerprint(profile)
+        or item.terminal_reason not in reasons
+        or item.run_fingerprint != observations.run_fingerprint
+        or item.cohort_fingerprint != observations.source_cohort_fingerprint
+        or not _DIGEST_RE.fullmatch(item.run_fingerprint)
+        or not _DIGEST_RE.fullmatch(item.cohort_fingerprint)
+        or not _is_utc(item.observed_at)
+        or not (
+            observations.pair.observations_started_at
+            <= item.observed_at
+            <= observations.pair.observations_ended_at
+        )
+        or isinstance(item.attempts, bool)
+        or not isinstance(item.attempts, int)
+        or not 1 <= item.attempts <= 3
+        or type(item.method_sequence) is not tuple
+        or any(method not in {"HEAD", "GET"} for method in item.method_sequence)
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if type(item) is InventoryObservation and (
+        item.stage != "INVENTORY_QUERY" or item.method_sequence or not 1 <= item.attempts <= 3
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if type(item) is SourceObservation and (
+        not item.method_sequence
+        or item.stage != item.method_sequence[-1]
+        or item.attempts != len(item.method_sequence)
+        or (
+            item.terminal_reason == "SOURCE_GET_403"
+            and item.method_sequence[-1] != "GET"
+        )
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+
+
+def _recompute_lifecycle(
+    row: Mapping[str, Any], now: datetime
+) -> tuple[str | None, str, int | None, str]:
+    raw_last = row.get("last_harvested_at")
+    raw_created = row.get("created_at")
+    if raw_last is not None:
+        raw = raw_last
+        origin = "LAST_HARVESTED_AT_PROXY"
+    elif raw_created is not None:
+        raw = raw_created
+        origin = "CREATED_AT_PROXY"
+    else:
+        return None, "NONE", None, "AGE_UNKNOWN"
+    parsed = _parse_utc(raw)
+    if parsed is None:
+        return str(raw), origin, None, "AGE_UNKNOWN"
+    timestamp_used = _timestamp_text(parsed)
+    age = int((now - parsed).total_seconds())
+    if age < 0:
+        return timestamp_used, origin, age, "FUTURE_TIMESTAMP"
+    if timedelta(seconds=age) > _STALE_AFTER:
+        return timestamp_used, origin, age, "STALE"
+    return timestamp_used, origin, age, "NOT_STALE"
+
+
 def _validate_observations(
     tables: Mapping[str, tuple[dict[str, Any], ...]],
     observations: PrivateObservations,
     binding: CandidateBinding,
     expected_snapshot: str,
-) -> tuple[Counter[str], dict[str, int]]:
+) -> tuple[Counter[str], dict[str, int], dict[str, int]]:
+    _validate_private_types(observations)
+    _validate_pair(observations.pair)
     if (
         observations.snapshot_fingerprint != expected_snapshot
         or observations.base_sha != binding.base_sha
@@ -340,58 +814,81 @@ def _validate_observations(
         or observations.candidate_sha != binding.candidate_sha
         or observations.candidate_tree != binding.candidate_tree
         or observations.observed_at != binding.observed_at
+        or not _DIGEST_RE.fullmatch(observations.run_fingerprint)
+        or not _DIGEST_RE.fullmatch(observations.source_cohort_fingerprint)
+        or not _DIGEST_RE.fullmatch(observations.fg3_cohort_fingerprint)
+        or not (
+            observations.pair.observations_started_at
+            <= observations.observed_at
+            <= observations.pair.observations_ended_at
+        )
     ):
         raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
 
     reasons: Counter[str] = Counter()
-    source_ids: set[str] = set()
+    enabled: dict[str, Mapping[str, Any]] = {}
+    for profile in tables["institution_site_profiles"]:
+        if not _enabled(profile):
+            continue
+        fingerprint = profile_fingerprint(profile)
+        if fingerprint in enabled:
+            raise G5Error("STOP_G5_PROFILE_FINGERPRINT_DUPLICATE")
+        enabled[fingerprint] = profile
+    expected_source_cohort = source_cohort_fingerprint(tuple(enabled))
+    expected_run = run_fingerprint(observations.pair.snapshot_pair_id, binding)
+    if (
+        observations.source_cohort_fingerprint != expected_source_cohort
+        or observations.run_fingerprint != expected_run
+    ):
+        raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
+    inventories: dict[str, InventoryObservation] = {}
+    for item in observations.inventories:
+        if (
+            type(item) is not InventoryObservation
+            or item.profile_fingerprint in inventories
+        ):
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        profile = enabled.get(item.profile_fingerprint)
+        if profile is None:
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        _validate_common_observation(
+            item,
+            profile=profile,
+            reasons=_INVENTORY_CODES,
+            observations=observations,
+        )
+        inventories[item.profile_fingerprint] = item
+        reasons[item.terminal_reason] += 1
+    sources: dict[str, SourceObservation] = {}
     for item in observations.sources:
-        if (
-            not item.institution_id
-            or item.institution_id in source_ids
-            or item.outcome not in _SOURCE_OUTCOMES
-            or not isinstance(item.inventory_loaded, bool)
-        ):
+        if type(item) is not SourceObservation or item.profile_fingerprint in sources:
             raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
-        source_ids.add(item.institution_id)
-        if not item.inventory_loaded:
-            reasons["INSTITUTION_INVENTORY_LOAD_FAILED"] += 1
-        if item.outcome != "ACCESSIBLE":
-            reasons[item.outcome] += 1
-    enabled_ids = {
-        str(profile.get("institution_id"))
-        for profile in tables["institution_site_profiles"]
-        if _enabled(profile)
-    }
-    if source_ids != enabled_ids:
+        profile = enabled.get(item.profile_fingerprint)
+        if profile is None:
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        _validate_common_observation(
+            item,
+            profile=profile,
+            reasons=_SOURCE_CODES,
+            observations=observations,
+        )
+        sources[item.profile_fingerprint] = item
+        reasons[item.terminal_reason] += 1
+    if set(inventories) != set(enabled) or set(sources) != set(enabled):
         raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INCOMPLETE")
 
-    fg3_ids: set[str] = set()
-    course_ids = {str(row["id"]) for row in tables["courses"]}
-    for item in observations.fg3:
-        if (
-            not item.course_id
-            or item.course_id in fg3_ids
-            or item.outcome not in _FG3_OUTCOMES
-        ):
-            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
-        fg3_ids.add(item.course_id)
-        if item.outcome == "INCONCLUSIVE":
-            reasons["FG3_INCONCLUSIVE"] += 1
-    if fg3_ids != course_ids:
-        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INCOMPLETE")
-
-    hash_ids: set[str] = set()
     hash_targets = {
         str(row["id"])
         for row in tables["staging_raw"]
         if str(row.get("status") or "") in {"pending", "processing", "processed"}
     }
+    hash_ids: set[str] = set()
     for item in observations.hashes:
         if (
-            not item.staging_id
+            type(item) is not HashObservation
+            or not item.staging_id
             or item.staging_id in hash_ids
-            or not isinstance(item.content_hash_valid, bool)
+            or type(item.content_hash_valid) is not bool
         ):
             raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
         hash_ids.add(item.staging_id)
@@ -399,18 +896,64 @@ def _validate_observations(
             reasons["CONTENT_HASH_INVALID"] += 1
     if hash_ids != hash_targets:
         raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INCOMPLETE")
-    return reasons, {
-        "source_observations": len(source_ids),
-        "fg3_observations": len(fg3_ids),
-        "hash_observations": len(hash_ids),
+
+    processing = {
+        str(row["id"]): row
+        for row in tables["staging_raw"]
+        if str(row.get("status") or "") == "processing"
     }
+    lifecycle_ids: set[str] = set()
+    lifecycle_counts: Counter[str] = Counter()
+    for item in observations.lifecycle:
+        if (
+            type(item) is not ProcessingLifecycleObservation
+            or item.staging_id in lifecycle_ids
+            or item.timestamp_origin not in _TIMESTAMP_ORIGINS
+            or item.classification not in _LIFECYCLE_CLASSES
+        ):
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        row = processing.get(item.staging_id)
+        if row is None:
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        expected = _recompute_lifecycle(row, binding.observed_at)
+        actual = (
+            item.timestamp_used,
+            item.timestamp_origin,
+            item.calculated_age_seconds,
+            item.classification,
+        )
+        if actual != expected:
+            raise G5Error("STOP_G5_LIFECYCLE_EVIDENCE_MISMATCH")
+        lifecycle_ids.add(item.staging_id)
+        lifecycle_counts[item.classification] += 1
+    if lifecycle_ids != set(processing):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INCOMPLETE")
+    reasons["PROCESSING_STALE"] += lifecycle_counts["STALE"]
+    reasons["PROCESSING_AGE_UNKNOWN"] += lifecycle_counts["AGE_UNKNOWN"]
+    reasons["PROCESSING_FUTURE_TIMESTAMP"] += lifecycle_counts["FUTURE_TIMESTAMP"]
+    for empty in ("PROCESSING_STALE", "PROCESSING_AGE_UNKNOWN", "PROCESSING_FUTURE_TIMESTAMP"):
+        if not reasons[empty]:
+            del reasons[empty]
+    return (
+        reasons,
+        {
+            "processing_stale": lifecycle_counts["STALE"],
+            "processing_not_stale": lifecycle_counts["NOT_STALE"],
+            "processing_age_unknown": lifecycle_counts["AGE_UNKNOWN"],
+            "processing_future_timestamp": lifecycle_counts["FUTURE_TIMESTAMP"],
+        },
+        {
+            "enabled_profiles": len(enabled),
+            "processing_rows": len(processing),
+            "staging_rows": len(tables["staging_raw"]),
+            "hash_evidence_targets": len(hash_targets),
+        },
+    )
 
 
 def _classify_fg2(
     tables: Mapping[str, tuple[dict[str, Any], ...]],
-    *,
-    now: datetime,
-) -> tuple[Counter[str], dict[str, int]]:
+) -> tuple[Counter[str], dict[str, int], dict[str, int]]:
     reasons: Counter[str] = Counter()
     staging_by_identity: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     staging_by_id: dict[str, Mapping[str, Any]] = {}
@@ -430,18 +973,8 @@ def _classify_fg2(
             not isinstance(content_hash, str) or not _HASH_RE.fullmatch(content_hash)
         ):
             reasons["INCOMPLETE_CONTENT_EVIDENCE"] += 1
-        if status == "processing":
-            started = _parse_timestamp(
-                row.get("last_harvested_at") or row.get("created_at"),
-                "STOP_G5_CLASSIFICATION_ERROR",
-            )
-            if started is None or started > now:
-                reasons["PROCESSING_TIME_INVALID"] += 1
-            elif now - started > _STALE_AFTER:
-                reasons["STALE_PROCESSING"] += 1
 
-    duplicate_groups = 0
-    duplicate_excess_rows = 0
+    duplicate_groups = duplicate_excess_rows = conflicting_hash_groups = 0
     for rows in staging_by_identity.values():
         if len(rows) < 2:
             continue
@@ -450,18 +983,20 @@ def _classify_fg2(
         reasons["DUPLICATE_NORMALIZED_URL"] += 1
         hashes = {str(row.get("content_hash")) for row in rows if row.get("content_hash")}
         if len(hashes) > 1:
+            conflicting_hash_groups += 1
             reasons["CONFLICTING_CONTENT_HASH"] += 1
 
     cleansed_by_id: dict[str, Mapping[str, Any]] = {}
     downstream_counts: Counter[str] = Counter()
+    downstream_conflicts = 0
     for row in tables["cleansed_programs"]:
         cleansed_by_id[str(row["id"])] = row
         staging_id = str(row.get("staging_id") or "")
         parent = staging_by_id.get(staging_id)
         downstream_counts[staging_id] += 1
         if parent is None or not _same_reference(parent, row):
-            reasons["DOWNSTREAM_REFERENCE_CONFLICT"] += 1
-    reasons["DOWNSTREAM_REFERENCE_CONFLICT"] += sum(
+            downstream_conflicts += 1
+    downstream_conflicts += sum(
         count - 1 for count in downstream_counts.values() if count > 1
     )
     enriched_counts: Counter[str] = Counter()
@@ -470,10 +1005,12 @@ def _classify_fg2(
         parent = cleansed_by_id.get(cleansed_id)
         enriched_counts[cleansed_id] += 1
         if parent is None or not _same_reference(parent, row):
-            reasons["DOWNSTREAM_REFERENCE_CONFLICT"] += 1
-    reasons["DOWNSTREAM_REFERENCE_CONFLICT"] += sum(
+            downstream_conflicts += 1
+    downstream_conflicts += sum(
         count - 1 for count in enriched_counts.values() if count > 1
     )
+    if downstream_conflicts:
+        reasons["DOWNSTREAM_REFERENCE_CONFLICT"] = downstream_conflicts
 
     for profile in tables["institution_site_profiles"]:
         if not _enabled(profile):
@@ -482,9 +1019,6 @@ def _classify_fg2(
         seeds = _json_list(profile.get("seed_urls"))
         catalogs = _json_list(profile.get("catalog_url_patterns"))
         allowed = _json_list(profile.get("allowed_url_patterns"))
-        seeds_valid = all(_identity(seed)[1] for seed in seeds)
-        catalogs_valid = all(_valid_catalog_template(item) for item in catalogs)
-        patterns_valid = all(_valid_pattern(pattern) for pattern in allowed)
         if mode == "hardcoded_urls" and not seeds:
             reasons["INVALID_EMPTY_HARDCODED_PROFILE"] += 1
         elif (
@@ -492,17 +1026,27 @@ def _classify_fg2(
             or (mode == "catalog_link_extraction" and not seeds)
             or (mode == "paginated_catalog" and not catalogs)
             or (mode in {"hardcoded_urls", "sitemap_bfs"} and not allowed)
-            or not seeds_valid
-            or not catalogs_valid
-            or not patterns_valid
+            or not all(_identity(seed)[1] for seed in seeds)
+            or not all(_valid_catalog_template(item) for item in catalogs)
+            or not all(_valid_pattern(pattern) for pattern in allowed)
         ):
             reasons["INVALID_ENABLED_DISCOVERY_PROFILE"] += 1
-    if not reasons["DOWNSTREAM_REFERENCE_CONFLICT"]:
-        del reasons["DOWNSTREAM_REFERENCE_CONFLICT"]
-    return reasons, {
-        "duplicate_groups": duplicate_groups,
-        "duplicate_excess_rows": duplicate_excess_rows,
-    }
+    return (
+        reasons,
+        {
+            "duplicate_groups": duplicate_groups,
+            "duplicate_excess_rows": duplicate_excess_rows,
+            "conflicting_hash_groups": conflicting_hash_groups,
+            "downstream_reference_conflicts": downstream_conflicts,
+        },
+        {
+            "normalized_url_groups": len(staging_by_identity),
+            "duplicate_groups": duplicate_groups,
+            "downstream_references": (
+                len(tables["cleansed_programs"]) + len(tables["enriched_programs"])
+            ),
+        },
+    )
 
 
 def _same_reference(parent: Mapping[str, Any], child: Mapping[str, Any]) -> bool:
@@ -527,10 +1071,7 @@ def _valid_pattern(pattern: str) -> bool:
         or "(?" in expression
         or re.search(r"\\[1-9]", expression)
         or re.search(r"(?:\*|\+|\{\d+,?\d*\})(?:\s*)(?:\*|\+|\{)", expression)
-        or re.search(
-            r"\([^)]*(?:\*|\+|\{\d+,?\d*\})[^)]*\)(?:\*|\+|\{)",
-            expression,
-        )
+        or re.search(r"\([^)]*(?:\*|\+|\{\d+,?\d*\})[^)]*\)(?:\*|\+|\{)", expression)
     ):
         return False
     try:
@@ -551,70 +1092,475 @@ def _valid_catalog_template(pattern: str) -> bool:
     )
 
 
-def _classify_fg3(
-    tables: Mapping[str, tuple[dict[str, Any], ...]],
-    observations: PrivateObservations,
-    *,
-    now: datetime,
-) -> tuple[Counter[str], dict[str, int]]:
-    reasons: Counter[str] = Counter()
-    outcomes = {item.course_id: item.outcome for item in observations.fg3}
-    already_deactivated = 0
-    for row in tables["courses"]:
-        try:
-            course_id = str(row["id"])
-            url = str(row["url"])
-            is_active = row["is_active"]
-        except (KeyError, TypeError):
-            raise G5Error("STOP_G5_CLASSIFICATION_ERROR") from None
-        if not course_id or not url or not isinstance(is_active, bool):
-            raise G5Error("STOP_G5_CLASSIFICATION_ERROR")
-        last_gone = _parse_timestamp(
-            row.get("last_404_at"), "FG3_LAST_GONE_STATE_INVALID"
+def _normalize_optional_timestamp(value: str | None) -> str | None:
+    if value is None:
+        return None
+    parsed = _parse_utc(value)
+    if parsed is None:
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    return _timestamp_text(parsed)
+
+
+def _has_prior_mutation(item: FG3Observation) -> bool:
+    return item.mutation_kind != "NONE"
+
+
+def _validate_private_types(observations: PrivateObservations) -> None:
+    if (
+        type(observations) is not PrivateObservations
+        or type(observations.fg3_historical_manifest) is not HistoricalFG3Manifest
+        or type(observations.fg3_historical_manifest.complete) is not bool
+        or type(observations.fg3_historical_manifest.expected_observation_fingerprints)
+        is not tuple
+        or type(observations.pair) is not SnapshotPairEvidence
+        or type(observations.inventories) is not tuple
+        or type(observations.sources) is not tuple
+        or type(observations.fg3) is not tuple
+        or type(observations.hashes) is not tuple
+        or type(observations.lifecycle) is not tuple
+        or any(type(item) is not InventoryObservation for item in observations.inventories)
+        or any(type(item) is not SourceObservation for item in observations.sources)
+        or any(type(item) is not FG3Observation for item in observations.fg3)
+        or any(type(item) is not HashObservation for item in observations.hashes)
+        or any(
+            type(item) is not ProcessingLifecycleObservation
+            for item in observations.lifecycle
         )
-        outcome = outcomes[course_id]
-        if outcome == "INCONCLUSIVE":
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+
+
+def _validate_fg3_item(
+    item: FG3Observation,
+    first_row: Mapping[str, Any],
+    second_row: Mapping[str, Any],
+    observations: PrivateObservations,
+) -> None:
+    prior = _has_prior_mutation(item)
+    if (
+        type(item) is not FG3Observation
+        or item.run_fingerprint != observations.run_fingerprint
+        or item.cohort_fingerprint != observations.fg3_cohort_fingerprint
+        or not _is_utc(item.observed_at)
+        or not (
+            observations.pair.observations_started_at
+            <= item.observed_at
+            <= observations.pair.observations_ended_at
+        )
+        or type(item.pre_is_active) is not bool
+        or type(item.post_is_active) is not bool
+        or item.classification not in _FG3_CLASSIFICATIONS
+        or not item.method_sequence
+        or type(item.method_sequence) is not tuple
+        or any(method not in {"HEAD", "GET"} for method in item.method_sequence)
+        or isinstance(item.attempts, bool)
+        or not isinstance(item.attempts, int)
+        or not 1 <= item.attempts <= 3
+        or item.attempts != len(item.method_sequence)
+        or item.mutation_kind not in _MUTATION_KINDS
+        or item.apply_outcome not in _APPLY_OUTCOMES
+        or type(item.exact_one_verified) is not bool
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if item.classification in {"GET_404", "GET_410", "GET_403"} and (
+        item.method_sequence[-1] != "GET"
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if item.classification in {"GET_404", "GET_410"} and not prior:
+        raise G5Error("STOP_G5_FG3_HISTORICAL_EVIDENCE_MISSING")
+    pre_last = _normalize_optional_timestamp(item.pre_last_404_at)
+    post_last = _normalize_optional_timestamp(item.post_last_404_at)
+    first_last = _normalize_optional_timestamp(first_row.get("last_404_at"))
+    second_last = _normalize_optional_timestamp(second_row.get("last_404_at"))
+    if (
+        item.pre_is_active != first_row.get("is_active")
+        or item.post_is_active != second_row.get("is_active")
+        or pre_last != first_last
+        or post_last != second_last
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if prior:
+        if (
+            item.apply_outcome != "APPLIED_PRIOR_EXACT_ONE"
+            or not item.exact_one_verified
+            or type(item.antecedent_run_fingerprint) is not str
+            or not _DIGEST_RE.fullmatch(item.antecedent_run_fingerprint)
+            or item.antecedent_run_fingerprint == observations.run_fingerprint
+            or not _is_utc(item.antecedent_applied_at)
+            or item.antecedent_applied_at >= observations.pair.snapshot_1_started_at
+            or type(item.antecedent_mutation_fingerprint) is not str
+            or item.antecedent_mutation_fingerprint
+            != mutation_fingerprint(
+                item.course_id,
+                item.antecedent_run_fingerprint,
+                item.antecedent_applied_at,
+                item.mutation_kind,
+                item.apply_outcome,
+                item.exact_one_verified,
+            )
+        ):
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    elif (
+        item.apply_outcome != "NOT_APPLIED_READ_ONLY"
+        or item.exact_one_verified
+        or item.antecedent_run_fingerprint is not None
+        or item.antecedent_mutation_fingerprint is not None
+        or item.antecedent_applied_at is not None
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if item.mutation_kind == "FIRST_GET_404" and pre_last is None:
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if item.mutation_kind == "FIRST_GET_410" and pre_last is None:
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+    if item.mutation_kind == "DEACTIVATE_PERSISTENT_GONE" and (
+        item.pre_is_active or item.post_is_active or pre_last is None
+    ):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+
+
+def _classify_fg3(
+    first: Mapping[str, tuple[dict[str, Any], ...]],
+    second: Mapping[str, tuple[dict[str, Any], ...]],
+    observations: PrivateObservations,
+) -> tuple[Counter[str], dict[str, object], dict[str, int]]:
+    manifest = observations.fg3_historical_manifest
+    expected_historical = manifest.expected_observation_fingerprints
+    if (
+        not _DIGEST_RE.fullmatch(manifest.manifest_fingerprint)
+        or any(
+            type(value) is not str or not _DIGEST_RE.fullmatch(value)
+            for value in expected_historical
+        )
+        or len(expected_historical) != len(set(expected_historical))
+        or manifest.manifest_fingerprint
+        != historical_manifest_fingerprint(manifest.complete, expected_historical)
+    ):
+        raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
+    if not manifest.complete:
+        raise G5Error("STOP_G5_FG3_HISTORICAL_EVIDENCE_MISSING")
+    reasons: Counter[str] = Counter()
+    first_courses = {str(row["id"]): row for row in first["courses"]}
+    second_courses = {str(row["id"]): row for row in second["courses"]}
+    supplied: dict[str, FG3Observation] = {}
+    for item in observations.fg3:
+        if type(item) is not FG3Observation or item.course_id in supplied:
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        first_row = first_courses.get(item.course_id)
+        second_row = second_courses.get(item.course_id)
+        if first_row is None or second_row is None:
+            raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INVALID")
+        _validate_fg3_item(item, first_row, second_row, observations)
+        if (
+            not first_row.get("is_active")
+            and item.mutation_kind != "DEACTIVATE_PERSISTENT_GONE"
+        ):
+            raise G5Error("STOP_G5_FG3_UNATTRIBUTED_INACTIVE")
+        supplied[item.course_id] = item
+    observed_historical = {
+        historical_observation_fingerprint(item)
+        for item in supplied.values()
+        if _has_prior_mutation(item) or item.classification in _FG3_INCONCLUSIVE
+    }
+    if observed_historical != set(expected_historical):
+        raise G5Error("STOP_G5_FG3_HISTORICAL_EVIDENCE_MISSING")
+    required_active = {
+        course_id
+        for course_id, row in first_courses.items()
+        if row.get("is_active") is True
+    }
+    if not required_active.issubset(supplied):
+        raise G5Error("STOP_G5_PRIVATE_OBSERVATION_INCOMPLETE")
+    prior_inactive = {
+        course_id
+        for course_id, item in supplied.items()
+        if course_id not in required_active and _has_prior_mutation(item)
+    }
+    if observations.fg3_cohort_fingerprint != fg3_cohort_fingerprint(
+        tuple(required_active), tuple(prior_inactive)
+    ):
+        raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
+
+    inconclusive = Counter()
+    first_404 = first_410 = persistent = recoveries = prior_count = 0
+    active_before = active_after = 0
+    for item in supplied.values():
+        active_before += int(item.pre_is_active)
+        active_after += int(item.post_is_active)
+        prior = _has_prior_mutation(item)
+        if item.classification in _FG3_INCONCLUSIVE:
+            inconclusive[item.classification] += 1
+            reasons[f"FG3_{item.classification}"] += 1
             continue
-        if outcome == "HEALTHY":
-            if not is_active:
-                reasons["FG3_INACTIVE_RECOVERY_REQUIRES_REBASELINE"] += 1
-            elif last_gone is not None:
-                reasons["FG3_RECOVERY_REQUIRED"] += 1
+        if prior:
+            prior_count += 1
+        if item.classification == "HEALTHY":
+            if (
+                item.mutation_kind == "DEACTIVATE_PERSISTENT_GONE"
+                or not item.post_is_active
+                or item.post_last_404_at is not None
+            ):
+                recoveries += 1
             continue
-        if not is_active:
-            already_deactivated += 1
-        elif last_gone is None or now <= last_gone + timedelta(days=3):
-            reasons["FIRST_404_410_OBSERVATION"] += 1
-        else:
-            reasons["DEACTIVATION_REVALIDATION_REQUIRED"] += 1
-    return reasons, {"deactivation_already_observed": already_deactivated}
+        if item.mutation_kind == "DEACTIVATE_PERSISTENT_GONE":
+            persistent += 1
+        elif item.classification == "GET_404" and item.mutation_kind == "FIRST_GET_404":
+            first_404 += 1
+        elif item.classification == "GET_410" and item.mutation_kind == "FIRST_GET_410":
+            first_410 += 1
+    aggregates = {
+        "fg3_evaluated_courses": len(supplied),
+        "fg3_primary_cohort_courses": len(required_active),
+        "fg3_prior_mutation_courses": len(prior_inactive),
+        "fg3_active_before": active_before,
+        "fg3_active_after": active_after,
+        "fg3_inconclusive_total": sum(inconclusive.values()),
+        "fg3_inconclusive_by_reason": dict(sorted(inconclusive.items())),
+        "first_get_404_observations": first_404,
+        "first_get_410_observations": first_410,
+        "deactivations_persistent_gone": persistent,
+        "recoveries_required": recoveries,
+        "prior_mutations_revalidated": prior_count,
+    }
+    if (
+        aggregates["fg3_evaluated_courses"]
+        != aggregates["fg3_primary_cohort_courses"]
+        + aggregates["fg3_prior_mutation_courses"]
+        or aggregates["fg3_inconclusive_total"] != sum(inconclusive.values())
+    ):
+        raise G5Error("STOP_G5_CLASSIFICATION_ERROR")
+    attributable_prior_mutations = sum(
+        _has_prior_mutation(item) for item in supplied.values()
+    )
+    if prior_count > attributable_prior_mutations:
+        raise G5Error("STOP_G5_CLASSIFICATION_ERROR")
+    return reasons, aggregates, {
+        "fg3_primary_cohort": len(required_active),
+        "fg3_prior_mutation_cohort": len(prior_inactive),
+        "fg3_evaluated_courses": len(supplied),
+        "fg3_inconclusive_total": sum(inconclusive.values()),
+        "fg3_attributable_prior_mutations": attributable_prior_mutations,
+    }
 
 
-def _stop_projection(
-    reason: str,
-    binding: CandidateBinding,
-    counts: Mapping[str, object],
-) -> Mapping[str, object]:
-    document = _projection_base(binding, "STOP", {reason: 1}, counts)
-    document["fingerprints"] = {"snapshot": None, "observations": None}
-    document["digests"] = {"algorithm": _fingerprint("algorithm", ALGORITHM_VERSION)}
-    document["digests"]["projection"] = _fingerprint("projection", document)
-    return MappingProxyType(document)
-
-
-def _projection_base(
-    binding: CandidateBinding,
-    decision: str,
+def _definitions(
     reasons: Mapping[str, int],
-    counts: Mapping[str, object],
+    aggregates: Mapping[str, object],
+    denominator_values: Mapping[str, int],
 ) -> dict[str, object]:
+    if not set(reasons).issubset(REASON_DEFINITIONS) or set(aggregates) != set(AGGREGATE_DEFINITIONS):
+        raise G5Error("STOP_G5_PUBLIC_VOCABULARY_INVALID")
+    used_denominators = {
+        definition[1]
+        for key, definition in REASON_DEFINITIONS.items()
+        if key in reasons
+    } | {definition[1] for definition in AGGREGATE_DEFINITIONS.values()}
+    if not used_denominators.issubset(denominator_values):
+        raise G5Error("STOP_G5_PUBLIC_VOCABULARY_INVALID")
     return {
+        "reason_codes": {
+            key: {"unit": REASON_DEFINITIONS[key][0], "denominator": REASON_DEFINITIONS[key][1]}
+            for key in sorted(reasons)
+        },
+        "aggregates": {
+            key: {
+                "unit": AGGREGATE_DEFINITIONS[key][0],
+                "denominator": AGGREGATE_DEFINITIONS[key][1],
+            }
+            for key in sorted(aggregates)
+        },
+        "snapshot_pair_counts": {
+            key: {"unit": value[0], "denominator": value[1]}
+            for key, value in SNAPSHOT_PAIR_DEFINITIONS.items()
+        },
+    }
+
+
+def _freeze(value: object) -> object:
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(_freeze(item) for item in value)
+    return value
+
+
+def _pair_projection(
+    observations: PrivateObservations,
+    first: Mapping[str, Sequence[Mapping[str, Any]]],
+    second: Mapping[str, Sequence[Mapping[str, Any]]],
+    first_pages: Mapping[str, int],
+    second_pages: Mapping[str, int],
+) -> dict[str, object]:
+    pair = observations.pair
+    tables = {
+        table: {
+            "initial_count": len(first[table]),
+            "final_count": len(second[table]),
+            "initial_fingerprint": _table_fingerprint(table, first[table]),
+            "final_fingerprint": _table_fingerprint(table, second[table]),
+            "pages": (first_pages[table], second_pages[table]),
+        }
+        for table in sorted(_TABLES)
+    }
+    return {
+        "snapshot_pair_id": pair.snapshot_pair_id,
+        "declaration": SNAPSHOT_DECLARATION,
+        "sequence": ("snapshot_1", "observations", "snapshot_2"),
+        "intervals": {
+            "snapshot_1": (
+                _timestamp_text(pair.snapshot_1_started_at),
+                _timestamp_text(pair.snapshot_1_ended_at),
+            ),
+            "observations": (
+                _timestamp_text(pair.observations_started_at),
+                _timestamp_text(pair.observations_ended_at),
+            ),
+            "snapshot_2": (
+                _timestamp_text(pair.snapshot_2_started_at),
+                _timestamp_text(pair.snapshot_2_ended_at),
+            ),
+        },
+        "global": {
+            "initial_count": sum(len(rows) for rows in first.values()),
+            "final_count": sum(len(rows) for rows in second.values()),
+            "initial_fingerprint": snapshot_fingerprint(first),
+            "final_fingerprint": snapshot_fingerprint(second),
+        },
+        "tables": tables,
+    }
+
+
+def _observation_fingerprint(observations: PrivateObservations) -> str:
+    material = {
+        "run": observations.run_fingerprint,
+        "source_cohort": observations.source_cohort_fingerprint,
+        "fg3_cohort": observations.fg3_cohort_fingerprint,
+        "fg3_historical_manifest": observations.fg3_historical_manifest,
+        "inventories": sorted(observations.inventories, key=lambda item: item.profile_fingerprint),
+        "sources": sorted(observations.sources, key=lambda item: item.profile_fingerprint),
+        "fg3": sorted(observations.fg3, key=lambda item: item.course_id),
+        "hashes": sorted(observations.hashes, key=lambda item: item.staging_id),
+        "lifecycle": sorted(observations.lifecycle, key=lambda item: item.staging_id),
+    }
+    return _fingerprint("observations", _canonical_private(material))
+
+
+def collect_g5_projection(
+    facade: G5ReadOnlyFacade,
+    observations: PrivateObservations,
+    binding: CandidateBinding,
+    *,
+    historical_anchor: HistoricalFG3Anchor | None = None,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    max_rows_per_table: int = DEFAULT_MAX_ROWS_PER_TABLE,
+    max_snapshot_bytes: int = DEFAULT_MAX_SNAPSHOT_BYTES,
+) -> Mapping[str, object]:
+    """Read snapshot one, validate intervening evidence, then read snapshot two."""
+    if type(facade) is not G5ReadOnlyFacade:
+        raise G5Error("STOP_G5_FACADE_INVALID")
+    if (
+        isinstance(page_size, bool)
+        or not isinstance(page_size, int)
+        or not 1 <= page_size <= 1000
+        or isinstance(max_rows_per_table, bool)
+        or not isinstance(max_rows_per_table, int)
+        or max_rows_per_table < page_size
+        or isinstance(max_snapshot_bytes, bool)
+        or not isinstance(max_snapshot_bytes, int)
+        or max_snapshot_bytes < 1
+    ):
+        raise G5Error("STOP_G5_LIMIT_INVALID")
+    _validate_binding(binding)
+    _validate_historical_anchor(
+        historical_anchor, observations.fg3_historical_manifest, binding
+    )
+    first, first_pages, _first_bytes = _collect_snapshot(
+        facade,
+        0,
+        page_size=page_size,
+        max_rows=max_rows_per_table,
+        max_bytes=max_snapshot_bytes,
+    )
+    first_fingerprint = snapshot_fingerprint(first)
+    observation_reasons, lifecycle_aggregates, observation_denominators = _validate_observations(
+        first, observations, binding, first_fingerprint
+    )
+    fg2_reasons, fg2_aggregates, fg2_denominators = _classify_fg2(first)
+    second, second_pages, _second_bytes = _collect_snapshot(
+        facade,
+        1,
+        page_size=page_size,
+        max_rows=max_rows_per_table,
+        max_bytes=max_snapshot_bytes,
+    )
+    second_fingerprint = snapshot_fingerprint(second)
+    stable = first == second and first_fingerprint == second_fingerprint
+    if observations.pair.snapshot_pair_id != snapshot_pair_fingerprint(
+        first, second, observations.pair, binding
+    ):
+        raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
+    pair_projection = _pair_projection(
+        observations, first, second, first_pages, second_pages
+    )
+    if not stable:
+        document = {
+            "schema": SCHEMA,
+            "algorithm_version": ALGORITHM_VERSION,
+            "decision": "STOP",
+            "reason_codes": {STOP_SNAPSHOT_DRIFT: 1},
+            "aggregates": {},
+            "denominator_values": {"snapshot_pairs": 1},
+            "definitions": {
+                "reason_codes": {
+                    STOP_SNAPSHOT_DRIFT: {
+                        "unit": REASON_DEFINITIONS[STOP_SNAPSHOT_DRIFT][0],
+                        "denominator": REASON_DEFINITIONS[STOP_SNAPSHOT_DRIFT][1],
+                    }
+                },
+                "aggregates": {},
+                "snapshot_pair_counts": {
+                    key: {"unit": value[0], "denominator": value[1]}
+                    for key, value in SNAPSHOT_PAIR_DEFINITIONS.items()
+                },
+            },
+            "snapshot_pair": pair_projection,
+            "fingerprints": {"observations": _observation_fingerprint(observations)},
+            "sha_tree": {
+                "base_sha": binding.base_sha,
+                "base_tree": binding.base_tree,
+                "candidate_sha": binding.candidate_sha,
+                "candidate_tree": binding.candidate_tree,
+            },
+        }
+        document["digests"] = {"algorithm": _fingerprint("algorithm", ALGORITHM_VERSION)}
+        document["digests"]["projection"] = _fingerprint("projection", document)
+        return _freeze(document)  # type: ignore[return-value]
+    fg3_reasons, fg3_aggregates, fg3_denominators = _classify_fg3(
+        first, second, observations
+    )
+    reasons = observation_reasons + fg2_reasons + fg3_reasons
+    aggregates = {**fg2_aggregates, **lifecycle_aggregates, **fg3_aggregates}
+    denominator_values = {
+        "snapshot_pairs": 1,
+        **observation_denominators,
+        **fg2_denominators,
+        **fg3_denominators,
+    }
+    if sum(lifecycle_aggregates.values()) != denominator_values["processing_rows"]:
+        raise G5Error("STOP_G5_CLASSIFICATION_ERROR")
+    blocking = any(code in _BLOCKING_CODES and count for code, count in reasons.items())
+    document: dict[str, object] = {
         "schema": SCHEMA,
-        "decision": decision,
+        "algorithm_version": ALGORITHM_VERSION,
+        "decision": "PASS" if stable and not blocking else "STOP",
         "reason_codes": dict(sorted(reasons.items())),
-        "counts": dict(counts),
-        "timestamps": {
-            "observed_at": binding.observed_at.astimezone(timezone.utc).isoformat()
+        "aggregates": aggregates,
+        "denominator_values": dict(sorted(denominator_values.items())),
+        "definitions": _definitions(reasons, aggregates, denominator_values),
+        "snapshot_pair": pair_projection,
+        "fingerprints": {
+            "observations": _observation_fingerprint(observations),
         },
         "sha_tree": {
             "base_sha": binding.base_sha,
@@ -623,105 +1569,9 @@ def _projection_base(
             "candidate_tree": binding.candidate_tree,
         },
     }
-
-
-def collect_g5_projection(
-    facade: G5ReadOnlyFacade,
-    observations: PrivateObservations,
-    binding: CandidateBinding,
-    *,
-    page_size: int = DEFAULT_PAGE_SIZE,
-    max_rows_per_table: int = DEFAULT_MAX_ROWS_PER_TABLE,
-    max_snapshot_bytes: int = DEFAULT_MAX_SNAPSHOT_BYTES,
-) -> Mapping[str, object]:
-    """Compare two private snapshots and emit only a sanitized projection."""
-    if type(facade) is not G5ReadOnlyFacade:
-        raise G5Error("STOP_G5_FACADE_INVALID")
-    if (
-        not 1 <= page_size <= 1000
-        or max_rows_per_table < page_size
-        or max_snapshot_bytes < 1
-    ):
-        raise G5Error("STOP_G5_LIMIT_INVALID")
-    _validate_binding(binding)
-    first, first_pages, first_bytes = _collect_snapshot(
-        facade,
-        0,
-        page_size=page_size,
-        max_rows=max_rows_per_table,
-        max_bytes=max_snapshot_bytes,
-    )
-    second, second_pages, second_bytes = _collect_snapshot(
-        facade,
-        1,
-        page_size=page_size,
-        max_rows=max_rows_per_table,
-        max_bytes=max_snapshot_bytes,
-    )
-    first_fingerprint = snapshot_fingerprint(first)
-    second_fingerprint = snapshot_fingerprint(second)
-    table_counts = {
-        table: {
-            "rows": len(first[table]),
-            "pages_per_snapshot": [first_pages[table], second_pages[table]],
-        }
-        for table in sorted(first)
-    }
-    if first_fingerprint != second_fingerprint or first != second:
-        return _stop_projection(
-            STOP_SNAPSHOT_DRIFT,
-            binding,
-            {
-                "tables": table_counts,
-                "snapshots": 2,
-                "bytes_per_snapshot": [first_bytes, second_bytes],
-            },
-        )
-
-    observation_reasons, observation_counts = _validate_observations(
-        first, observations, binding, first_fingerprint
-    )
-    fg2_reasons, fg2_counts = _classify_fg2(first, now=binding.observed_at)
-    fg3_reasons, fg3_counts = _classify_fg3(
-        first, observations, now=binding.observed_at
-    )
-    reasons = observation_reasons + fg2_reasons + fg3_reasons
-    observations_material = {
-        "sources": sorted(
-            (
-                item.institution_id,
-                item.inventory_loaded,
-                item.outcome,
-            )
-            for item in observations.sources
-        ),
-        "fg3": sorted((item.course_id, item.outcome) for item in observations.fg3),
-        "hashes": sorted(
-            (item.staging_id, item.content_hash_valid) for item in observations.hashes
-        ),
-        "snapshot": observations.snapshot_fingerprint,
-        "observed_at": observations.observed_at.astimezone(timezone.utc).isoformat(),
-    }
-    document = _projection_base(
-        binding,
-        "STOP" if reasons else "PASS",
-        reasons,
-        {
-            "tables": table_counts,
-            "snapshots": 2,
-            "bytes_per_snapshot": [first_bytes, second_bytes],
-            **fg2_counts,
-            **fg3_counts,
-            **observation_counts,
-        },
-    )
-    document["fingerprints"] = {
-        "snapshot": first_fingerprint,
-        "observations": _fingerprint("observations", observations_material),
-    }
     document["digests"] = {"algorithm": _fingerprint("algorithm", ALGORITHM_VERSION)}
     document["digests"]["projection"] = _fingerprint("projection", document)
-    return MappingProxyType(document)
+    return _freeze(document)  # type: ignore[return-value]
 
 
 def collect_g5_connected(
@@ -732,48 +1582,49 @@ def collect_g5_connected(
     binding: CandidateBinding,
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> Mapping[str, object]:
-    """Keep connected mode fail-closed until a post-merge implementation exists."""
-    del facade_factory, observations, page_size
-    if authorization.gate != GATE:
-        raise G5Error("STOP_G5_GATE_MISSING")
-    if authorization.gate_status != "APPROVED_NOT_CONSUMED":
-        raise G5Error("STOP_G5_GATE_NOT_APPROVED")
-    merge_sha = authorization.protected_merge_sha
-    merge_tree = authorization.protected_merge_tree
-    if (
-        merge_sha != binding.candidate_sha
-        or merge_tree != binding.candidate_tree
-        or authorization.security_check_sha != merge_sha
-        or authorization.contract_check_sha != merge_sha
-    ):
-        raise G5Error("STOP_G5_PROTECTED_MERGE_REQUIRED")
-    if (
-        authorization.payload_merge_sha != merge_sha
-        or authorization.payload_merge_tree != merge_tree
-    ):
-        raise G5Error("STOP_G5_PRIVATE_PAYLOAD_BINDING_REQUIRED")
-    if not authorization.production_target_digest or not _DIGEST_RE.fullmatch(
-        authorization.production_target_digest
-    ):
-        raise G5Error("STOP_G5_PRODUCTION_TARGET_REQUIRED")
+    """Remain unconditionally blocked before inspecting adapters or credentials."""
+    del authorization, facade_factory, observations, binding, page_size
     raise G5Error("STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED")
 
 
 __all__ = [
+    "AGGREGATE_DEFINITIONS",
     "ALGORITHM_VERSION",
+    "ALGORITHM_VERSION_V1",
     "CandidateBinding",
     "ConnectedAuthorization",
+    "EXCLUDED_SURFACES",
     "FG3Observation",
     "G5Error",
     "G5ReadOnlyFacade",
     "GATE",
     "GATE_CANDIDATE_STATUS",
     "HashObservation",
+    "HistoricalFG3Anchor",
+    "HistoricalFG3Manifest",
+    "InventoryObservation",
+    "LEGACY_ALGORITHM_VERSION_V1",
+    "LEGACY_SCHEMA_V1",
     "PrivateObservations",
+    "ProcessingLifecycleObservation",
+    "REASON_DEFINITIONS",
     "SCHEMA",
+    "SCHEMA_V1",
+    "SNAPSHOT_PAIR_DEFINITIONS",
+    "SNAPSHOT_DECLARATION",
     "STOP_SNAPSHOT_DRIFT",
+    "SnapshotPairEvidence",
     "SourceObservation",
     "collect_g5_connected",
     "collect_g5_projection",
+    "profile_fingerprint",
+    "fg3_cohort_fingerprint",
+    "historical_manifest_fingerprint",
+    "historical_observation_fingerprint",
+    "mutation_fingerprint",
+    "run_fingerprint",
     "snapshot_fingerprint",
+    "snapshot_pair_fingerprint",
+    "source_cohort_fingerprint",
+    "source_fingerprint",
 ]
