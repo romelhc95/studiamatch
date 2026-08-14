@@ -124,6 +124,9 @@ F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF = (
 F1010_H1_CA1_REBASELINE_BASE = "d8859a52254135561be996a706590f9a005fc7da"
 F1010_H1_CA1_REBASELINE_BASE_TREE = "25a05352b0a3f1319328927539a4f32bb9af827f"
 F1010_H1_CA1_REBASELINE_HEAD_REF = "docs/f10-10-h1-ca1-rebaseline"
+G5_PRODUCTION_READONLY_BASE = "2c9d2438c5fc309d3692d1a1de1233e0fcc95afc"
+G5_PRODUCTION_READONLY_BASE_TREE = "161a8df69bf5e527c4ba863891504551ec5f7aa7"
+G5_PRODUCTION_READONLY_HEAD_REF = "feat/f10-9-g5-production-readonly"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -467,6 +470,21 @@ F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES = {
 }
 F1010_H1_CA1_REBASELINE_ALLOWED_MODES = {
     path: "100644" for path in F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES
+}
+
+G5_PRODUCTION_READONLY_ALLOWED_STATUSES = {
+    ".gitignore": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_readonly_collector.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_production_readonly.py": "A",
+}
+G5_PRODUCTION_READONLY_ALLOWED_MODES = {
+    path: "100644" for path in G5_PRODUCTION_READONLY_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2485,6 +2503,72 @@ def validate_f1010_h1_ca1_rebaseline(
     validate_context_graph(repo, 64, 391)
 
 
+def validate_g5_production_readonly(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == G5_PRODUCTION_READONLY_BASE,
+        "unexpected G5 Production read-only base",
+    )
+    require_sha(repo, "G5_PRODUCTION_READONLY_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_PRODUCTION_READONLY_BASE_TREE,
+        "G5 Production read-only base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 Production read-only push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 Production read-only merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 Production read-only candidate must be one direct commit",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "G5 Production read-only base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_PRODUCTION_READONLY_ALLOWED_STATUSES,
+        G5_PRODUCTION_READONLY_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "f10_9_metadata_planner",
+        "select_all_service",
+        "select_all_pipeline",
+        "patch_exact_one_raise",
+    ):
+        require(forbidden not in collector, "G5 collector capability drift")
+    for required in (
+        "APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "BLOCKED_BEFORE_NETWORK",
+        "STOP_G5_SNAPSHOT_DRIFT",
+        "31768101859=PASS",
+        "31768101887=PASS",
+    ):
+        require(required in evidence, "G5 repository-only evidence drift")
+    validate_context_graph(repo, 65, 400)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2633,6 +2717,12 @@ def detect_mode(
         return "f1010_h1_ca1_rebaseline"
     if (
         base_ref == "desarrollo"
+        and base == G5_PRODUCTION_READONLY_BASE
+        and (event == "push" or head_ref == G5_PRODUCTION_READONLY_HEAD_REF)
+    ):
+        return "g5_production_readonly"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -2728,6 +2818,13 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "F10.10 Hito 1 CA1 rebaseline branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_PRODUCTION_READONLY_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 Production read-only branch requires its frozen baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -3154,6 +3251,10 @@ def main() -> int:
             )
         elif mode == "f1010_h1_ca1_rebaseline":
             validate_f1010_h1_ca1_rebaseline(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_production_readonly":
+            validate_g5_production_readonly(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
