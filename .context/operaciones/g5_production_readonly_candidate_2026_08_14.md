@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `G5_REPOSITORY_ONLY_CANDIDATE_PENDING_PROMOTION` |
+| Estado | `COMPLETED_POST_MERGE_VERIFIED` |
 | Gate conectado | `APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1` |
 | Estado del gate | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Acceso remoto | `BLOCKED_BEFORE_NETWORK` |
@@ -29,6 +29,25 @@ queda integrada y verificada. F10.10 permanece
 `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2`; F10.9 permanece
 `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` y
 `G4=PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
+
+## Cierre Post-Merge G5 V1
+
+PR #376 queda `COMPLETED_POST_MERGE_VERIFIED`. El candidate
+`520b0fc3f039d279faadb102fa0f13f3725a58ee` fue integrado por merge protegido:
+
+```text
+merge = 30f77b88778372de112c6a8fb51a1344155db025
+tree = b25fca6fc4e37db5b1e2c0e048748ee0ec3d839c
+parent_1 = 2c9d2438c5fc309d3692d1a1de1233e0fcc95afc
+parent_2 = 520b0fc3f039d279faadb102fa0f13f3725a58ee
+security_audit_post_merge = 31771823387=PASS
+f9_7_contract_post_merge = 31771823386=PASS
+```
+
+El schema `f10.9-g5-production-readonly-projection.v1` y el algoritmo
+`f10.9-g5-production-readonly-v1` quedan congelados como antecedente. El corte
+v2 vive en `g5_v2_repository_only_candidate_2026_08_14.md`; no reinterpreta esta
+evidencia ni habilita el adapter conectado.
 
 ## Candidate G5
 

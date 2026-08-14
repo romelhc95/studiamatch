@@ -39,7 +39,7 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
 | `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
 | `ADR-0011` | `COMPLETED_POST_MERGE_VERIFIED` | PR #375 integrado en `desarrollo@2c9d2438c5fc309d3692d1a1de1233e0fcc95afc` / tree `161a8df69bf5e527c4ba863891504551ec5f7aa7`; Security Audit `31768101859=PASS` y F9.7 `31768101887=PASS`. |
-| `G5` | `REPOSITORY_ONLY_CANDIDATE_PENDING_PROMOTION` | [Candidate G5](./g5_production_readonly_candidate_2026_08_14.md) sin red ni gate conectado; `APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1=NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`. |
+| `G5` | `G5_V2_REPOSITORY_ONLY_CANDIDATE_PENDING_PROMOTION` | PR #376/v1 queda post-merge verificado; [candidate G5 v2](./g5_v2_repository_only_candidate_2026_08_14.md) corrige atribucion FG2/FG3 sin red ni gate conectado. Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`. |
 | `P7` | `REOPENED_AUTHORIZATION_REQUIRED` | Integracion CA1 FG2/FG3 despues de cerrar gates operativos separados. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
@@ -473,15 +473,17 @@ fingerprints sanitizados. Debe identificar blockers CA1 de duplicados,
 lifecycle, perfiles/fuentes, FG3 inconcluso, 404 y desactivacion. No incluye gate
 metadata ni writers.
 
-El [candidate repository-only G5](./g5_production_readonly_candidate_2026_08_14.md)
-prepara el collector y su boundary sin conectarse. Acepta solo una fachada
-`select`/`count`, pagina con orden estable y limite explicito, reconcilia
-IDs/counts y exige dos snapshots identicos. El modo conectado queda bloqueado
-antes de red mientras el candidate no este fusionado/verificado, falte el payload
-privado ligado al merge/tree, el target Production privado o el gate humano
-`APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1`. En este corte el gate sigue
+PR #376 integro v1 y queda `COMPLETED_POST_MERGE_VERIFIED`. El
+[candidate repository-only G5 v2](./g5_v2_repository_only_candidate_2026_08_14.md)
+versiona schema/algoritmo y corrige atribucion antes de cualquier adapter. Acepta
+solo una fachada `select`/`count`, exige el orden
+`snapshot_1 -> observations -> snapshot_2`, dos snapshots completos identicos,
+evidencia privada por perfil/fuente/lifecycle/curso/run/cohorte y unidades con
+denominadores publicos. La cohorte principal FG3 son cursos activos al inicio;
+solo antecedentes privados atribuibles agregan inactivos. Historicos inactivos
+no relacionados quedan fuera. El gate permanece
 `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y el entrypoint conectado termina
-`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` aun si recibe precondiciones simuladas.
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` aun con precondiciones simuladas.
 
 ### G6 - Remediaciones Operativas CA1 Separadas
 

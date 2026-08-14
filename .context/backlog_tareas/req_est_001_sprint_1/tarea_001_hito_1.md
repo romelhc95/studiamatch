@@ -103,10 +103,11 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: [candidate repository-only](../../operaciones/g5_production_readonly_candidate_2026_08_14.md)
-   pendiente de promocion; diagnostico Production read-only requiere el gate
-   separado `APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1`, actualmente
-   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`.
+6. `G5`: PR #376/v1 queda `COMPLETED_POST_MERGE_VERIFIED`; el
+   [candidate v2 repository-only](../../operaciones/g5_v2_repository_only_candidate_2026_08_14.md)
+   queda pendiente de promocion para atribucion independiente FG2/FG3. El gate
+   permanece `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y connected mode permanece
+   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
