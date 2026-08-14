@@ -103,11 +103,13 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #377/[G5 v2 repository-only](../../operaciones/g5_v2_repository_only_candidate_2026_08_14.md) queda
-   `COMPLETED_POST_MERGE_VERIFIED` en
-   `desarrollo@4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5`, tree
-   `1daedcbe9651667201214eb4388e00024fa59bf3`; Security Audit
-   `31820665170=PASS` y F9.7 `31820665257=PASS`. El gate permanece
+6. `G5`: PR #378 congelo [G5 v2 repository-only](../../operaciones/g5_v2_repository_only_candidate_2026_08_14.md)
+   como `COMPLETED_POST_MERGE_VERIFIED` en
+   `desarrollo@bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3`, tree
+   `dabf61ced4012419c4cd9f688506b4fe77e613dd`; Security Audit
+   `31824928169=PASS` y F9.7 `31824928240=PASS`. El
+   [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
+   queda preparado para review. El gate permanece
    `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y connected mode permanece
    `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
