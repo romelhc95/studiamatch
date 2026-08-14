@@ -153,6 +153,13 @@ from scripts.security.f109_boundary import (
     G5_V2_ATTRIBUTION_BASE,
     G5_V2_ATTRIBUTION_BASE_TREE,
     G5_V2_ATTRIBUTION_HEAD_REF,
+    G5_V2_POST_MERGE_ALLOWED_MODES,
+    G5_V2_POST_MERGE_ALLOWED_STATUSES,
+    G5_V2_POST_MERGE_BASE,
+    G5_V2_POST_MERGE_BASE_TREE,
+    G5_V2_POST_MERGE_CANDIDATE,
+    G5_V2_POST_MERGE_HEAD_REF,
+    G5_V2_POST_MERGE_PREVIOUS_BASE,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -218,6 +225,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_h1_ca1_rebaseline,
     validate_g5_production_readonly,
     validate_g5_v2_attribution,
+    validate_g5_v2_post_merge,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -3595,6 +3603,110 @@ class F109BoundaryTest(unittest.TestCase):
             ),
             "skip",
         )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_v2_post_merge_accepts_exact_attestation(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_V2_POST_MERGE_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            G5_V2_POST_MERGE_BASE: [
+                G5_V2_POST_MERGE_PREVIOUS_BASE,
+                G5_V2_POST_MERGE_CANDIDATE,
+            ],
+            head: [G5_V2_POST_MERGE_BASE],
+        }[commit]
+
+        validate_g5_v2_post_merge(
+            Path("."), G5_V2_POST_MERGE_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_V2_POST_MERGE_BASE, head,
+            G5_V2_POST_MERGE_ALLOWED_STATUSES,
+            G5_V2_POST_MERGE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 66, 403)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_v2_post_merge_requires_protected_merge_push(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        candidate = "b" * 40
+        merge = "c" * 40
+        tree_mock.return_value = G5_V2_POST_MERGE_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            G5_V2_POST_MERGE_BASE: [
+                G5_V2_POST_MERGE_PREVIOUS_BASE,
+                G5_V2_POST_MERGE_CANDIDATE,
+            ],
+            merge: [G5_V2_POST_MERGE_BASE, candidate],
+        }[commit]
+
+        validate_g5_v2_post_merge(
+            Path("."), G5_V2_POST_MERGE_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_V2_POST_MERGE_BASE, candidate,
+            G5_V2_POST_MERGE_ALLOWED_STATUSES,
+            G5_V2_POST_MERGE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 66, 403)
+
+    def test_detect_mode_selects_g5_v2_post_merge(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_V2_POST_MERGE_HEAD_REF,
+                G5_V2_POST_MERGE_BASE,
+            ),
+            "g5_v2_post_merge",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_V2_POST_MERGE_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_v2_post_merge_branch_from_wrong_base(
+        self, parse_args_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_V2_POST_MERGE_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
 
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)

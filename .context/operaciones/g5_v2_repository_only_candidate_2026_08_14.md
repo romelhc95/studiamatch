@@ -3,13 +3,34 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `G5_V2_REPOSITORY_ONLY_CANDIDATE_PENDING_PROMOTION` |
+| Estado | `COMPLETED_POST_MERGE_VERIFIED` |
 | Schema | `f10.9-g5-production-readonly-projection.v2` |
 | Algoritmo | `f10.9-g5-production-readonly-v2` |
 | Gate conectado | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Modo conectado | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
 | Base protegida | `desarrollo@30f77b88778372de112c6a8fb51a1344155db025` |
 | Tree base | `b25fca6fc4e37db5b1e2c0e048748ee0ec3d839c` |
+
+## Promocion Post-Merge
+
+PR #377 fue aprobado y fusionado mediante el candidate
+`2c211cf58ed0917e3e5e1255c189dcd6ca8ef976`. La identidad protegida verificada
+es:
+
+```text
+merge = 4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5
+tree = 1daedcbe9651667201214eb4388e00024fa59bf3
+parent_1 = 30f77b88778372de112c6a8fb51a1344155db025
+parent_2 = 2c211cf58ed0917e3e5e1255c189dcd6ca8ef976
+candidate_tree = 1daedcbe9651667201214eb4388e00024fa59bf3
+security_audit_post_merge = 31820665170=PASS
+f9_7_post_merge = 31820665257=PASS
+```
+
+Candidate y merge tienen contenido identico. El run F9.7 termino `success` sobre
+el merge; G5 v2 queda `COMPLETED_POST_MERGE_VERIFIED`. Esta atestacion no crea,
+aprueba ni consume el gate, no desbloquea connected mode y no acredita lecturas
+de Production.
 
 ## Reconciliacion
 
@@ -105,6 +126,7 @@ red. Este candidate no accede a Production, Free o Pro y no usa secrets ni
 environments.
 
 La autoridad permanece en el [plan F10.9](./plan_remediacion_f10_9_fg2_fg3.md) y
-el [estado vivo](../estado_del_proyecto.md). La salida se limita a aprobar y
-fusionar este PR protegido a `desarrollo`, verificarlo post-merge y solo despues
-preparar por separado un adapter GET-only. Este documento no concede ese paso.
+el [estado vivo](../estado_del_proyecto.md). El siguiente candidate se limita al
+diseno repository-only de un adapter GET-only. Implementarlo, conectarlo o
+ejecutarlo requiere alcance y autorizacion separados; este documento no los
+concede.
