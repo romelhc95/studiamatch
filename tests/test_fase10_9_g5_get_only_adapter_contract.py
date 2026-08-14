@@ -28,7 +28,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     G5AdapterContractError,
     GET_ONLY_CAPABILITY,
     HISTORICAL_CONTRACT_VERSION,
-    HISTORICAL_V1_STATUS,
+    HISTORICAL_V2_STATUS,
     HistoricalFG3Anchor,
     HistoricalFG3Manifest,
     LifecycleEvidence,
@@ -49,6 +49,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     ReadTiming,
     RowCursor,
     SCHEMA_VERSION,
+    SOURCE_ATTEMPT_BUDGET_NS,
     STOP_ANCHOR_NOT_INDEPENDENT,
     STOP_CAPABILITY_INVALID,
     STOP_CLOCK_TIMING_INVALID,
@@ -61,6 +62,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     SourceObservationBundle,
     SourceObservationEvidence,
     SourceObservationRequest,
+    SourceAttemptTiming,
     SnapshotPairPayloadEvidence,
     TABLE_COLUMNS,
     TRUST_MODEL_FUTURE_REQUIREMENTS,
@@ -150,7 +152,12 @@ def _frozen_row(table: str, **overrides: object) -> FrozenRow:
     return FrozenRow(tuple((column, values[column]) for column in TABLE_COLUMNS[table]))
 
 
-def _rows(table: str, *, changed: bool = False) -> tuple[FrozenRow, ...]:
+def _rows(
+    table: str,
+    *,
+    changed: bool = False,
+    course_active_overrides: dict[int, object] | None = None,
+) -> tuple[FrozenRow, ...]:
     if table == "institution_site_profiles":
         return (
             _frozen_row(
@@ -191,7 +198,7 @@ def _rows(table: str, *, changed: bool = False) -> tuple[FrozenRow, ...]:
                     if changed and index == 2
                     else f"https://private.invalid/course-{index}"
                 ),
-                is_active=index < 3,
+                is_active=(course_active_overrides or {}).get(index, index < 3),
             )
             for index in range(1, 4)
         )
@@ -248,15 +255,38 @@ def _pagination(
     return replace(evidence, inventory_digest=inventory_digest(evidence))
 
 
-def _snapshot_bundle(*, changed_second: bool = False):
+def _snapshot_bundle(
+    *,
+    changed_second: bool = False,
+    course_active_overrides: dict[int, object] | None = None,
+    first_course_active_overrides: dict[int, object] | None = None,
+    second_course_active_overrides: dict[int, object] | None = None,
+):
     target = _target()
     first = tuple(
-        _pagination(table, _rows(table), target, 0) for table in sorted(TABLE_COLUMNS)
+        _pagination(
+            table,
+            _rows(
+                table,
+                course_active_overrides=(
+                    first_course_active_overrides or course_active_overrides
+                ),
+            ),
+            target,
+            0,
+        )
+        for table in sorted(TABLE_COLUMNS)
     )
     second = tuple(
         _pagination(
             table,
-            _rows(table, changed=changed_second and table == "courses"),
+            _rows(
+                table,
+                changed=changed_second and table == "courses",
+                course_active_overrides=(
+                    second_course_active_overrides or course_active_overrides
+                ),
+            ),
             target,
             2_000,
         )
@@ -417,17 +447,34 @@ def _source_bundle(target: TargetBinding, payload: SnapshotPairPayloadEvidence, 
         ("HEAD", "GET"),
         2,
     )
+    timings = (
+        SourceAttemptTiming(
+            "HEAD",
+            NOW + timedelta(microseconds=1_000),
+            NOW + timedelta(microseconds=1_100),
+            1_000_000,
+            1_100_000,
+        ),
+        SourceAttemptTiming(
+            "GET",
+            NOW + timedelta(microseconds=1_200),
+            NOW + timedelta(microseconds=1_300),
+            1_200_000,
+            1_300_000,
+        ),
+    )
     evidence = SourceObservationEvidence(
-        evidence_binding_digest(target),
-        PAIR_ID,
-        profile.row_fingerprint,
-        DIGESTS[6],
-        RUN_ID,
-        DIGESTS[7],
-        ("HEAD", "GET"),
-        2,
-        "SOURCE_ACCESSIBLE",
-        NOW + timedelta(microseconds=1_000),
+        target_binding_digest=evidence_binding_digest(target),
+        snapshot_pair_id=PAIR_ID,
+        profile_fingerprint=profile.row_fingerprint,
+        source_fingerprint=DIGESTS[6],
+        run_fingerprint=RUN_ID,
+        cohort_fingerprint=DIGESTS[7],
+        method_sequence=("HEAD", "GET"),
+        attempt_timings=timings,
+        attempts=2,
+        terminal_reason="SOURCE_ACCESSIBLE",
+        observed_at=timings[-1].ended_at_utc,
     )
     for name, value in overrides.items():
         if name.startswith("request_"):
@@ -448,8 +495,18 @@ def _lifecycle(target: TargetBinding, payload: SnapshotPairPayloadEvidence, eval
     return (LifecycleEvidence(cursor.row_fingerprint, proxy),)
 
 
-def _authorization(**overrides: object) -> AuthorizationRequest:
-    payload, target = _snapshot_bundle()
+def _authorization(
+    *,
+    course_active_overrides: dict[int, object] | None = None,
+    first_course_active_overrides: dict[int, object] | None = None,
+    second_course_active_overrides: dict[int, object] | None = None,
+    **overrides: object,
+) -> AuthorizationRequest:
+    payload, target = _snapshot_bundle(
+        course_active_overrides=course_active_overrides,
+        first_course_active_overrides=first_course_active_overrides,
+        second_course_active_overrides=second_course_active_overrides,
+    )
     manifest, anchor, builder, provider, observations, target = _historical_bundle(
         target, payload
     )
@@ -475,18 +532,36 @@ def _authorization(**overrides: object) -> AuthorizationRequest:
     return AuthorizationRequest(**values)
 
 
-def test_v2_freezes_successor_and_valid_request_stops_at_trust() -> None:
-    assert (CONTRACT_VERSION, SCHEMA_VERSION, ALGORITHM_VERSION) == (
-        "f10.9-g5-get-only-adapter-contract.v2",
-        "f10.9-g5-get-only-adapter-schema.v2",
-        "f10.9-g5-get-only-adapter-v2",
+def _with_source_timings(
+    request: AuthorizationRequest,
+    timings: tuple[SourceAttemptTiming, ...],
+    *,
+    observed_at: datetime | None = None,
+) -> AuthorizationRequest:
+    bundle = request.source_observations[0]
+    evidence = replace(
+        bundle.evidence,
+        attempt_timings=timings,
+        observed_at=timings[-1].ended_at_utc if observed_at is None else observed_at,
     )
-    assert HISTORICAL_CONTRACT_VERSION.endswith(".v1")
-    assert HISTORICAL_V1_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
+    return replace(
+        request,
+        source_observations=(replace(bundle, evidence=evidence),),
+    )
+
+
+def test_v2_1_freezes_v2_and_valid_request_stops_at_trust() -> None:
+    assert (CONTRACT_VERSION, SCHEMA_VERSION, ALGORITHM_VERSION) == (
+        "f10.9-g5-get-only-adapter-contract.v2.1",
+        "f10.9-g5-get-only-adapter-schema.v2.1",
+        "f10.9-g5-get-only-adapter-v2.1",
+    )
+    assert HISTORICAL_CONTRACT_VERSION.endswith(".v2")
+    assert HISTORICAL_V2_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
         "ANTECENT", "ANTECEDENT"
     )
-    assert PROTECTED_SOURCE_SHA == "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
-    assert PROTECTED_SOURCE_TREE == "22de9d315ff26b0a8b0e8ae991a338473fbdbe11"
+    assert PROTECTED_SOURCE_SHA == "c7783af918c4e434d31b80e9a65247329c0b3595"
+    assert PROTECTED_SOURCE_TREE == "37d4ab05738355436169188d2613f860c6b35148"
     assert CURRENT_GATE_STATUS == "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
     plan = authorize_future_adapter(_authorization())
     assert plan.completed_steps == COMPLETED_STRUCTURAL_STEPS == AUTHORIZATION_ORDER[:-1]
@@ -541,6 +616,180 @@ def test_source_observation_temporal_order_is_exact(position: str) -> None:
     )
 
 
+def test_source_head_must_start_after_snapshot_1_closes() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    head = replace(
+        head,
+        started_at_utc=NOW + timedelta(microseconds=700),
+        ended_at_utc=NOW + timedelta(microseconds=900),
+        monotonic_started_ns=700_000,
+        monotonic_ended_ns=900_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_head_wholly_before_snapshot_1_is_rejected() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    head = replace(
+        head,
+        started_at_utc=NOW - timedelta(microseconds=200),
+        ended_at_utc=NOW - timedelta(microseconds=100),
+        monotonic_started_ns=10_000,
+        monotonic_ended_ns=110_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_get_must_end_before_snapshot_2_starts() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    get = replace(
+        get,
+        ended_at_utc=NOW + timedelta(microseconds=2_200),
+        monotonic_ended_ns=2_200_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_get_wholly_after_snapshot_2_is_rejected() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    get = replace(
+        get,
+        started_at_utc=NOW + timedelta(microseconds=2_900),
+        ended_at_utc=NOW + timedelta(microseconds=3_000),
+        monotonic_started_ns=2_900_000,
+        monotonic_ended_ns=3_000_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_crossing_attempt_is_rejected_even_when_observed_at_is_valid() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    head = replace(
+        head,
+        started_at_utc=NOW + timedelta(microseconds=750),
+        ended_at_utc=NOW + timedelta(microseconds=950),
+        monotonic_started_ns=750_000,
+        monotonic_ended_ns=950_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(
+            _with_source_timings(
+                request,
+                (head, get),
+                observed_at=get.ended_at_utc,
+            )
+        ),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_attempts_must_not_overlap() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    get = replace(
+        get,
+        started_at_utc=NOW + timedelta(microseconds=1_050),
+        monotonic_started_ns=1_050_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_attempts_must_match_method_order() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    out_of_order = (replace(head, method="GET"), replace(get, method="HEAD"))
+    _reason(
+        lambda: authorize_future_adapter(
+            _with_source_timings(request, out_of_order)
+        ),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_attempt_utc_and_monotonic_durations_must_agree() -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    head = replace(head, monotonic_ended_ns=head.monotonic_ended_ns + 250_000_001)
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_timing_count_must_equal_method_sequence() -> None:
+    request = _authorization()
+    head, _ = request.source_observations[0].evidence.attempt_timings
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head,))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+    head, get = request.source_observations[0].evidence.attempt_timings
+    extra = replace(
+        get,
+        started_at_utc=NOW + timedelta(microseconds=1_400),
+        ended_at_utc=NOW + timedelta(microseconds=1_500),
+        monotonic_started_ns=1_400_000,
+        monotonic_ended_ns=1_500_000,
+    )
+    _reason(
+        lambda: authorize_future_adapter(
+            _with_source_timings(request, (head, get, extra))
+        ),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+def test_source_observed_at_must_equal_real_final_attempt_end() -> None:
+    request = _authorization()
+    timings = request.source_observations[0].evidence.attempt_timings
+    _reason(
+        lambda: authorize_future_adapter(
+            _with_source_timings(
+                request,
+                timings,
+                observed_at=timings[-1].ended_at_utc + timedelta(microseconds=1),
+            )
+        ),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+@pytest.mark.parametrize("duration", (0, -1, SOURCE_ATTEMPT_BUDGET_NS + 1))
+def test_source_attempt_duration_must_be_positive_and_within_budget(
+    duration: int,
+) -> None:
+    request = _authorization()
+    head, get = request.source_observations[0].evidence.attempt_timings
+    head = replace(
+        head,
+        monotonic_ended_ns=head.monotonic_started_ns + duration,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
+        STOP_CLOCK_TIMING_INVALID,
+    )
+
+
 def test_same_count_content_drift_and_count_reasons_stay_split() -> None:
     payload, target = _snapshot_bundle(changed_second=True)
     _reason(lambda: validate_snapshot_pair_payload(payload, target), STOP_SNAPSHOT_CONTENT_DRIFT)
@@ -553,6 +802,15 @@ def test_same_count_content_drift_and_count_reasons_stay_split() -> None:
     _reason(
         lambda: validate_pagination(replace(courses, pages=()), request.target),
         STOP_PAGINATION_INCOMPLETE,
+    )
+    _reason(
+        lambda: authorize_future_adapter(
+            replace(
+                request,
+                target=replace(request.target, manifest_digest=DIGESTS[91]),
+            )
+        ),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
     )
 
 
@@ -593,6 +851,32 @@ def test_source_coverage_is_exact_for_eligible_profiles() -> None:
     _reason(
         lambda: validate_source_coverage(
             (), request.target, request.snapshot_payload, request.evaluated_at
+        ),
+        STOP_TARGET_BINDING_INVALID,
+    )
+
+
+def test_source_observation_unit_is_profile_source_not_course() -> None:
+    request = _authorization()
+    request_fields = set(SourceObservationRequest.__dataclass_fields__)
+    evidence_fields = set(SourceObservationEvidence.__dataclass_fields__)
+    assert {"profile_fingerprint", "source_fingerprint"} <= request_fields
+    assert {"profile_fingerprint", "source_fingerprint"} <= evidence_fields
+    assert "course_fingerprint" not in request_fields | evidence_fields
+    bundle = request.source_observations[0]
+    assert bundle.request.profile_fingerprint == bundle.evidence.profile_fingerprint
+    assert bundle.request.source_fingerprint == bundle.evidence.source_fingerprint
+    other_source = replace(
+        bundle,
+        request=replace(bundle.request, source_fingerprint=DIGESTS[10]),
+        evidence=replace(bundle.evidence, source_fingerprint=DIGESTS[10]),
+    )
+    _reason(
+        lambda: validate_source_coverage(
+            (bundle, other_source),
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
         ),
         STOP_TARGET_BINDING_INVALID,
     )
@@ -664,6 +948,40 @@ def test_historical_observations_and_prior_mutation_are_recomputed_and_predate_s
             request.snapshot_payload,
         ),
         STOP_CLOCK_TIMING_INVALID,
+    )
+
+
+@pytest.mark.parametrize(
+    "course_index,value",
+    ((1, 0), (1, 1), (3, 0), (3, 1)),
+)
+def test_courses_is_active_rejects_integers_in_active_and_inactive_cohorts(
+    course_index: int,
+    value: int,
+) -> None:
+    request = _authorization(course_active_overrides={course_index: value})
+    _reason(
+        lambda: authorize_future_adapter(request),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+
+
+@pytest.mark.parametrize("snapshot", (1, 2))
+def test_courses_is_active_is_checked_independently_in_each_snapshot(
+    snapshot: int,
+) -> None:
+    request = _authorization(
+        first_course_active_overrides={1: 1} if snapshot == 1 else None,
+        second_course_active_overrides={1: 1} if snapshot == 2 else None,
+    )
+    _reason(
+        lambda: validate_fg3_cohort(
+            request.fg3_cohort,
+            request.historical_manifest,
+            request.target,
+            request.snapshot_payload,
+        ),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
     )
 
 
@@ -801,6 +1119,94 @@ def test_exported_helpers_have_stable_malformed_top_level_errors(helper: str) ->
     }
     call, reason = calls[helper]
     _reason(call, reason)
+
+
+@pytest.mark.parametrize("surface", ("target", "source", "plan"))
+def test_exact_dataclass_with_deleted_field_has_stable_reason(surface: str) -> None:
+    request = _authorization()
+    if surface == "target":
+        malformed = request.target
+        object.__delattr__(malformed, "environment")
+        call = lambda: target_binding_digest(malformed)
+        reason = STOP_TARGET_BINDING_INVALID
+    elif surface == "source":
+        bundle = request.source_observations[0]
+        malformed = bundle.evidence
+        object.__delattr__(malformed, "attempt_timings")
+        call = lambda: validate_source_observation(
+            bundle.request,
+            malformed,
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        )
+        reason = STOP_TARGET_BINDING_INVALID
+    else:
+        malformed = authorize_future_adapter(request)
+        object.__delattr__(malformed, "reason")
+        call = lambda: public_contract_projection(malformed)
+        reason = STOP_TARGET_BINDING_INVALID
+    _reason(call, reason)
+
+
+@pytest.mark.parametrize(
+    "surface,reason",
+    (
+        ("source", STOP_TARGET_BINDING_INVALID),
+        ("lifecycle", STOP_TARGET_BINDING_INVALID),
+        ("fg3", STOP_MANIFEST_ANCHOR_MISMATCH),
+    ),
+)
+def test_nested_inventory_with_deleted_field_has_stable_reason(
+    surface: str,
+    reason: str,
+) -> None:
+    request = _authorization()
+    malformed = request.snapshot_payload.snapshot_1[0]
+    object.__delattr__(malformed, "table")
+    calls = {
+        "source": lambda: validate_source_coverage(
+            request.source_observations,
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        "lifecycle": lambda: validate_lifecycle_evidence(
+            request.lifecycle_evidence,
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        "fg3": lambda: validate_fg3_cohort(
+            request.fg3_cohort,
+            request.historical_manifest,
+            request.target,
+            request.snapshot_payload,
+        ),
+    }
+    _reason(calls[surface], reason)
+
+
+def test_hostile_snapshot_collection_is_rejected_without_iteration() -> None:
+    calls: list[str] = []
+
+    class Hostile:
+        def __iter__(self):
+            calls.append("iter")
+            raise AssertionError("hostile snapshot iterated")
+
+    request = _authorization()
+    payload = replace(request.snapshot_payload, snapshot_1=Hostile())
+    _reason(
+        lambda: validate_source_coverage(
+            request.source_observations,
+            request.target,
+            payload,
+            request.evaluated_at,
+        ),
+        STOP_TARGET_BINDING_INVALID,
+    )
+    assert calls == []
 
 
 @pytest.mark.parametrize("case", ("unhashable_manifest", "empty_source_payload", "bad_page", "bad_row", "bad_cohort"))

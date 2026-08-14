@@ -3726,23 +3726,23 @@ class F109BoundaryTest(unittest.TestCase):
     ) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE,
-            "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974",
+            "c7783af918c4e434d31b80e9a65247329c0b3595",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE_TREE,
-            "22de9d315ff26b0a8b0e8ae991a338473fbdbe11",
+            "37d4ab05738355436169188d2613f860c6b35148",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
-            "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3",
+            "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_CANDIDATE,
-            "e1d2ebce7db8955af3eede4b85293ec9144c05f3",
+            "6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_HEAD_REF,
-            "fix/f10-9-g5-get-only-contract-v2",
+            "fix/f10-9-g5-get-only-contract-v2-1",
         )
         head = "a" * 40
         tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
@@ -3782,13 +3782,16 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(set(G5_GET_ONLY_ADAPTER_ALLOWED_MODES.values()), {"100644"})
 
-    def test_g5_get_only_adapter_v2_required_security_markers(self) -> None:
+    def test_g5_get_only_adapter_v2_1_required_security_markers(self) -> None:
         source = Path(
             "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
         ).read_text(encoding="utf-8")
         for marker in (
             "class FrozenRow",
             "class LifecycleEvidence",
+            "class SourceAttemptTiming",
+            "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
+            "_require_complete",
             "historical_observation_fingerprint",
             "prior_mutation_fingerprint",
             "validate_source_coverage",

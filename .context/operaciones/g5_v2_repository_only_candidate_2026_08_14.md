@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `COMPLETED_POST_MERGE_VERIFIED` |
+| Estado | `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE` |
 | Schema | `f10.9-g5-production-readonly-projection.v2` |
 | Algoritmo | `f10.9-g5-production-readonly-v2` |
 | Gate conectado | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -41,6 +41,21 @@ PR #378 congelo esta atestacion mediante candidate
 merge tienen tree identico. G5 v2 conserva el mismo estado, gate y STOP.
 
 ## Reconciliacion
+
+PR #380 integro el contrato repository-only v2 mediante candidate
+`6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3` y merge protegido
+`c7783af918c4e434d31b80e9a65247329c0b3595`, tree
+`37d4ab05738355436169188d2613f860c6b35148`, con parents
+`c28e5b86e6be29bbb2444bedd9b9407d1e7b0974` y el candidate. Security Audit
+`31848341499=PASS` y F9.7 `31848341110=PASS` verificaron el merge. Su resultado
+queda `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED`: v2 se congela como
+`HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE` porque no ligaba la duracion
+completa de cada intento source y no cerraba strict Boolean ni dataclasses exactas
+incompletas. El sucesor v2.1 corrige solo esos hallazgos repository-only.
+
+Gate y connected mode permanecen `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; todo resultado estructural v2.1 termina
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
 
 PR #379 integro el contrato offline v1 mediante merge
 `c28e5b86e6be29bbb2444bedd9b9407d1e7b0974`, tree
