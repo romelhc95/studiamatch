@@ -136,12 +136,12 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "22de9d315ff26b0a8b0e8ae991a338473fbdbe11"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3"
-# PR #379 is the protected base's second parent. The successor commit does not exist yet.
-G5_GET_ONLY_ADAPTER_CANDIDATE = "e1d2ebce7db8955af3eede4b85293ec9144c05f3"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2"
+G5_GET_ONLY_ADAPTER_BASE = "c7783af918c4e434d31b80e9a65247329c0b3595"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "37d4ab05738355436169188d2613f860c6b35148"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
+# PR #380 is the protected base's second parent. The v2.1 successor is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-1"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -2930,13 +2930,16 @@ def validate_g5_get_only_adapter(
     ):
         require(forbidden not in contract, "G5 adapter v1 trust surface returned")
     for required in (
-        "f10.9-g5-get-only-adapter-contract.v2",
-        "f10.9-g5-get-only-adapter-schema.v2",
-        "f10.9-g5-get-only-adapter-v2",
+        "f10.9-g5-get-only-adapter-contract.v2.1",
+        "f10.9-g5-get-only-adapter-schema.v2.1",
+        "f10.9-g5-get-only-adapter-v2.1",
         "ManifestBuilderEvidenceReceipt",
         "AnchorProviderEvidenceReceipt",
         "class FrozenRow",
         "class LifecycleEvidence",
+        "class SourceAttemptTiming",
+        "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
+        "_require_complete",
         "historical_observation_fingerprint",
         "prior_mutation_fingerprint",
         "validate_source_coverage",
@@ -2955,13 +2958,13 @@ def validate_g5_get_only_adapter(
     ):
         require(required in contract, "G5 adapter contract drift")
     for required in (
-        "REMEDIATED_REPOSITORY_ONLY_TRUST_STOP",
-        "MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED",
+        "REMEDIATED_REPOSITORY_ONLY_V2_1_TRUST_STOP",
+        "MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED",
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31839739068=PASS",
-        "31839739054=PASS",
+        "31848341499=PASS",
+        "31848341110=PASS",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",

@@ -17,15 +17,15 @@ from types import MappingProxyType
 from typing import Mapping
 
 
-CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2"
-SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2"
-ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2"
-HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v1"
-HISTORICAL_V1_STATUS = "HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE"
+CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.1"
+SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2.1"
+ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2.1"
+HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2"
+HISTORICAL_V2_STATUS = "HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE"
 EXPECTED_ENVIRONMENT = "Production"
 EXPECTED_WORKFLOW = "F10.9 G5 Production Read-Only Diagnostic"
-PROTECTED_SOURCE_SHA = "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
-PROTECTED_SOURCE_TREE = "22de9d315ff26b0a8b0e8ae991a338473fbdbe11"
+PROTECTED_SOURCE_SHA = "c7783af918c4e434d31b80e9a65247329c0b3595"
+PROTECTED_SOURCE_TREE = "37d4ab05738355436169188d2613f860c6b35148"
 CURRENT_GATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CONNECTED_STOP = "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"
 TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
@@ -63,6 +63,7 @@ COMPLETED_STRUCTURAL_STEPS = AUTHORIZATION_ORDER[:-1]
 READ_CLOCK_SOURCE = "SYSTEM_UTC_PLUS_MONOTONIC"
 READ_CAPTURE_SEQUENCE = ("IMMEDIATELY_BEFORE_READ", "IMMEDIATELY_AFTER_READ")
 CLOCK_DURATION_TOLERANCE_NS = 250_000_000
+SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000
 MAX_IMMUTABLE_DEPTH = 8
 MAX_IMMUTABLE_NODES = 256
 MAX_IMMUTABLE_STRING_BYTES = 8_192
@@ -332,6 +333,15 @@ class SourceObservationRequest:
 
 
 @dataclass(frozen=True)
+class SourceAttemptTiming:
+    method: str
+    started_at_utc: datetime
+    ended_at_utc: datetime
+    monotonic_started_ns: int
+    monotonic_ended_ns: int
+
+
+@dataclass(frozen=True)
 class SourceObservationEvidence:
     target_binding_digest: str
     snapshot_pair_id: str
@@ -340,6 +350,7 @@ class SourceObservationEvidence:
     run_fingerprint: str
     cohort_fingerprint: str
     method_sequence: tuple[str, ...]
+    attempt_timings: tuple[SourceAttemptTiming, ...]
     attempts: int
     terminal_reason: str
     observed_at: datetime
@@ -434,8 +445,119 @@ class AuthorizedAdapterPlan:
     trust_verification_implemented: bool
 
 
+_DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
+    {
+        FrozenRow: ("values",),
+        QueryCapability: (
+            "table", "columns", "filters", "order", "stable_tie_breaker",
+            "pagination_mode", "page_size", "max_rows", "max_pages",
+            "timeout_seconds", "retry_budget",
+        ),
+        AdapterCapability: ("methods", "queries", "max_snapshot_bytes"),
+        TargetBinding: (
+            "environment", "protected_source_sha", "protected_source_tree",
+            "contract_version", "schema_version", "algorithm_version", "workflow",
+            "run_id", "issued_at", "expires_at", "snapshot_pair_id",
+            "payload_digest", "manifest_digest", "anchor_digest",
+        ),
+        ReadTiming: (
+            "snapshot_pair_id", "operation", "clock_source", "capture_sequence",
+            "started_at_utc", "ended_at_utc", "monotonic_started_ns",
+            "monotonic_ended_ns",
+        ),
+        RowCursor: ("order_value", "tie_breaker", "row_fingerprint", "row"),
+        PageEvidence: ("after_id", "requested_limit", "rows", "page_digest", "timing"),
+        PaginationEvidence: (
+            "target_binding_digest", "snapshot_pair_id", "table", "initial_count",
+            "initial_count_timing", "final_count", "final_count_timing", "pages",
+            "inventory_digest",
+        ),
+        SnapshotPairPayloadEvidence: ("snapshot_pair_id", "snapshot_1", "snapshot_2", "payload_digest"),
+        HistoricalFG3Manifest: (
+            "manifest_digest", "builder_identity", "builder_instance_identity",
+            "candidate_sha", "candidate_tree", "run_id", "issued_at", "complete",
+            "expected_observation_fingerprints", "observation_categories",
+            "category_counts", "published_count_tuple",
+        ),
+        HistoricalFG3Anchor: (
+            "anchor_digest", "manifest_digest", "provider_identity",
+            "provider_instance_identity", "provenance", "candidate_sha",
+            "candidate_tree", "run_id", "issued_at",
+        ),
+        ManifestBuilderEvidenceReceipt: (
+            "builder_identity", "builder_instance_identity", "manifest_digest", "evidence_digest",
+        ),
+        AnchorProviderEvidenceReceipt: (
+            "provider_identity", "provider_instance_identity", "manifest_digest",
+            "anchor_digest", "evidence_digest",
+        ),
+        SourceObservationRequest: (
+            "target_binding_digest", "snapshot_pair_id", "profile_fingerprint",
+            "source_fingerprint", "run_fingerprint", "cohort_fingerprint",
+            "method_sequence", "max_attempts",
+        ),
+        SourceAttemptTiming: (
+            "method", "started_at_utc", "ended_at_utc", "monotonic_started_ns",
+            "monotonic_ended_ns",
+        ),
+        SourceObservationEvidence: (
+            "target_binding_digest", "snapshot_pair_id", "profile_fingerprint",
+            "source_fingerprint", "run_fingerprint", "cohort_fingerprint",
+            "method_sequence", "attempt_timings", "attempts", "terminal_reason",
+            "observed_at",
+        ),
+        SourceObservationBundle: ("request", "evidence"),
+        LifecycleProxy: (
+            "last_harvested_at", "created_at", "observed_at", "timestamp_used",
+            "timestamp_origin", "calculated_age_seconds", "classification",
+        ),
+        LifecycleEvidence: ("staging_row_fingerprint", "proxy"),
+        FG3CourseCohortEvidence: (
+            "course_fingerprint", "active_at_snapshot_1", "attributable_prior_mutation",
+            "exact_one_verified", "antecedent_run_fingerprint",
+            "historical_observation_fingerprint", "historical_category",
+            "related_to_current_run", "antecedent_observed_at", "mutation_fingerprint",
+            "mutation_kind",
+        ),
+        FG3HistoricalObservationEvidence: (
+            "observation_fingerprint", "target_binding_digest", "snapshot_pair_id",
+            "course_fingerprint", "run_id", "category", "active_at_snapshot_1",
+            "observed_at",
+        ),
+        FG3CohortEvidence: (
+            "target_binding_digest", "snapshot_pair_id", "run_id", "courses",
+            "historical_observations",
+        ),
+        AuthorizationRequest: (
+            "execution_sha", "execution_tree", "workflow", "environment", "target",
+            "capability", "historical_manifest", "historical_anchor",
+            "manifest_builder_receipt", "anchor_provider_receipt", "fg3_cohort",
+            "snapshot_payload", "source_observations", "lifecycle_evidence", "evaluated_at",
+        ),
+        AuthorizedAdapterPlan: (
+            "target_binding_digest", "completed_steps", "next_step", "reason",
+            "transport_created", "authorization_complete", "trust_verification_implemented",
+        ),
+    }
+)
+
+
 def _raise(reason: str) -> None:
     raise G5AdapterContractError(reason)
+
+
+def _require_complete(value: object, expected_type: type[object], reason: str) -> None:
+    if type(value) is not expected_type:
+        _raise(reason)
+    state = value.__dict__
+    names = _DATACLASS_FIELDS[expected_type]
+    if (
+        type(state) is not dict
+        or len(state) != len(names)
+        or any(type(name) is not str for name in state)
+        or tuple(sorted(state)) != tuple(sorted(names))
+    ):
+        _raise(reason)
 
 
 def _is_utc(value: object) -> bool:
@@ -492,7 +614,8 @@ def _valid_immutable(value: object) -> bool:
 
 
 def _validate_frozen_row(row: object, columns: tuple[str, ...], reason: str) -> FrozenRow:
-    if type(row) is not FrozenRow or type(row.values) is not tuple:
+    _require_complete(row, FrozenRow, reason)
+    if type(row.values) is not tuple:
         _raise(reason)
     keys: list[str] = []
     for pair in row.values:
@@ -529,7 +652,7 @@ def _digest(domain: str, value: object) -> str:
     material = (
         b"studiamatch:f10.9:g5:get-only:"
         + domain.encode("ascii")
-        + b":v2\0"
+        + b":v2.1\0"
         + encoded
     )
     return "sha256:" + hashlib.sha256(material).hexdigest()
@@ -559,8 +682,7 @@ def _target_material(binding: TargetBinding, *, evidence: bool) -> tuple[object,
 
 
 def _validate_target_binding(binding: object) -> TargetBinding:
-    if type(binding) is not TargetBinding:
-        _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(binding, TargetBinding, STOP_TARGET_BINDING_INVALID)
     if (
         type(binding.environment) is not str
         or binding.environment != EXPECTED_ENVIRONMENT
@@ -600,8 +722,7 @@ def evidence_binding_digest(binding: TargetBinding) -> str:
 
 
 def validate_capability(capability: AdapterCapability) -> None:
-    if type(capability) is not AdapterCapability:
-        _raise(STOP_CAPABILITY_INVALID)
+    _require_complete(capability, AdapterCapability, STOP_CAPABILITY_INVALID)
     if (
         type(capability.methods) is not tuple
         or any(type(method) is not str for method in capability.methods)
@@ -612,8 +733,7 @@ def validate_capability(capability: AdapterCapability) -> None:
         _raise(STOP_CAPABILITY_INVALID)
     seen: set[str] = set()
     for query in capability.queries:
-        if type(query) is not QueryCapability:
-            _raise(STOP_CAPABILITY_INVALID)
+        _require_complete(query, QueryCapability, STOP_CAPABILITY_INVALID)
         if (
             type(query.table) is not str
             or query.table not in TABLE_COLUMNS
@@ -643,8 +763,9 @@ def validate_capability(capability: AdapterCapability) -> None:
 
 
 def validate_read_timing(timing: ReadTiming, snapshot_pair_id: str) -> None:
-    if type(timing) is not ReadTiming or type(snapshot_pair_id) is not str:
+    if type(snapshot_pair_id) is not str:
         _raise(STOP_CLOCK_TIMING_INVALID)
+    _require_complete(timing, ReadTiming, STOP_CLOCK_TIMING_INVALID)
     if (
         type(timing.snapshot_pair_id) is not str
         or timing.snapshot_pair_id != snapshot_pair_id
@@ -701,8 +822,7 @@ def row_fingerprint(
 
 
 def _validate_row_cursor(row: object, table: str, target_digest: str, pair_id: str) -> RowCursor:
-    if type(row) is not RowCursor:
-        _raise(STOP_PAGINATION_INCOMPLETE)
+    _require_complete(row, RowCursor, STOP_PAGINATION_INCOMPLETE)
     validated_row = _validate_frozen_row(
         row.row, TABLE_COLUMNS[table], STOP_PAGINATION_INCOMPLETE
     )
@@ -735,7 +855,11 @@ def page_evidence_digest(
         or not _valid_digest(target_digest)
         or not _valid_digest(snapshot_pair_id)
         or type(page) is not PageEvidence
-        or type(page.after_id) not in {str, type(None)}
+    ):
+        _raise(STOP_PAGINATION_INCOMPLETE)
+    _require_complete(page, PageEvidence, STOP_PAGINATION_INCOMPLETE)
+    if (
+        type(page.after_id) not in {str, type(None)}
         or not _strict_int(page.requested_limit, 1, 1000)
         or type(page.rows) is not tuple
         or type(page.page_digest) is not str
@@ -774,9 +898,9 @@ def _timing_material(timing: ReadTiming) -> tuple[object, ...]:
 
 
 def _validate_pagination_shape(evidence: object) -> PaginationEvidence:
+    _require_complete(evidence, PaginationEvidence, STOP_PAGINATION_INCOMPLETE)
     if (
-        type(evidence) is not PaginationEvidence
-        or type(evidence.target_binding_digest) is not str
+        type(evidence.target_binding_digest) is not str
         or type(evidence.snapshot_pair_id) is not str
         or type(evidence.table) is not str
         or type(evidence.pages) is not tuple
@@ -797,7 +921,8 @@ def inventory_digest(evidence: PaginationEvidence) -> str:
     row_fingerprints: list[str] = []
     page_timings: list[tuple[object, ...]] = []
     for page in validated.pages:
-        if type(page) is not PageEvidence or type(page.rows) is not tuple:
+        _require_complete(page, PageEvidence, STOP_PAGINATION_INCOMPLETE)
+        if type(page.rows) is not tuple:
             _raise(STOP_PAGINATION_INCOMPLETE)
         page_evidence_digest(
             validated.table,
@@ -883,9 +1008,9 @@ def validate_pagination(
     observed_bytes = 0
     previous_timing = validated.initial_count_timing
     for page in validated.pages:
+        _require_complete(page, PageEvidence, STOP_PAGINATION_INCOMPLETE)
         if (
-            type(page) is not PageEvidence
-            or type(page.after_id) not in {str, type(None)}
+            type(page.after_id) not in {str, type(None)}
             or page.after_id != expected_after_id
             or page.requested_limit != query.page_size
             or type(page.rows) is not tuple
@@ -958,21 +1083,21 @@ def _all_timings(items: tuple[PaginationEvidence, ...], reason: str) -> tuple[Re
         _raise(reason)
     timings: list[ReadTiming] = []
     for item in items:
-        if type(item) is not PaginationEvidence or type(item.pages) is not tuple:
+        _require_complete(item, PaginationEvidence, reason)
+        if type(item.pages) is not tuple:
             _raise(reason)
         timings.append(item.initial_count_timing)
         for page in item.pages:
-            if type(page) is not PageEvidence:
-                _raise(reason)
+            _require_complete(page, PageEvidence, reason)
             timings.append(page.timing)
         timings.append(item.final_count_timing)
     return tuple(timings)
 
 
 def snapshot_payload_digest(evidence: SnapshotPairPayloadEvidence) -> str:
+    _require_complete(evidence, SnapshotPairPayloadEvidence, STOP_PAGINATION_INCOMPLETE)
     if (
-        type(evidence) is not SnapshotPairPayloadEvidence
-        or not _valid_digest(evidence.snapshot_pair_id)
+        not _valid_digest(evidence.snapshot_pair_id)
         or type(evidence.snapshot_1) is not tuple
         or type(evidence.snapshot_2) is not tuple
     ):
@@ -1001,9 +1126,9 @@ def validate_snapshot_pair_payload(
     max_snapshot_bytes: int = GET_ONLY_CAPABILITY.max_snapshot_bytes,
 ) -> None:
     validated_target = _validate_target_binding(target)
+    _require_complete(evidence, SnapshotPairPayloadEvidence, STOP_PAGINATION_INCOMPLETE)
     if (
-        type(evidence) is not SnapshotPairPayloadEvidence
-        or not _valid_digest(evidence.snapshot_pair_id)
+        not _valid_digest(evidence.snapshot_pair_id)
         or type(evidence.snapshot_1) is not tuple
         or type(evidence.snapshot_2) is not tuple
         or not _strict_int(max_snapshot_bytes, 1, GET_ONLY_CAPABILITY.max_snapshot_bytes)
@@ -1063,8 +1188,7 @@ def _manifest_material(manifest: HistoricalFG3Manifest) -> tuple[object, ...]:
 
 
 def _validate_manifest_shape(manifest: object) -> HistoricalFG3Manifest:
-    if type(manifest) is not HistoricalFG3Manifest:
-        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(manifest, HistoricalFG3Manifest, STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
         type(manifest.manifest_digest) is not str
         or type(manifest.builder_identity) is not str
@@ -1105,8 +1229,7 @@ def historical_manifest_digest(manifest: HistoricalFG3Manifest) -> str:
 
 
 def historical_anchor_digest(anchor: HistoricalFG3Anchor) -> str:
-    if type(anchor) is not HistoricalFG3Anchor:
-        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(anchor, HistoricalFG3Anchor, STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
         type(anchor.anchor_digest) is not str
         or type(anchor.manifest_digest) is not str
@@ -1135,7 +1258,8 @@ def historical_anchor_digest(anchor: HistoricalFG3Anchor) -> str:
 
 
 def manifest_builder_receipt_digest(receipt: ManifestBuilderEvidenceReceipt) -> str:
-    if type(receipt) is not ManifestBuilderEvidenceReceipt or any(
+    _require_complete(receipt, ManifestBuilderEvidenceReceipt, STOP_ANCHOR_NOT_INDEPENDENT)
+    if any(
         type(value) is not str
         for value in (
             receipt.builder_identity,
@@ -1156,7 +1280,8 @@ def manifest_builder_receipt_digest(receipt: ManifestBuilderEvidenceReceipt) -> 
 
 
 def anchor_provider_receipt_digest(receipt: AnchorProviderEvidenceReceipt) -> str:
-    if type(receipt) is not AnchorProviderEvidenceReceipt or any(
+    _require_complete(receipt, AnchorProviderEvidenceReceipt, STOP_ANCHOR_NOT_INDEPENDENT)
+    if any(
         type(value) is not str
         for value in (
             receipt.provider_identity,
@@ -1179,8 +1304,7 @@ def anchor_provider_receipt_digest(receipt: AnchorProviderEvidenceReceipt) -> st
 
 
 def historical_observation_fingerprint(item: FG3HistoricalObservationEvidence) -> str:
-    if type(item) is not FG3HistoricalObservationEvidence:
-        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(item, FG3HistoricalObservationEvidence, STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
         type(item.observation_fingerprint) is not str
         or not _valid_digest(item.target_binding_digest)
@@ -1233,9 +1357,9 @@ def prior_mutation_fingerprint(
 
 
 def _snapshot_bounds(payload: object, reason: str) -> tuple[datetime, datetime, datetime, datetime]:
+    _require_complete(payload, SnapshotPairPayloadEvidence, reason)
     if (
-        type(payload) is not SnapshotPairPayloadEvidence
-        or not _valid_digest(payload.snapshot_pair_id)
+        not _valid_digest(payload.snapshot_pair_id)
         or type(payload.snapshot_1) is not tuple
         or type(payload.snapshot_2) is not tuple
     ):
@@ -1249,6 +1373,18 @@ def _snapshot_bounds(payload: object, reason: str) -> tuple[datetime, datetime, 
         max(item.ended_at_utc for item in first),
         min(item.started_at_utc for item in second),
         max(item.ended_at_utc for item in second),
+    )
+
+
+def _snapshot_monotonic_bounds(payload: object, reason: str) -> tuple[int, int]:
+    _require_complete(payload, SnapshotPairPayloadEvidence, reason)
+    first = _all_timings(payload.snapshot_1, reason)
+    second = _all_timings(payload.snapshot_2, reason)
+    for timing in (*first, *second):
+        validate_read_timing(timing, payload.snapshot_pair_id)
+    return (
+        max(item.monotonic_ended_ns for item in first),
+        min(item.monotonic_started_ns for item in second),
     )
 
 
@@ -1268,6 +1404,17 @@ def validate_historical_anchor(
         or type(provider_receipt) is not AnchorProviderEvidenceReceipt
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(anchor, HistoricalFG3Anchor, STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(
+        builder_receipt,
+        ManifestBuilderEvidenceReceipt,
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+    _require_complete(
+        provider_receipt,
+        AnchorProviderEvidenceReceipt,
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
     if not _is_utc(evaluated_at):
         _raise(STOP_CLOCK_TIMING_INVALID)
     if (
@@ -1353,22 +1500,41 @@ def validate_historical_anchor(
         _raise(STOP_ANCHOR_NOT_INDEPENDENT)
 
 
-def _inventory(payload: SnapshotPairPayloadEvidence, snapshot: int, table: str) -> PaginationEvidence:
+def _inventory(
+    payload: SnapshotPairPayloadEvidence,
+    snapshot: int,
+    table: str,
+    reason: str = STOP_PAGINATION_INCOMPLETE,
+) -> PaginationEvidence:
+    _require_complete(payload, SnapshotPairPayloadEvidence, reason)
+    if type(snapshot) is not int or snapshot not in {1, 2} or type(table) is not str:
+        _raise(reason)
     items = payload.snapshot_1 if snapshot == 1 else payload.snapshot_2
+    if type(items) is not tuple:
+        _raise(reason)
     for item in items:
-        if type(item) is not PaginationEvidence:
-            _raise(STOP_PAGINATION_INCOMPLETE)
+        _require_complete(item, PaginationEvidence, reason)
+        if type(item.table) is not str:
+            _raise(reason)
         if item.table == table:
             return item
-    _raise(STOP_PAGINATION_INCOMPLETE)
+    _raise(reason)
 
 
-def _inventory_rows(payload: SnapshotPairPayloadEvidence, snapshot: int, table: str) -> tuple[FrozenRow, ...]:
-    inventory = _inventory(payload, snapshot, table)
+def _inventory_rows(
+    payload: SnapshotPairPayloadEvidence,
+    snapshot: int,
+    table: str,
+    reason: str = STOP_PAGINATION_INCOMPLETE,
+) -> tuple[FrozenRow, ...]:
+    inventory = _inventory(payload, snapshot, table, reason)
+    if type(inventory.pages) is not tuple:
+        _raise(reason)
     rows: list[FrozenRow] = []
     for page in inventory.pages:
-        if type(page) is not PageEvidence or type(page.rows) is not tuple:
-            _raise(STOP_PAGINATION_INCOMPLETE)
+        _require_complete(page, PageEvidence, reason)
+        if type(page.rows) is not tuple:
+            _raise(reason)
         for cursor in page.rows:
             validated = _validate_row_cursor(
                 cursor,
@@ -1388,10 +1554,14 @@ def validate_fg3_cohort(
 ) -> tuple[frozenset[str], frozenset[str]]:
     validated_target = _validate_target_binding(target)
     validated_manifest = _validate_manifest_shape(manifest)
+    _require_complete(evidence, FG3CohortEvidence, STOP_MANIFEST_ANCHOR_MISMATCH)
+    _require_complete(
+        snapshot_payload,
+        SnapshotPairPayloadEvidence,
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
     if (
-        type(evidence) is not FG3CohortEvidence
-        or type(snapshot_payload) is not SnapshotPairPayloadEvidence
-        or type(evidence.courses) is not tuple
+        type(evidence.courses) is not tuple
         or type(evidence.historical_observations) is not tuple
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
@@ -1415,7 +1585,15 @@ def validate_fg3_cohort(
     snapshot_1_started, _, _, _ = _snapshot_bounds(
         snapshot_payload, STOP_MANIFEST_ANCHOR_MISMATCH
     )
-    first_rows = _inventory_rows(snapshot_payload, 1, "courses")
+    first_rows = _inventory_rows(
+        snapshot_payload, 1, "courses", STOP_MANIFEST_ANCHOR_MISMATCH
+    )
+    second_rows = _inventory_rows(
+        snapshot_payload, 2, "courses", STOP_MANIFEST_ANCHOR_MISMATCH
+    )
+    for row in (*first_rows, *second_rows):
+        if type(_row_value(row, "is_active")) is not bool:
+            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     first_by_fingerprint = {
         row_fingerprint("courses", target_digest, evidence.snapshot_pair_id, row): row
         for row in first_rows
@@ -1424,8 +1602,11 @@ def validate_fg3_cohort(
     historical: set[str] = set()
     observations_by_fingerprint: dict[str, FG3HistoricalObservationEvidence] = {}
     for item in evidence.historical_observations:
-        if type(item) is not FG3HistoricalObservationEvidence:
-            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+        _require_complete(
+            item,
+            FG3HistoricalObservationEvidence,
+            STOP_MANIFEST_ANCHOR_MISMATCH,
+        )
         computed_fingerprint = historical_observation_fingerprint(item)
         if not (validated_target.issued_at <= item.observed_at < snapshot_1_started):
             _raise(STOP_CLOCK_TIMING_INVALID)
@@ -1448,6 +1629,12 @@ def validate_fg3_cohort(
     prior: set[str] = set()
     seen_courses: set[str] = set()
     for course in evidence.courses:
+        if type(course) is FG3CourseCohortEvidence:
+            _require_complete(
+                course,
+                FG3CourseCohortEvidence,
+                STOP_MANIFEST_ANCHOR_MISMATCH,
+            )
         if (
             type(course) is not FG3CourseCohortEvidence
             or not _valid_digest(course.course_fingerprint)
@@ -1530,7 +1717,9 @@ def validate_fg3_cohort(
 def _eligible_profile_fingerprints(
     target: TargetBinding, payload: SnapshotPairPayloadEvidence
 ) -> frozenset[str]:
-    rows = _inventory_rows(payload, 1, "institution_site_profiles")
+    rows = _inventory_rows(
+        payload, 1, "institution_site_profiles", STOP_TARGET_BINDING_INVALID
+    )
     target_digest = evidence_binding_digest(target)
     eligible: set[str] = set()
     for row in rows:
@@ -1564,11 +1753,14 @@ def validate_source_observation(
     snapshot_payload: SnapshotPairPayloadEvidence,
     evaluated_at: datetime,
 ) -> None:
-    if type(request) is not SourceObservationRequest or type(evidence) is not SourceObservationEvidence:
-        _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(request, SourceObservationRequest, STOP_TARGET_BINDING_INVALID)
+    _require_complete(evidence, SourceObservationEvidence, STOP_TARGET_BINDING_INVALID)
     validated_target = _validate_target_binding(target)
-    if type(snapshot_payload) is not SnapshotPairPayloadEvidence:
-        _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(
+        snapshot_payload,
+        SnapshotPairPayloadEvidence,
+        STOP_TARGET_BINDING_INVALID,
+    )
     if not _is_utc(evaluated_at):
         _raise(STOP_CLOCK_TIMING_INVALID)
     request_strings = (
@@ -1591,6 +1783,12 @@ def validate_source_observation(
     if any(type(value) is not str for value in (*request_strings, *evidence_strings)):
         _raise(STOP_TARGET_BINDING_INVALID)
     methods = request.method_sequence
+    if (
+        type(evidence.attempt_timings) is not tuple
+        or type(methods) is not tuple
+        or len(evidence.attempt_timings) != len(methods)
+    ):
+        _raise(STOP_CLOCK_TIMING_INVALID)
     if (
         request.target_binding_digest != evidence_binding_digest(validated_target)
         or evidence.target_binding_digest != request.target_binding_digest
@@ -1633,24 +1831,63 @@ def validate_source_observation(
         )
     ):
         _raise(STOP_TARGET_BINDING_INVALID)
-    try:
-        snapshot_1_started, snapshot_1_closed, snapshot_2_started, snapshot_2_closed = (
-            _snapshot_bounds(snapshot_payload, STOP_TARGET_BINDING_INVALID)
-        )
-    except G5AdapterContractError:
-        raise
+    snapshot_1_started, snapshot_1_closed, snapshot_2_started, snapshot_2_closed = (
+        _snapshot_bounds(snapshot_payload, STOP_TARGET_BINDING_INVALID)
+    )
+    snapshot_1_monotonic_closed, snapshot_2_monotonic_started = (
+        _snapshot_monotonic_bounds(snapshot_payload, STOP_TARGET_BINDING_INVALID)
+    )
     if (
-        not _is_utc(evidence.observed_at)
-        or not (
-            validated_target.issued_at
-            <= snapshot_1_started
-            <= snapshot_1_closed
-            < evidence.observed_at
-            < snapshot_2_started
-            <= snapshot_2_closed
-            <= evaluated_at
+        not (
+            validated_target.issued_at <= snapshot_1_started <= snapshot_1_closed
+            < snapshot_2_started <= snapshot_2_closed <= evaluated_at
             < validated_target.expires_at
         )
+    ):
+        _raise(STOP_CLOCK_TIMING_INVALID)
+    previous: SourceAttemptTiming | None = None
+    for index, timing in enumerate(evidence.attempt_timings):
+        _require_complete(timing, SourceAttemptTiming, STOP_CLOCK_TIMING_INVALID)
+        if (
+            type(timing.method) is not str
+            or timing.method != methods[index]
+            or not _is_utc(timing.started_at_utc)
+            or not _is_utc(timing.ended_at_utc)
+            or not _strict_int(timing.monotonic_started_ns, 0, 2**63 - 1)
+            or not _strict_int(timing.monotonic_ended_ns, 1, 2**63 - 1)
+        ):
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        utc_duration_ns = int(
+            (timing.ended_at_utc - timing.started_at_utc).total_seconds()
+            * 1_000_000_000
+        )
+        monotonic_duration_ns = timing.monotonic_ended_ns - timing.monotonic_started_ns
+        if (
+            utc_duration_ns <= 0
+            or monotonic_duration_ns <= 0
+            or utc_duration_ns > SOURCE_ATTEMPT_BUDGET_NS
+            or monotonic_duration_ns > SOURCE_ATTEMPT_BUDGET_NS
+            or abs(utc_duration_ns - monotonic_duration_ns)
+            > CLOCK_DURATION_TOLERANCE_NS
+            or timing.started_at_utc <= snapshot_1_closed
+            or timing.ended_at_utc >= snapshot_2_started
+            or timing.started_at_utc < validated_target.issued_at
+            or timing.ended_at_utc >= validated_target.expires_at
+            or timing.ended_at_utc > evaluated_at
+            or timing.monotonic_started_ns <= snapshot_1_monotonic_closed
+            or timing.monotonic_ended_ns >= snapshot_2_monotonic_started
+        ):
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        if previous is not None and (
+            previous.ended_at_utc > timing.started_at_utc
+            or previous.monotonic_ended_ns > timing.monotonic_started_ns
+        ):
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        previous = timing
+    if (
+        previous is None
+        or not _is_utc(evidence.observed_at)
+        or evidence.observed_at != previous.ended_at_utc
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
 
@@ -1664,17 +1901,27 @@ def validate_source_coverage(
     validated_target = _validate_target_binding(target)
     if type(bundles) is not tuple or type(snapshot_payload) is not SnapshotPairPayloadEvidence:
         _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(
+        snapshot_payload,
+        SnapshotPairPayloadEvidence,
+        STOP_TARGET_BINDING_INVALID,
+    )
     eligible = _eligible_profile_fingerprints(validated_target, snapshot_payload)
-    observed: set[str] = set()
+    observed_pairs: set[tuple[str, str]] = set()
+    observed_profiles: set[str] = set()
     for bundle in bundles:
-        if type(bundle) is not SourceObservationBundle:
-            _raise(STOP_TARGET_BINDING_INVALID)
-        if type(bundle.request) is not SourceObservationRequest:
-            _raise(STOP_TARGET_BINDING_INVALID)
+        _require_complete(bundle, SourceObservationBundle, STOP_TARGET_BINDING_INVALID)
+        _require_complete(
+            bundle.request,
+            SourceObservationRequest,
+            STOP_TARGET_BINDING_INVALID,
+        )
         fingerprint = bundle.request.profile_fingerprint
-        if type(fingerprint) is not str:
+        source_fingerprint = bundle.request.source_fingerprint
+        if type(fingerprint) is not str or type(source_fingerprint) is not str:
             _raise(STOP_TARGET_BINDING_INVALID)
-        if fingerprint in observed:
+        unit = (fingerprint, source_fingerprint)
+        if unit in observed_pairs or fingerprint in observed_profiles:
             _raise(STOP_TARGET_BINDING_INVALID)
         validate_source_observation(
             bundle.request,
@@ -1683,8 +1930,9 @@ def validate_source_coverage(
             snapshot_payload,
             evaluated_at,
         )
-        observed.add(fingerprint)
-    if observed != set(eligible):
+        observed_pairs.add(unit)
+        observed_profiles.add(fingerprint)
+    if observed_profiles != set(eligible):
         _raise(STOP_TARGET_BINDING_INVALID)
 
 
@@ -1771,6 +2019,7 @@ def lifecycle_allows_pass(observations: tuple[LifecycleProxy, ...]) -> bool:
 
 
 def _valid_lifecycle_proxy_shape(proxy: LifecycleProxy) -> bool:
+    _require_complete(proxy, LifecycleProxy, STOP_TARGET_BINDING_INVALID)
     return (
         type(proxy.last_harvested_at) in {str, type(None)}
         and type(proxy.created_at) in {str, type(None)}
@@ -1791,9 +2040,16 @@ def validate_lifecycle_evidence(
     validated_target = _validate_target_binding(target)
     if type(evidence) is not tuple or type(snapshot_payload) is not SnapshotPairPayloadEvidence:
         _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(
+        snapshot_payload,
+        SnapshotPairPayloadEvidence,
+        STOP_TARGET_BINDING_INVALID,
+    )
     if not _is_utc(evaluated_at):
         _raise(STOP_CLOCK_TIMING_INVALID)
-    rows = _inventory_rows(snapshot_payload, 1, "staging_raw")
+    rows = _inventory_rows(
+        snapshot_payload, 1, "staging_raw", STOP_TARGET_BINDING_INVALID
+    )
     target_digest = evidence_binding_digest(validated_target)
     expected: dict[str, FrozenRow] = {}
     for row in rows:
@@ -1804,6 +2060,8 @@ def validate_lifecycle_evidence(
             expected[fingerprint] = row
     observed: set[str] = set()
     for item in evidence:
+        if type(item) is LifecycleEvidence:
+            _require_complete(item, LifecycleEvidence, STOP_TARGET_BINDING_INVALID)
         if (
             type(item) is not LifecycleEvidence
             or not _valid_digest(item.staging_row_fingerprint)
@@ -1836,8 +2094,7 @@ def validate_lifecycle_evidence(
 
 def authorize_future_adapter(request: AuthorizationRequest) -> AuthorizedAdapterPlan:
     """Validate all pure evidence, then stop because trusted authority is absent."""
-    if type(request) is not AuthorizationRequest:
-        _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(request, AuthorizationRequest, STOP_TARGET_BINDING_INVALID)
     if (
         type(request.execution_sha) is not str
         or type(request.execution_tree) is not str
@@ -1904,8 +2161,7 @@ def authorize_future_adapter(request: AuthorizationRequest) -> AuthorizedAdapter
 
 
 def public_contract_projection(plan: AuthorizedAdapterPlan) -> Mapping[str, object]:
-    if type(plan) is not AuthorizedAdapterPlan:
-        _raise(STOP_TARGET_BINDING_INVALID)
+    _require_complete(plan, AuthorizedAdapterPlan, STOP_TARGET_BINDING_INVALID)
     if (
         not _valid_digest(plan.target_binding_digest)
         or type(plan.completed_steps) is not tuple
@@ -1965,7 +2221,7 @@ __all__ = [
     "G5AdapterContractError",
     "GET_ONLY_CAPABILITY",
     "HISTORICAL_CONTRACT_VERSION",
-    "HISTORICAL_V1_STATUS",
+    "HISTORICAL_V2_STATUS",
     "HistoricalFG3Anchor",
     "HistoricalFG3Manifest",
     "LIFECYCLE_CLASSIFICATIONS",
@@ -1985,6 +2241,7 @@ __all__ = [
     "ReadTiming",
     "RowCursor",
     "SCHEMA_VERSION",
+    "SOURCE_ATTEMPT_BUDGET_NS",
     "STOP_ANCHOR_NOT_INDEPENDENT",
     "STOP_CAPABILITY_INVALID",
     "STOP_CLOCK_TIMING_INVALID",
@@ -1997,6 +2254,7 @@ __all__ = [
     "SourceObservationBundle",
     "SourceObservationEvidence",
     "SourceObservationRequest",
+    "SourceAttemptTiming",
     "SnapshotPairPayloadEvidence",
     "TABLE_COLUMNS",
     "TRUST_MODEL_FUTURE_REQUIREMENTS",

@@ -1,37 +1,38 @@
-# F10.9 G5 - Contrato Offline GET-Only V2
+# F10.9 G5 - Contrato Offline GET-Only V2.1
 
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REMEDIATED_REPOSITORY_ONLY_TRUST_STOP` |
-| Contrato | `f10.9-g5-get-only-adapter-contract.v2` |
-| Schema | `f10.9-g5-get-only-adapter-schema.v2` |
-| Algoritmo | `f10.9-g5-get-only-adapter-v2` |
-| Fuente protegida | `desarrollo@c28e5b86e6be29bbb2444bedd9b9407d1e7b0974` |
-| Tree protegido | `22de9d315ff26b0a8b0e8ae991a338473fbdbe11` |
+| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_1_TRUST_STOP` |
+| Contrato | `f10.9-g5-get-only-adapter-contract.v2.1` |
+| Schema | `f10.9-g5-get-only-adapter-schema.v2.1` |
+| Algoritmo | `f10.9-g5-get-only-adapter-v2.1` |
+| Fuente protegida | `desarrollo@c7783af918c4e434d31b80e9a65247329c0b3595` |
+| Tree protegido | `37d4ab05738355436169188d2613f860c6b35148` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
 | Conexiones/probes | `ZERO_NOT_IMPLEMENTED` |
 
-## Reconciliacion PR 379
+## Reconciliacion PR 380
 
-PR #379 fue aprobado, fusionado y verificado sobre:
+PR #380 fue aprobado, fusionado y verificado sobre:
 
 ```text
-merge = c28e5b86e6be29bbb2444bedd9b9407d1e7b0974
-tree = 22de9d315ff26b0a8b0e8ae991a338473fbdbe11
-parent_1 = bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3
-parent_2 = e1d2ebce7db8955af3eede4b85293ec9144c05f3
-security_audit_post_merge = 31839739068=PASS
-f9_7_post_merge = 31839739054=PASS
-result = MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED
+merge = c7783af918c4e434d31b80e9a65247329c0b3595
+tree = 37d4ab05738355436169188d2613f860c6b35148
+parent_1 = c28e5b86e6be29bbb2444bedd9b9407d1e7b0974
+parent_2 = 6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3
+security_audit_post_merge = 31848341499=PASS
+f9_7_post_merge = 31848341110=PASS
+result = MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED
 ```
 
-El contrato v1 queda congelado como
+El contrato v2 queda congelado como
 `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. No puede reinterpretarse
 silenciosamente. Todo sucesor debe usar versiones de contrato, schema y algoritmo
-v2 o posteriores y una autorizacion separada.
+v2.1 o posteriores y una autorizacion separada. V1 permanece congelado por la
+reconciliacion anterior y no se reabre.
 
 ## Modelo De Confianza
 
@@ -105,15 +106,33 @@ entre bloques es estricta:
 snapshot_1 completo -> observaciones -> snapshot_2 completo
 ```
 
-Cada `SourceObservationEvidence.observed_at` debe ser posterior al cierre de todo
-`snapshot_1`, anterior al inicio de cualquier lectura de `snapshot_2`, estar
-dentro del target y ser menor o igual que `evaluated_at`. Ademas,
+Cada metodo de `method_sequence` exige exactamente un `SourceAttemptTiming`
+inmutable con metodo, inicio/fin UTC e inicio/fin monotonic. Los intentos deben
+aparecer en el mismo orden, ser secuenciales y no solaparse. Cada operacion
+completa empieza despues del cierre UTC y monotonic global de `snapshot_1`,
+termina antes del inicio UTC y monotonic global de `snapshot_2`, queda dentro de
+`target.issued_at/expires_at` y termina antes o en `evaluated_at`.
+
+Duraciones UTC y monotonic deben ser positivas, no exceder el presupuesto fijo de
+15 segundos y diferir como maximo
+`CLOCK_DURATION_TOLERANCE_NS=250000000`. Cualquier cruce, overlap, desorden,
+duracion cero/negativa/excesiva, cantidad distinta de timings o incoherencia usa
+exclusivamente `STOP_G5_CLOCK_TIMING_INVALID`.
+
+`SourceObservationEvidence.observed_at` se conserva solo como alias verificable:
+debe coincidir exactamente con `ended_at_utc` del ultimo intento. No sustituye la
+evidencia de inicio/fin ni puede ocultar un intento fuera de intervalo. Ademas,
 `evaluated_at` debe ser posterior o igual al cierre completo mas tardio de
 `snapshot_2`, no solo a su inicio. El request se valida por
 tipo exacto antes de leer `method_sequence`; un tipo incorrecto produce
 `G5AdapterContractError(STOP_G5_TARGET_BINDING_INVALID)`, nunca un error incidental.
 
-La cobertura de fuentes se deriva mecanicamente de las filas exactas de
+La unidad de cada source observation es el par profile/source. No se asocia
+artificialmente a un course: un profile elegible puede tener su fuente observada
+sin crear identidad de curso. Este candidate exige exactamente un par
+profile/source por perfil elegible; un segundo source para el mismo perfil no se
+agrega ni se confunde con otro curso, sino que detiene el contrato para exigir un
+schema sucesor explicito. La cobertura se deriva mecanicamente de las filas exactas de
 `institution_site_profiles`: son elegibles solo perfiles con
 `discovery_enabled=true`, `pipeline_enabled=true`, `pipeline_ready=true` y
 `circuit_open=false`. Debe existir exactamente un bundle por fingerprint de perfil
@@ -136,7 +155,9 @@ monotonic. La duracion UTC y monotonic debe diferir como maximo
 El manifest completo exige fingerprints unicos y conteos exactos `24/2/1`, sin
 contar duplicados. No exige una observacion historica diferente por curso activo:
 varias observaciones validas pueden ligarse al mismo curso activo cuando sus
-fingerprints son unicos y el manifest las requiere. La cohorte primaria contiene
+fingerprints son unicos y el manifest las requiere. Esta multiplicidad pertenece
+al manifest historico FG3 y no cambia la unidad profile/source de observaciones
+actuales. La cohorte primaria contiene
 todos los cursos activos en `snapshot_1`; un inactivo solo entra con antecedente
 exact-one atribuible.
 
@@ -146,6 +167,11 @@ dentro del target y antes del inicio de `snapshot_1`. El antecedente de un curso
 inactivo incluye `antecedent_observed_at`, mutation kind y mutation fingerprint
 recomputable; tambien debe preceder `snapshot_1`. Todo fallo de orden temporal usa
 `STOP_G5_CLOCK_TIMING_INVALID`.
+
+Antes de comparar cualquier fila `courses`, v2.1 exige
+`type(is_active) is bool` en ambos snapshots. `0`, `1` y cualquier otro entero se
+rechazan como `STOP_G5_MANIFEST_ANCHOR_MISMATCH`; nunca se interpretan como
+`False` o `True`.
 
 ## Lifecycle Completo
 
@@ -170,6 +196,10 @@ rechaza sin invocarlo. Cada valor inmutable queda limitado a profundidad `8`,
 `256` nodos, strings de `8192` bytes e integers signed de 64 bits antes de hashing
 o serializacion. Exceder cualquier limite produce el reason code estable del
 dominio y evita `RecursionError`, conversiones gigantes o ejecucion indirecta.
+Una instancia de dataclass de clase exacta con cualquier campo ausente se rechaza
+antes de leer atributos de negocio. El chequeo usa exclusivamente el estado
+incorporado de clases exactas conocidas; no usa `getattr`, `hasattr`, `Protocol`,
+callbacks, hooks ni propiedades aportadas por caller.
 
 ## Capability Y Privacidad
 

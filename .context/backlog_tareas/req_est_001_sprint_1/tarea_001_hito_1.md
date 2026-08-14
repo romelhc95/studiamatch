@@ -103,15 +103,16 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #379 queda `MERGED_POST_MERGE_VERIFIED_REMEDIATION_REQUIRED` en
-   `desarrollo@c28e5b86e6be29bbb2444bedd9b9407d1e7b0974`, tree
-   `22de9d315ff26b0a8b0e8ae991a338473fbdbe11`, parents
-   `bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3` y
-   `e1d2ebce7db8955af3eede4b85293ec9144c05f3`; Security Audit
-   `31839739068=PASS` y F9.7 `31839739054=PASS`. El
-   [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
-   v1 queda antecedente historico no apto para connected mode. El sucesor
-   contrato/schema/algoritmo v2 valida solo estructura e integridad y termina
+6. `G5`: PR #380 queda `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` en
+   `desarrollo@c7783af918c4e434d31b80e9a65247329c0b3595`, tree
+   `37d4ab05738355436169188d2613f860c6b35148`, parents
+   `c28e5b86e6be29bbb2444bedd9b9407d1e7b0974` y
+   `6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3`; Security Audit
+   `31848341499=PASS` y F9.7 `31848341110=PASS`. El
+    [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
+   v2 queda antecedente historico no apto para connected mode. El sucesor
+   contrato/schema/algoritmo v2.1 liga duracion source, strict Boolean y errores
+   estables de dataclasses incompletas; valida solo estructura e integridad y termina
    `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Gate
    `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
    `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
