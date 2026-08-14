@@ -130,6 +130,11 @@ G5_PRODUCTION_READONLY_HEAD_REF = "feat/f10-9-g5-production-readonly"
 G5_V2_ATTRIBUTION_BASE = "30f77b88778372de112c6a8fb51a1344155db025"
 G5_V2_ATTRIBUTION_BASE_TREE = "b25fca6fc4e37db5b1e2c0e048748ee0ec3d839c"
 G5_V2_ATTRIBUTION_HEAD_REF = "feat/f10-9-g5-v2-attribution"
+G5_V2_POST_MERGE_BASE = "4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5"
+G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
+G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
+G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
+G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -503,6 +508,17 @@ G5_V2_ATTRIBUTION_ALLOWED_STATUSES = {
 }
 G5_V2_ATTRIBUTION_ALLOWED_MODES = {
     path: "100644" for path in G5_V2_ATTRIBUTION_ALLOWED_STATUSES
+}
+G5_V2_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_V2_POST_MERGE_ALLOWED_MODES = {
+    path: "100644" for path in G5_V2_POST_MERGE_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2661,6 +2677,75 @@ def validate_g5_v2_attribution(
     validate_context_graph(repo, 66, 403)
 
 
+def validate_g5_v2_post_merge(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_V2_POST_MERGE_BASE, "unexpected G5 v2 post-merge base")
+    require_sha(repo, "G5_V2_POST_MERGE_BASE", base)
+    require_sha(repo, "G5_V2_POST_MERGE_CANDIDATE", G5_V2_POST_MERGE_CANDIDATE)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_V2_POST_MERGE_BASE_TREE,
+        "G5 v2 post-merge base tree drift",
+    )
+    require(
+        commit_parents(repo, base)
+        == [G5_V2_POST_MERGE_PREVIOUS_BASE, G5_V2_POST_MERGE_CANDIDATE],
+        "G5 v2 protected merge parents drift",
+    )
+    require(
+        commit_tree(repo, G5_V2_POST_MERGE_CANDIDATE)
+        == G5_V2_POST_MERGE_BASE_TREE,
+        "G5 v2 candidate and merge tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 v2 post-merge attestation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 v2 post-merge attestation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 v2 post-merge attestation must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_V2_POST_MERGE_ALLOWED_STATUSES,
+        G5_V2_POST_MERGE_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for required in (
+        "COMPLETED_POST_MERGE_VERIFIED",
+        G5_V2_POST_MERGE_BASE,
+        G5_V2_POST_MERGE_BASE_TREE,
+        G5_V2_POST_MERGE_CANDIDATE,
+        "31820665170=PASS",
+        "31820665257=PASS",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+    ):
+        require(required in evidence, "G5 v2 post-merge evidence drift")
+    require(
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED" in collector,
+        "G5 v2 connected-mode STOP drift",
+    )
+    validate_context_graph(repo, 66, 403)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2821,6 +2906,12 @@ def detect_mode(
         return "g5_v2_attribution"
     if (
         base_ref == "desarrollo"
+        and base == G5_V2_POST_MERGE_BASE
+        and (event == "push" or head_ref == G5_V2_POST_MERGE_HEAD_REF)
+    ):
+        return "g5_v2_post_merge"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -2930,6 +3021,13 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "G5 v2 attribution branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_V2_POST_MERGE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 v2 post-merge branch requires its frozen baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -3364,6 +3462,10 @@ def main() -> int:
             )
         elif mode == "g5_v2_attribution":
             validate_g5_v2_attribution(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_v2_post_merge":
+            validate_g5_v2_post_merge(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

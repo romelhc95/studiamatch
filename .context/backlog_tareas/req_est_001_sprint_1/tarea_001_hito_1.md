@@ -103,10 +103,12 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #376/v1 queda `COMPLETED_POST_MERGE_VERIFIED`; el
-   [candidate v2 repository-only](../../operaciones/g5_v2_repository_only_candidate_2026_08_14.md)
-   queda pendiente de promocion para atribucion independiente FG2/FG3. El gate
-   permanece `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y connected mode permanece
+6. `G5`: PR #377/[G5 v2 repository-only](../../operaciones/g5_v2_repository_only_candidate_2026_08_14.md) queda
+   `COMPLETED_POST_MERGE_VERIFIED` en
+   `desarrollo@4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5`, tree
+   `1daedcbe9651667201214eb4388e00024fa59bf3`; Security Audit
+   `31820665170=PASS` y F9.7 `31820665257=PASS`. El gate permanece
+   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y connected mode permanece
    `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
