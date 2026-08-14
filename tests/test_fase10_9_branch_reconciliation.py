@@ -143,6 +143,11 @@ from scripts.security.f109_boundary import (
     F1010_H1_CA1_REBASELINE_BASE,
     F1010_H1_CA1_REBASELINE_BASE_TREE,
     F1010_H1_CA1_REBASELINE_HEAD_REF,
+    G5_PRODUCTION_READONLY_ALLOWED_MODES,
+    G5_PRODUCTION_READONLY_ALLOWED_STATUSES,
+    G5_PRODUCTION_READONLY_BASE,
+    G5_PRODUCTION_READONLY_BASE_TREE,
+    G5_PRODUCTION_READONLY_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -206,6 +211,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_v2_evidence,
     validate_f1010_m3_public_acl_final_readiness,
     validate_f1010_h1_ca1_rebaseline,
+    validate_g5_production_readonly,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -3447,6 +3453,70 @@ class F109BoundaryTest(unittest.TestCase):
                 F1010_H1_CA1_REBASELINE_BASE,
             ),
             "f1010_h1_ca1_rebaseline",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_production_readonly_accepts_exact_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_PRODUCTION_READONLY_BASE_TREE
+        parents_mock.return_value = [G5_PRODUCTION_READONLY_BASE]
+
+        validate_g5_production_readonly(
+            Path("."), G5_PRODUCTION_READONLY_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_PRODUCTION_READONLY_BASE, head,
+            G5_PRODUCTION_READONLY_ALLOWED_STATUSES,
+            G5_PRODUCTION_READONLY_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 65, 400)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_production_readonly_requires_protected_merge_push(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        candidate = "b" * 40
+        merge = "c" * 40
+        tree_mock.side_effect = lambda _repo, commit: {
+            G5_PRODUCTION_READONLY_BASE: G5_PRODUCTION_READONLY_BASE_TREE,
+            candidate: "d" * 40,
+            merge: "d" * 40,
+        }[commit]
+        parents_mock.return_value = [G5_PRODUCTION_READONLY_BASE, candidate]
+
+        validate_g5_production_readonly(
+            Path("."), G5_PRODUCTION_READONLY_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_PRODUCTION_READONLY_BASE, candidate,
+            G5_PRODUCTION_READONLY_ALLOWED_STATUSES,
+            G5_PRODUCTION_READONLY_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 65, 400)
+
+    def test_detect_mode_selects_g5_production_readonly(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_PRODUCTION_READONLY_HEAD_REF,
+                G5_PRODUCTION_READONLY_BASE,
+            ),
+            "g5_production_readonly",
         )
 
     @mock.patch("scripts.security.f109_boundary.git")
