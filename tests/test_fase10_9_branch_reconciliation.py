@@ -138,6 +138,11 @@ from scripts.security.f109_boundary import (
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE,
     F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF,
+    F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+    F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+    F1010_H1_CA1_REBASELINE_BASE,
+    F1010_H1_CA1_REBASELINE_BASE_TREE,
+    F1010_H1_CA1_REBASELINE_HEAD_REF,
     G2_ALLOWED_MODES,
     G2_ALLOWED_STATUSES,
     G2_HEAD_REF,
@@ -200,6 +205,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_post_merge_harness,
     validate_f1010_m3_public_acl_v2_evidence,
     validate_f1010_m3_public_acl_final_readiness,
+    validate_f1010_h1_ca1_rebaseline,
     validate_g2,
     validate_g2_wiring,
     validate_non_p1_delta,
@@ -3347,6 +3353,67 @@ class F109BoundaryTest(unittest.TestCase):
             "f1010_m3_public_acl_final_readiness",
         )
 
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_h1_ca1_rebaseline_accepts_exact_candidate(
+        self, require_sha_mock, ancestor_mock, tree_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = F1010_H1_CA1_REBASELINE_BASE_TREE
+
+        validate_f1010_h1_ca1_rebaseline(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, head,
+            F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+            F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 64, 391)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_f1010_h1_ca1_rebaseline_requires_protected_merge_push(
+        self, require_sha_mock, ancestor_mock, tree_mock, parents_mock,
+        delta_mock, context_mock,
+    ) -> None:
+        candidate = "b" * 40
+        merge = "c" * 40
+        tree_mock.side_effect = lambda _repo, commit: {
+            F1010_H1_CA1_REBASELINE_BASE: F1010_H1_CA1_REBASELINE_BASE_TREE,
+            candidate: "d" * 40,
+            merge: "d" * 40,
+        }[commit]
+        parents_mock.return_value = [F1010_H1_CA1_REBASELINE_BASE, candidate]
+
+        validate_f1010_h1_ca1_rebaseline(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), F1010_H1_CA1_REBASELINE_BASE, candidate,
+            F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+            F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 64, 391)
+
+    def test_detect_mode_selects_f1010_h1_ca1_rebaseline(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", F1010_H1_CA1_REBASELINE_HEAD_REF,
+                F1010_H1_CA1_REBASELINE_BASE,
+            ),
+            "f1010_h1_ca1_rebaseline",
+        )
+
     @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.is_ancestor", return_value=True)
     @mock.patch("scripts.security.f109_boundary.commit_parents")
@@ -4175,6 +4242,7 @@ class F109BoundaryTest(unittest.TestCase):
             F1010_M2A_HEAD_REF,
             F1010_M1_HEAD_REF,
             F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF,
+            F1010_H1_CA1_REBASELINE_HEAD_REF,
         ):
             with self.subTest(head_ref=head_ref):
                 parse_args_mock.return_value = self.cli_args(head_ref=head_ref)
