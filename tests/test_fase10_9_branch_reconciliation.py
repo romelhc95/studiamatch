@@ -2130,32 +2130,67 @@ class F109BoundaryTest(unittest.TestCase):
         assert result["remote_dml"] is False
         assert result["executed_at"] < result["valid_until"]
 
-        authority_paths = (
-            ".context/estado_del_proyecto.md",
-            ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md",
-            ".context/operaciones/m3_reader_f10_10_rebaseline.md",
-            ".context/operaciones/plan_remediacion_metadata_f10_10.md",
-            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+        project_state = (root / ".context/estado_del_proyecto.md").read_text(
+            encoding="utf-8"
         )
-        authority = "\n".join(
-            (root / path).read_text(encoding="utf-8") for path in authority_paths
+        metadata_plan = (
+            root / ".context/operaciones/plan_remediacion_metadata_f10_10.md"
+        ).read_text(encoding="utf-8")
+        hito_task = (
+            root
+            / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+        ).read_text(encoding="utf-8")
+        project_state_flat = " ".join(project_state.split())
+        metadata_plan_flat = " ".join(metadata_plan.split())
+        hito_task_flat = " ".join(hito_task.split())
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in project_state
+        assert "HISTORICAL_NON_PROMOTABLE" in project_state
+        assert "REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION" in project_state
+        assert "exclusivamente para blockers CA1 FG2/FG3" in project_state_flat
+        assert (
+            "No se heredan gates, payloads, readers, ACL, credentials ni bindings"
+        ) in project_state_flat
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in hito_task
+        assert "HISTORICAL_NON_PROMOTABLE" in hito_task
+        assert (
+            "Ningun gate, payload, reader, ACL, credential, binding, cohorte o "
+            "aprobacion de F10.10 se reutiliza"
+        ) in hito_task_flat
+        assert "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2" in metadata_plan
+        assert "HISTORICAL_NON_PROMOTABLE" in metadata_plan
+        assert "SUPERSEDED_NON_AUTHORIZABLE" in metadata_plan
+        assert "no existe gate sucesor F10.10" in metadata_plan_flat
+
+        historical_scope = (
+            root / ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md"
+        ).read_text(encoding="utf-8")
+        historical_reader = (
+            root / ".context/operaciones/m3_reader_f10_10_rebaseline.md"
+        ).read_text(encoding="utf-8")
+        historical_m3 = "\n".join((historical_scope, historical_reader))
+        assert "BLOQUEADO_POST_DIAGNOSTIC_STOP" in historical_scope
+        assert "No existe ruta M3 Pro autorizable desde este documento" in historical_scope
+        assert "evidencia no autoriza Free ni consume gates" in historical_scope
+        assert "NO capacidad vigente" in historical_reader
+        assert (
+            "El payload preflight anterior y su ventana terminada son evidencia historica"
+            in historical_reader
         )
-        assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" not in authority
-        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED" in authority
-        assert "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2" in authority
-        assert "no aprobado y no consumido" in authority
-        assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in authority
-        assert "CONSUMED_ONCE_PASS" in authority
-        assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in authority
+        assert "M3_READER_PREFLIGHT_PAYLOAD_READY_GATE_PENDING" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_CANDIDATE_PENDING_PROMOTION" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_POST_MERGE_VERIFIED_GATE_PENDING" not in historical_m3
+        assert "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED" in historical_m3
+        assert "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2" in historical_m3
+        assert "STOP_PUBLIC_DB_ACL_REMEDIATION_REQUIRED" in historical_m3
+        assert "CONSUMED_ONCE_PASS" in historical_m3
+        assert "CONSUMED_ONCE_FAILED_ROLLBACK_SUPERSEDED" in historical_m3
         for gate in (
             "APPROVE_F10_10_M3_READER_DDL_FREE",
             "APPROVE_F10_10_M3_READER_Q0_FREE",
             "APPROVE_M3_FREE_READONLY",
             "APPROVE_F10_10_M3_READER_TEARDOWN_FREE",
         ):
-            assert gate in authority
+            assert gate in historical_m3
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")
