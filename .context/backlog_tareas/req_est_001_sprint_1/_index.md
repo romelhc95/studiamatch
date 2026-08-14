@@ -21,7 +21,7 @@ permanezcan `PENDING` y sin subfase activa.
 | Hito | Paquete | Criterios | Tarea canonica |
 |---|---|---|---|
 | [HITO-001](../../hitos/hito_001.md) | Orquestacion, schema y seguridad base | `H1-CA1`, `H1-CA2P`, `H1-CA7P` | [TASK-H1-001](./tarea_001_hito_1.md) |
-| HITO-002 | Pipeline de campos vacios | CA3 y CA2 parcial | TASK-H2-001 |
+| [HITO-002](../../hitos/hito_002.md) | Pipeline de campos vacios y calidad editorial | `H2-CA2`, `H2-CA3` | [TASK-H2-001](./tarea_002_hito_2.md) |
 | HITO-003 | Panel admin | CA4 | TASK-H3-001 |
 | HITO-004 | Home y documentacion | CA5, CA6, CA7 y CA13 Home | TASK-H4-001 |
 | HITO-005 | Resultados, filtros y cards | CA8 a CA13 Resultados | TASK-H5-001 |
@@ -59,6 +59,10 @@ La adenda aprobada fija el siguiente mapa:
 Los aliases `H1-CA2P` y `H1-CA7P` preservan la historia local. Su alcance
 pendiente pasa a `H2-CA2` y `H4-CA7`; la evidencia ya generada puede servir como
 preparacion, nunca como adopcion o cierre reutilizado.
+
+ADR-0011 transfiere ademas a `H2-CA2` la deuda historica F10.9 de `104/224`
+cursos activos incompletos y F10.10/M3-M9. Hito 2 debe rebaselinarse sin
+reutilizar gates, payloads, readers, ACL, credentials, bindings o cohortes.
 
 ## Dependencias Entre Hitos
 

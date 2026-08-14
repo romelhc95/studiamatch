@@ -2,12 +2,21 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED` |
+| Estado | `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2` |
 | Subfase | `F10.10` |
 | Hito | `HITO-001` |
-| Criterio | `H1-CA1` con metadata cero preservada |
+| Criterio | `H2-CA2` pendiente de rebaseline nuevo |
 | Decision | [ADR-0010](../decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md) |
 | Autoriza ejecucion remota | `NO` |
+
+> [ADR-0011](../decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
+> supersede este plan para Hito 1. Se conserva como antecedente H2; no autoriza
+> continuidad ni reutilizacion de capacidades.
+
+Todo el contenido operativo posterior queda `HISTORICAL_RESEARCH_ONLY`. Las
+frases en presente, gates propuestos y contratos tecnicos describen el baseline
+anterior y no son vigentes ni aprobables. Hito 2 requiere documentos e
+identidades nuevas.
 
 ## Objetivo
 
@@ -61,26 +70,15 @@ Prohibido en toda F10.10 salvo nuevo rebaseline superior:
 | `M0` | Registrar ADR, plan, autoridad y tarea | `PASS`: PR #343 y checks post-merge verificados | Git/docs consumido |
 | `M1` | Tooling, fixtures y tests offline | Candidate local fail-closed; cero red/DB/provider | Codigo local |
 | `M2` | Promover codigo sin ejecucion | SHA/tree/digest inmutables y CI PASS | Git/CI |
-| `M3` | Remediar ACL PUBLIC Free por gates separados y luego preparar reader v3 | Preflight privado, remediacion, postflight conforme; Q0 posterior separado | Diagnostico STOP; payload v2 promovido, consumer binding pendiente |
-| `M4` | Generar propuestas privadas | Candidate atribuible, budget respetado, cero DB writes | Provider sin writer |
-| `M5` | Revision editorial | 100% outputs provider revisados; solo aprobados son elegibles | Humano |
-| `M6` | Pilot maximo 5 | exact-one, verify, cero no-cohorte | Writer acotado |
-| `M7` | Idempotencia/restore del pilot | apply NOOP, restore, restore NOOP, apply final y apply final NOOP | Writer acotado |
-| `M8` | Lotes restantes maximo 10 | stop-on-drift y checkpoints; un writer secuencial | Writer acotado |
-| `M9` | Verificacion cero | metadata cero, cero ETL/no-cohorte, idempotencia PASS | Lectura remota |
-| `M10` | Handoff de autoridad | Decision separada sobre F10.9/G4 | Docs/Git |
+| `M3` | Historia M3 preservada | Worktree local no promovido `HISTORICAL_NON_PROMOTABLE` | No reutilizable |
+| `M4-M9` | Metadata, providers, revision, pilot, restore y lotes | `NOT_EXECUTED_TRANSFERRED_TO_H2` | Rebaseline H2 requerido |
+| `M10` | Handoff de autoridad | `SUPERSEDED_BY_ADR_0011` | Consumido documentalmente |
 
-Ningun gate concede el siguiente. M0 no autoriza M1. M2 no autoriza environments.
-El M3 reader tiene un unico target `FREE_DB` y approvals Free separados. El
-diagnostico bound observo TARGET y OTHER_CONNECTABLE no conformes y
-NON_CONNECTABLE conforme e inmutable. Solo se proponen como gates futuros
-`APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2`,
-`APPROVE_F10_10_M3_PUBLIC_DB_ACL_REMEDIATION_FREE_V1`,
-`APPROVE_F10_10_M3_PUBLIC_DB_ACL_POSTFLIGHT_FREE_V1` y, despues, reader v3; no
-estan creados, aprobados ni consumidos. La
-unidad de datos es el target fisico inmutable `(project_ref, host_fingerprint)`.
-Certification y Pro no reciben replay, collector, cohorte ni apply en este
-rebaseline; toda secuencia anterior entre ambientes queda superseded.
+Ningun gate concede el siguiente. Ningun gate, payload, reader, ACL, credential,
+binding, manifest, cohorte o aprobacion de F10.10 puede reutilizarse en Hito 2.
+Todos los gates M3 anteriormente propuestos quedan `SUPERSEDED_NON_AUTHORIZABLE`;
+no existe gate sucesor F10.10. La unidad target y las secuencias anteriores son
+solo investigacion historica.
 
 ## Cohorte
 
@@ -281,8 +279,8 @@ completos before/after; adicionalmente el writer tiene allowlist mecanica de
 tabla/metodos, tests AST, request ledger y auditoria de intentos. La igualdad
 before/after no se usa sola para afirmar cero writes transitorios.
 
-M9 PASS no reactiva F10.9. M10 requiere una nueva decision superior que cambie
-formalmente G4 a `PASS_CA1_RUNTIME_ONLY` o mantenga STOP.
+El criterio M9 queda transferido a H2-CA2 y ya no bloquea Hito 1. ADR-0011 cambia
+G4 a `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
 
 ## Estado M0-M3
 
@@ -297,12 +295,11 @@ PR #346, candidate final `a234fecb9c750a28cd290882919be972f1408467`, merge
 `306d606ac42a791e8efc98af81730db2e58cb146` y checks post-merge PASS. M1 queda
 `COMPLETED_POST_MERGE_VERIFIED` y M2=`PASS`.
 
-Toda nueva ejecucion remota M3 y M4-M10 permanece sin autorizar. M2 no autoriza red,
-DB, Supabase, providers, environments, writers, workflows operativos,
-backup/restore, SQL ni DDL.
+M4-M9 quedan `NOT_EXECUTED_TRANSFERRED_TO_H2`. Toda ejecucion remota y toda
+continuidad M3 quedan prohibidas bajo este plan.
 
 El [scope M3 v2 Free-only](./m3_f10_10_scope_por_ambiente_target.md)
-queda aprobado como contrato y registra la adenda `verify-full` soportada. La
+queda preservado como contrato historico no autorizable. La
 [evidencia M3](./m3_f10_10_post_merge_evidence_2026_08_11.md) registra PR #350,
 merge `332706fe3ed2b525438494b50be8aad583bedd83`, tree
 `91e1fc1b89ce2a2fc3aa8114ef9a0818b60dcd46` y checks post-merge PASS. El
@@ -310,10 +307,10 @@ collector v1 queda promovido solo como antecedente. Su secuencia historica
 Free -> Certification -> Pro queda `SUPERSEDED_BY_M3_READER_V2_FREE_ONLY` y no es
 ejecutable. Ningun gate historico concede M4.
 
-### Rebaseline Posterior Del Reader
+### Investigacion Historica Del Reader - No Reutilizable
 
-El collector v1 promovido por PR #350 permanece antecedente. El estado vigente
-es `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`: PR #353 promovio collector
+El collector v1 promovido por PR #350 permanece antecedente. El ultimo estado
+historico previo a ADR-0011 fue `M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED`: PR #353 promovio collector
 v2, PR #354/#355 reconciliaron evidencia/rotacion y PR #356 promovio binding
 passwordless; CI post-merge rerun termino PASS.
 PR #371 promovio el payload v2 null-bound. Su primer F9.7 post-merge fallo
