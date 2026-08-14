@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -135,6 +136,11 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
+G5_GET_ONLY_ADAPTER_BASE = "bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "dabf61ced4012419c4cd9f688506b4fe77e613dd"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = G5_V2_POST_MERGE_BASE
+G5_GET_ONLY_ADAPTER_CANDIDATE = "9dbf6171a340fc0ca3905369f73d99e1056ffee9"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-adapter-contract"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -519,6 +525,20 @@ G5_V2_POST_MERGE_ALLOWED_STATUSES = {
 }
 G5_V2_POST_MERGE_ALLOWED_MODES = {
     path: "100644" for path in G5_V2_POST_MERGE_ALLOWED_STATUSES
+}
+G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "A",
+    ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "A",
+}
+G5_GET_ONLY_ADAPTER_ALLOWED_MODES = {
+    path: "100644" for path in G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -2746,6 +2766,187 @@ def validate_g5_v2_post_merge(
     validate_context_graph(repo, 66, 403)
 
 
+def validate_g5_get_only_adapter(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_GET_ONLY_ADAPTER_BASE, "unexpected G5 adapter contract base")
+    require_sha(repo, "G5_GET_ONLY_ADAPTER_BASE", base)
+    require_sha(repo, "G5_GET_ONLY_ADAPTER_CANDIDATE", G5_GET_ONLY_ADAPTER_CANDIDATE)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_GET_ONLY_ADAPTER_BASE_TREE,
+        "G5 adapter contract base tree drift",
+    )
+    require(
+        commit_parents(repo, base)
+        == [G5_GET_ONLY_ADAPTER_PREVIOUS_BASE, G5_GET_ONLY_ADAPTER_CANDIDATE],
+        "G5 adapter protected source parents drift",
+    )
+    require(
+        commit_tree(repo, G5_GET_ONLY_ADAPTER_CANDIDATE)
+        == G5_GET_ONLY_ADAPTER_BASE_TREE,
+        "G5 adapter source candidate and merge tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 adapter contract push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 adapter contract merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 adapter contract candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+        G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
+    )
+    contract = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "import supabase",
+        "import requests",
+        "import httpx",
+        "import urllib",
+        "import socket",
+        "import subprocess",
+        "db_client",
+        "import psycopg",
+        "import sqlalchemy",
+        "os.environ",
+        "getenv(",
+        "create_client(",
+    ):
+        require(forbidden not in contract, "G5 adapter offline capability drift")
+    contract_tree = ast.parse(contract)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(contract_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {
+            "__future__",
+            "hashlib",
+            "json",
+            "re",
+            "dataclasses",
+            "datetime",
+            "types",
+            "typing",
+        },
+        "G5 adapter import allowlist drift",
+    )
+    require(
+        not imported_roots
+        & {
+            "supabase",
+            "requests",
+            "httpx",
+            "urllib",
+            "socket",
+            "subprocess",
+            "psycopg",
+            "sqlalchemy",
+            "boto3",
+            "importlib",
+            "os",
+        },
+        "G5 adapter forbidden import capability",
+    )
+    require(
+        not called_names
+        & {
+            "__import__",
+            "import_module",
+            "getenv",
+            "open",
+            "urlopen",
+            "connect",
+            "create_client",
+            "Popen",
+            "run",
+            "check_call",
+            "check_output",
+            "eval",
+            "exec",
+        },
+        "G5 adapter forbidden runtime capability",
+    )
+    require(
+        not referenced_names
+        & {
+            "__import__",
+            "import_module",
+            "getattr",
+            "globals",
+            "locals",
+            "open",
+            "compile",
+            "eval",
+            "exec",
+        },
+        "G5 adapter forbidden indirect capability",
+    )
+    for required in (
+        "f10.9-g5-get-only-adapter-contract.v1",
+        "HistoricalFG3AnchorProvider",
+        "SourceObservationProvider",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        G5_GET_ONLY_ADAPTER_BASE,
+        G5_GET_ONLY_ADAPTER_BASE_TREE,
+    ):
+        require(required in contract, "G5 adapter contract drift")
+    for required in (
+        "PREPARED_REPOSITORY_ONLY_REVIEW_PENDING",
+        G5_GET_ONLY_ADAPTER_BASE,
+        G5_GET_ONLY_ADAPTER_BASE_TREE,
+        G5_GET_ONLY_ADAPTER_CANDIDATE,
+        "31824928169=PASS",
+        "31824928240=PASS",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "ZERO_NOT_IMPLEMENTED",
+    ):
+        require(required in evidence, "G5 adapter evidence drift")
+    require(
+        "del authorization, facade_factory, observations, binding, page_size"
+        in collector
+        and 'raise G5Error("STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED")' in collector,
+        "G5 connected-mode unconditional STOP drift",
+    )
+    validate_context_graph(repo, 67, 407)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -2912,6 +3113,12 @@ def detect_mode(
         return "g5_v2_post_merge"
     if (
         base_ref == "desarrollo"
+        and base == G5_GET_ONLY_ADAPTER_BASE
+        and (event == "push" or head_ref == G5_GET_ONLY_ADAPTER_HEAD_REF)
+    ):
+        return "g5_get_only_adapter"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -3028,6 +3235,13 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "G5 v2 post-merge branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_GET_ONLY_ADAPTER_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 GET-only adapter contract branch requires its frozen baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -3466,6 +3680,10 @@ def main() -> int:
             )
         elif mode == "g5_v2_post_merge":
             validate_g5_v2_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_get_only_adapter":
+            validate_g5_get_only_adapter(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

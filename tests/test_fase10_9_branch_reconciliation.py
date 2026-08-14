@@ -148,6 +148,13 @@ from scripts.security.f109_boundary import (
     G5_PRODUCTION_READONLY_BASE,
     G5_PRODUCTION_READONLY_BASE_TREE,
     G5_PRODUCTION_READONLY_HEAD_REF,
+    G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
+    G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+    G5_GET_ONLY_ADAPTER_BASE,
+    G5_GET_ONLY_ADAPTER_BASE_TREE,
+    G5_GET_ONLY_ADAPTER_CANDIDATE,
+    G5_GET_ONLY_ADAPTER_HEAD_REF,
+    G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -224,6 +231,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_m3_public_acl_final_readiness,
     validate_f1010_h1_ca1_rebaseline,
     validate_g5_production_readonly,
+    validate_g5_get_only_adapter,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -3688,6 +3696,135 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_V2_POST_MERGE_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_get_only_adapter_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            G5_GET_ONLY_ADAPTER_BASE: [
+                G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
+                G5_GET_ONLY_ADAPTER_CANDIDATE,
+            ],
+            head: [G5_GET_ONLY_ADAPTER_BASE],
+        }[commit]
+
+        validate_g5_get_only_adapter(
+            Path("."), G5_GET_ONLY_ADAPTER_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_GET_ONLY_ADAPTER_BASE, head,
+            G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+            G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 67, 407)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_get_only_adapter_requires_protected_merge_push(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        candidate = "b" * 40
+        merge = "c" * 40
+        tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            G5_GET_ONLY_ADAPTER_BASE: [
+                G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
+                G5_GET_ONLY_ADAPTER_CANDIDATE,
+            ],
+            merge: [G5_GET_ONLY_ADAPTER_BASE, candidate],
+        }[commit]
+
+        validate_g5_get_only_adapter(
+            Path("."), G5_GET_ONLY_ADAPTER_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_GET_ONLY_ADAPTER_BASE, candidate,
+            G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+            G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 67, 407)
+
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="0" * 40)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_get_only_adapter_rejects_protected_base_tree_drift(
+        self, require_sha_mock, tree_mock,
+    ) -> None:
+        with self.assertRaises(BoundaryError):
+            validate_g5_get_only_adapter(
+                Path("."), G5_GET_ONLY_ADAPTER_BASE, "a" * 40, "pull_request"
+            )
+
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch(
+        "scripts.security.f109_boundary.commit_tree",
+        return_value=G5_GET_ONLY_ADAPTER_BASE_TREE,
+    )
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_get_only_adapter_rejects_protected_parent_drift(
+        self, require_sha_mock, tree_mock, parents_mock,
+    ) -> None:
+        parents_mock.return_value = ["0" * 40, G5_GET_ONLY_ADAPTER_CANDIDATE]
+        with self.assertRaises(BoundaryError):
+            validate_g5_get_only_adapter(
+                Path("."), G5_GET_ONLY_ADAPTER_BASE, "a" * 40, "pull_request"
+            )
+
+    def test_detect_mode_selects_g5_get_only_adapter(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_GET_ONLY_ADAPTER_HEAD_REF,
+                G5_GET_ONLY_ADAPTER_BASE,
+            ),
+            "g5_get_only_adapter",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_GET_ONLY_ADAPTER_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_get_only_adapter_branch_from_wrong_base(
+        self, parse_args_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_GET_ONLY_ADAPTER_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",

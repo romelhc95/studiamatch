@@ -32,6 +32,14 @@ el merge; G5 v2 queda `COMPLETED_POST_MERGE_VERIFIED`. Esta atestacion no crea,
 aprueba ni consume el gate, no desbloquea connected mode y no acredita lecturas
 de Production.
 
+PR #378 congelo esta atestacion mediante candidate
+`9dbf6171a340fc0ca3905369f73d99e1056ffee9` y merge protegido
+`bfdeb34c82d3e2fc4545b36f384436ff96ef1cb3`, tree
+`dabf61ced4012419c4cd9f688506b4fe77e613dd`, con parents
+`4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5` y candidate. Security Audit
+`31824928169=PASS` y F9.7 `31824928240=PASS` verificaron el merge; candidate y
+merge tienen tree identico. G5 v2 conserva el mismo estado, gate y STOP.
+
 ## Reconciliacion
 
 El [candidate G5 v1](./g5_production_readonly_candidate_2026_08_14.md) queda
@@ -127,6 +135,6 @@ environments.
 
 La autoridad permanece en el [plan F10.9](./plan_remediacion_f10_9_fg2_fg3.md) y
 el [estado vivo](../estado_del_proyecto.md). El siguiente candidate se limita al
-diseno repository-only de un adapter GET-only. Implementarlo, conectarlo o
-ejecutarlo requiere alcance y autorizacion separados; este documento no los
-concede.
+[contrato offline del futuro adapter GET-only](./g5_get_only_adapter_contract_2026_08_14.md).
+Implementar transporte, conectarlo o ejecutarlo requiere alcance y autorizacion
+separados; este documento no los concede.
