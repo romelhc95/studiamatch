@@ -28,6 +28,7 @@ from scripts.shared.f10_9_g5_readonly_collector import (
     G5ReadOnlyFacade,
     GATE,
     GATE_CANDIDATE_STATUS,
+    CONNECTED_MODE_STATUS,
     HashObservation,
     HistoricalFG3Anchor,
     HistoricalFG3Manifest,
@@ -1052,7 +1053,7 @@ class UntouchableFactory:
 )
 def test_connected_mode_is_unconditionally_closed_without_factory(authorization) -> None:
     tables = _tables()
-    with pytest.raises(G5Error, match="STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"):
+    with pytest.raises(G5Error, match=CONNECTED_MODE_STATUS):
         collect_g5_connected(
             authorization,
             facade_factory=UntouchableFactory(),
@@ -1063,14 +1064,14 @@ def test_connected_mode_is_unconditionally_closed_without_factory(authorization)
 
 def test_connected_exact_types_and_unimplemented_stop_without_factory() -> None:
     tables = _tables()
-    with pytest.raises(G5Error, match="STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"):
+    with pytest.raises(G5Error, match=CONNECTED_MODE_STATUS):
         collect_g5_connected(
             _authorization(),
             facade_factory=UntouchableFactory(),
             observations=_observations(tables),
             binding=BINDING,
         )
-    with pytest.raises(G5Error, match="STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"):
+    with pytest.raises(G5Error, match=CONNECTED_MODE_STATUS):
         collect_g5_connected(
             object(),
             facade_factory=UntouchableFactory(),

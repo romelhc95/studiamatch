@@ -45,6 +45,8 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     G5_TRUST_GATE_STATE_CONSUMED,
     G5_TRUST_GATE_STATE_READY,
     G5_TRUST_PLANE_PR_A_STATUS,
+    G5_WORKFLOW_CONNECTED_PR_C_STATUS,
+    G5_WORKFLOW_CONNECTED_PR_D_STATUS,
     GET_ONLY_CAPABILITY,
     GateConsumptionReceipt,
     GateIntent,
@@ -897,9 +899,14 @@ def test_v2_3_freezes_v2_2_and_valid_request_stops_at_trust() -> None:
     assert HISTORICAL_V2_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
         "ANTECENT", "ANTECEDENT"
     )
-    assert PROTECTED_SOURCE_SHA == "191539de71cbff95552c476463305e8d6f3e4b73"
-    assert PROTECTED_SOURCE_TREE == "7fe13bb907053f4dea51ac593b5df0de78cb40d6"
+    assert PROTECTED_SOURCE_SHA == "74defb6326d8432bf790cb84b4aa549fefc425be"
+    assert PROTECTED_SOURCE_TREE == "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528"
+    assert EXPECTED_WORKFLOW_PATH == ".github/workflows/g5-manual-trust-gate.yml"
+    assert EXPECTED_WORKFLOW_BLOB_SHA == "992308681c31dd5b2be3ab9c3fb1d20369120d92"
     assert CURRENT_GATE_STATUS == "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
+    assert CONNECTED_STOP == "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
+    assert G5_WORKFLOW_CONNECTED_PR_C_STATUS == "MERGED_POST_MERGE_VERIFIED"
+    assert G5_WORKFLOW_CONNECTED_PR_D_STATUS == "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED"
     plan = authorize_future_adapter(_authorization())
     assert plan.completed_steps == COMPLETED_STRUCTURAL_STEPS == AUTHORIZATION_ORDER[:-1]
     assert plan.next_step == plan.reason == TRUST_STOP
@@ -3860,7 +3867,7 @@ class _ConnectedHostile:
         raise AssertionError(f"connected argument inspected: {name}")
 
 
-def test_connected_mode_is_unchanged_unconditional_stop() -> None:
+def test_connected_mode_is_implemented_disabled_not_configured_stop() -> None:
     with pytest.raises(G5Error, match=CONNECTED_STOP):
         collect_g5_connected(
             _ConnectedHostile(),  # type: ignore[arg-type]
@@ -3906,8 +3913,9 @@ def test_contract_ast_has_no_executable_caller_interface_or_mapping_rows() -> No
     }
 
 
-def test_collector_connected_body_is_still_only_del_then_stop() -> None:
+def test_collector_connected_body_is_still_only_del_then_disabled_stop() -> None:
     source = Path("scripts/shared/f10_9_g5_readonly_collector.py").read_text(encoding="utf-8")
+    assert CONNECTED_STOP in source
     tree = ast.parse(source)
     function = next(
         node for node in tree.body
@@ -3924,4 +3932,4 @@ def test_collector_connected_body_is_still_only_del_then_stop() -> None:
     assert len(executable) == 2
     assert isinstance(executable[0], ast.Delete)
     assert isinstance(executable[1], ast.Raise)
-    assert CONNECTED_STOP in ast.unparse(executable[1])
+    assert "CONNECTED_MODE_STATUS" in ast.unparse(executable[1])
