@@ -39,7 +39,7 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
 | `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
 | `ADR-0011` | `COMPLETED_POST_MERGE_VERIFIED` | PR #375 integrado en `desarrollo@2c9d2438c5fc309d3692d1a1de1233e0fcc95afc` / tree `161a8df69bf5e527c4ba863891504551ec5f7aa7`; Security Audit `31768101859=PASS` y F9.7 `31768101887=PASS`. |
-| `G5` | `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` | PR #380 fue verificado en `desarrollo@c7783af918c4e434d31b80e9a65247329c0b3595` / tree `37d4ab05738355436169188d2613f860c6b35148`; Security Audit `31848341499=PASS` y F9.7 `31848341110=PASS`. V2 queda antecedente no apto para connected mode. El [sucesor offline GET-only v2.1](./g5_get_only_adapter_contract_2026_08_14.md) liga duracion source, strict Boolean y dataclasses incompletas; valida estructura y termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`, connected mode `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. |
+| `G5` | `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` | PR #381 fue verificado en `desarrollo@c998b0293b364b1c59d9c52824178927977f0b56` / tree `d93843d4e08dfd9c45571b72040994926dffc221`; Security Audit `31852148318=PASS` y F9.7 `31852148322=PASS`. V2.1 queda antecedente no apto para connected mode. El [sucesor offline GET-only v2.2](./g5_get_only_adapter_contract_2026_08_14.md) corrige causalidad FG3, exact-one derivado, elegibilidad con fallback, source identity exacta y CI focused; valida estructura y termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`, connected mode `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. |
 | `P7` | `REOPENED_AUTHORIZATION_REQUIRED` | Integracion CA1 FG2/FG3 despues de cerrar gates operativos separados. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
@@ -497,6 +497,18 @@ termina
 `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Connected mode y gate permanecen
 `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` y
 `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`.
+
+PR #381 fue fusionado mediante candidate
+`51c24af3664a5d03ad16e16fa8793862cdb7fec1` en
+`desarrollo@c998b0293b364b1c59d9c52824178927977f0b56`, tree
+`d93843d4e08dfd9c45571b72040994926dffc221`; Security Audit
+`31852148318=PASS` y F9.7 `31852148322=PASS`. V2.1 queda
+`MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` y congelado como antecedente no
+apto para connected mode. V2.2 deriva exact-one desde mutaciones inmutables,
+impone causalidad `observations <= manifest <= anchor < snapshot_1`, aplica
+`pipeline_enabled` con fallback explicito, deriva cobertura profile/source desde
+configuracion y ejecuta su suite focused en candidate y post-merge antes del
+checkout historico F9.7. No implementa transporte ni connected mode.
 
 ### G6 - Remediaciones Operativas CA1 Separadas
 

@@ -3726,23 +3726,23 @@ class F109BoundaryTest(unittest.TestCase):
     ) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE,
-            "c7783af918c4e434d31b80e9a65247329c0b3595",
+            "c998b0293b364b1c59d9c52824178927977f0b56",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE_TREE,
-            "37d4ab05738355436169188d2613f860c6b35148",
+            "d93843d4e08dfd9c45571b72040994926dffc221",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
-            "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974",
+            "c7783af918c4e434d31b80e9a65247329c0b3595",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_CANDIDATE,
-            "6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3",
+            "51c24af3664a5d03ad16e16fa8793862cdb7fec1",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_HEAD_REF,
-            "fix/f10-9-g5-get-only-contract-v2-1",
+            "fix/f10-9-g5-get-only-contract-v2-2",
         )
         head = "a" * 40
         tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
@@ -3765,7 +3765,7 @@ class F109BoundaryTest(unittest.TestCase):
         )
         context_mock.assert_called_once_with(Path("."), 67, 405)
 
-    def test_g5_get_only_adapter_successor_allowlist_is_exact_nine_modified_paths(self) -> None:
+    def test_g5_get_only_adapter_successor_allowlist_is_exact_ten_modified_paths(self) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             {
@@ -3774,6 +3774,7 @@ class F109BoundaryTest(unittest.TestCase):
                 ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
                 ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
                 ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
                 "scripts/security/f109_boundary.py": "M",
                 "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
                 "tests/test_fase10_9_branch_reconciliation.py": "M",
@@ -3782,7 +3783,7 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(set(G5_GET_ONLY_ADAPTER_ALLOWED_MODES.values()), {"100644"})
 
-    def test_g5_get_only_adapter_v2_1_required_security_markers(self) -> None:
+    def test_g5_get_only_adapter_v2_2_required_security_markers(self) -> None:
         source = Path(
             "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
         ).read_text(encoding="utf-8")
@@ -3790,10 +3791,15 @@ class F109BoundaryTest(unittest.TestCase):
             "class FrozenRow",
             "class LifecycleEvidence",
             "class SourceAttemptTiming",
+            "class FG3PriorMutationEvidence",
             "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
+            "MAX_SOURCES_PER_PROFILE = 64",
+            "MAX_PROFILE_SOURCE_PAIRS = 50_000",
+            "SOURCE_ATTEMPT_GRAMMAR",
             "_require_complete",
             "historical_observation_fingerprint",
             "prior_mutation_fingerprint",
+            "profile_source_fingerprints",
             "validate_source_coverage",
             "validate_lifecycle_evidence",
             "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
@@ -3801,6 +3807,34 @@ class F109BoundaryTest(unittest.TestCase):
             self.assertIn(marker, source)
         for forbidden in ("asdict", "row: Mapping", "Protocol", "runtime_checkable"):
             self.assertNotIn(forbidden, source)
+
+    def test_g5_v2_2_focused_ci_precedes_historical_f9_7_checkout(self) -> None:
+        workflow = Path(".github/workflows/f9-7-contract.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("F10.9 G5 GET-Only Contract V2.2", workflow)
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("branches: [desarrollo]", workflow)
+        self.assertIn(
+            "github.event.pull_request.head.sha || github.sha", workflow
+        )
+        self.assertIn(
+            "needs: [g5-get-only-v2-2, f1010-m3-zero-write]", workflow
+        )
+        self.assertIn(
+            'test "${{ needs.g5-get-only-v2-2.result }}" = "success"', workflow
+        )
+        for marker in (
+            "Block G5 v2.2 external egress",
+            "--bounding-set=-all",
+            "env -i HOME=/tmp CI=true",
+            "Restore G5 v2.2 external egress",
+        ):
+            self.assertIn(marker, workflow)
+        self.assertLess(
+            workflow.index("Run repository-only G5 v2.2 focused contract"),
+            workflow.index('git checkout --detach "$F97_CANDIDATE_COMMIT"'),
+        )
 
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")

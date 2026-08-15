@@ -17,15 +17,15 @@ from types import MappingProxyType
 from typing import Mapping
 
 
-CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.1"
-SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2.1"
-ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2.1"
-HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2"
+CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.2"
+SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2.2"
+ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2.2"
+HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.1"
 HISTORICAL_V2_STATUS = "HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE"
 EXPECTED_ENVIRONMENT = "Production"
 EXPECTED_WORKFLOW = "F10.9 G5 Production Read-Only Diagnostic"
-PROTECTED_SOURCE_SHA = "c7783af918c4e434d31b80e9a65247329c0b3595"
-PROTECTED_SOURCE_TREE = "37d4ab05738355436169188d2613f860c6b35148"
+PROTECTED_SOURCE_SHA = "c998b0293b364b1c59d9c52824178927977f0b56"
+PROTECTED_SOURCE_TREE = "d93843d4e08dfd9c45571b72040994926dffc221"
 CURRENT_GATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CONNECTED_STOP = "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"
 TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
@@ -64,6 +64,13 @@ READ_CLOCK_SOURCE = "SYSTEM_UTC_PLUS_MONOTONIC"
 READ_CAPTURE_SEQUENCE = ("IMMEDIATELY_BEFORE_READ", "IMMEDIATELY_AFTER_READ")
 CLOCK_DURATION_TOLERANCE_NS = 250_000_000
 SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000
+MAX_SOURCES_PER_PROFILE = 64
+MAX_PROFILE_SOURCE_PAIRS = 50_000
+SOURCE_ATTEMPT_GRAMMAR = (
+    ("HEAD", "GET"),
+    ("HEAD", "HEAD", "GET"),
+    ("HEAD", "GET", "GET"),
+)
 MAX_IMMUTABLE_DEPTH = 8
 MAX_IMMUTABLE_NODES = 256
 MAX_IMMUTABLE_STRING_BYTES = 8_192
@@ -383,15 +390,17 @@ class LifecycleEvidence:
 class FG3CourseCohortEvidence:
     course_fingerprint: str
     active_at_snapshot_1: bool
-    attributable_prior_mutation: bool
-    exact_one_verified: bool
-    antecedent_run_fingerprint: str | None
-    historical_observation_fingerprint: str | None
-    historical_category: str | None
     related_to_current_run: bool
-    antecedent_observed_at: datetime | None
-    mutation_fingerprint: str | None
-    mutation_kind: str | None
+
+
+@dataclass(frozen=True)
+class FG3PriorMutationEvidence:
+    course_fingerprint: str
+    antecedent_run_fingerprint: str
+    antecedent_observed_at: datetime
+    mutation_kind: str
+    mutation_fingerprint: str
+    historical_observation_fingerprint: str
 
 
 @dataclass(frozen=True)
@@ -412,6 +421,7 @@ class FG3CohortEvidence:
     snapshot_pair_id: str
     run_id: str
     courses: tuple[FG3CourseCohortEvidence, ...]
+    prior_mutations: tuple[FG3PriorMutationEvidence, ...]
     historical_observations: tuple[FG3HistoricalObservationEvidence, ...]
 
 
@@ -513,11 +523,12 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
         ),
         LifecycleEvidence: ("staging_row_fingerprint", "proxy"),
         FG3CourseCohortEvidence: (
-            "course_fingerprint", "active_at_snapshot_1", "attributable_prior_mutation",
-            "exact_one_verified", "antecedent_run_fingerprint",
-            "historical_observation_fingerprint", "historical_category",
-            "related_to_current_run", "antecedent_observed_at", "mutation_fingerprint",
-            "mutation_kind",
+            "course_fingerprint", "active_at_snapshot_1", "related_to_current_run",
+        ),
+        FG3PriorMutationEvidence: (
+            "course_fingerprint", "antecedent_run_fingerprint",
+            "antecedent_observed_at", "mutation_kind", "mutation_fingerprint",
+            "historical_observation_fingerprint",
         ),
         FG3HistoricalObservationEvidence: (
             "observation_fingerprint", "target_binding_digest", "snapshot_pair_id",
@@ -526,7 +537,7 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
         ),
         FG3CohortEvidence: (
             "target_binding_digest", "snapshot_pair_id", "run_id", "courses",
-            "historical_observations",
+            "prior_mutations", "historical_observations",
         ),
         AuthorizationRequest: (
             "execution_sha", "execution_tree", "workflow", "environment", "target",
@@ -580,6 +591,15 @@ def _valid_identity(value: object) -> bool:
 
 def _strict_int(value: object, minimum: int, maximum: int) -> bool:
     return type(value) is int and minimum <= value <= maximum
+
+
+def _duration_ns(started_at: datetime, ended_at: datetime) -> int:
+    delta = ended_at - started_at
+    return (
+        delta.days * 86_400_000_000_000
+        + delta.seconds * 1_000_000_000
+        + delta.microseconds * 1_000
+    )
 
 
 def _valid_immutable(value: object) -> bool:
@@ -652,7 +672,7 @@ def _digest(domain: str, value: object) -> str:
     material = (
         b"studiamatch:f10.9:g5:get-only:"
         + domain.encode("ascii")
-        + b":v2.1\0"
+        + b":v2.2\0"
         + encoded
     )
     return "sha256:" + hashlib.sha256(material).hexdigest()
@@ -785,9 +805,7 @@ def validate_read_timing(timing: ReadTiming, snapshot_pair_id: str) -> None:
         or timing.monotonic_started_ns >= timing.monotonic_ended_ns
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
-    utc_duration_ns = int(
-        (timing.ended_at_utc - timing.started_at_utc).total_seconds() * 1_000_000_000
-    )
+    utc_duration_ns = _duration_ns(timing.started_at_utc, timing.ended_at_utc)
     monotonic_duration_ns = timing.monotonic_ended_ns - timing.monotonic_started_ns
     if (
         utc_duration_ns > 15_000_000_000
@@ -1094,6 +1112,16 @@ def _all_timings(items: tuple[PaginationEvidence, ...], reason: str) -> tuple[Re
     return tuple(timings)
 
 
+def _validate_course_booleans(payload: SnapshotPairPayloadEvidence) -> None:
+    for snapshot in (1, 2):
+        rows = _inventory_rows(
+            payload, snapshot, "courses", STOP_MANIFEST_ANCHOR_MISMATCH
+        )
+        for row in rows:
+            if type(_row_value(row, "is_active")) is not bool:
+                _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+
+
 def snapshot_payload_digest(evidence: SnapshotPairPayloadEvidence) -> str:
     _require_complete(evidence, SnapshotPairPayloadEvidence, STOP_PAGINATION_INCOMPLETE)
     if (
@@ -1146,6 +1174,7 @@ def validate_snapshot_pair_payload(
             destination[validated.table] = validated
     if set(first) != set(TABLE_COLUMNS) or set(second) != set(TABLE_COLUMNS):
         _raise(STOP_PAGINATION_INCOMPLETE)
+    _validate_course_booleans(evidence)
     total_bytes = 0
     for table in sorted(TABLE_COLUMNS):
         first_rows = validate_pagination(first[table], validated_target)
@@ -1335,6 +1364,7 @@ def prior_mutation_fingerprint(
     antecedent_run_fingerprint: str,
     antecedent_observed_at: datetime,
     mutation_kind: str,
+    historical_observation_fingerprint: str,
 ) -> str:
     if (
         not _valid_digest(course_fingerprint)
@@ -1342,6 +1372,7 @@ def prior_mutation_fingerprint(
         or not _is_utc(antecedent_observed_at)
         or type(mutation_kind) is not str
         or mutation_kind not in {"DEACTIVATION"}
+        or not _valid_digest(historical_observation_fingerprint)
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     return _digest(
@@ -1351,7 +1382,7 @@ def prior_mutation_fingerprint(
             antecedent_run_fingerprint,
             _timestamp_text(antecedent_observed_at),
             mutation_kind,
-            True,
+            historical_observation_fingerprint,
         ),
     )
 
@@ -1394,6 +1425,8 @@ def validate_historical_anchor(
     builder_receipt: ManifestBuilderEvidenceReceipt,
     provider_receipt: AnchorProviderEvidenceReceipt,
     target: TargetBinding,
+    snapshot_payload: SnapshotPairPayloadEvidence,
+    historical_observations: tuple[FG3HistoricalObservationEvidence, ...],
     evaluated_at: datetime,
 ) -> None:
     validated_target = _validate_target_binding(target)
@@ -1415,14 +1448,37 @@ def validate_historical_anchor(
         AnchorProviderEvidenceReceipt,
         STOP_MANIFEST_ANCHOR_MISMATCH,
     )
+    _require_complete(
+        snapshot_payload,
+        SnapshotPairPayloadEvidence,
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+    if type(historical_observations) is not tuple or not historical_observations:
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     if not _is_utc(evaluated_at):
         _raise(STOP_CLOCK_TIMING_INVALID)
+    observation_times: list[datetime] = []
+    for observation in historical_observations:
+        _require_complete(
+            observation,
+            FG3HistoricalObservationEvidence,
+            STOP_MANIFEST_ANCHOR_MISMATCH,
+        )
+        if not _is_utc(observation.observed_at):
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        observation_times.append(observation.observed_at)
+    snapshot_1_started, _, _, _ = _snapshot_bounds(
+        snapshot_payload, STOP_MANIFEST_ANCHOR_MISMATCH
+    )
     if (
         not _is_utc(anchor.issued_at)
         or not (
             validated_target.issued_at
+            <= min(observation_times)
+            <= max(observation_times)
             <= validated_manifest.issued_at
             <= anchor.issued_at
+            < snapshot_1_started
             <= evaluated_at
             < validated_target.expires_at
         )
@@ -1562,7 +1618,9 @@ def validate_fg3_cohort(
     )
     if (
         type(evidence.courses) is not tuple
+        or type(evidence.prior_mutations) is not tuple
         or type(evidence.historical_observations) is not tuple
+        or len(evidence.historical_observations) != 27
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
@@ -1608,14 +1666,18 @@ def validate_fg3_cohort(
             STOP_MANIFEST_ANCHOR_MISMATCH,
         )
         computed_fingerprint = historical_observation_fingerprint(item)
-        if not (validated_target.issued_at <= item.observed_at < snapshot_1_started):
+        if not (
+            validated_target.issued_at
+            <= item.observed_at
+            <= validated_manifest.issued_at
+            < snapshot_1_started
+        ):
             _raise(STOP_CLOCK_TIMING_INVALID)
         if (
             item.observation_fingerprint in historical
             or item.observation_fingerprint != computed_fingerprint
             or item.target_binding_digest != target_digest
             or item.snapshot_pair_id != evidence.snapshot_pair_id
-            or item.run_id != evidence.run_id
             or item.course_fingerprint not in first_by_fingerprint
             or item.category != manifest_categories.get(item.observation_fingerprint)
         ):
@@ -1626,30 +1688,18 @@ def validate_fg3_cohort(
         historical.add(item.observation_fingerprint)
         observations_by_fingerprint[item.observation_fingerprint] = item
     primary: set[str] = set()
-    prior: set[str] = set()
     seen_courses: set[str] = set()
     for course in evidence.courses:
-        if type(course) is FG3CourseCohortEvidence:
-            _require_complete(
-                course,
-                FG3CourseCohortEvidence,
-                STOP_MANIFEST_ANCHOR_MISMATCH,
-            )
+        _require_complete(
+            course,
+            FG3CourseCohortEvidence,
+            STOP_MANIFEST_ANCHOR_MISMATCH,
+        )
         if (
-            type(course) is not FG3CourseCohortEvidence
-            or not _valid_digest(course.course_fingerprint)
+            not _valid_digest(course.course_fingerprint)
             or course.course_fingerprint in seen_courses
             or type(course.active_at_snapshot_1) is not bool
-            or type(course.attributable_prior_mutation) is not bool
-            or type(course.exact_one_verified) is not bool
             or type(course.related_to_current_run) is not bool
-            or type(course.antecedent_run_fingerprint) not in {str, type(None)}
-            or type(course.historical_observation_fingerprint)
-            not in {str, type(None)}
-            or type(course.historical_category) not in {str, type(None)}
-            or type(course.antecedent_observed_at) not in {datetime, type(None)}
-            or type(course.mutation_fingerprint) not in {str, type(None)}
-            or type(course.mutation_kind) not in {str, type(None)}
             or not course.related_to_current_run
         ):
             _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
@@ -1658,90 +1708,144 @@ def validate_fg3_cohort(
         if row is None or course.active_at_snapshot_1 != _row_value(row, "is_active"):
             _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
         if course.active_at_snapshot_1:
-            if any(
-                value is not None
-                for value in (
-                    course.antecedent_run_fingerprint,
-                    course.historical_observation_fingerprint,
-                    course.historical_category,
-                    course.antecedent_observed_at,
-                    course.mutation_fingerprint,
-                    course.mutation_kind,
-                )
-            ) or course.attributable_prior_mutation or course.exact_one_verified:
-                _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
             primary.add(course.course_fingerprint)
-            continue
-        observation = observations_by_fingerprint.get(
-            str(course.historical_observation_fingerprint)
-        )
-        if (
-            not course.attributable_prior_mutation
-            or not course.exact_one_verified
-            or not _valid_digest(course.antecedent_run_fingerprint)
-            or course.antecedent_run_fingerprint == evidence.run_id
-            or course.historical_category != "DEACTIVATION"
-            or course.mutation_kind != "DEACTIVATION"
-            or observation is None
-            or observation.course_fingerprint != course.course_fingerprint
-            or observation.category != "DEACTIVATION"
-        ):
-            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
-        if (
-            not _is_utc(course.antecedent_observed_at)
-            or course.antecedent_observed_at >= snapshot_1_started
-            or course.antecedent_observed_at < validated_target.issued_at
-        ):
-            _raise(STOP_CLOCK_TIMING_INVALID)
-        if course.mutation_fingerprint != prior_mutation_fingerprint(
-            course.course_fingerprint,
-            str(course.antecedent_run_fingerprint),
-            course.antecedent_observed_at,
-            course.mutation_kind,
-        ):
-            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
-        prior.add(course.course_fingerprint)
     required_active = {
         fingerprint
         for fingerprint, row in first_by_fingerprint.items()
         if _row_value(row, "is_active") is True
     }
+    required_inactive = set(first_by_fingerprint) - required_active
+    mutations_by_course: dict[str, list[FG3PriorMutationEvidence]] = {}
+    seen_mutation_fingerprints: set[str] = set()
+    for mutation in evidence.prior_mutations:
+        _require_complete(
+            mutation,
+            FG3PriorMutationEvidence,
+            STOP_MANIFEST_ANCHOR_MISMATCH,
+        )
+        observation = observations_by_fingerprint.get(
+            mutation.historical_observation_fingerprint
+        )
+        if (
+            not _valid_digest(mutation.course_fingerprint)
+            or not _valid_digest(mutation.antecedent_run_fingerprint)
+            or not _valid_digest(mutation.mutation_fingerprint)
+            or not _valid_digest(mutation.historical_observation_fingerprint)
+            or mutation.mutation_fingerprint in seen_mutation_fingerprints
+            or mutation.course_fingerprint not in required_inactive
+            or mutation.antecedent_run_fingerprint == evidence.run_id
+            or mutation.mutation_kind != "DEACTIVATION"
+            or observation is None
+        ):
+            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+        if (
+            not _is_utc(mutation.antecedent_observed_at)
+            or mutation.antecedent_observed_at >= snapshot_1_started
+            or mutation.antecedent_observed_at < validated_target.issued_at
+        ):
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        if (
+            observation.course_fingerprint != mutation.course_fingerprint
+            or observation.category != "DEACTIVATION"
+            or observation.active_at_snapshot_1 is not False
+            or observation.run_id != mutation.antecedent_run_fingerprint
+            or observation.observed_at != mutation.antecedent_observed_at
+        ):
+            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+        if mutation.mutation_fingerprint != prior_mutation_fingerprint(
+            mutation.course_fingerprint,
+            mutation.antecedent_run_fingerprint,
+            mutation.antecedent_observed_at,
+            mutation.mutation_kind,
+            mutation.historical_observation_fingerprint,
+        ):
+            _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+        seen_mutation_fingerprints.add(mutation.mutation_fingerprint)
+        mutations_by_course.setdefault(mutation.course_fingerprint, []).append(mutation)
     if (
         primary != required_active
+        or seen_courses != set(first_by_fingerprint)
+        or set(mutations_by_course) != required_inactive
+        or any(len(items) != 1 for items in mutations_by_course.values())
         or historical != set(validated_manifest.expected_observation_fingerprints)
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
-    return frozenset(primary), frozenset(prior)
+    return frozenset(primary), frozenset(mutations_by_course)
 
 
-def _eligible_profile_fingerprints(
-    target: TargetBinding, payload: SnapshotPairPayloadEvidence
+def profile_source_fingerprints(
+    profile_fingerprint: str,
+    row: FrozenRow,
 ) -> frozenset[str]:
+    if not _valid_digest(profile_fingerprint):
+        _raise(STOP_TARGET_BINDING_INVALID)
+    validated = _validate_frozen_row(
+        row, TABLE_COLUMNS["institution_site_profiles"], STOP_TARGET_BINDING_INVALID
+    )
+    discovery_mode = _row_value(validated, "discovery_mode")
+    configured = tuple(
+        (name, _row_value(validated, name))
+        for name in ("seed_urls", "catalog_url_patterns", "allowed_url_patterns")
+    )
+    if type(discovery_mode) is not str or not discovery_mode:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    for _, values in configured:
+        if (
+            type(values) is not tuple
+            or any(type(value) is not str or not value for value in values)
+            or len(values) != len(set(values))
+        ):
+            _raise(STOP_TARGET_BINDING_INVALID)
+    if sum(len(values) for _, values in configured) > MAX_SOURCES_PER_PROFILE:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    full_configuration = (discovery_mode, *tuple(values for _, values in configured))
+    fingerprints = frozenset(
+        _digest(
+            "profile-source",
+            (profile_fingerprint, full_configuration, source_kind, source_value),
+        )
+        for source_kind, values in configured
+        for source_value in values
+    )
+    if not fingerprints:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    return fingerprints
+
+
+def _eligible_profile_sources(
+    target: TargetBinding, payload: SnapshotPairPayloadEvidence
+) -> frozenset[tuple[str, str]]:
     rows = _inventory_rows(
         payload, 1, "institution_site_profiles", STOP_TARGET_BINDING_INVALID
     )
     target_digest = evidence_binding_digest(target)
-    eligible: set[str] = set()
+    eligible: set[tuple[str, str]] = set()
     for row in rows:
-        booleans = tuple(
-            _row_value(row, key)
-            for key in (
-                "discovery_enabled",
-                "pipeline_enabled",
-                "pipeline_ready",
-                "circuit_open",
-            )
-        )
-        if any(type(value) is not bool for value in booleans):
+        discovery_enabled = _row_value(row, "discovery_enabled")
+        pipeline_enabled = _row_value(row, "pipeline_enabled")
+        pipeline_ready = _row_value(row, "pipeline_ready")
+        circuit_open = _row_value(row, "circuit_open")
+        if (
+            type(discovery_enabled) is not bool
+            or type(pipeline_enabled) not in {bool, type(None)}
+            or type(pipeline_ready) is not bool
+            or type(circuit_open) is not bool
+        ):
             _raise(STOP_TARGET_BINDING_INVALID)
-        if booleans == (True, True, True, False):
-            eligible.add(
-                row_fingerprint(
-                    "institution_site_profiles",
-                    target_digest,
-                    target.snapshot_pair_id,
-                    row,
-                )
+        pipeline_gate = pipeline_ready if pipeline_enabled is None else pipeline_enabled
+        if discovery_enabled and pipeline_gate and not circuit_open:
+            profile_fingerprint = row_fingerprint(
+                "institution_site_profiles",
+                target_digest,
+                target.snapshot_pair_id,
+                row,
+            )
+            profile_sources = profile_source_fingerprints(profile_fingerprint, row)
+            if len(eligible) + len(profile_sources) > MAX_PROFILE_SOURCE_PAIRS:
+                _raise(STOP_TARGET_BINDING_INVALID)
+            eligible.update(
+                (profile_fingerprint, source_fingerprint)
+                for source_fingerprint in profile_sources
             )
     return frozenset(eligible)
 
@@ -1789,15 +1893,14 @@ def validate_source_observation(
         or len(evidence.attempt_timings) != len(methods)
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
+    if any(type(method) is not str for method in methods):
+        _raise(STOP_TARGET_BINDING_INVALID)
     if (
         request.target_binding_digest != evidence_binding_digest(validated_target)
         or evidence.target_binding_digest != request.target_binding_digest
         or request.snapshot_pair_id != validated_target.snapshot_pair_id
         or request.run_fingerprint != validated_target.run_id
-        or type(methods) is not tuple
-        or not methods
-        or any(type(method) is not str or method not in {"HEAD", "GET"} for method in methods)
-        or methods[-1] != "GET"
+        or methods not in SOURCE_ATTEMPT_GRAMMAR
         or not _strict_int(request.max_attempts, 1, 3)
         or request.max_attempts != len(methods)
         or evidence.snapshot_pair_id != request.snapshot_pair_id
@@ -1857,10 +1960,7 @@ def validate_source_observation(
             or not _strict_int(timing.monotonic_ended_ns, 1, 2**63 - 1)
         ):
             _raise(STOP_CLOCK_TIMING_INVALID)
-        utc_duration_ns = int(
-            (timing.ended_at_utc - timing.started_at_utc).total_seconds()
-            * 1_000_000_000
-        )
+        utc_duration_ns = _duration_ns(timing.started_at_utc, timing.ended_at_utc)
         monotonic_duration_ns = timing.monotonic_ended_ns - timing.monotonic_started_ns
         if (
             utc_duration_ns <= 0
@@ -1906,9 +2006,8 @@ def validate_source_coverage(
         SnapshotPairPayloadEvidence,
         STOP_TARGET_BINDING_INVALID,
     )
-    eligible = _eligible_profile_fingerprints(validated_target, snapshot_payload)
+    eligible = _eligible_profile_sources(validated_target, snapshot_payload)
     observed_pairs: set[tuple[str, str]] = set()
-    observed_profiles: set[str] = set()
     for bundle in bundles:
         _require_complete(bundle, SourceObservationBundle, STOP_TARGET_BINDING_INVALID)
         _require_complete(
@@ -1921,7 +2020,7 @@ def validate_source_coverage(
         if type(fingerprint) is not str or type(source_fingerprint) is not str:
             _raise(STOP_TARGET_BINDING_INVALID)
         unit = (fingerprint, source_fingerprint)
-        if unit in observed_pairs or fingerprint in observed_profiles:
+        if unit in observed_pairs or unit not in eligible:
             _raise(STOP_TARGET_BINDING_INVALID)
         validate_source_observation(
             bundle.request,
@@ -1931,8 +2030,7 @@ def validate_source_coverage(
             evaluated_at,
         )
         observed_pairs.add(unit)
-        observed_profiles.add(fingerprint)
-    if observed_profiles != set(eligible):
+    if observed_pairs != set(eligible):
         _raise(STOP_TARGET_BINDING_INVALID)
 
 
@@ -2135,12 +2233,21 @@ def authorize_future_adapter(request: AuthorizationRequest) -> AuthorizedAdapter
         request.snapshot_payload,
         request.evaluated_at,
     )
+    _require_complete(
+        request.fg3_cohort,
+        FG3CohortEvidence,
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+    if type(request.fg3_cohort.historical_observations) is not tuple:
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     validate_historical_anchor(
         request.historical_manifest,
         request.historical_anchor,
         request.manifest_builder_receipt,
         request.anchor_provider_receipt,
         target,
+        request.snapshot_payload,
+        request.fg3_cohort.historical_observations,
         request.evaluated_at,
     )
     validate_fg3_cohort(
@@ -2202,6 +2309,8 @@ __all__ = [
     "MAX_IMMUTABLE_INTEGER_ABS",
     "MAX_IMMUTABLE_NODES",
     "MAX_IMMUTABLE_STRING_BYTES",
+    "MAX_PROFILE_SOURCE_PAIRS",
+    "MAX_SOURCES_PER_PROFILE",
     "COMPLETED_STRUCTURAL_STEPS",
     "CONNECTED_STOP",
     "CONTRACT_VERSION",
@@ -2211,6 +2320,7 @@ __all__ = [
     "FG3CohortEvidence",
     "FG3CourseCohortEvidence",
     "FG3HistoricalObservationEvidence",
+    "FG3PriorMutationEvidence",
     "FG3_HISTORICAL_CATEGORY_COUNTS",
     "FG3_HISTORICAL_REQUIREMENT",
     "FG3_INACTIVE_ADMISSION",
@@ -2242,6 +2352,7 @@ __all__ = [
     "RowCursor",
     "SCHEMA_VERSION",
     "SOURCE_ATTEMPT_BUDGET_NS",
+    "SOURCE_ATTEMPT_GRAMMAR",
     "STOP_ANCHOR_NOT_INDEPENDENT",
     "STOP_CAPABILITY_INVALID",
     "STOP_CLOCK_TIMING_INVALID",
@@ -2272,6 +2383,7 @@ __all__ = [
     "manifest_builder_receipt_digest",
     "page_evidence_digest",
     "prior_mutation_fingerprint",
+    "profile_source_fingerprints",
     "public_contract_projection",
     "row_fingerprint",
     "snapshot_payload_digest",
