@@ -103,18 +103,32 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #381 queda `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` en
-   `desarrollo@c998b0293b364b1c59d9c52824178927977f0b56`, tree
-   `d93843d4e08dfd9c45571b72040994926dffc221`, parents
-   `c7783af918c4e434d31b80e9a65247329c0b3595` y
-   `51c24af3664a5d03ad16e16fa8793862cdb7fec1`; Security Audit
-   `31852148318=PASS` y F9.7 `31852148322=PASS`. El
-    [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
-   v2.1 queda antecedente historico no apto para connected mode. El sucesor
-   contrato/schema/algoritmo v2.2 corrige causalidad FG3, exact-one derivado,
-   elegibilidad de perfiles, source identity exacta, reason codes y CI focused;
-   valida solo estructura e integridad y termina
-   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Gate
+6. `G5`: PR #382 integra repository-only v2.2 mediante candidate
+   `8a6724a5850792383456763a119c925c53961f2a` y merge protegido
+   `58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3`, tree
+   `13eb0465233c9e870995763630ee9e6541a45add`; Security Audit
+   `31861308128=PASS`, F9.7 `31861308133=PASS` y focused
+   `94955078030=159 PASS`. Resultado exacto
+   `MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`. El
+   [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
+   v2.2 queda congelado como
+   `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El candidate local v2.3
+   queda `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP`, pendiente de promocion en
+   un nuevo PR, y documenta
+   `EffectiveProfileRouting`, joins exact-one, routing estatico por rol y modo,
+   outcomes source/lifecycle recomputables y la frontera static-only/dynamic FG2,
+   canonicalizacion/dedupe URL, regex safety, cooldown efectivo de circuito 24h,
+   redirect sin evidencia derivable, `SourceAttemptResult`, decision causal en el
+   earliest valid source attempt (sin bundles, cierre de snapshot 1), limites
+   `65/50001 -> STOP_G5_TARGET_BINDING_INVALID`, cota FG3 temprana `50000` y
+   perfiles no elegibles sin probes. FILTER literal usa URL completa; regex usa
+   text 2000 y subset lineal que rechaza agrupacion/alternancia/cuantificadores no
+   escapados; localhost e IP no global se rechazan. FG3 exige
+   `category_counts=3` y acota `courses/prior_mutations/history<=50000`.
+   `circuit_opened_at` dormido queda fingerprint-only. La divergencia
+   NULL de preflight no sustituye el routing
+   del harvester; preflight y workers no cambian. Valida solo estructura e integridad y
+   termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Gate
    `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
    `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,

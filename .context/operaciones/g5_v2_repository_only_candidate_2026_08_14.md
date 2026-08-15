@@ -70,6 +70,51 @@ arbitrarios. V2.2 corrige exclusivamente esos hallazgos repository-only, mantien
 gate y connected mode bloqueados y termina en
 `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
 
+PR #382 integro repository-only v2.2 mediante candidate
+`8a6724a5850792383456763a119c925c53961f2a` y merge protegido
+`58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3`, tree
+`13eb0465233c9e870995763630ee9e6541a45add`. Security Audit
+`31861308128=PASS`, F9.7 `31861308133=PASS` y focused
+`94955078030=159 PASS` verificaron el merge. Su resultado exacto es
+`MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`. V2.2 queda congelado
+como `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`; no puede
+reinterpretarse como evidencia apta para connected mode. El candidate local
+sucesor v2.3 queda `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP`, pendiente de
+promocion en un nuevo PR.
+
+V2.3 documenta `EffectiveProfileRouting`, join exact-one profile/institution,
+presencia estricta de `pipeline_enabled` con null divergence blocker, roles
+`PROBE_TARGET`/`TEMPLATE`/`FILTER`, modos hardcoded/paginated/catalog-link/
+sitemap_bfs, website/sitemap/BFS/warmup y configuracion dormida ligada al
+fingerprint. La cobertura G5 es static-only; nested sitemaps, links extraidos y
+BFS children permanecen dinamicos en FG2. No modifica preflight ni workers.
+
+V2.3 canonicaliza URLs, deduplica por kind/target, valida regex fail-closed,
+calcula cooldown efectivo con boundary exacto de 24h y fingerprinta profiles no
+elegibles sin probes. Usa `SourceAttemptResult` y fija la decision causal en el
+earliest valid source attempt; sin bundles usa cierre de snapshot 1.
+`circuit_opened_at` dormido queda fingerprint-only. FILTER literal usa URL
+completa, mientras regex usa text 2000 y subset lineal que rechaza toda
+agrupacion, alternancia o cuantificador no escapado. Rechaza localhost e IP
+literals no globales. `65` sources por profile y `50001` pares terminan
+`STOP_G5_TARGET_BINDING_INVALID`; FG3 exige `category_counts=3` y acota temprano
+`courses/prior_mutations/history<=50000`. Todas las observaciones deactivation/prior son
+exact-one. Redirect queda
+`NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE`, solo como estructura sin autoridad ni
+trust. El preflight legacy hace fallback ante `pipeline_enabled=NULL`; esa
+divergencia bloquea v2.3 y ninguna regla preflight sustituye routing harvester.
+Preflight y workers permanecen byte-intactos.
+
+Los outcomes source y lifecycle son recomputables y bloquean por dominios
+separados. `safe_source_probe` queda descrito por `HEAD` o `HEAD, GET`, con status
+y errores cerrados; solo accessible es compatible con GO. Lifecycle usa 24h
+exactas (`24h=NOT_STALE`, `24h+1 microsegundo=STALE`) y exige toda fila
+`processing=NOT_STALE`. Causalidad FG3, exact-one derivado y conteos `24/2/1`
+permanecen vinculantes. Trust termina
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate y connected mode permanecen
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
+
 PR #379 integro el contrato offline v1 mediante merge
 `c28e5b86e6be29bbb2444bedd9b9407d1e7b0974`, tree
 `22de9d315ff26b0a8b0e8ae991a338473fbdbe11`, parents

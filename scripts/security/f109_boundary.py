@@ -136,12 +136,16 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "c998b0293b364b1c59d9c52824178927977f0b56"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "d93843d4e08dfd9c45571b72040994926dffc221"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c7783af918c4e434d31b80e9a65247329c0b3595"
-# PR #381 is the protected base's second parent. The v2.2 successor is one commit.
-G5_GET_ONLY_ADAPTER_CANDIDATE = "51c24af3664a5d03ad16e16fa8793862cdb7fec1"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-2"
+G5_GET_ONLY_ADAPTER_BASE = "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "13eb0465233c9e870995763630ee9e6541a45add"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c998b0293b364b1c59d9c52824178927977f0b56"
+# PR #382 is the protected base's second parent. The v2.3 successor is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "8a6724a5850792383456763a119c925c53961f2a"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-3"
+G5_GET_ONLY_ADAPTER_STATUS = "REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP"
+G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT = (
+    "MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED"
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -2861,12 +2865,15 @@ def validate_g5_get_only_adapter(
         <= {
             "__future__",
             "hashlib",
+            "ipaddress",
             "json",
             "re",
             "dataclasses",
             "datetime",
             "types",
             "typing",
+            "urllib",
+            "url_identity",
         },
         "G5 adapter import allowlist drift",
     )
@@ -2876,7 +2883,6 @@ def validate_g5_get_only_adapter(
             "supabase",
             "requests",
             "httpx",
-            "urllib",
             "socket",
             "subprocess",
             "psycopg",
@@ -2931,28 +2937,70 @@ def validate_g5_get_only_adapter(
         "obtain_independent_historical_anchor",
         "asdict",
         "row: Mapping",
+        "SourceAttemptTiming",
     ):
         require(forbidden not in contract, "G5 adapter v1 trust surface returned")
     for required in (
-        "f10.9-g5-get-only-adapter-contract.v2.2",
-        "f10.9-g5-get-only-adapter-schema.v2.2",
-        "f10.9-g5-get-only-adapter-v2.2",
+        "f10.9-g5-get-only-adapter-contract.v2.3",
+        "f10.9-g5-get-only-adapter-schema.v2.3",
+        "f10.9-g5-get-only-adapter-v2.3",
         "ManifestBuilderEvidenceReceipt",
         "AnchorProviderEvidenceReceipt",
         "class FrozenRow",
         "class LifecycleEvidence",
-        "class SourceAttemptTiming",
+        "class StaticSourceTarget",
+        "class EffectiveProfileRouting",
+        "class SourceAttemptResult",
         "class FG3PriorMutationEvidence",
         "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
         "MAX_SOURCES_PER_PROFILE = 64",
         "MAX_PROFILE_SOURCE_PAIRS = 50_000",
+        "MAX_FG3_HISTORICAL_OBSERVATIONS = 50_000",
         "SOURCE_ATTEMPT_GRAMMAR",
+        'SOURCE_ROLE_PROBE_TARGET = "PROBE_TARGET"',
+        'SOURCE_ROLE_TEMPLATE = "TEMPLATE"',
+        'SOURCE_ROLE_FILTER = "FILTER"',
+        "from .url_identity import build_url_identity",
+        "import ipaddress",
+        "identity = build_url_identity(value)",
+        "address = ipaddress.ip_address(host)",
+        "address is not None and not address.is_global",
+        "return identity.canonical_url",
+        "def _is_safe_profile_regex",
+        "Deliberately linear subset",
+        'if character in "()|*+?{}":',
+        "len(pattern) > 200",
+        "regex_url_text = lowered[:2000]",
+        "circuit_effective_open",
+        "circuit_auto_closed",
+        "observed_at - parsed_circuit_opened_at < timedelta(hours=24)",
+        'REDIRECT_EVIDENCE_POLICY = "NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE"',
+        "expected_historical_count = 27 + max(0, len(required_inactive) - 1)",
+        "len(evidence.historical_observations) != expected_historical_count",
+        "any(len(items) != 1 for items in mutations_by_course.values())",
+        "count > MAX_FG3_HISTORICAL_OBSERVATIONS",
+        "len(manifest.category_counts) != 3",
+        "_enforce_fg3_collection_limit(len(evidence.courses))",
+        "_enforce_fg3_collection_limit(len(evidence.prior_mutations))",
+        "len(evidence.historical_observations)",
+        "if len(target_values) > MAX_SOURCES_PER_PROFILE:\n"
+        "        _raise(STOP_TARGET_BINDING_INVALID)",
+        "if type(count) is not int or count < 0 or count > MAX_PROFILE_SOURCE_PAIRS:\n"
+        "        _raise(STOP_TARGET_BINDING_INVALID)",
+        "utc_first = min(first_attempts, key=lambda item: item[1].started_at_utc)",
+        "monotonic_first = min(",
+        "if utc_first[0] != monotonic_first[0]",
+        "routing_observed_at = utc_first[1].started_at_utc",
         "_require_complete",
         "historical_observation_fingerprint",
         "prior_mutation_fingerprint",
         "profile_source_fingerprints",
         "validate_source_coverage",
+        "source_terminal_reason",
         "validate_lifecycle_evidence",
+        "_STALE_AFTER = timedelta(hours=24)",
+        "STOP_G5_SOURCE_BLOCKERS_PRESENT",
+        "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "STOP_G5_SNAPSHOT_CONTENT_DRIFT",
         "CLOCK_DURATION_TOLERANCE_NS = 250_000_000",
@@ -2967,14 +3015,16 @@ def validate_g5_get_only_adapter(
     ):
         require(required in contract, "G5 adapter contract drift")
     for required in (
-        "REMEDIATED_REPOSITORY_ONLY_V2_2_TRUST_STOP",
-        "MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED",
+        G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31852148318=PASS",
-        "31852148322=PASS",
+        "31861308128=PASS",
+        "31861308133=PASS",
+        "94955078030=159 PASS",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_SOURCE_BLOCKERS_PRESENT",
+        "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
         "ZERO_NOT_IMPLEMENTED",
@@ -2987,19 +3037,19 @@ def validate_g5_get_only_adapter(
         "G5 connected-mode unconditional STOP drift",
     )
     for required in (
-        "F10.9 G5 GET-Only Contract V2.2",
+        "F10.9 G5 GET-Only Contract V2.3",
         "tests/test_fase10_9_g5_get_only_adapter_contract.py",
-        "needs: [g5-get-only-v2-2, f1010-m3-zero-write]",
-        "Block G5 v2.2 external egress",
+        "needs: [g5-get-only-v2-3, f1010-m3-zero-write]",
+        "Block G5 v2.3 external egress",
         "--bounding-set=-all",
         "env -i HOME=/tmp CI=true",
-        "Restore G5 v2.2 external egress",
+        "Restore G5 v2.3 external egress",
     ):
-        require(required in workflow, "G5 v2.2 focused CI drift")
+        require(required in workflow, "G5 v2.3 focused CI drift")
     require(
-        workflow.index("Run repository-only G5 v2.2 focused contract")
+        workflow.index("Run repository-only G5 v2.3 focused contract")
         < workflow.index("git checkout --detach \"$F97_CANDIDATE_COMMIT\""),
-        "G5 v2.2 focused CI must precede historical F9.7 checkout",
+        "G5 v2.3 focused CI must precede historical F9.7 checkout",
     )
     validate_context_graph(repo, 67, 405)
 

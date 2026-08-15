@@ -1,4 +1,4 @@
-"""Pure repository-only contract for a future G5 GET-only adapter.
+"""Pure repository-only v2.3 contract for a future G5 GET-only adapter.
 
 The contract consumes exact frozen dataclasses containing deeply immutable data.
 It validates structure and integrity only. It cannot establish operational trust,
@@ -9,23 +9,27 @@ transport.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Mapping
+from urllib.parse import urljoin, urlparse
+
+from .url_identity import build_url_identity
 
 
-CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.2"
-SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2.2"
-ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2.2"
-HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.1"
+CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.3"
+SCHEMA_VERSION = "f10.9-g5-get-only-adapter-schema.v2.3"
+ALGORITHM_VERSION = "f10.9-g5-get-only-adapter-v2.3"
+HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.2"
 HISTORICAL_V2_STATUS = "HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE"
 EXPECTED_ENVIRONMENT = "Production"
 EXPECTED_WORKFLOW = "F10.9 G5 Production Read-Only Diagnostic"
-PROTECTED_SOURCE_SHA = "c998b0293b364b1c59d9c52824178927977f0b56"
-PROTECTED_SOURCE_TREE = "d93843d4e08dfd9c45571b72040994926dffc221"
+PROTECTED_SOURCE_SHA = "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
+PROTECTED_SOURCE_TREE = "13eb0465233c9e870995763630ee9e6541a45add"
 CURRENT_GATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CONNECTED_STOP = "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"
 TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
@@ -46,6 +50,9 @@ STOP_SNAPSHOT_CONTENT_DRIFT = "STOP_G5_SNAPSHOT_CONTENT_DRIFT"
 STOP_CLOCK_TIMING_INVALID = "STOP_G5_CLOCK_TIMING_INVALID"
 STOP_ANCHOR_NOT_INDEPENDENT = "STOP_G5_HISTORICAL_ANCHOR_NOT_INDEPENDENT"
 STOP_MANIFEST_ANCHOR_MISMATCH = "STOP_G5_MANIFEST_ANCHOR_MISMATCH"
+STOP_PROFILE_ROUTING_INVALID = "STOP_G5_PROFILE_ROUTING_INVALID"
+STOP_SOURCE_BLOCKERS_PRESENT = "STOP_G5_SOURCE_BLOCKERS_PRESENT"
+STOP_LIFECYCLE_BLOCKERS_PRESENT = "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT"
 
 AUTHORIZATION_ORDER = (
     "PROTECTED_SOURCE_SHA_TREE",
@@ -66,10 +73,10 @@ CLOCK_DURATION_TOLERANCE_NS = 250_000_000
 SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000
 MAX_SOURCES_PER_PROFILE = 64
 MAX_PROFILE_SOURCE_PAIRS = 50_000
+MAX_FG3_HISTORICAL_OBSERVATIONS = 50_000
 SOURCE_ATTEMPT_GRAMMAR = (
+    ("HEAD",),
     ("HEAD", "GET"),
-    ("HEAD", "HEAD", "GET"),
-    ("HEAD", "GET", "GET"),
 )
 MAX_IMMUTABLE_DEPTH = 8
 MAX_IMMUTABLE_NODES = 256
@@ -98,7 +105,72 @@ FINGERPRINT_DECLARATION = "INTEGRITY_NOT_AUTHORITY_OR_ANONYMIZATION"
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
-_STALE_AFTER = timedelta(days=7)
+_STALE_AFTER = timedelta(hours=24)
+
+DISCOVERY_MODES = (
+    "hardcoded_urls",
+    "paginated_catalog",
+    "catalog_link_extraction",
+    "sitemap_bfs",
+)
+SITE_TYPES = (
+    "traditional_ssr",
+    "ecommerce",
+    "spa_js_heavy",
+    "paginated_catalog",
+    "catalog_link_extraction",
+    "cloudflare_protected",
+)
+SOURCE_ERROR_CLASSES = (
+    "NONE",
+    "TIMEOUT",
+    "DNS_FAILURE",
+    "TLS_FAILURE",
+    "TRANSPORT_FAILURE",
+    "UNSAFE_TARGET",
+)
+SOURCE_REDIRECT_CLASSIFICATIONS = (
+    "NO_REDIRECT",
+    "SAME_ORIGIN_PUBLIC",
+    "OTHER_PUBLIC",
+)
+REDIRECT_EVIDENCE_POLICY = "NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE"
+SOURCE_TERMINAL_REASONS = (
+    "SOURCE_ACCESSIBLE",
+    "SOURCE_HTTP_404",
+    "SOURCE_HTTP_410",
+    "SOURCE_INACCESSIBLE",
+    "SOURCE_ACCESS_403",
+    "SOURCE_TIMEOUT",
+    "SOURCE_DNS_FAILURE",
+    "SOURCE_TLS_FAILURE",
+    "SOURCE_TRANSPORT_FAILURE",
+    "SOURCE_UNSAFE_TARGET",
+)
+SOURCE_ROLE_PROBE_TARGET = "PROBE_TARGET"
+SOURCE_ROLE_TEMPLATE = "TEMPLATE"
+SOURCE_ROLE_FILTER = "FILTER"
+SOURCE_CONFIGURATION_ROLES = MappingProxyType(
+    {
+        "static_targets": SOURCE_ROLE_PROBE_TARGET,
+        "catalog_url_patterns": SOURCE_ROLE_TEMPLATE,
+        "allowed_url_patterns": SOURCE_ROLE_FILTER,
+        "exclusion_patterns": SOURCE_ROLE_FILTER,
+    }
+)
+GO_COMPATIBLE_SOURCE_TERMINALS = frozenset({"SOURCE_ACCESSIBLE"})
+SOURCE_SCOPE = "STATIC_HARVESTER_ENTRY_TARGETS_ONLY"
+EXCLUDED_DYNAMIC_SOURCE_KINDS = (
+    "NESTED_SITEMAP",
+    "CATALOG_EXTRACTED_LINK",
+    "BFS_CHILD",
+)
+NON_HTML_EXTENSIONS = (
+    ".pdf", ".xlsx", ".xls", ".docx", ".doc", ".pptx", ".ppt",
+    ".zip", ".rar", ".7z", ".tar", ".gz", ".jpg", ".jpeg", ".png",
+    ".gif", ".svg", ".webp", ".bmp", ".ico", ".mp4", ".mp3", ".avi",
+    ".mov", ".wmv", ".css", ".js", ".json", ".xml",
+)
 
 TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
@@ -109,10 +181,15 @@ TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "discovery_enabled",
             "pipeline_enabled",
             "pipeline_ready",
+            "site_type",
             "discovery_mode",
             "seed_urls",
             "catalog_url_patterns",
+            "catalog_max_pages",
             "allowed_url_patterns",
+            "exclusion_patterns",
+            "requires_cloudflare_bypass",
+            "warmup_url",
             "circuit_open",
             "circuit_opened_at",
         ),
@@ -136,6 +213,11 @@ TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "start_date",
         ),
     }
+)
+LEGACY_PROFILE_COLUMNS = tuple(
+    column
+    for column in TABLE_COLUMNS["institution_site_profiles"]
+    if column != "pipeline_enabled"
 )
 FORBIDDEN_METHODS = frozenset(
     {"insert", "update", "upsert", "patch", "delete", "rpc", "execute", "mutate"}
@@ -328,6 +410,44 @@ class AnchorProviderEvidenceReceipt:
 
 
 @dataclass(frozen=True)
+class StaticSourceTarget:
+    role: str
+    kind: str
+    url: str
+    source_fingerprint: str
+
+
+@dataclass(frozen=True)
+class EffectiveProfileRouting:
+    profile_fingerprint: str
+    institution_fingerprint: str
+    institution_id: str
+    website_url: str
+    discovery_enabled: bool
+    pipeline_enabled_present: bool
+    pipeline_enabled: bool | None
+    pipeline_ready: bool
+    circuit_open: bool
+    circuit_opened_at: str | None
+    circuit_effective_open: bool
+    circuit_auto_closed: bool
+    observed_at: datetime
+    site_type: str
+    discovery_mode: str
+    seed_urls: tuple[str, ...]
+    catalog_url_patterns: tuple[str, ...]
+    catalog_max_pages: int
+    allowed_url_patterns: tuple[str, ...]
+    exclusion_patterns: tuple[str, ...]
+    requires_cloudflare_bypass: bool
+    warmup_url: str | None
+    browser_required: bool
+    eligible: bool
+    static_targets: tuple[StaticSourceTarget, ...]
+    routing_fingerprint: str
+
+
+@dataclass(frozen=True)
 class SourceObservationRequest:
     target_binding_digest: str
     snapshot_pair_id: str
@@ -340,12 +460,15 @@ class SourceObservationRequest:
 
 
 @dataclass(frozen=True)
-class SourceAttemptTiming:
+class SourceAttemptResult:
     method: str
     started_at_utc: datetime
     ended_at_utc: datetime
     monotonic_started_ns: int
     monotonic_ended_ns: int
+    status_code: int | None = None
+    error_class: str = "NONE"
+    redirect_classification: str = "NO_REDIRECT"
 
 
 @dataclass(frozen=True)
@@ -357,7 +480,7 @@ class SourceObservationEvidence:
     run_fingerprint: str
     cohort_fingerprint: str
     method_sequence: tuple[str, ...]
-    attempt_timings: tuple[SourceAttemptTiming, ...]
+    attempt_results: tuple[SourceAttemptResult, ...]
     attempts: int
     terminal_reason: str
     observed_at: datetime
@@ -501,19 +624,31 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
             "provider_identity", "provider_instance_identity", "manifest_digest",
             "anchor_digest", "evidence_digest",
         ),
+        StaticSourceTarget: ("role", "kind", "url", "source_fingerprint"),
+        EffectiveProfileRouting: (
+            "profile_fingerprint", "institution_fingerprint", "institution_id",
+            "website_url", "discovery_enabled", "pipeline_enabled_present",
+            "pipeline_enabled", "pipeline_ready", "circuit_open", "circuit_opened_at",
+            "circuit_effective_open", "circuit_auto_closed", "observed_at", "site_type",
+            "discovery_mode", "seed_urls", "catalog_url_patterns",
+            "catalog_max_pages", "allowed_url_patterns", "exclusion_patterns",
+            "requires_cloudflare_bypass", "warmup_url", "browser_required",
+            "eligible", "static_targets", "routing_fingerprint",
+        ),
         SourceObservationRequest: (
             "target_binding_digest", "snapshot_pair_id", "profile_fingerprint",
             "source_fingerprint", "run_fingerprint", "cohort_fingerprint",
             "method_sequence", "max_attempts",
         ),
-        SourceAttemptTiming: (
+        SourceAttemptResult: (
             "method", "started_at_utc", "ended_at_utc", "monotonic_started_ns",
-            "monotonic_ended_ns",
+            "monotonic_ended_ns", "status_code", "error_class",
+            "redirect_classification",
         ),
         SourceObservationEvidence: (
             "target_binding_digest", "snapshot_pair_id", "profile_fingerprint",
             "source_fingerprint", "run_fingerprint", "cohort_fingerprint",
-            "method_sequence", "attempt_timings", "attempts", "terminal_reason",
+            "method_sequence", "attempt_results", "attempts", "terminal_reason",
             "observed_at",
         ),
         SourceObservationBundle: ("request", "evidence"),
@@ -645,7 +780,10 @@ def _validate_frozen_row(row: object, columns: tuple[str, ...], reason: str) -> 
         if type(key) is not str or not _valid_immutable(value):
             _raise(reason)
         keys.append(key)
-    if tuple(keys) != columns or len(keys) != len(set(keys)):
+    accepted_columns = (columns,)
+    if columns == TABLE_COLUMNS["institution_site_profiles"]:
+        accepted_columns = (columns, LEGACY_PROFILE_COLUMNS)
+    if tuple(keys) not in accepted_columns or len(keys) != len(set(keys)):
         _raise(reason)
     return row
 
@@ -672,7 +810,7 @@ def _digest(domain: str, value: object) -> str:
     material = (
         b"studiamatch:f10.9:g5:get-only:"
         + domain.encode("ascii")
-        + b":v2.2\0"
+        + b":v2.3\0"
         + encoded
     )
     return "sha256:" + hashlib.sha256(material).hexdigest()
@@ -1216,8 +1354,33 @@ def _manifest_material(manifest: HistoricalFG3Manifest) -> tuple[object, ...]:
     )
 
 
+def _enforce_fg3_collection_limit(count: int) -> None:
+    if (
+        type(count) is not int
+        or count < 0
+        or count > MAX_FG3_HISTORICAL_OBSERVATIONS
+    ):
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+
+
+def _enforce_fg3_historical_observation_limit(count: int) -> None:
+    _enforce_fg3_collection_limit(count)
+
+
 def _validate_manifest_shape(manifest: object) -> HistoricalFG3Manifest:
     _require_complete(manifest, HistoricalFG3Manifest, STOP_MANIFEST_ANCHOR_MISMATCH)
+    if (
+        type(manifest.expected_observation_fingerprints) is not tuple
+        or type(manifest.observation_categories) is not tuple
+        or type(manifest.category_counts) is not tuple
+    ):
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _enforce_fg3_historical_observation_limit(
+        len(manifest.expected_observation_fingerprints)
+    )
+    _enforce_fg3_historical_observation_limit(len(manifest.observation_categories))
+    if len(manifest.category_counts) != 3:
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
         type(manifest.manifest_digest) is not str
         or type(manifest.builder_identity) is not str
@@ -1453,7 +1616,10 @@ def validate_historical_anchor(
         SnapshotPairPayloadEvidence,
         STOP_MANIFEST_ANCHOR_MISMATCH,
     )
-    if type(historical_observations) is not tuple or not historical_observations:
+    if type(historical_observations) is not tuple:
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _enforce_fg3_historical_observation_limit(len(historical_observations))
+    if not historical_observations:
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     if not _is_utc(evaluated_at):
         _raise(STOP_CLOCK_TIMING_INVALID)
@@ -1514,12 +1680,16 @@ def validate_historical_anchor(
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     categories = {key: value for key, value in categories_pairs}
     counts = {key: value for key, value in counts_pairs}
+    allowed_historical_categories = set(FG3_HISTORICAL_CATEGORY_COUNTS) | {
+        "PRIOR_DEACTIVATION"
+    }
     observed_counts = {
         category: sum(value == category for value in categories.values())
-        for category in set(categories.values())
+        for category in FG3_HISTORICAL_CATEGORY_COUNTS
     }
     if (
         set(categories) != set(fingerprints)
+        or not set(categories.values()) <= allowed_historical_categories
         or counts != observed_counts
         or counts != dict(FG3_HISTORICAL_CATEGORY_COUNTS)
         or validated_manifest.published_count_tuple != (24, 2, 1)
@@ -1620,8 +1790,14 @@ def validate_fg3_cohort(
         type(evidence.courses) is not tuple
         or type(evidence.prior_mutations) is not tuple
         or type(evidence.historical_observations) is not tuple
-        or len(evidence.historical_observations) != 27
     ):
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
+    _enforce_fg3_collection_limit(len(evidence.courses))
+    _enforce_fg3_collection_limit(len(evidence.prior_mutations))
+    _enforce_fg3_historical_observation_limit(
+        len(evidence.historical_observations)
+    )
+    if len(evidence.historical_observations) < 27:
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     if (
         not _valid_digest(evidence.target_binding_digest)
@@ -1715,8 +1891,20 @@ def validate_fg3_cohort(
         if _row_value(row, "is_active") is True
     }
     required_inactive = set(first_by_fingerprint) - required_active
+    expected_historical_count = 27 + max(0, len(required_inactive) - 1)
+    deactivation_observations = {
+        fingerprint
+        for fingerprint, observation in observations_by_fingerprint.items()
+        if observation.category in {"DEACTIVATION", "PRIOR_DEACTIVATION"}
+    }
+    if (
+        len(evidence.historical_observations) != expected_historical_count
+        or len(deactivation_observations) != len(required_inactive)
+    ):
+        _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     mutations_by_course: dict[str, list[FG3PriorMutationEvidence]] = {}
     seen_mutation_fingerprints: set[str] = set()
+    consumed_deactivation_observations: set[str] = set()
     for mutation in evidence.prior_mutations:
         _require_complete(
             mutation,
@@ -1732,6 +1920,8 @@ def validate_fg3_cohort(
             or not _valid_digest(mutation.mutation_fingerprint)
             or not _valid_digest(mutation.historical_observation_fingerprint)
             or mutation.mutation_fingerprint in seen_mutation_fingerprints
+            or mutation.historical_observation_fingerprint
+            in consumed_deactivation_observations
             or mutation.course_fingerprint not in required_inactive
             or mutation.antecedent_run_fingerprint == evidence.run_id
             or mutation.mutation_kind != "DEACTIVATION"
@@ -1746,7 +1936,7 @@ def validate_fg3_cohort(
             _raise(STOP_CLOCK_TIMING_INVALID)
         if (
             observation.course_fingerprint != mutation.course_fingerprint
-            or observation.category != "DEACTIVATION"
+            or observation.category not in {"DEACTIVATION", "PRIOR_DEACTIVATION"}
             or observation.active_at_snapshot_1 is not False
             or observation.run_id != mutation.antecedent_run_fingerprint
             or observation.observed_at != mutation.antecedent_observed_at
@@ -1761,93 +1951,507 @@ def validate_fg3_cohort(
         ):
             _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
         seen_mutation_fingerprints.add(mutation.mutation_fingerprint)
+        consumed_deactivation_observations.add(
+            mutation.historical_observation_fingerprint
+        )
         mutations_by_course.setdefault(mutation.course_fingerprint, []).append(mutation)
     if (
         primary != required_active
         or seen_courses != set(first_by_fingerprint)
         or set(mutations_by_course) != required_inactive
         or any(len(items) != 1 for items in mutations_by_course.values())
+        or consumed_deactivation_observations != deactivation_observations
         or historical != set(validated_manifest.expected_observation_fingerprints)
     ):
         _raise(STOP_MANIFEST_ANCHOR_MISMATCH)
     return frozenset(primary), frozenset(mutations_by_course)
 
 
+def _routing_list(value: ImmutableValue) -> tuple[str, ...]:
+    if type(value) is not tuple or any(type(item) is not str or not item for item in value):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    return value
+
+
+def _routing_optional_string(value: ImmutableValue) -> str | None:
+    if type(value) not in {str, type(None)}:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    return value
+
+
+def _routing_url(value: object) -> str:
+    if type(value) is not str or not value:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    identity = build_url_identity(value)
+    if (
+        not identity.host
+        or not identity.canonical_url
+        or identity.canonical_url.startswith("urn:")
+    ):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    host = identity.host.lower().rstrip(".")
+    if host == "localhost" or host.endswith(".localhost"):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    return identity.canonical_url
+
+
+def _is_safe_profile_regex(pattern: object) -> bool:
+    if type(pattern) is not str or len(pattern) > 200:
+        return False
+    # Deliberately linear subset.  Reject all unescaped grouping,
+    # alternation and quantifier metacharacters before invoking re.search.
+    escaped = False
+    for character in pattern:
+        if escaped:
+            escaped = False
+            continue
+        if character == "\\":
+            escaped = True
+            continue
+        if character in "()|*+?{}":
+            return False
+    if escaped:
+        return False
+    unsafe = (r"(\([^)]*[*+][^)]*\))+[*+]", r"\\[1-9]", r"\(\?([=!<])")
+    return not any(re.search(expression, pattern) for expression in unsafe)
+
+
+def _validated_profile_patterns(value: ImmutableValue) -> tuple[str, ...]:
+    patterns = _routing_list(value)
+    for pattern in patterns:
+        if pattern.startswith("re:"):
+            expression = pattern[3:]
+            if not _is_safe_profile_regex(expression):
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+            try:
+                re.compile(expression, re.IGNORECASE)
+            except re.error:
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+    return patterns
+
+
+def _ordered_hardcoded_seeds(seeds: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for seed in seeds:
+        canonical = _routing_url(seed)
+        if canonical not in seen:
+            seen.add(canonical)
+            result.append(canonical)
+    return tuple(result)
+
+
+def _harvester_candidate_allowed(
+    url: str,
+    website_url: str,
+    allowed_patterns: tuple[str, ...],
+    exclusion_patterns: tuple[str, ...],
+) -> bool:
+    parsed = urlparse(url)
+    if parsed.netloc != urlparse(website_url).netloc or parsed.path.lower().endswith(NON_HTML_EXTENSIONS):
+        return False
+    lowered = url.lower()
+    regex_url_text = lowered[:2000]
+    for pattern in exclusion_patterns:
+        if pattern.startswith("re:"):
+            expression = pattern[3:]
+            if not _is_safe_profile_regex(expression):
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+            try:
+                compiled = re.compile(expression, re.IGNORECASE)
+                if compiled.search(regex_url_text):
+                    return False
+            except re.error:
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+        elif pattern.lower() in lowered:
+            return False
+    if not allowed_patterns:
+        return True
+    for pattern in allowed_patterns:
+        if pattern.startswith("re:"):
+            expression = pattern[3:]
+            if not _is_safe_profile_regex(expression):
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+            try:
+                compiled = re.compile(expression, re.IGNORECASE)
+                if compiled.search(parsed.path[:2000]):
+                    return True
+            except re.error:
+                _raise(STOP_PROFILE_ROUTING_INVALID)
+        elif pattern.lower() in lowered:
+            return True
+    return False
+
+
+def _enforce_profile_source_pair_limit(count: int) -> None:
+    if type(count) is not int or count < 0 or count > MAX_PROFILE_SOURCE_PAIRS:
+        _raise(STOP_TARGET_BINDING_INVALID)
+
+
+def derive_effective_profile_routing(
+    profile_fingerprint: str,
+    profile_row: FrozenRow,
+    institution_fingerprint: str,
+    institution_row: FrozenRow,
+    observed_at: datetime,
+) -> EffectiveProfileRouting:
+    if (
+        not _valid_digest(profile_fingerprint)
+        or not _valid_digest(institution_fingerprint)
+        or not _is_utc(observed_at)
+    ):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    profile = _validate_frozen_row(
+        profile_row,
+        TABLE_COLUMNS["institution_site_profiles"],
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+    institution = _validate_frozen_row(
+        institution_row, TABLE_COLUMNS["institutions"], STOP_PROFILE_ROUTING_INVALID
+    )
+    profile_values = dict(profile.values)
+    institution_values = dict(institution.values)
+    institution_id = profile_values.get("institution_id")
+    if (
+        type(institution_id) is not str
+        or institution_id != institution_values.get("id")
+        or type(profile_values.get("discovery_enabled")) is not bool
+        or type(profile_values.get("pipeline_ready")) is not bool
+        or type(profile_values.get("circuit_open")) is not bool
+        or type(profile_values.get("requires_cloudflare_bypass")) is not bool
+    ):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+
+    pipeline_enabled_present = "pipeline_enabled" in profile_values
+    pipeline_enabled = profile_values.get("pipeline_enabled")
+    if pipeline_enabled_present and type(pipeline_enabled) is not bool:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    pipeline_gate = pipeline_enabled if pipeline_enabled_present else profile_values["pipeline_ready"]
+    raw_circuit_opened_at = _routing_optional_string(profile_values.get("circuit_opened_at"))
+    parsed_circuit_opened_at: datetime | None = None
+    if profile_values["circuit_open"] and raw_circuit_opened_at is not None:
+        try:
+            parsed_circuit_opened_at = datetime.fromisoformat(
+                raw_circuit_opened_at.replace("Z", "+00:00")
+            )
+        except ValueError:
+            _raise(STOP_PROFILE_ROUTING_INVALID)
+        if not _is_utc(parsed_circuit_opened_at):
+            _raise(STOP_PROFILE_ROUTING_INVALID)
+        parsed_circuit_opened_at = parsed_circuit_opened_at.astimezone(timezone.utc)
+    circuit_opened_at = (
+        _timestamp_text(parsed_circuit_opened_at)
+        if parsed_circuit_opened_at is not None
+        else raw_circuit_opened_at
+    )
+    circuit_effective_open = bool(
+        profile_values["circuit_open"]
+        and parsed_circuit_opened_at is not None
+        and observed_at - parsed_circuit_opened_at < timedelta(hours=24)
+    )
+    circuit_auto_closed = bool(
+        profile_values["circuit_open"]
+        and parsed_circuit_opened_at is not None
+        and not circuit_effective_open
+    )
+
+    website_url = _routing_url(institution_values.get("website_url"))
+    site_type = profile_values.get("site_type")
+    discovery_mode = profile_values.get("discovery_mode")
+    if type(site_type) is not str or site_type not in SITE_TYPES:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    if type(discovery_mode) is not str or discovery_mode not in DISCOVERY_MODES:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    seeds = _routing_list(profile_values.get("seed_urls"))
+    catalogs = _routing_list(profile_values.get("catalog_url_patterns"))
+    allowed = _validated_profile_patterns(profile_values.get("allowed_url_patterns"))
+    exclusions = _validated_profile_patterns(profile_values.get("exclusion_patterns"))
+    max_pages = profile_values.get("catalog_max_pages")
+    warmup_url = _routing_optional_string(profile_values.get("warmup_url"))
+    if type(max_pages) is not int:
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+
+    browser_required = site_type in {"spa_js_heavy", "ecommerce"} or discovery_mode == "catalog_link_extraction"
+    eligible = bool(
+        profile_values["discovery_enabled"]
+        and pipeline_gate
+        and not circuit_effective_open
+    )
+    bound_seeds = (
+        tuple(_routing_url(seed) for seed in seeds)
+        if eligible and discovery_mode in {"hardcoded_urls", "catalog_link_extraction"}
+        else seeds
+    )
+    bound_warmup_url = (
+        _routing_url(warmup_url)
+        if eligible
+        and browser_required
+        and profile_values["requires_cloudflare_bypass"]
+        and warmup_url
+        else warmup_url
+    )
+    target_values: list[tuple[str, str]] = []
+    if eligible and discovery_mode == "hardcoded_urls" and bound_seeds:
+        if len(bound_seeds) > MAX_SOURCES_PER_PROFILE:
+            _raise(STOP_TARGET_BINDING_INVALID)
+        effective_seeds = tuple(
+            seed
+            for seed in _ordered_hardcoded_seeds(bound_seeds)
+            if _harvester_candidate_allowed(seed, website_url, allowed, exclusions)
+        )
+        target_values.extend(("HARDCODED_DETAIL", value) for value in effective_seeds)
+    elif eligible and discovery_mode == "paginated_catalog" and catalogs:
+        if not 1 <= max_pages <= MAX_SOURCES_PER_PROFILE:
+            _raise(STOP_TARGET_BINDING_INVALID)
+        for template in catalogs:
+            for page in range(1, max_pages + 1):
+                target_values.append(("CATALOG_PAGE", _routing_url(template.replace("{page}", str(page)))))
+    elif eligible and discovery_mode == "catalog_link_extraction":
+        if len(bound_seeds) > MAX_SOURCES_PER_PROFILE:
+            _raise(STOP_TARGET_BINDING_INVALID)
+        catalog_roots = list(bound_seeds)
+        if website_url not in catalog_roots:
+            catalog_roots.append(website_url)
+        target_values.extend(("CATALOG_ROOT", value) for value in catalog_roots)
+    elif eligible:
+        # Empty hardcoded/catalog configuration follows the harvester's real
+        # None fallback into sitemap+BFS; no preflight-only requirement is added.
+        target_values.extend(
+            (
+                ("SITEMAP_ROOT", _routing_url(urljoin(website_url, "/sitemap.xml"))),
+                ("BFS_ROOT", website_url),
+            )
+        )
+    if eligible and browser_required and profile_values["requires_cloudflare_bypass"] and bound_warmup_url:
+        target_values.insert(0, ("WARMUP", bound_warmup_url))
+    deduplicated_targets: list[tuple[str, str]] = []
+    seen_targets: set[tuple[str, str]] = set()
+    for kind, url in target_values:
+        canonical_target = (kind, _routing_url(url))
+        if canonical_target not in seen_targets:
+            seen_targets.add(canonical_target)
+            deduplicated_targets.append(canonical_target)
+    target_values = deduplicated_targets
+    if len(target_values) > MAX_SOURCES_PER_PROFILE:
+        _raise(STOP_TARGET_BINDING_INVALID)
+
+    configuration = (
+        profile_fingerprint,
+        institution_fingerprint,
+        institution_id,
+        website_url,
+        profile_values["discovery_enabled"],
+        pipeline_enabled_present,
+        pipeline_enabled,
+        profile_values["pipeline_ready"],
+        profile_values["circuit_open"],
+        circuit_opened_at,
+        circuit_effective_open,
+        circuit_auto_closed,
+        _timestamp_text(observed_at),
+        site_type,
+        discovery_mode,
+        bound_seeds,
+        catalogs,
+        max_pages,
+        allowed,
+        exclusions,
+        profile_values["requires_cloudflare_bypass"],
+        bound_warmup_url,
+        browser_required,
+        eligible,
+    )
+    configuration_digest = _digest("effective-routing-configuration", configuration)
+    targets = tuple(
+        StaticSourceTarget(
+            SOURCE_ROLE_PROBE_TARGET,
+            kind,
+            value,
+            _digest(
+                "profile-source",
+                (configuration_digest, index, SOURCE_ROLE_PROBE_TARGET, kind, value),
+            ),
+        )
+        for index, (kind, value) in enumerate(target_values)
+    )
+    routing_fingerprint = _digest(
+        "effective-routing",
+        (
+            configuration,
+            tuple(
+                (item.role, item.kind, item.url, item.source_fingerprint)
+                for item in targets
+            ),
+        ),
+    )
+    return EffectiveProfileRouting(
+        profile_fingerprint,
+        institution_fingerprint,
+        institution_id,
+        website_url,
+        profile_values["discovery_enabled"],
+        pipeline_enabled_present,
+        pipeline_enabled,
+        profile_values["pipeline_ready"],
+        profile_values["circuit_open"],
+        circuit_opened_at,
+        circuit_effective_open,
+        circuit_auto_closed,
+        observed_at,
+        site_type,
+        discovery_mode,
+        bound_seeds,
+        catalogs,
+        max_pages,
+        allowed,
+        exclusions,
+        profile_values["requires_cloudflare_bypass"],
+        bound_warmup_url,
+        browser_required,
+        eligible,
+        targets,
+        routing_fingerprint,
+    )
+
+
 def profile_source_fingerprints(
     profile_fingerprint: str,
     row: FrozenRow,
+    institution_fingerprint: str,
+    institution_row: FrozenRow,
+    observed_at: datetime,
 ) -> frozenset[str]:
-    if not _valid_digest(profile_fingerprint):
-        _raise(STOP_TARGET_BINDING_INVALID)
-    validated = _validate_frozen_row(
-        row, TABLE_COLUMNS["institution_site_profiles"], STOP_TARGET_BINDING_INVALID
+    routing = derive_effective_profile_routing(
+        profile_fingerprint,
+        row,
+        institution_fingerprint,
+        institution_row,
+        observed_at,
     )
-    discovery_mode = _row_value(validated, "discovery_mode")
-    configured = tuple(
-        (name, _row_value(validated, name))
-        for name in ("seed_urls", "catalog_url_patterns", "allowed_url_patterns")
-    )
-    if type(discovery_mode) is not str or not discovery_mode:
-        _raise(STOP_TARGET_BINDING_INVALID)
-    for _, values in configured:
-        if (
-            type(values) is not tuple
-            or any(type(value) is not str or not value for value in values)
-            or len(values) != len(set(values))
-        ):
-            _raise(STOP_TARGET_BINDING_INVALID)
-    if sum(len(values) for _, values in configured) > MAX_SOURCES_PER_PROFILE:
-        _raise(STOP_TARGET_BINDING_INVALID)
-    full_configuration = (discovery_mode, *tuple(values for _, values in configured))
-    fingerprints = frozenset(
-        _digest(
-            "profile-source",
-            (profile_fingerprint, full_configuration, source_kind, source_value),
-        )
-        for source_kind, values in configured
-        for source_value in values
-    )
-    if not fingerprints:
-        _raise(STOP_TARGET_BINDING_INVALID)
-    return fingerprints
+    return frozenset(item.source_fingerprint for item in routing.static_targets)
 
 
 def _eligible_profile_sources(
-    target: TargetBinding, payload: SnapshotPairPayloadEvidence
+    target: TargetBinding,
+    payload: SnapshotPairPayloadEvidence,
+    observed_at: datetime,
 ) -> frozenset[tuple[str, str]]:
-    rows = _inventory_rows(
-        payload, 1, "institution_site_profiles", STOP_TARGET_BINDING_INVALID
+    if not _is_utc(observed_at):
+        _raise(STOP_PROFILE_ROUTING_INVALID)
+    profiles = _inventory_rows(
+        payload, 1, "institution_site_profiles", STOP_PROFILE_ROUTING_INVALID
+    )
+    institutions = _inventory_rows(
+        payload, 1, "institutions", STOP_PROFILE_ROUTING_INVALID
     )
     target_digest = evidence_binding_digest(target)
+    institutions_by_id: dict[str, tuple[str, FrozenRow]] = {}
+    for institution in institutions:
+        identifier = _row_value(institution, "id")
+        if type(identifier) is not str or identifier in institutions_by_id:
+            _raise(STOP_PROFILE_ROUTING_INVALID)
+        fingerprint = row_fingerprint(
+            "institutions", target_digest, target.snapshot_pair_id, institution
+        )
+        institutions_by_id[identifier] = (fingerprint, institution)
+    seen_institutions: set[str] = set()
     eligible: set[tuple[str, str]] = set()
-    for row in rows:
-        discovery_enabled = _row_value(row, "discovery_enabled")
-        pipeline_enabled = _row_value(row, "pipeline_enabled")
-        pipeline_ready = _row_value(row, "pipeline_ready")
-        circuit_open = _row_value(row, "circuit_open")
-        if (
-            type(discovery_enabled) is not bool
-            or type(pipeline_enabled) not in {bool, type(None)}
-            or type(pipeline_ready) is not bool
-            or type(circuit_open) is not bool
-        ):
-            _raise(STOP_TARGET_BINDING_INVALID)
-        pipeline_gate = pipeline_ready if pipeline_enabled is None else pipeline_enabled
-        if discovery_enabled and pipeline_gate and not circuit_open:
-            profile_fingerprint = row_fingerprint(
-                "institution_site_profiles",
-                target_digest,
-                target.snapshot_pair_id,
-                row,
-            )
-            profile_sources = profile_source_fingerprints(profile_fingerprint, row)
-            if len(eligible) + len(profile_sources) > MAX_PROFILE_SOURCE_PAIRS:
-                _raise(STOP_TARGET_BINDING_INVALID)
+    for profile in profiles:
+        values = dict(profile.values)
+        institution_id = values.get("institution_id")
+        if type(institution_id) is not str or institution_id in seen_institutions:
+            _raise(STOP_PROFILE_ROUTING_INVALID)
+        joined = institutions_by_id.get(institution_id)
+        if joined is None:
+            _raise(STOP_PROFILE_ROUTING_INVALID)
+        seen_institutions.add(institution_id)
+        profile_fingerprint = row_fingerprint(
+            "institution_site_profiles", target_digest, target.snapshot_pair_id, profile
+        )
+        routing = derive_effective_profile_routing(
+            profile_fingerprint, profile, joined[0], joined[1], observed_at
+        )
+        if routing.eligible:
+            _enforce_profile_source_pair_limit(len(eligible) + len(routing.static_targets))
             eligible.update(
-                (profile_fingerprint, source_fingerprint)
-                for source_fingerprint in profile_sources
+                (profile_fingerprint, item.source_fingerprint)
+                for item in routing.static_targets
             )
     return frozenset(eligible)
+
+
+def _source_error_terminal(error_class: str) -> str:
+    if type(error_class) is not str or error_class not in SOURCE_ERROR_CLASSES or error_class == "NONE":
+        _raise(STOP_TARGET_BINDING_INVALID)
+    return {
+        "TIMEOUT": "SOURCE_TIMEOUT",
+        "DNS_FAILURE": "SOURCE_DNS_FAILURE",
+        "TLS_FAILURE": "SOURCE_TLS_FAILURE",
+        "TRANSPORT_FAILURE": "SOURCE_TRANSPORT_FAILURE",
+        "UNSAFE_TARGET": "SOURCE_UNSAFE_TARGET",
+    }[error_class]
+
+
+def _source_status_terminal(status: int, *, method: str) -> str:
+    if type(status) is not int or not 100 <= status <= 599 or method not in {"HEAD", "GET"}:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    if 200 <= status < 300:
+        return "SOURCE_ACCESSIBLE"
+    if status == 404:
+        return "SOURCE_HTTP_404"
+    if status == 410:
+        return "SOURCE_HTTP_410"
+    if method == "GET" and status == 403:
+        return "SOURCE_ACCESS_403"
+    if status in {408, 425, 429, 500, 502, 503, 504}:
+        return "SOURCE_TIMEOUT"
+    return "SOURCE_INACCESSIBLE"
+
+
+def source_terminal_reason(results: tuple[SourceAttemptResult, ...]) -> str:
+    if type(results) is not tuple or len(results) not in {1, 2}:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    first = results[0]
+    if type(first) is not SourceAttemptResult or first.method != "HEAD":
+        _raise(STOP_TARGET_BINDING_INVALID)
+    if (
+        type(first.error_class) is not str
+        or first.error_class not in SOURCE_ERROR_CLASSES
+        or (first.error_class == "NONE") != (type(first.status_code) is int)
+        or type(first.status_code) is bool
+    ):
+        _raise(STOP_TARGET_BINDING_INVALID)
+    if first.error_class != "NONE":
+        if len(results) != 1:
+            _raise(STOP_TARGET_BINDING_INVALID)
+        return _source_error_terminal(first.error_class)
+    if type(first.status_code) is not int:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    if first.status_code in {403, 405, 501}:
+        if len(results) != 2 or type(results[1]) is not SourceAttemptResult or results[1].method != "GET":
+            _raise(STOP_TARGET_BINDING_INVALID)
+        final = results[1]
+        if (
+            type(final.error_class) is not str
+            or final.error_class not in SOURCE_ERROR_CLASSES
+            or (final.error_class == "NONE") != (type(final.status_code) is int)
+            or type(final.status_code) is bool
+        ):
+            _raise(STOP_TARGET_BINDING_INVALID)
+        if final.error_class != "NONE":
+            return _source_error_terminal(final.error_class)
+        if type(final.status_code) is not int:
+            _raise(STOP_TARGET_BINDING_INVALID)
+        return _source_status_terminal(final.status_code, method="GET")
+    if len(results) != 1:
+        _raise(STOP_TARGET_BINDING_INVALID)
+    return _source_status_terminal(first.status_code, method="HEAD")
 
 
 def validate_source_observation(
@@ -1888,9 +2492,9 @@ def validate_source_observation(
         _raise(STOP_TARGET_BINDING_INVALID)
     methods = request.method_sequence
     if (
-        type(evidence.attempt_timings) is not tuple
+        type(evidence.attempt_results) is not tuple
         or type(methods) is not tuple
-        or len(evidence.attempt_timings) != len(methods)
+        or len(evidence.attempt_results) != len(methods)
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
     if any(type(method) is not str for method in methods):
@@ -1913,15 +2517,7 @@ def validate_source_observation(
         or evidence.method_sequence != methods
         or not _strict_int(evidence.attempts, 1, 3)
         or evidence.attempts != len(methods)
-        or evidence.terminal_reason
-        not in {
-            "SOURCE_ACCESSIBLE",
-            "SOURCE_GET_403",
-            "SOURCE_TIMEOUT",
-            "SOURCE_DNS_FAILURE",
-            "SOURCE_TLS_FAILURE",
-            "SOURCE_TRANSPORT_FAILURE",
-        }
+        or evidence.terminal_reason not in SOURCE_TERMINAL_REASONS
         or any(
             not _valid_digest(value)
             for value in (
@@ -1948,9 +2544,9 @@ def validate_source_observation(
         )
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
-    previous: SourceAttemptTiming | None = None
-    for index, timing in enumerate(evidence.attempt_timings):
-        _require_complete(timing, SourceAttemptTiming, STOP_CLOCK_TIMING_INVALID)
+    previous: SourceAttemptResult | None = None
+    for index, timing in enumerate(evidence.attempt_results):
+        _require_complete(timing, SourceAttemptResult, STOP_CLOCK_TIMING_INVALID)
         if (
             type(timing.method) is not str
             or timing.method != methods[index]
@@ -1960,6 +2556,18 @@ def validate_source_observation(
             or not _strict_int(timing.monotonic_ended_ns, 1, 2**63 - 1)
         ):
             _raise(STOP_CLOCK_TIMING_INVALID)
+        if (
+            type(timing.error_class) is not str
+            or timing.error_class not in SOURCE_ERROR_CLASSES
+            or type(timing.redirect_classification) is not str
+            or timing.redirect_classification not in SOURCE_REDIRECT_CLASSIFICATIONS
+            or timing.redirect_classification != "NO_REDIRECT"
+            or type(timing.status_code) not in {int, type(None)}
+            or type(timing.status_code) is bool
+            or (timing.status_code is not None and not 100 <= timing.status_code <= 599)
+            or (timing.error_class == "NONE") != (timing.status_code is not None)
+        ):
+            _raise(STOP_TARGET_BINDING_INVALID)
         utc_duration_ns = _duration_ns(timing.started_at_utc, timing.ended_at_utc)
         monotonic_duration_ns = timing.monotonic_ended_ns - timing.monotonic_started_ns
         if (
@@ -1990,6 +2598,8 @@ def validate_source_observation(
         or evidence.observed_at != previous.ended_at_utc
     ):
         _raise(STOP_CLOCK_TIMING_INVALID)
+    if source_terminal_reason(evidence.attempt_results) != evidence.terminal_reason:
+        _raise(STOP_SOURCE_BLOCKERS_PRESENT)
 
 
 def validate_source_coverage(
@@ -2006,8 +2616,9 @@ def validate_source_coverage(
         SnapshotPairPayloadEvidence,
         STOP_TARGET_BINDING_INVALID,
     )
-    eligible = _eligible_profile_sources(validated_target, snapshot_payload)
     observed_pairs: set[tuple[str, str]] = set()
+    blockers = False
+    first_attempts: list[tuple[tuple[str, str], SourceAttemptResult]] = []
     for bundle in bundles:
         _require_complete(bundle, SourceObservationBundle, STOP_TARGET_BINDING_INVALID)
         _require_complete(
@@ -2020,8 +2631,8 @@ def validate_source_coverage(
         if type(fingerprint) is not str or type(source_fingerprint) is not str:
             _raise(STOP_TARGET_BINDING_INVALID)
         unit = (fingerprint, source_fingerprint)
-        if unit in observed_pairs or unit not in eligible:
-            _raise(STOP_TARGET_BINDING_INVALID)
+        if unit in observed_pairs:
+            _raise(STOP_SOURCE_BLOCKERS_PRESENT)
         validate_source_observation(
             bundle.request,
             bundle.evidence,
@@ -2029,9 +2640,30 @@ def validate_source_coverage(
             snapshot_payload,
             evaluated_at,
         )
+        blockers = blockers or bundle.evidence.terminal_reason not in GO_COMPATIBLE_SOURCE_TERMINALS
         observed_pairs.add(unit)
+        first_attempts.append((unit, bundle.evidence.attempt_results[0]))
+    if first_attempts:
+        utc_first = min(first_attempts, key=lambda item: item[1].started_at_utc)
+        monotonic_first = min(
+            first_attempts, key=lambda item: item[1].monotonic_started_ns
+        )
+        if utc_first[0] != monotonic_first[0]:
+            _raise(STOP_CLOCK_TIMING_INVALID)
+        routing_observed_at = utc_first[1].started_at_utc
+    else:
+        _, routing_observed_at, _, _ = _snapshot_bounds(
+            snapshot_payload, STOP_TARGET_BINDING_INVALID
+        )
+    eligible = _eligible_profile_sources(
+        validated_target, snapshot_payload, routing_observed_at
+    )
+    if any(unit not in eligible for unit in observed_pairs):
+        _raise(STOP_SOURCE_BLOCKERS_PRESENT)
     if observed_pairs != set(eligible):
-        _raise(STOP_TARGET_BINDING_INVALID)
+        _raise(STOP_SOURCE_BLOCKERS_PRESENT)
+    if blockers:
+        _raise(STOP_SOURCE_BLOCKERS_PRESENT)
 
 
 def classify_lifecycle_proxy(
@@ -2157,20 +2789,22 @@ def validate_lifecycle_evidence(
             )
             expected[fingerprint] = row
     observed: set[str] = set()
+    blockers = False
     for item in evidence:
         if type(item) is LifecycleEvidence:
             _require_complete(item, LifecycleEvidence, STOP_TARGET_BINDING_INVALID)
         if (
             type(item) is not LifecycleEvidence
             or not _valid_digest(item.staging_row_fingerprint)
-            or item.staging_row_fingerprint in observed
             or type(item.proxy) is not LifecycleProxy
             or not _valid_lifecycle_proxy_shape(item.proxy)
         ):
             _raise(STOP_TARGET_BINDING_INVALID)
+        if item.staging_row_fingerprint in observed:
+            _raise(STOP_LIFECYCLE_BLOCKERS_PRESENT)
         row = expected.get(item.staging_row_fingerprint)
         if row is None:
-            _raise(STOP_TARGET_BINDING_INVALID)
+            _raise(STOP_LIFECYCLE_BLOCKERS_PRESENT)
         last_harvested = _row_value(row, "last_harvested_at")
         created = _row_value(row, "created_at")
         if type(last_harvested) not in {str, type(None)} or type(created) not in {
@@ -2183,11 +2817,15 @@ def validate_lifecycle_evidence(
             created_at=created,
             observed_at=evaluated_at,
         )
+        if item.proxy.classification in {"STALE", "AGE_UNKNOWN", "FUTURE_TIMESTAMP"}:
+            blockers = True
         if item.proxy != expected_proxy:
-            _raise(STOP_TARGET_BINDING_INVALID)
+            _raise(STOP_LIFECYCLE_BLOCKERS_PRESENT)
         observed.add(item.staging_row_fingerprint)
     if observed != set(expected):
-        _raise(STOP_TARGET_BINDING_INVALID)
+        _raise(STOP_LIFECYCLE_BLOCKERS_PRESENT)
+    if blockers:
+        _raise(STOP_LIFECYCLE_BLOCKERS_PRESENT)
 
 
 def authorize_future_adapter(request: AuthorizationRequest) -> AuthorizedAdapterPlan:
@@ -2311,12 +2949,15 @@ __all__ = [
     "MAX_IMMUTABLE_STRING_BYTES",
     "MAX_PROFILE_SOURCE_PAIRS",
     "MAX_SOURCES_PER_PROFILE",
+    "MAX_FG3_HISTORICAL_OBSERVATIONS",
     "COMPLETED_STRUCTURAL_STEPS",
     "CONNECTED_STOP",
     "CONTRACT_VERSION",
     "CURRENT_GATE_STATUS",
     "EXPECTED_ENVIRONMENT",
     "EXPECTED_WORKFLOW",
+    "EXCLUDED_DYNAMIC_SOURCE_KINDS",
+    "EffectiveProfileRouting",
     "FG3CohortEvidence",
     "FG3CourseCohortEvidence",
     "FG3HistoricalObservationEvidence",
@@ -2327,6 +2968,7 @@ __all__ = [
     "FG3_PRIMARY_COHORT",
     "FINGERPRINT_DECLARATION",
     "FORBIDDEN_METHODS",
+    "GO_COMPATIBLE_SOURCE_TERMINALS",
     "FrozenRow",
     "G5AdapterContractError",
     "GET_ONLY_CAPABILITY",
@@ -2348,16 +2990,28 @@ __all__ = [
     "QueryCapability",
     "READ_CAPTURE_SEQUENCE",
     "READ_CLOCK_SOURCE",
+    "REDIRECT_EVIDENCE_POLICY",
     "ReadTiming",
     "RowCursor",
     "SCHEMA_VERSION",
     "SOURCE_ATTEMPT_BUDGET_NS",
     "SOURCE_ATTEMPT_GRAMMAR",
+    "SOURCE_ERROR_CLASSES",
+    "SOURCE_CONFIGURATION_ROLES",
+    "SOURCE_REDIRECT_CLASSIFICATIONS",
+    "SOURCE_SCOPE",
+    "SOURCE_ROLE_FILTER",
+    "SOURCE_ROLE_PROBE_TARGET",
+    "SOURCE_ROLE_TEMPLATE",
+    "SOURCE_TERMINAL_REASONS",
     "STOP_ANCHOR_NOT_INDEPENDENT",
     "STOP_CAPABILITY_INVALID",
     "STOP_CLOCK_TIMING_INVALID",
     "STOP_COUNT_DRIFT",
     "STOP_MANIFEST_ANCHOR_MISMATCH",
+    "STOP_PROFILE_ROUTING_INVALID",
+    "STOP_SOURCE_BLOCKERS_PRESENT",
+    "STOP_LIFECYCLE_BLOCKERS_PRESENT",
     "STOP_PAGINATION_INCOMPLETE",
     "STOP_PROTECTED_SOURCE_INVALID",
     "STOP_SNAPSHOT_CONTENT_DRIFT",
@@ -2365,7 +3019,8 @@ __all__ = [
     "SourceObservationBundle",
     "SourceObservationEvidence",
     "SourceObservationRequest",
-    "SourceAttemptTiming",
+    "SourceAttemptResult",
+    "StaticSourceTarget",
     "SnapshotPairPayloadEvidence",
     "TABLE_COLUMNS",
     "TRUST_MODEL_FUTURE_REQUIREMENTS",
@@ -2374,6 +3029,7 @@ __all__ = [
     "anchor_provider_receipt_digest",
     "authorize_future_adapter",
     "classify_lifecycle_proxy",
+    "derive_effective_profile_routing",
     "evidence_binding_digest",
     "historical_anchor_digest",
     "historical_manifest_digest",
@@ -2387,6 +3043,7 @@ __all__ = [
     "public_contract_projection",
     "row_fingerprint",
     "snapshot_payload_digest",
+    "source_terminal_reason",
     "target_binding_digest",
     "validate_capability",
     "validate_fg3_cohort",
