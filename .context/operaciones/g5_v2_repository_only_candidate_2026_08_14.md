@@ -78,9 +78,10 @@ PR #382 integro repository-only v2.2 mediante candidate
 `94955078030=159 PASS` verificaron el merge. Su resultado exacto es
 `MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`. V2.2 queda congelado
 como `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`; no puede
-reinterpretarse como evidencia apta para connected mode. El candidate local
-sucesor v2.3 queda `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP`, pendiente de
-promocion en un nuevo PR.
+reinterpretarse como evidencia apta para connected mode. El sucesor v2.3 fue
+promovido por PR #383 y queda `MERGED_POST_MERGE_VERIFIED` en
+`desarrollo@9045c90ac78634f17a66cb3e30e723a2431cb6b4` / tree
+`3d8455a29b63a38906a67343ee4ba6dd15b366d7`.
 
 V2.3 documenta `EffectiveProfileRouting`, join exact-one profile/institution,
 presencia estricta de `pipeline_enabled` con null divergence blocker, roles

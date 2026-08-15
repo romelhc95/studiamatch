@@ -136,15 +136,15 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "13eb0465233c9e870995763630ee9e6541a45add"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c998b0293b364b1c59d9c52824178927977f0b56"
-# PR #382 is the protected base's second parent. The v2.3 successor is one commit.
-G5_GET_ONLY_ADAPTER_CANDIDATE = "8a6724a5850792383456763a119c925c53961f2a"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-3"
-G5_GET_ONLY_ADAPTER_STATUS = "REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP"
+G5_GET_ONLY_ADAPTER_BASE = "9045c90ac78634f17a66cb3e30e723a2431cb6b4"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "3d8455a29b63a38906a67343ee4ba6dd15b366d7"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
+# PR #383 is the protected base's second parent. Trust-plane PR A is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "b921ee90d3ea4966602c3ca4b12a740d3721baa7"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-trust-plane-pr-a"
+G5_GET_ONLY_ADAPTER_STATUS = "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP"
 G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT = (
-    "MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED"
+    "MERGED_POST_MERGE_VERIFIED"
 )
 
 CONTEXT_EXPECTED_BLOBS = {
@@ -533,6 +533,7 @@ G5_V2_POST_MERGE_ALLOWED_MODES = {
 }
 G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0012_trust_plane_g5_repository_only.md": "A",
     ".context/estado_del_proyecto.md": "M",
     ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
     ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
@@ -3002,6 +3003,25 @@ def validate_g5_get_only_adapter(
         "STOP_G5_SOURCE_BLOCKERS_PRESENT",
         "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
+        "class GateIntent",
+        "class GitHubOidcClaims",
+        "class WorkflowRunEvidence",
+        "class EnvironmentEvidence",
+        "class ApprovalEvidence",
+        "class DeploymentEvidence",
+        "class GateConsumptionReceipt",
+        "STOP_G5_AUTHORITY_INVALID",
+        "STOP_G5_APPROVAL_INVALID",
+        "STOP_G5_BINDING_DRIFT",
+        "STOP_G5_REPLAY_DETECTED",
+        "STOP_G5_GATE_EXPIRED",
+        "STOP_G5_CONSUMPTION_AMBIGUOUS",
+        "STOP_G5_ATOMIC_LEDGER_REQUIRED",
+        "STOP_G5_PROOF_INVALID",
+        "G5_ATOMIC_LEDGER_INTERFACE",
+        "READY",
+        "CONSUMED",
         "STOP_G5_SNAPSHOT_CONTENT_DRIFT",
         "CLOCK_DURATION_TOLERANCE_NS = 250_000_000",
         "MAX_IMMUTABLE_DEPTH = 8",
@@ -3019,9 +3039,12 @@ def validate_g5_get_only_adapter(
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31861308128=PASS",
-        "31861308133=PASS",
-        "94955078030=159 PASS",
+        "31896356316=PASS",
+        "31896356280=PASS",
+        "95040164691=PASS",
+        "ADR-0012",
+        "STOP_G5_ATOMIC_LEDGER_REQUIRED",
+        "STOP_G5_REPLAY_DETECTED",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         "STOP_G5_SOURCE_BLOCKERS_PRESENT",
         "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
@@ -3037,21 +3060,21 @@ def validate_g5_get_only_adapter(
         "G5 connected-mode unconditional STOP drift",
     )
     for required in (
-        "F10.9 G5 GET-Only Contract V2.3",
+        "F10.9 G5 GET-Only Trust Plane PR A",
         "tests/test_fase10_9_g5_get_only_adapter_contract.py",
         "needs: [g5-get-only-v2-3, f1010-m3-zero-write]",
-        "Block G5 v2.3 external egress",
+        "Block G5 trust-plane external egress",
         "--bounding-set=-all",
         "env -i HOME=/tmp CI=true",
-        "Restore G5 v2.3 external egress",
+        "Restore G5 trust-plane external egress",
     ):
         require(required in workflow, "G5 v2.3 focused CI drift")
     require(
-        workflow.index("Run repository-only G5 v2.3 focused contract")
+        workflow.index("Run repository-only G5 trust-plane focused contract")
         < workflow.index("git checkout --detach \"$F97_CANDIDATE_COMMIT\""),
         "G5 v2.3 focused CI must precede historical F9.7 checkout",
     )
-    validate_context_graph(repo, 67, 405)
+    validate_context_graph(repo, 68, 405)
 
 
 def detect_mode(

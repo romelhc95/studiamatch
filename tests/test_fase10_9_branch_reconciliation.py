@@ -3728,31 +3728,31 @@ class F109BoundaryTest(unittest.TestCase):
     ) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE,
-            "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3",
+            "9045c90ac78634f17a66cb3e30e723a2431cb6b4",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE_TREE,
-            "13eb0465233c9e870995763630ee9e6541a45add",
+            "3d8455a29b63a38906a67343ee4ba6dd15b366d7",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
-            "c998b0293b364b1c59d9c52824178927977f0b56",
+            "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_CANDIDATE,
-            "8a6724a5850792383456763a119c925c53961f2a",
+            "b921ee90d3ea4966602c3ca4b12a740d3721baa7",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_HEAD_REF,
-            "fix/f10-9-g5-get-only-contract-v2-3",
+            "feat/f10-9-g5-trust-plane-pr-a",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_STATUS,
-            "REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP",
+            "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
-            "MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED",
+            "MERGED_POST_MERGE_VERIFIED",
         )
         head = "a" * 40
         tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
@@ -3773,13 +3773,14 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 67, 405)
+        context_mock.assert_called_once_with(Path("."), 68, 405)
 
-    def test_g5_get_only_adapter_successor_allowlist_is_exact_ten_modified_paths(self) -> None:
+    def test_g5_get_only_adapter_successor_allowlist_is_minimal_pr_a_paths(self) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             {
                 ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0012_trust_plane_g5_repository_only.md": "A",
                 ".context/estado_del_proyecto.md": "M",
                 ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
                 ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
@@ -3857,6 +3858,22 @@ class F109BoundaryTest(unittest.TestCase):
             "STOP_G5_SOURCE_BLOCKERS_PRESENT",
             "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
             "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+            "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
+            "class GateIntent",
+            "class GitHubOidcClaims",
+            "class WorkflowRunEvidence",
+            "class EnvironmentEvidence",
+            "class ApprovalEvidence",
+            "class DeploymentEvidence",
+            "class GateConsumptionReceipt",
+            "STOP_G5_AUTHORITY_INVALID",
+            "STOP_G5_APPROVAL_INVALID",
+            "STOP_G5_BINDING_DRIFT",
+            "STOP_G5_REPLAY_DETECTED",
+            "STOP_G5_GATE_EXPIRED",
+            "STOP_G5_CONSUMPTION_AMBIGUOUS",
+            "STOP_G5_ATOMIC_LEDGER_REQUIRED",
+            "STOP_G5_PROOF_INVALID",
         ):
             self.assertIn(marker, source)
         for forbidden in (
@@ -3872,7 +3889,7 @@ class F109BoundaryTest(unittest.TestCase):
         workflow = Path(".github/workflows/f9-7-contract.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("F10.9 G5 GET-Only Contract V2.3", workflow)
+        self.assertIn("F10.9 G5 GET-Only Trust Plane PR A", workflow)
         self.assertIn("pull_request:", workflow)
         self.assertIn("branches: [desarrollo]", workflow)
         self.assertIn(
@@ -3885,14 +3902,14 @@ class F109BoundaryTest(unittest.TestCase):
             'test "${{ needs.g5-get-only-v2-3.result }}" = "success"', workflow
         )
         for marker in (
-            "Block G5 v2.3 external egress",
+            "Block G5 trust-plane external egress",
             "--bounding-set=-all",
             "env -i HOME=/tmp CI=true",
-            "Restore G5 v2.3 external egress",
+            "Restore G5 trust-plane external egress",
         ):
             self.assertIn(marker, workflow)
         self.assertLess(
-            workflow.index("Run repository-only G5 v2.3 focused contract"),
+            workflow.index("Run repository-only G5 trust-plane focused contract"),
             workflow.index('git checkout --detach "$F97_CANDIDATE_COMMIT"'),
         )
 
@@ -3924,7 +3941,7 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 67, 405)
+        context_mock.assert_called_once_with(Path("."), 68, 405)
 
     @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="0" * 40)
     @mock.patch("scripts.security.f109_boundary.require_sha")

@@ -120,7 +120,7 @@ env:
 
 jobs:
   g5-get-only-v2-3:
-    name: F10.9 G5 GET-Only Contract V2.3
+    name: F10.9 G5 GET-Only Trust Plane PR A
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -137,7 +137,7 @@ jobs:
         run: |
           git show "$F97_FROZEN_COMMIT:requirements-test.txt" > "$RUNNER_TEMP/requirements-test.txt"
           pip install --require-hashes -r "$RUNNER_TEMP/requirements-test.txt"
-      - name: Prepare G5 v2.3 firewall cleanup state
+      - name: Prepare G5 trust-plane firewall cleanup state
         run: |
           state_dir="$(mktemp -d "$RUNNER_TEMP/g5-v2-3-firewall.XXXXXXXX")"
           guard="$RUNNER_TEMP/g5-v2-3-firewall-guard.sh"
@@ -146,11 +146,11 @@ jobs:
           chmod 500 "$guard"
           echo "G5_V2_3_FIREWALL_STATE=$state_dir" >> "$GITHUB_ENV"
           echo "G5_V2_3_FIREWALL_GUARD=$guard" >> "$GITHUB_ENV"
-      - name: Block G5 v2.3 external egress
+      - name: Block G5 trust-plane external egress
         run: >-
           "$G5_V2_3_FIREWALL_GUARD" setup
           FASE097_AUDIT_EGRESS "$G5_V2_3_FIREWALL_STATE"
-      - name: Run repository-only G5 v2.3 focused contract
+      - name: Run repository-only G5 trust-plane focused contract
         run: |
           workspace_ancestor="$(dirname "$GITHUB_WORKSPACE")"
           while [ "$workspace_ancestor" != "/" ]; do
@@ -163,7 +163,7 @@ jobs:
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
             tests/test_fase10_9_g5_get_only_adapter_contract.py
-      - name: Restore G5 v2.3 external egress
+      - name: Restore G5 trust-plane external egress
         if: always()
         run: |
           cleanup_status=0

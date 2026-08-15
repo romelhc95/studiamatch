@@ -28,11 +28,21 @@ HISTORICAL_CONTRACT_VERSION = "f10.9-g5-get-only-adapter-contract.v2.2"
 HISTORICAL_V2_STATUS = "HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE"
 EXPECTED_ENVIRONMENT = "Production"
 EXPECTED_WORKFLOW = "F10.9 G5 Production Read-Only Diagnostic"
-PROTECTED_SOURCE_SHA = "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
-PROTECTED_SOURCE_TREE = "13eb0465233c9e870995763630ee9e6541a45add"
+EXPECTED_WORKFLOW_PATH = ".github/workflows/f9-7-contract.yml"
+EXPECTED_REPOSITORY = "romelhc95/studiamatch"
+EXPECTED_REF = "refs/heads/main"
+EXPECTED_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+EXPECTED_OIDC_AUDIENCE = "studiamatch-f10-9-g5-production-trust-plane"
+PROTECTED_SOURCE_SHA = "9045c90ac78634f17a66cb3e30e723a2431cb6b4"
+PROTECTED_SOURCE_TREE = "3d8455a29b63a38906a67343ee4ba6dd15b366d7"
+EXPECTED_WORKFLOW_SHA = PROTECTED_SOURCE_SHA
+EXPECTED_WORKFLOW_BLOB_SHA = "5a5dcf971e0e1686393b9be0e331688f83ef7fa2"
 CURRENT_GATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CONNECTED_STOP = "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"
 TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
+G5_TRUST_PLANE_PR_A_STATUS = "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP"
+G5_TRUST_GATE_STATE_READY = "READY"
+G5_TRUST_GATE_STATE_CONSUMED = "CONSUMED"
 TRUST_MODEL_FUTURE_REQUIREMENTS = (
     "TRUSTED_AUTHORITY_VERIFIER",
     "ATOMIC_SINGLE_USE_GATE_CONSUMPTION",
@@ -53,6 +63,37 @@ STOP_MANIFEST_ANCHOR_MISMATCH = "STOP_G5_MANIFEST_ANCHOR_MISMATCH"
 STOP_PROFILE_ROUTING_INVALID = "STOP_G5_PROFILE_ROUTING_INVALID"
 STOP_SOURCE_BLOCKERS_PRESENT = "STOP_G5_SOURCE_BLOCKERS_PRESENT"
 STOP_LIFECYCLE_BLOCKERS_PRESENT = "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT"
+STOP_AUTHORITY_INVALID = "STOP_G5_AUTHORITY_INVALID"
+STOP_APPROVAL_INVALID = "STOP_G5_APPROVAL_INVALID"
+STOP_BINDING_DRIFT = "STOP_G5_BINDING_DRIFT"
+STOP_REPLAY_DETECTED = "STOP_G5_REPLAY_DETECTED"
+STOP_GATE_EXPIRED = "STOP_G5_GATE_EXPIRED"
+STOP_CONSUMPTION_AMBIGUOUS = "STOP_G5_CONSUMPTION_AMBIGUOUS"
+STOP_ATOMIC_LEDGER_REQUIRED = "STOP_G5_ATOMIC_LEDGER_REQUIRED"
+STOP_PROOF_INVALID = "STOP_G5_PROOF_INVALID"
+
+CALLER_SUPPLIED_AUTHORITY_FIELDS = frozenset(
+    {
+        "authority", "approval", "approval_evidence", "credential", "gate_status",
+        "gate_intent", "consumed_nonce", "nonce_digest", "jti", "proof", "run_id",
+        "workflow", "workflow_id", "workflow_name", "workflow_path", "workflow_sha",
+        "workflow_blob_sha", "workflow_ref", "check_run_id", "deployment",
+        "deployments", "deployment_id", "deployment_ref", "deployment_state",
+        "environment", "environment_name", "environment_id", "repository",
+        "repository_owner", "repository_id", "repo", "owner_id", "approver",
+        "approver_id", "approver_login", "reviewer", "reviewer_id", "receipt",
+        "receipt_proof", "gate_consumption_receipt", "ledger", "ledger_receipt",
+        "ledger_proof", "atomic_ledger_proof", "sha", "tree", "digest", "oidc", "oidc_claims", "workflow_run",
+        "environment_approval", "ledger_atomicity_proven",
+    }
+)
+G5_ATOMIC_LEDGER_INTERFACE = (
+    "read_gate_intent",
+    "compare_and_set_ready_to_consumed",
+    "record_jti_once",
+    "record_nonce_once",
+    "return_consumption_receipt",
+)
 
 AUTHORIZATION_ORDER = (
     "PROTECTED_SOURCE_SHA_TREE",
@@ -314,6 +355,126 @@ class TargetBinding:
 
 
 @dataclass(frozen=True)
+class GateIntent:
+    gate_id: str
+    repository_id: int
+    owner_id: int
+    ref: str
+    ref_protected: bool
+    candidate_sha: str
+    candidate_tree: str
+    workflow_path: str
+    workflow_ref: str
+    workflow_sha: str
+    workflow_blob_sha: str
+    run_id: int
+    run_attempt: int
+    check_run_id: int
+    job_name: str
+    environment_name: str
+    environment_id: int
+    deployment_id: int
+    actor_id: int
+    triggering_actor_id: int
+    approver_id: int
+    contract_digest: str
+    schema_digest: str
+    algorithm_digest: str
+    capability_digest: str
+    issued_at: datetime
+    expires_at: datetime
+    nonce_digest: str
+
+
+@dataclass(frozen=True)
+class GitHubOidcClaims:
+    issuer: str
+    audience: str
+    repository_id: int
+    owner_id: int
+    ref: str
+    ref_protected: bool
+    sha: str
+    workflow_ref: str
+    workflow_sha: str
+    run_id: int
+    run_attempt: int
+    actor_id: int
+    triggering_actor_id: int
+    jti: str
+    issued_at: datetime
+    expires_at: datetime
+    signature_verified: bool
+    jwks_verified: bool
+
+
+@dataclass(frozen=True)
+class WorkflowRunEvidence:
+    run_id: int
+    run_attempt: int
+    check_run_id: int
+    job_name: str
+    workflow_path: str
+    workflow_ref: str
+    workflow_sha: str
+    workflow_blob_sha: str
+    head_sha: str
+    head_tree: str
+    actor_id: int
+    triggering_actor_id: int
+    event: str
+    conclusion: str
+
+
+@dataclass(frozen=True)
+class EnvironmentEvidence:
+    name: str
+    environment_id: int
+    protected: bool
+    deployment_branch_policy_ref: str
+
+
+@dataclass(frozen=True)
+class ApprovalEvidence:
+    environment_name: str
+    environment_id: int
+    run_id: int
+    check_run_id: int
+    deployment_id: int
+    sha: str
+    workflow_sha: str
+    approver_id: int
+    approver_login: str
+    initiated_by_id: int
+    state: str
+    approved_at: datetime
+
+
+@dataclass(frozen=True)
+class DeploymentEvidence:
+    deployment_id: int
+    environment_name: str
+    environment_id: int
+    sha: str
+    ref: str
+    state: str
+
+
+@dataclass(frozen=True)
+class GateConsumptionReceipt:
+    gate_id: str
+    identity: str
+    result: str
+    state_before: str
+    state_after: str
+    compare_and_set_matched: bool
+    nonce_digest: str
+    jti: str
+    consumed_at: datetime
+    diagnosis_completed: bool
+
+
+@dataclass(frozen=True)
 class ReadTiming:
     snapshot_pair_id: str
     operation: str
@@ -550,10 +711,6 @@ class FG3CohortEvidence:
 
 @dataclass(frozen=True)
 class AuthorizationRequest:
-    execution_sha: str
-    execution_tree: str
-    workflow: str
-    environment: str
     target: TargetBinding
     capability: AdapterCapability
     historical_manifest: HistoricalFG3Manifest
@@ -592,6 +749,43 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
             "contract_version", "schema_version", "algorithm_version", "workflow",
             "run_id", "issued_at", "expires_at", "snapshot_pair_id",
             "payload_digest", "manifest_digest", "anchor_digest",
+        ),
+        GateIntent: (
+            "gate_id", "repository_id", "owner_id", "ref", "ref_protected",
+            "candidate_sha", "candidate_tree", "workflow_path", "workflow_ref",
+            "workflow_sha", "workflow_blob_sha", "run_id", "run_attempt",
+            "check_run_id", "job_name", "environment_name", "environment_id",
+            "deployment_id", "actor_id", "triggering_actor_id", "approver_id",
+            "contract_digest", "schema_digest", "algorithm_digest", "capability_digest",
+            "issued_at", "expires_at", "nonce_digest",
+        ),
+        GitHubOidcClaims: (
+            "issuer", "audience", "repository_id", "owner_id", "ref",
+            "ref_protected", "sha", "workflow_ref", "workflow_sha", "run_id",
+            "run_attempt", "actor_id", "triggering_actor_id", "jti", "issued_at",
+            "expires_at", "signature_verified", "jwks_verified",
+        ),
+        WorkflowRunEvidence: (
+            "run_id", "run_attempt", "check_run_id", "job_name", "workflow_path",
+            "workflow_ref", "workflow_sha", "workflow_blob_sha", "head_sha",
+            "head_tree", "actor_id", "triggering_actor_id", "event", "conclusion",
+        ),
+        EnvironmentEvidence: (
+            "name", "environment_id", "protected", "deployment_branch_policy_ref",
+        ),
+        ApprovalEvidence: (
+            "environment_name", "environment_id", "run_id", "check_run_id",
+            "deployment_id", "sha", "workflow_sha", "approver_id", "approver_login",
+            "initiated_by_id", "state", "approved_at",
+        ),
+        DeploymentEvidence: (
+            "deployment_id", "environment_name", "environment_id", "sha", "ref",
+            "state",
+        ),
+        GateConsumptionReceipt: (
+            "gate_id", "identity", "result", "state_before", "state_after",
+            "compare_and_set_matched", "nonce_digest", "jti", "consumed_at",
+            "diagnosis_completed",
         ),
         ReadTiming: (
             "snapshot_pair_id", "operation", "clock_source", "capture_sequence",
@@ -675,8 +869,7 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
             "prior_mutations", "historical_observations",
         ),
         AuthorizationRequest: (
-            "execution_sha", "execution_tree", "workflow", "environment", "target",
-            "capability", "historical_manifest", "historical_anchor",
+            "target", "capability", "historical_manifest", "historical_anchor",
             "manifest_builder_receipt", "anchor_provider_receipt", "fg3_cohort",
             "snapshot_payload", "source_observations", "lifecycle_evidence", "evaluated_at",
         ),
@@ -877,6 +1070,247 @@ def target_binding_digest(binding: TargetBinding) -> str:
 def evidence_binding_digest(binding: TargetBinding) -> str:
     validated = _validate_target_binding(binding)
     return _digest("evidence-binding", _target_material(validated, evidence=True))
+
+
+def expected_trust_digest(kind: str) -> str:
+    if kind == "contract":
+        return _digest("trust-contract", CONTRACT_VERSION)
+    if kind == "schema":
+        return _digest("trust-schema", SCHEMA_VERSION)
+    if kind == "algorithm":
+        return _digest("trust-algorithm", ALGORITHM_VERSION)
+    if kind == "capability":
+        return _digest(
+            "trust-capability",
+            (
+                GET_ONLY_CAPABILITY.methods,
+                tuple(
+                    (query.table, query.columns, query.filters, query.order)
+                    for query in GET_ONLY_CAPABILITY.queries
+                ),
+                GET_ONLY_CAPABILITY.max_snapshot_bytes,
+            ),
+        )
+    _raise(STOP_AUTHORITY_INVALID)
+
+
+def reject_caller_supplied_authority(payload: Mapping[str, object]) -> None:
+    if type(payload) is not dict or any(type(key) is not str for key in payload):
+        _raise(STOP_AUTHORITY_INVALID)
+    if CALLER_SUPPLIED_AUTHORITY_FIELDS & set(payload):
+        _raise(STOP_AUTHORITY_INVALID)
+
+
+def _valid_positive_id(value: object) -> bool:
+    return type(value) is int and value > 0 and value <= MAX_IMMUTABLE_INTEGER_ABS
+
+
+def _validate_gate_intent(intent: object, evaluated_at: datetime) -> GateIntent:
+    _require_complete(intent, GateIntent, STOP_AUTHORITY_INVALID)
+    if (
+        not _valid_digest(intent.gate_id)
+        or not _valid_positive_id(intent.repository_id)
+        or not _valid_positive_id(intent.owner_id)
+        or intent.ref != EXPECTED_REF
+        or type(intent.ref_protected) is not bool
+        or not intent.ref_protected
+        or intent.candidate_sha != PROTECTED_SOURCE_SHA
+        or intent.candidate_tree != PROTECTED_SOURCE_TREE
+        or intent.workflow_path != EXPECTED_WORKFLOW_PATH
+        or intent.workflow_ref != f"{EXPECTED_REPOSITORY}/{EXPECTED_WORKFLOW_PATH}@{EXPECTED_REF}"
+        or intent.workflow_sha != EXPECTED_WORKFLOW_SHA
+        or intent.workflow_blob_sha != EXPECTED_WORKFLOW_BLOB_SHA
+        or not _valid_positive_id(intent.run_id)
+        or intent.run_attempt != 1
+        or not _valid_positive_id(intent.check_run_id)
+        or intent.job_name != EXPECTED_WORKFLOW
+        or intent.environment_name != EXPECTED_ENVIRONMENT
+        or not _valid_positive_id(intent.environment_id)
+        or not _valid_positive_id(intent.deployment_id)
+        or not _valid_positive_id(intent.actor_id)
+        or not _valid_positive_id(intent.triggering_actor_id)
+        or not _valid_positive_id(intent.approver_id)
+        or intent.approver_id in {intent.actor_id, intent.triggering_actor_id}
+        or intent.contract_digest != expected_trust_digest("contract")
+        or intent.schema_digest != expected_trust_digest("schema")
+        or intent.algorithm_digest != expected_trust_digest("algorithm")
+        or intent.capability_digest != expected_trust_digest("capability")
+        or not _valid_digest(intent.nonce_digest)
+        or not _is_utc(intent.issued_at)
+        or not _is_utc(intent.expires_at)
+        or intent.expires_at <= intent.issued_at
+    ):
+        _raise(STOP_AUTHORITY_INVALID)
+    if not _is_utc(evaluated_at):
+        _raise(STOP_CLOCK_TIMING_INVALID)
+    if not (intent.issued_at <= evaluated_at < intent.expires_at):
+        _raise(STOP_GATE_EXPIRED)
+    return intent
+
+
+def _validate_oidc_claims(claims: object, intent: GateIntent, evaluated_at: datetime) -> GitHubOidcClaims:
+    _require_complete(claims, GitHubOidcClaims, STOP_PROOF_INVALID)
+    if (
+        claims.issuer != EXPECTED_OIDC_ISSUER
+        or claims.audience != EXPECTED_OIDC_AUDIENCE
+        or claims.repository_id != intent.repository_id
+        or claims.owner_id != intent.owner_id
+        or claims.ref != intent.ref
+        or claims.ref_protected != intent.ref_protected
+        or claims.sha != intent.candidate_sha
+        or claims.workflow_ref != intent.workflow_ref
+        or claims.workflow_sha != intent.workflow_sha
+        or claims.run_id != intent.run_id
+        or claims.run_attempt != 1
+        or claims.actor_id != intent.actor_id
+        or claims.triggering_actor_id != intent.triggering_actor_id
+        or type(claims.jti) is not str
+        or len(claims.jti) < 16
+        or not _is_utc(claims.issued_at)
+        or not _is_utc(claims.expires_at)
+        or not (claims.issued_at <= evaluated_at < claims.expires_at)
+        or type(claims.signature_verified) is not bool
+        or type(claims.jwks_verified) is not bool
+        or not claims.signature_verified
+        or not claims.jwks_verified
+    ):
+        _raise(STOP_PROOF_INVALID)
+    return claims
+
+
+def _validate_workflow_run(run: object, intent: GateIntent) -> WorkflowRunEvidence:
+    _require_complete(run, WorkflowRunEvidence, STOP_BINDING_DRIFT)
+    if (
+        run.run_id != intent.run_id
+        or run.run_attempt != 1
+        or run.check_run_id != intent.check_run_id
+        or run.job_name != intent.job_name
+        or run.workflow_path != intent.workflow_path
+        or run.workflow_ref != intent.workflow_ref
+        or run.workflow_sha != intent.workflow_sha
+        or run.workflow_blob_sha != intent.workflow_blob_sha
+        or run.head_sha != intent.candidate_sha
+        or run.head_tree != intent.candidate_tree
+        or run.actor_id != intent.actor_id
+        or run.triggering_actor_id != intent.triggering_actor_id
+        or run.event != "workflow_dispatch"
+        or run.conclusion != "success"
+    ):
+        _raise(STOP_BINDING_DRIFT)
+    return run
+
+
+def _validate_environment(environment: object, intent: GateIntent) -> EnvironmentEvidence:
+    _require_complete(environment, EnvironmentEvidence, STOP_BINDING_DRIFT)
+    if (
+        environment.name != EXPECTED_ENVIRONMENT
+        or environment.environment_id != intent.environment_id
+        or type(environment.protected) is not bool
+        or not environment.protected
+        or environment.deployment_branch_policy_ref != EXPECTED_REF
+    ):
+        _raise(STOP_BINDING_DRIFT)
+    return environment
+
+
+def _validate_approval(
+    approvals: object, intent: GateIntent, evaluated_at: datetime,
+) -> ApprovalEvidence:
+    if type(approvals) is not tuple or len(approvals) != 1:
+        _raise(STOP_APPROVAL_INVALID)
+    approval = approvals[0]
+    _require_complete(approval, ApprovalEvidence, STOP_APPROVAL_INVALID)
+    if (
+        approval.environment_name != intent.environment_name
+        or approval.environment_id != intent.environment_id
+        or approval.run_id != intent.run_id
+        or approval.check_run_id != intent.check_run_id
+        or approval.deployment_id != intent.deployment_id
+        or approval.sha != intent.candidate_sha
+        or approval.workflow_sha != intent.workflow_sha
+        or approval.approver_id != intent.approver_id
+        or not _valid_positive_id(approval.approver_id)
+        or type(approval.approver_login) is not str
+        or not _valid_identity(approval.approver_login)
+        or approval.initiated_by_id != intent.actor_id
+        or approval.approver_id == approval.initiated_by_id
+        or approval.state != "approved"
+        or not _is_utc(approval.approved_at)
+        or not (intent.issued_at <= approval.approved_at <= evaluated_at < intent.expires_at)
+    ):
+        _raise(STOP_APPROVAL_INVALID)
+    return approval
+
+
+def _validate_deployment(deployments: object, intent: GateIntent) -> DeploymentEvidence:
+    if type(deployments) is not tuple or len(deployments) != 1:
+        _raise(STOP_BINDING_DRIFT)
+    deployment = deployments[0]
+    _require_complete(deployment, DeploymentEvidence, STOP_BINDING_DRIFT)
+    if (
+        deployment.deployment_id != intent.deployment_id
+        or deployment.environment_name != intent.environment_name
+        or deployment.environment_id != intent.environment_id
+        or deployment.sha != intent.candidate_sha
+        or deployment.ref != intent.ref
+        or deployment.state != "success"
+    ):
+        _raise(STOP_BINDING_DRIFT)
+    return deployment
+
+
+def _validate_receipt(
+    receipt: object, intent: GateIntent, claims: GitHubOidcClaims, evaluated_at: datetime,
+) -> GateConsumptionReceipt:
+    _require_complete(receipt, GateConsumptionReceipt, STOP_CONSUMPTION_AMBIGUOUS)
+    expected_identity = _digest(
+        "gate-consumer",
+        (intent.repository_id, intent.run_id, intent.run_attempt, intent.check_run_id),
+    )
+    if (
+        receipt.gate_id != intent.gate_id
+        or receipt.identity != expected_identity
+        or receipt.result != "CONSUMED"
+        or receipt.state_before != G5_TRUST_GATE_STATE_READY
+        or receipt.state_after != G5_TRUST_GATE_STATE_CONSUMED
+        or type(receipt.compare_and_set_matched) is not bool
+        or not receipt.compare_and_set_matched
+        or receipt.nonce_digest != intent.nonce_digest
+        or receipt.jti != claims.jti
+        or not _is_utc(receipt.consumed_at)
+        or not (intent.issued_at <= receipt.consumed_at <= evaluated_at < intent.expires_at)
+        or type(receipt.diagnosis_completed) is not bool
+    ):
+        _raise(STOP_CONSUMPTION_AMBIGUOUS)
+    return receipt
+
+
+def validate_future_trust_plane(
+    *,
+    intent: GateIntent,
+    oidc_claims: GitHubOidcClaims,
+    workflow_run: WorkflowRunEvidence,
+    environment: EnvironmentEvidence,
+    approvals: tuple[ApprovalEvidence, ...],
+    deployments: tuple[DeploymentEvidence, ...],
+    receipt: GateConsumptionReceipt,
+    evaluated_at: datetime,
+    seen_jtis: tuple[str, ...] = (),
+    seen_nonce_digests: tuple[str, ...] = (),
+    consumed_identities: tuple[str, ...] = (),
+) -> str:
+    gate = _validate_gate_intent(intent, evaluated_at)
+    claims = _validate_oidc_claims(oidc_claims, gate, evaluated_at)
+    if claims.jti in seen_jtis or gate.nonce_digest in seen_nonce_digests:
+        _raise(STOP_REPLAY_DETECTED)
+    _validate_workflow_run(workflow_run, gate)
+    _validate_environment(environment, gate)
+    _validate_approval(approvals, gate, evaluated_at)
+    _validate_deployment(deployments, gate)
+    consumption = _validate_receipt(receipt, gate, claims, evaluated_at)
+    if consumption.identity in consumed_identities:
+        _raise(STOP_CONSUMPTION_AMBIGUOUS)
+    _raise(STOP_ATOMIC_LEDGER_REQUIRED)
 
 
 def validate_capability(capability: AdapterCapability) -> None:
@@ -2831,22 +3265,7 @@ def validate_lifecycle_evidence(
 def authorize_future_adapter(request: AuthorizationRequest) -> AuthorizedAdapterPlan:
     """Validate all pure evidence, then stop because trusted authority is absent."""
     _require_complete(request, AuthorizationRequest, STOP_TARGET_BINDING_INVALID)
-    if (
-        type(request.execution_sha) is not str
-        or type(request.execution_tree) is not str
-        or request.execution_sha != PROTECTED_SOURCE_SHA
-        or request.execution_tree != PROTECTED_SOURCE_TREE
-        or not _SHA_RE.fullmatch(request.execution_sha)
-        or not _SHA_RE.fullmatch(request.execution_tree)
-    ):
-        _raise(STOP_PROTECTED_SOURCE_INVALID)
-    if (
-        type(request.workflow) is not str
-        or type(request.environment) is not str
-        or request.workflow != EXPECTED_WORKFLOW
-        or request.environment != EXPECTED_ENVIRONMENT
-    ):
-        _raise(STOP_TARGET_BINDING_INVALID)
+    reject_caller_supplied_authority(request.__dict__)
     target = _validate_target_binding(request.target)
     if not _is_utc(request.evaluated_at) or not (
         target.issued_at <= request.evaluated_at < target.expires_at
@@ -2940,8 +3359,10 @@ __all__ = [
     "AUTHORIZATION_ORDER",
     "AdapterCapability",
     "AnchorProviderEvidenceReceipt",
+    "ApprovalEvidence",
     "AuthorizationRequest",
     "AuthorizedAdapterPlan",
+    "CALLER_SUPPLIED_AUTHORITY_FIELDS",
     "CLOCK_DURATION_TOLERANCE_NS",
     "MAX_IMMUTABLE_DEPTH",
     "MAX_IMMUTABLE_INTEGER_ABS",
@@ -2954,8 +3375,16 @@ __all__ = [
     "CONNECTED_STOP",
     "CONTRACT_VERSION",
     "CURRENT_GATE_STATUS",
+    "DeploymentEvidence",
     "EXPECTED_ENVIRONMENT",
+    "EXPECTED_OIDC_AUDIENCE",
+    "EXPECTED_OIDC_ISSUER",
+    "EXPECTED_REPOSITORY",
+    "EXPECTED_REF",
     "EXPECTED_WORKFLOW",
+    "EXPECTED_WORKFLOW_BLOB_SHA",
+    "EXPECTED_WORKFLOW_PATH",
+    "EXPECTED_WORKFLOW_SHA",
     "EXCLUDED_DYNAMIC_SOURCE_KINDS",
     "EffectiveProfileRouting",
     "FG3CohortEvidence",
@@ -2968,7 +3397,14 @@ __all__ = [
     "FG3_PRIMARY_COHORT",
     "FINGERPRINT_DECLARATION",
     "FORBIDDEN_METHODS",
+    "G5_ATOMIC_LEDGER_INTERFACE",
     "GO_COMPATIBLE_SOURCE_TERMINALS",
+    "G5_TRUST_GATE_STATE_CONSUMED",
+    "G5_TRUST_GATE_STATE_READY",
+    "G5_TRUST_PLANE_PR_A_STATUS",
+    "GateConsumptionReceipt",
+    "GateIntent",
+    "GitHubOidcClaims",
     "FrozenRow",
     "G5AdapterContractError",
     "GET_ONLY_CAPABILITY",
@@ -2994,6 +3430,14 @@ __all__ = [
     "ReadTiming",
     "RowCursor",
     "SCHEMA_VERSION",
+    "STOP_APPROVAL_INVALID",
+    "STOP_ATOMIC_LEDGER_REQUIRED",
+    "STOP_AUTHORITY_INVALID",
+    "STOP_BINDING_DRIFT",
+    "STOP_CONSUMPTION_AMBIGUOUS",
+    "STOP_GATE_EXPIRED",
+    "STOP_PROOF_INVALID",
+    "STOP_REPLAY_DETECTED",
     "SOURCE_ATTEMPT_BUDGET_NS",
     "SOURCE_ATTEMPT_GRAMMAR",
     "SOURCE_ERROR_CLASSES",
@@ -3026,11 +3470,13 @@ __all__ = [
     "TRUST_MODEL_FUTURE_REQUIREMENTS",
     "TRUST_STOP",
     "TargetBinding",
+    "WorkflowRunEvidence",
     "anchor_provider_receipt_digest",
     "authorize_future_adapter",
     "classify_lifecycle_proxy",
     "derive_effective_profile_routing",
     "evidence_binding_digest",
+    "expected_trust_digest",
     "historical_anchor_digest",
     "historical_manifest_digest",
     "historical_observation_fingerprint",
@@ -3041,6 +3487,7 @@ __all__ = [
     "prior_mutation_fingerprint",
     "profile_source_fingerprints",
     "public_contract_projection",
+    "reject_caller_supplied_authority",
     "row_fingerprint",
     "snapshot_payload_digest",
     "source_terminal_reason",
@@ -3054,4 +3501,5 @@ __all__ = [
     "validate_snapshot_pair_payload",
     "validate_source_coverage",
     "validate_source_observation",
+    "validate_future_trust_plane",
 ]
