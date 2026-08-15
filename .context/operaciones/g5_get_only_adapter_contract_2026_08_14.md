@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP` |
+| Estado | `REPOSITORY_ONLY_TRUST_BROKER_PR_B_LOCAL_CANDIDATE` |
 | Contrato | `f10.9-g5-get-only-adapter-contract.v2.3` |
 | Schema | `f10.9-g5-get-only-adapter-schema.v2.3` |
 | Algoritmo | `f10.9-g5-get-only-adapter-v2.3` |
-| Fuente protegida | `desarrollo@9045c90ac78634f17a66cb3e30e723a2431cb6b4` |
-| Tree protegido | `3d8455a29b63a38906a67343ee4ba6dd15b366d7` |
+| Fuente protegida | `desarrollo@7a4c6420214dd1ffcc367b1f35cb5f553d07c99c` |
+| Tree protegido | `4c647e87a4effbc577d1653fd023375c2c87fa3e` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
@@ -51,6 +51,42 @@ V2.3 queda congelado en `desarrollo@9045c90ac78634f17a66cb3e30e723a2431cb6b4`
 control-plane de confianza repository-only. No acredita connected mode,
 Production, transporte, autoridad operacional, approval remoto, gate consumido ni
 lectura remota.
+
+## Reconciliacion PR 384
+
+PR #384 promovio exclusivamente PR A y queda congelado como
+`MERGED_POST_MERGE_VERIFIED`; no acredita PR B:
+
+```text
+candidate = 9414480b6cb6496fc978b7379a5b24a1ae9e1f60
+merge = 7a4c6420214dd1ffcc367b1f35cb5f553d07c99c
+tree = 4c647e87a4effbc577d1653fd023375c2c87fa3e
+security = 31899873186=PASS
+focused_trust_plane = 95048814844=PASS
+f9_7_run = 31899873143=PASS
+f9_7_job = 95048918881=PASS
+run_attempt = 1
+```
+
+PR B permanece local, no fusionado ni verificado post-merge, e implementa
+repository-only el [trust broker y ledger Durable Object](../decisiones/ADR-0013_trust_broker_durable_object_ledger.md).
+La superficie Worker verifica JWT RS256/JWKS offline y consulta evidencia mediante
+un adapter GitHub App read-only inyectado con fixtures. Un Durable Object coordinador
+mantiene gates por identidad derivada de seis IDs y serializa en una transaccion
+`ABSENT -> READY -> CONSUMED` junto con replay nonce/`jti`, receipt inmutable,
+expiracion y tombstone no resucitable.
+
+El boundary exacto es: workflow GitHub futuro -> OIDC GitHub -> GitHub App
+read-only -> trust broker -> Durable Object -> connected collector futuro. Este PR
+solo materializa los tres componentes centrales como codigo local y fakes cerrados.
+No crea workflow manual, protection rule, environment, GitHub App, Worker remoto,
+account binding, secret, installation token, JWKS live ni deployment.
+
+La salida publica contiene solo version, decision, reason code, receipt digest y
+flags falsos. No registra JWT, Authorization, installation token, URL, host, UUID,
+project ref, payload, claims completos ni datos operativos. GitHub App futuro queda
+limitado a Actions/Checks/Contents/Deployments/Metadata read; todo write prohibido.
+Supabase, SQL, DDL, RPC, grants, credenciales DB y data plane permanecen fuera.
 
 ## Modelo De Confianza
 
@@ -448,17 +484,19 @@ source es tambien 15 segundos por intento, pero es un dominio separado; la
 gramatica source admite como maximo HEAD seguido de un unico GET, no dos retries.
 No existe implementacion de lectura.
 
-El check CI `F10.9 G5 GET-Only Trust Plane PR A` ejecuta la suite focused tanto en
-el candidate como en el push post-merge a `desarrollo`. El job F9.7 depende de
+El check CI `F10.9 G5 Trust Broker PR B Repository-Only` ejecuta las suites focused
+Python y Worker/Durable Object Node tanto en el candidate como en el push post-merge
+a `desarrollo`. El job F9.7 depende de
 este resultado y solo despues cambia al checkout historico congelado F9.7. Antes
 de importar codigo candidato instala dependencias desde el commit F9.7 congelado,
 bloquea egress con el guard congelado y ejecuta como UID/GID sin privilegios,
 capabilities ni environment heredado sobre un workspace read-only. El cleanup de
 firewall es obligatorio incluso ante fallo.
 
-La proyeccion publica cerrada contiene solo version, decision, reason code y flags
-falsos. Excluye URLs, hosts, UUID, institution IDs, payload/rows, project ref,
-response bodies y secretos. Metadata/H2-CA2, syllabus/objectives, providers
+La proyeccion publica cerrada contiene version, decision, reason code, digest del
+receipt, flags falsos y los STOP de connected mode/trust operacional. Excluye URLs,
+hosts, UUID, institution IDs, payload/rows, project ref, response bodies y secretos.
+Metadata/H2-CA2, syllabus/objectives, providers
 editoriales, backfill y re-enrichment siguen excluidos.
 
 `collect_g5_connected` permanece byte-intacto y termina antes de inspeccionar sus
