@@ -109,24 +109,30 @@ aprobaciones separadas; este documento no las concede.
    `7a4c6420214dd1ffcc367b1f35cb5f553d07c99c`, tree
    `4c647e87a4effbc577d1653fd023375c2c87fa3e`; Security
    `31899873186=PASS`, focused trust-plane `95048814844=PASS` y F9.7 run
-   `31899873143=PASS` / job `95048918881=PASS`, `run_attempt=1`. PR A queda
-   congelado. PR #385, PR B, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `31899873143=PASS` / job `95048918881=PASS`, `run_attempt=1`. PR #385,
+   PR B, queda `MERGED_POST_MERGE_VERIFIED`: candidate
    `09851459f2ffa751e2e8139d4e9a3304427f1ee4`, merge protegido
    `191539de71cbff95552c476463305e8d6f3e4b73`, tree
    `7fe13bb907053f4dea51ac593b5df0de78cb40d6`; Security
    `31903582727=PASS`, trust broker `95057934429=PASS`, F9.7 run
-   `31903582617=PASS` / job `95058032300=PASS`, `run_attempt=1`. PR B define [ADR-0013](../../decisiones/ADR-0013_trust_broker_durable_object_ledger.md):
-   Worker trust broker, JWT RS256/JWKS offline, adapter GitHub App read-only con
-   fixtures, binding exact-one y Durable Object CAS `ABSENT -> READY -> CONSUMED`.
-   Prueba replay nonce/`jti`, consumo concurrente, expiracion/tombstone, timeout
-   antes/despues del CAS, receipt inmutable y fallo posterior al consumo. PR C
-   permanece `REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE` y define
-   [ADR-0014](../../decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md):
-   workflow manual placeholder deshabilitado y connected adapter que falla antes de
-   transporte. Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
-   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
-   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; cero deployment, Production,
-   configuracion remota, Supabase, SQL, writers, schedules o red live.
+   `31903582617=PASS` / job `95058032300=PASS`, `run_attempt=1`. PR #386,
+   PR C, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `d6e4eaae058b52aacf5099c763204a1343a6eebf`, merge protegido
+   `74defb6326d8432bf790cb84b4aa549fefc425be`, tree
+   `b9b4cc8a6f8279f898b2b8bf2a900c56a741b528`; Security
+   `31905626274=success`, focused
+   `95062812645=F10.9 G5 Workflow PR C Repository-Only success`, F9.7 run
+   `31905626285=success` / job
+   `95062903177=F9.7 Release Gate Contract success`, `run_attempt=1`. PR D
+   queda `DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED` y define
+   [ADR-0015](../../decisiones/ADR-0015_g5_deployment_ready_disabled.md):
+   workflow manual deployment-ready apagado por `G5_TRUST_OPERATIONAL_ENABLED`,
+   OIDC/broker client inyectables, receipt single-use y collector Supabase GET-only
+   publishable-only. Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust
+   operacional `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
+   `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; cero workflow ejecutado, deployment,
+   Production operacional, configuracion remota, Supabase live, SQL, writers,
+   schedules o red live.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
@@ -189,13 +195,14 @@ El alcance contractual vigente permanece en [REQ-EST-001](./_index.md) y [HITO-0
 ## Tracking Only F10.9
 
 Esta vista es `TRACKING_ONLY`: no modifica estados, criterios, gates ni autoridad
-ejecutable. Hito 1 contractual = `60%`; F10.9 = `38%`; G5 end-to-end = `30%`.
+ejecutable. Hito 1 contractual = `60%`; F10.9 = `38%`; G5 end-to-end = `40%`.
 Formula: avance ponderado observado = componentes repository-only verificados /
 componentes end-to-end requeridos. Denominadores informativos: Hito 1 `3/5`
 bloques CA1 mayores, F10.9 `3/8` gates operativos G5-G13 reabiertos con G4
-historico fuera del denominador, G5 `3/10` dominios end-to-end (estructura
-GET-only, routing real y trust-plane modelado; quedan ledger atomico, workflow real,
-OIDC live, approval real, Production, connected transport y observacion). Solo se
+historico fuera del denominador, G5 `4/10` dominios end-to-end (estructura
+GET-only, routing real, trust-plane modelado y ledger/broker repository-only; quedan
+workflow real ejecutado, OIDC live, approval real, Production, connected transport y
+observacion). Solo se
 actualiza tras PR protegido post-merge con Security, F9.7 y focused PASS y sin drift
 del Context Graph.
 

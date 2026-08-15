@@ -3,16 +3,16 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE` |
+| Estado | `DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED` |
 | Contrato | `f10.9-g5-get-only-adapter-contract.v2.3` |
 | Schema | `f10.9-g5-get-only-adapter-schema.v2.3` |
 | Algoritmo | `f10.9-g5-get-only-adapter-v2.3` |
-| Fuente protegida | `desarrollo@191539de71cbff95552c476463305e8d6f3e4b73` |
-| Tree protegido | `7fe13bb907053f4dea51ac593b5df0de78cb40d6` |
+| Fuente protegida | `desarrollo@74defb6326d8432bf790cb84b4aa549fefc425be` |
+| Tree protegido | `b9b4cc8a6f8279f898b2b8bf2a900c56a741b528` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
-| Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
-| Conexiones/probes | `ZERO_NOT_IMPLEMENTED` |
+| Connected mode | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
+| Conexiones/probes | `ZERO_OPERATIONAL` |
 
 ## Reconciliacion PR 382 Y PR 383
 
@@ -94,10 +94,33 @@ solo materializa los tres componentes centrales como codigo local y fakes cerrad
 No crea workflow manual, protection rule, environment, GitHub App, Worker remoto,
 account binding, secret, installation token, JWKS live ni deployment.
 
+PR #386 promovio PR C y queda congelado como `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = d6e4eaae058b52aacf5099c763204a1343a6eebf
+merge = 74defb6326d8432bf790cb84b4aa549fefc425be
+tree = b9b4cc8a6f8279f898b2b8bf2a900c56a741b528
+security = 31905626274=success
+f9_7 = 31905626285=success
+focused = 95062812645=F10.9 G5 Workflow PR C Repository-Only success
+f9_7_job = 95062903177=F9.7 Release Gate Contract success
+run_attempt = 1
+```
+
 PR C agrega solo el [workflow manual placeholder y connected adapter deshabilitados](../decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md).
-El workflow no se ejecuta, no declara environment, no solicita `id-token` y el
-adapter conectado devuelve `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` antes de
+El workflow no se ejecuto, no declaro environment, no solicito `id-token` y el
+adapter conectado devolvia `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` antes de
 cualquier transporte.
+
+PR D agrega [ADR-0015](../decisiones/ADR-0015_g5_deployment_ready_disabled.md):
+workflow manual deployment-ready pero apagado por defecto mediante
+`G5_TRUST_OPERATIONAL_ENABLED`, cliente OIDC inyectable, cliente futuro de broker
+por `G5_TRUST_BROKER_ENDPOINT`, validacion de receipt single-use y collector
+Supabase GET-only publishable-only con paginacion/timeout/SSRF guards. No ejecuta
+workflow, no crea gate, no consume approval, no configura Cloudflare/GitHub App, no
+lee Supabase live y no habilita Production. Connected queda
+`IMPLEMENTED_DISABLED_NOT_CONFIGURED`; trust operacional permanece
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
 
 La salida publica contiene solo version, decision, reason code, receipt digest y
 flags falsos. No registra JWT, Authorization, installation token, URL, host, UUID,
@@ -199,7 +222,7 @@ Si GitHub deployment/approval no demuestra atomicidad single-use, el contrato te
 no son ledger atomico. PR A no acepta un booleano, proof o provider caller-supplied
 para saltar ese STOP.
 
-El `workflow_ref` futuro usa formato OIDC repo-qualified: `romelhc95/studiamatch/.github/workflows/f9-7-contract.yml@refs/heads/main`.
+El `workflow_ref` futuro usa formato OIDC repo-qualified: `romelhc95/studiamatch/.github/workflows/g5-manual-trust-gate.yml@refs/heads/main`.
 `workflow_sha` y `workflow_blob_sha` quedan congelados como constantes esperadas en
 el modelo repository-only, no como SHA arbitrarios aportados por caller. Los digests
 de contrato, schema, algoritmo y capability se recomputan desde constantes del
@@ -499,7 +522,8 @@ proyecciones existentes, columnas exactas, keyset `id.asc`, maximo 1000 filas po
 pagina, 50000 filas, 50 paginas, 15 segundos y 32 MB por snapshot. El budget de
 source es tambien 15 segundos por intento, pero es un dominio separado; la
 gramatica source admite como maximo HEAD seguido de un unico GET, no dos retries.
-No existe implementacion de lectura.
+La implementacion repository-only existe con transports inyectables y permanece
+apagada por configuracion ausente.
 
 El check CI `F10.9 G5 Trust Broker PR B Repository-Only` ejecuta las suites focused
 Python y Worker/Durable Object Node tanto en el candidate como en el push post-merge
@@ -511,13 +535,14 @@ capabilities ni environment heredado sobre un workspace read-only. El cleanup de
 firewall es obligatorio incluso ante fallo.
 
 La proyeccion publica cerrada contiene version, decision, reason code, digest del
-receipt, flags falsos y los STOP de connected mode/trust operacional. Excluye URLs,
+receipt, flags falsos, `IMPLEMENTED_DISABLED_NOT_CONFIGURED` para connected mode y
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` para trust operacional. Excluye URLs,
 hosts, UUID, institution IDs, payload/rows, project ref, response bodies y secretos.
 Metadata/H2-CA2, syllabus/objectives, providers
 editoriales, backfill y re-enrichment siguen excluidos.
 
-`collect_g5_connected` permanece byte-intacto y termina antes de inspeccionar sus
-argumentos con `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. Este contrato no crea
-workflow, environment, gate, secret, adapter o transporte, y no accede a
-Production, Free, Pro o Certification. Tampoco autoriza red, writers, schedules,
-promocion a Certification/Main ni ninguna operacion en Main.
+`collect_g5_connected` permanece deshabilitado por configuracion ausente y termina
+antes de inspeccionar sus argumentos con `IMPLEMENTED_DISABLED_NOT_CONFIGURED`. Este
+contrato no crea gate, secret, transporte operacional ni acceso a Production, Free,
+Pro o Certification. Tampoco autoriza red live, writers, schedules, promocion a
+Certification/Main ni ninguna operacion en Main.

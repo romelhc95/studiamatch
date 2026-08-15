@@ -23,6 +23,7 @@ SCHEMA = "f10.9-g5-production-readonly-projection.v2"
 ALGORITHM_VERSION = "f10.9-g5-production-readonly-v2"
 GATE = "APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1"
 GATE_CANDIDATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
+CONNECTED_MODE_STATUS = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
 DEFAULT_PAGE_SIZE = 1000
 DEFAULT_MAX_ROWS_PER_TABLE = 50_000
 DEFAULT_MAX_SNAPSHOT_BYTES = 32_000_000
@@ -1582,9 +1583,9 @@ def collect_g5_connected(
     binding: CandidateBinding,
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> Mapping[str, object]:
-    """Remain unconditionally blocked before inspecting adapters or credentials."""
+    """Remain disabled by absent configuration before inspecting adapters or credentials."""
     del authorization, facade_factory, observations, binding, page_size
-    raise G5Error("STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED")
+    raise G5Error(CONNECTED_MODE_STATUS)
 
 
 __all__ = [
@@ -1593,6 +1594,7 @@ __all__ = [
     "ALGORITHM_VERSION_V1",
     "CandidateBinding",
     "ConnectedAuthorization",
+    "CONNECTED_MODE_STATUS",
     "EXCLUDED_SURFACES",
     "FG3Observation",
     "G5Error",

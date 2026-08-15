@@ -3728,27 +3728,27 @@ class F109BoundaryTest(unittest.TestCase):
     ) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE,
-            "191539de71cbff95552c476463305e8d6f3e4b73",
+            "74defb6326d8432bf790cb84b4aa549fefc425be",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE_TREE,
-            "7fe13bb907053f4dea51ac593b5df0de78cb40d6",
+            "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
-            "7a4c6420214dd1ffcc367b1f35cb5f553d07c99c",
+            "191539de71cbff95552c476463305e8d6f3e4b73",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_CANDIDATE,
-            "09851459f2ffa751e2e8139d4e9a3304427f1ee4",
+            "d6e4eaae058b52aacf5099c763204a1343a6eebf",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_HEAD_REF,
-            "feat/f10-9-g5-workflow-pr-c",
+            "feat/f10-9-g5-workflow-pr-d",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_STATUS,
-            "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
+            "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
@@ -3773,23 +3773,25 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 70, 408)
+        context_mock.assert_called_once_with(Path("."), 71, 408)
 
-    def test_g5_get_only_adapter_successor_allowlist_is_minimal_pr_c_paths(self) -> None:
+    def test_g5_get_only_adapter_successor_allowlist_is_minimal_pr_d_paths(self) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             {
                 ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-                ".context/decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md": "A",
+                ".context/decisiones/ADR-0015_g5_deployment_ready_disabled.md": "A",
                 ".context/estado_del_proyecto.md": "M",
                 ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
                 ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
                 ".github/workflows/f9-7-contract.yml": "M",
-                ".github/workflows/g5-manual-trust-gate.yml": "A",
+                ".github/workflows/g5-manual-trust-gate.yml": "M",
                 "scripts/security/f109_boundary.py": "M",
                 "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+                "scripts/shared/f10_9_g5_readonly_collector.py": "M",
                 "tests/test_fase10_9_branch_reconciliation.py": "M",
                 "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+                "tests/test_fase10_9_g5_production_readonly.py": "M",
                 "workers/g5-trust-broker/src/index.mjs": "M",
                 "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
             },
@@ -3861,7 +3863,9 @@ class F109BoundaryTest(unittest.TestCase):
             "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
             "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
             "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
-            "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
+            "MERGED_POST_MERGE_VERIFIED",
+            "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
+            "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
             "class GateIntent",
             "class GitHubOidcClaims",
             "class WorkflowRunEvidence",
@@ -3892,7 +3896,7 @@ class F109BoundaryTest(unittest.TestCase):
         workflow = Path(".github/workflows/f9-7-contract.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("F10.9 G5 Workflow PR C Repository-Only", workflow)
+        self.assertIn("F10.9 G5 Workflow PR D Deployment-Ready Disabled", workflow)
         self.assertIn("workers/g5-trust-broker/**", workflow)
         self.assertIn(".github/workflows/g5-manual-trust-gate.yml", workflow)
         self.assertIn("pull_request:", workflow)
@@ -3946,7 +3950,7 @@ class F109BoundaryTest(unittest.TestCase):
             G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
             G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 70, 408)
+        context_mock.assert_called_once_with(Path("."), 71, 408)
 
     @mock.patch("scripts.security.f109_boundary.commit_tree", return_value="0" * 40)
     @mock.patch("scripts.security.f109_boundary.require_sha")

@@ -71,6 +71,8 @@ on:
       - 'tests/test_fase09_7_pipeline_no_regression.py'
       - 'tests/test_fase09_7_release_gates.py'
       - 'tests/test_fase10_9_g5_get_only_adapter_contract.py'
+      - 'tests/test_fase10_9_g5_production_readonly.py'
+      - 'tests/test_fase10_9_branch_reconciliation.py'
       - 'workers/g5-trust-broker/**'
       - '.github/workflows/g5-manual-trust-gate.yml'
       - 'tests/test_supabase_credentials_contract.py'
@@ -96,6 +98,11 @@ on:
       - 'scripts/maintenance/taxonomy_roi_audit.py'
       - 'scripts/maintenance/f10_10_m3_readonly_collector.py'
       - 'scripts/shared/**'
+      - 'scripts/security/f109_boundary.py'
+      - '.context/estado_del_proyecto.md'
+      - '.context/operaciones/g5_get_only_adapter_contract_2026_08_14.md'
+      - '.context/operaciones/plan_remediacion_f10_9_fg2_fg3.md'
+      - '.context/decisiones/ADR-0015_g5_deployment_ready_disabled.md'
       - 'requirements-fg1.txt'
       - 'requirements-pipeline.txt'
       - 'requirements-fg3.txt'
@@ -122,7 +129,7 @@ env:
 
 jobs:
   g5-get-only-v2-3:
-    name: F10.9 G5 Workflow PR C Repository-Only
+    name: F10.9 G5 Workflow PR D Deployment-Ready Disabled
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -164,7 +171,8 @@ jobs:
             --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
-            tests/test_fase10_9_g5_get_only_adapter_contract.py
+            tests/test_fase10_9_g5_get_only_adapter_contract.py \
+            tests/test_fase10_9_g5_production_readonly.py
       - name: Run repository-only G5 trust broker and Durable Object contract
         run: |
           sudo setpriv --reuid=65534 --regid=65534 --clear-groups \

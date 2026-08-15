@@ -1,18 +1,25 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import test from "node:test";
 
 import worker, {
   G5AtomicLedgerDurableObject,
   G5ConnectedGithubAppAdapter,
+  G5ConnectedSupabaseCollector,
+  G5GithubActionsOidcClient,
+  G5SingleUseReceiptSession,
   G5TrustBroker,
+  G5TrustBrokerHttpClient,
   GithubAppReadOnlyAdapter,
   INTERNALS,
   REASONS,
   TrustBrokerError,
   createDisabledConnectedGithubAppAdapter,
   gateIdentity,
+  g5WorkflowGuard,
   rejectCallerAuthority,
+  runG5ConnectedDiagnosticCli,
+  validateTrustBrokerReceipt,
   verifyGithubOidc,
 } from "../src/index.mjs";
 
@@ -59,6 +66,132 @@ function token(payload = claims(), key = privateKey, header = {}) {
   const encodedPayload = b64url(payload);
   const material = `${encodedHeader}.${encodedPayload}`;
   return `${material}.${sign("RSA-SHA256", Buffer.from(material), key).toString("base64url")}`;
+}
+
+function stable(value) {
+  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function digest(value) {
+  return `sha256:${createHash("sha256").update(stable(value)).digest("hex")}`;
+}
+
+function validBrokerReceipt(context = {}) {
+  const binding = {
+    repositoryId: context.repositoryId ?? 101,
+    runId: context.runId ?? 303,
+    runAttempt: 1,
+    checkRunId: context.checkRunId ?? 505,
+    jobName: INTERNALS.WORKFLOW_NAME,
+    environmentId: context.environmentId ?? 707,
+    deploymentId: context.deploymentId ?? 606,
+    candidateSha: SHA,
+    candidateTree: TREE,
+    workflowSha: SHA,
+    workflowBlobSha: WORKFLOW_BLOB,
+    contractDigest: digest("contract"),
+    schemaDigest: digest("schema"),
+    algorithmDigest: digest("algorithm"),
+    capabilityDigest: digest("capability"),
+  };
+  const receipt = {
+    identity: "g5-trust-broker-offline",
+    expiresAt: context.expiresAt ?? Math.floor(Date.now() / 1000) + 300,
+    binding,
+  };
+  const receiptDigest = digest(receipt);
+  return {
+    version: INTERNALS.VERSION,
+    decision: "AUTHORIZED",
+    receiptDigest,
+    receipt,
+    proof: {
+      type: "G5_TRUST_BROKER_RECEIPT_PROOF",
+      keyId: "offline-proof-key",
+      value: digest(["proof", receiptDigest]),
+    },
+  };
+}
+
+const proofVerifier = Object.freeze({
+  verify: async ({ proof, receiptDigest }) => proof.value === digest(["proof", receiptDigest]),
+});
+
+class FakeFetchTransport {
+  constructor(handler) {
+    this.handler = handler;
+    this.calls = [];
+  }
+
+  async fetch(request, init) {
+    const text = await request.clone().text().catch(() => "");
+    const call = {
+      method: request.method,
+      url: String(request.url),
+      headers: Object.fromEntries(request.headers),
+      body: text,
+      init,
+    };
+    this.calls.push(call);
+    return this.handler(request, call);
+  }
+
+  async fetchPinned(request, init) {
+    if (!Array.isArray(init.resolvedAddresses) || init.resolvedAddresses.length === 0) {
+      throw new Error("missing pinned addresses");
+    }
+    return this.fetch(request, init);
+  }
+}
+
+function oneRowTables() {
+  const tables = Object.fromEntries(Object.entries(INTERNALS.SUPABASE_TABLES).map(([table, columns]) => [
+    table,
+    [Object.fromEntries(columns.split(",").map((column) => [column, column === "id" ? `${table}-1` : null]))],
+  ]));
+  tables.institutions[0] = {
+    ...tables.institutions[0],
+    name: "Institution",
+    slug: "institution",
+    website_url: "https://catalog.example/",
+  };
+  tables.institution_site_profiles[0] = {
+    ...tables.institution_site_profiles[0],
+    institution_id: tables.institutions[0].id,
+    discovery_enabled: false,
+    pipeline_enabled: false,
+    pipeline_ready: true,
+    site_type: "traditional_ssr",
+    discovery_mode: "hardcoded_urls",
+    seed_urls: [],
+    catalog_url_patterns: [],
+    catalog_max_pages: 1,
+    allowed_url_patterns: [],
+    exclusion_patterns: [],
+    requires_cloudflare_bypass: false,
+    warmup_url: null,
+    circuit_open: false,
+    circuit_opened_at: null,
+  };
+  return tables;
+}
+
+function receiptStore() {
+  const consumed = new Set();
+  return {
+    capability: "DURABLE_SINGLE_USE_RECEIPT_LEDGER",
+    consumeOnce: async (receiptDigest, expiresAt) => {
+      assert.ok(/^sha256:[0-9a-f]{64}$/.test(receiptDigest));
+      assert.equal(Number.isSafeInteger(expiresAt), true);
+      if (consumed.has(receiptDigest)) return false;
+      consumed.add(receiptDigest);
+      return true;
+    },
+  };
 }
 
 function fixture(overrides = {}) {
@@ -484,23 +617,347 @@ test("GitHub App transport timeout before CAS leaves no gate", async () => {
   assert.equal([...storage.values.keys()].some((key) => key.startsWith("gate:")), false);
 });
 
-test("connected GitHub App adapter remains disabled before transport", async () => {
+test("connected GitHub App adapter remains implemented but disabled by default", async () => {
   const adapter = createDisabledConnectedGithubAppAdapter();
-  assert.equal(adapter.state, "REPOSITORY_ONLY_DISABLED");
-  await reason(() => adapter.authoritativeEvidence(claims()), "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED");
+  assert.equal(adapter.state, INTERNALS.CONNECTED_DISABLED);
+  await reason(() => adapter.authoritativeEvidence(claims()), INTERNALS.CONNECTED_DISABLED);
   await reason(async () => {
     new G5ConnectedGithubAppAdapter({ enabled: true });
-  }, "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED");
+  }, INTERNALS.CONNECTED_DISABLED);
 });
 
-test("manual workflow policy is repository-only disabled", () => {
+test("manual workflow policy is deployment-ready but disabled without operational var", () => {
   assert.deepEqual(INTERNALS.MANUAL_WORKFLOW_POLICY, {
-    state: "REPOSITORY_ONLY_DISABLED",
-    dispatchAllowed: false,
-    idTokenPermission: false,
-    productionEnvironment: false,
-    connectedTransport: false,
+    state: "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
+    dispatchDefined: true,
+    operationalGuard: "vars.G5_TRUST_OPERATIONAL_ENABLED == 'true'",
+    defaultEnabled: false,
+    mainRef: "refs/heads/main",
+    runAttempt: 1,
+    idTokenPermission: true,
+    productionEnvironment: "Production",
+    connectedMode: INTERNALS.CONNECTED_DISABLED,
+    concurrencyIsLedger: false,
   });
+  assert.equal(g5WorkflowGuard({ vars: {}, ref: INTERNALS.MAIN_REF, runAttempt: 1 }).enabled, false);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: "refs/heads/desarrollo", runAttempt: 1 }).enabled, false);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 2 }).enabled, false);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 1 }).enabled, true);
+});
+
+test("OIDC client fetches a sanitized token with fixed audience", async () => {
+  const transport = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    assert.equal(request.method, "GET");
+    assert.equal(url.searchParams.get("audience"), INTERNALS.AUDIENCE);
+    assert.equal(request.headers.get("authorization"), "Bearer request-token-0001");
+    return Response.json({ value: "a.b.c" });
+  });
+  const client = new G5GithubActionsOidcClient({
+    env: {
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "request-token-0001",
+      ACTIONS_ID_TOKEN_REQUEST_URL: "https://token.actions.githubusercontent.com/id-token",
+    },
+    transport,
+  });
+  assert.equal(await client.fetchToken(), "a.b.c");
+  assert.equal(transport.calls.length, 1);
+  await reason(async () => {
+    const drift = new G5GithubActionsOidcClient({
+      env: {
+        ACTIONS_ID_TOKEN_REQUEST_TOKEN: "request-token-0001",
+        ACTIONS_ID_TOKEN_REQUEST_URL: "https://oidc.example/id-token",
+      },
+      transport,
+    });
+    await drift.fetchToken();
+  }, REASONS.PROOF);
+});
+
+test("trust broker HTTP client requires future config and validates one receipt", async () => {
+  const context = { repositoryId: 101, runId: 303, runAttempt: 1, checkRunId: 505, environmentId: 707, deploymentId: 606 };
+  const body = validBrokerReceipt(context);
+  const transport = new FakeFetchTransport(async (request, call) => {
+    assert.equal(request.method, "POST");
+    assert.equal(new URL(request.url).protocol, "https:");
+    assert.deepEqual(JSON.parse(call.body), {
+      bearerOidc: "header.payload.signature",
+      gateReference: { runId: 303, expectedRunAttempt: 1 },
+    });
+    return Response.json(body);
+  });
+  const endpoint = G5TrustBrokerHttpClient.endpointFromConfig({
+    [INTERNALS.TRUST_BROKER_ENDPOINT_CONFIG_NAME]: "https://broker.example/authorize",
+  });
+  const client = new G5TrustBrokerHttpClient({
+    endpoint,
+    transport,
+    dnsResolve: async () => ["93.184.216.34"],
+    proofVerifier,
+  });
+  const receipt = await client.authorize({ oidcToken: "header.payload.signature", context });
+  assert.equal(receipt.digest, body.receiptDigest);
+  const session = new G5SingleUseReceiptSession();
+  assert.equal(session.consume(receipt).receiptDigest, body.receiptDigest);
+  assert.throws(() => session.consume(receipt), TrustBrokerError);
+  await reason(
+    () => validateTrustBrokerReceipt({ ...body, receiptDigest: digest({ drift: true }) }, context, INTERNALS.REPOSITORY_POLICY, proofVerifier),
+    REASONS.RECEIPT,
+  );
+  await reason(
+    () => validateTrustBrokerReceipt(validBrokerReceipt({ ...context, expiresAt: NOW - 1 }), { ...context, nowEpochSeconds: NOW }, INTERNALS.REPOSITORY_POLICY, proofVerifier),
+    REASONS.EXPIRED,
+  );
+});
+
+test("trust broker HTTP client rejects unsafe endpoints before transport", async () => {
+  await reason(async () => {
+    new G5TrustBrokerHttpClient({
+      endpoint: "http://127.0.0.1/authorize",
+      transport: new FakeFetchTransport(() => Response.json({})),
+      dnsResolve: async () => ["127.0.0.1"],
+      proofVerifier,
+    });
+  }, REASONS.TRANSPORT);
+  await reason(async () => {
+    new G5TrustBrokerHttpClient({
+      endpoint: "https://[::ffff:127.0.0.1]/authorize",
+      transport: new FakeFetchTransport(() => Response.json({})),
+      dnsResolve: async () => ["93.184.216.34"],
+      proofVerifier,
+    });
+  }, REASONS.TRANSPORT);
+  await reason(async () => {
+    G5TrustBrokerHttpClient.endpointFromConfig({});
+  }, REASONS.CONFIG);
+});
+
+test("connected Supabase collector is GET-only, publishable-only, paginated, and stable", async () => {
+  const tables = oneRowTables();
+  const transport = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.has("authorization"), false);
+    assert.equal(request.headers.get("apikey"), "sb_publishable_offline");
+    const table = url.pathname.split("/").at(-1);
+    assert.ok(Object.hasOwn(INTERNALS.SUPABASE_TABLES, table));
+    if (url.searchParams.get("select") === "id" && url.searchParams.get("limit") === "1") {
+      return Response.json([{ id: `${table}-1` }], { headers: { "content-range": "0-0/1" } });
+    }
+    assert.equal(url.searchParams.get("select"), INTERNALS.SUPABASE_TABLES[table]);
+    return Response.json(tables[table]);
+  });
+  const sourceCalls = [];
+  const collector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+    sourceTransport: {
+      requestPinned: async (call) => {
+        sourceCalls.push({ method: call.method, url: call.url });
+        assert.deepEqual(call.resolvedAddresses, ["93.184.216.34"]);
+        return { status: call.method === "HEAD" ? 405 : 200, redirected: false };
+      },
+    },
+  });
+  const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
+    repositoryId: 101, runId: 303, runAttempt: 1,
+  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  tables.institution_site_profiles[0] = {
+    ...tables.institution_site_profiles[0],
+    discovery_enabled: true,
+    pipeline_enabled: true,
+    pipeline_ready: true,
+    seed_urls: ["https://catalog.example:443/programs?utm_source=x&fbclid=1", "https://catalog.example/programs"],
+    circuit_open: false,
+  };
+  const result = await collector.collect({ receipt });
+  assert.equal(result.decision, "PASS");
+  assert.equal(result.connectedMode, INTERNALS.CONNECTED_DISABLED);
+  assert.equal(Object.hasOwn(result, "counts"), false);
+  assert.deepEqual(sourceCalls, [
+    { method: "HEAD", url: "https://catalog.example/programs" },
+    { method: "GET", url: "https://catalog.example/programs" },
+  ]);
+  assert.equal(transport.calls.every((call) => call.method === "GET"), true);
+  await reason(() => collector.collect({ receipt }), REASONS.REPLAY);
+});
+
+test("connected Supabase collector rejects forged receipts and incomplete counts", async () => {
+  const tables = oneRowTables();
+  const withoutContentRange = new FakeFetchTransport((request) => {
+    const table = new URL(request.url).pathname.split("/").at(-1);
+    return Response.json(tables[table]);
+  });
+  const collector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport: withoutContentRange,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+  });
+  await reason(() => collector.collect({
+    receipt: { digest: digest({ forged: true }), receipt: { forged: true } },
+    sourceTargets: ["https://catalog.example/programs"],
+  }), REASONS.SOURCE);
+  await reason(() => collector.collect({
+    receipt: { digest: digest({ forged: true }), receipt: { forged: true } },
+  }), REASONS.RECEIPT);
+  const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
+    repositoryId: 101, runId: 303, runAttempt: 1,
+  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  await reason(() => collector.collect({ receipt }), REASONS.PAGINATION);
+
+  const countDriftTables = oneRowTables();
+  let countCalls = 0;
+  const countDrift = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    const table = url.pathname.split("/").at(-1);
+    if (url.searchParams.get("select") === "id") {
+      countCalls += 1;
+      const count = countCalls === 1 ? 1 : 2;
+      return Response.json([{ id: `${table}-1` }], { headers: { "content-range": `0-0/${count}` } });
+    }
+    return Response.json(countDriftTables[table]);
+  });
+  const countDriftCollector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport: countDrift,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+  });
+  await reason(() => countDriftCollector.collect({ receipt }), REASONS.COUNT);
+
+  const malformedTables = oneRowTables();
+  malformedTables.institution_site_profiles[0].seed_urls = null;
+  const malformedTransport = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    const table = url.pathname.split("/").at(-1);
+    if (url.searchParams.get("select") === "id") {
+      return Response.json([{ id: `${table}-1` }], { headers: { "content-range": "0-0/1" } });
+    }
+    return Response.json(malformedTables[table]);
+  });
+  const malformedCollector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport: malformedTransport,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+  });
+  await reason(() => malformedCollector.collect({ receipt }), REASONS.PROFILE);
+
+  const duplicateTables = oneRowTables();
+  duplicateTables.institution_site_profiles.push({
+    ...duplicateTables.institution_site_profiles[0],
+    id: "institution_site_profiles-2",
+  });
+  const duplicateTransport = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    const table = url.pathname.split("/").at(-1);
+    const rows = duplicateTables[table];
+    if (url.searchParams.get("select") === "id") {
+      return Response.json([{ id: rows[0].id }], { headers: { "content-range": `0-0/${rows.length}` } });
+    }
+    return Response.json(rows);
+  });
+  const duplicateCollector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport: duplicateTransport,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+  });
+  await reason(() => duplicateCollector.collect({ receipt }), REASONS.PROFILE);
+});
+
+test("connected Supabase collector derives required source targets from enabled profiles", async () => {
+  const tables = oneRowTables();
+  tables.institution_site_profiles[0] = {
+    ...tables.institution_site_profiles[0],
+    discovery_enabled: true,
+    pipeline_enabled: true,
+    pipeline_ready: true,
+    seed_urls: ["https://catalog.example/programs"],
+    circuit_open: false,
+  };
+  const transport = new FakeFetchTransport((request) => {
+    const url = new URL(request.url);
+    const table = url.pathname.split("/").at(-1);
+    if (url.searchParams.get("select") === "id") {
+      return Response.json([{ id: `${table}-1` }], { headers: { "content-range": "0-0/1" } });
+    }
+    return Response.json(tables[table]);
+  });
+  const collector = new G5ConnectedSupabaseCollector({
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+      NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+    },
+    transport,
+    dnsResolve: async () => ["93.184.216.34"],
+    receiptStore: receiptStore(),
+    sourceTransport: { requestPinned: async () => ({ status: 503, redirected: false }) },
+  });
+  const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
+    repositoryId: 101, runId: 303, runAttempt: 1,
+  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  const result = await collector.collect({ receipt });
+  assert.equal(result.decision, "STOP");
+  assert.equal(result.reasonCode, REASONS.SOURCE);
+});
+
+test("connected Supabase collector remains disabled when config is absent or secret", async () => {
+  await reason(async () => {
+    new G5ConnectedSupabaseCollector({
+      env: {},
+      transport: new FakeFetchTransport(() => Response.json([])),
+      dnsResolve: async () => ["93.184.216.34"],
+    });
+  }, REASONS.CONFIG);
+  await reason(async () => {
+    new G5ConnectedSupabaseCollector({
+      env: {
+        NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+        NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+        NEXT_SUPABASE_SECRET_KEY: ["sb", "secret", "forbidden"].join("_"),
+      },
+      transport: new FakeFetchTransport(() => Response.json([])),
+      dnsResolve: async () => ["93.184.216.34"],
+    });
+  }, REASONS.SUPABASE);
+  await reason(async () => {
+    new G5ConnectedSupabaseCollector({
+      env: {
+        NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example",
+        NEXT_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_offline",
+      },
+      transport: new FakeFetchTransport(() => Response.json([])),
+      dnsResolve: async () => ["93.184.216.34"],
+    });
+  }, REASONS.CONFIG);
+});
+
+test("connected diagnostic CLI reports disabled instead of silently no-op", async () => {
+  const result = await runG5ConnectedDiagnosticCli({
+    argv: ["node", "index.mjs", "--g5-connected-diagnostic"],
+    env: {},
+  });
+  assert.equal(result.decision, "STOP");
+  assert.equal(result.reasonCode, REASONS.CONFIG);
 });
 
 test("identity includes all six authoritative numeric bindings", async () => {
