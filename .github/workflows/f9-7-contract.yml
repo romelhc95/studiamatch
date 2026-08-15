@@ -71,6 +71,7 @@ on:
       - 'tests/test_fase09_7_pipeline_no_regression.py'
       - 'tests/test_fase09_7_release_gates.py'
       - 'tests/test_fase10_9_g5_get_only_adapter_contract.py'
+      - 'workers/g5-trust-broker/**'
       - 'tests/test_supabase_credentials_contract.py'
       - 'tests/test_frontend_public_surfaces_playwright.py'
       - 'tests/test_f10_10_m3_readonly_collector.py'
@@ -120,7 +121,7 @@ env:
 
 jobs:
   g5-get-only-v2-3:
-    name: F10.9 G5 GET-Only Trust Plane PR A
+    name: F10.9 G5 Trust Broker PR B Repository-Only
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -163,6 +164,12 @@ jobs:
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
             tests/test_fase10_9_g5_get_only_adapter_contract.py
+      - name: Run repository-only G5 trust broker and Durable Object contract
+        run: |
+          sudo setpriv --reuid=65534 --regid=65534 --clear-groups \
+            --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
+            env -i HOME=/tmp CI=true PATH="$PATH" \
+            node --test workers/g5-trust-broker/test/trust-broker.test.mjs
       - name: Restore G5 trust-plane external egress
         if: always()
         run: |

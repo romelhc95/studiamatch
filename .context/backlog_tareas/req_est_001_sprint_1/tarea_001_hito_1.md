@@ -103,23 +103,23 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #383 queda `MERGED_POST_MERGE_VERIFIED` mediante candidate
-   `b921ee90d3ea4966602c3ca4b12a740d3721baa7` y merge protegido
-   `9045c90ac78634f17a66cb3e30e723a2431cb6b4`, tree
-   `3d8455a29b63a38906a67343ee4ba6dd15b366d7`; Security Audit
-   `31896356316=PASS`, F9.7 `31896356280=PASS` y focused v2.3
-   `95040164691=PASS`. V2.3 queda congelado en esa base. PR #382/v2.2 queda
-   antecedente `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El PR A
-   repository-only del trust-plane G5 define [ADR-0012](../../decisiones/ADR-0012_trust_plane_g5_repository_only.md),
-   elimina autoridad caller-supplied, modela `GateIntent`, OIDC GitHub, workflow
-   run, environment, approval numerico, deployment, receipt de consumo y ledger
-   cerrado sin proveedor remoto. Valida offline issuer/audience/claims, SHA/tree,
-   workflow path/ref/SHA/blob, `run_attempt=1`, self-review, approvals/deployments
-   exact-one, replay de nonce/`jti`, expiracion, doble consumo, timeout/ambiguo y
-   fallo posterior al consumo. Termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
-   Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
-   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; cero transporte, Production, GitHub API
-   live, OIDC live, SQL, writers, schedules o consumo real de gate.
+6. `G5`: PR #384 corresponde exclusivamente a PR A y queda
+   `MERGED_POST_MERGE_VERIFIED`: candidate
+   `9414480b6cb6496fc978b7379a5b24a1ae9e1f60`, merge protegido
+   `7a4c6420214dd1ffcc367b1f35cb5f553d07c99c`, tree
+   `4c647e87a4effbc577d1653fd023375c2c87fa3e`; Security
+   `31899873186=PASS`, focused trust-plane `95048814844=PASS` y F9.7 run
+   `31899873143=PASS` / job `95048918881=PASS`, `run_attempt=1`. PR A queda
+   congelado. PR B permanece `REPOSITORY_ONLY_TRUST_BROKER_PR_B_LOCAL_CANDIDATE`,
+   no fusionado ni verificado post-merge, y define [ADR-0013](../../decisiones/ADR-0013_trust_broker_durable_object_ledger.md):
+   Worker trust broker, JWT RS256/JWKS offline, adapter GitHub App read-only con
+   fixtures, binding exact-one y Durable Object CAS `ABSENT -> READY -> CONSUMED`.
+   Prueba replay nonce/`jti`, consumo concurrente, expiracion/tombstone, timeout
+   antes/despues del CAS, receipt inmutable y fallo posterior al consumo. Gate
+   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
+   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
+   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; cero deployment, Production,
+   configuracion remota, Supabase, SQL, writers, schedules o red live.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
