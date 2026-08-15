@@ -103,34 +103,23 @@ aprobaciones separadas; este documento no las concede.
 3. `G2`: `PASS`; P3 preflight FG2 y P4 atomicidad FG3 integrados por PR #338.
 4. `G3`: `PASS`; P5 metadata read-only/fail-closed integrado por PR #341.
 5. `G4`: `PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`.
-6. `G5`: PR #382 integra repository-only v2.2 mediante candidate
-   `8a6724a5850792383456763a119c925c53961f2a` y merge protegido
-   `58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3`, tree
-   `13eb0465233c9e870995763630ee9e6541a45add`; Security Audit
-   `31861308128=PASS`, F9.7 `31861308133=PASS` y focused
-   `94955078030=159 PASS`. Resultado exacto
-   `MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`. El
-   [contrato offline GET-only](../../operaciones/g5_get_only_adapter_contract_2026_08_14.md)
-   v2.2 queda congelado como
-   `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El candidate local v2.3
-   queda `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP`, pendiente de promocion en
-   un nuevo PR, y documenta
-   `EffectiveProfileRouting`, joins exact-one, routing estatico por rol y modo,
-   outcomes source/lifecycle recomputables y la frontera static-only/dynamic FG2,
-   canonicalizacion/dedupe URL, regex safety, cooldown efectivo de circuito 24h,
-   redirect sin evidencia derivable, `SourceAttemptResult`, decision causal en el
-   earliest valid source attempt (sin bundles, cierre de snapshot 1), limites
-   `65/50001 -> STOP_G5_TARGET_BINDING_INVALID`, cota FG3 temprana `50000` y
-   perfiles no elegibles sin probes. FILTER literal usa URL completa; regex usa
-   text 2000 y subset lineal que rechaza agrupacion/alternancia/cuantificadores no
-   escapados; localhost e IP no global se rechazan. FG3 exige
-   `category_counts=3` y acota `courses/prior_mutations/history<=50000`.
-   `circuit_opened_at` dormido queda fingerprint-only. La divergencia
-   NULL de preflight no sustituye el routing
-   del harvester; preflight y workers no cambian. Valida solo estructura e integridad y
-   termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`. Gate
-   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
-   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
+6. `G5`: PR #383 queda `MERGED_POST_MERGE_VERIFIED` mediante candidate
+   `b921ee90d3ea4966602c3ca4b12a740d3721baa7` y merge protegido
+   `9045c90ac78634f17a66cb3e30e723a2431cb6b4`, tree
+   `3d8455a29b63a38906a67343ee4ba6dd15b366d7`; Security Audit
+   `31896356316=PASS`, F9.7 `31896356280=PASS` y focused v2.3
+   `95040164691=PASS`. V2.3 queda congelado en esa base. PR #382/v2.2 queda
+   antecedente `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El PR A
+   repository-only del trust-plane G5 define [ADR-0012](../../decisiones/ADR-0012_trust_plane_g5_repository_only.md),
+   elimina autoridad caller-supplied, modela `GateIntent`, OIDC GitHub, workflow
+   run, environment, approval numerico, deployment, receipt de consumo y ledger
+   cerrado sin proveedor remoto. Valida offline issuer/audience/claims, SHA/tree,
+   workflow path/ref/SHA/blob, `run_attempt=1`, self-review, approvals/deployments
+   exact-one, replay de nonce/`jti`, expiracion, doble consumo, timeout/ambiguo y
+   fallo posterior al consumo. Termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
+   Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
+   `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; cero transporte, Production, GitHub API
+   live, OIDC live, SQL, writers, schedules o consumo real de gate.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
@@ -189,6 +178,19 @@ TASK-H1-001
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
 El alcance contractual vigente permanece en [REQ-EST-001](./_index.md) y [HITO-001](../../hitos/hito_001.md). [EST-001](../../estimaciones/est_001.md) conserva solo complejidad y estimacion tecnica original; esta tabla no agrega criterios.
+
+## Tracking Only F10.9
+
+Esta vista es `TRACKING_ONLY`: no modifica estados, criterios, gates ni autoridad
+ejecutable. Hito 1 contractual = `60%`; F10.9 = `38%`; G5 end-to-end = `30%`.
+Formula: avance ponderado observado = componentes repository-only verificados /
+componentes end-to-end requeridos. Denominadores informativos: Hito 1 `3/5`
+bloques CA1 mayores, F10.9 `3/8` gates operativos G5-G13 reabiertos con G4
+historico fuera del denominador, G5 `3/10` dominios end-to-end (estructura
+GET-only, routing real y trust-plane modelado; quedan ledger atomico, workflow real,
+OIDC live, approval real, Production, connected transport y observacion). Solo se
+actualiza tras PR protegido post-merge con Security, F9.7 y focused PASS y sin drift
+del Context Graph.
 
 ## Equivalencias Aceptadas De H1-CA2P
 

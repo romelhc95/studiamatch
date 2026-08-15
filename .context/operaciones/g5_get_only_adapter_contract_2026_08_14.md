@@ -3,18 +3,18 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP` |
+| Estado | `REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP` |
 | Contrato | `f10.9-g5-get-only-adapter-contract.v2.3` |
 | Schema | `f10.9-g5-get-only-adapter-schema.v2.3` |
 | Algoritmo | `f10.9-g5-get-only-adapter-v2.3` |
-| Fuente protegida | `desarrollo@58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3` |
-| Tree protegido | `13eb0465233c9e870995763630ee9e6541a45add` |
+| Fuente protegida | `desarrollo@9045c90ac78634f17a66cb3e30e723a2431cb6b4` |
+| Tree protegido | `3d8455a29b63a38906a67343ee4ba6dd15b366d7` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
 | Conexiones/probes | `ZERO_NOT_IMPLEMENTED` |
 
-## Reconciliacion PR 382
+## Reconciliacion PR 382 Y PR 383
 
 PR #382 integro repository-only v2.2 y fue verificado sobre:
 
@@ -34,10 +34,23 @@ silenciosamente. Todo sucesor debe usar versiones de contrato, schema y algoritm
 v2.3 o posteriores y una autorizacion separada. V2.1, v2 y v1 permanecen congelados por la
 reconciliacion anterior y no se reabre.
 
-El candidate local sucesor v2.3 sigue siendo repository-only y queda pendiente de
-promocion en un nuevo PR. El resultado de PR #382 exige esa remediacion de routing
-posterior; no acredita connected mode, Production, confianza, autoridad, gate
-consumido ni lectura remota.
+PR #383 promovio el sucesor repository-only v2.3 y quedo verificado sobre:
+
+```text
+candidate = b921ee90d3ea4966602c3ca4b12a740d3721baa7
+merge = 9045c90ac78634f17a66cb3e30e723a2431cb6b4
+tree = 3d8455a29b63a38906a67343ee4ba6dd15b366d7
+security_audit_post_merge = 31896356316=PASS
+f9_7_post_merge = 31896356280=PASS
+focused_v2_3_post_merge = 95040164691=PASS
+result = MERGED_POST_MERGE_VERIFIED
+```
+
+V2.3 queda congelado en `desarrollo@9045c90ac78634f17a66cb3e30e723a2431cb6b4`
+/ tree `3d8455a29b63a38906a67343ee4ba6dd15b366d7`. Este PR A agrega solo el
+control-plane de confianza repository-only. No acredita connected mode,
+Production, transporte, autoridad operacional, approval remoto, gate consumido ni
+lectura remota.
 
 ## Modelo De Confianza
 
@@ -76,6 +89,86 @@ Un sucesor separado debera implementar, sin que este documento lo conceda:
 - ledger de replay de nonce;
 - identidad de environment y run;
 - firma o proof no forjable.
+
+## Trust-Plane G5 PR A Repository-Only
+
+El trust-plane futuro queda modelado por [ADR-0012](../decisiones/ADR-0012_trust_plane_g5_repository_only.md)
+sin ejecutarse. `AuthorizationRequest` y cualquier payload caller-facing no pueden
+contener autoridad, approval, credential, gate status, nonce consumido, proof,
+`run_id`, `deployment_id`, SHA o digests aislados como autoridad. Esos valores se
+aceptan solo como evidencias inmutables ligadas entre si y validadas offline.
+
+Estructuras inmutables nuevas:
+
+- `GateIntent`.
+- `GitHubOidcClaims`.
+- `WorkflowRunEvidence`.
+- `EnvironmentEvidence`.
+- `ApprovalEvidence`.
+- `DeploymentEvidence`.
+- `GateConsumptionReceipt`.
+
+Bindings obligatorios futuros:
+
+- `repository_id` y `owner_id` numericos.
+- ref exacta `refs/heads/main` y ref protegida.
+- candidate SHA/tree congelados.
+- workflow path/ref/SHA/blob.
+- `run_id`, `run_attempt=1`, check run y job identity.
+- environment `Production` por nombre e ID.
+- `deployment_id` ligado al mismo SHA/ref/environment.
+- `actor` y `triggering_actor` numericos.
+- approver numeric ID distinto del iniciador; login por si solo no es autoridad.
+- digests de contrato, schema, algoritmo y capability.
+- `issued_at/expires_at` y `nonce_digest` dentro de ventana valida.
+
+OIDC futuro requiere issuer GitHub, audience dedicada, firma/JWKS verificados,
+claims exactos, `jti` no reutilizado e intervalo temporal vigente. Rerun, partial
+rerun o `run_attempt != 1` terminan STOP.
+
+State machine del gate:
+
+```text
+READY -> CONSUMED
+```
+
+El consumo valido exige compare-and-set exacto para una sola identidad derivada de
+`repository_id/run_id/run_attempt/check_run_id`. Cero, multiples, timeout o resultado
+ambiguo terminan `STOP_G5_CONSUMPTION_AMBIGUOUS`. Un gate consumido permanece
+consumido aunque el diagnostico posterior falle. Replay de nonce o `jti` termina
+`STOP_G5_REPLAY_DETECTED`. Gate expirado termina `STOP_G5_GATE_EXPIRED`.
+
+La interfaz cerrada de ledger queda limitada a `read_gate_intent`,
+`compare_and_set_ready_to_consumed`, `record_jti_once`, `record_nonce_once` y
+`return_consumption_receipt`. No hay proveedor ni implementacion remota en este PR.
+Si GitHub deployment/approval no demuestra atomicidad single-use, el contrato termina
+`STOP_G5_ATOMIC_LEDGER_REQUIRED`; `deployment_id` o environment approval por si solos
+no son ledger atomico. PR A no acepta un booleano, proof o provider caller-supplied
+para saltar ese STOP.
+
+El `workflow_ref` futuro usa formato OIDC repo-qualified: `romelhc95/studiamatch/.github/workflows/f9-7-contract.yml@refs/heads/main`.
+`workflow_sha` y `workflow_blob_sha` quedan congelados como constantes esperadas en
+el modelo repository-only, no como SHA arbitrarios aportados por caller. Los digests
+de contrato, schema, algoritmo y capability se recomputan desde constantes del
+repositorio. Approval queda ligado a `run_id`, `check_run_id`, `deployment_id`, SHA
+y `workflow_sha`. Approval y receipt no pueden estar en el futuro respecto de
+`evaluated_at`; timeout se representa como resultado no consumido y termina
+`STOP_G5_CONSUMPTION_AMBIGUOUS`.
+
+Reason codes separados del trust-plane:
+
+- `STOP_G5_AUTHORITY_INVALID`.
+- `STOP_G5_APPROVAL_INVALID`.
+- `STOP_G5_BINDING_DRIFT`.
+- `STOP_G5_REPLAY_DETECTED`.
+- `STOP_G5_GATE_EXPIRED`.
+- `STOP_G5_CONSUMPTION_AMBIGUOUS`.
+- `STOP_G5_ATOMIC_LEDGER_REQUIRED`.
+- `STOP_G5_PROOF_INVALID`.
+
+Permisos futuros minimos: `contents:read`, `actions:read`, `deployments:read` e
+`id-token:write`. Todo permiso `write` restante queda prohibido. El workflow futuro
+sera manual-only, main-only y environment `Production`; no se crea en este PR.
 
 ## Orden Estructural
 
@@ -355,7 +448,7 @@ source es tambien 15 segundos por intento, pero es un dominio separado; la
 gramatica source admite como maximo HEAD seguido de un unico GET, no dos retries.
 No existe implementacion de lectura.
 
-El check CI `F10.9 G5 GET-Only Contract V2.3` ejecuta la suite focused tanto en
+El check CI `F10.9 G5 GET-Only Trust Plane PR A` ejecuta la suite focused tanto en
 el candidate como en el push post-merge a `desarrollo`. El job F9.7 depende de
 este resultado y solo despues cambia al checkout historico congelado F9.7. Antes
 de importar codigo candidato instala dependencias desde el commit F9.7 congelado,
