@@ -1,0 +1,22 @@
+name: F10.9 G5 Manual Trust Gate Repository-Only Disabled
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_only_disabled:
+        description: Repository-only placeholder; dispatch remains non-operational.
+        required: true
+        default: disabled
+
+permissions: {}
+
+jobs:
+  disabled:
+    name: Repository-only disabled G5 manual gate
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disabled placeholder
+        run: |
+          echo "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"
+          exit 1

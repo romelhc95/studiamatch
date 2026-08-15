@@ -136,13 +136,13 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "7a4c6420214dd1ffcc367b1f35cb5f553d07c99c"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "4c647e87a4effbc577d1653fd023375c2c87fa3e"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "9045c90ac78634f17a66cb3e30e723a2431cb6b4"
-# PR #384 is the protected base's second parent. Trust-broker PR B is one commit.
-G5_GET_ONLY_ADAPTER_CANDIDATE = "9414480b6cb6496fc978b7379a5b24a1ae9e1f60"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-trust-broker-pr-b"
-G5_GET_ONLY_ADAPTER_STATUS = "REPOSITORY_ONLY_TRUST_BROKER_PR_B_LOCAL_CANDIDATE"
+G5_GET_ONLY_ADAPTER_BASE = "191539de71cbff95552c476463305e8d6f3e4b73"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "7fe13bb907053f4dea51ac593b5df0de78cb40d6"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "7a4c6420214dd1ffcc367b1f35cb5f553d07c99c"
+# PR #385 is the protected base's second parent. Workflow/connected PR C is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "09851459f2ffa751e2e8139d4e9a3304427f1ee4"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-workflow-pr-c"
+G5_GET_ONLY_ADAPTER_STATUS = "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE"
 G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT = (
     "MERGED_POST_MERGE_VERIFIED"
 )
@@ -533,18 +533,18 @@ G5_V2_POST_MERGE_ALLOWED_MODES = {
 }
 G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-    ".context/decisiones/ADR-0013_trust_broker_durable_object_ledger.md": "A",
+    ".context/decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md": "A",
     ".context/estado_del_proyecto.md": "M",
     ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
     ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/g5-manual-trust-gate.yml": "A",
     "scripts/security/f109_boundary.py": "M",
     "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
     "tests/test_fase10_9_branch_reconciliation.py": "M",
     "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
-    "workers/g5-trust-broker/src/index.mjs": "A",
-    "workers/g5-trust-broker/test/trust-broker.test.mjs": "A",
-    "workers/g5-trust-broker/wrangler.repository-only.jsonc": "A",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
 }
 G5_GET_ONLY_ADAPTER_ALLOWED_MODES = {
     path: "100644" for path in G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES
@@ -2832,6 +2832,9 @@ def validate_g5_get_only_adapter(
     workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
         encoding="utf-8"
     )
+    manual_workflow = (repo / ".github/workflows/g5-manual-trust-gate.yml").read_text(
+        encoding="utf-8"
+    )
     broker = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(
         encoding="utf-8"
     )
@@ -2843,6 +2846,9 @@ def validate_g5_get_only_adapter(
     ).read_text(encoding="utf-8")
     adr = (
         repo / ".context/decisiones/ADR-0013_trust_broker_durable_object_ledger.md"
+    ).read_text(encoding="utf-8")
+    adr14 = (
+        repo / ".context/decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md"
     ).read_text(encoding="utf-8")
     for forbidden in (
         "import supabase",
@@ -3018,6 +3024,7 @@ def validate_g5_get_only_adapter(
         "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
+        "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
         "class GateIntent",
         "class GitHubOidcClaims",
         "class WorkflowRunEvidence",
@@ -3061,6 +3068,16 @@ def validate_g5_get_only_adapter(
             forbidden not in broker and forbidden not in broker_config,
             "G5 trust broker remote capability drift",
         )
+    for forbidden in (
+        "environment:",
+        "id-token",
+        "secrets.",
+        "wrangler",
+        "curl ",
+        "api.github.com",
+        "Production",
+    ):
+        require(forbidden not in manual_workflow, "G5 manual workflow disabled boundary drift")
     for required in (
         'const VERSION = "f10.9-g5-trust-broker.v1"',
         'const CONNECTED_STOP = "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED"',
@@ -3070,6 +3087,8 @@ def validate_g5_get_only_adapter(
         "export async function verifyGithubOidc",
         'header.alg !== "RS256"',
         "export class GithubAppReadOnlyAdapter",
+        "export class G5ConnectedGithubAppAdapter",
+        "export function createDisabledConnectedGithubAppAdapter",
         "export class G5AtomicLedgerDurableObject extends DurableObjectBase",
         "export class G5TrustBroker",
         'env.G5_ATOMIC_LEDGER.getByName("g5-atomic-ledger-v1")',
@@ -3080,6 +3099,8 @@ def validate_g5_get_only_adapter(
         "binding.environmentId, binding.deploymentId",
         "authorizationComplete: false",
         "transportCreated: false",
+        "REPOSITORY_ONLY_DISABLED",
+        "stop(CONNECTED_STOP)",
     ):
         require(required in broker, "G5 trust broker contract drift")
     for required in (
@@ -3103,6 +3124,8 @@ def validate_g5_get_only_adapter(
         "falsy persisted replay markers still reject consumption",
         "broker preserves allowlisted reasons reconstructed across Durable Object RPC",
         "cleanup and receipt reject falsy corrupted gate records",
+        "connected GitHub App adapter remains disabled before transport",
+        "manual workflow policy is repository-only disabled",
     ):
         require(required in broker_tests, "G5 trust broker test coverage drift")
     for required in (
@@ -3123,15 +3146,35 @@ def validate_g5_get_only_adapter(
     ):
         require(required in adr, "ADR-0013 trust broker drift")
     for required in (
+        "workflow_dispatch",
+        "permissions: {}",
+        "if: ${{ false }}",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+    ):
+        require(required in manual_workflow, "G5 manual workflow disabled marker drift")
+    for required in (
+        "ADR-0014",
+        "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
+        "NOT_EXECUTED_DISABLED_PLACEHOLDER",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "191539de71cbff95552c476463305e8d6f3e4b73",
+        "7fe13bb907053f4dea51ac593b5df0de78cb40d6",
+        "4b3dfb155081f9c3c9b638373b6e5aa2a06cca65",
+    ):
+        require(required in adr14, "ADR-0014 workflow connected drift")
+    for required in (
         G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31899873186=PASS",
-        "31899873143=PASS",
-        "95048918881=PASS",
-        "95048814844=PASS",
+        "09851459f2ffa751e2e8139d4e9a3304427f1ee4",
+        "31903582727=PASS",
+        "31903582617=PASS",
+        "95058032300=PASS",
+        "95057934429=PASS",
         "ADR-0013",
+        "ADR-0014",
+        "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
         "STOP_G5_ATOMIC_LEDGER_REQUIRED",
         "STOP_G5_REPLAY_DETECTED",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
@@ -3149,10 +3192,11 @@ def validate_g5_get_only_adapter(
         "G5 connected-mode unconditional STOP drift",
     )
     for required in (
-        "F10.9 G5 Trust Broker PR B Repository-Only",
+        "F10.9 G5 Workflow PR C Repository-Only",
         "tests/test_fase10_9_g5_get_only_adapter_contract.py",
         "Run repository-only G5 trust broker and Durable Object contract",
         "workers/g5-trust-broker/test/trust-broker.test.mjs",
+        ".github/workflows/g5-manual-trust-gate.yml",
         "needs: [g5-get-only-v2-3, f1010-m3-zero-write]",
         "Block G5 trust-plane external egress",
         "--bounding-set=-all",
@@ -3165,7 +3209,7 @@ def validate_g5_get_only_adapter(
         < workflow.index("git checkout --detach \"$F97_CANDIDATE_COMMIT\""),
         "G5 v2.3 focused CI must precede historical F9.7 checkout",
     )
-    validate_context_graph(repo, 69, 406)
+    validate_context_graph(repo, 70, 408)
 
 
 def detect_mode(

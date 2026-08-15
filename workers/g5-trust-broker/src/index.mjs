@@ -12,9 +12,16 @@ const MAX_LEDGER_RECORDS = 10_000;
 const REPOSITORY_POLICY = Object.freeze({
   repository: REPOSITORY,
   workflowRef: WORKFLOW_REF,
-  candidateSha: "7a4c6420214dd1ffcc367b1f35cb5f553d07c99c",
-  candidateTree: "4c647e87a4effbc577d1653fd023375c2c87fa3e",
-  workflowBlobSha: "0997bdb22d44927045b6d9d3aba14e8bbea9f1c0",
+  candidateSha: "191539de71cbff95552c476463305e8d6f3e4b73",
+  candidateTree: "7fe13bb907053f4dea51ac593b5df0de78cb40d6",
+  workflowBlobSha: "4b3dfb155081f9c3c9b638373b6e5aa2a06cca65",
+});
+const MANUAL_WORKFLOW_POLICY = Object.freeze({
+  state: "REPOSITORY_ONLY_DISABLED",
+  dispatchAllowed: false,
+  idTokenPermission: false,
+  productionEnvironment: false,
+  connectedTransport: false,
 });
 
 let DurableObjectBase = class {
@@ -233,6 +240,22 @@ export class GithubAppReadOnlyAdapter {
     )));
     return Object.freeze({ run, check, deployment, environment, approval, commit, workflowBlob });
   }
+}
+
+export class G5ConnectedGithubAppAdapter {
+  constructor(options = {}) {
+    if (!exactObject(options) || options.enabled !== false) stop(CONNECTED_STOP);
+    this.state = "REPOSITORY_ONLY_DISABLED";
+  }
+
+  async authoritativeEvidence(claims) {
+    void claims;
+    stop(CONNECTED_STOP);
+  }
+}
+
+export function createDisabledConnectedGithubAppAdapter(options = Object.freeze({ enabled: false })) {
+  return new G5ConnectedGithubAppAdapter(options);
 }
 
 function validateAuthority(claims, evidence, policy) {
@@ -474,5 +497,5 @@ export default {
 
 export const INTERNALS = Object.freeze({
   VERSION, ISSUER, AUDIENCE, MAIN_REF, ENVIRONMENT, REPOSITORY, WORKFLOW_REF,
-  REPOSITORY_POLICY, MAX_TOKEN_LIFETIME_SECONDS, MAX_LEDGER_RECORDS,
+  REPOSITORY_POLICY, MANUAL_WORKFLOW_POLICY, MAX_TOKEN_LIFETIME_SECONDS, MAX_LEDGER_RECORDS,
 });

@@ -897,8 +897,8 @@ def test_v2_3_freezes_v2_2_and_valid_request_stops_at_trust() -> None:
     assert HISTORICAL_V2_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
         "ANTECENT", "ANTECEDENT"
     )
-    assert PROTECTED_SOURCE_SHA == "7a4c6420214dd1ffcc367b1f35cb5f553d07c99c"
-    assert PROTECTED_SOURCE_TREE == "4c647e87a4effbc577d1653fd023375c2c87fa3e"
+    assert PROTECTED_SOURCE_SHA == "191539de71cbff95552c476463305e8d6f3e4b73"
+    assert PROTECTED_SOURCE_TREE == "7fe13bb907053f4dea51ac593b5df0de78cb40d6"
     assert CURRENT_GATE_STATUS == "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
     plan = authorize_future_adapter(_authorization())
     assert plan.completed_steps == COMPLETED_STRUCTURAL_STEPS == AUTHORIZATION_ORDER[:-1]

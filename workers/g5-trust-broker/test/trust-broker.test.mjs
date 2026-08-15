@@ -4,11 +4,13 @@ import test from "node:test";
 
 import worker, {
   G5AtomicLedgerDurableObject,
+  G5ConnectedGithubAppAdapter,
   G5TrustBroker,
   GithubAppReadOnlyAdapter,
   INTERNALS,
   REASONS,
   TrustBrokerError,
+  createDisabledConnectedGithubAppAdapter,
   gateIdentity,
   rejectCallerAuthority,
   verifyGithubOidc,
@@ -480,6 +482,25 @@ test("GitHub App transport timeout before CAS leaves no gate", async () => {
   const { broker, storage, request } = setup({ transportOptions: { timeoutResource: "deployment" } });
   await assert.rejects(() => broker.authorize(request));
   assert.equal([...storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+});
+
+test("connected GitHub App adapter remains disabled before transport", async () => {
+  const adapter = createDisabledConnectedGithubAppAdapter();
+  assert.equal(adapter.state, "REPOSITORY_ONLY_DISABLED");
+  await reason(() => adapter.authoritativeEvidence(claims()), "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED");
+  await reason(async () => {
+    new G5ConnectedGithubAppAdapter({ enabled: true });
+  }, "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED");
+});
+
+test("manual workflow policy is repository-only disabled", () => {
+  assert.deepEqual(INTERNALS.MANUAL_WORKFLOW_POLICY, {
+    state: "REPOSITORY_ONLY_DISABLED",
+    dispatchAllowed: false,
+    idTokenPermission: false,
+    productionEnvironment: false,
+    connectedTransport: false,
+  });
 });
 
 test("identity includes all six authoritative numeric bindings", async () => {

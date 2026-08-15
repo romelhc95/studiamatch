@@ -72,6 +72,7 @@ on:
       - 'tests/test_fase09_7_release_gates.py'
       - 'tests/test_fase10_9_g5_get_only_adapter_contract.py'
       - 'workers/g5-trust-broker/**'
+      - '.github/workflows/g5-manual-trust-gate.yml'
       - 'tests/test_supabase_credentials_contract.py'
       - 'tests/test_frontend_public_surfaces_playwright.py'
       - 'tests/test_f10_10_m3_readonly_collector.py'
@@ -121,7 +122,7 @@ env:
 
 jobs:
   g5-get-only-v2-3:
-    name: F10.9 G5 Trust Broker PR B Repository-Only
+    name: F10.9 G5 Workflow PR C Repository-Only
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
