@@ -21,12 +21,15 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     CURRENT_GATE_STATUS,
     EXPECTED_ENVIRONMENT,
     EXPECTED_WORKFLOW,
+    EXCLUDED_DYNAMIC_SOURCE_KINDS,
+    EffectiveProfileRouting,
     FG3CohortEvidence,
     FG3CourseCohortEvidence,
     FG3HistoricalObservationEvidence,
     FG3PriorMutationEvidence,
     FINGERPRINT_DECLARATION,
     FORBIDDEN_METHODS,
+    GO_COMPATIBLE_SOURCE_TERMINALS,
     FrozenRow,
     G5AdapterContractError,
     GET_ONLY_CAPABILITY,
@@ -40,6 +43,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     MAX_IMMUTABLE_INTEGER_ABS,
     MAX_IMMUTABLE_NODES,
     MAX_IMMUTABLE_STRING_BYTES,
+    MAX_FG3_HISTORICAL_OBSERVATIONS,
     MAX_SOURCES_PER_PROFILE,
     ManifestBuilderEvidenceReceipt,
     AnchorProviderEvidenceReceipt,
@@ -50,16 +54,25 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     PUBLIC_PROJECTION_FORBIDDEN_FIELDS,
     READ_CAPTURE_SEQUENCE,
     READ_CLOCK_SOURCE,
+    REDIRECT_EVIDENCE_POLICY,
     ReadTiming,
     RowCursor,
     SCHEMA_VERSION,
     SOURCE_ATTEMPT_BUDGET_NS,
     SOURCE_ATTEMPT_GRAMMAR,
+    SOURCE_CONFIGURATION_ROLES,
+    SOURCE_ROLE_FILTER,
+    SOURCE_ROLE_PROBE_TARGET,
+    SOURCE_ROLE_TEMPLATE,
+    SOURCE_SCOPE,
     STOP_ANCHOR_NOT_INDEPENDENT,
     STOP_CAPABILITY_INVALID,
     STOP_CLOCK_TIMING_INVALID,
     STOP_COUNT_DRIFT,
     STOP_MANIFEST_ANCHOR_MISMATCH,
+    STOP_PROFILE_ROUTING_INVALID,
+    STOP_SOURCE_BLOCKERS_PRESENT,
+    STOP_LIFECYCLE_BLOCKERS_PRESENT,
     STOP_PAGINATION_INCOMPLETE,
     STOP_PROTECTED_SOURCE_INVALID,
     STOP_SNAPSHOT_CONTENT_DRIFT,
@@ -67,7 +80,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     SourceObservationBundle,
     SourceObservationEvidence,
     SourceObservationRequest,
-    SourceAttemptTiming,
+    SourceAttemptResult,
     SnapshotPairPayloadEvidence,
     TABLE_COLUMNS,
     TRUST_MODEL_FUTURE_REQUIREMENTS,
@@ -78,6 +91,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     anchor_provider_receipt_digest,
     authorize_future_adapter,
     classify_lifecycle_proxy,
+    derive_effective_profile_routing,
     evidence_binding_digest,
     historical_anchor_digest,
     historical_manifest_digest,
@@ -91,6 +105,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     public_contract_projection,
     row_fingerprint,
     snapshot_payload_digest,
+    source_terminal_reason,
     target_binding_digest,
     validate_capability,
     validate_fg3_cohort,
@@ -154,6 +169,20 @@ def _timing(operation: str, start_us: int, **overrides: object) -> ReadTiming:
 
 def _frozen_row(table: str, **overrides: object) -> FrozenRow:
     values: dict[str, object] = {column: None for column in TABLE_COLUMNS[table]}
+    if table == "institution_site_profiles":
+        values.update(
+            {
+                "site_type": "traditional_ssr",
+                "seed_urls": (),
+                "catalog_url_patterns": (),
+                "catalog_max_pages": 5,
+                "allowed_url_patterns": (),
+                "exclusion_patterns": (),
+                "requires_cloudflare_bypass": False,
+                "warmup_url": None,
+                "circuit_opened_at": None,
+            }
+        )
     values.update(overrides)
     return FrozenRow(tuple((column, values[column]) for column in TABLE_COLUMNS[table]))
 
@@ -165,6 +194,22 @@ def _rows(
     course_active_overrides: dict[int, object] | None = None,
     profile_rows: tuple[FrozenRow, ...] | None = None,
 ) -> tuple[FrozenRow, ...]:
+    if table == "institutions":
+        institution_ids = (
+            tuple(str(dict(row.values)["institution_id"]) for row in profile_rows)
+            if profile_rows is not None
+            else ("institution-001",)
+        )
+        return tuple(
+            _frozen_row(
+                table,
+                id=identifier,
+                name=f"Institution {index}",
+                slug=f"institution-{index}",
+                website_url=f"https://institution-{index}.example.invalid/base",
+            )
+            for index, identifier in enumerate(institution_ids, 1)
+        )
     if table == "institution_site_profiles":
         if profile_rows is not None:
             return profile_rows
@@ -176,11 +221,17 @@ def _rows(
                 discovery_enabled=True,
                 pipeline_enabled=True,
                 pipeline_ready=True,
-                discovery_mode="sitemap",
-                seed_urls=("opaque-seed",),
+                site_type="traditional_ssr",
+                discovery_mode="hardcoded_urls",
+                seed_urls=("https://institution-1.example.invalid/course",),
                 catalog_url_patterns=(),
+                catalog_max_pages=5,
                 allowed_url_patterns=(),
+                exclusion_patterns=(),
+                requires_cloudflare_bypass=False,
+                warmup_url=None,
                 circuit_open=False,
+                circuit_opened_at=None,
             ),
         )
     if table == "staging_raw":
@@ -192,7 +243,7 @@ def _rows(
                 url="https://private.invalid/staging",
                 status="processing",
                 content_hash="opaque-content",
-                last_harvested_at=(NOW - timedelta(days=1)).isoformat(),
+                last_harvested_at=(NOW - timedelta(hours=12)).isoformat(),
                 created_at=(NOW - timedelta(days=10)).isoformat(),
             ),
         )
@@ -209,7 +260,7 @@ def _rows(
                 ),
                 is_active=(course_active_overrides or {}).get(index, index < 3),
             )
-            for index in range(1, 4)
+            for index in range(1, 5)
         )
     return ()
 
@@ -271,8 +322,9 @@ def _snapshot_bundle(
     first_course_active_overrides: dict[int, object] | None = None,
     second_course_active_overrides: dict[int, object] | None = None,
     profile_rows: tuple[FrozenRow, ...] | None = None,
+    target_issued_at: datetime | None = None,
 ):
-    target = _target()
+    target = _target(**({"issued_at": target_issued_at} if target_issued_at is not None else {}))
     first = tuple(
         _pagination(
             table,
@@ -402,6 +454,23 @@ def _historical_bundle(target: TargetBinding, payload: SnapshotPairPayloadEviden
                 observation_fingerprint=historical_observation_fingerprint(observation),
             )
         )
+    for inactive_index, course in enumerate(course_fingerprints[3:], 1):
+        observation = FG3HistoricalObservationEvidence(
+            observation_fingerprint="",
+            target_binding_digest=target_digest,
+            snapshot_pair_id=PAIR_ID,
+            course_fingerprint=course,
+            run_id=DIGESTS[5 + inactive_index],
+            category="PRIOR_DEACTIVATION",
+            active_at_snapshot_1=False,
+            observed_at=NOW - timedelta(seconds=49, microseconds=inactive_index),
+        )
+        observations.append(
+            replace(
+                observation,
+                observation_fingerprint=historical_observation_fingerprint(observation),
+            )
+        )
     categories = tuple((item.observation_fingerprint, item.category) for item in observations)
     manifest = HistoricalFG3Manifest(
         manifest_digest="",
@@ -459,13 +528,25 @@ def _cohort(
     observations: tuple[FG3HistoricalObservationEvidence, ...],
 ) -> FG3CohortEvidence:
     course_fingerprints, target_digest = _course_fingerprints(target, payload)
-    antecedent_at = observations[-1].observed_at
-    mutation = prior_mutation_fingerprint(
-        course_fingerprints[2],
-        DIGESTS[5],
-        antecedent_at,
-        "DEACTIVATION",
-        observations[-1].observation_fingerprint,
+    mutation_observations = tuple(
+        item for item in observations if item.category in {"DEACTIVATION", "PRIOR_DEACTIVATION"}
+    )
+    mutations = tuple(
+        FG3PriorMutationEvidence(
+            observation.course_fingerprint,
+            observation.run_id,
+            observation.observed_at,
+            "DEACTIVATION",
+            prior_mutation_fingerprint(
+                observation.course_fingerprint,
+                observation.run_id,
+                observation.observed_at,
+                "DEACTIVATION",
+                observation.observation_fingerprint,
+            ),
+            observation.observation_fingerprint,
+        )
+        for observation in mutation_observations
     )
     return FG3CohortEvidence(
         target_binding_digest=target_digest,
@@ -479,23 +560,11 @@ def _cohort(
             )
             for fingerprint in course_fingerprints[:2]
         )
-        + (
-            FG3CourseCohortEvidence(
-                course_fingerprints[2],
-                False,
-                True,
-            ),
+        + tuple(
+            FG3CourseCohortEvidence(fingerprint, False, True)
+            for fingerprint in course_fingerprints[2:]
         ),
-        prior_mutations=(
-            FG3PriorMutationEvidence(
-                course_fingerprints[2],
-                DIGESTS[5],
-                antecedent_at,
-                "DEACTIVATION",
-                mutation,
-                observations[-1].observation_fingerprint,
-            ),
-        ),
+        prior_mutations=mutations,
         historical_observations=observations,
     )
 
@@ -511,9 +580,22 @@ def _source_bundle(
     profile = _inventory(payload, "institution_site_profiles").pages[0].rows[
         profile_index
     ]
+    profile_values = dict(profile.row.values)
+    institution = next(
+        cursor
+        for page in _inventory(payload, "institutions").pages
+        for cursor in page.rows
+        if dict(cursor.row.values)["id"] == profile_values["institution_id"]
+    )
     if source_fingerprint is None:
         source_fingerprint = sorted(
-            profile_source_fingerprints(profile.row_fingerprint, profile.row)
+            profile_source_fingerprints(
+                profile.row_fingerprint,
+                profile.row,
+                institution.row_fingerprint,
+                institution.row,
+                NOW + timedelta(microseconds=1_000),
+            )
         )[0]
     request = SourceObservationRequest(
         evidence_binding_digest(target),
@@ -526,19 +608,21 @@ def _source_bundle(
         2,
     )
     timings = (
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "HEAD",
             NOW + timedelta(microseconds=1_000),
             NOW + timedelta(microseconds=1_100),
             1_000_000,
             1_100_000,
+            403,
         ),
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "GET",
             NOW + timedelta(microseconds=1_200),
             NOW + timedelta(microseconds=1_300),
             1_200_000,
             1_300_000,
+            200,
         ),
     )
     evidence = SourceObservationEvidence(
@@ -549,7 +633,7 @@ def _source_bundle(
         run_fingerprint=RUN_ID,
         cohort_fingerprint=DIGESTS[7],
         method_sequence=("HEAD", "GET"),
-        attempt_timings=timings,
+        attempt_results=timings,
         attempts=2,
         terminal_reason="SOURCE_ACCESSIBLE",
         observed_at=timings[-1].ended_at_utc,
@@ -569,23 +653,39 @@ def _source_bundles(
     bundles: list[SourceObservationBundle] = []
     for index, profile in enumerate(profiles):
         values = dict(profile.row.values)
-        pipeline_gate = (
-            values["pipeline_ready"]
-            if values["pipeline_enabled"] is None
-            else values["pipeline_enabled"]
-        )
-        if values["discovery_enabled"] is True and pipeline_gate is True and values["circuit_open"] is False:
-            bundles.extend(
-                _source_bundle(
-                    target,
-                    payload,
-                    profile_index=index,
-                    source_fingerprint=fingerprint,
-                )
-                for fingerprint in sorted(
-                    profile_source_fingerprints(profile.row_fingerprint, profile.row)
-                )
+        pipeline_gate = values.get("pipeline_enabled", values["pipeline_ready"])
+        if (
+            type(values["discovery_enabled"]) is bool
+            and type(pipeline_gate) is bool
+            and type(values["pipeline_ready"]) is bool
+            and type(values["circuit_open"]) is bool
+        ):
+            institution = next(
+                cursor
+                for page in _inventory(payload, "institutions").pages
+                for cursor in page.rows
+                if dict(cursor.row.values)["id"] == values["institution_id"]
             )
+            try:
+                routing = derive_effective_profile_routing(
+                    profile.row_fingerprint,
+                    profile.row,
+                    institution.row_fingerprint,
+                    institution.row,
+                    NOW + timedelta(microseconds=1_000),
+                )
+            except G5AdapterContractError:
+                continue
+            if routing.eligible:
+                bundles.extend(
+                    _source_bundle(
+                        target,
+                        payload,
+                        profile_index=index,
+                        source_fingerprint=item.source_fingerprint,
+                    )
+                    for item in routing.static_targets
+                )
     return tuple(bundles)
 
 
@@ -600,12 +700,49 @@ def _lifecycle(target: TargetBinding, payload: SnapshotPairPayloadEvidence, eval
     return (LifecycleEvidence(cursor.row_fingerprint, proxy),)
 
 
+def _routing_for(request: AuthorizationRequest, profile_index: int = 0) -> EffectiveProfileRouting:
+    profile = _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[
+        profile_index
+    ]
+    profile_values = dict(profile.row.values)
+    institution = next(
+        cursor
+        for page in _inventory(request.snapshot_payload, "institutions").pages
+        for cursor in page.rows
+        if dict(cursor.row.values)["id"] == profile_values["institution_id"]
+    )
+    routing_observed_at = (
+        min(
+            bundle.evidence.attempt_results[0].started_at_utc
+            for bundle in request.source_observations
+        )
+        if request.source_observations
+        else max(
+            timing.ended_at_utc
+            for inventory in request.snapshot_payload.snapshot_1
+            for timing in (
+                inventory.initial_count_timing,
+                *(page.timing for page in inventory.pages),
+                inventory.final_count_timing,
+            )
+        )
+    )
+    return derive_effective_profile_routing(
+        profile.row_fingerprint,
+        profile.row,
+        institution.row_fingerprint,
+        institution.row,
+        routing_observed_at,
+    )
+
+
 def _authorization(
     *,
     course_active_overrides: dict[int, object] | None = None,
     first_course_active_overrides: dict[int, object] | None = None,
     second_course_active_overrides: dict[int, object] | None = None,
     profile_rows: tuple[FrozenRow, ...] | None = None,
+    target_issued_at: datetime | None = None,
     **overrides: object,
 ) -> AuthorizationRequest:
     payload, target = _snapshot_bundle(
@@ -613,6 +750,7 @@ def _authorization(
         first_course_active_overrides=first_course_active_overrides,
         second_course_active_overrides=second_course_active_overrides,
         profile_rows=profile_rows,
+        target_issued_at=target_issued_at,
     )
     manifest, anchor, builder, provider, observations, target = _historical_bundle(
         target, payload
@@ -641,20 +779,37 @@ def _authorization(
 
 def _with_source_timings(
     request: AuthorizationRequest,
-    timings: tuple[SourceAttemptTiming, ...],
+    timings: tuple[SourceAttemptResult, ...],
     *,
     observed_at: datetime | None = None,
 ) -> AuthorizationRequest:
     bundle = request.source_observations[0]
+    profile = _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0]
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0]
+    routing = derive_effective_profile_routing(
+        profile.row_fingerprint,
+        profile.row,
+        institution.row_fingerprint,
+        institution.row,
+        timings[0].started_at_utc,
+    )
+    source_fingerprint = routing.static_targets[0].source_fingerprint
     evidence = replace(
         bundle.evidence,
-        attempt_timings=timings,
+        source_fingerprint=source_fingerprint,
+        attempt_results=timings,
         observed_at=timings[-1].ended_at_utc if observed_at is None else observed_at,
     )
     return replace(
         request,
         source_observations=(
-            replace(bundle, evidence=evidence),
+            replace(
+                bundle,
+                request=replace(
+                    bundle.request, source_fingerprint=source_fingerprint
+                ),
+                evidence=evidence,
+            ),
             *request.source_observations[1:],
         ),
     )
@@ -707,18 +862,18 @@ def _with_historical_times(
     )
 
 
-def test_v2_2_freezes_v2_1_and_valid_request_stops_at_trust() -> None:
+def test_v2_3_freezes_v2_2_and_valid_request_stops_at_trust() -> None:
     assert (CONTRACT_VERSION, SCHEMA_VERSION, ALGORITHM_VERSION) == (
-        "f10.9-g5-get-only-adapter-contract.v2.2",
-        "f10.9-g5-get-only-adapter-schema.v2.2",
-        "f10.9-g5-get-only-adapter-v2.2",
+        "f10.9-g5-get-only-adapter-contract.v2.3",
+        "f10.9-g5-get-only-adapter-schema.v2.3",
+        "f10.9-g5-get-only-adapter-v2.3",
     )
-    assert HISTORICAL_CONTRACT_VERSION.endswith(".v2.1")
+    assert HISTORICAL_CONTRACT_VERSION.endswith(".v2.2")
     assert HISTORICAL_V2_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
         "ANTECENT", "ANTECEDENT"
     )
-    assert PROTECTED_SOURCE_SHA == "c998b0293b364b1c59d9c52824178927977f0b56"
-    assert PROTECTED_SOURCE_TREE == "d93843d4e08dfd9c45571b72040994926dffc221"
+    assert PROTECTED_SOURCE_SHA == "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3"
+    assert PROTECTED_SOURCE_TREE == "13eb0465233c9e870995763630ee9e6541a45add"
     assert CURRENT_GATE_STATUS == "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
     plan = authorize_future_adapter(_authorization())
     assert plan.completed_steps == COMPLETED_STRUCTURAL_STEPS == AUTHORIZATION_ORDER[:-1]
@@ -747,6 +902,18 @@ def test_historical_causality_accepts_inclusive_edges_before_snapshot_1() -> Non
     assert authorize_future_adapter(equal_manifest_anchor).reason == TRUST_STOP
 
 
+@pytest.mark.parametrize("offset_us,accepted", ((-1, True), (0, True), (1, False)))
+def test_target_issued_at_may_precede_or_equal_first_historical_observation(
+    offset_us: int, accepted: bool
+) -> None:
+    issued_at = NOW - timedelta(seconds=50) + timedelta(microseconds=offset_us)
+    request = _authorization(target_issued_at=issued_at)
+    if accepted:
+        assert authorize_future_adapter(request).reason == TRUST_STOP
+    else:
+        _reason(lambda: authorize_future_adapter(request), STOP_CLOCK_TIMING_INVALID)
+
+
 @pytest.mark.parametrize(
     "manifest_at,anchor_at",
     (
@@ -772,15 +939,15 @@ def test_historical_causality_rejects_future_knowledge(
     (
         (True, False, TRUST_STOP),
         (False, True, TRUST_STOP),
-        (None, True, TRUST_STOP),
-        (None, False, TRUST_STOP),
-        (0, True, STOP_TARGET_BINDING_INVALID),
-        (1, True, STOP_TARGET_BINDING_INVALID),
-        (True, 0, STOP_TARGET_BINDING_INVALID),
-        (True, 1, STOP_TARGET_BINDING_INVALID),
-        (True, None, STOP_TARGET_BINDING_INVALID),
-        (None, None, STOP_TARGET_BINDING_INVALID),
-        ("true", True, STOP_TARGET_BINDING_INVALID),
+        (None, True, STOP_PROFILE_ROUTING_INVALID),
+        (None, False, STOP_PROFILE_ROUTING_INVALID),
+        (0, True, STOP_PROFILE_ROUTING_INVALID),
+        (1, True, STOP_PROFILE_ROUTING_INVALID),
+        (True, 0, STOP_PROFILE_ROUTING_INVALID),
+        (True, 1, STOP_PROFILE_ROUTING_INVALID),
+        (True, None, STOP_PROFILE_ROUTING_INVALID),
+        (None, None, STOP_PROFILE_ROUTING_INVALID),
+        ("true", True, STOP_PROFILE_ROUTING_INVALID),
     ),
 )
 def test_pipeline_enabled_primary_gate_and_pipeline_ready_fallback(
@@ -795,8 +962,7 @@ def test_pipeline_enabled_primary_gate_and_pipeline_ready_fallback(
         discovery_enabled=True,
         pipeline_enabled=pipeline_enabled,
         pipeline_ready=pipeline_ready,
-        discovery_mode="sitemap",
-        seed_urls=("private-seed",),
+        discovery_mode="sitemap_bfs",
         catalog_url_patterns=(),
         allowed_url_patterns=(),
         circuit_open=False,
@@ -808,6 +974,676 @@ def test_pipeline_enabled_primary_gate_and_pipeline_ready_fallback(
         _reason(lambda: authorize_future_adapter(request), expected)
 
 
+def test_pipeline_ready_fallback_applies_only_when_pipeline_column_is_absent() -> None:
+    current = _frozen_row(
+        "institution_site_profiles",
+        id="profile-legacy",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="sitemap_bfs",
+        circuit_open=False,
+    )
+    legacy = FrozenRow(tuple(pair for pair in current.values if pair[0] != "pipeline_enabled"))
+    request = _authorization(profile_rows=(legacy,))
+    assert authorize_future_adapter(request).reason == TRUST_STOP
+    profile = _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0]
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0]
+    routing = derive_effective_profile_routing(
+        profile.row_fingerprint,
+        profile.row,
+        institution.row_fingerprint,
+        institution.row,
+        request.evaluated_at,
+    )
+    assert routing.pipeline_enabled_present is False
+    assert routing.pipeline_enabled is None
+
+
+@pytest.mark.parametrize("field,value", (("discovery_enabled", 1), ("circuit_open", 0)))
+def test_discovery_and_circuit_gates_require_strict_booleans(field: str, value: object) -> None:
+    gates = {"discovery_enabled": True, "circuit_open": False}
+    gates[field] = value
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-strict",
+        institution_id="institution-001",
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        **gates,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+@pytest.mark.parametrize(
+    "mode,overrides,expected",
+    (
+        (
+            "hardcoded_urls",
+            {"seed_urls": ("https://institution-1.example.invalid/a", "https://institution-1.example.invalid/b")},
+            (("HARDCODED_DETAIL", "https://institution-1.example.invalid/a"), ("HARDCODED_DETAIL", "https://institution-1.example.invalid/b")),
+        ),
+        (
+            "paginated_catalog",
+            {"catalog_url_patterns": ("https://institution-1.example.invalid/catalog/{page}",), "catalog_max_pages": 3},
+            tuple(("CATALOG_PAGE", f"https://institution-1.example.invalid/catalog/{page}") for page in range(1, 4)),
+        ),
+        (
+            "catalog_link_extraction",
+            {"seed_urls": ("https://institution-1.example.invalid/catalog",)},
+            (("CATALOG_ROOT", "https://institution-1.example.invalid/catalog"), ("CATALOG_ROOT", "https://institution-1.example.invalid/base")),
+        ),
+        (
+            "sitemap_bfs",
+            {},
+            (("SITEMAP_ROOT", "https://institution-1.example.invalid/sitemap.xml"), ("BFS_ROOT", "https://institution-1.example.invalid/base")),
+        ),
+    ),
+)
+def test_effective_routing_matches_static_harvester_targets(
+    mode: str,
+    overrides: dict[str, object],
+    expected: tuple[tuple[str, str], ...],
+) -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-routing",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode=mode,
+        circuit_open=False,
+        allowed_url_patterns=("re:^/",),
+        exclusion_patterns=("/news/",),
+        **overrides,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert tuple((item.kind, item.url) for item in routing.static_targets) == expected
+    assert all(item.role == SOURCE_ROLE_PROBE_TARGET for item in routing.static_targets)
+    assert all("allowed" not in item.kind.lower() and "exclusion" not in item.kind.lower() for item in routing.static_targets)
+    assert dict(SOURCE_CONFIGURATION_ROLES) == {
+        "static_targets": SOURCE_ROLE_PROBE_TARGET,
+        "catalog_url_patterns": SOURCE_ROLE_TEMPLATE,
+        "allowed_url_patterns": SOURCE_ROLE_FILTER,
+        "exclusion_patterns": SOURCE_ROLE_FILTER,
+    }
+    assert SOURCE_SCOPE == "STATIC_HARVESTER_ENTRY_TARGETS_ONLY"
+    assert EXCLUDED_DYNAMIC_SOURCE_KINDS == (
+        "NESTED_SITEMAP",
+        "CATALOG_EXTRACTED_LINK",
+        "BFS_CHILD",
+    )
+
+
+def test_warmup_is_conditional_and_dormant_configuration_is_only_fingerprinted() -> None:
+    base = dict(
+        id="profile-warmup",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        catalog_url_patterns=("https://dormant.invalid/{page}",),
+        allowed_url_patterns=("/course",),
+        exclusion_patterns=("/news",),
+        requires_cloudflare_bypass=True,
+        warmup_url="https://institution-1.example.invalid/warmup",
+        circuit_open=False,
+    )
+    no_browser = _routing_for(
+        _authorization(profile_rows=(_frozen_row("institution_site_profiles", site_type="traditional_ssr", **base),))
+    )
+    browser = _routing_for(
+        _authorization(profile_rows=(_frozen_row("institution_site_profiles", site_type="spa_js_heavy", **base),))
+    )
+    assert [item.kind for item in no_browser.static_targets] == ["HARDCODED_DETAIL"]
+    assert [item.kind for item in browser.static_targets] == ["WARMUP", "HARDCODED_DETAIL"]
+    assert no_browser.routing_fingerprint != browser.routing_fingerprint
+    assert all("dormant.invalid" not in item.url for item in browser.static_targets)
+
+
+def test_dormant_template_changes_fingerprints_without_becoming_target() -> None:
+    common = dict(
+        id="profile-dormant",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=False,
+    )
+    first = _routing_for(
+        _authorization(
+            profile_rows=(
+                _frozen_row(
+                    "institution_site_profiles",
+                    catalog_url_patterns=("https://dormant-a.invalid/{page}",),
+                    **common,
+                ),
+            )
+        )
+    )
+    second = _routing_for(
+        _authorization(
+            profile_rows=(
+                _frozen_row(
+                    "institution_site_profiles",
+                    catalog_url_patterns=("https://dormant-b.invalid/{page}",),
+                    **common,
+                ),
+            )
+        )
+    )
+    assert tuple((item.kind, item.url) for item in first.static_targets) == tuple(
+        (item.kind, item.url) for item in second.static_targets
+    )
+    assert first.routing_fingerprint != second.routing_fingerprint
+    assert first.static_targets[0].source_fingerprint != second.static_targets[0].source_fingerprint
+    assert all("dormant" not in item.url for item in (*first.static_targets, *second.static_targets))
+
+
+def test_effective_routing_contains_only_requested_source_derivation_fields() -> None:
+    fields = set(EffectiveProfileRouting.__dataclass_fields__)
+    removed = {"catalog_scroll_iterations", "catalog_link_selector"}
+    assert not fields & removed
+    assert not set(TABLE_COLUMNS["institution_site_profiles"]) & removed
+    profile_query = next(
+        query for query in GET_ONLY_CAPABILITY.queries if query.table == "institution_site_profiles"
+    )
+    assert not set(profile_query.columns) & removed
+
+
+def test_allowed_and_exclusion_patterns_filter_hardcoded_targets_but_are_never_targets() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-filters",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=(
+            "https://institution-1.example.invalid/course/keep",
+            "https://institution-1.example.invalid/course/news/drop",
+            "https://institution-1.example.invalid/other/drop",
+        ),
+        allowed_url_patterns=("re:^/course/",),
+        exclusion_patterns=("/news/",),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert tuple((item.kind, item.url) for item in routing.static_targets) == (
+        ("HARDCODED_DETAIL", "https://institution-1.example.invalid/course/keep"),
+    )
+
+
+def test_targets_are_canonical_and_deduplicated_by_kind_and_url() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-canonical",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        site_type="spa_js_heavy",
+        discovery_mode="hardcoded_urls",
+        seed_urls=(
+            "HTTPS://INSTITUTION-1.EXAMPLE.INVALID:443/course?utm_source=x",
+            "https://institution-1.example.invalid/course",
+        ),
+        requires_cloudflare_bypass=True,
+        warmup_url="https://institution-1.example.invalid/course?fbclid=x",
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert tuple((item.kind, item.url) for item in routing.static_targets) == (
+        ("WARMUP", "https://institution-1.example.invalid/course"),
+        ("HARDCODED_DETAIL", "https://institution-1.example.invalid/course"),
+    )
+    assert routing.seed_urls == (
+        "https://institution-1.example.invalid/course",
+        "https://institution-1.example.invalid/course",
+    )
+    assert routing.warmup_url == "https://institution-1.example.invalid/course"
+    assert len({(item.kind, item.url) for item in routing.static_targets}) == 2
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "http://localhost/course",
+        "http://sub.localhost/course",
+        "http://127.0.0.1/course",
+        "http://10.0.0.1/course",
+        "http://169.254.1.1/course",
+        "http://[::1]/course",
+    ),
+)
+def test_routing_url_rejects_localhost_and_non_global_ip_literals(url: str) -> None:
+    _reason(lambda: contract._routing_url(url), STOP_PROFILE_ROUTING_INVALID)
+
+
+def test_routing_url_does_not_resolve_dns_names() -> None:
+    assert contract._routing_url("HTTPS://Does-Not-Resolve.Example.Invalid:443/path") == (
+        "https://does-not-resolve.example.invalid/path"
+    )
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    (
+        "re:" + "a" * 201,
+        "re:(a+)+",
+        r"re:(a)\1",
+        "re:(?=admin)",
+        "re:(?<=admin)",
+        "re:[",
+        "re:a*a*a*a*a*a*b",
+        "re:a+a+a+a+a+a+b",
+        "re:a?a?a?a?a?a?b",
+        "re:a{1}b",
+    ),
+)
+@pytest.mark.parametrize("field", ("allowed_url_patterns", "exclusion_patterns"))
+def test_profile_regex_security_rejects_unsafe_or_invalid_patterns(
+    pattern: str, field: str
+) -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-regex",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=False,
+        **{field: (pattern,)},
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+@pytest.mark.parametrize(
+    "age,eligible,effective_open,auto_closed",
+    (
+        (timedelta(hours=24) - timedelta(microseconds=1), False, True, False),
+        (timedelta(hours=24), True, False, True),
+        (timedelta(hours=24) + timedelta(microseconds=1), True, False, True),
+    ),
+)
+def test_circuit_effective_state_matches_harvester_24_hour_boundary(
+    age: timedelta,
+    eligible: bool,
+    effective_open: bool,
+    auto_closed: bool,
+) -> None:
+    observed_at = NOW + timedelta(microseconds=1_000)
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-circuit",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=True,
+        circuit_opened_at=(observed_at - age).isoformat(),
+        )
+    request = _authorization(profile_rows=(profile,))
+    profile_cursor = _inventory(
+        request.snapshot_payload, "institution_site_profiles"
+    ).pages[0].rows[0]
+    institution_cursor = _inventory(
+        request.snapshot_payload, "institutions"
+    ).pages[0].rows[0]
+    routing = derive_effective_profile_routing(
+        profile_cursor.row_fingerprint,
+        profile_cursor.row,
+        institution_cursor.row_fingerprint,
+        institution_cursor.row,
+        observed_at,
+    )
+    assert routing.observed_at == observed_at
+    assert routing.eligible is eligible
+    assert routing.circuit_effective_open is effective_open
+    assert routing.circuit_auto_closed is auto_closed
+    assert authorize_future_adapter(request).reason == TRUST_STOP
+
+
+def test_circuit_cooldown_crossing_before_evaluated_at_uses_routing_start() -> None:
+    evaluated_at = NOW + timedelta(microseconds=3_000)
+    routing_start = NOW + timedelta(microseconds=1_000)
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-circuit-crossing",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=True,
+        circuit_opened_at=(evaluated_at - timedelta(hours=24)).isoformat(),
+    )
+    request = _authorization(profile_rows=(profile,))
+    routing = derive_effective_profile_routing(
+        _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0].row_fingerprint,
+        _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0].row,
+        _inventory(request.snapshot_payload, "institutions").pages[0].rows[0].row_fingerprint,
+        _inventory(request.snapshot_payload, "institutions").pages[0].rows[0].row,
+        routing_start,
+    )
+    assert routing.circuit_effective_open is True
+    assert routing.eligible is False
+    assert request.evaluated_at == evaluated_at
+    assert authorize_future_adapter(request).reason == TRUST_STOP
+
+
+@pytest.mark.parametrize("opened_at", ("not-a-timestamp", "2026-08-15T12:00:00"))
+def test_circuit_opened_at_must_be_well_formed_utc(opened_at: str) -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-circuit-invalid",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=True,
+        circuit_opened_at=opened_at,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+def test_dormant_circuit_timestamp_is_fingerprinted_without_parsing() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-circuit-dormant",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=False,
+        circuit_opened_at="dormant-malformed-timestamp",
+    )
+    request = _authorization(profile_rows=(profile,))
+    routing = _routing_for(request)
+    assert routing.circuit_opened_at == "dormant-malformed-timestamp"
+    assert routing.circuit_effective_open is False
+    assert authorize_future_adapter(request).reason == TRUST_STOP
+
+
+def test_noneligible_profile_binds_config_without_deriving_invalid_active_targets() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-disabled",
+        institution_id="institution-001",
+        discovery_enabled=False,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("not a valid target",),
+        catalog_max_pages=-99,
+        warmup_url="also not a valid target",
+        circuit_open=False,
+    )
+    request = _authorization(profile_rows=(profile,))
+    routing = _routing_for(request)
+    assert routing.eligible is False
+    assert routing.static_targets == ()
+    assert authorize_future_adapter(request).reason == TRUST_STOP
+
+
+def test_noneligible_profile_still_rejects_unsafe_fingerprint_configuration() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-disabled-unsafe",
+        institution_id="institution-001",
+        discovery_enabled=False,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("not a valid target",),
+        allowed_url_patterns=("re:(a+)+",),
+        circuit_open=False,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+def test_invalid_active_target_blocks_only_when_profile_is_eligible() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-active-invalid",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://user:password@institution-1.example.invalid/course",),
+        circuit_open=False,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+@pytest.mark.parametrize("mode", ("hardcoded_urls", "sitemap_bfs"))
+def test_hardcoded_and_sitemap_do_not_invent_preflight_pattern_requirements(
+    mode: str,
+) -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-real-harvester",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode=mode,
+        seed_urls=(),
+        allowed_url_patterns=(),
+        exclusion_patterns=(),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert tuple(item.kind for item in routing.static_targets) == (
+        "SITEMAP_ROOT",
+        "BFS_ROOT",
+    )
+
+
+def test_profile_regex_search_text_is_limited_to_2000_characters() -> None:
+    long_path = "/" + "a" * 2000 + "blocked"
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-regex-limit",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=(f"https://institution-1.example.invalid{long_path}",),
+        exclusion_patterns=("re:blocked$",),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert len(routing.static_targets) == 1
+
+
+def test_profile_literal_filter_uses_the_complete_url() -> None:
+    long_path = "/" + "a" * 2100 + "blocked"
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-literal-full",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=(f"https://institution-1.example.invalid{long_path}",),
+        exclusion_patterns=("blocked",),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert routing.static_targets == ()
+
+
+def test_linear_regex_subset_keeps_anchors_and_character_classes() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-linear-regex",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/a/course",),
+        allowed_url_patterns=("re:^/[a-z]/course$",),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert len(routing.static_targets) == 1
+
+
+@pytest.mark.parametrize(
+    "expression",
+    ("(a|aa)+$", "a*a*a*a*a*a*b", "a+a+a+a+a+a+b", "a?a?a?a?a?a?b"),
+)
+def test_hostile_quantifiers_are_rejected_before_regex_engine_execution(
+    expression: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    def forbidden_compile(*_args, **_kwargs):
+        calls.append("compile")
+        raise AssertionError("hostile regex reached compiler")
+
+    def forbidden_search(*_args, **_kwargs):
+        calls.append("search")
+        raise AssertionError("hostile regex reached search")
+
+    monkeypatch.setattr(contract.re, "compile", forbidden_compile)
+    monkeypatch.setattr(contract.re, "search", forbidden_search)
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-hostile-regex",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/" + "a" * 2000 + "!",),
+        allowed_url_patterns=(f"re:{expression}",),
+        circuit_open=False,
+    )
+    _reason(
+        lambda: authorize_future_adapter(_authorization(profile_rows=(profile,))),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+    assert calls == []
+
+
+def test_profile_institution_join_is_exact_one() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-orphan",
+        institution_id="missing-institution",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="hardcoded_urls",
+        seed_urls=("https://institution-1.example.invalid/course",),
+        circuit_open=False,
+    )
+    # The fixture joins institutions from profiles; force a cross-id mismatch at the pure helper.
+    request = _authorization()
+    valid_profile = _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0]
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0]
+    _reason(
+        lambda: derive_effective_profile_routing(
+            valid_profile.row_fingerprint,
+            profile,
+            institution.row_fingerprint,
+            institution.row,
+            request.evaluated_at,
+        ),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+@pytest.mark.parametrize("case", ("missing", "duplicate", "contradictory"))
+def test_profile_institution_join_rejects_missing_duplicate_and_contradictory(
+    case: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = _authorization()
+    profile = _inventory(request.snapshot_payload, "institution_site_profiles").pages[0].rows[0].row
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0].row
+    if case == "missing":
+        profiles, institutions = (profile,), ()
+    elif case == "duplicate":
+        profiles, institutions = (profile, profile), (institution,)
+    else:
+        contradictory = FrozenRow(
+            tuple(
+                (key, "different-institution" if key == "institution_id" else value)
+                for key, value in profile.values
+            )
+        )
+        profiles, institutions = (contradictory,), (institution,)
+
+    def inventory_rows(_payload, _snapshot, table, _reason):
+        return profiles if table == "institution_site_profiles" else institutions
+
+    monkeypatch.setattr(contract, "_inventory_rows", inventory_rows)
+    _reason(
+        lambda: contract._eligible_profile_sources(
+            request.target, request.snapshot_payload, request.evaluated_at
+        ),
+        STOP_PROFILE_ROUTING_INVALID,
+    )
+
+
+def test_paginated_catalog_without_placeholder_follows_harvester_and_deduplicates() -> None:
+    profile = _frozen_row(
+        "institution_site_profiles",
+        id="profile-template",
+        institution_id="institution-001",
+        discovery_enabled=True,
+        pipeline_enabled=True,
+        pipeline_ready=True,
+        discovery_mode="paginated_catalog",
+        catalog_url_patterns=("https://institution-1.example.invalid/catalog",),
+        circuit_open=False,
+    )
+    routing = _routing_for(_authorization(profile_rows=(profile,)))
+    assert tuple((item.kind, item.url) for item in routing.static_targets) == (
+        ("CATALOG_PAGE", "https://institution-1.example.invalid/catalog"),
+    )
+
+
 def test_multiple_profiles_and_multiple_configured_sources_are_exactly_covered() -> None:
     profiles = (
         _frozen_row(
@@ -817,9 +1653,9 @@ def test_multiple_profiles_and_multiple_configured_sources_are_exactly_covered()
             discovery_enabled=True,
             pipeline_enabled=True,
             pipeline_ready=False,
-            discovery_mode="sitemap",
-            seed_urls=("private-seed-a", "private-seed-b"),
-            catalog_url_patterns=("private-catalog-a",),
+            discovery_mode="sitemap_bfs",
+            seed_urls=("https://dormant-a.invalid", "https://dormant-b.invalid"),
+            catalog_url_patterns=("https://dormant.invalid/{page}",),
             allowed_url_patterns=("private-allowed-a",),
             circuit_open=False,
         ),
@@ -828,23 +1664,23 @@ def test_multiple_profiles_and_multiple_configured_sources_are_exactly_covered()
             id="profile-002",
             institution_id="institution-002",
             discovery_enabled=True,
-            pipeline_enabled=None,
+            pipeline_enabled=True,
             pipeline_ready=True,
             discovery_mode="hardcoded_urls",
-            seed_urls=("private-seed-c",),
+            seed_urls=("https://institution-2.example.invalid/course",),
             catalog_url_patterns=(),
-            allowed_url_patterns=("private-allowed-b",),
+            allowed_url_patterns=("/course",),
             circuit_open=False,
         ),
     )
     request = _authorization(profile_rows=profiles)
-    assert len(request.source_observations) == 6
+    assert len(request.source_observations) == 3
     assert authorize_future_adapter(request).reason == TRUST_STOP
     _reason(
         lambda: authorize_future_adapter(
             replace(request, source_observations=request.source_observations[:-1])
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
     extra = request.source_observations[0]
     arbitrary = replace(
@@ -856,7 +1692,7 @@ def test_multiple_profiles_and_multiple_configured_sources_are_exactly_covered()
         lambda: authorize_future_adapter(
             replace(request, source_observations=(*request.source_observations, arbitrary))
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
 
 
@@ -867,12 +1703,13 @@ def test_every_accepted_head_get_sequence_reaches_trust_stop(
     request = _authorization()
     bundle = request.source_observations[0]
     timings = tuple(
-        SourceAttemptTiming(
+        SourceAttemptResult(
             method,
             NOW + timedelta(microseconds=1_000 + index * 200),
             NOW + timedelta(microseconds=1_100 + index * 200),
             1_000_000 + index * 200_000,
             1_100_000 + index * 200_000,
+            403 if method == "HEAD" and len(sequence) == 2 else 200,
         )
         for index, method in enumerate(sequence)
     )
@@ -886,7 +1723,7 @@ def test_every_accepted_head_get_sequence_reaches_trust_stop(
         evidence=replace(
             bundle.evidence,
             method_sequence=sequence,
-            attempt_timings=timings,
+            attempt_results=timings,
             attempts=len(sequence),
             observed_at=timings[-1].ended_at_utc,
         ),
@@ -897,12 +1734,113 @@ def test_every_accepted_head_get_sequence_reaches_trust_stop(
 
 
 @pytest.mark.parametrize(
+    "head_status,get_status,error_class,terminal",
+    (
+        (200, None, "NONE", "SOURCE_ACCESSIBLE"),
+        (404, None, "NONE", "SOURCE_HTTP_404"),
+        (410, None, "NONE", "SOURCE_HTTP_410"),
+        (418, None, "NONE", "SOURCE_INACCESSIBLE"),
+        (403, 403, "NONE", "SOURCE_ACCESS_403"),
+        (405, 200, "NONE", "SOURCE_ACCESSIBLE"),
+        (501, 404, "NONE", "SOURCE_HTTP_404"),
+        (429, None, "NONE", "SOURCE_TIMEOUT"),
+        (None, None, "DNS_FAILURE", "SOURCE_DNS_FAILURE"),
+        (None, None, "TLS_FAILURE", "SOURCE_TLS_FAILURE"),
+        (None, None, "TRANSPORT_FAILURE", "SOURCE_TRANSPORT_FAILURE"),
+    ),
+)
+def test_source_terminal_reason_is_recomputed_from_closed_attempt_results(
+    head_status: int | None,
+    get_status: int | None,
+    error_class: str,
+    terminal: str,
+) -> None:
+    head = SourceAttemptResult("HEAD", NOW, NOW + timedelta(microseconds=1), 1, 1001, head_status, error_class)
+    results = (head,)
+    if get_status is not None:
+        results += (
+            SourceAttemptResult("GET", NOW + timedelta(microseconds=2), NOW + timedelta(microseconds=3), 2001, 3001, get_status),
+        )
+    assert source_terminal_reason(results) == terminal
+
+
+def test_non_accessible_source_is_structurally_valid_but_blocks_authorization() -> None:
+    request = _authorization()
+    bundle = request.source_observations[0]
+    head, get = bundle.evidence.attempt_results
+    blocked = replace(
+        bundle,
+        evidence=replace(
+            bundle.evidence,
+            attempt_results=(head, replace(get, status_code=403)),
+            terminal_reason="SOURCE_ACCESS_403",
+        ),
+    )
+    validate_source_observation(
+        blocked.request,
+        blocked.evidence,
+        request.target,
+        request.snapshot_payload,
+        request.evaluated_at,
+    )
+    _reason(
+        lambda: authorize_future_adapter(replace(request, source_observations=(blocked,))),
+        STOP_SOURCE_BLOCKERS_PRESENT,
+    )
+    assert GO_COMPATIBLE_SOURCE_TERMINALS == frozenset({"SOURCE_ACCESSIBLE"})
+
+
+def test_source_terminal_result_mismatch_is_a_source_blocker() -> None:
+    request = _authorization()
+    bundle = request.source_observations[0]
+    mismatch = replace(
+        bundle,
+        evidence=replace(bundle.evidence, terminal_reason="SOURCE_ACCESS_403"),
+    )
+    _reason(
+        lambda: validate_source_observation(
+            mismatch.request,
+            mismatch.evidence,
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        STOP_SOURCE_BLOCKERS_PRESENT,
+    )
+
+
+@pytest.mark.parametrize("classification", ("SAME_ORIGIN_PUBLIC", "OTHER_PUBLIC"))
+def test_redirect_classification_requires_derivation_evidence_not_present_in_v2_3(
+    classification: str,
+) -> None:
+    request = _authorization()
+    bundle = request.source_observations[0]
+    head, get = bundle.evidence.attempt_results
+    unsupported = replace(
+        bundle.evidence,
+        attempt_results=(head, replace(get, redirect_classification=classification)),
+    )
+    assert REDIRECT_EVIDENCE_POLICY == "NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE"
+    _reason(
+        lambda: validate_source_observation(
+            bundle.request,
+            unsupported,
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        STOP_TARGET_BINDING_INVALID,
+    )
+
+
+@pytest.mark.parametrize(
     "sequence",
     (
         ("GET",),
-        ("HEAD",),
         ("GET", "HEAD"),
         ("HEAD", "GET", "HEAD"),
+        ("HEAD", "HEAD", "GET"),
+        ("HEAD", "GET", "GET"),
         ("HEAD", "HEAD", "HEAD", "GET"),
     ),
 )
@@ -911,7 +1849,7 @@ def test_every_rejected_head_get_sequence_has_stable_reason(
 ) -> None:
     request = _authorization()
     bundle = request.source_observations[0]
-    timing = bundle.evidence.attempt_timings[0]
+    timing = bundle.evidence.attempt_results[0]
     timings = tuple(replace(timing, method=method) for method in sequence)
     updated = replace(
         bundle,
@@ -923,7 +1861,7 @@ def test_every_rejected_head_get_sequence_has_stable_reason(
         evidence=replace(
             bundle.evidence,
             method_sequence=sequence,
-            attempt_timings=timings,
+            attempt_results=timings,
             attempts=len(sequence),
         ),
     )
@@ -941,12 +1879,13 @@ def test_head_get_grammar_is_exhaustively_closed_through_four_attempts() -> None
     for length in range(5):
         for sequence in product(("HEAD", "GET"), repeat=length):
             timings = tuple(
-                SourceAttemptTiming(
+                SourceAttemptResult(
                     method,
                     NOW + timedelta(microseconds=1_000 + index * 200),
                     NOW + timedelta(microseconds=1_100 + index * 200),
                     1_000_000 + index * 200_000,
                     1_100_000 + index * 200_000,
+                    403 if method == "HEAD" and sequence == ("HEAD", "GET") else 200,
                 )
                 for index, method in enumerate(sequence)
             )
@@ -958,7 +1897,7 @@ def test_head_get_grammar_is_exhaustively_closed_through_four_attempts() -> None
             updated_evidence = replace(
                 bundle.evidence,
                 method_sequence=sequence,
-                attempt_timings=timings,
+                attempt_results=timings,
                 attempts=length,
                 observed_at=(
                     timings[-1].ended_at_utc if timings else bundle.evidence.observed_at
@@ -1021,15 +1960,22 @@ def test_profile_source_cardinality_is_bounded_before_hashing() -> None:
     profile = _inventory(
         request.snapshot_payload, "institution_site_profiles"
     ).pages[0].rows[0]
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0]
     values = dict(profile.row.values)
-    values["seed_urls"] = tuple(
-        f"private-source-{index}" for index in range(MAX_SOURCES_PER_PROFILE + 1)
-    )
+    values["discovery_mode"] = "paginated_catalog"
+    values["catalog_url_patterns"] = ("https://institution-1.example.invalid/page/{page}",)
+    values["catalog_max_pages"] = MAX_SOURCES_PER_PROFILE + 1
     oversized = FrozenRow(
         tuple((column, values[column]) for column in TABLE_COLUMNS["institution_site_profiles"])
     )
     _reason(
-        lambda: profile_source_fingerprints(profile.row_fingerprint, oversized),
+        lambda: profile_source_fingerprints(
+            profile.row_fingerprint,
+            oversized,
+            institution.row_fingerprint,
+            institution.row,
+            request.evaluated_at,
+        ),
         STOP_TARGET_BINDING_INVALID,
     )
 
@@ -1039,39 +1985,83 @@ def test_profile_source_cardinality_accepts_exact_limit() -> None:
     profile = _inventory(
         request.snapshot_payload, "institution_site_profiles"
     ).pages[0].rows[0]
+    institution = _inventory(request.snapshot_payload, "institutions").pages[0].rows[0]
     values = dict(profile.row.values)
-    values["seed_urls"] = tuple(
-        f"private-source-{index}" for index in range(MAX_SOURCES_PER_PROFILE)
-    )
+    values["discovery_mode"] = "paginated_catalog"
+    values["catalog_url_patterns"] = ("https://institution-1.example.invalid/page/{page}",)
+    values["catalog_max_pages"] = MAX_SOURCES_PER_PROFILE
     exact = FrozenRow(
         tuple((column, values[column]) for column in TABLE_COLUMNS["institution_site_profiles"])
     )
-    assert len(profile_source_fingerprints(profile.row_fingerprint, exact)) == 64
+    assert len(
+        profile_source_fingerprints(
+            profile.row_fingerprint,
+            exact,
+            institution.row_fingerprint,
+            institution.row,
+            request.evaluated_at,
+        )
+    ) == 64
 
 
 def test_global_profile_source_cardinality_exact_and_plus_one(monkeypatch) -> None:
-    profiles = tuple(
-        _frozen_row(
-            "institution_site_profiles",
-            id=f"profile-{index}",
-            institution_id=f"institution-{index}",
-            discovery_enabled=True,
-            pipeline_enabled=True,
-            pipeline_ready=False,
-            discovery_mode="sitemap",
-            seed_urls=(f"private-seed-{index}",),
-            catalog_url_patterns=(),
-            allowed_url_patterns=(),
-            circuit_open=False,
-        )
-        for index in range(2)
-    )
-    request = _authorization(profile_rows=profiles)
     assert contract.MAX_PROFILE_SOURCE_PAIRS == 50_000
+    contract._enforce_profile_source_pair_limit(50_000)
+    _reason(
+        lambda: contract._enforce_profile_source_pair_limit(50_001),
+        STOP_TARGET_BINDING_INVALID,
+    )
     monkeypatch.setattr(contract, "MAX_PROFILE_SOURCE_PAIRS", 2)
-    assert authorize_future_adapter(request).reason == TRUST_STOP
-    monkeypatch.setattr(contract, "MAX_PROFILE_SOURCE_PAIRS", 1)
-    _reason(lambda: authorize_future_adapter(request), STOP_TARGET_BINDING_INVALID)
+    contract._enforce_profile_source_pair_limit(2)
+    _reason(
+        lambda: contract._enforce_profile_source_pair_limit(3),
+        STOP_TARGET_BINDING_INVALID,
+    )
+
+
+def test_fg3_historical_cardinality_is_bounded_before_iteration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert MAX_FG3_HISTORICAL_OBSERVATIONS == 50_000
+    contract._enforce_fg3_historical_observation_limit(50_000)
+    _reason(
+        lambda: contract._enforce_fg3_historical_observation_limit(50_001),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+    monkeypatch.setattr(contract, "MAX_FG3_HISTORICAL_OBSERVATIONS", 2)
+    contract._enforce_fg3_historical_observation_limit(2)
+    _reason(
+        lambda: contract._enforce_fg3_historical_observation_limit(3),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+
+
+def test_fg3_courses_and_prior_mutations_share_early_50000_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contract._enforce_fg3_collection_limit(50_000)
+    _reason(
+        lambda: contract._enforce_fg3_collection_limit(50_001),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+    monkeypatch.setattr(contract, "MAX_FG3_HISTORICAL_OBSERVATIONS", 2)
+    contract._enforce_fg3_collection_limit(2)
+    _reason(
+        lambda: contract._enforce_fg3_collection_limit(3),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+
+
+def test_manifest_category_counts_cardinality_is_exactly_three() -> None:
+    request = _authorization()
+    malformed = replace(
+        request.historical_manifest,
+        category_counts=(*request.historical_manifest.category_counts, ("EXTRA", 0)),
+    )
+    _reason(
+        lambda: historical_manifest_digest(malformed),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
 
 
 def test_authorization_request_is_deeply_immutable_data_only() -> None:
@@ -1121,7 +2111,7 @@ def test_source_observation_temporal_order_is_exact(position: str) -> None:
 
 def test_source_head_must_start_after_snapshot_1_closes() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(
         head,
         started_at_utc=NOW + timedelta(microseconds=700),
@@ -1137,7 +2127,7 @@ def test_source_head_must_start_after_snapshot_1_closes() -> None:
 
 def test_source_head_wholly_before_snapshot_1_is_rejected() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(
         head,
         started_at_utc=NOW - timedelta(microseconds=200),
@@ -1153,7 +2143,7 @@ def test_source_head_wholly_before_snapshot_1_is_rejected() -> None:
 
 def test_source_get_must_end_before_snapshot_2_starts() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     get = replace(
         get,
         ended_at_utc=NOW + timedelta(microseconds=2_200),
@@ -1167,7 +2157,7 @@ def test_source_get_must_end_before_snapshot_2_starts() -> None:
 
 def test_source_get_wholly_after_snapshot_2_is_rejected() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     get = replace(
         get,
         started_at_utc=NOW + timedelta(microseconds=2_900),
@@ -1183,7 +2173,7 @@ def test_source_get_wholly_after_snapshot_2_is_rejected() -> None:
 
 def test_source_crossing_attempt_is_rejected_even_when_observed_at_is_valid() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(
         head,
         started_at_utc=NOW + timedelta(microseconds=750),
@@ -1205,7 +2195,7 @@ def test_source_crossing_attempt_is_rejected_even_when_observed_at_is_valid() ->
 
 def test_source_attempts_must_not_overlap() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     get = replace(
         get,
         started_at_utc=NOW + timedelta(microseconds=1_050),
@@ -1219,7 +2209,7 @@ def test_source_attempts_must_not_overlap() -> None:
 
 def test_source_attempts_must_match_method_order() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     out_of_order = (replace(head, method="GET"), replace(get, method="HEAD"))
     _reason(
         lambda: authorize_future_adapter(
@@ -1231,7 +2221,7 @@ def test_source_attempts_must_match_method_order() -> None:
 
 def test_source_attempt_utc_and_monotonic_durations_must_agree() -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(head, monotonic_ended_ns=head.monotonic_ended_ns + 250_000_001)
     _reason(
         lambda: authorize_future_adapter(_with_source_timings(request, (head, get))),
@@ -1241,12 +2231,12 @@ def test_source_attempt_utc_and_monotonic_durations_must_agree() -> None:
 
 def test_source_timing_count_must_equal_method_sequence() -> None:
     request = _authorization()
-    head, _ = request.source_observations[0].evidence.attempt_timings
+    head, _ = request.source_observations[0].evidence.attempt_results
     _reason(
         lambda: authorize_future_adapter(_with_source_timings(request, (head,))),
         STOP_CLOCK_TIMING_INVALID,
     )
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     extra = replace(
         get,
         started_at_utc=NOW + timedelta(microseconds=1_400),
@@ -1264,7 +2254,7 @@ def test_source_timing_count_must_equal_method_sequence() -> None:
 
 def test_source_observed_at_must_equal_real_final_attempt_end() -> None:
     request = _authorization()
-    timings = request.source_observations[0].evidence.attempt_timings
+    timings = request.source_observations[0].evidence.attempt_results
     _reason(
         lambda: authorize_future_adapter(
             _with_source_timings(
@@ -1282,7 +2272,7 @@ def test_source_attempt_duration_must_be_positive_and_within_budget(
     duration: int,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(
         head,
         monotonic_ended_ns=head.monotonic_started_ns + duration,
@@ -1355,7 +2345,7 @@ def test_source_coverage_is_exact_for_eligible_profiles() -> None:
         lambda: validate_source_coverage(
             (), request.target, request.snapshot_payload, request.evaluated_at
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
 
 
@@ -1381,7 +2371,41 @@ def test_source_observation_unit_is_profile_source_not_course() -> None:
             request.snapshot_payload,
             request.evaluated_at,
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
+    )
+
+
+def test_extra_bundle_cannot_forge_an_earlier_routing_instant() -> None:
+    request = _authorization()
+    original = request.source_observations[0]
+    shifted_results = tuple(
+        replace(
+            result,
+            started_at_utc=result.started_at_utc - timedelta(microseconds=100),
+            ended_at_utc=result.ended_at_utc - timedelta(microseconds=100),
+            monotonic_started_ns=result.monotonic_started_ns - 100_000,
+            monotonic_ended_ns=result.monotonic_ended_ns - 100_000,
+        )
+        for result in original.evidence.attempt_results
+    )
+    extra = replace(
+        original,
+        request=replace(original.request, source_fingerprint=DIGESTS[45]),
+        evidence=replace(
+            original.evidence,
+            source_fingerprint=DIGESTS[45],
+            attempt_results=shifted_results,
+            observed_at=shifted_results[-1].ended_at_utc,
+        ),
+    )
+    _reason(
+        lambda: validate_source_coverage(
+            (original, extra),
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
     _reason(
         lambda: validate_source_coverage(
@@ -1390,7 +2414,7 @@ def test_source_observation_unit_is_profile_source_not_course() -> None:
             request.snapshot_payload,
             request.evaluated_at,
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
     wrong = replace(
         request.source_observations[0],
@@ -1401,15 +2425,17 @@ def test_source_observation_unit_is_profile_source_not_course() -> None:
         lambda: validate_source_coverage(
             (wrong,), request.target, request.snapshot_payload, request.evaluated_at
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_SOURCE_BLOCKERS_PRESENT,
     )
 
 
 def test_historical_observations_and_prior_mutation_are_recomputed_and_predate_snapshot() -> None:
     request = _authorization()
-    assert len(request.fg3_cohort.historical_observations) == 27
-    assert len({item.observation_fingerprint for item in request.fg3_cohort.historical_observations}) == 27
-    assert len({item.course_fingerprint for item in request.fg3_cohort.historical_observations}) == 3
+    assert len(request.fg3_cohort.historical_observations) == 28
+    assert len({item.observation_fingerprint for item in request.fg3_cohort.historical_observations}) == 28
+    assert len({item.course_fingerprint for item in request.fg3_cohort.historical_observations}) == 4
+    assert len(request.fg3_cohort.prior_mutations) == 2
+    assert len({item.course_fingerprint for item in request.fg3_cohort.prior_mutations}) == 2
     validate_fg3_cohort(
         request.fg3_cohort,
         request.historical_manifest,
@@ -1443,7 +2469,7 @@ def test_source_start_boundary_around_snapshot_1_close(
     accepted: bool,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     head = replace(
         head,
         started_at_utc=NOW + timedelta(microseconds=offset_us),
@@ -1465,7 +2491,7 @@ def test_source_end_boundary_around_snapshot_2_start(
     accepted: bool,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     get = replace(
         get,
         ended_at_utc=NOW + timedelta(microseconds=offset_us),
@@ -1486,7 +2512,7 @@ def test_source_start_boundary_is_enforced_by_each_clock(
     accepted: bool,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     if clock == "utc":
         head = replace(
             head,
@@ -1509,7 +2535,7 @@ def test_source_end_boundary_is_enforced_by_each_clock(
     accepted: bool,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     if clock == "utc":
         get = replace(
             get,
@@ -1527,7 +2553,7 @@ def test_source_end_boundary_is_enforced_by_each_clock(
 @pytest.mark.parametrize("clock", ("utc", "monotonic"))
 def test_source_overlap_is_rejected_independently_in_each_clock(clock: str) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     if clock == "utc":
         get = replace(get, started_at_utc=head.ended_at_utc - timedelta(microseconds=1))
     else:
@@ -1543,7 +2569,7 @@ def test_source_temporal_order_is_rejected_independently_in_each_clock(
     clock: str,
 ) -> None:
     request = _authorization()
-    head, get = request.source_observations[0].evidence.attempt_timings
+    head, get = request.source_observations[0].evidence.attempt_results
     if clock == "utc":
         get = replace(
             get,
@@ -1571,12 +2597,12 @@ def test_exact_duration_and_clock_tolerance_boundaries() -> None:
         NOW,
         NOW + timedelta(seconds=15),
         0,
-        SOURCE_ATTEMPT_BUDGET_NS,
+        15_000_000_000,
     )
     validate_read_timing(exact_budget, PAIR_ID)
     _reason(
         lambda: validate_read_timing(
-            replace(exact_budget, monotonic_ended_ns=SOURCE_ATTEMPT_BUDGET_NS + 1),
+            replace(exact_budget, monotonic_ended_ns=15_000_000_001),
             PAIR_ID,
         ),
         STOP_CLOCK_TIMING_INVALID,
@@ -1600,34 +2626,37 @@ def test_exact_duration_and_clock_tolerance_boundaries() -> None:
 
 
 def test_source_attempt_exact_budget_and_tolerance_edges() -> None:
+    assert SOURCE_ATTEMPT_BUDGET_NS == 15_000_000_000
     request = _authorization()
     payload, target = _shift_second_snapshot(
         request.snapshot_payload, request.target, timedelta(seconds=20)
     )
     bundle = request.source_observations[0]
     exact_budget = (
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "HEAD",
             NOW + timedelta(milliseconds=1),
             NOW + timedelta(seconds=15, milliseconds=1),
             1_000_000,
             15_001_000_000,
+            403,
         ),
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "GET",
             NOW + timedelta(seconds=15, milliseconds=100),
             NOW + timedelta(seconds=15, milliseconds=200),
             15_100_000_000,
             15_200_000_000,
+            200,
         ),
     )
 
-    def validate(timings: tuple[SourceAttemptTiming, ...]) -> None:
+    def validate(timings: tuple[SourceAttemptResult, ...]) -> None:
         validate_source_observation(
             bundle.request,
             replace(
                 bundle.evidence,
-                attempt_timings=timings,
+                attempt_results=timings,
                 observed_at=timings[-1].ended_at_utc,
             ),
             target,
@@ -1654,19 +2683,21 @@ def test_source_attempt_exact_budget_and_tolerance_edges() -> None:
     _reason(lambda: validate(utc_over_budget), STOP_CLOCK_TIMING_INVALID)
 
     exact_tolerance = (
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "HEAD",
             NOW + timedelta(milliseconds=1),
             NOW + timedelta(seconds=1, milliseconds=1),
             1_000_000,
             1_251_000_000,
+            403,
         ),
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "GET",
             NOW + timedelta(seconds=2),
             NOW + timedelta(seconds=2, milliseconds=100),
             2_000_000_000,
             2_100_000_000,
+            200,
         ),
     )
     validate(exact_tolerance)
@@ -1679,12 +2710,13 @@ def test_source_attempt_exact_budget_and_tolerance_edges() -> None:
     )
     _reason(lambda: validate(over_tolerance), STOP_CLOCK_TIMING_INVALID)
     inverse_tolerance = (
-        SourceAttemptTiming(
+        SourceAttemptResult(
             "HEAD",
             NOW + timedelta(milliseconds=1),
             NOW + timedelta(seconds=1, milliseconds=1),
             1_000_000,
             751_000_000,
+            403,
         ),
         exact_tolerance[1],
     )
@@ -1739,11 +2771,16 @@ def test_exact_one_is_derived_from_immutable_mutation_evidence(case: str) -> Non
 def test_mutation_links_antecedent_run_timestamp_and_deactivation_observation() -> None:
     request = _authorization()
     mutation = request.fg3_cohort.prior_mutations[0]
-    observation = request.fg3_cohort.historical_observations[-1]
+    observation = next(
+        item
+        for item in request.fg3_cohort.historical_observations
+        if item.observation_fingerprint == mutation.historical_observation_fingerprint
+    )
     assert mutation.course_fingerprint == observation.course_fingerprint
     assert mutation.antecedent_run_fingerprint == observation.run_id
     assert mutation.antecedent_observed_at == observation.observed_at
-    assert observation.category == mutation.mutation_kind == "DEACTIVATION"
+    assert observation.category in {"DEACTIVATION", "PRIOR_DEACTIVATION"}
+    assert mutation.mutation_kind == "DEACTIVATION"
     assert mutation.mutation_fingerprint == prior_mutation_fingerprint(
         mutation.course_fingerprint,
         mutation.antecedent_run_fingerprint,
@@ -1764,9 +2801,57 @@ def test_mutation_links_antecedent_run_timestamp_and_deactivation_observation() 
     )
 
 
+def test_extra_active_deactivation_observation_is_rejected() -> None:
+    request = _authorization()
+    active_course = request.fg3_cohort.courses[0]
+    extra = FG3HistoricalObservationEvidence(
+        observation_fingerprint="",
+        target_binding_digest=evidence_binding_digest(request.target),
+        snapshot_pair_id=request.target.snapshot_pair_id,
+        course_fingerprint=active_course.course_fingerprint,
+        run_id=DIGESTS[40],
+        category="PRIOR_DEACTIVATION",
+        active_at_snapshot_1=True,
+        observed_at=NOW - timedelta(seconds=45),
+    )
+    extra = replace(extra, observation_fingerprint=historical_observation_fingerprint(extra))
+    _reason(
+        lambda: validate_fg3_cohort(
+            replace(
+                request.fg3_cohort,
+                historical_observations=(*request.fg3_cohort.historical_observations, extra),
+            ),
+            request.historical_manifest,
+            request.target,
+            request.snapshot_payload,
+        ),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+
+
+def test_unreferenced_deactivation_observation_is_rejected_exact_one() -> None:
+    request = _authorization()
+    assert len(request.fg3_cohort.historical_observations) == 27 + max(
+        0,
+        sum(not course.active_at_snapshot_1 for course in request.fg3_cohort.courses) - 1,
+    )
+    _reason(
+        lambda: validate_fg3_cohort(
+            replace(
+                request.fg3_cohort,
+                prior_mutations=request.fg3_cohort.prior_mutations[:-1],
+            ),
+            request.historical_manifest,
+            request.target,
+            request.snapshot_payload,
+        ),
+        STOP_MANIFEST_ANCHOR_MISMATCH,
+    )
+
+
 @pytest.mark.parametrize(
     "course_index,value",
-    ((1, 0), (1, 1), (3, 0), (3, 1)),
+    ((1, 0), (1, 1), (3, 0), (3, 1), (4, 0), (4, 1)),
 )
 def test_courses_is_active_rejects_integers_in_active_and_inactive_cohorts(
     course_index: int,
@@ -1806,12 +2891,12 @@ def test_lifecycle_proxy_regressions_and_completeness() -> None:
     )
     fallback = classify_lifecycle_proxy(
         last_harvested_at=None,
-        created_at=(NOW - timedelta(days=7)).isoformat(),
+        created_at=(NOW - timedelta(hours=24)).isoformat(),
         observed_at=NOW,
     )
     stale = classify_lifecycle_proxy(
         last_harvested_at=None,
-        created_at=(NOW - timedelta(days=7, seconds=1)).isoformat(),
+        created_at=(NOW - timedelta(hours=24, microseconds=1)).isoformat(),
         observed_at=NOW,
     )
     unknown = classify_lifecycle_proxy(last_harvested_at=None, created_at=None, observed_at=NOW)
@@ -1825,7 +2910,7 @@ def test_lifecycle_proxy_regressions_and_completeness() -> None:
     assert fallback.classification == "NOT_STALE"
     assert stale.classification == "STALE"
     subsecond_stale = classify_lifecycle_proxy(
-        last_harvested_at=(NOW - timedelta(days=7, microseconds=1)).isoformat(),
+        last_harvested_at=(NOW - timedelta(hours=24, microseconds=1)).isoformat(),
         created_at=None,
         observed_at=NOW,
     )
@@ -1846,7 +2931,7 @@ def test_lifecycle_proxy_regressions_and_completeness() -> None:
             lambda invalid=invalid: validate_lifecycle_evidence(
                 invalid, request.target, request.snapshot_payload, request.evaluated_at
             ),
-            STOP_TARGET_BINDING_INVALID,
+            STOP_LIFECYCLE_BLOCKERS_PRESENT,
         )
     _reason(
         lambda: validate_lifecycle_evidence(
@@ -1855,7 +2940,56 @@ def test_lifecycle_proxy_regressions_and_completeness() -> None:
             request.snapshot_payload,
             request.evaluated_at,
         ),
-        STOP_TARGET_BINDING_INVALID,
+        STOP_LIFECYCLE_BLOCKERS_PRESENT,
+    )
+
+
+def test_lifecycle_proxy_mismatch_is_a_lifecycle_blocker() -> None:
+    request = _authorization()
+    item = request.lifecycle_evidence[0]
+    mismatch = replace(
+        item.proxy,
+        timestamp_used=(request.evaluated_at - timedelta(hours=1)).isoformat(),
+    )
+    _reason(
+        lambda: validate_lifecycle_evidence(
+            (replace(item, proxy=mismatch),),
+            request.target,
+            request.snapshot_payload,
+            request.evaluated_at,
+        ),
+        STOP_LIFECYCLE_BLOCKERS_PRESENT,
+    )
+
+
+@pytest.mark.parametrize("classification", ("STALE", "AGE_UNKNOWN", "FUTURE_TIMESTAMP"))
+def test_lifecycle_blockers_stop_before_trust(classification: str) -> None:
+    request = _authorization()
+    if classification == "STALE":
+        changed = classify_lifecycle_proxy(
+            last_harvested_at=(request.evaluated_at - timedelta(hours=24, microseconds=1)).isoformat(),
+            created_at=None,
+            observed_at=request.evaluated_at,
+        )
+    elif classification == "AGE_UNKNOWN":
+        changed = classify_lifecycle_proxy(
+            last_harvested_at=None, created_at=None, observed_at=request.evaluated_at
+        )
+    else:
+        changed = classify_lifecycle_proxy(
+            last_harvested_at=(request.evaluated_at + timedelta(microseconds=1)).isoformat(),
+            created_at=None,
+            observed_at=request.evaluated_at,
+        )
+    assert changed.classification == classification
+    _reason(
+        lambda: authorize_future_adapter(
+            replace(
+                request,
+                lifecycle_evidence=(replace(request.lifecycle_evidence[0], proxy=changed),),
+            )
+        ),
+        STOP_LIFECYCLE_BLOCKERS_PRESENT,
     )
 
 
@@ -1945,7 +3079,7 @@ def test_exact_dataclass_with_deleted_field_has_stable_reason(surface: str) -> N
     elif surface == "source":
         bundle = request.source_observations[0]
         malformed = bundle.evidence
-        object.__delattr__(malformed, "attempt_timings")
+        object.__delattr__(malformed, "attempt_results")
         call = lambda: validate_source_observation(
             bundle.request,
             malformed,
@@ -2439,7 +3573,7 @@ def test_contract_ast_has_no_executable_caller_interface_or_mapping_rows() -> No
     assert "row: Mapping" not in source
     assert "class FrozenRow" in source
     forbidden_modules = {
-        "supabase", "requests", "httpx", "urllib", "socket", "subprocess",
+        "supabase", "requests", "httpx", "socket", "subprocess",
         "db_client", "psycopg", "sqlalchemy", "boto3", "os",
     }
     imports = {

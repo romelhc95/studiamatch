@@ -155,6 +155,8 @@ from scripts.security.f109_boundary import (
     G5_GET_ONLY_ADAPTER_CANDIDATE,
     G5_GET_ONLY_ADAPTER_HEAD_REF,
     G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
+    G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
+    G5_GET_ONLY_ADAPTER_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -3726,23 +3728,31 @@ class F109BoundaryTest(unittest.TestCase):
     ) -> None:
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE,
-            "c998b0293b364b1c59d9c52824178927977f0b56",
+            "58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_BASE_TREE,
-            "d93843d4e08dfd9c45571b72040994926dffc221",
+            "13eb0465233c9e870995763630ee9e6541a45add",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
-            "c7783af918c4e434d31b80e9a65247329c0b3595",
+            "c998b0293b364b1c59d9c52824178927977f0b56",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_CANDIDATE,
-            "51c24af3664a5d03ad16e16fa8793862cdb7fec1",
+            "8a6724a5850792383456763a119c925c53961f2a",
         )
         self.assertEqual(
             G5_GET_ONLY_ADAPTER_HEAD_REF,
-            "fix/f10-9-g5-get-only-contract-v2-2",
+            "fix/f10-9-g5-get-only-contract-v2-3",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_STATUS,
+            "REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP",
+        )
+        self.assertEqual(
+            G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
+            "MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED",
         )
         head = "a" * 40
         tree_mock.return_value = G5_GET_ONLY_ADAPTER_BASE_TREE
@@ -3783,56 +3793,106 @@ class F109BoundaryTest(unittest.TestCase):
         )
         self.assertEqual(set(G5_GET_ONLY_ADAPTER_ALLOWED_MODES.values()), {"100644"})
 
-    def test_g5_get_only_adapter_v2_2_required_security_markers(self) -> None:
+    def test_g5_get_only_adapter_v2_3_required_security_markers(self) -> None:
         source = Path(
             "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
         ).read_text(encoding="utf-8")
         for marker in (
+            "f10.9-g5-get-only-adapter-contract.v2.3",
+            "f10.9-g5-get-only-adapter-schema.v2.3",
+            "f10.9-g5-get-only-adapter-v2.3",
             "class FrozenRow",
             "class LifecycleEvidence",
-            "class SourceAttemptTiming",
+            "class StaticSourceTarget",
+            "class EffectiveProfileRouting",
+            "class SourceAttemptResult",
             "class FG3PriorMutationEvidence",
             "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
             "MAX_SOURCES_PER_PROFILE = 64",
             "MAX_PROFILE_SOURCE_PAIRS = 50_000",
+            "MAX_FG3_HISTORICAL_OBSERVATIONS = 50_000",
             "SOURCE_ATTEMPT_GRAMMAR",
+            'SOURCE_ROLE_PROBE_TARGET = "PROBE_TARGET"',
+            'SOURCE_ROLE_TEMPLATE = "TEMPLATE"',
+            'SOURCE_ROLE_FILTER = "FILTER"',
+            "from .url_identity import build_url_identity",
+            "import ipaddress",
+            "identity = build_url_identity(value)",
+            "address = ipaddress.ip_address(host)",
+            "address is not None and not address.is_global",
+            "return identity.canonical_url",
+            "def _is_safe_profile_regex",
+            "Deliberately linear subset",
+            'if character in "()|*+?{}":',
+            "len(pattern) > 200",
+            "regex_url_text = lowered[:2000]",
+            "circuit_effective_open",
+            "circuit_auto_closed",
+            "observed_at - parsed_circuit_opened_at < timedelta(hours=24)",
+            'REDIRECT_EVIDENCE_POLICY = "NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE"',
+            "expected_historical_count = 27 + max(0, len(required_inactive) - 1)",
+            "len(evidence.historical_observations) != expected_historical_count",
+            "any(len(items) != 1 for items in mutations_by_course.values())",
+            "count > MAX_FG3_HISTORICAL_OBSERVATIONS",
+            "len(manifest.category_counts) != 3",
+            "_enforce_fg3_collection_limit(len(evidence.courses))",
+            "_enforce_fg3_collection_limit(len(evidence.prior_mutations))",
+            "len(evidence.historical_observations)",
+            "if len(target_values) > MAX_SOURCES_PER_PROFILE:\n"
+            "        _raise(STOP_TARGET_BINDING_INVALID)",
+            "if type(count) is not int or count < 0 or count > MAX_PROFILE_SOURCE_PAIRS:\n"
+            "        _raise(STOP_TARGET_BINDING_INVALID)",
+            "utc_first = min(first_attempts, key=lambda item: item[1].started_at_utc)",
+            "monotonic_first = min(",
+            "if utc_first[0] != monotonic_first[0]",
+            "routing_observed_at = utc_first[1].started_at_utc",
             "_require_complete",
             "historical_observation_fingerprint",
             "prior_mutation_fingerprint",
             "profile_source_fingerprints",
             "validate_source_coverage",
+            "source_terminal_reason",
             "validate_lifecycle_evidence",
+            "_STALE_AFTER = timedelta(hours=24)",
+            "STOP_G5_SOURCE_BLOCKERS_PRESENT",
+            "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
             "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         ):
             self.assertIn(marker, source)
-        for forbidden in ("asdict", "row: Mapping", "Protocol", "runtime_checkable"):
+        for forbidden in (
+            "asdict",
+            "row: Mapping",
+            "Protocol",
+            "runtime_checkable",
+            "SourceAttemptTiming",
+        ):
             self.assertNotIn(forbidden, source)
 
-    def test_g5_v2_2_focused_ci_precedes_historical_f9_7_checkout(self) -> None:
+    def test_g5_v2_3_focused_ci_precedes_historical_f9_7_checkout(self) -> None:
         workflow = Path(".github/workflows/f9-7-contract.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("F10.9 G5 GET-Only Contract V2.2", workflow)
+        self.assertIn("F10.9 G5 GET-Only Contract V2.3", workflow)
         self.assertIn("pull_request:", workflow)
         self.assertIn("branches: [desarrollo]", workflow)
         self.assertIn(
             "github.event.pull_request.head.sha || github.sha", workflow
         )
         self.assertIn(
-            "needs: [g5-get-only-v2-2, f1010-m3-zero-write]", workflow
+            "needs: [g5-get-only-v2-3, f1010-m3-zero-write]", workflow
         )
         self.assertIn(
-            'test "${{ needs.g5-get-only-v2-2.result }}" = "success"', workflow
+            'test "${{ needs.g5-get-only-v2-3.result }}" = "success"', workflow
         )
         for marker in (
-            "Block G5 v2.2 external egress",
+            "Block G5 v2.3 external egress",
             "--bounding-set=-all",
             "env -i HOME=/tmp CI=true",
-            "Restore G5 v2.2 external egress",
+            "Restore G5 v2.3 external egress",
         ):
             self.assertIn(marker, workflow)
         self.assertLess(
-            workflow.index("Run repository-only G5 v2.2 focused contract"),
+            workflow.index("Run repository-only G5 v2.3 focused contract"),
             workflow.index('git checkout --detach "$F97_CANDIDATE_COMMIT"'),
         )
 

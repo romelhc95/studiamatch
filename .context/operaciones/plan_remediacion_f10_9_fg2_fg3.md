@@ -39,7 +39,7 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | `P3`-`P4` | `COMPLETED_POST_MERGE_VERIFIED` | PR #338 integro runtime FG2/FG3 fail-closed en `desarrollo@945f17cb597dc4ae960278a1fbae86c1a2043dc9` / tree `f448ac27c8abf5f2dbbb77da0ece6c82861f0028`; Security Audit `31389283184=PASS` y F9.7 `31389282945=PASS` post-merge. Ver [evidencia G2/P3-P4](./g2_p3_p4_post_merge_evidence_2026_08_10.md). |
 | `P5` | `COMPLETED_POST_MERGE_VERIFIED` | PR #341 integro el gate local read-only en `desarrollo@1c5d1526a1da247ca6ad0eb7b25cd5e0b0f51564` / tree `8eb146006419d93dc0a74710ca9efaaf101ab280`; Security Audit `31409222936=PASS` y F9.7 `31409222568=PASS` post-merge. Ver [evidencia G3/P5 y decision G4](./g3_p5_post_merge_g4_decision_2026_08_10.md). |
 | `ADR-0011` | `COMPLETED_POST_MERGE_VERIFIED` | PR #375 integrado en `desarrollo@2c9d2438c5fc309d3692d1a1de1233e0fcc95afc` / tree `161a8df69bf5e527c4ba863891504551ec5f7aa7`; Security Audit `31768101859=PASS` y F9.7 `31768101887=PASS`. |
-| `G5` | `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED` | PR #381 fue verificado en `desarrollo@c998b0293b364b1c59d9c52824178927977f0b56` / tree `d93843d4e08dfd9c45571b72040994926dffc221`; Security Audit `31852148318=PASS` y F9.7 `31852148322=PASS`. V2.1 queda antecedente no apto para connected mode. El [sucesor offline GET-only v2.2](./g5_get_only_adapter_contract_2026_08_14.md) corrige causalidad FG3, exact-one derivado, elegibilidad con fallback, source identity exacta y CI focused; valida estructura y termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`, connected mode `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. |
+| `G5` | `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP` | PR #382 integro repository-only v2.2 mediante candidate `8a6724a5850792383456763a119c925c53961f2a` y merge protegido `58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3` / tree `13eb0465233c9e870995763630ee9e6541a45add`; Security Audit `31861308128=PASS`, F9.7 `31861308133=PASS` y focused `94955078030=159 PASS`. Su resultado exclusivo fue `MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`; v2.2 queda `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El [sucesor offline GET-only v2.3](./g5_get_only_adapter_contract_2026_08_14.md) es candidate local pendiente de promocion en un nuevo PR; usa `SourceAttemptResult`, decision causal en earliest valid source attempt (sin bundles, cierre snapshot 1), FILTER literal URL completa/regex text 2000, subset lineal que rechaza agrupacion/alternancia/cuantificadores no escapados, rechazo localhost/IP no global y `circuit_opened_at` dormido fingerprint-only. FG3 exige `category_counts=3` y `courses/prior_mutations/history<=50000`; `65/50001 -> STOP_G5_TARGET_BINDING_INVALID`. Conserva cooldown 24h, exact-one, redirects sin autoridad y profiles no elegibles sin probes. La divergencia NULL preflight bloquea v2.3 y preflight/workers no cambian. Valida estructura y termina `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`, connected mode `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. |
 | `P7` | `REOPENED_AUTHORIZATION_REQUIRED` | Integracion CA1 FG2/FG3 despues de cerrar gates operativos separados. |
 | `P6` | `DEFERRED_OUTSIDE_F10_9_REQUIRES_REBASELINE` | La frontera CA1-only prohibe SQL/schema/migrations/DDL/DML/backfill. |
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
@@ -509,6 +509,57 @@ impone causalidad `observations <= manifest <= anchor < snapshot_1`, aplica
 `pipeline_enabled` con fallback explicito, deriva cobertura profile/source desde
 configuracion y ejecuta su suite focused en candidate y post-merge antes del
 checkout historico F9.7. No implementa transporte ni connected mode.
+
+PR #382 integro v2.2 mediante candidate
+`8a6724a5850792383456763a119c925c53961f2a` y merge protegido
+`58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3`, tree
+`13eb0465233c9e870995763630ee9e6541a45add`. Security Audit
+`31861308128=PASS`, F9.7 `31861308133=PASS` y focused
+`94955078030=159 PASS`. Resultado exacto
+`MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED`; v2.2 queda congelado
+como `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. El candidate local
+sucesor v2.3 queda `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP`, pendiente de
+promocion en un nuevo PR.
+
+V2.3 deriva `EffectiveProfileRouting` mediante joins exact-one y bloquea la
+divergencia de presencia/null de `pipeline_enabled`; solo la ausencia real usa
+`pipeline_ready`. Distingue roles `PROBE_TARGET`, `TEMPLATE` y `FILTER`, y
+materializa los entry targets estaticos reales de hardcoded, paginated catalog,
+catalog-link y sitemap_bfs, incluidos website, sitemap, BFS y warmup cuando
+corresponde. Configuracion dormida cambia fingerprints sin convertirse en target.
+Nested sitemaps, catalog links extraidos y BFS children permanecen en la frontera
+dinamica FG2. No modifica preflight ni workers.
+
+V2.3 usa `SourceAttemptResult`; la decision causal de routing toma el earliest
+valid source attempt y, sin bundles, el cierre de snapshot 1. Canonicaliza URL con
+la identidad compartida, deduplica targets por
+`(kind, canonical_url)`, valida regex fail-closed y deriva el circuito efectivo:
+antes de 24h abierto, exactamente a 24h auto-closed. Profiles no elegibles ligan
+configuracion/fingerprint sin probes; `circuit_opened_at` dormido es
+fingerprint-only. FILTER literal compara URL completa y regex usa text 2000 bajo
+un subset lineal que rechaza agrupacion, alternancia y cuantificadores no
+escapados; localhost e IP no global se rechazan. `65` sources por profile o
+`50001` pares termina `STOP_G5_TARGET_BINDING_INVALID`. FG3 exige
+`category_counts=3` y acota temprano `courses/prior_mutations/history<=50000`.
+Toda observacion
+deactivation/prior participa en exact-one con su prior mutation. La clasificacion
+cerrada `NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE` no concede autoridad ni trust.
+
+El preflight legacy usa `pipeline_ready` cuando `pipeline_enabled` es NULL; v2.3
+considera la presencia NULL un blocker. Esa divergencia y las demas reglas
+preflight no reemplazan el routing efectivo del harvester. Preflight y workers no
+cambian. Los budgets permanecen coherentes en 15 segundos: por snapshot para la
+capability y por intento HEAD/GET para source evidence.
+
+Los outcomes source se recomputan desde HEAD o HEAD-GET compatibles con
+`safe_source_probe`, status y errores cerrados; solo accessible es GO-compatible.
+Los blockers source y lifecycle permanecen separados. Lifecycle usa 24h exactas:
+24h es `NOT_STALE`, 24h mas un microsegundo es `STALE`, y toda fila `processing`
+debe ser `NOT_STALE`. Causalidad FG3, exact-one derivado y conteos `24/2/1`
+siguen vinculantes. Trust conserva
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode
+`STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`.
 
 ### G6 - Remediaciones Operativas CA1 Separadas
 

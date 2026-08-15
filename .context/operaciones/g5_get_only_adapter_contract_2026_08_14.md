@@ -1,38 +1,43 @@
-# F10.9 G5 - Contrato Offline GET-Only V2.2
+# F10.9 G5 - Contrato Offline GET-Only V2.3
 
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_2_TRUST_STOP` |
-| Contrato | `f10.9-g5-get-only-adapter-contract.v2.2` |
-| Schema | `f10.9-g5-get-only-adapter-schema.v2.2` |
-| Algoritmo | `f10.9-g5-get-only-adapter-v2.2` |
-| Fuente protegida | `desarrollo@c998b0293b364b1c59d9c52824178927977f0b56` |
-| Tree protegido | `d93843d4e08dfd9c45571b72040994926dffc221` |
+| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_3_TRUST_STOP` |
+| Contrato | `f10.9-g5-get-only-adapter-contract.v2.3` |
+| Schema | `f10.9-g5-get-only-adapter-schema.v2.3` |
+| Algoritmo | `f10.9-g5-get-only-adapter-v2.3` |
+| Fuente protegida | `desarrollo@58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3` |
+| Tree protegido | `13eb0465233c9e870995763630ee9e6541a45add` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
 | Conexiones/probes | `ZERO_NOT_IMPLEMENTED` |
 
-## Reconciliacion PR 381
+## Reconciliacion PR 382
 
-PR #381 fue aprobado, fusionado y verificado sobre:
+PR #382 integro repository-only v2.2 y fue verificado sobre:
 
 ```text
-merge = c998b0293b364b1c59d9c52824178927977f0b56
-tree = d93843d4e08dfd9c45571b72040994926dffc221
-parent_1 = c7783af918c4e434d31b80e9a65247329c0b3595
-parent_2 = 51c24af3664a5d03ad16e16fa8793862cdb7fec1
-security_audit_post_merge = 31852148318=PASS
-f9_7_post_merge = 31852148322=PASS
-result = MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED
+candidate = 8a6724a5850792383456763a119c925c53961f2a
+merge = 58e0a0b37f7a3795e9487ab01aa558b5ecaa6ae3
+tree = 13eb0465233c9e870995763630ee9e6541a45add
+security_audit_post_merge = 31861308128=PASS
+f9_7_post_merge = 31861308133=PASS
+focused = 94955078030=159 PASS
+result = MERGED_POST_MERGE_CI_PASS_ROUTING_REMEDIATION_REQUIRED
 ```
 
-El contrato v2.1 queda congelado como
+El contrato v2.2 queda congelado como
 `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. No puede reinterpretarse
 silenciosamente. Todo sucesor debe usar versiones de contrato, schema y algoritmo
-v2.2 o posteriores y una autorizacion separada. V2 y v1 permanecen congelados por la
+v2.3 o posteriores y una autorizacion separada. V2.1, v2 y v1 permanecen congelados por la
 reconciliacion anterior y no se reabre.
+
+El candidate local sucesor v2.3 sigue siendo repository-only y queda pendiente de
+promocion en un nuevo PR. El resultado de PR #382 exige esa remediacion de routing
+posterior; no acredita connected mode, Production, confianza, autoridad, gate
+consumido ni lectura remota.
 
 ## Modelo De Confianza
 
@@ -120,23 +125,26 @@ entre bloques es estricta:
 snapshot_1 completo -> observaciones -> snapshot_2 completo
 ```
 
-Cada metodo de `method_sequence` exige exactamente un `SourceAttemptTiming`
+Cada metodo de `method_sequence` exige exactamente un `SourceAttemptResult`
 inmutable con metodo, inicio/fin UTC e inicio/fin monotonic. Los intentos deben
 aparecer en el mismo orden, ser secuenciales y no solaparse. Cada operacion
 completa empieza despues del cierre UTC y monotonic global de `snapshot_1`,
 termina antes del inicio UTC y monotonic global de `snapshot_2`, queda dentro de
 `target.issued_at/expires_at` y termina antes o en `evaluated_at`.
 
-Duraciones UTC y monotonic deben ser positivas, no exceder el presupuesto fijo de
-15 segundos y diferir como maximo
+Duraciones UTC y monotonic deben ser positivas. Cada intento source, HEAD o GET,
+tiene el mismo presupuesto fijo exacto de 15 segundos; la secuencia HEAD-GET no
+convierte ese limite en 30 segundos para un intento individual. Deben diferir como maximo
 `CLOCK_DURATION_TOLERANCE_NS=250000000`. Cualquier cruce, overlap, desorden,
 duracion cero/negativa/excesiva, cantidad distinta de timings o incoherencia usa
 exclusivamente `STOP_G5_CLOCK_TIMING_INVALID`.
 
-La gramatica cerrada acepta solamente `HEAD, GET`, `HEAD, HEAD, GET` y
-`HEAD, GET, GET`, con maximo tres intentos totales. El HEAD o GET repetido es un
-retry. `GET` solo, `HEAD` solo, `GET -> HEAD`, alternancias posteriores, cuatro
-intentos y cualquier otra secuencia se rechazan fail-closed.
+La gramatica compatible con `safe_source_probe` acepta exclusivamente `HEAD` o
+`HEAD, GET`. Un `HEAD` 2xx termina accesible; `403`, `405` o `501` exige el GET
+acotado. `GET` solo, retries inventados, `GET -> HEAD`, mas de dos intentos y
+cualquier otra secuencia se rechazan fail-closed. Este contrato describe los
+resultados pre-materializados y no modifica `safe_source_probe`, preflight ni
+workers.
 
 `SourceObservationEvidence.observed_at` se conserva solo como alias verificable:
 debe coincidir exactamente con `ended_at_utc` del ultimo intento. No sustituye la
@@ -146,24 +154,90 @@ evidencia de inicio/fin ni puede ocultar un intento fuera de intervalo. Ademas,
 tipo exacto antes de leer `method_sequence`; un tipo incorrecto produce
 `G5AdapterContractError(STOP_G5_TARGET_BINDING_INVALID)`, nunca un error incidental.
 
+La decision de routing es causal respecto de las observaciones: cuando existen
+bundles, `routing_observed_at` es `started_at_utc` del primer
+`SourceAttemptResult` valido mas temprano, y el minimo UTC debe identificar el
+mismo profile/source que el minimo monotonic. Si no existen bundles, usa el cierre
+de `snapshot_1`; nunca usa por defecto ese cierre cuando ya existe un intento
+source. Cualquier desacuerdo termina `STOP_G5_CLOCK_TIMING_INVALID`.
+
 La unidad de cada source observation es el par profile/source. No se asocia
 artificialmente a un course: un profile elegible puede tener su fuente observada
-sin crear identidad de curso. V2.2 deriva mecanicamente cada source fingerprint
-desde el fingerprint del perfil y su configuracion inmutable completa:
-`discovery_mode`, `seed_urls`, `catalog_url_patterns` y `allowed_url_patterns`.
-Cada entrada configurada produce un source distinto ligado a su tipo. El conjunto
-observado debe ser exactamente el conjunto profile/source derivado; fuentes
-arbitrarias, faltantes, duplicadas, extras o cruzadas entre perfiles terminan
-fail-closed sin ejecutar probes.
-La derivacion queda acotada a `64` fuentes por perfil y `50000` pares globales;
-exceder cualquiera de esos limites termina `STOP_G5_TARGET_BINDING_INVALID`
-antes de materializar el conjunto ampliado.
+sin crear identidad de curso. V2.3 deriva `EffectiveProfileRouting` desde un join
+exact-one profile/institution; profiles huerfanos, instituciones duplicadas,
+profiles duplicados por institucion o cualquier cardinalidad distinta de uno
+terminan `STOP_G5_PROFILE_ROUTING_INVALID`.
 
-`pipeline_enabled` es el gate primario. Solo cuando es `None` se usa
-`pipeline_ready` como fallback explicito. `pipeline_enabled=false` nunca cae a
-`pipeline_ready=true`. `pipeline_enabled` admite exclusivamente `bool | None` y
-`pipeline_ready` exclusivamente `bool`; enteros, strings y subclasses se
-rechazan. Ademas se exige `discovery_enabled=true` y `circuit_open=false`.
+La elegibilidad exige `discovery_enabled=true`, gate de pipeline efectivo true y
+un circuito no abierto de forma efectiva. La presencia de `pipeline_enabled` exige un bool exacto;
+`null`, enteros, strings o subclasses son divergence blocker. Solo su ausencia
+real permite fallback a `pipeline_ready`, tambien bool exacto. Esta distincion de
+presencia/null forma parte del fingerprint y no cambia preflight ni workers.
+
+La semantica de circuito replica el cooldown efectivo del harvester: con
+`circuit_open=true`, `circuit_opened_at` UTC valido mantiene el circuito abierto
+solo mientras su edad sea menor que 24 horas. Exactamente a 24h, y despues, queda
+auto-closed y puede ser elegible; antes de 24h no produce probes. Timestamp
+malformado o no UTC bloquea routing fail-closed.
+
+Cuando `circuit_open=false`, `circuit_opened_at` queda dormido: se conserva
+literalmente en el routing fingerprint, pero no se parsea, no altera elegibilidad
+y no genera probes por si mismo. Solo `circuit_open=true` activa su interpretacion
+temporal para el cooldown.
+
+Los roles son cerrados: destinos efectivos `PROBE_TARGET`, templates
+`TEMPLATE`, y allowed/exclusion patterns `FILTER`. Solo `PROBE_TARGET` produce
+observaciones. La derivacion estatica por modo es:
+
+- `hardcoded_urls`: seeds filtrados como `HARDCODED_DETAIL`;
+- `paginated_catalog`: expansion `{page}` acotada como `CATALOG_PAGE`;
+- `catalog_link_extraction`: seeds y website como `CATALOG_ROOT`;
+- `sitemap_bfs`: website deriva `SITEMAP_ROOT` y `BFS_ROOT`;
+- `WARMUP`: solo cuando browser, bypass y warmup configurado coinciden.
+
+Website, sitemap roots, BFS roots y warmup son targets solo bajo esas reglas.
+Configuracion dormida se incorpora al routing/source fingerprint, pero nunca se
+convierte silenciosamente en target. Catalog links extraidos, nested sitemaps y
+BFS children pertenecen al runtime dinamico FG2 y quedan fuera del scope
+repository-only static-only de G5. La frontera no declara que esas fuentes
+dinamicas sean inexistentes ni las sustituye por templates o filters.
+
+Todas las URLs activas pasan por la canonicalizacion compartida de identidad URL;
+userinfo, identidades sin host o canonical URL y URNs se rechazan. Seeds
+hardcoded se deduplican por URL canonica conservando orden, y el conjunto final se
+deduplica por `(kind, canonical_url)`: dos kinds sobre la misma URL siguen siendo
+targets distintos. Allowed/exclusion con rol `FILTER` usa el literal contra la URL
+canonica completa, sin truncarla. Para `re:`, el texto de busqueda se acota a 2000
+caracteres (exclusion sobre URL, allowed sobre path). El regex se limita a 200
+caracteres y usa un subset lineal conservador: rechaza toda agrupacion,
+alternancia o cuantificador no escapado antes de compilar. Un escape final
+incompleto tambien se rechaza.
+`localhost`, subdominios `.localhost` y literales IP no globales se rechazan antes
+de crear targets.
+
+Un profile no elegible conserva y fingerprinta su configuracion, estado efectivo
+de circuito y tiempo observado, pero deriva cero `PROBE_TARGET` y produce cero
+observaciones/probes. Configuracion insegura necesaria para fingerprint seguro,
+como regex hostil, sigue bloqueando fail-closed aun cuando el profile no sea
+elegible.
+
+Cada source fingerprint liga el routing inmutable completo, rol, kind, URL e
+indice. El conjunto observado debe ser exactamente el conjunto profile/source
+derivado; fuentes arbitrarias, faltantes, duplicadas, extras o cruzadas entre
+perfiles terminan fail-closed sin ejecutar probes.
+La derivacion admite como maximo `64` fuentes por perfil y `50000` pares globales.
+Los primeros valores fuera de cota, `65` y `50001`, terminan exactamente
+`STOP_G5_TARGET_BINDING_INVALID` antes de materializar el conjunto ampliado.
+
+`pipeline_enabled` es el gate primario. Solo cuando la columna esta ausente se
+usa `pipeline_ready` como fallback explicito. Presente con `null` es divergence
+blocker; `pipeline_enabled=false` nunca cae a `pipeline_ready=true`. Ambos gates
+admiten exclusivamente bool exacto; enteros, strings y subclasses se rechazan.
+El preflight FG2 existente, en cambio, trata `pipeline_enabled=NULL` como fallback
+legacy a `pipeline_ready`; v2.3 registra deliberadamente esa divergencia y STOP,
+no la armoniza silenciosamente. Sus otras reglas de configuracion preflight
+tampoco sustituyen la derivacion del routing efectivo del harvester. Este candidate
+no modifica preflight ni workers.
 
 Count inicial/final distinto produce `STOP_G5_COUNT_DRIFT`. Inventario truncado,
 duplicado, desordenado o incompleto produce solo
@@ -177,6 +251,29 @@ monotonic. La duracion UTC y monotonic debe diferir como maximo
 `CLOCK_DURATION_TOLERANCE_NS=250000000` (250 ms); excederla produce
 `STOP_G5_CLOCK_TIMING_INVALID`.
 
+## Outcomes Source Recomputables
+
+Cada terminal source se recalcula exclusivamente desde los intentos cerrados;
+una declaracion del caller no puede sustituirlo. Los status `2xx`, `404`, `410`,
+`403`, `405`, `501`, transitorios y restantes se traducen respectivamente segun
+la secuencia HEAD/HEAD-GET a `SOURCE_ACCESSIBLE`, `SOURCE_HTTP_404`,
+`SOURCE_HTTP_410`, `SOURCE_ACCESS_403`, `SOURCE_TIMEOUT` o
+`SOURCE_INACCESSIBLE`. Los errores `TIMEOUT`, `DNS_FAILURE`, `TLS_FAILURE`,
+`TRANSPORT_FAILURE` y `UNSAFE_TARGET` producen sus reason codes source exactos.
+Solo `SOURCE_ACCESSIBLE` es compatible con GO; todo otro terminal produce
+`STOP_G5_SOURCE_BLOCKERS_PRESENT` antes del STOP de confianza.
+
+La clasificacion contractual de redirect queda cerrada exactamente como
+`NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE`: cada intento pre-materializado debe
+declarar `NO_REDIRECT`; `SAME_ORIGIN_PUBLIC`, `OTHER_PUBLIC` o cualquier redirect
+sin evidencia derivable se rechaza como `STOP_G5_TARGET_BINDING_INVALID`. La
+ausencia declarada de redirect es evidencia estructural, no prueba no forjable,
+autoridad, trust, disponibilidad ni consumo de gate.
+
+El blocker source y el blocker lifecycle son dominios separados. Un terminal
+source valido pero no accesible nunca se reclasifica como problema lifecycle, y
+una fila processing stale/unknown/futura nunca se oculta bajo source access.
+
 ## Manifest Y Cohorte FG3
 
 El manifest completo exige fingerprints unicos y conteos exactos `24/2/1`, sin
@@ -188,6 +285,13 @@ actuales. La cohorte enumera todos los cursos de `snapshot_1`. Para cada curso
 inactivo exige exactamente una `FG3PriorMutationEvidence`; exact-one se deriva
 contando evidencia inmutable y no existe un booleano autocertificado.
 
+Las formas y cardinalidades FG3 se acotan tempranamente: `category_counts` exige
+exactamente `3` pares; `courses`, `prior_mutations` e `historical_observations`
+admiten cada una como maximo `50000`. Manifest expected fingerprints y categories
+quedan bajo la misma cota. Todo se valida por longitud antes de iterar, construir
+sets o recalcular fingerprints; `50001` termina
+`STOP_G5_MANIFEST_ANCHOR_MISMATCH` sin materializacion ampliada.
+
 Cada `FG3HistoricalObservationEvidence` liga target, snapshot pair, curso, run,
 categoria, estado activo, `observed_at` UTC y fingerprint recomputable. Debe estar
 dentro del target y antes del inicio de `snapshot_1`. El antecedente de un curso
@@ -198,7 +302,13 @@ extras, de cursos activos, ajenos o no relacionadas terminan
 `STOP_G5_MANIFEST_ANCHOR_MISMATCH`. Todo fallo temporal usa
 `STOP_G5_CLOCK_TIMING_INVALID`.
 
-Antes de comparar contenido entre snapshots, v2.2 exige
+Todas las observaciones historicas `DEACTIVATION` o `PRIOR_DEACTIVATION` quedan
+sujetas a exact-one: cada una debe ser consumida por exactamente una prior mutation
+del curso inactivo correspondiente, y cada curso inactivo requiere exactamente
+una prior mutation. Observaciones deactivation no referenciadas, reutilizadas,
+extras o ligadas a cursos activos bloquean el manifest.
+
+Antes de comparar contenido entre snapshots, v2.3 exige
 `type(is_active) is bool` en ambos snapshots. `0`, `1` y cualquier otro entero se
 rechazan como `STOP_G5_MANIFEST_ANCHOR_MISMATCH`; nunca se interpretan como
 `False` o `True`.
@@ -209,8 +319,13 @@ Cada fila `staging_raw` cuyo status exacto es `processing` exige exactamente un
 `LifecycleEvidence` ligado al fingerprint de fila y un proxy recomputable. No se
 permiten duplicados, faltantes ni extras. Los campos crudos
 `last_harvested_at`/`created_at` son exclusivamente `str | None`; no se coercionan
-objetos. Se conserva el fallback, el limite stale de siete dias,
-`AGE_UNKNOWN`, `FUTURE_TIMESTAMP` y el rechazo de PASS forjado.
+objetos. `last_harvested_at` es el primer proxy y `created_at` el fallback. El
+limite stale es exactamente 24 horas: edad igual a 24h es `NOT_STALE` y 24h mas
+un microsegundo es `STALE`. Se conservan `AGE_UNKNOWN`, `FUTURE_TIMESTAMP` y el
+rechazo de PASS forjado. La salida compatible con GO exige que todas las filas
+`processing` tengan evidencia exact-one recomputable y clasificacion
+`NOT_STALE`; cualquier otra clasificacion produce
+`STOP_G5_LIFECYCLE_BLOCKERS_PRESENT` por separado del source blocker.
 
 ## Errores Malformados
 
@@ -235,10 +350,12 @@ callbacks, hooks ni propiedades aportadas por caller.
 
 La capability cerrada permite exclusivamente `select` y `count` sobre las seis
 proyecciones existentes, columnas exactas, keyset `id.asc`, maximo 1000 filas por
-pagina, 50000 filas, 50 paginas, 15 segundos, dos retries y 32 MB por snapshot.
+pagina, 50000 filas, 50 paginas, 15 segundos y 32 MB por snapshot. El budget de
+source es tambien 15 segundos por intento, pero es un dominio separado; la
+gramatica source admite como maximo HEAD seguido de un unico GET, no dos retries.
 No existe implementacion de lectura.
 
-El check CI `F10.9 G5 GET-Only Contract V2.2` ejecuta la suite focused tanto en
+El check CI `F10.9 G5 GET-Only Contract V2.3` ejecuta la suite focused tanto en
 el candidate como en el push post-merge a `desarrollo`. El job F9.7 depende de
 este resultado y solo despues cambia al checkout historico congelado F9.7. Antes
 de importar codigo candidato instala dependencias desde el commit F9.7 congelado,
@@ -254,4 +371,5 @@ editoriales, backfill y re-enrichment siguen excluidos.
 `collect_g5_connected` permanece byte-intacto y termina antes de inspeccionar sus
 argumentos con `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`. Este contrato no crea
 workflow, environment, gate, secret, adapter o transporte, y no accede a
-Production, Free, Pro o Certification.
+Production, Free, Pro o Certification. Tampoco autoriza red, writers, schedules,
+promocion a Certification/Main ni ninguna operacion en Main.
