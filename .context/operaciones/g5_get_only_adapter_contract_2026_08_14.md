@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REPOSITORY_ONLY_TRUST_BROKER_PR_B_LOCAL_CANDIDATE` |
+| Estado | `REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE` |
 | Contrato | `f10.9-g5-get-only-adapter-contract.v2.3` |
 | Schema | `f10.9-g5-get-only-adapter-schema.v2.3` |
 | Algoritmo | `f10.9-g5-get-only-adapter-v2.3` |
-| Fuente protegida | `desarrollo@7a4c6420214dd1ffcc367b1f35cb5f553d07c99c` |
-| Tree protegido | `4c647e87a4effbc577d1653fd023375c2c87fa3e` |
+| Fuente protegida | `desarrollo@191539de71cbff95552c476463305e8d6f3e4b73` |
+| Tree protegido | `7fe13bb907053f4dea51ac593b5df0de78cb40d6` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
@@ -68,8 +68,20 @@ f9_7_job = 95048918881=PASS
 run_attempt = 1
 ```
 
-PR B permanece local, no fusionado ni verificado post-merge, e implementa
-repository-only el [trust broker y ledger Durable Object](../decisiones/ADR-0013_trust_broker_durable_object_ledger.md).
+PR #385 promovio PR B y queda congelado como `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = 09851459f2ffa751e2e8139d4e9a3304427f1ee4
+merge = 191539de71cbff95552c476463305e8d6f3e4b73
+tree = 7fe13bb907053f4dea51ac593b5df0de78cb40d6
+security = 31903582727=PASS
+trust_broker = 95057934429=PASS
+f9_7_run = 31903582617=PASS
+f9_7_job = 95058032300=PASS
+run_attempt = 1
+```
+
+PR B implementa repository-only el [trust broker y ledger Durable Object](../decisiones/ADR-0013_trust_broker_durable_object_ledger.md).
 La superficie Worker verifica JWT RS256/JWKS offline y consulta evidencia mediante
 un adapter GitHub App read-only inyectado con fixtures. Un Durable Object coordinador
 mantiene gates por identidad derivada de seis IDs y serializa en una transaccion
@@ -81,6 +93,11 @@ read-only -> trust broker -> Durable Object -> connected collector futuro. Este 
 solo materializa los tres componentes centrales como codigo local y fakes cerrados.
 No crea workflow manual, protection rule, environment, GitHub App, Worker remoto,
 account binding, secret, installation token, JWKS live ni deployment.
+
+PR C agrega solo el [workflow manual placeholder y connected adapter deshabilitados](../decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md).
+El workflow no se ejecuta, no declara environment, no solicita `id-token` y el
+adapter conectado devuelve `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` antes de
+cualquier transporte.
 
 La salida publica contiene solo version, decision, reason code, receipt digest y
 flags falsos. No registra JWT, Authorization, installation token, URL, host, UUID,

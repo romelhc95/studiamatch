@@ -110,13 +110,20 @@ aprobaciones separadas; este documento no las concede.
    `4c647e87a4effbc577d1653fd023375c2c87fa3e`; Security
    `31899873186=PASS`, focused trust-plane `95048814844=PASS` y F9.7 run
    `31899873143=PASS` / job `95048918881=PASS`, `run_attempt=1`. PR A queda
-   congelado. PR B permanece `REPOSITORY_ONLY_TRUST_BROKER_PR_B_LOCAL_CANDIDATE`,
-   no fusionado ni verificado post-merge, y define [ADR-0013](../../decisiones/ADR-0013_trust_broker_durable_object_ledger.md):
+   congelado. PR #385, PR B, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `09851459f2ffa751e2e8139d4e9a3304427f1ee4`, merge protegido
+   `191539de71cbff95552c476463305e8d6f3e4b73`, tree
+   `7fe13bb907053f4dea51ac593b5df0de78cb40d6`; Security
+   `31903582727=PASS`, trust broker `95057934429=PASS`, F9.7 run
+   `31903582617=PASS` / job `95058032300=PASS`, `run_attempt=1`. PR B define [ADR-0013](../../decisiones/ADR-0013_trust_broker_durable_object_ledger.md):
    Worker trust broker, JWT RS256/JWKS offline, adapter GitHub App read-only con
    fixtures, binding exact-one y Durable Object CAS `ABSENT -> READY -> CONSUMED`.
    Prueba replay nonce/`jti`, consumo concurrente, expiracion/tombstone, timeout
-   antes/despues del CAS, receipt inmutable y fallo posterior al consumo. Gate
-   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
+   antes/despues del CAS, receipt inmutable y fallo posterior al consumo. PR C
+   permanece `REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE` y define
+   [ADR-0014](../../decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md):
+   workflow manual placeholder deshabilitado y connected adapter que falla antes de
+   transporte. Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
    `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
    `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; cero deployment, Production,
    configuracion remota, Supabase, SQL, writers, schedules o red live.
