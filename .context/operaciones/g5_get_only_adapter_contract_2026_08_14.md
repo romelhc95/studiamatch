@@ -1,37 +1,37 @@
-# F10.9 G5 - Contrato Offline GET-Only V2.1
+# F10.9 G5 - Contrato Offline GET-Only V2.2
 
 | Campo | Valor |
 |---|---|
 | Subfase | `F10.9` |
-| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_1_TRUST_STOP` |
-| Contrato | `f10.9-g5-get-only-adapter-contract.v2.1` |
-| Schema | `f10.9-g5-get-only-adapter-schema.v2.1` |
-| Algoritmo | `f10.9-g5-get-only-adapter-v2.1` |
-| Fuente protegida | `desarrollo@c7783af918c4e434d31b80e9a65247329c0b3595` |
-| Tree protegido | `37d4ab05738355436169188d2613f860c6b35148` |
+| Estado | `REMEDIATED_REPOSITORY_ONLY_V2_2_TRUST_STOP` |
+| Contrato | `f10.9-g5-get-only-adapter-contract.v2.2` |
+| Schema | `f10.9-g5-get-only-adapter-schema.v2.2` |
+| Algoritmo | `f10.9-g5-get-only-adapter-v2.2` |
+| Fuente protegida | `desarrollo@c998b0293b364b1c59d9c52824178927977f0b56` |
+| Tree protegido | `d93843d4e08dfd9c45571b72040994926dffc221` |
 | Gate G5 | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Resultado repository-only | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED` |
 | Conexiones/probes | `ZERO_NOT_IMPLEMENTED` |
 
-## Reconciliacion PR 380
+## Reconciliacion PR 381
 
-PR #380 fue aprobado, fusionado y verificado sobre:
+PR #381 fue aprobado, fusionado y verificado sobre:
 
 ```text
-merge = c7783af918c4e434d31b80e9a65247329c0b3595
-tree = 37d4ab05738355436169188d2613f860c6b35148
-parent_1 = c28e5b86e6be29bbb2444bedd9b9407d1e7b0974
-parent_2 = 6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3
-security_audit_post_merge = 31848341499=PASS
-f9_7_post_merge = 31848341110=PASS
+merge = c998b0293b364b1c59d9c52824178927977f0b56
+tree = d93843d4e08dfd9c45571b72040994926dffc221
+parent_1 = c7783af918c4e434d31b80e9a65247329c0b3595
+parent_2 = 51c24af3664a5d03ad16e16fa8793862cdb7fec1
+security_audit_post_merge = 31852148318=PASS
+f9_7_post_merge = 31852148322=PASS
 result = MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED
 ```
 
-El contrato v2 queda congelado como
+El contrato v2.1 queda congelado como
 `HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE`. No puede reinterpretarse
 silenciosamente. Todo sucesor debe usar versiones de contrato, schema y algoritmo
-v2.1 o posteriores y una autorizacion separada. V1 permanece congelado por la
+v2.2 o posteriores y una autorizacion separada. V2 y v1 permanecen congelados por la
 reconciliacion anterior y no se reabre.
 
 ## Modelo De Confianza
@@ -91,8 +91,22 @@ La ventana temporal vinculante es exactamente:
 
 ```text
 target.issued_at <= manifest.issued_at <= anchor.issued_at
+                 < snapshot_1_started_at
                  <= evaluated_at < target.expires_at
 ```
+
+La causalidad FG3 completa agrega:
+
+```text
+target.issued_at <= max(historical_observations.observed_at)
+                 <= manifest.issued_at
+                 <= anchor.issued_at
+                 < snapshot_1_started_at
+```
+
+Todos esos timestamps permanecen dentro del target binding. La igualdad
+observacion/manifest y manifest/anchor es valida; el anchor nunca puede coincidir
+con el inicio del primer snapshot.
 
 Manifest o anchor futuros, expirados o fuera del binding terminan
 `STOP_G5_CLOCK_TIMING_INVALID`.
@@ -119,6 +133,11 @@ Duraciones UTC y monotonic deben ser positivas, no exceder el presupuesto fijo d
 duracion cero/negativa/excesiva, cantidad distinta de timings o incoherencia usa
 exclusivamente `STOP_G5_CLOCK_TIMING_INVALID`.
 
+La gramatica cerrada acepta solamente `HEAD, GET`, `HEAD, HEAD, GET` y
+`HEAD, GET, GET`, con maximo tres intentos totales. El HEAD o GET repetido es un
+retry. `GET` solo, `HEAD` solo, `GET -> HEAD`, alternancias posteriores, cuatro
+intentos y cualquier otra secuencia se rechazan fail-closed.
+
 `SourceObservationEvidence.observed_at` se conserva solo como alias verificable:
 debe coincidir exactamente con `ended_at_utc` del ultimo intento. No sustituye la
 evidencia de inicio/fin ni puede ocultar un intento fuera de intervalo. Ademas,
@@ -129,14 +148,22 @@ tipo exacto antes de leer `method_sequence`; un tipo incorrecto produce
 
 La unidad de cada source observation es el par profile/source. No se asocia
 artificialmente a un course: un profile elegible puede tener su fuente observada
-sin crear identidad de curso. Este candidate exige exactamente un par
-profile/source por perfil elegible; un segundo source para el mismo perfil no se
-agrega ni se confunde con otro curso, sino que detiene el contrato para exigir un
-schema sucesor explicito. La cobertura se deriva mecanicamente de las filas exactas de
-`institution_site_profiles`: son elegibles solo perfiles con
-`discovery_enabled=true`, `pipeline_enabled=true`, `pipeline_ready=true` y
-`circuit_open=false`. Debe existir exactamente un bundle por fingerprint de perfil
-elegible; duplicados, faltantes o extras terminan fail-closed sin ejecutar probes.
+sin crear identidad de curso. V2.2 deriva mecanicamente cada source fingerprint
+desde el fingerprint del perfil y su configuracion inmutable completa:
+`discovery_mode`, `seed_urls`, `catalog_url_patterns` y `allowed_url_patterns`.
+Cada entrada configurada produce un source distinto ligado a su tipo. El conjunto
+observado debe ser exactamente el conjunto profile/source derivado; fuentes
+arbitrarias, faltantes, duplicadas, extras o cruzadas entre perfiles terminan
+fail-closed sin ejecutar probes.
+La derivacion queda acotada a `64` fuentes por perfil y `50000` pares globales;
+exceder cualquiera de esos limites termina `STOP_G5_TARGET_BINDING_INVALID`
+antes de materializar el conjunto ampliado.
+
+`pipeline_enabled` es el gate primario. Solo cuando es `None` se usa
+`pipeline_ready` como fallback explicito. `pipeline_enabled=false` nunca cae a
+`pipeline_ready=true`. `pipeline_enabled` admite exclusivamente `bool | None` y
+`pipeline_ready` exclusivamente `bool`; enteros, strings y subclasses se
+rechazan. Ademas se exige `discovery_enabled=true` y `circuit_open=false`.
 
 Count inicial/final distinto produce `STOP_G5_COUNT_DRIFT`. Inventario truncado,
 duplicado, desordenado o incompleto produce solo
@@ -157,18 +184,21 @@ contar duplicados. No exige una observacion historica diferente por curso activo
 varias observaciones validas pueden ligarse al mismo curso activo cuando sus
 fingerprints son unicos y el manifest las requiere. Esta multiplicidad pertenece
 al manifest historico FG3 y no cambia la unidad profile/source de observaciones
-actuales. La cohorte primaria contiene
-todos los cursos activos en `snapshot_1`; un inactivo solo entra con antecedente
-exact-one atribuible.
+actuales. La cohorte enumera todos los cursos de `snapshot_1`. Para cada curso
+inactivo exige exactamente una `FG3PriorMutationEvidence`; exact-one se deriva
+contando evidencia inmutable y no existe un booleano autocertificado.
 
 Cada `FG3HistoricalObservationEvidence` liga target, snapshot pair, curso, run,
 categoria, estado activo, `observed_at` UTC y fingerprint recomputable. Debe estar
 dentro del target y antes del inicio de `snapshot_1`. El antecedente de un curso
-inactivo incluye `antecedent_observed_at`, mutation kind y mutation fingerprint
-recomputable; tambien debe preceder `snapshot_1`. Todo fallo de orden temporal usa
+inactivo liga course fingerprint, antecedent run, antecedent timestamp,
+`DEACTIVATION`, mutation fingerprint recomputable y una observacion historica
+`DEACTIVATION` del mismo curso/run/timestamp. Mutaciones faltantes, duplicadas,
+extras, de cursos activos, ajenos o no relacionadas terminan
+`STOP_G5_MANIFEST_ANCHOR_MISMATCH`. Todo fallo temporal usa
 `STOP_G5_CLOCK_TIMING_INVALID`.
 
-Antes de comparar cualquier fila `courses`, v2.1 exige
+Antes de comparar contenido entre snapshots, v2.2 exige
 `type(is_active) is bool` en ambos snapshots. `0`, `1` y cualquier otro entero se
 rechazan como `STOP_G5_MANIFEST_ANCHOR_MISMATCH`; nunca se interpretan como
 `False` o `True`.
@@ -207,6 +237,14 @@ La capability cerrada permite exclusivamente `select` y `count` sobre las seis
 proyecciones existentes, columnas exactas, keyset `id.asc`, maximo 1000 filas por
 pagina, 50000 filas, 50 paginas, 15 segundos, dos retries y 32 MB por snapshot.
 No existe implementacion de lectura.
+
+El check CI `F10.9 G5 GET-Only Contract V2.2` ejecuta la suite focused tanto en
+el candidate como en el push post-merge a `desarrollo`. El job F9.7 depende de
+este resultado y solo despues cambia al checkout historico congelado F9.7. Antes
+de importar codigo candidato instala dependencias desde el commit F9.7 congelado,
+bloquea egress con el guard congelado y ejecuta como UID/GID sin privilegios,
+capabilities ni environment heredado sobre un workspace read-only. El cleanup de
+firewall es obligatorio incluso ante fallo.
 
 La proyeccion publica cerrada contiene solo version, decision, reason code y flags
 falsos. Excluye URLs, hosts, UUID, institution IDs, payload/rows, project ref,

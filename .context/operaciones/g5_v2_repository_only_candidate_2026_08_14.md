@@ -57,6 +57,19 @@ Gate y connected mode permanecen `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y
 `STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED`; todo resultado estructural v2.1 termina
 `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
 
+PR #381 integro v2.1 mediante candidate
+`51c24af3664a5d03ad16e16fa8793862cdb7fec1` y merge protegido
+`c998b0293b364b1c59d9c52824178927977f0b56`, tree
+`d93843d4e08dfd9c45571b72040994926dffc221`, con parents
+`c7783af918c4e434d31b80e9a65247329c0b3595` y el candidate. Security Audit
+`31852148318=PASS` y F9.7 `31852148322=PASS` verificaron el merge. Su resultado
+queda `MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED`: v2.1 se congela como
+`HISTORICAL_ANTECEDENT_NOT_FIT_FOR_CONNECTED_MODE` porque aun aceptaba causalidad
+historica futura, exact-one autocertificado, elegibilidad dual y source digests
+arbitrarios. V2.2 corrige exclusivamente esos hallazgos repository-only, mantiene
+gate y connected mode bloqueados y termina en
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
+
 PR #379 integro el contrato offline v1 mediante merge
 `c28e5b86e6be29bbb2444bedd9b9407d1e7b0974`, tree
 `22de9d315ff26b0a8b0e8ae991a338473fbdbe11`, parents

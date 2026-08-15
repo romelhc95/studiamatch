@@ -136,12 +136,12 @@ G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
 G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
 G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
 G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
-G5_GET_ONLY_ADAPTER_BASE = "c7783af918c4e434d31b80e9a65247329c0b3595"
-G5_GET_ONLY_ADAPTER_BASE_TREE = "37d4ab05738355436169188d2613f860c6b35148"
-G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c28e5b86e6be29bbb2444bedd9b9407d1e7b0974"
-# PR #380 is the protected base's second parent. The v2.1 successor is one commit.
-G5_GET_ONLY_ADAPTER_CANDIDATE = "6ff5e2b2e402a82842d51b5b3ec5b7c69b7713e3"
-G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-1"
+G5_GET_ONLY_ADAPTER_BASE = "c998b0293b364b1c59d9c52824178927977f0b56"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "d93843d4e08dfd9c45571b72040994926dffc221"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "c7783af918c4e434d31b80e9a65247329c0b3595"
+# PR #381 is the protected base's second parent. The v2.2 successor is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "51c24af3664a5d03ad16e16fa8793862cdb7fec1"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "fix/f10-9-g5-get-only-contract-v2-2"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -533,6 +533,7 @@ G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
     ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
     ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
     "scripts/security/f109_boundary.py": "M",
     "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
     "tests/test_fase10_9_branch_reconciliation.py": "M",
@@ -2821,6 +2822,9 @@ def validate_g5_get_only_adapter(
     evidence = (
         repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
     ).read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
     for forbidden in (
         "import supabase",
         "import requests",
@@ -2930,18 +2934,23 @@ def validate_g5_get_only_adapter(
     ):
         require(forbidden not in contract, "G5 adapter v1 trust surface returned")
     for required in (
-        "f10.9-g5-get-only-adapter-contract.v2.1",
-        "f10.9-g5-get-only-adapter-schema.v2.1",
-        "f10.9-g5-get-only-adapter-v2.1",
+        "f10.9-g5-get-only-adapter-contract.v2.2",
+        "f10.9-g5-get-only-adapter-schema.v2.2",
+        "f10.9-g5-get-only-adapter-v2.2",
         "ManifestBuilderEvidenceReceipt",
         "AnchorProviderEvidenceReceipt",
         "class FrozenRow",
         "class LifecycleEvidence",
         "class SourceAttemptTiming",
+        "class FG3PriorMutationEvidence",
         "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
+        "MAX_SOURCES_PER_PROFILE = 64",
+        "MAX_PROFILE_SOURCE_PAIRS = 50_000",
+        "SOURCE_ATTEMPT_GRAMMAR",
         "_require_complete",
         "historical_observation_fingerprint",
         "prior_mutation_fingerprint",
+        "profile_source_fingerprints",
         "validate_source_coverage",
         "validate_lifecycle_evidence",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
@@ -2958,13 +2967,13 @@ def validate_g5_get_only_adapter(
     ):
         require(required in contract, "G5 adapter contract drift")
     for required in (
-        "REMEDIATED_REPOSITORY_ONLY_V2_1_TRUST_STOP",
+        "REMEDIATED_REPOSITORY_ONLY_V2_2_TRUST_STOP",
         "MERGED_POST_MERGE_CI_PASS_REMEDIATION_REQUIRED",
         G5_GET_ONLY_ADAPTER_BASE,
         G5_GET_ONLY_ADAPTER_BASE_TREE,
         G5_GET_ONLY_ADAPTER_CANDIDATE,
-        "31848341499=PASS",
-        "31848341110=PASS",
+        "31852148318=PASS",
+        "31852148322=PASS",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
@@ -2976,6 +2985,21 @@ def validate_g5_get_only_adapter(
         in collector
         and 'raise G5Error("STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED")' in collector,
         "G5 connected-mode unconditional STOP drift",
+    )
+    for required in (
+        "F10.9 G5 GET-Only Contract V2.2",
+        "tests/test_fase10_9_g5_get_only_adapter_contract.py",
+        "needs: [g5-get-only-v2-2, f1010-m3-zero-write]",
+        "Block G5 v2.2 external egress",
+        "--bounding-set=-all",
+        "env -i HOME=/tmp CI=true",
+        "Restore G5 v2.2 external egress",
+    ):
+        require(required in workflow, "G5 v2.2 focused CI drift")
+    require(
+        workflow.index("Run repository-only G5 v2.2 focused contract")
+        < workflow.index("git checkout --detach \"$F97_CANDIDATE_COMMIT\""),
+        "G5 v2.2 focused CI must precede historical F9.7 checkout",
     )
     validate_context_graph(repo, 67, 405)
 
