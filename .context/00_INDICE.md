@@ -89,6 +89,7 @@
 - [ADR-0017](decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md)
 - [ADR-0018](decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md)
 - [ADR-0019](decisiones/ADR-0019_github_runtime_schema_lifecycle.md)
+- [ADR-0020](decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04

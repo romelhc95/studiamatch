@@ -27,6 +27,7 @@ RUNBOOK_PATH = Path(".context/operaciones/g5_operational_activation_runbook_2026
 ADR_PATH = Path(".context/decisiones/ADR-0016_g5_operational_activation_gates.md")
 ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md")
 ADR19_PATH = Path(".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md")
+ADR20_PATH = Path(".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -88,6 +89,7 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
     assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
+    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED"
     assert all(item["state"] == "ABSENT_NOT_CONFIGURED" for item in manifest["required_configuration_names"])
     assert [item["name"] for item in manifest["required_configuration_names"]] == list(EXPECTED_CONFIGURATION_NAMES)
 
@@ -128,7 +130,7 @@ def test_pr390_and_e1_deployment_are_sanitized_and_reconciled() -> None:
     assert "token" not in json.dumps(e1).lower()
 
 
-def test_pr391_and_e2_schema_stop_are_registered() -> None:
+def test_pr392_and_e2_security_remediation_stop_are_registered() -> None:
     manifest = _manifest()
     assert manifest["pr_391_reconciliation"] == {
         "candidate_sha": "77f475af2e5900bc1338967676ebded71b672642",
@@ -145,7 +147,24 @@ def test_pr391_and_e2_schema_stop_are_registered() -> None:
         "f9_7_job_conclusion": "PASS",
         "run_attempt": 1,
     }
-    assert manifest["e2_stop"] == "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
+    assert manifest["pr_392_reconciliation"] == {
+        "candidate_sha": "b3f9678e0df76ef8f9dfde8af9147a458a2e033b",
+        "merge_sha": "0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e",
+        "tree_sha": "7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98",
+        "status": "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED",
+        "security_run_id": "31958015767",
+        "security_conclusion": "PASS",
+        "f9_7_run_id": "31958015698",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95191560687",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95191665616",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+        "previous_security_auditor_go_preserved": True,
+        "post_merge_security_remediation_required": True,
+    }
+    assert manifest["e2_stop"] == "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
     assert sorted(manifest["github_runtime_shapes"]) == sorted(
         [
             "approvals",
@@ -163,18 +182,46 @@ def test_pr391_and_e2_schema_stop_are_registered() -> None:
     assert "ref_protected" in manifest["github_runtime_shapes"]["branch"]["forbidden_fields"]
     assert "environment_id" in manifest["github_runtime_shapes"]["deployments"]["forbidden_fields"]
     assert "check_run_id" in manifest["github_runtime_shapes"]["approvals"]["forbidden_fields"]
+    assert manifest["github_runtime_shapes"]["check_runs"]["source"] == (
+        "GET /repos/{owner}/{repo}/check-runs/{check_run_id}"
+    )
+    assert "commit_sha_name_array_search" in manifest["github_runtime_shapes"]["check_runs"]["forbidden_fields"]
     assert manifest["github_runtime_shapes"]["workflow_run"]["lifecycle"] == (
         "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1"
     )
     assert manifest["github_runtime_shapes"]["deployment_statuses"]["source"].endswith(
         "/statuses?per_page=100"
     )
-    assert manifest["github_runtime_shapes"]["deployment_statuses"]["lifecycle"].startswith(
-        "current-first state=in_progress"
-    )
+    assert "unique temporal maximum" in manifest["github_runtime_shapes"]["deployment_statuses"]["lifecycle"]
     assert manifest["github_runtime_shapes"]["workflow_content_blob"]["source"].endswith(
         "?ref={candidate_sha}"
     )
+
+
+def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> None:
+    manifest = _manifest()
+    findings = manifest["post_merge_security_findings"]
+    assert len(findings) == 6
+    assert [finding["severity"] for finding in findings].count("HIGH") == 3
+    assert [finding["severity"] for finding in findings].count("MEDIUM") == 3
+    assert findings[-1]["status"] == "STOP_EXPLICIT_E2_PREFLIGHT_REQUIRED"
+    assert all("REMEDIATED" in finding["status"] for finding in findings[:-1])
+    assert manifest["runtime_binding_contract"] == {
+        "check_run_source": "job.check_run_url_only",
+        "deployment_status_source": "unique_temporal_maximum_after_validation",
+        "binding_fields_added": ["jobId", "deploymentStatusId", "checkSuiteId"],
+        "check_suite_id_policy": "included_because_check_run.check_suite.id_is_authoritative_and_stable_in_rest_shape",
+        "caller_supplied_authority": "FORBIDDEN",
+    }
+    assert manifest["snapshot_cas"]["internal_retry"] == "FORBIDDEN"
+    assert manifest["installation_token_scope"]["repository_ids_request"] == "exact_single_repository_id"
+    assert manifest["installation_token_scope"]["permissions"] == EXPECTED_GITHUB_APP_PERMISSIONS
+    assert manifest["future_e2_readonly_preflight"] == {
+        "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
+        "state": "DOCUMENTED_NOT_EXECUTED",
+        "permission_added_now": False,
+        "stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED",
+    }
 
 
 def test_runtime_shapes_are_exact_and_fail_closed() -> None:
@@ -255,6 +302,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         + ADR_PATH.read_text(encoding="utf-8")
         + ADR18_PATH.read_text(encoding="utf-8")
         + ADR19_PATH.read_text(encoding="utf-8")
+        + ADR20_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",

@@ -17,6 +17,15 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_WEB_BASE = "https://github.com";
 const GITHUB_API_REPOSITORY_URL = `${GITHUB_API_BASE}/repos/${REPOSITORY}`;
 const GITHUB_JWKS_URL = `${ISSUER}/.well-known/jwks`;
+const GITHUB_ACTIONS_APP_SLUG = "github-actions";
+const GITHUB_ACTIONS_APP_NAME = "GitHub Actions";
+const EXPECTED_GITHUB_APP_PERMISSIONS = Object.freeze({
+  actions: "read",
+  checks: "read",
+  contents: "read",
+  deployments: "read",
+  metadata: "read",
+});
 const MAX_TOKEN_LIFETIME_SECONDS = 600;
 const MAX_LEDGER_RECORDS = 10_000;
 const STRICT_TIMEOUT_MS = 15_000;
@@ -118,7 +127,9 @@ const PUBLIC_REASON_CODES = new Set([...Object.values(REASONS), TRUST_STOP, CONN
 const AUTHORITY_FIELDS = new Set([
   "claims", "evidence", "approval", "deployment", "environment", "receipt",
   "repository_id", "owner_id", "check_run_id", "environment_id",
-  "deployment_id", "approver_id", "workflow_sha", "workflow_blob_sha",
+  "deployment_id", "deployment_status_id", "job_id", "check_suite_id",
+  "approver_id", "workflow_sha", "workflow_blob_sha", "jobId",
+  "deploymentStatusId", "checkSuiteId",
   "nonce", "jti", "proof", "jwks", "installation_token",
 ]);
 
@@ -618,8 +629,8 @@ export class GithubAppReadOnlyAdapter {
   async authoritativeEvidence(claims) {
     const reference = Object.freeze({
       repository: claims.repository, runId: claims.runId, runAttempt: claims.runAttempt,
-      candidateSha: claims.candidateSha, workflowRef: claims.workflowRef,
-      environment: claims.environment,
+      repositoryId: claims.repositoryId, ownerId: claims.ownerId, candidateSha: claims.candidateSha,
+      workflowRef: claims.workflowRef, environment: claims.environment,
     });
     const [run, check, branch, environment, approval, commit, workflowBlob] = await Promise.all([
       this.transport.getWorkflowRun(reference),
@@ -680,7 +691,8 @@ export class G5ConnectedGithubAppAdapter {
   ensureReference(reference) {
     if (
       !exactObject(reference) || reference.repository !== REPOSITORY ||
-      reference.runAttempt !== 1 || reference.candidateSha !== this.policy.candidateSha ||
+      reference.runAttempt !== 1 || !positiveInteger(reference.repositoryId) ||
+      !positiveInteger(reference.ownerId) || reference.candidateSha !== this.policy.candidateSha ||
       reference.workflowRef !== WORKFLOW_REF || reference.environment !== ENVIRONMENT
     ) stop(REASONS.BINDING);
   }
@@ -694,26 +706,22 @@ export class G5ConnectedGithubAppAdapter {
     });
   }
 
-  async installationToken() {
+  async installationToken(repositoryId) {
+    if (!positiveInteger(repositoryId)) stop(REASONS.TRANSPORT);
     const nowEpochSeconds = this.now();
-    if (this.token && this.token.expiresAt - nowEpochSeconds > 60) return this.token.value;
+    if (this.token && this.token.repositoryId === repositoryId && this.token.expiresAt - nowEpochSeconds > 60) return this.token.value;
     if (this.tokenPromise) return this.tokenPromise;
-    this.tokenPromise = this.createInstallationToken(nowEpochSeconds).finally(() => {
+    this.tokenPromise = this.createInstallationToken(nowEpochSeconds, repositoryId).finally(() => {
       this.tokenPromise = null;
     });
     return this.tokenPromise;
   }
 
-  async createInstallationToken(nowEpochSeconds) {
+  async createInstallationToken(nowEpochSeconds, repositoryId) {
     const jwt = await this.createAppJwt();
     const body = {
-      permissions: {
-        actions: "read",
-        checks: "read",
-        contents: "read",
-        deployments: "read",
-        metadata: "read",
-      },
+      repository_ids: [repositoryId],
+      permissions: { ...EXPECTED_GITHUB_APP_PERMISSIONS },
     };
     const response = await this.githubFetch(
       "POST",
@@ -728,12 +736,19 @@ export class G5ConnectedGithubAppAdapter {
       stop(REASONS.TRANSPORT);
     }
     if (!exactObject(response.permissions)) stop(REASONS.TRANSPORT);
+    exactKeys(response.permissions, Object.keys(EXPECTED_GITHUB_APP_PERMISSIONS), REASONS.TRANSPORT);
     for (const [permission, access] of Object.entries(response.permissions)) {
-      if (!Object.hasOwn(body.permissions, permission) || access !== "read") stop(REASONS.TRANSPORT);
+      if (EXPECTED_GITHUB_APP_PERMISSIONS[permission] !== access) stop(REASONS.TRANSPORT);
+    }
+    if (response.repository_selection !== undefined && response.repository_selection !== "selected") stop(REASONS.TRANSPORT);
+    if (!Array.isArray(response.repositories) || response.repositories.length !== 1) stop(REASONS.TRANSPORT);
+    const repository = response.repositories[0];
+    if (!exactObject(repository) || Number(repository.id) !== repositoryId || repository.full_name !== REPOSITORY) {
+      stop(REASONS.TRANSPORT);
     }
     const expiresAt = Date.parse(response.expires_at ?? "");
     if (!Number.isFinite(expiresAt)) stop(REASONS.TRANSPORT);
-    this.token = Object.freeze({ value: response.token, expiresAt: Math.floor(expiresAt / 1000) });
+    this.token = Object.freeze({ value: response.token, repositoryId, expiresAt: Math.floor(expiresAt / 1000) });
     if (this.token.expiresAt <= nowEpochSeconds) stop(REASONS.EXPIRED);
     return response.token;
   }
@@ -760,11 +775,13 @@ export class G5ConnectedGithubAppAdapter {
       this.timeoutMs,
     );
     if (!response || response.status < 200 || response.status >= 300) stop(REASONS.TRANSPORT);
+    const link = lowerHeader(response.headers, "link");
+    if (typeof link === "string" && /(?:^|,)\s*<[^>]+>\s*;\s*rel="?next"?/i.test(link)) stop(REASONS.BINDING);
     return responseJsonWithLimit(response, maxBytes, this.timeoutMs);
   }
 
-  async githubGet(path) {
-    const token = await this.installationToken();
+  async githubGet(path, repositoryId) {
+    const token = await this.installationToken(repositoryId);
     return this.githubFetch("GET", path, { headers: { authorization: `Bearer ${token}` } });
   }
 
@@ -772,13 +789,26 @@ export class G5ConnectedGithubAppAdapter {
     return Object.freeze({ complete: true, items: Object.freeze(items.map((item) => Object.freeze(item))) });
   }
 
-  githubApiPathFromUrl(raw, expectedPrefix) {
+  githubApiPathFromUrl(raw, expectedPrefix, reason = REASONS.TRANSPORT) {
+    if (typeof raw !== "string") stop(reason);
+    const url = requireSafeHttpsUrl(raw, reason);
+    if (url.origin !== GITHUB_API_BASE || url.pathname.startsWith("//")) stop(reason);
+    if (typeof expectedPrefix === "string" && url.pathname !== expectedPrefix) stop(reason);
+    if (url.search !== "" || url.hash !== "") stop(reason);
+    return `${url.pathname}${url.search}`;
+  }
+
+  githubCheckRunPathFromUrl(raw) {
     if (typeof raw !== "string") stop(REASONS.TRANSPORT);
     const url = requireSafeHttpsUrl(raw, REASONS.TRANSPORT);
-    if (url.origin !== GITHUB_API_BASE || url.pathname.startsWith("//")) stop(REASONS.TRANSPORT);
-    if (typeof expectedPrefix === "string" && url.pathname !== expectedPrefix) stop(REASONS.TRANSPORT);
-    if (url.search !== "" || url.hash !== "") stop(REASONS.TRANSPORT);
-    return `${url.pathname}${url.search}`;
+    const prefix = `/repos/${REPOSITORY}/check-runs/`;
+    if (
+      url.origin !== GITHUB_API_BASE || !url.pathname.startsWith(prefix) ||
+      url.search !== "" || url.hash !== ""
+    ) stop(REASONS.TRANSPORT);
+    const id = decimalId(url.pathname.slice(prefix.length));
+    if (id === null || url.pathname !== `${prefix}${id}`) stop(REASONS.TRANSPORT);
+    return Object.freeze({ id, path: url.pathname, url: `${GITHUB_API_BASE}${url.pathname}` });
   }
 
   githubActionJobUrlBinding(raw, reference, jobId) {
@@ -794,7 +824,7 @@ export class G5ConnectedGithubAppAdapter {
 
   async getWorkflowRun(reference) {
     this.ensureReference(reference);
-    const run = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}`);
+    const run = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}`, reference.repositoryId);
     const item = exactObject(run) && run.id !== undefined ? {
       id: Number(run.id),
       repositoryId: Number(run.repository?.id),
@@ -814,7 +844,7 @@ export class G5ConnectedGithubAppAdapter {
 
   async getBranch(reference) {
     this.ensureReference(reference);
-    const branch = await this.githubGet(`/repos/${REPOSITORY}/branches/${MAIN_BRANCH}`);
+    const branch = await this.githubGet(`/repos/${REPOSITORY}/branches/${MAIN_BRANCH}`, reference.repositoryId);
     return this.complete([{
       name: branch.name,
       protected: branch.protected === true,
@@ -823,58 +853,131 @@ export class G5ConnectedGithubAppAdapter {
 
   async listWorkflowJobs(reference) {
     this.ensureReference(reference);
-    const jobs = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/jobs?per_page=100`);
-    const checks = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}/check-runs?check_name=${encodeURIComponent(WORKFLOW_NAME)}`);
-    if (!Array.isArray(jobs.jobs) || !Array.isArray(checks.check_runs)) stop(REASONS.BINDING);
+    const jobs = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/jobs?per_page=100`, reference.repositoryId);
+    if (!Array.isArray(jobs.jobs)) stop(REASONS.BINDING);
     if (Number(jobs.total_count ?? jobs.jobs.length) > jobs.jobs.length || jobs.jobs.length >= 100) stop(REASONS.BINDING);
-    if (Number(checks.total_count ?? checks.check_runs.length) > checks.check_runs.length || checks.check_runs.length >= 100) stop(REASONS.BINDING);
     const jobItems = Array.isArray(jobs.jobs) ? jobs.jobs.filter((job) => job.name === WORKFLOW_NAME) : [];
-    const checkItems = Array.isArray(checks.check_runs) ? checks.check_runs.filter((check) => check.name === WORKFLOW_NAME) : [];
-    const job = jobItems.length === 1 ? jobItems[0] : null;
-    const check = checkItems.length === 1 ? checkItems[0] : null;
-    return this.complete(job && check ? [{
-      id: Number(check.id),
+    if (jobItems.length !== 1) stop(REASONS.BINDING);
+    const job = jobItems[0];
+    if (!exactObject(job)) stop(REASONS.BINDING);
+    const checkBinding = this.githubCheckRunPathFromUrl(job.check_run_url);
+    const check = await this.githubGet(checkBinding.path, reference.repositoryId);
+    const checkSuiteId = decimalId(check?.check_suite?.id);
+    const app = check?.app;
+    if (
+      !exactObject(check) || !exactObject(app) || Number(check.id) !== checkBinding.id ||
+      checkSuiteId === null || Number(job.run_id) !== reference.runId || Number(job.run_attempt) !== 1 ||
+      job.head_sha !== reference.candidateSha || job.name !== WORKFLOW_NAME ||
+      job.status !== "in_progress" || (job.conclusion ?? null) !== null ||
+      check.head_sha !== reference.candidateSha || check.name !== WORKFLOW_NAME ||
+      check.status !== "in_progress" || (check.conclusion ?? null) !== null ||
+      app.slug !== GITHUB_ACTIONS_APP_SLUG || app.name !== GITHUB_ACTIONS_APP_NAME
+    ) stop(REASONS.BINDING);
+    return this.complete([{
+      id: checkBinding.id,
+      checkSuiteId,
       jobId: Number(job.id),
-      runId: Number(reference.runId),
+      runId: Number(job.run_id),
+      runAttempt: Number(job.run_attempt),
+      headSha: job.head_sha,
+      checkRunUrl: checkBinding.url,
       name: job.name,
       jobStatus: job.status,
       jobConclusion: job.conclusion ?? null,
+      checkHeadSha: check.head_sha,
+      checkName: check.name,
       checkStatus: check.status,
       checkConclusion: check.conclusion ?? null,
-    }] : []);
+      checkAppSlug: app.slug,
+      checkAppName: app.name,
+    }]);
+  }
+
+  parseDeploymentStatus(status, deployment, reference) {
+    if (!exactObject(status)) stop(REASONS.BINDING);
+    const statusId = decimalId(status.id);
+    const deploymentId = decimalId(deployment.id);
+    if (statusId === null || deploymentId === null) stop(REASONS.BINDING);
+    if (typeof status.state !== "string" || typeof status.created_at !== "string" || typeof status.updated_at !== "string") {
+      stop(REASONS.BINDING);
+    }
+    const createdAtMs = Date.parse(status.created_at ?? "");
+    const updatedAtMs = Date.parse(status.updated_at ?? "");
+    if (
+      !Number.isFinite(createdAtMs) || !Number.isFinite(updatedAtMs) || updatedAtMs < createdAtMs ||
+      !/(Z|[+-][0-9]{2}:[0-9]{2})$/.test(status.created_at ?? "") ||
+      !/(Z|[+-][0-9]{2}:[0-9]{2})$/.test(status.updated_at ?? "")
+    ) stop(REASONS.BINDING);
+    this.githubApiPathFromUrl(status.deployment_url, `/repos/${REPOSITORY}/deployments/${deploymentId}`, REASONS.BINDING);
+    const log = this.githubActionJobUrlBinding(status.log_url, reference, reference.jobId);
+    const target = this.githubActionJobUrlBinding(status.target_url, reference, reference.jobId);
+    if (
+      status.environment !== ENVIRONMENT || status.repository_url !== GITHUB_API_REPOSITORY_URL ||
+      log === null || target === null
+    ) stop(REASONS.BINDING);
+    return Object.freeze({
+      id: statusId,
+      state: status.state,
+      createdAt: status.created_at,
+      updatedAt: status.updated_at,
+      createdAtMs,
+      updatedAtMs,
+    });
+  }
+
+  currentDeploymentStatus(statuses, deployment, reference) {
+    if (!Array.isArray(statuses)) stop(REASONS.BINDING);
+    if (statuses.length >= 100) stop(REASONS.BINDING);
+    const ids = new Set();
+    const parsed = statuses.map((status) => this.parseDeploymentStatus(status, deployment, reference));
+    for (const status of parsed) {
+      if (ids.has(status.id)) stop(REASONS.BINDING);
+      ids.add(status.id);
+    }
+    if (parsed.length === 0) return null;
+    const ordered = [...parsed].sort((left, right) => (
+      right.updatedAtMs - left.updatedAtMs || right.createdAtMs - left.createdAtMs
+    ));
+    if (
+      ordered.length > 1 && ordered[0].updatedAtMs === ordered[1].updatedAtMs &&
+      ordered[0].createdAtMs === ordered[1].createdAtMs
+    ) stop(REASONS.BINDING);
+    const current = ordered[0];
+    if (parsed.some((status) => status.id !== current.id && status.state === "in_progress")) stop(REASONS.BINDING);
+    return current;
   }
 
   async listDeployments(reference) {
     this.ensureReference(reference);
     if (!positiveInteger(reference.jobId)) stop(REASONS.BINDING);
-    const deployments = await this.githubGet(`/repos/${REPOSITORY}/deployments?sha=${reference.candidateSha}&environment=${encodeURIComponent(ENVIRONMENT)}&per_page=100`);
+    const deployments = await this.githubGet(`/repos/${REPOSITORY}/deployments?sha=${reference.candidateSha}&environment=${encodeURIComponent(ENVIRONMENT)}&per_page=100`, reference.repositoryId);
     if (!Array.isArray(deployments) || deployments.length >= 100) stop(REASONS.BINDING);
     const candidates = Array.isArray(deployments) ? deployments.filter((deployment) => (
-      exactObject(deployment) && deployment.sha === reference.candidateSha && deployment.environment === ENVIRONMENT
+      exactObject(deployment) && deployment.sha === reference.candidateSha && deployment.environment === ENVIRONMENT &&
+      deployment.repository_url === GITHUB_API_REPOSITORY_URL
     )) : [];
     const items = [];
     for (const deployment of candidates) {
+      const deploymentId = decimalId(deployment.id);
+      if (deploymentId === null) stop(REASONS.BINDING);
       const statusesPath = this.githubApiPathFromUrl(
         deployment.statuses_url,
-        `/repos/${REPOSITORY}/deployments/${deployment.id}/statuses`,
+        `/repos/${REPOSITORY}/deployments/${deploymentId}/statuses`,
+        REASONS.BINDING,
       );
-      const statuses = await this.githubGet(`${statusesPath}?per_page=100`);
-      if (!Array.isArray(statuses)) stop(REASONS.BINDING);
-      if (statuses.length >= 100) stop(REASONS.BINDING);
-      const current = statuses[0];
-      const currentLog = exactObject(current) ? this.githubActionJobUrlBinding(current.log_url, reference, reference.jobId) : null;
-      const currentTarget = exactObject(current) ? this.githubActionJobUrlBinding(current.target_url, reference, reference.jobId) : null;
-      if (
-        exactObject(current) && current.environment === ENVIRONMENT && current.state === "in_progress" &&
-        current.repository_url === GITHUB_API_REPOSITORY_URL && currentLog !== null && currentTarget !== null
-      ) {
+      const statuses = await this.githubGet(`${statusesPath}?per_page=100`, reference.repositoryId);
+      const current = this.currentDeploymentStatus(statuses, deployment, reference);
+      if (current?.state === "in_progress") {
         items.push({
-          id: Number(deployment.id),
+          id: deploymentId,
+          deploymentStatusId: current.id,
           runId: Number(reference.runId),
           jobId: Number(reference.jobId),
           sha: deployment.sha,
           environment: deployment.environment,
           statusState: current.state,
+          statusCreatedAt: current.createdAt,
+          statusUpdatedAt: current.updatedAt,
         });
       }
     }
@@ -883,7 +986,7 @@ export class G5ConnectedGithubAppAdapter {
 
   async getEnvironment(reference) {
     this.ensureReference(reference);
-    const environment = await this.githubGet(`/repos/${REPOSITORY}/environments/${encodeURIComponent(ENVIRONMENT)}`);
+    const environment = await this.githubGet(`/repos/${REPOSITORY}/environments/${encodeURIComponent(ENVIRONMENT)}`, reference.repositoryId);
     return this.complete([{
       id: Number(environment.id),
       name: environment.name,
@@ -893,7 +996,7 @@ export class G5ConnectedGithubAppAdapter {
 
   async listApprovals(reference) {
     this.ensureReference(reference);
-    const body = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/approvals`);
+    const body = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/approvals`, reference.repositoryId);
     const approvals = Array.isArray(body) ? body : body.approvals;
     const items = [];
     if (Array.isArray(approvals)) {
@@ -916,13 +1019,13 @@ export class G5ConnectedGithubAppAdapter {
 
   async getCommit(reference) {
     this.ensureReference(reference);
-    const commit = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}`);
+    const commit = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}`, reference.repositoryId);
     return this.complete([{ sha: commit.sha, tree: commit.commit?.tree?.sha }]);
   }
 
   async getWorkflowBlob(reference) {
     this.ensureReference(reference);
-    const blob = await this.githubGet(`/repos/${REPOSITORY}/contents/${WORKFLOW_PATH}?ref=${reference.candidateSha}`);
+    const blob = await this.githubGet(`/repos/${REPOSITORY}/contents/${WORKFLOW_PATH}?ref=${reference.candidateSha}`, reference.repositoryId);
     return this.complete([{ ref: reference.workflowRef, workflowSha: reference.candidateSha, blobSha: blob.sha }]);
   }
 }
@@ -1062,8 +1165,9 @@ export async function validateTrustBrokerReceipt(body, context, policy, proofVer
     stop(REASONS.EXPIRED);
   }
   const bindingKeys = [
-    "repositoryId", "runId", "runAttempt", "checkRunId", "jobName", "environmentId",
-    "deploymentId", "candidateSha", "candidateTree", "workflowSha", "workflowBlobSha",
+    "repositoryId", "runId", "runAttempt", "checkRunId", "checkSuiteId", "jobId",
+    "jobName", "environmentId", "deploymentId", "deploymentStatusId",
+    "candidateSha", "candidateTree", "workflowSha", "workflowBlobSha",
     "contractDigest", "schemaDigest", "algorithmDigest", "capabilityDigest",
   ];
   exactKeys(body.receipt.binding, bindingKeys, REASONS.RECEIPT);
@@ -1077,16 +1181,21 @@ export async function validateTrustBrokerReceipt(body, context, policy, proofVer
     expectedIds.repositoryId === null || expectedIds.runId === null || expectedIds.runAttempt !== 1 ||
     binding.repositoryId !== expectedIds.repositoryId || binding.runId !== expectedIds.runId ||
     binding.runAttempt !== 1 || !positiveInteger(binding.checkRunId) ||
+    !positiveInteger(binding.checkSuiteId) || !positiveInteger(binding.jobId) ||
     binding.jobName !== WORKFLOW_NAME || !positiveInteger(binding.environmentId) ||
-    !positiveInteger(binding.deploymentId) || binding.candidateSha !== trustedPolicy.candidateSha ||
+    !positiveInteger(binding.deploymentId) || !positiveInteger(binding.deploymentStatusId) ||
+    binding.candidateSha !== trustedPolicy.candidateSha ||
     binding.candidateTree !== trustedPolicy.candidateTree || binding.workflowSha !== trustedPolicy.candidateSha ||
     binding.workflowBlobSha !== trustedPolicy.workflowBlobSha || !digestText(binding.contractDigest) ||
     !digestText(binding.schemaDigest) || !digestText(binding.algorithmDigest) ||
     !digestText(binding.capabilityDigest)
   ) stop(REASONS.RECEIPT);
   if (context.checkRunId !== undefined && binding.checkRunId !== decimalId(context.checkRunId)) stop(REASONS.RECEIPT);
+  if (context.checkSuiteId !== undefined && binding.checkSuiteId !== decimalId(context.checkSuiteId)) stop(REASONS.RECEIPT);
+  if (context.jobId !== undefined && binding.jobId !== decimalId(context.jobId)) stop(REASONS.RECEIPT);
   if (context.environmentId !== undefined && binding.environmentId !== decimalId(context.environmentId)) stop(REASONS.RECEIPT);
   if (context.deploymentId !== undefined && binding.deploymentId !== decimalId(context.deploymentId)) stop(REASONS.RECEIPT);
+  if (context.deploymentStatusId !== undefined && binding.deploymentStatusId !== decimalId(context.deploymentStatusId)) stop(REASONS.RECEIPT);
   if (await stableDigest(body.receipt) !== body.receiptDigest) stop(REASONS.RECEIPT);
   await verifyReceiptProof(proofVerifier, body.proof, body.receipt, body.receiptDigest);
   return Object.freeze({
@@ -1502,6 +1611,7 @@ export class G5ConnectedSupabaseCollector {
 
 function validateAuthority(claims, evidence, policy) {
   const { run, check, branch, deployment, environment, approval, commit, workflowBlob } = evidence;
+  const expectedCheckRunUrl = `${GITHUB_API_REPOSITORY_URL}/check-runs/${check?.id}`;
   if (
     !exactObject(policy) || policy.repository !== REPOSITORY ||
     policy.workflowRef !== WORKFLOW_REF || policy.candidateSha !== claims.candidateSha ||
@@ -1512,12 +1622,17 @@ function validateAuthority(claims, evidence, policy) {
     run.attempt !== 1 || run.event !== "workflow_dispatch" ||
     run.headSha !== claims.candidateSha || run.actorId !== claims.actorId ||
     !positiveInteger(run.triggeringActorId) || run.status !== "in_progress" || run.conclusion !== null ||
-    check.runId !== run.id || !positiveInteger(check.id) || !positiveInteger(check.jobId) ||
+    check.runId !== run.id || check.runAttempt !== 1 || !positiveInteger(check.id) ||
+    !positiveInteger(check.checkSuiteId) || !positiveInteger(check.jobId) ||
+    check.headSha !== claims.candidateSha || check.checkRunUrl !== expectedCheckRunUrl ||
     check.name !== "F10.9 G5 Production Read-Only Diagnostic" ||
     check.jobStatus !== "in_progress" || check.jobConclusion !== null ||
+    check.checkName !== check.name || check.checkHeadSha !== claims.candidateSha ||
     check.checkStatus !== "in_progress" || check.checkConclusion !== null ||
+    check.checkAppSlug !== GITHUB_ACTIONS_APP_SLUG || check.checkAppName !== GITHUB_ACTIONS_APP_NAME ||
     deployment.runId !== run.id || deployment.jobId !== check.jobId || deployment.statusState !== "in_progress" ||
     deployment.sha !== claims.candidateSha || deployment.environment !== ENVIRONMENT || !positiveInteger(deployment.id) ||
+    !positiveInteger(deployment.deploymentStatusId) ||
     environment.name !== ENVIRONMENT || !positiveInteger(environment.id) || environment.protected !== true ||
     commit.sha !== claims.candidateSha ||
     !/^[0-9a-f]{40}$/.test(commit.tree) || workflowBlob.ref !== claims.workflowRef ||
@@ -1530,7 +1645,9 @@ function validateAuthority(claims, evidence, policy) {
   ) stop(REASONS.APPROVAL);
   return Object.freeze({
     repositoryId: claims.repositoryId, runId: run.id, runAttempt: run.attempt,
-    checkRunId: check.id, environmentId: environment.id, deploymentId: deployment.id,
+    checkRunId: check.id, checkSuiteId: check.checkSuiteId, jobId: check.jobId,
+    environmentId: environment.id, deploymentId: deployment.id,
+    deploymentStatusId: deployment.deploymentStatusId,
     candidateSha: claims.candidateSha, candidateTree: commit.tree,
     workflowRef: claims.workflowRef, workflowSha: claims.workflowSha,
     workflowBlobSha: workflowBlob.blobSha, actorId: claims.actorId,
@@ -1542,7 +1659,8 @@ function validateAuthority(claims, evidence, policy) {
 export async function gateIdentity(binding) {
   return digest([
     binding.repositoryId, binding.runId, binding.runAttempt, binding.checkRunId,
-    binding.environmentId, binding.deploymentId,
+    binding.checkSuiteId, binding.jobId, binding.environmentId, binding.deploymentId,
+    binding.deploymentStatusId,
   ]);
 }
 
@@ -1550,15 +1668,16 @@ function validateLedgerBinding(binding, policy) {
   const trustedPolicy = validateRepositoryPolicy(policy);
   if (!exactObject(binding)) stop(REASONS.LEDGER);
   const expectedKeys = [
-    "actorId", "candidateSha", "candidateTree", "checkRunId", "deploymentId",
-    "environmentId", "expiresAt", "jti", "nonce", "repositoryId", "reviewerId",
-    "runAttempt", "runId", "triggeringActorId", "workflowBlobSha", "workflowRef",
-    "workflowSha",
+    "actorId", "candidateSha", "candidateTree", "checkRunId", "checkSuiteId",
+    "deploymentId", "deploymentStatusId", "environmentId", "expiresAt", "jobId",
+    "jti", "nonce", "repositoryId", "reviewerId", "runAttempt", "runId",
+    "triggeringActorId", "workflowBlobSha", "workflowRef", "workflowSha",
   ];
   if (stable(Object.keys(binding).sort()) !== stable(expectedKeys)) stop(REASONS.LEDGER);
   for (const field of [
-    "actorId", "checkRunId", "deploymentId", "environmentId", "expiresAt",
-    "repositoryId", "reviewerId", "runAttempt", "runId", "triggeringActorId",
+    "actorId", "checkRunId", "checkSuiteId", "deploymentId", "deploymentStatusId",
+    "environmentId", "expiresAt", "jobId", "repositoryId", "reviewerId", "runAttempt",
+    "runId", "triggeringActorId",
   ]) {
     if (!positiveInteger(binding[field])) stop(REASONS.LEDGER);
   }
@@ -1573,9 +1692,25 @@ function validateLedgerBinding(binding, policy) {
   ) stop(REASONS.LEDGER);
 }
 
-function publicResult(decision, reasonCode, receiptDigest = null) {
+function sanitizedGateBinding(binding) {
+  if (binding === null) return null;
+  return Object.freeze({
+    repositoryId: binding.repositoryId,
+    runId: binding.runId,
+    runAttempt: binding.runAttempt,
+    checkRunId: binding.checkRunId,
+    checkSuiteId: binding.checkSuiteId,
+    jobId: binding.jobId,
+    environmentId: binding.environmentId,
+    deploymentId: binding.deploymentId,
+    deploymentStatusId: binding.deploymentStatusId,
+  });
+}
+
+function publicResult(decision, reasonCode, receiptDigest = null, binding = null) {
   return Object.freeze({
     version: VERSION, decision, reasonCode, receiptDigest,
+    gateBinding: sanitizedGateBinding(binding),
     authorizationComplete: false, transportCreated: false,
     connectedMode: CONNECTED_DISABLED, operationalTrust: TRUST_STOP,
   });
@@ -1630,15 +1765,17 @@ export class G5AtomicLedgerDurableObject extends DurableObjectBase {
       await transaction.put("record_count", recordCount + 3);
       const receiptMaterial = Object.freeze({
         identity, from: "ABSENT", via: "READY", to: "CONSUMED",
+        binding: sanitizedGateBinding(binding), bindingDigest: await digest(binding),
         nonceDigest: await digest(binding.nonce), jtiDigest: await digest(binding.jti),
         consumedAt: nowEpochSeconds, expiresAt: binding.expiresAt, policyVersion: VERSION,
       });
       const receiptDigest = await digest(receiptMaterial);
       await transaction.put(gateKey, Object.freeze({
         state: "CONSUMED", identity, expiresAt: binding.expiresAt,
+        binding: sanitizedGateBinding(binding),
         receiptDigest, receipt: receiptMaterial,
       }));
-      return Object.freeze({ result: publicResult("STOP", TRUST_STOP, receiptDigest) });
+      return Object.freeze({ result: publicResult("STOP", TRUST_STOP, receiptDigest, binding) });
     });
     if (outcome.stop) stop(outcome.stop);
     return outcome.result;
@@ -1700,10 +1837,13 @@ export class G5TrustBroker {
     if (typeof this.clock !== "function") stop(REASONS.AUTHORITY);
     const claims = await verifyGithubOidc(request.bearerOidc, this.jwks, this.clock());
     if (claims.runId !== request.gateReference.runId || claims.runAttempt !== 1) stop(REASONS.BINDING);
-    const evidence = await this.githubApp.authoritativeEvidence(claims);
-    const binding = validateAuthority(claims, evidence, this.policy);
+    const evidenceA = await this.githubApp.authoritativeEvidence(claims);
+    const bindingA = validateAuthority(claims, evidenceA, this.policy);
     if (!this.ledger || typeof this.ledger.consume !== "function") stop(REASONS.AUTHORITY);
     if (hooks.beforeCas) await hooks.beforeCas();
+    const evidenceB = await this.githubApp.authoritativeEvidence(claims);
+    const binding = validateAuthority(claims, evidenceB, this.policy);
+    if (stable(bindingA) !== stable(binding)) stop(REASONS.BINDING);
     let result;
     try {
       result = await this.ledger.consume(binding);

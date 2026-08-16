@@ -19,12 +19,13 @@ from typing import Any, Mapping
 PREFLIGHT_VERSION = "f10.9-g5-operational-activation-preflight.v1"
 MANIFEST_SCHEMA = "f10.9-g5-operational-activation-manifest.v1"
 MANIFEST_MODE = "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES"
-EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED"
+EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED"
 PR387_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
 PR390_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR391_STATUS = "MERGED_POST_MERGE_VERIFIED"
+PR392_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
-E2_STOP = "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
+E2_STOP = "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
 CURRENT_GATE = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CURRENT_TRUST = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
 CURRENT_CONNECTED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
@@ -56,10 +57,16 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "pr_387_reconciliation",
         "pr_390_reconciliation",
         "pr_391_reconciliation",
+        "pr_392_reconciliation",
+        "post_merge_security_findings",
         "e1_deployment_reconciliation",
         "e2_stop",
         "github_runtime_shapes",
         "runtime_policy_resolution",
+        "runtime_binding_contract",
+        "snapshot_cas",
+        "installation_token_scope",
+        "future_e2_readonly_preflight",
         "superseded_sequence",
         "required_configuration_names",
         "target",
@@ -109,6 +116,28 @@ EXPECTED_PR390_KEYS = frozenset(
     }
 )
 EXPECTED_PR391_KEYS = EXPECTED_PR390_KEYS
+EXPECTED_PR392_KEYS = frozenset(
+    {
+        "candidate_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "f9_7_run_id",
+        "f9_7_conclusion",
+        "focused_job_id",
+        "focused_conclusion",
+        "f9_7_job_id",
+        "f9_7_job_conclusion",
+        "run_attempt",
+        "previous_security_auditor_go_preserved",
+        "post_merge_security_remediation_required",
+    }
+)
+EXPECTED_FINDING_KEYS = frozenset(
+    {"id", "severity", "finding", "required_remediation", "status"}
+)
 EXPECTED_E1_KEYS = frozenset(
     {
         "status",
@@ -160,16 +189,21 @@ EXPECTED_RUNTIME_SHAPE_ENTRIES = MappingProxyType(
             "lifecycle": "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1",
         },
         "workflow_jobs": {
-            "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
-            "required_fields": ("jobs[].id", "jobs[].name", "jobs[].status", "jobs[].conclusion"),
-            "forbidden_fields": ("caller_supplied_job_id",),
-            "lifecycle": "exact job name status=in_progress conclusion=null",
+            "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs?per_page=100",
+            "required_fields": (
+                "jobs[].id", "jobs[].run_id", "jobs[].run_attempt", "jobs[].head_sha",
+                "jobs[].check_run_url", "jobs[].name", "jobs[].status", "jobs[].conclusion",
+            ),
+            "forbidden_fields": ("caller_supplied_job_id", "independent_check_run_search"),
+            "lifecycle": "exact-one run-scoped job name run_id exact run_attempt=1 head_sha exact check_run_url exact status=in_progress conclusion=null",
         },
         "check_runs": {
-            "source": "GET /repos/{owner}/{repo}/commits/{sha}/check-runs",
-            "required_fields": ("check_runs[].id", "check_runs[].name", "check_runs[].status", "check_runs[].conclusion"),
-            "forbidden_fields": ("caller_supplied_check_run_id",),
-            "lifecycle": "exact check name status=in_progress conclusion=null",
+            "source": "GET /repos/{owner}/{repo}/check-runs/{check_run_id}",
+            "required_fields": (
+                "id", "check_suite.id", "head_sha", "name", "status", "conclusion", "app.slug", "app.name",
+            ),
+            "forbidden_fields": ("caller_supplied_check_run_id", "commit_sha_name_array_search", "external_app"),
+            "lifecycle": "check_run_id derives only from job.check_run_url; id/head_sha/name exact status=in_progress conclusion=null app=GitHub Actions",
         },
         "branch": {
             "source": "GET /repos/{owner}/{repo}/branches/main",
@@ -197,9 +231,13 @@ EXPECTED_RUNTIME_SHAPE_ENTRIES = MappingProxyType(
         },
         "deployment_statuses": {
             "source": "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100",
-            "required_fields": ("environment", "state", "log_url", "target_url", "repository_url"),
-            "forbidden_fields": ("redirect", "alternate_hostname"),
-            "lifecycle": "current-first state=in_progress deployment linked to same run_id and job_id through GitHub job URLs",
+            "required_fields": (
+                "id", "state", "created_at", "updated_at", "deployment_url", "log_url", "target_url", "environment", "repository_url",
+            ),
+            "forbidden_fields": (
+                "redirect", "alternate_hostname", "link_rel_next", "duplicate_status_id", "timestamp_tie", "historical_in_progress",
+            ),
+            "lifecycle": "validate all timestamps and ids before ordering; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results",
         },
         "commit": {
             "source": "GET /repos/{owner}/{repo}/commits/{sha}",
@@ -217,6 +255,31 @@ EXPECTED_RUNTIME_SHAPE_ENTRIES = MappingProxyType(
 )
 EXPECTED_RUNTIME_POLICY_KEYS = frozenset(
     {"source", "promotion_order", "caller_supplied", "legacy_fallback"}
+)
+EXPECTED_RUNTIME_BINDING_CONTRACT_KEYS = frozenset(
+    {
+        "check_run_source",
+        "deployment_status_source",
+        "binding_fields_added",
+        "check_suite_id_policy",
+        "caller_supplied_authority",
+    }
+)
+EXPECTED_SNAPSHOT_CAS_KEYS = frozenset(
+    {"snapshot_a", "snapshot_b", "required_match", "reject_on", "internal_retry"}
+)
+EXPECTED_INSTALLATION_SCOPE_KEYS = frozenset(
+    {
+        "repository_id_source",
+        "repository_ids_request",
+        "response_repositories",
+        "permissions",
+        "additional_permissions",
+        "write_permissions",
+    }
+)
+EXPECTED_E2_PREFLIGHT_KEYS = frozenset(
+    {"purpose", "state", "permission_added_now", "stop"}
 )
 EXPECTED_CONFIGURATION_ENTRY_KEYS = frozenset({"name", "scope", "state"})
 EXPECTED_TARGET_KEYS = frozenset({"branch", "ref", "environment"})
@@ -349,10 +412,16 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     _validate_pr387(manifest.get("pr_387_reconciliation"), errors)
     _validate_pr390(manifest.get("pr_390_reconciliation"), errors)
     _validate_pr391(manifest.get("pr_391_reconciliation"), errors)
+    _validate_pr392(manifest.get("pr_392_reconciliation"), errors)
+    _validate_findings(manifest.get("post_merge_security_findings"), errors)
     _validate_e1(manifest.get("e1_deployment_reconciliation"), errors)
     _expect(manifest.get("e2_stop") == E2_STOP, "STOP_G5_E_E2_STOP", errors)
     _validate_runtime_shapes(manifest.get("github_runtime_shapes"), errors)
     _validate_runtime_policy(manifest.get("runtime_policy_resolution"), errors)
+    _validate_runtime_binding_contract(manifest.get("runtime_binding_contract"), errors)
+    _validate_snapshot_cas(manifest.get("snapshot_cas"), errors)
+    _validate_installation_scope(manifest.get("installation_token_scope"), errors)
+    _validate_future_e2_preflight(manifest.get("future_e2_readonly_preflight"), errors)
     checked_names = _validate_required_names(manifest.get("required_configuration_names"), errors)
     checked_gates = _validate_gates(manifest.get("gates"), errors)
     _validate_target(manifest.get("target"), errors)
@@ -513,6 +582,55 @@ def _validate_pr391(value: Any, errors: list[str]) -> None:
     _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR391_ATTEMPT", errors)
 
 
+def _validate_pr392(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR392_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR392_KEYS, "STOP_G5_E_PR392_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "b3f9678e0df76ef8f9dfde8af9147a458a2e033b",
+        "merge_sha": "0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e",
+        "tree_sha": "7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR392_SHA", errors)
+    _expect(value.get("status") == PR392_STATUS, "STOP_G5_E_PR392_STATUS", errors)
+    _expect(value.get("security_run_id") == "31958015767", "STOP_G5_E_PR392_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR392_SECURITY", errors)
+    _expect(value.get("f9_7_run_id") == "31958015698", "STOP_G5_E_PR392_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR392_F97", errors)
+    _expect(value.get("focused_job_id") == "95191560687", "STOP_G5_E_PR392_FOCUSED", errors)
+    _expect(value.get("focused_conclusion") == "PASS", "STOP_G5_E_PR392_FOCUSED", errors)
+    _expect(value.get("f9_7_job_id") == "95191665616", "STOP_G5_E_PR392_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR392_F97_JOB", errors)
+    _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR392_ATTEMPT", errors)
+    _expect(value.get("previous_security_auditor_go_preserved") is True, "STOP_G5_E_PR392_PRIOR_GO", errors)
+    _expect(value.get("post_merge_security_remediation_required") is True, "STOP_G5_E_PR392_REMEDIATION", errors)
+
+
+def _validate_findings(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, list) or len(value) != 6:
+        errors.append("STOP_G5_E_SECURITY_FINDINGS")
+        return
+    severities = []
+    statuses = []
+    ids = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            errors.append("STOP_G5_E_SECURITY_FINDINGS")
+            continue
+        _validate_exact_keys(item, EXPECTED_FINDING_KEYS, "STOP_G5_E_SECURITY_FINDING_KEYS", errors)
+        ids.append(str(item.get("id", "")))
+        severities.append(item.get("severity"))
+        statuses.append(item.get("status"))
+    _expect(len(set(ids)) == 6, "STOP_G5_E_SECURITY_FINDING_IDS", errors)
+    _expect(severities.count("HIGH") == 3, "STOP_G5_E_SECURITY_FINDING_SEVERITY", errors)
+    _expect(severities.count("MEDIUM") == 3, "STOP_G5_E_SECURITY_FINDING_SEVERITY", errors)
+    _expect(statuses.count("REMEDIATED_REPOSITORY_ONLY") == 5, "STOP_G5_E_SECURITY_FINDING_STATUS", errors)
+    _expect("STOP_EXPLICIT_E2_PREFLIGHT_REQUIRED" in statuses, "STOP_G5_E_SECURITY_FINDING_STATUS", errors)
+
+
 def _validate_runtime_shapes(value: Any, errors: list[str]) -> None:
     if not isinstance(value, Mapping):
         errors.append("STOP_G5_E_RUNTIME_SHAPES")
@@ -577,6 +695,82 @@ def _validate_runtime_policy(value: Any, errors: list[str]) -> None:
     )
     _expect(value.get("caller_supplied") == "FORBIDDEN", "STOP_G5_E_RUNTIME_POLICY_CALLER", errors)
     _expect(value.get("legacy_fallback") == "FORBIDDEN", "STOP_G5_E_RUNTIME_POLICY_LEGACY", errors)
+
+
+def _validate_runtime_binding_contract(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_RUNTIME_BINDING_CONTRACT")
+        return
+    _validate_exact_keys(value, EXPECTED_RUNTIME_BINDING_CONTRACT_KEYS, "STOP_G5_E_RUNTIME_BINDING_KEYS", errors)
+    _expect(value.get("check_run_source") == "job.check_run_url_only", "STOP_G5_E_RUNTIME_BINDING_CHECK", errors)
+    _expect(
+        value.get("deployment_status_source") == "unique_temporal_maximum_after_validation",
+        "STOP_G5_E_RUNTIME_BINDING_STATUS",
+        errors,
+    )
+    _expect(
+        value.get("binding_fields_added") == ["jobId", "deploymentStatusId", "checkSuiteId"],
+        "STOP_G5_E_RUNTIME_BINDING_FIELDS",
+        errors,
+    )
+    _expect(
+        value.get("check_suite_id_policy")
+        == "included_because_check_run.check_suite.id_is_authoritative_and_stable_in_rest_shape",
+        "STOP_G5_E_RUNTIME_BINDING_CHECK_SUITE",
+        errors,
+    )
+    _expect(value.get("caller_supplied_authority") == "FORBIDDEN", "STOP_G5_E_RUNTIME_BINDING_CALLER", errors)
+
+
+def _validate_snapshot_cas(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_SNAPSHOT_CAS")
+        return
+    _validate_exact_keys(value, EXPECTED_SNAPSHOT_CAS_KEYS, "STOP_G5_E_SNAPSHOT_CAS_KEYS", errors)
+    _expect(str(value.get("snapshot_a", "")).startswith("collect_run_job_check"), "STOP_G5_E_SNAPSHOT_A", errors)
+    _expect(str(value.get("snapshot_b", "")).startswith("requery_same_evidence"), "STOP_G5_E_SNAPSHOT_B", errors)
+    _expect(value.get("required_match") == "stable_binding_identity_exact", "STOP_G5_E_SNAPSHOT_MATCH", errors)
+    reject_on = value.get("reject_on")
+    _expect(isinstance(reject_on, list) and len(reject_on) == 6, "STOP_G5_E_SNAPSHOT_REJECT_ON", errors)
+    _expect(value.get("internal_retry") == "FORBIDDEN", "STOP_G5_E_SNAPSHOT_RETRY", errors)
+
+
+def _validate_installation_scope(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_INSTALLATION_SCOPE")
+        return
+    _validate_exact_keys(value, EXPECTED_INSTALLATION_SCOPE_KEYS, "STOP_G5_E_INSTALLATION_SCOPE_KEYS", errors)
+    _expect(
+        value.get("repository_id_source") == "oidc_repository_id_verified_against_run_repository",
+        "STOP_G5_E_INSTALLATION_REPOSITORY_SOURCE",
+        errors,
+    )
+    _expect(value.get("repository_ids_request") == "exact_single_repository_id", "STOP_G5_E_INSTALLATION_REPOSITORY_IDS", errors)
+    _expect(value.get("response_repositories") == "exact_single_expected_repository", "STOP_G5_E_INSTALLATION_RESPONSE_REPO", errors)
+    _validate_permissions(
+        value.get("permissions"),
+        EXPECTED_GITHUB_APP_PERMISSIONS,
+        allow_write=(),
+        reason="STOP_G5_E_INSTALLATION_PERMISSIONS",
+        errors=errors,
+    )
+    _expect(value.get("additional_permissions") == "FORBIDDEN", "STOP_G5_E_INSTALLATION_ADDITIONAL", errors)
+    _expect(value.get("write_permissions") == "FORBIDDEN", "STOP_G5_E_INSTALLATION_WRITE", errors)
+
+
+def _validate_future_e2_preflight(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_E2_PREFLIGHT")
+        return
+    _validate_exact_keys(value, EXPECTED_E2_PREFLIGHT_KEYS, "STOP_G5_E_E2_PREFLIGHT_KEYS", errors)
+    _expect(
+        value.get("purpose") == "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
+        "STOP_G5_E_E2_PREFLIGHT_PURPOSE",
+        errors,
+    )
+    _expect(value.get("state") == "DOCUMENTED_NOT_EXECUTED", "STOP_G5_E_E2_PREFLIGHT_STATE", errors)
+    _expect(value.get("permission_added_now") is False, "STOP_G5_E_E2_PREFLIGHT_PERMISSION", errors)
+    _expect(value.get("stop") == E2_STOP, "STOP_G5_E_E2_PREFLIGHT_STOP", errors)
 
 
 def _validate_required_names(value: Any, errors: list[str]) -> tuple[str, ...]:

@@ -1,7 +1,7 @@
 {
   "schema": "f10.9-g5-operational-activation-manifest.v1",
   "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
-  "status": "PREPARED_NOT_CONFIGURED",
+  "status": "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED",
   "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
   "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
   "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
@@ -66,6 +66,67 @@
     "f9_7_job_conclusion": "PASS",
     "run_attempt": 1
   },
+  "pr_392_reconciliation": {
+    "candidate_sha": "b3f9678e0df76ef8f9dfde8af9147a458a2e033b",
+    "merge_sha": "0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e",
+    "tree_sha": "7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98",
+    "status": "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED",
+    "security_run_id": "31958015767",
+    "security_conclusion": "PASS",
+    "f9_7_run_id": "31958015698",
+    "f9_7_conclusion": "PASS",
+    "focused_job_id": "95191560687",
+    "focused_conclusion": "PASS",
+    "f9_7_job_id": "95191665616",
+    "f9_7_job_conclusion": "PASS",
+    "run_attempt": 1,
+    "previous_security_auditor_go_preserved": true,
+    "post_merge_security_remediation_required": true
+  },
+  "post_merge_security_findings": [
+    {
+      "id": "PRJ-HIGH-001",
+      "severity": "HIGH",
+      "finding": "independent_check_run_search_by_sha_and_name",
+      "required_remediation": "derive_check_run_exclusively_from_run_scoped_job_check_run_url",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRJ-HIGH-002",
+      "severity": "HIGH",
+      "finding": "deployment_status_current_assumed_by_array_position",
+      "required_remediation": "validate_status_ids_timestamps_urls_and_select_unique_temporal_maximum",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRJ-HIGH-003",
+      "severity": "HIGH",
+      "finding": "cas_consumes_single_authority_snapshot",
+      "required_remediation": "requery_snapshot_b_immediately_before_cas_and_reject_mismatch_without_retry",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRJ-MEDIUM-001",
+      "severity": "MEDIUM",
+      "finding": "gate_identity_missing_job_and_deployment_status_ids",
+      "required_remediation": "include_job_id_and_deployment_status_id_in_authority_ledger_receipt_digest_and_sanitized_output",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRJ-MEDIUM-002",
+      "severity": "MEDIUM",
+      "finding": "installation_exchange_not_repository_id_scoped_or_permission_exact",
+      "required_remediation": "send_single_repository_id_from_oidc_and_validate_single_repository_plus_exact_read_permissions",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRJ-MEDIUM-003",
+      "severity": "MEDIUM",
+      "finding": "e2_environment_permission_unknown_until_read_only_preflight",
+      "required_remediation": "document_future_read_only_preflight_stop_and_do_not_add_permission_without_evidence",
+      "status": "STOP_EXPLICIT_E2_PREFLIGHT_REQUIRED"
+    }
+  ],
   "e1_deployment_reconciliation": {
     "status": "E1_DEPLOYMENT_PASS",
     "credential_state": "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
@@ -85,7 +146,7 @@
     "secrets_count": 0,
     "endpoint_public": false
   },
-  "e2_stop": "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE",
+  "e2_stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED",
   "github_runtime_shapes": {
     "workflow_run": {
       "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -94,16 +155,16 @@
       "lifecycle": "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1"
     },
     "workflow_jobs": {
-      "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
-      "required_fields": ["jobs[].id", "jobs[].name", "jobs[].status", "jobs[].conclusion"],
-      "forbidden_fields": ["caller_supplied_job_id"],
-      "lifecycle": "exact job name status=in_progress conclusion=null"
+      "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs?per_page=100",
+      "required_fields": ["jobs[].id", "jobs[].run_id", "jobs[].run_attempt", "jobs[].head_sha", "jobs[].check_run_url", "jobs[].name", "jobs[].status", "jobs[].conclusion"],
+      "forbidden_fields": ["caller_supplied_job_id", "independent_check_run_search"],
+      "lifecycle": "exact-one run-scoped job name run_id exact run_attempt=1 head_sha exact check_run_url exact status=in_progress conclusion=null"
     },
     "check_runs": {
-      "source": "GET /repos/{owner}/{repo}/commits/{sha}/check-runs",
-      "required_fields": ["check_runs[].id", "check_runs[].name", "check_runs[].status", "check_runs[].conclusion"],
-      "forbidden_fields": ["caller_supplied_check_run_id"],
-      "lifecycle": "exact check name status=in_progress conclusion=null"
+      "source": "GET /repos/{owner}/{repo}/check-runs/{check_run_id}",
+      "required_fields": ["id", "check_suite.id", "head_sha", "name", "status", "conclusion", "app.slug", "app.name"],
+      "forbidden_fields": ["caller_supplied_check_run_id", "commit_sha_name_array_search", "external_app"],
+      "lifecycle": "check_run_id derives only from job.check_run_url; id/head_sha/name exact status=in_progress conclusion=null app=GitHub Actions"
     },
     "branch": {
       "source": "GET /repos/{owner}/{repo}/branches/main",
@@ -131,9 +192,9 @@
     },
     "deployment_statuses": {
       "source": "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100",
-      "required_fields": ["environment", "state", "log_url", "target_url", "repository_url"],
-      "forbidden_fields": ["redirect", "alternate_hostname"],
-      "lifecycle": "current-first state=in_progress deployment linked to same run_id and job_id through GitHub job URLs"
+      "required_fields": ["id", "state", "created_at", "updated_at", "deployment_url", "log_url", "target_url", "environment", "repository_url"],
+      "forbidden_fields": ["redirect", "alternate_hostname", "link_rel_next", "duplicate_status_id", "timestamp_tie", "historical_in_progress"],
+      "lifecycle": "validate all timestamps and ids before ordering; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results"
     },
     "commit": {
       "source": "GET /repos/{owner}/{repo}/commits/{sha}",
@@ -153,6 +214,40 @@
     "promotion_order": "MAIN_PROMOTION_FIRST_THEN_CONFIGURE_SHA_TREE_BLOB_THEN_BROKER_CONSUMES_IMMUTABLE_POLICY",
     "caller_supplied": "FORBIDDEN",
     "legacy_fallback": "FORBIDDEN"
+  },
+  "runtime_binding_contract": {
+    "check_run_source": "job.check_run_url_only",
+    "deployment_status_source": "unique_temporal_maximum_after_validation",
+    "binding_fields_added": ["jobId", "deploymentStatusId", "checkSuiteId"],
+    "check_suite_id_policy": "included_because_check_run.check_suite.id_is_authoritative_and_stable_in_rest_shape",
+    "caller_supplied_authority": "FORBIDDEN"
+  },
+  "snapshot_cas": {
+    "snapshot_a": "collect_run_job_check_branch_environment_approval_commit_workflow_deployment_status",
+    "snapshot_b": "requery_same_evidence_immediately_before_cas",
+    "required_match": "stable_binding_identity_exact",
+    "reject_on": ["run_completed_cancelled_or_failed", "job_or_check_completed", "newer_deployment_status", "deployment_changed", "branch_protection_changed", "approval_changed"],
+    "internal_retry": "FORBIDDEN"
+  },
+  "installation_token_scope": {
+    "repository_id_source": "oidc_repository_id_verified_against_run_repository",
+    "repository_ids_request": "exact_single_repository_id",
+    "response_repositories": "exact_single_expected_repository",
+    "permissions": {
+      "actions": "read",
+      "checks": "read",
+      "contents": "read",
+      "deployments": "read",
+      "metadata": "read"
+    },
+    "additional_permissions": "FORBIDDEN",
+    "write_permissions": "FORBIDDEN"
+  },
+  "future_e2_readonly_preflight": {
+    "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
+    "state": "DOCUMENTED_NOT_EXECUTED",
+    "permission_added_now": false,
+    "stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
   },
   "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [

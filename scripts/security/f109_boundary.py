@@ -181,6 +181,12 @@ G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF = "feat/f10-9-pr-i-github-runtime-schema"
 G5_GITHUB_RUNTIME_SCHEMA_STATUS = "MERGED_POST_MERGE_VERIFIED"
 G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE = "77f475af2e5900bc1338967676ebded71b672642"
 G5_GITHUB_RUNTIME_SCHEMA_E2_STOP = "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
+G5_SECURITY_REMEDIATION_BASE = "0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e"
+G5_SECURITY_REMEDIATION_BASE_TREE = "7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98"
+G5_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-j-security-remediation"
+G5_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
+G5_SECURITY_REMEDIATION_PR392_CANDIDATE = "b3f9678e0df76ef8f9dfde8af9147a458a2e033b"
+G5_SECURITY_REMEDIATION_E2_STOP = "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -693,6 +699,25 @@ G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES = {
 }
 G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES = {
     path: "100644" for path in G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
+}
+
+G5_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_SECURITY_REMEDIATION_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4229,7 +4254,8 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
         "G5 PR I merge evidence drift",
     )
     require(
-        manifest.get("e2_stop") == G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        manifest.get("e2_stop")
+        in {G5_GITHUB_RUNTIME_SCHEMA_E2_STOP, G5_SECURITY_REMEDIATION_E2_STOP},
         "G5 PR I E2 stop drift",
     )
     require(
@@ -4272,9 +4298,9 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
         "githubActionJobUrlBinding",
         "?per_page=100",
         "statuses.length >= 100",
-        "const current = statuses[0]",
-        "current.state === \"in_progress\"",
-        "current.repository_url === GITHUB_API_REPOSITORY_URL",
+        "currentDeploymentStatus",
+        "current?.state === \"in_progress\"",
+        "status.repository_url !== GITHUB_API_REPOSITORY_URL",
         "deployment.statusState !== \"in_progress\"",
         "approval.state",
         "approval.user?.id",
@@ -4292,7 +4318,7 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
     ):
         require(required in worker_tests, "G5 broker GitHub runtime test drift")
     for required in (
-        "test_pr391_and_e2_schema_stop_are_registered",
+        "test_pr392_and_e2_security_remediation_stop_are_registered",
         "test_runtime_shapes_are_exact_and_fail_closed",
         "github_runtime_shapes",
         G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
@@ -4349,7 +4375,174 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
         not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
         "G5 PR I preflight indirect capability",
     )
-    validate_context_graph(repo, 76, 427)
+    validate_context_graph(repo, 77, 428)
+
+
+def validate_g5_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_SECURITY_REMEDIATION_BASE, "unexpected G5 security remediation base")
+    require_sha(repo, "G5_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 security remediation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 security remediation candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr20 = (repo / ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr20, runbook, manifest_text))
+    for required in (
+        G5_SECURITY_REMEDIATION_STATUS,
+        G5_SECURITY_REMEDIATION_PR392_CANDIDATE,
+        G5_SECURITY_REMEDIATION_BASE,
+        G5_SECURITY_REMEDIATION_BASE_TREE,
+        "31958015767=PASS",
+        "31958015698=PASS",
+        "95191560687=PASS",
+        "95191665616=PASS",
+        "run_attempt=1",
+        "previous_security_auditor_go",
+        G5_SECURITY_REMEDIATION_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0020",
+    ):
+        require(required in combined, "G5 PR J reconciliation evidence drift")
+    pr392 = manifest.get("pr_392_reconciliation", {})
+    require(pr392.get("candidate_sha") == G5_SECURITY_REMEDIATION_PR392_CANDIDATE, "G5 PR J candidate evidence drift")
+    require(pr392.get("merge_sha") == G5_SECURITY_REMEDIATION_BASE, "G5 PR J merge evidence drift")
+    require(pr392.get("tree_sha") == G5_SECURITY_REMEDIATION_BASE_TREE, "G5 PR J tree evidence drift")
+    require(manifest.get("e2_stop") == G5_SECURITY_REMEDIATION_E2_STOP, "G5 PR J E2 stop drift")
+    require(
+        ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md" in f97_workflow,
+        "G5 PR J focused CI path drift",
+    )
+    findings = manifest.get("post_merge_security_findings")
+    require(isinstance(findings, list) and len(findings) == 6, "G5 PR J finding count drift")
+    require(sum(1 for item in findings if item.get("severity") == "HIGH") == 3, "G5 PR J high finding drift")
+    require(sum(1 for item in findings if item.get("severity") == "MEDIUM") == 3, "G5 PR J medium finding drift")
+    require("STOP_EXPLICIT_E2_PREFLIGHT_REQUIRED" in {item.get("status") for item in findings}, "G5 PR J E2 preflight stop drift")
+    for forbidden in (
+        "/commits/${reference.candidateSha}/check-runs",
+        "check_name=${encodeURIComponent(WORKFLOW_NAME)}",
+        "const current = statuses[0]",
+    ):
+        require(forbidden not in worker_source, "G5 PR J obsolete authority drift")
+    for required in (
+        "githubCheckRunPathFromUrl(job.check_run_url)",
+        "GET /repos/{owner}/{repo}/check-runs/{check_run_id}",
+        "checkSuiteId",
+        "deploymentStatusId",
+        "jobId",
+        "currentDeploymentStatus",
+        "updatedAtMs",
+        "stable(bindingA) !== stable(binding)",
+        "repository_ids: [repositoryId]",
+        "EXPECTED_GITHUB_APP_PERMISSIONS",
+        "repository_selection",
+        "link_rel_next",
+    ):
+        require(required in worker_source or required in manifest_text or required in preflight_source, "G5 PR J runtime remediation drift")
+    for required in (
+        "connected adapter binds check authority only through job.check_run_url",
+        "installation token is scoped to exactly one repository and exact read permissions",
+        "snapshot B must match snapshot A immediately before CAS",
+        "connected adapter derives deployment from GitHub deployment statuses",
+        "deploymentStatusId",
+        "checkSuiteId",
+        "link ? { headers: { link } }",
+    ):
+        require(required in worker_tests, "G5 PR J worker test drift")
+    for required in (
+        "test_pr392_and_e2_security_remediation_stop_are_registered",
+        "test_pr392_security_findings_and_runtime_binding_contract_are_explicit",
+        G5_SECURITY_REMEDIATION_E2_STOP,
+        "job.check_run_url_only",
+        "unique_temporal_maximum_after_validation",
+    ):
+        require(required in preflight_tests, "G5 PR J preflight test drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR J manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR J preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR J preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR J preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR J preflight indirect capability",
+    )
+    validate_context_graph(repo, 77, 428)
 
 
 def detect_mode(
@@ -4554,6 +4747,12 @@ def detect_mode(
         return "g5_github_runtime_schema"
     if (
         base_ref == "desarrollo"
+        and base == G5_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_security_remediation"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -4701,6 +4900,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR I GitHub runtime schema branch requires the frozen PR #391 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == G5_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR J security remediation branch requires the frozen PR #392 merge baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -4808,6 +5011,9 @@ def main() -> int:
             touched_g5_github_runtime_schema = set(actual).intersection(
                 G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
             )
+            touched_g5_security_remediation = set(actual).intersection(
+                G5_SECURITY_REMEDIATION_ALLOWED_STATUSES
+            )
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -4847,6 +5053,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_final_readiness,
                         touched_g5_trust_live_remediation,
                         touched_g5_github_runtime_schema,
+                        touched_g5_security_remediation,
                     )
                 )
                 <= 1,
@@ -5010,6 +5217,17 @@ def main() -> int:
                     "partial or expanded G5 PR I delta is forbidden",
                 )
                 mode = "g5_github_runtime_schema"
+            elif touched_g5_security_remediation:
+                require(
+                    args.head_ref == G5_SECURITY_REMEDIATION_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR J paths require the protected security remediation branch",
+                )
+                require(
+                    actual == G5_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR J delta is forbidden",
+                )
+                mode = "g5_security_remediation"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -5192,6 +5410,10 @@ def main() -> int:
             )
         elif mode == "g5_github_runtime_schema":
             validate_g5_github_runtime_schema(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_security_remediation":
+            validate_g5_security_remediation(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
