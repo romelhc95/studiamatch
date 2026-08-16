@@ -200,13 +200,29 @@ aprobaciones separadas; este documento no las concede.
     `7e7be8072cc416d76d2034a126d39393cdbcc968`; Security post-merge
     `31962569422=PASS`, branch reconciliation `95202690518=PASS`, focused G5 job
     `95202690713=PASS`, F9.7 run `31962569598=PASS` y F9.7 job
-    `95202805508=PASS`, `run_attempt=1`. PR K queda limitado a terminal
-    confirmation antes del CAS, parser `Link rel=next`, `total_count` canonico,
-    identidad GitHub Actions `id=15368`/`owner.id=9919`, token schema exacto,
-    `repository_selection=selected` y cache por `repositoryId`. E2-E6,
-    endpoint, GitHub App config, Cloudflare, OIDC live, Production, Supabase,
-    SQL, writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5
-    `50%` no cambian.
+     `95202805508=PASS`, `run_attempt=1`. PR K queda limitado a terminal
+     confirmation antes del CAS, parser `Link rel=next`, `total_count` canonico,
+     identidad GitHub Actions `id=15368`/`owner.id=9919`, token schema exacto,
+     `repository_selection=selected` y cache por `repositoryId`. PR #394 queda
+     `MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` con
+     commits exactos `7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa`,
+     `03bab905901f62dba7631a9fe0a87290d70802d9` y
+     `82ef6e92c125040cededb4a648d1eedd6d519ecf`; merge protegido
+     `25be9caffe5674156c7515735a15ad45c5ad22e2`, tree
+     `9f81f71bdabb2012ab593b1999cf4df92fa712eb`; Security `31968991218=PASS`,
+     F9.7 run `31968990202=PASS`, focused G5 job `95218353795=PASS`, F9.7 job
+     `95218447778=PASS`, `run_attempt=1`. PR L queda limitado a remediacion
+     follow-up repository-only: PR #394 solo por identidad historica exacta,
+     futuras remediaciones con candidate de un unico commit, Link headers
+     fail-closed, fixtures installation-token independientes del request,
+     mutaciones durante cada llamada de confirmacion terminal y documentacion de
+     `DOCUMENTED_NO_FULL_ATOMICITY_CLAIM`. Backlog
+     `BK-F10.9-G5-ATOMIC-AUTHORITY` queda no ejecutable y cotizable, fuera del
+     avance del hito y sin implementacion autorizada. E2-E6 permanecen
+     `NOT_EXECUTED` con `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`;
+     endpoint, GitHub App config, Cloudflare, OIDC live, Production, Supabase,
+     SQL, writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5
+     `50%` no cambian.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

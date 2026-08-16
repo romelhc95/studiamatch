@@ -192,6 +192,16 @@ G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE = "7e7be8072cc416d76d2034a126d39393cd
 G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-k-security-remediation"
 G5_RESIDUAL_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED"
 G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE = "4d5d97bb37ffcd5126d467bde9152e705a895c85"
+G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS = (
+    "7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa",
+    "03bab905901f62dba7631a9fe0a87290d70802d9",
+    "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+)
+G5_FOLLOWUP_SECURITY_REMEDIATION_BASE = "25be9caffe5674156c7515735a15ad45c5ad22e2"
+G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE = "9f81f71bdabb2012ab593b1999cf4df92fa712eb"
+G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-l-security-remediation"
+G5_FOLLOWUP_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP = "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -742,6 +752,26 @@ G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
 }
 G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES = {
     path: "100644" for path in G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0022_g5_followup_security_remediation.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4279,7 +4309,11 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
     )
     require(
         manifest.get("e2_stop")
-        in {G5_GITHUB_RUNTIME_SCHEMA_E2_STOP, G5_SECURITY_REMEDIATION_E2_STOP},
+        in {
+            G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+            G5_SECURITY_REMEDIATION_E2_STOP,
+            G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+        },
         "G5 PR I E2 stop drift",
     )
     require(
@@ -4470,7 +4504,11 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
     require(pr392.get("candidate_sha") == G5_SECURITY_REMEDIATION_PR392_CANDIDATE, "G5 PR J candidate evidence drift")
     require(pr392.get("merge_sha") == G5_SECURITY_REMEDIATION_BASE, "G5 PR J merge evidence drift")
     require(pr392.get("tree_sha") == G5_SECURITY_REMEDIATION_BASE_TREE, "G5 PR J tree evidence drift")
-    require(manifest.get("e2_stop") == G5_SECURITY_REMEDIATION_E2_STOP, "G5 PR J E2 stop drift")
+    require(
+        manifest.get("e2_stop")
+        in {G5_SECURITY_REMEDIATION_E2_STOP, G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP},
+        "G5 PR J E2 stop drift",
+    )
     require(
         ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md" in f97_workflow,
         "G5 PR J focused CI path drift",
@@ -4514,7 +4552,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
     for required in (
         "test_pr392_and_e2_security_remediation_stop_are_registered",
         "test_pr392_security_findings_and_runtime_binding_contract_are_explicit",
-        G5_SECURITY_REMEDIATION_E2_STOP,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
         "job.check_run_url_only",
         "unique_temporal_maximum_after_validation",
     ):
@@ -4592,25 +4630,18 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
             commit_tree(repo, head) == commit_tree(repo, candidate_head),
             "G5 residual security remediation merge tree drift",
         )
-    intermediate_heads: list[str] = []
-    current = candidate_head
-    while current != base:
-        parents = commit_parents(repo, current)
+    require(
+        candidate_head == G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1],
+        "G5 PR K historical candidate identity drift",
+    )
+    previous = base
+    for commit in G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS:
+        require_sha(repo, "G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMIT", commit)
         require(
-            len(parents) == 1,
-            "G5 residual security remediation candidate must be a linear descendant of base",
+            commit_parents(repo, commit) == [previous],
+            "G5 PR K historical commit chain drift",
         )
-        current = parents[0]
-        if current != base:
-            intermediate_heads.append(current)
-    for intermediate_head in intermediate_heads:
-        require_exact_delta(
-            repo,
-            base,
-            intermediate_head,
-            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
-            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
-        )
+        previous = commit
     require_exact_delta(
         repo,
         base,
@@ -4729,16 +4760,15 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
             f"{label} preflight indirect capability",
         )
 
-    for intermediate_head in intermediate_heads:
-        validate_residual_security_texts(
-            tree_text(intermediate_head, ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"),
-            tree_text(intermediate_head, "scripts/shared/f10_9_g5_operational_activation_preflight.py"),
-            tree_text(intermediate_head, "tests/test_fase10_9_g5_operational_activation_preflight.py"),
-            tree_text(intermediate_head, ".github/workflows/f9-7-contract.yml"),
-            tree_text(intermediate_head, "workers/g5-trust-broker/src/index.mjs"),
-            tree_text(intermediate_head, "workers/g5-trust-broker/test/trust-broker.test.mjs"),
-            "G5 PR K intermediate",
-        )
+    validate_residual_security_texts(
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "scripts/shared/f10_9_g5_operational_activation_preflight.py"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "tests/test_fase10_9_g5_operational_activation_preflight.py"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], ".github/workflows/f9-7-contract.yml"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "workers/g5-trust-broker/src/index.mjs"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "workers/g5-trust-broker/test/trust-broker.test.mjs"),
+        "G5 PR K historical head",
+    )
     manifest = json.loads(manifest_text)
     combined = "\n".join((state, index, adr21, runbook, manifest_text))
     for required in (
@@ -4878,6 +4908,176 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
         "G5 PR K preflight indirect capability",
     )
     validate_context_graph(repo, 78, 429)
+
+
+def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE,
+        "unexpected G5 followup security remediation base",
+    )
+    require_sha(repo, "G5_FOLLOWUP_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 followup security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 followup security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 followup security remediation merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 followup security remediation candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr22 = (repo / ".context/decisiones/ADR-0022_g5_followup_security_remediation.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    boundary_source = (repo / "scripts/security/f109_boundary.py").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr22, runbook, manifest_text, plan))
+    for required in (
+        G5_FOLLOWUP_SECURITY_REMEDIATION_STATUS,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_BASE,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE,
+        *G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS,
+        "31968991218=PASS",
+        "31968990202=PASS",
+        "95218353795=PASS",
+        "95218447778=PASS",
+        "run_attempt=1",
+        G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
+        "ADR-0022",
+    ):
+        require(required in combined, "G5 PR L reconciliation evidence drift")
+    pr394 = manifest.get("pr_394_reconciliation", {})
+    require(pr394.get("candidate_commits") == list(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS), "G5 PR L PR394 commit identity drift")
+    require(pr394.get("head_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "G5 PR L PR394 head evidence drift")
+    require(pr394.get("merge_sha") == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE, "G5 PR L PR394 merge evidence drift")
+    require(pr394.get("tree_sha") == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE, "G5 PR L PR394 tree evidence drift")
+    require(manifest.get("e2_stop") == G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP, "G5 PR L E2 stop drift")
+    require(
+        manifest.get("followup_security_remediation", {}).get("generic_followup_chain_support") == "REMOVED",
+        "G5 PR L generic chain remediation drift",
+    )
+    require(
+        manifest.get("followup_security_remediation", {}).get("future_candidate_commits") == "EXACT_ONE_DIRECT_COMMIT_REQUIRED",
+        "G5 PR L future single commit contract drift",
+    )
+    require(
+        manifest.get("followup_security_remediation", {}).get("link_headers") == "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+        "G5 PR L Link header policy drift",
+    )
+    require(
+        manifest.get("atomic_authority_backlog", {}).get("included_in_hito_progress") is False
+        and manifest.get("atomic_authority_backlog", {}).get("implementation_authorized") is False,
+        "G5 PR L atomic authority backlog drift",
+    )
+    findings = manifest.get("post_merge_pr394_followup_findings")
+    require(isinstance(findings, list) and len(findings) == 7, "G5 PR L finding count drift")
+    generic_chain_loop = "while " + "current != base"
+    require(generic_chain_loop not in boundary_source, "G5 PR L generic follow-up chain support drift")
+    require("G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS" in boundary_source, "G5 PR L historical PR394 identity missing")
+    require(
+        ".context/decisiones/ADR-0022_g5_followup_security_remediation.md" in f97_workflow,
+        "G5 PR L focused CI path drift",
+    )
+    for required in (
+        "ALLOWED_LINK_RELATIONS",
+        "seenRelations.has(relation)",
+        "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+    ):
+        require(required in worker_source or required in manifest_text, "G5 PR L Link header hardening drift")
+    for required in (
+        "TOKEN_PERMISSIONS",
+        "terminal confirmation rejects mutations during each terminal evidence call",
+        "installation token is scoped to exactly one repository and exact read permissions",
+        "malformed ambiguous duplicated or unexpected Link headers",
+    ):
+        require(required in worker_tests or required in manifest_text, "G5 PR L worker test drift")
+    for required in (
+        "test_pr394_and_followup_security_remediation_are_registered",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+    ):
+        require(required in preflight_tests or required in preflight_source, "G5 PR L preflight drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR L manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR L preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR L preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR L preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR L preflight indirect capability",
+    )
+    validate_context_graph(repo, 79, 430)
 
 
 def detect_mode(
@@ -5094,6 +5294,12 @@ def detect_mode(
         return "g5_residual_security_remediation"
     if (
         base_ref == "desarrollo"
+        and base == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_followup_security_remediation"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -5248,6 +5454,10 @@ def main() -> int:
             if args.event == "pull_request" and args.head_ref == G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF:
                 raise BoundaryError(
                     "G5 PR K residual security remediation branch requires the frozen PR #393 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR L followup security remediation branch requires the frozen PR #394 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -5763,6 +5973,10 @@ def main() -> int:
             )
         elif mode == "g5_residual_security_remediation":
             validate_g5_residual_security_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_followup_security_remediation":
+            validate_g5_followup_security_remediation(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

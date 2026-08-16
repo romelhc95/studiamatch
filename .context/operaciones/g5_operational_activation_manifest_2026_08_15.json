@@ -1,7 +1,7 @@
 {
   "schema": "f10.9-g5-operational-activation-manifest.v1",
   "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
-  "status": "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED",
+  "status": "PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
   "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
   "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
   "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
@@ -104,6 +104,27 @@
     "merge_tree_reconciled": true,
     "post_merge_residual_remediation_required": true
   },
+  "pr_394_reconciliation": {
+    "candidate_commits": [
+      "7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa",
+      "03bab905901f62dba7631a9fe0a87290d70802d9",
+      "82ef6e92c125040cededb4a648d1eedd6d519ecf"
+    ],
+    "head_sha": "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+    "merge_sha": "25be9caffe5674156c7515735a15ad45c5ad22e2",
+    "tree_sha": "9f81f71bdabb2012ab593b1999cf4df92fa712eb",
+    "status": "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+    "security_run_id": "31968991218",
+    "security_conclusion": "PASS",
+    "f9_7_run_id": "31968990202",
+    "f9_7_conclusion": "PASS",
+    "focused_job_id": "95218353795",
+    "focused_conclusion": "PASS",
+    "f9_7_job_id": "95218447778",
+    "f9_7_job_conclusion": "PASS",
+    "run_attempt": 1,
+    "followup_security_remediation_required": true
+  },
   "post_merge_security_findings": [
     {
       "id": "PRJ-HIGH-001",
@@ -192,6 +213,74 @@
       "status": "REMEDIATED_REPOSITORY_ONLY"
     }
   ],
+  "post_merge_pr394_followup_findings": [
+    {
+      "id": "PRL-001",
+      "severity": "HIGH",
+      "finding": "generic_followup_chain_support",
+      "required_remediation": "preserve_pr394_only_by_exact_three_commit_identity_and_remove_generic_chain_acceptance",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-002",
+      "severity": "HIGH",
+      "finding": "future_candidate_multi_commit_ambiguity",
+      "required_remediation": "future_candidates_must_be_exactly_one_direct_commit",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-003",
+      "severity": "MEDIUM",
+      "finding": "link_header_malformed_ambiguous_duplicate_unexpected",
+      "required_remediation": "reject_malformed_ambiguous_duplicated_unexpected_link_headers",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-004",
+      "severity": "MEDIUM",
+      "finding": "installation_token_fixture_mirrors_request",
+      "required_remediation": "make_installation_token_fixtures_request_independent",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-005",
+      "severity": "MEDIUM",
+      "finding": "terminal_confirmation_mutation_coverage_gap",
+      "required_remediation": "test_mutations_during_each_terminal_confirmation_call",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-006",
+      "severity": "MEDIUM",
+      "finding": "residual_multi_endpoint_race_not_explicit",
+      "required_remediation": "document_residual_race_without_full_atomicity_claim",
+      "status": "REMEDIATED_REPOSITORY_ONLY"
+    },
+    {
+      "id": "PRL-007",
+      "severity": "MEDIUM",
+      "finding": "future_atomic_authority_redesign_not_scoped",
+      "required_remediation": "register_non_executable_quotable_backlog_item",
+      "status": "DOCUMENTED_BACKLOG_NOT_EXECUTED"
+    }
+  ],
+  "followup_security_remediation": {
+    "generic_followup_chain_support": "REMOVED",
+    "pr_394_historical_identity": "EXACT_THREE_COMMITS_IMMUTABLE",
+    "future_candidate_commits": "EXACT_ONE_DIRECT_COMMIT_REQUIRED",
+    "link_headers": "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+    "installation_token_fixtures": "REQUEST_INDEPENDENT",
+    "terminal_confirmation_mutation_tests": "COVER_EACH_TERMINAL_CALL",
+    "residual_multi_endpoint_race": "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
+    "backlog": "BK-F10.9-G5-ATOMIC-AUTHORITY"
+  },
+  "atomic_authority_backlog": {
+    "id": "BK-F10.9-G5-ATOMIC-AUTHORITY",
+    "state": "BACKLOG_NON_EXECUTABLE_QUOTABLE",
+    "quotable": true,
+    "included_in_hito_progress": false,
+    "implementation_authorized": false
+  },
   "e1_deployment_reconciliation": {
     "status": "E1_DEPLOYMENT_PASS",
     "credential_state": "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
@@ -211,7 +300,7 @@
     "secrets_count": 0,
     "endpoint_public": false
   },
-  "e2_stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED",
+  "e2_stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
   "github_runtime_shapes": {
     "workflow_run": {
       "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -258,8 +347,8 @@
     "deployment_statuses": {
       "source": "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100",
       "required_fields": ["id", "state", "created_at", "updated_at", "deployment_url", "log_url", "target_url", "environment", "repository_url"],
-      "forbidden_fields": ["redirect", "alternate_hostname", "link_rel_next", "noncanonical_link_rel_next", "duplicate_status_id", "timestamp_tie", "historical_in_progress"],
-      "lifecycle": "validate all timestamps and ids before ordering; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results; terminal confirmation repeats deployment status before CAS"
+      "forbidden_fields": ["redirect", "alternate_hostname", "link_rel_next", "malformed_link_header", "ambiguous_link_header", "duplicated_link_header", "unexpected_link_header", "duplicate_status_id", "timestamp_tie", "historical_in_progress"],
+      "lifecycle": "validate all timestamps ids and Link headers before ordering; reject malformed ambiguous duplicated or unexpected Link headers; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results; terminal confirmation repeats deployment status before CAS"
     },
     "commit": {
       "source": "GET /repos/{owner}/{repo}/commits/{sha}",
@@ -327,7 +416,7 @@
     "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
     "state": "DOCUMENTED_NOT_EXECUTED",
     "permission_added_now": false,
-    "stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
+    "stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
   },
   "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [
