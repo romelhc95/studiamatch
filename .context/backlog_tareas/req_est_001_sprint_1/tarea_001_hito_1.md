@@ -217,12 +217,30 @@ aprobaciones separadas; este documento no las concede.
      fail-closed, fixtures installation-token independientes del request,
      mutaciones durante cada llamada de confirmacion terminal y documentacion de
      `DOCUMENTED_NO_FULL_ATOMICITY_CLAIM`. Backlog
-     `BK-F10.9-G5-ATOMIC-AUTHORITY` queda no ejecutable y cotizable, fuera del
-     avance del hito y sin implementacion autorizada. E2-E6 permanecen
-     `NOT_EXECUTED` con `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`;
-     endpoint, GitHub App config, Cloudflare, OIDC live, Production, Supabase,
-     SQL, writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5
-     `50%` no cambian.
+      `BK-F10.9-G5-ATOMIC-AUTHORITY` queda no ejecutable y cotizable, fuera del
+      avance del hito y sin implementacion autorizada. E2-E6 permanecen
+      `NOT_EXECUTED` con `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`;
+      endpoint, GitHub App config, Cloudflare, OIDC live, Production, Supabase,
+      SQL, writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5
+      `50%` no cambian.
+      PR #395 queda
+      `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` con
+      candidate `444c674cf2ff2143bb4b511e88ff6cd30c1fb589`, merge protegido
+      `d04a174915910f50b8adf3d4d4b1216ffbc90b75`, tree
+      `b30329f66ad8b8ba36e6cbd51303bd8e729036a0`; Security
+      `31974315708=PASS`, F9.7 run `31974315810=PASS`, focused G5 job
+      `95231385472=PASS`, F9.7 job `95231489296=PASS`, `run_attempt=1`.
+      PR M queda limitado a bootstrap repository-only de una raiz independiente:
+      workflow `pull_request_target` con check exclusivo
+      `F10.9 Trusted Boundary Bootstrap`, `permissions: contents: read`, sin
+      secrets, sin codigo/tests/scripts/actions del candidate y con Git objects no
+      confiables validados por base/head, commit directo, ancestry y delta
+      path/status/mode exacto. PR M es `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`; no
+      cierra Link hardening, que queda `NOT_CLOSED_DEFERRED_TO_PR_N` despues del
+      merge de PR M. E2-E6 permanecen `NOT_EXECUTED` con
+      `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`; endpoint, GitHub App config,
+      Cloudflare, OIDC live, Production, Supabase, SQL, writers y schedules
+      permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

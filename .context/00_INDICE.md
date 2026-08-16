@@ -92,6 +92,7 @@
 - [ADR-0020](decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md)
 - [ADR-0021](decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md)
 - [ADR-0022](decisiones/ADR-0022_g5_followup_security_remediation.md)
+- [ADR-0023](decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04

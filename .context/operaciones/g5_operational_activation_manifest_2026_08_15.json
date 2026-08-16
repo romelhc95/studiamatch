@@ -1,7 +1,7 @@
 {
   "schema": "f10.9-g5-operational-activation-manifest.v1",
   "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
-  "status": "PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+  "status": "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
   "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
   "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
   "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
@@ -124,6 +124,23 @@
     "f9_7_job_conclusion": "PASS",
     "run_attempt": 1,
     "followup_security_remediation_required": true
+  },
+  "pr_395_reconciliation": {
+    "candidate_sha": "444c674cf2ff2143bb4b511e88ff6cd30c1fb589",
+    "merge_sha": "d04a174915910f50b8adf3d4d4b1216ffbc90b75",
+    "tree_sha": "b30329f66ad8b8ba36e6cbd51303bd8e729036a0",
+    "status": "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
+    "security_run_id": "31974315708",
+    "security_conclusion": "PASS",
+    "f9_7_run_id": "31974315810",
+    "f9_7_conclusion": "PASS",
+    "focused_job_id": "95231385472",
+    "focused_conclusion": "PASS",
+    "f9_7_job_id": "95231489296",
+    "f9_7_job_conclusion": "PASS",
+    "run_attempt": 1,
+    "trusted_boundary_bootstrap_required": true,
+    "link_hardening_closure_deferred_to_pr_n": true
   },
   "post_merge_security_findings": [
     {
@@ -281,6 +298,32 @@
     "included_in_hito_progress": false,
     "implementation_authorized": false
   },
+  "trusted_boundary_bootstrap": {
+    "workflow": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+    "check_name": "F10.9 Trusted Boundary Bootstrap",
+    "event": "pull_request_target",
+    "status": "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED",
+    "permissions": {
+      "contents": "read"
+    },
+    "secrets": "FORBIDDEN",
+    "base_code_only": true,
+    "candidate_execution": "FORBIDDEN",
+    "candidate_actions": "FORBIDDEN",
+    "candidate_tests": "FORBIDDEN",
+    "candidate_inspection": "GIT_OBJECTS_AS_UNTRUSTED_DATA",
+    "fork_policy": "REJECT",
+    "shape_policy": "FAIL_CLOSED_EXACT_BASE_HEAD_DIRECT_COMMIT_ANCESTRY_PATH_STATUS_MODE",
+    "actions_pinned_by_sha": true,
+    "does_not_replace_pull_request_tests": true,
+    "future_profile": "PR_N_LINK_HARDENING_CLOSURE_ONLY"
+  },
+  "link_hardening_closure": {
+    "status": "NOT_CLOSED_DEFERRED_TO_PR_N",
+    "trusted_boundary_required_first": true,
+    "deferred_to": "PR_N_AFTER_PR_M_MERGE",
+    "pr_l_repository_only_changes": "PRESENT_BUT_NOT_TRUSTED_BOUNDARY_CLOSED"
+  },
   "e1_deployment_reconciliation": {
     "status": "E1_DEPLOYMENT_PASS",
     "credential_state": "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
@@ -300,7 +343,7 @@
     "secrets_count": 0,
     "endpoint_public": false
   },
-  "e2_stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+  "e2_stop": "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
   "github_runtime_shapes": {
     "workflow_run": {
       "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -416,7 +459,7 @@
     "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
     "state": "DOCUMENTED_NOT_EXECUTED",
     "permission_added_now": false,
-    "stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+    "stop": "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
   },
   "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [

@@ -30,6 +30,7 @@ ADR19_PATH = Path(".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.
 ADR20_PATH = Path(".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md")
 ADR21_PATH = Path(".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md")
 ADR22_PATH = Path(".context/decisiones/ADR-0022_g5_followup_security_remediation.md")
+ADR23_PATH = Path(".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -91,7 +92,7 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
     assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
-    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
     assert all(item["state"] == "ABSENT_NOT_CONFIGURED" for item in manifest["required_configuration_names"])
     assert [item["name"] for item in manifest["required_configuration_names"]] == list(EXPECTED_CONFIGURATION_NAMES)
 
@@ -166,7 +167,7 @@ def test_pr392_and_e2_security_remediation_stop_are_registered() -> None:
         "previous_security_auditor_go_preserved": True,
         "post_merge_security_remediation_required": True,
     }
-    assert manifest["e2_stop"] == "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+    assert manifest["e2_stop"] == "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
     assert sorted(manifest["github_runtime_shapes"]) == sorted(
         [
             "approvals",
@@ -321,7 +322,52 @@ def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> 
         "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
         "state": "DOCUMENTED_NOT_EXECUTED",
         "permission_added_now": False,
-        "stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+        "stop": "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
+    }
+
+
+def test_pr395_and_trusted_boundary_bootstrap_are_registered() -> None:
+    manifest = _manifest()
+    assert manifest["pr_395_reconciliation"] == {
+        "candidate_sha": "444c674cf2ff2143bb4b511e88ff6cd30c1fb589",
+        "merge_sha": "d04a174915910f50b8adf3d4d4b1216ffbc90b75",
+        "tree_sha": "b30329f66ad8b8ba36e6cbd51303bd8e729036a0",
+        "status": "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
+        "security_run_id": "31974315708",
+        "security_conclusion": "PASS",
+        "f9_7_run_id": "31974315810",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95231385472",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95231489296",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+        "trusted_boundary_bootstrap_required": True,
+        "link_hardening_closure_deferred_to_pr_n": True,
+    }
+    assert manifest["trusted_boundary_bootstrap"] == {
+        "workflow": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+        "check_name": "F10.9 Trusted Boundary Bootstrap",
+        "event": "pull_request_target",
+        "status": "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED",
+        "permissions": {"contents": "read"},
+        "secrets": "FORBIDDEN",
+        "base_code_only": True,
+        "candidate_execution": "FORBIDDEN",
+        "candidate_actions": "FORBIDDEN",
+        "candidate_tests": "FORBIDDEN",
+        "candidate_inspection": "GIT_OBJECTS_AS_UNTRUSTED_DATA",
+        "fork_policy": "REJECT",
+        "shape_policy": "FAIL_CLOSED_EXACT_BASE_HEAD_DIRECT_COMMIT_ANCESTRY_PATH_STATUS_MODE",
+        "actions_pinned_by_sha": True,
+        "does_not_replace_pull_request_tests": True,
+        "future_profile": "PR_N_LINK_HARDENING_CLOSURE_ONLY",
+    }
+    assert manifest["link_hardening_closure"] == {
+        "status": "NOT_CLOSED_DEFERRED_TO_PR_N",
+        "trusted_boundary_required_first": True,
+        "deferred_to": "PR_N_AFTER_PR_M_MERGE",
+        "pr_l_repository_only_changes": "PRESENT_BUT_NOT_TRUSTED_BOUNDARY_CLOSED",
     }
 
 
@@ -406,6 +452,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         + ADR20_PATH.read_text(encoding="utf-8")
         + ADR21_PATH.read_text(encoding="utf-8")
         + ADR22_PATH.read_text(encoding="utf-8")
+        + ADR23_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
@@ -430,9 +477,12 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "51aaac5d289226b1f8f16de1daf69a16a084d585",
         "7e7be8072cc416d76d2034a126d39393cdbcc968",
         "25be9caffe5674156c7515735a15ad45c5ad22e2",
-        "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+        "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
         "BK-F10.9-G5-ATOMIC-AUTHORITY",
         "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
+        "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED",
+        "F10.9 Trusted Boundary Bootstrap",
+        "NOT_CLOSED_DEFERRED_TO_PR_N",
     ):
         assert marker in combined
     assert "No se puede combinar" in combined
