@@ -360,16 +360,51 @@ function splitLinkHeader(value) {
   return parts;
 }
 
+const ALLOWED_LINK_RELATIONS = new Set(["first", "prev", "last"]);
+
 function linkHeaderHasRelNext(value) {
   if (typeof value !== "string") return false;
-  return splitLinkHeader(value).some((entry) => entry.split(";").slice(1).some((parameter) => {
-    const equals = parameter.indexOf("=");
-    if (equals === -1) return false;
-    const name = parameter.slice(0, equals).trim().toLowerCase();
-    let relation = parameter.slice(equals + 1).trim().toLowerCase();
-    if (relation.startsWith('"') && relation.endsWith('"')) relation = relation.slice(1, -1);
-    return name === "rel" && relation.split(/\s+/).includes("next");
-  }));
+  const entries = splitLinkHeader(value);
+  if (entries.length === 0) stop(REASONS.BINDING);
+  const seenRelations = new Set();
+  let hasNext = false;
+  for (const rawEntry of entries) {
+    const entry = rawEntry.trim();
+    const match = entry.match(/^<([^<>\s]+)>\s*(;.*)$/);
+    if (!match) stop(REASONS.BINDING);
+    const url = requireSafeHttpsUrl(match[1], REASONS.BINDING);
+    if (url.origin !== GITHUB_API_BASE || url.hash !== "") stop(REASONS.BINDING);
+    const seenParameters = new Set();
+    let relation = null;
+    for (const rawParameter of match[2].split(";").slice(1)) {
+      const parameter = rawParameter.trim();
+      const equals = parameter.indexOf("=");
+      if (equals <= 0 || equals !== parameter.lastIndexOf("=")) stop(REASONS.BINDING);
+      const name = parameter.slice(0, equals).trim().toLowerCase();
+      const parameterValue = parameter.slice(equals + 1).trim();
+      if (!/^[a-z][a-z0-9_-]*$/.test(name) || seenParameters.has(name) || parameterValue.length === 0) {
+        stop(REASONS.BINDING);
+      }
+      seenParameters.add(name);
+      if (name !== "rel") {
+        if ((parameterValue.startsWith('"') || parameterValue.endsWith('"')) && !(parameterValue.startsWith('"') && parameterValue.endsWith('"'))) {
+          stop(REASONS.BINDING);
+        }
+        continue;
+      }
+      if (!parameterValue.startsWith('"') || !parameterValue.endsWith('"')) stop(REASONS.BINDING);
+      const tokens = parameterValue.slice(1, -1).trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (tokens.length !== 1 || relation !== null) stop(REASONS.BINDING);
+      relation = tokens[0];
+    }
+    if (relation === null || !/^[a-z][a-z0-9.-]*$/.test(relation) || seenRelations.has(relation)) {
+      stop(REASONS.BINDING);
+    }
+    seenRelations.add(relation);
+    if (relation === "next") hasNext = true;
+    else if (!ALLOWED_LINK_RELATIONS.has(relation)) stop(REASONS.BINDING);
+  }
+  return hasNext;
 }
 
 async function responseTextWithLimit(response, maxBytes, timeoutMs = STRICT_TIMEOUT_MS) {

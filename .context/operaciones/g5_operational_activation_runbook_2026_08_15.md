@@ -2,15 +2,15 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED` |
+| Estado | `PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` |
 | Subfase | `F10.9` |
-| Alcance | PR K repository-only posterior a PR #393 |
+| Alcance | PR L repository-only posterior a PR #394 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust actual | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected actual | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
-| Operacion remota en PR K | `NO` |
+| Operacion remota en PR L | `NO` |
 
 ## Proposito
 
@@ -100,11 +100,11 @@ f9_7_job = 95176398983=PASS
 run_attempt = 1
 ```
 
-E2 queda `NOT_EXECUTED`. El STOP anterior
-`E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE` queda como antecedente de PR I y el
-STOP vigente pasa a `E2_STOP_SECURITY_REMEDIATION_REQUIRED`. El STOP no configura
-GitHub App, private key, installation, secrets, variables ni endpoint; solo
-habilita la remediacion repository-only del adapter antes de E2.
+E2 queda `NOT_EXECUTED`. El STOP
+`E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE` queda como antecedente de PR I y
+`E2_STOP_SECURITY_REMEDIATION_REQUIRED` queda como antecedente posterior a PR J/K.
+Ningun STOP configura GitHub App, private key, installation, secrets, variables ni
+endpoint; solo habilita remediaciones repository-only antes de E2.
 
 PR #392 queda `MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED`:
 
@@ -121,7 +121,7 @@ previous_security_auditor_go = PRESERVED
 post_merge_security = REMEDIATION_REQUIRED
 ```
 
-El nuevo STOP vigente es `E2_STOP_SECURITY_REMEDIATION_REQUIRED`. Los seis
+El STOP posterior a PR #392 fue `E2_STOP_SECURITY_REMEDIATION_REQUIRED`. Los seis
 hallazgos post-merge quedan registrados: tres altos remediados por binding exacto
 de job/check, status temporal deterministico y snapshot doble antes del CAS; dos
 medios remediados por identidad ampliada y token limitado al repositorio; un
@@ -151,6 +151,48 @@ del run/job/check/deployment inmediatamente antes del CAS, parser robusto de
 GitHub Actions (`id=15368`, `owner.id=9919`), token response con
 `repository_selection=selected`, schema exacto y promises/tokens segmentados por
 `repositoryId`. No configura GitHub App ni ejecuta E2.
+
+## Reconciliacion PR #394 Y Remediacion Follow-Up PR L
+
+PR #394 queda `MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`:
+
+```text
+candidate_commit_1 = 7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa
+candidate_commit_2 = 03bab905901f62dba7631a9fe0a87290d70802d9
+candidate_commit_3 = 82ef6e92c125040cededb4a648d1eedd6d519ecf
+merge = 25be9caffe5674156c7515735a15ad45c5ad22e2
+tree = 9f81f71bdabb2012ab593b1999cf4df92fa712eb
+security = 31968991218=PASS
+f9_7_run = 31968990202=PASS
+focused_g5_job = 95218353795=PASS
+f9_7_job = 95218447778=PASS
+run_attempt=1
+```
+
+PR L elimina el soporte generico para cadenas follow-up: PR #394 solo se preserva
+por la identidad historica exacta de esos tres commits y las remediaciones futuras
+deben ser un unico commit directo desde su base congelada.
+
+El STOP vigente pasa a `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`. E2-E6
+siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
+Production, Supabase, SQL, writers ni schedules.
+
+La remediacion PR L tambien endurece el contrato repository-only:
+
+- `Link` headers malformados, ambiguos, duplicados o inesperados producen STOP;
+  `rel=next` permanece prohibido.
+- Los fixtures de installation token son independientes del request y no espejan
+  los permisos solicitados.
+- Las pruebas mutan workflow run, job/check y deployment durante cada llamada de
+  confirmacion terminal.
+
+La carrera residual multi-endpoint queda documentada como
+`DOCUMENTED_NO_FULL_ATOMICITY_CLAIM`: Snapshot B y terminal confirmation reducen
+la ventana TOCTOU, pero no declaran atomicidad completa sobre endpoints GitHub
+separados.
+
+Backlog no ejecutable y cotizable: `BK-F10.9-G5-ATOMIC-AUTHORITY`. No suma avance
+al hito, no se implementa en PR L y requiere estimacion y aprobacion del cliente.
 
 ## Policy Runtime Futura
 
@@ -307,12 +349,18 @@ El preflight offline valida solo:
 - E2 STOP schema/lifecycle registrado.
 - PR #392 registrado como security remediation required.
 - PR #393 registrado como residual remediation required.
-- `E2_STOP_SECURITY_REMEDIATION_REQUIRED` vigente.
+- PR #394 registrado como follow-up security remediation required.
+- `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` vigente.
 - Binding runtime con `jobId`, `deploymentStatusId` y `checkSuiteId`.
 - Snapshot doble antes de CAS.
 - Terminal confirmation antes de CAS.
+- Mutaciones durante cada llamada de confirmacion terminal.
 - GitHub Actions App exacta por slug/name/id/owner id.
 - Installation token limitado a un solo repository id, `repository_selection=selected`, schema exacto y permisos read exactos.
+- Fixtures de installation token independientes del request.
+- Link headers malformados, ambiguos, duplicados o inesperados rechazados.
+- Carrera residual multi-endpoint documentada sin declarar atomicidad completa.
+- Backlog `BK-F10.9-G5-ATOMIC-AUTHORITY` no ejecutable y cotizable.
 - credencial E1 revocada y removida localmente.
 - shapes GitHub reales documentados con identificadores sinteticos.
 - presencia futura por nombre y ausencia de valores.

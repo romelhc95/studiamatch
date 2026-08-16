@@ -19,14 +19,15 @@ from typing import Any, Mapping
 PREFLIGHT_VERSION = "f10.9-g5-operational-activation-preflight.v1"
 MANIFEST_SCHEMA = "f10.9-g5-operational-activation-manifest.v1"
 MANIFEST_MODE = "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES"
-EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED"
+EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
 PR387_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
 PR390_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR391_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR392_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
 PR393_STATUS = "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED"
+PR394_STATUS = "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
-E2_STOP = "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
+E2_STOP = "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
 CURRENT_GATE = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CURRENT_TRUST = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
 CURRENT_CONNECTED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
@@ -60,8 +61,12 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "pr_391_reconciliation",
         "pr_392_reconciliation",
         "pr_393_reconciliation",
+        "pr_394_reconciliation",
         "post_merge_security_findings",
         "post_merge_pr393_residual_findings",
+        "post_merge_pr394_followup_findings",
+        "followup_security_remediation",
+        "atomic_authority_backlog",
         "e1_deployment_reconciliation",
         "e2_stop",
         "github_runtime_shapes",
@@ -163,8 +168,48 @@ EXPECTED_PR393_KEYS = frozenset(
         "post_merge_residual_remediation_required",
     }
 )
+EXPECTED_PR394_KEYS = frozenset(
+    {
+        "candidate_commits",
+        "head_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "f9_7_run_id",
+        "f9_7_conclusion",
+        "focused_job_id",
+        "focused_conclusion",
+        "f9_7_job_id",
+        "f9_7_job_conclusion",
+        "run_attempt",
+        "followup_security_remediation_required",
+    }
+)
 EXPECTED_FINDING_KEYS = frozenset(
     {"id", "severity", "finding", "required_remediation", "status"}
+)
+EXPECTED_FOLLOWUP_REMEDIATION_KEYS = frozenset(
+    {
+        "generic_followup_chain_support",
+        "pr_394_historical_identity",
+        "future_candidate_commits",
+        "link_headers",
+        "installation_token_fixtures",
+        "terminal_confirmation_mutation_tests",
+        "residual_multi_endpoint_race",
+        "backlog",
+    }
+)
+EXPECTED_ATOMIC_BACKLOG_KEYS = frozenset(
+    {
+        "id",
+        "state",
+        "quotable",
+        "included_in_hito_progress",
+        "implementation_authorized",
+    }
 )
 EXPECTED_E1_KEYS = frozenset(
     {
@@ -263,9 +308,10 @@ EXPECTED_RUNTIME_SHAPE_ENTRIES = MappingProxyType(
                 "id", "state", "created_at", "updated_at", "deployment_url", "log_url", "target_url", "environment", "repository_url",
             ),
             "forbidden_fields": (
-                "redirect", "alternate_hostname", "link_rel_next", "noncanonical_link_rel_next", "duplicate_status_id", "timestamp_tie", "historical_in_progress",
+                "redirect", "alternate_hostname", "link_rel_next", "malformed_link_header", "ambiguous_link_header",
+                "duplicated_link_header", "unexpected_link_header", "duplicate_status_id", "timestamp_tie", "historical_in_progress",
             ),
-            "lifecycle": "validate all timestamps and ids before ordering; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results; terminal confirmation repeats deployment status before CAS",
+            "lifecycle": "validate all timestamps ids and Link headers before ordering; reject malformed ambiguous duplicated or unexpected Link headers; select unique temporal maximum; state=in_progress; deployment_url exact; log_url and target_url bound to run_id and job_id; fail closed at 100 results; terminal confirmation repeats deployment status before CAS",
         },
         "commit": {
             "source": "GET /repos/{owner}/{repo}/commits/{sha}",
@@ -451,8 +497,12 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     _validate_pr391(manifest.get("pr_391_reconciliation"), errors)
     _validate_pr392(manifest.get("pr_392_reconciliation"), errors)
     _validate_pr393(manifest.get("pr_393_reconciliation"), errors)
+    _validate_pr394(manifest.get("pr_394_reconciliation"), errors)
     _validate_findings(manifest.get("post_merge_security_findings"), errors)
     _validate_residual_findings(manifest.get("post_merge_pr393_residual_findings"), errors)
+    _validate_followup_findings(manifest.get("post_merge_pr394_followup_findings"), errors)
+    _validate_followup_remediation(manifest.get("followup_security_remediation"), errors)
+    _validate_atomic_backlog(manifest.get("atomic_authority_backlog"), errors)
     _validate_e1(manifest.get("e1_deployment_reconciliation"), errors)
     _expect(manifest.get("e2_stop") == E2_STOP, "STOP_G5_E_E2_STOP", errors)
     _validate_runtime_shapes(manifest.get("github_runtime_shapes"), errors)
@@ -681,6 +731,38 @@ def _validate_pr393(value: Any, errors: list[str]) -> None:
     _expect(value.get("post_merge_residual_remediation_required") is True, "STOP_G5_E_PR393_REMEDIATION", errors)
 
 
+def _validate_pr394(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR394_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR394_KEYS, "STOP_G5_E_PR394_KEYS", errors)
+    expected_commits = [
+        "7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa",
+        "03bab905901f62dba7631a9fe0a87290d70802d9",
+        "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+    ]
+    _expect(value.get("candidate_commits") == expected_commits, "STOP_G5_E_PR394_COMMITS", errors)
+    expected_shas = {
+        "head_sha": expected_commits[-1],
+        "merge_sha": "25be9caffe5674156c7515735a15ad45c5ad22e2",
+        "tree_sha": "9f81f71bdabb2012ab593b1999cf4df92fa712eb",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR394_SHA", errors)
+    _expect(value.get("status") == PR394_STATUS, "STOP_G5_E_PR394_STATUS", errors)
+    _expect(value.get("security_run_id") == "31968991218", "STOP_G5_E_PR394_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR394_SECURITY", errors)
+    _expect(value.get("f9_7_run_id") == "31968990202", "STOP_G5_E_PR394_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR394_F97", errors)
+    _expect(value.get("focused_job_id") == "95218353795", "STOP_G5_E_PR394_FOCUSED", errors)
+    _expect(value.get("focused_conclusion") == "PASS", "STOP_G5_E_PR394_FOCUSED", errors)
+    _expect(value.get("f9_7_job_id") == "95218447778", "STOP_G5_E_PR394_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR394_F97_JOB", errors)
+    _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR394_ATTEMPT", errors)
+    _expect(value.get("followup_security_remediation_required") is True, "STOP_G5_E_PR394_REMEDIATION", errors)
+
+
 def _validate_findings(value: Any, errors: list[str]) -> None:
     if not isinstance(value, list) or len(value) != 6:
         errors.append("STOP_G5_E_SECURITY_FINDINGS")
@@ -719,6 +801,54 @@ def _validate_residual_findings(value: Any, errors: list[str]) -> None:
         _expect(item.get("status") == "REMEDIATED_REPOSITORY_ONLY", "STOP_G5_E_RESIDUAL_FINDING_STATUS", errors)
     _expect(tuple(ids) == tuple(f"PRK-{severity}-{index:03d}" for index, severity in [(1, "HIGH"), (1, "MEDIUM"), (2, "MEDIUM"), (3, "MEDIUM"), (4, "MEDIUM"), (5, "MEDIUM")]), "STOP_G5_E_RESIDUAL_FINDING_IDS", errors)
     _expect(severities.count("HIGH") == 1 and severities.count("MEDIUM") == 5, "STOP_G5_E_RESIDUAL_FINDING_SEVERITY", errors)
+
+
+def _validate_followup_findings(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, list) or len(value) != 7:
+        errors.append("STOP_G5_E_FOLLOWUP_FINDINGS")
+        return
+    ids: list[str] = []
+    statuses: list[str] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            errors.append("STOP_G5_E_FOLLOWUP_FINDINGS")
+            continue
+        _validate_exact_keys(item, EXPECTED_FINDING_KEYS, "STOP_G5_E_FOLLOWUP_FINDING_KEYS", errors)
+        ids.append(str(item.get("id", "")))
+        statuses.append(str(item.get("status", "")))
+    _expect(tuple(ids) == tuple(f"PRL-{index:03d}" for index in range(1, 8)), "STOP_G5_E_FOLLOWUP_FINDING_IDS", errors)
+    _expect(set(statuses) == {"REMEDIATED_REPOSITORY_ONLY", "DOCUMENTED_BACKLOG_NOT_EXECUTED"}, "STOP_G5_E_FOLLOWUP_FINDING_STATUS", errors)
+    _expect(statuses.count("DOCUMENTED_BACKLOG_NOT_EXECUTED") == 1, "STOP_G5_E_FOLLOWUP_FINDING_STATUS", errors)
+
+
+def _validate_followup_remediation(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_FOLLOWUP_REMEDIATION")
+        return
+    _validate_exact_keys(value, EXPECTED_FOLLOWUP_REMEDIATION_KEYS, "STOP_G5_E_FOLLOWUP_REMEDIATION_KEYS", errors)
+    expected = {
+        "generic_followup_chain_support": "REMOVED",
+        "pr_394_historical_identity": "EXACT_THREE_COMMITS_IMMUTABLE",
+        "future_candidate_commits": "EXACT_ONE_DIRECT_COMMIT_REQUIRED",
+        "link_headers": "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+        "installation_token_fixtures": "REQUEST_INDEPENDENT",
+        "terminal_confirmation_mutation_tests": "COVER_EACH_TERMINAL_CALL",
+        "residual_multi_endpoint_race": "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
+        "backlog": "BK-F10.9-G5-ATOMIC-AUTHORITY",
+    }
+    _expect(value == expected, "STOP_G5_E_FOLLOWUP_REMEDIATION", errors)
+
+
+def _validate_atomic_backlog(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_ATOMIC_BACKLOG")
+        return
+    _validate_exact_keys(value, EXPECTED_ATOMIC_BACKLOG_KEYS, "STOP_G5_E_ATOMIC_BACKLOG_KEYS", errors)
+    _expect(value.get("id") == "BK-F10.9-G5-ATOMIC-AUTHORITY", "STOP_G5_E_ATOMIC_BACKLOG_ID", errors)
+    _expect(value.get("state") == "BACKLOG_NON_EXECUTABLE_QUOTABLE", "STOP_G5_E_ATOMIC_BACKLOG_STATE", errors)
+    _expect(value.get("quotable") is True, "STOP_G5_E_ATOMIC_BACKLOG_QUOTABLE", errors)
+    _expect(value.get("included_in_hito_progress") is False, "STOP_G5_E_ATOMIC_BACKLOG_PROGRESS", errors)
+    _expect(value.get("implementation_authorized") is False, "STOP_G5_E_ATOMIC_BACKLOG_AUTH", errors)
 
 
 def _validate_runtime_shapes(value: Any, errors: list[str]) -> None:

@@ -45,6 +45,13 @@ const RUNTIME_ENV = Object.freeze({
   G5_GITHUB_APP_INSTALLATION_ID: "67890",
   G5_GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nZmFrZQ==\n-----END PRIVATE KEY-----",
 });
+const TOKEN_PERMISSIONS = Object.freeze({
+  actions: "read",
+  checks: "read",
+  contents: "read",
+  deployments: "read",
+  metadata: "read",
+});
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const publicJwk = publicKey.export({ format: "jwk" });
@@ -253,11 +260,14 @@ class FakeGithubTransport {
 
   async query(resource, reference) {
     this.calls.push({ resource, reference });
+    if (typeof this.options.beforeQuery === "function") this.options.beforeQuery(resource, reference, this);
     if (this.options.timeoutResource === resource) throw new Error("fixture timeout");
-    return {
+    const result = {
       complete: this.options.incompleteResource !== resource,
       items: structuredClone(this.data[resource] ?? []),
     };
+    if (typeof this.options.afterQuery === "function") this.options.afterQuery(resource, reference, this);
+    return result;
   }
 
   getWorkflowRun(reference) { return this.query("workflow_run", reference); }
@@ -694,6 +704,51 @@ test("terminal confirmation rechecks run job check and deployment immediately be
   assert.equal([...statusChanged.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
 });
 
+test("terminal confirmation rejects mutations during each terminal evidence call", async () => {
+  for (const [targetResource, mutate] of [
+    ["workflow_run", (transport) => {
+      transport.data.workflow_run = [{
+        ...fixture().workflow_run[0],
+        status: "completed",
+        conclusion: "success",
+      }];
+    }],
+    ["check_run_job", (transport) => {
+      transport.data.check_run_job = [{
+        ...fixture().check_run_job[0],
+        checkStatus: "completed",
+        checkConclusion: "success",
+      }];
+    }],
+    ["deployment", (transport) => {
+      transport.data.deployment = [{
+        ...fixture().deployment[0],
+        deploymentStatusId: 608,
+        statusUpdatedAt: "2026-08-16T00:00:03Z",
+      }];
+    }],
+  ]) {
+    let terminalPhase = false;
+    const scenario = setup({
+      transportOptions: {
+        beforeQuery: (resource, _reference, transport) => {
+          if (terminalPhase && resource === targetResource) {
+            mutate(transport);
+            terminalPhase = false;
+          }
+        },
+      },
+    });
+    await reason(
+      () => scenario.broker.authorize(scenario.request, {
+        beforeTerminalConfirmation: async () => { terminalPhase = true; },
+      }),
+      REASONS.BINDING,
+    );
+    assert.equal([...scenario.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+  }
+});
+
 test("nonce and jti indexes reject replay independently across gate identities", async () => {
   const first = setup();
   const binding = ledgerBinding();
@@ -892,17 +947,11 @@ test("connected GitHub App adapter uses only read permissions and fake transport
       assert.equal(url.pathname, "/app/installations/67890/access_tokens");
       const body = JSON.parse(call.body);
       assert.deepEqual(body.repository_ids, [101]);
-      assert.deepEqual(body.permissions, {
-        actions: "read",
-        checks: "read",
-        contents: "read",
-        deployments: "read",
-        metadata: "read",
-      });
+      assert.deepEqual(body.permissions, TOKEN_PERMISSIONS);
       return Response.json({
         token: "installation-token-redacted",
         expires_at: new Date((NOW + 300) * 1000).toISOString(),
-        permissions: body.permissions,
+        permissions: TOKEN_PERMISSIONS,
         repository_selection: "selected",
         repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
       });
@@ -1029,7 +1078,7 @@ test("installation token is scoped to exactly one repository and exact read perm
         return Response.json({
           token: "installation-token-redacted",
           expires_at: new Date((NOW + 300) * 1000).toISOString(),
-          permissions: body.permissions,
+          permissions: TOKEN_PERMISSIONS,
           repository_selection: "selected",
           repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
           ...responseOverrides,
@@ -1078,7 +1127,7 @@ test("installation token promises are segmented by repository id under concurren
       return Response.json({
         token: `installation-token-redacted-${repositoryId}`,
         expires_at: new Date((NOW + 300) * 1000).toISOString(),
-        permissions: body.permissions,
+        permissions: TOKEN_PERMISSIONS,
         repository_selection: "selected",
         repositories: [{ id: repositoryId, full_name: repositoryId === 101 ? "romelhc95/studiamatch" : "romelhc95/other" }],
       });
@@ -1145,7 +1194,7 @@ test("connected adapter binds check authority only through job.check_run_url", a
           return Response.json({
             token: "installation-token-redacted",
             expires_at: new Date((NOW + 300) * 1000).toISOString(),
-            permissions: JSON.parse(call.body).permissions,
+            permissions: TOKEN_PERMISSIONS,
             repository_selection: "selected",
             repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
           });
@@ -1209,8 +1258,20 @@ test("connected adapter binds check authority only through job.check_run_url", a
   await reason(() => adapterFor({ check: { ...validCheck, app: { id: 15369, slug: "github-actions", name: "GitHub Actions", owner: { id: 9919 } } } }).listWorkflowJobs(reference), REASONS.BINDING);
   await reason(() => adapterFor({ check: { ...validCheck, app: { id: 15368, slug: "github-actions", name: "GitHub Actions", owner: { id: 9920 } } } }).listWorkflowJobs(reference), REASONS.BINDING);
   await reason(() => adapterFor({ check: { ...validCheck, name: "Homonymous external check" } }).listWorkflowJobs(reference), REASONS.BINDING);
-  await reason(() => adapterFor({ link: "<https://api.github.com/next>; rel=\"next\"" }).listWorkflowJobs(reference), REASONS.BINDING);
-  await reason(() => adapterFor({ link: "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/next>; type=\"application/json\"; rel=next" }).listWorkflowJobs(reference), REASONS.BINDING);
+  for (const link of [
+    "<https://api.github.com/next>; rel=\"next\"",
+    "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/next>; type=\"application/json\"; rel=next",
+    "<https://api.github.com/last>; rel=last",
+    "<https://api.github.com/last>; rel=\"last\"; rel=\"prev\"",
+    "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/also-last>; rel=\"last\"",
+    "<https://api.github.com/unknown>; rel=\"unknown\"",
+    "<https://api.github.com/last>; rel=\"last next\"",
+    "https://api.github.com/last; rel=\"last\"",
+    "<https://evil.invalid/last>; rel=\"last\"",
+    "<https://api.github.com/last>; title=\"unterminated; rel=\"last\"",
+  ]) {
+    await reason(() => adapterFor({ link }).listWorkflowJobs(reference), REASONS.BINDING);
+  }
   assert.equal((await adapterFor({ link: "<https://api.github.com/last>; title=\"last\"; rel=\"last\"" }).listWorkflowJobs(reference)).items.length, 1);
 });
 
@@ -1223,7 +1284,7 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
         return Response.json({
           token: "installation-token-redacted",
           expires_at: new Date((NOW + 300) * 1000).toISOString(),
-          permissions: JSON.parse(call.body).permissions,
+          permissions: TOKEN_PERMISSIONS,
           repository_selection: "selected",
           repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
         });
@@ -1423,7 +1484,7 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
         return Response.json({
           token: "installation-token-redacted",
           expires_at: new Date((NOW + 300) * 1000).toISOString(),
-          permissions: JSON.parse(call.body).permissions,
+          permissions: TOKEN_PERMISSIONS,
           repository_selection: "selected",
           repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
         });

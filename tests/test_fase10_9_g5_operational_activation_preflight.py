@@ -29,6 +29,7 @@ ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_reposi
 ADR19_PATH = Path(".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md")
 ADR20_PATH = Path(".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md")
 ADR21_PATH = Path(".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md")
+ADR22_PATH = Path(".context/decisiones/ADR-0022_g5_followup_security_remediation.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -90,7 +91,7 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
     assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
-    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_SECURITY_REMEDIATION_REQUIRED"
+    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
     assert all(item["state"] == "ABSENT_NOT_CONFIGURED" for item in manifest["required_configuration_names"])
     assert [item["name"] for item in manifest["required_configuration_names"]] == list(EXPECTED_CONFIGURATION_NAMES)
 
@@ -165,7 +166,7 @@ def test_pr392_and_e2_security_remediation_stop_are_registered() -> None:
         "previous_security_auditor_go_preserved": True,
         "post_merge_security_remediation_required": True,
     }
-    assert manifest["e2_stop"] == "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
+    assert manifest["e2_stop"] == "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
     assert sorted(manifest["github_runtime_shapes"]) == sorted(
         [
             "approvals",
@@ -250,6 +251,51 @@ def test_pr393_and_residual_remediation_contract_are_registered() -> None:
     }
 
 
+def test_pr394_and_followup_security_remediation_are_registered() -> None:
+    manifest = _manifest()
+    assert manifest["pr_394_reconciliation"] == {
+        "candidate_commits": [
+            "7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa",
+            "03bab905901f62dba7631a9fe0a87290d70802d9",
+            "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+        ],
+        "head_sha": "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+        "merge_sha": "25be9caffe5674156c7515735a15ad45c5ad22e2",
+        "tree_sha": "9f81f71bdabb2012ab593b1999cf4df92fa712eb",
+        "status": "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+        "security_run_id": "31968991218",
+        "security_conclusion": "PASS",
+        "f9_7_run_id": "31968990202",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95218353795",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95218447778",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+        "followup_security_remediation_required": True,
+    }
+    controls = manifest["followup_security_remediation"]
+    assert controls["generic_followup_chain_support"] == "REMOVED"
+    assert controls["pr_394_historical_identity"] == "EXACT_THREE_COMMITS_IMMUTABLE"
+    assert controls["future_candidate_commits"] == "EXACT_ONE_DIRECT_COMMIT_REQUIRED"
+    assert controls["link_headers"] == "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED"
+    assert controls["installation_token_fixtures"] == "REQUEST_INDEPENDENT"
+    assert controls["terminal_confirmation_mutation_tests"] == "COVER_EACH_TERMINAL_CALL"
+    assert controls["residual_multi_endpoint_race"] == "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM"
+    assert controls["backlog"] == "BK-F10.9-G5-ATOMIC-AUTHORITY"
+    backlog = manifest["atomic_authority_backlog"]
+    assert backlog == {
+        "id": "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "state": "BACKLOG_NON_EXECUTABLE_QUOTABLE",
+        "quotable": True,
+        "included_in_hito_progress": False,
+        "implementation_authorized": False,
+    }
+    assert [finding["id"] for finding in manifest["post_merge_pr394_followup_findings"]] == [
+        f"PRL-{index:03d}" for index in range(1, 8)
+    ]
+
+
 def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> None:
     manifest = _manifest()
     findings = manifest["post_merge_security_findings"]
@@ -275,7 +321,7 @@ def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> 
         "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
         "state": "DOCUMENTED_NOT_EXECUTED",
         "permission_added_now": False,
-        "stop": "E2_STOP_SECURITY_REMEDIATION_REQUIRED",
+        "stop": "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
     }
 
 
@@ -359,6 +405,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         + ADR19_PATH.read_text(encoding="utf-8")
         + ADR20_PATH.read_text(encoding="utf-8")
         + ADR21_PATH.read_text(encoding="utf-8")
+        + ADR22_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
@@ -382,6 +429,10 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "terminal confirmation",
         "51aaac5d289226b1f8f16de1daf69a16a084d585",
         "7e7be8072cc416d76d2034a126d39393cdbcc968",
+        "25be9caffe5674156c7515735a15ad45c5ad22e2",
+        "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
     ):
         assert marker in combined
     assert "No se puede combinar" in combined
