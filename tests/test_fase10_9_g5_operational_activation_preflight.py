@@ -26,6 +26,7 @@ MANIFEST_PATH = Path(".context/operaciones/g5_operational_activation_manifest_20
 RUNBOOK_PATH = Path(".context/operaciones/g5_operational_activation_runbook_2026_08_15.md")
 ADR_PATH = Path(".context/decisiones/ADR-0016_g5_operational_activation_gates.md")
 ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md")
+ADR19_PATH = Path(".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -127,6 +128,69 @@ def test_pr390_and_e1_deployment_are_sanitized_and_reconciled() -> None:
     assert "token" not in json.dumps(e1).lower()
 
 
+def test_pr391_and_e2_schema_stop_are_registered() -> None:
+    manifest = _manifest()
+    assert manifest["pr_391_reconciliation"] == {
+        "candidate_sha": "77f475af2e5900bc1338967676ebded71b672642",
+        "merge_sha": "5a76abaae8760a9ce6a418511264e6742fa5c74c",
+        "tree_sha": "9bd83392ade9e245f3fc4ab85bb85eb4f9031040",
+        "status": "MERGED_POST_MERGE_VERIFIED",
+        "security_run_id": "31951803908",
+        "security_conclusion": "PASS",
+        "f9_7_run_id": "31951803820",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95176303149",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95176398983",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+    }
+    assert manifest["e2_stop"] == "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
+    assert sorted(manifest["github_runtime_shapes"]) == sorted(
+        [
+            "approvals",
+            "branch",
+            "check_runs",
+            "commit",
+            "deployment_statuses",
+            "deployments",
+            "environment",
+            "workflow_content_blob",
+            "workflow_jobs",
+            "workflow_run",
+        ]
+    )
+    assert "ref_protected" in manifest["github_runtime_shapes"]["branch"]["forbidden_fields"]
+    assert "environment_id" in manifest["github_runtime_shapes"]["deployments"]["forbidden_fields"]
+    assert "check_run_id" in manifest["github_runtime_shapes"]["approvals"]["forbidden_fields"]
+    assert manifest["github_runtime_shapes"]["workflow_run"]["lifecycle"] == (
+        "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1"
+    )
+    assert manifest["github_runtime_shapes"]["deployment_statuses"]["source"].endswith(
+        "/statuses?per_page=100"
+    )
+    assert manifest["github_runtime_shapes"]["deployment_statuses"]["lifecycle"].startswith(
+        "current-first state=in_progress"
+    )
+    assert manifest["github_runtime_shapes"]["workflow_content_blob"]["source"].endswith(
+        "?ref={candidate_sha}"
+    )
+
+
+def test_runtime_shapes_are_exact_and_fail_closed() -> None:
+    manifest = _manifest()
+    manifest["github_runtime_shapes"]["workflow_run"]["lifecycle"] = "completed success"
+    with pytest.raises(G5OperationalPreflightError) as excinfo:
+        validate_manifest(manifest)
+    assert "STOP_G5_E_RUNTIME_SHAPE_LIFECYCLE" in str(excinfo.value)
+
+    manifest = _manifest()
+    manifest["github_runtime_shapes"]["deployment_statuses"]["required_fields"].remove("state")
+    with pytest.raises(G5OperationalPreflightError) as excinfo:
+        validate_manifest(manifest)
+    assert "STOP_G5_E_RUNTIME_SHAPE_FIELDS" in str(excinfo.value)
+
+
 def test_manifest_contains_no_configuration_values_or_remote_identifiers() -> None:
     manifest = _manifest()
     config_entries = manifest["required_configuration_names"]
@@ -190,6 +254,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         RUNBOOK_PATH.read_text(encoding="utf-8")
         + ADR_PATH.read_text(encoding="utf-8")
         + ADR18_PATH.read_text(encoding="utf-8")
+        + ADR19_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
@@ -204,6 +269,10 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
         "E1_DEPLOYMENT_PASS",
         "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
+        "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE",
+        "status=in_progress",
+        "conclusion=null",
+        "GET /repos/{owner}/{repo}/branches/main",
         "G5_TRUST_RUNTIME_ENABLED",
         "SUPERSEDED_NOT_EXECUTABLE",
     ):

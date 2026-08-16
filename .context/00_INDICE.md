@@ -88,6 +88,7 @@
 - [ADR-0016](decisiones/ADR-0016_g5_operational_activation_gates.md)
 - [ADR-0017](decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md)
 - [ADR-0018](decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md)
+- [ADR-0019](decisiones/ADR-0019_github_runtime_schema_lifecycle.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04

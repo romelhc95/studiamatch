@@ -373,7 +373,6 @@ class GateIntent:
     repository_id: int
     owner_id: int
     ref: str
-    ref_protected: bool
     candidate_sha: str
     candidate_tree: str
     workflow_path: str
@@ -383,6 +382,7 @@ class GateIntent:
     run_id: int
     run_attempt: int
     check_run_id: int
+    job_id: int
     job_name: str
     environment_name: str
     environment_id: int
@@ -406,7 +406,6 @@ class GitHubOidcClaims:
     repository_id: int
     owner_id: int
     ref: str
-    ref_protected: bool
     sha: str
     workflow_ref: str
     workflow_sha: str
@@ -426,6 +425,7 @@ class WorkflowRunEvidence:
     run_id: int
     run_attempt: int
     check_run_id: int
+    job_id: int
     job_name: str
     workflow_path: str
     workflow_ref: str
@@ -436,7 +436,18 @@ class WorkflowRunEvidence:
     actor_id: int
     triggering_actor_id: int
     event: str
-    conclusion: str
+    run_status: str
+    run_conclusion: str | None
+    job_status: str
+    job_conclusion: str | None
+    check_status: str
+    check_conclusion: str | None
+
+
+@dataclass(frozen=True)
+class BranchEvidence:
+    name: str
+    protected: bool
 
 
 @dataclass(frozen=True)
@@ -452,13 +463,8 @@ class ApprovalEvidence:
     environment_name: str
     environment_id: int
     run_id: int
-    check_run_id: int
-    deployment_id: int
-    sha: str
-    workflow_sha: str
     approver_id: int
     approver_login: str
-    initiated_by_id: int
     state: str
     approved_at: datetime
 
@@ -467,10 +473,10 @@ class ApprovalEvidence:
 class DeploymentEvidence:
     deployment_id: int
     environment_name: str
-    environment_id: int
+    run_id: int
+    job_id: int
     sha: str
-    ref: str
-    state: str
+    status_state: str
 
 
 @dataclass(frozen=True)
@@ -764,36 +770,40 @@ _DATACLASS_FIELDS: Mapping[type[object], tuple[str, ...]] = MappingProxyType(
             "payload_digest", "manifest_digest", "anchor_digest",
         ),
         GateIntent: (
-            "gate_id", "repository_id", "owner_id", "ref", "ref_protected",
+            "gate_id", "repository_id", "owner_id", "ref",
             "candidate_sha", "candidate_tree", "workflow_path", "workflow_ref",
             "workflow_sha", "workflow_blob_sha", "run_id", "run_attempt",
-            "check_run_id", "job_name", "environment_name", "environment_id",
+            "check_run_id", "job_id", "job_name", "environment_name", "environment_id",
             "deployment_id", "actor_id", "triggering_actor_id", "approver_id",
             "contract_digest", "schema_digest", "algorithm_digest", "capability_digest",
             "issued_at", "expires_at", "nonce_digest",
         ),
         GitHubOidcClaims: (
-            "issuer", "audience", "repository_id", "owner_id", "ref",
-            "ref_protected", "sha", "workflow_ref", "workflow_sha", "run_id",
-            "run_attempt", "actor_id", "triggering_actor_id", "jti", "issued_at",
-            "expires_at", "signature_verified", "jwks_verified",
+            "issuer", "audience", "repository_id", "owner_id", "ref", "sha",
+            "workflow_ref", "workflow_sha", "run_id", "run_attempt", "actor_id",
+            "triggering_actor_id", "jti", "issued_at", "expires_at",
+            "signature_verified", "jwks_verified",
         ),
         WorkflowRunEvidence: (
-            "run_id", "run_attempt", "check_run_id", "job_name", "workflow_path",
+            "run_id", "run_attempt", "check_run_id", "job_id", "job_name", "workflow_path",
             "workflow_ref", "workflow_sha", "workflow_blob_sha", "head_sha",
-            "head_tree", "actor_id", "triggering_actor_id", "event", "conclusion",
+            "head_tree", "actor_id", "triggering_actor_id", "event", "run_status",
+            "run_conclusion", "job_status", "job_conclusion", "check_status",
+            "check_conclusion",
+        ),
+        BranchEvidence: (
+            "name", "protected",
         ),
         EnvironmentEvidence: (
             "name", "environment_id", "protected", "deployment_branch_policy_ref",
         ),
         ApprovalEvidence: (
-            "environment_name", "environment_id", "run_id", "check_run_id",
-            "deployment_id", "sha", "workflow_sha", "approver_id", "approver_login",
-            "initiated_by_id", "state", "approved_at",
+            "environment_name", "environment_id", "run_id", "approver_id",
+            "approver_login", "state", "approved_at",
         ),
         DeploymentEvidence: (
-            "deployment_id", "environment_name", "environment_id", "sha", "ref",
-            "state",
+            "deployment_id", "environment_name", "run_id", "job_id", "sha",
+            "status_state",
         ),
         GateConsumptionReceipt: (
             "gate_id", "identity", "result", "state_before", "state_after",
@@ -1143,8 +1153,6 @@ def _validate_gate_intent(intent: object, evaluated_at: datetime) -> GateIntent:
         or not _valid_positive_id(intent.repository_id)
         or not _valid_positive_id(intent.owner_id)
         or intent.ref != EXPECTED_REF
-        or type(intent.ref_protected) is not bool
-        or not intent.ref_protected
         or not _valid_runtime_policy_triplet(
             intent.candidate_sha,
             intent.candidate_tree,
@@ -1156,6 +1164,7 @@ def _validate_gate_intent(intent: object, evaluated_at: datetime) -> GateIntent:
         or not _valid_positive_id(intent.run_id)
         or intent.run_attempt != 1
         or not _valid_positive_id(intent.check_run_id)
+        or not _valid_positive_id(intent.job_id)
         or intent.job_name != EXPECTED_WORKFLOW
         or intent.environment_name != EXPECTED_ENVIRONMENT
         or not _valid_positive_id(intent.environment_id)
@@ -1189,7 +1198,6 @@ def _validate_oidc_claims(claims: object, intent: GateIntent, evaluated_at: date
         or claims.repository_id != intent.repository_id
         or claims.owner_id != intent.owner_id
         or claims.ref != intent.ref
-        or claims.ref_protected != intent.ref_protected
         or claims.sha != intent.candidate_sha
         or claims.workflow_ref != intent.workflow_ref
         or claims.workflow_sha != intent.workflow_sha
@@ -1217,6 +1225,7 @@ def _validate_workflow_run(run: object, intent: GateIntent) -> WorkflowRunEviden
         run.run_id != intent.run_id
         or run.run_attempt != 1
         or run.check_run_id != intent.check_run_id
+        or run.job_id != intent.job_id
         or run.job_name != intent.job_name
         or run.workflow_path != intent.workflow_path
         or run.workflow_ref != intent.workflow_ref
@@ -1227,10 +1236,22 @@ def _validate_workflow_run(run: object, intent: GateIntent) -> WorkflowRunEviden
         or run.actor_id != intent.actor_id
         or run.triggering_actor_id != intent.triggering_actor_id
         or run.event != "workflow_dispatch"
-        or run.conclusion != "success"
+        or run.run_status != "in_progress"
+        or run.run_conclusion is not None
+        or run.job_status != "in_progress"
+        or run.job_conclusion is not None
+        or run.check_status != "in_progress"
+        or run.check_conclusion is not None
     ):
         _raise(STOP_BINDING_DRIFT)
     return run
+
+
+def _validate_branch(branch: object) -> BranchEvidence:
+    _require_complete(branch, BranchEvidence, STOP_BINDING_DRIFT)
+    if branch.name != "main" or type(branch.protected) is not bool or not branch.protected:
+        _raise(STOP_BINDING_DRIFT)
+    return branch
 
 
 def _validate_environment(environment: object, intent: GateIntent) -> EnvironmentEvidence:
@@ -1257,16 +1278,11 @@ def _validate_approval(
         approval.environment_name != intent.environment_name
         or approval.environment_id != intent.environment_id
         or approval.run_id != intent.run_id
-        or approval.check_run_id != intent.check_run_id
-        or approval.deployment_id != intent.deployment_id
-        or approval.sha != intent.candidate_sha
-        or approval.workflow_sha != intent.workflow_sha
         or approval.approver_id != intent.approver_id
         or not _valid_positive_id(approval.approver_id)
         or type(approval.approver_login) is not str
         or not _valid_identity(approval.approver_login)
-        or approval.initiated_by_id != intent.actor_id
-        or approval.approver_id == approval.initiated_by_id
+        or approval.approver_id in {intent.actor_id, intent.triggering_actor_id}
         or approval.state != "approved"
         or not _is_utc(approval.approved_at)
         or not (intent.issued_at <= approval.approved_at <= evaluated_at < intent.expires_at)
@@ -1283,10 +1299,10 @@ def _validate_deployment(deployments: object, intent: GateIntent) -> DeploymentE
     if (
         deployment.deployment_id != intent.deployment_id
         or deployment.environment_name != intent.environment_name
-        or deployment.environment_id != intent.environment_id
+        or deployment.run_id != intent.run_id
+        or deployment.job_id != intent.job_id
         or deployment.sha != intent.candidate_sha
-        or deployment.ref != intent.ref
-        or deployment.state != "success"
+        or deployment.status_state != "in_progress"
     ):
         _raise(STOP_BINDING_DRIFT)
     return deployment
@@ -1323,6 +1339,7 @@ def validate_future_trust_plane(
     intent: GateIntent,
     oidc_claims: GitHubOidcClaims,
     workflow_run: WorkflowRunEvidence,
+    branch: BranchEvidence,
     environment: EnvironmentEvidence,
     approvals: tuple[ApprovalEvidence, ...],
     deployments: tuple[DeploymentEvidence, ...],
@@ -1337,6 +1354,7 @@ def validate_future_trust_plane(
     if claims.jti in seen_jtis or gate.nonce_digest in seen_nonce_digests:
         _raise(STOP_REPLAY_DETECTED)
     _validate_workflow_run(workflow_run, gate)
+    _validate_branch(branch)
     _validate_environment(environment, gate)
     _validate_approval(approvals, gate, evaluated_at)
     _validate_deployment(deployments, gate)
@@ -3395,6 +3413,7 @@ __all__ = [
     "ApprovalEvidence",
     "AuthorizationRequest",
     "AuthorizedAdapterPlan",
+    "BranchEvidence",
     "CALLER_SUPPLIED_AUTHORITY_FIELDS",
     "CLOCK_DURATION_TOLERANCE_NS",
     "MAX_IMMUTABLE_DEPTH",

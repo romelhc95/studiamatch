@@ -186,6 +186,14 @@ from scripts.security.f109_boundary import (
     G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
     G5_TRUST_LIVE_REMEDIATION_STATUS,
     G5_TRUST_RUNTIME_POLICY_NAMES,
+    G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES,
+    G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+    G5_GITHUB_RUNTIME_SCHEMA_BASE,
+    G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+    G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+    G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF,
+    G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+    G5_GITHUB_RUNTIME_SCHEMA_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -267,6 +275,7 @@ from scripts.security.f109_boundary import (
     validate_g5_e1_hardening,
     validate_g5_e1_wrangler_compat,
     validate_g5_trust_live_remediation,
+    validate_g5_github_runtime_schema,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -4676,6 +4685,164 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_github_runtime_schema_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_BASE,
+            "5a76abaae8760a9ce6a418511264e6742fa5c74c",
+        )
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+            "9bd83392ade9e245f3fc4ab85bb85eb4f9031040",
+        )
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF,
+            "feat/f10-9-pr-i-github-runtime-schema",
+        )
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+            "77f475af2e5900bc1338967676ebded71b672642",
+        )
+        self.assertEqual(G5_GITHUB_RUNTIME_SCHEMA_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+            "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE",
+        )
+        head = "d" * 40
+        tree_mock.return_value = G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [G5_GITHUB_RUNTIME_SCHEMA_BASE],
+        }[commit]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in (
+            ".context/00_INDICE.md",
+            ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md",
+            ".context/estado_del_proyecto.md",
+            ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json",
+            ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+            ".github/workflows/f9-7-contract.yml",
+            "scripts/shared/f10_9_g5_get_only_adapter_contract.py",
+            "scripts/shared/f10_9_g5_operational_activation_preflight.py",
+            "tests/test_fase10_9_g5_get_only_adapter_contract.py",
+            "tests/test_fase10_9_g5_operational_activation_preflight.py",
+            "workers/g5-trust-broker/src/index.mjs",
+            "workers/g5-trust-broker/test/trust-broker.test.mjs",
+        ):
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_github_runtime_schema(
+            repo, G5_GITHUB_RUNTIME_SCHEMA_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            repo, G5_GITHUB_RUNTIME_SCHEMA_BASE, head,
+            G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+            G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 76, 427)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_github_runtime_schema_requires_protected_merge_push(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        candidate = "e" * 40
+        merge = "f" * 40
+        tree_mock.side_effect = lambda _repo, commit: {
+            G5_GITHUB_RUNTIME_SCHEMA_BASE: G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+            candidate: "a" * 40,
+            merge: "a" * 40,
+        }[commit]
+        parents_mock.return_value = [G5_GITHUB_RUNTIME_SCHEMA_BASE, candidate]
+
+        validate_g5_github_runtime_schema(
+            Path("."), G5_GITHUB_RUNTIME_SCHEMA_BASE, merge, "push"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_GITHUB_RUNTIME_SCHEMA_BASE, candidate,
+            G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+            G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 76, 427)
+
+    def test_g5_github_runtime_schema_allowlist_is_minimal_pr_i_paths(self) -> None:
+        self.assertEqual(
+            G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+            {
+                ".context/00_INDICE.md": "M",
+                ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+                "workers/g5-trust-broker/src/index.mjs": "M",
+                "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+            },
+        )
+        self.assertEqual(set(G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_github_runtime_schema(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF,
+                G5_GITHUB_RUNTIME_SCHEMA_BASE,
+            ),
+            "g5_github_runtime_schema",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",
