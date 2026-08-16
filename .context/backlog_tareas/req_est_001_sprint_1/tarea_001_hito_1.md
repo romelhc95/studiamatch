@@ -164,6 +164,27 @@ aprobaciones separadas; este documento no las concede.
    porque Wrangler `4.30.0` no soporta `deploy --strict`; PR G queda limitado a
    fijar Wrangler exacto `4.44.0`, demostrar `--strict` y ejecutar dry-run offline
    sin credenciales ni Cloudflare, manteniendo E1 `NOT_EXECUTED`.
+   PR #390, PR H base, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `c36cc9b6efb166f2f840615759793b7917142f38`, merge protegido
+   `9811b19e1527b39366e43907990c4b77d1394f75`, tree
+   `edb7c827621fce1089d636b50494405115d348a6`; Security
+   `31926378062=PASS`, F9.7 run `31926378069=PASS`, focused G5 job
+   `95114516929=PASS`, F9.7 job `95114603279=PASS`, `run_attempt=1`.
+   E1 queda `E1_DEPLOYMENT_PASS` con bootstrap Worker/Durable Object aislado,
+   evidencia sanitizada y credencial atestada como
+   `E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED`, sin registrar valores sensibles. PR H
+   repository-only remedia trust live: SHA/tree/blob dejan de ser autoridad
+   hardcodeada, pasan a bindings runtime name-only ausentes
+   `G5_ALLOWED_CANDIDATE_SHA`, `G5_ALLOWED_CANDIDATE_TREE` y
+   `G5_ALLOWED_WORKFLOW_BLOB_SHA`, y `G5_TRUST_RUNTIME_ENABLED` reemplaza el guard
+   operacional anterior. Los valores PR C quedan como denylist legacy, no como
+   fallback. La secuencia E4-before-E5 queda
+   `E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE`; orden vigente: E1 completed, E2,
+   E3, E4, E4A, E4B, E5 y E6. Trust operacional permanece
+   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate
+   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; E2-E6 `NOT_EXECUTED`; sin endpoint,
+   GitHub App config, OIDC live, workflow ejecutado, Production, Supabase, SQL,
+   writers ni schedules.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

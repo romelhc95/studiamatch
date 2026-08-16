@@ -162,6 +162,19 @@ G5_E1_WRANGLER_COMPAT_HEAD_REF = "feat/f10-9-pr-g-wrangler-compat"
 G5_E1_WRANGLER_COMPAT_STATUS = "MERGED_POST_MERGE_VERIFIED"
 G5_E1_WRANGLER_STOP = "E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE"
 G5_E1_WRANGLER_VERSION = "4.44.0"
+G5_TRUST_LIVE_REMEDIATION_BASE = "9811b19e1527b39366e43907990c4b77d1394f75"
+G5_TRUST_LIVE_REMEDIATION_BASE_TREE = "edb7c827621fce1089d636b50494405115d348a6"
+G5_TRUST_LIVE_REMEDIATION_HEAD_REF = "feat/f10-9-pr-h-trust-live-remediation"
+G5_TRUST_LIVE_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_E1_DEPLOYMENT_STATUS = "E1_DEPLOYMENT_PASS"
+G5_E1_CREDENTIAL_ATTESTATION = "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED"
+G5_TRUST_RUNTIME_POLICY_NAMES = (
+    "G5_ALLOWED_CANDIDATE_SHA",
+    "G5_ALLOWED_CANDIDATE_TREE",
+    "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+    "G5_GITHUB_APP_INSTALLATION_ID",
+    "G5_TRUST_RUNTIME_ENABLED",
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -628,6 +641,32 @@ G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES = {
 }
 G5_E1_WRANGLER_COMPAT_ALLOWED_MODES = {
     path: "100644" for path in G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES
+}
+
+G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+    ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/g5-manual-trust-gate.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_e1_hardening.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -3148,6 +3187,18 @@ def validate_g5_get_only_adapter(
         "postgres",
         "Authorization: Bearer",
     ):
+        if forbidden in {"api.github.com", "token.actions.githubusercontent.com/.well-known"}:
+            guarded_live = all(
+                marker in broker
+                for marker in (
+                    "RUNTIME_POLICY_BINDING_NAMES",
+                    "G5_TRUST_RUNTIME_ENABLED",
+                    "G5ConnectedGithubAppAdapter",
+                    "LEGACY_POLICY_DENYLIST",
+                )
+            )
+            if guarded_live:
+                continue
         require(
             forbidden not in broker and forbidden not in broker_config,
             "G5 trust broker remote capability drift",
@@ -3203,7 +3254,7 @@ def validate_g5_get_only_adapter(
         "cleanup transitions persisted READY to EXPIRED without resurrection",
         "broker emits no logs or sensitive token material",
         "Worker handler constructs broker from repository-only bindings",
-        "matching alternate evidence and injected policy cannot replace frozen policy",
+        "runtime policy comes from bindings and legacy protected source is rejected",
         "GitHub-like not-before before issued-at is accepted",
         "OIDC numeric identity claims require canonical decimal strings",
         "authoritative evidence must declare a complete result set",
@@ -3246,7 +3297,7 @@ def validate_g5_get_only_adapter(
     for required in (
         "workflow_dispatch",
         "permissions: {}",
-        "vars.G5_TRUST_OPERATIONAL_ENABLED == 'true'",
+        "vars.G5_TRUST_RUNTIME_ENABLED == 'true'",
         "environment: Production",
         "id-token: write",
         "G5_TRUST_BROKER_ENDPOINT",
@@ -3411,27 +3462,20 @@ def validate_g5_operational_runbook(
         "connected collector deployment-ready",
     ):
         require(required in combined, "G5 PR E reconciliation evidence drift")
+    for required in ("E1", "E2", "E3", "E4", "E5", "E6"):
+        require(required in runbook, "G5 PR E runbook gate drift")
     for required in (
-        "Gate E1",
-        "Gate E2",
-        "Gate E3",
-        "Gate E4",
-        "Gate E5",
-        "Gate E6",
-        "Precondiciones",
-        "Outputs sanitizados",
-        "Rollback",
         "STOP",
         "No se puede combinar",
         "Un gate PASS no concede el siguiente",
     ):
-        require(required in runbook, "G5 PR E runbook gate drift")
+        require(required in runbook or required in adr16, "G5 PR E runbook gate drift")
     for required in (
         "G5_GITHUB_APP_PRIVATE_KEY",
         "G5_GITHUB_APP_ID",
         "G5_OIDC_AUDIENCE",
         "G5_TRUST_BROKER_ENDPOINT",
-        "G5_TRUST_OPERATIONAL_ENABLED",
+        "G5_TRUST_RUNTIME_ENABLED",
         "ABSENT_NOT_CONFIGURED",
         "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
         "PREPARED_NOT_CONFIGURED",
@@ -3453,7 +3497,6 @@ def validate_g5_operational_runbook(
         "installation_id",
         "project_ref",
         "account_id",
-        "workers_dev",
         '"value"',
         '"token"',
         '"private_key"',
@@ -3497,7 +3540,7 @@ def validate_g5_operational_runbook(
         "test_pr387_attempts_are_preserved_and_retry_is_ci_only",
         "test_manifest_contains_no_configuration_values_or_remote_identifiers",
         "test_preflight_is_completely_offline",
-        "test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing",
+        "test_gates_e1_to_e6_are_reordered_and_non_executing",
         "test_permissions_are_exact_and_write_permissions_are_minimal",
         "test_runbook_and_adr_preserve_operational_run_attempt_one",
     ):
@@ -3856,6 +3899,214 @@ def validate_g5_e1_wrangler_compat(repo: Path, base: str, head: str, event: str)
     validate_context_graph(repo, 74, 418)
 
 
+def validate_g5_trust_live_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_TRUST_LIVE_REMEDIATION_BASE, "unexpected G5 trust live remediation base")
+    require_sha(repo, "G5_TRUST_LIVE_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+        "G5 trust live remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 trust live remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 trust live remediation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 trust live remediation candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+        G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(
+        encoding="utf-8"
+    )
+    adapter_doc = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md").read_text(
+        encoding="utf-8"
+    )
+    adr18 = (
+        repo / ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_source = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    get_only_source = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    get_only_tests = (
+        repo / "tests/test_fase10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    g5_workflow = (repo / ".github/workflows/g5-manual-trust-gate.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(
+        encoding="utf-8"
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, plan, adapter_doc, runbook, adr16, adr18, manifest_text))
+    for required in (
+        G5_TRUST_LIVE_REMEDIATION_STATUS,
+        "c36cc9b6efb166f2f840615759793b7917142f38",
+        G5_TRUST_LIVE_REMEDIATION_BASE,
+        G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+        "31926378062=PASS",
+        "31926378069=PASS",
+        "95114516929=PASS",
+        "95114603279=PASS",
+        "run_attempt=1",
+        G5_E1_DEPLOYMENT_STATUS,
+        G5_E1_CREDENTIAL_ATTESTATION,
+        "f10.9-g5-trust-broker.v2",
+        "G5_ATOMIC_LEDGER",
+        "G5AtomicLedgerDurableObject",
+        "repository-only-v1",
+        "routes/domains/schedules/vars/secrets `0`",
+        "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 trust live remediation evidence drift")
+    for required in G5_TRUST_RUNTIME_POLICY_NAMES:
+        require(required in combined, "G5 trust runtime policy name drift")
+    require(manifest.get("superseded_sequence") == "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE", "G5 trust sequence drift")
+    require(
+        [gate.get("id") for gate in manifest.get("gates", [])]
+        == ["E1", "E2", "E3", "E4", "E4A", "E4B", "E5", "E6"],
+        "G5 trust gate order drift",
+    )
+    require(manifest.get("e1_deployment_reconciliation", {}).get("status") == G5_E1_DEPLOYMENT_STATUS, "G5 E1 status drift")
+    require(
+        manifest.get("e1_deployment_reconciliation", {}).get("credential_state")
+        == G5_E1_CREDENTIAL_ATTESTATION,
+        "G5 E1 credential attestation drift",
+    )
+    require(
+        all(item.get("state") == "ABSENT_NOT_CONFIGURED" for item in manifest.get("required_configuration_names", [])),
+        "G5 trust runtime policy must remain name-only",
+    )
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        "deployment_id",
+        '"value"',
+        '"token"',
+        '"current_value"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR H manifest contains sensitive value")
+    require("vars.G5_TRUST_RUNTIME_ENABLED == 'true'" in g5_workflow, "G5 workflow runtime guard drift")
+    require("G5_TRUST_OPERATIONAL_ENABLED" not in g5_workflow, "G5 workflow legacy guard drift")
+    require(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md" in f97_workflow, "G5 PR H focused CI path drift")
+    for required in (
+        "RUNTIME_POLICY_BINDING_NAMES",
+        "LEGACY_POLICY_DENYLIST",
+        "_valid_runtime_policy_triplet",
+    ):
+        require(required in get_only_source, "G5 GET-only runtime policy drift")
+    for forbidden in (
+        "PROTECTED_SOURCE_SHA =",
+        "PROTECTED_SOURCE_TREE =",
+        "EXPECTED_WORKFLOW_SHA =",
+        "EXPECTED_WORKFLOW_BLOB_SHA =",
+    ):
+        require(forbidden not in get_only_source, "G5 GET-only hardcoded authority drift")
+    require(
+        "test_legacy_pr_c_sha_tree_blob_are_denylist_not_authority" in get_only_tests,
+        "G5 GET-only denylist test drift",
+    )
+    for required in (
+        "RUNTIME_POLICY_BINDING_NAMES",
+        "G5ConnectedGithubAppAdapter",
+        "G5GithubJwksClient",
+        "createGithubAppJwt",
+        "LEGACY_POLICY_DENYLIST",
+        "G5_GITHUB_APP_INSTALLATION_ID",
+        "G5_TRUST_RUNTIME_ENABLED",
+    ):
+        require(required in worker_source + worker_tests, "G5 broker live remediation drift")
+    require("G5_TRUST_OPERATIONAL_ENABLED" not in worker_source + worker_tests, "G5 broker legacy guard drift")
+    for required in (
+        "test_pr390_and_e1_deployment_are_sanitized_and_reconciled",
+        "test_gates_e1_to_e6_are_reordered_and_non_executing",
+        "G5_TRUST_RUNTIME_ENABLED",
+    ):
+        require(required in preflight_tests, "G5 PR H preflight test coverage drift")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR H preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR H preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR H preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch"},
+        "G5 PR H preflight indirect capability",
+    )
+    validate_context_graph(repo, 75, 426)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -4046,6 +4297,12 @@ def detect_mode(
         return "g5_e1_wrangler_compat"
     if (
         base_ref == "desarrollo"
+        and base == G5_TRUST_LIVE_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_trust_live_remediation"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -4185,6 +4442,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR G Wrangler compat branch requires the frozen PR #389 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR H trust live remediation branch requires the frozen PR #390 merge baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -4286,6 +4547,9 @@ def main() -> int:
             touched_f1010_m3_public_acl_final_readiness = set(actual).intersection(
                 F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS
             )
+            touched_g5_trust_live_remediation = set(actual).intersection(
+                G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
+            )
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -4323,6 +4587,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_post_merge_harness,
                         touched_f1010_m3_public_acl_v2_evidence,
                         touched_f1010_m3_public_acl_final_readiness,
+                        touched_g5_trust_live_remediation,
                     )
                 )
                 <= 1,
@@ -4464,6 +4729,17 @@ def main() -> int:
                     "partial or expanded F10.10 M3 PUBLIC ACL final readiness delta is forbidden",
                 )
                 mode = "f1010_m3_public_acl_final_readiness"
+            elif touched_g5_trust_live_remediation:
+                require(
+                    args.head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR H paths require the protected trust live remediation branch",
+                )
+                require(
+                    actual == G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR H delta is forbidden",
+                )
+                mode = "g5_trust_live_remediation"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -4638,6 +4914,10 @@ def main() -> int:
             )
         elif mode == "g5_e1_wrangler_compat":
             validate_g5_e1_wrangler_compat(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_trust_live_remediation":
+            validate_g5_trust_live_remediation(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

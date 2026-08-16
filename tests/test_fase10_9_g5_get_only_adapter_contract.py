@@ -27,8 +27,6 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     EXPECTED_REF,
     EXPECTED_WORKFLOW,
     EXPECTED_WORKFLOW_PATH,
-    EXPECTED_WORKFLOW_BLOB_SHA,
-    EXPECTED_WORKFLOW_SHA,
     EXCLUDED_DYNAMIC_SOURCE_KINDS,
     EffectiveProfileRouting,
     EnvironmentEvidence,
@@ -55,6 +53,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     HISTORICAL_V2_STATUS,
     HistoricalFG3Anchor,
     HistoricalFG3Manifest,
+    LEGACY_POLICY_DENYLIST,
     LifecycleEvidence,
     LifecycleProxy,
     MAX_IMMUTABLE_DEPTH,
@@ -68,14 +67,14 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     ApprovalEvidence,
     PageEvidence,
     PaginationEvidence,
-    PROTECTED_SOURCE_SHA,
-    PROTECTED_SOURCE_TREE,
     PUBLIC_PROJECTION_FORBIDDEN_FIELDS,
     READ_CAPTURE_SEQUENCE,
     READ_CLOCK_SOURCE,
     REDIRECT_EVIDENCE_POLICY,
     ReadTiming,
     RowCursor,
+    RUNTIME_POLICY_BINDING_NAMES,
+    RUNTIME_POLICY_STATUS,
     SCHEMA_VERSION,
     SOURCE_ATTEMPT_BUDGET_NS,
     SOURCE_ATTEMPT_GRAMMAR,
@@ -154,6 +153,9 @@ from scripts.shared.f10_9_g5_readonly_collector import G5Error, collect_g5_conne
 NOW = datetime(2026, 8, 14, 18, 0, tzinfo=timezone.utc)
 DIGESTS = tuple(f"sha256:{index:064x}" for index in range(1, 100))
 RUN_ID, PAIR_ID = DIGESTS[:2]
+RUNTIME_POLICY_CANDIDATE_SHA = "c36cc9b6efb166f2f840615759793b7917142f38"
+RUNTIME_POLICY_CANDIDATE_TREE = "edb7c827621fce1089d636b50494405115d348a6"
+RUNTIME_POLICY_WORKFLOW_BLOB_SHA = "8" * 40
 
 
 def _reason(call, reason: str) -> None:
@@ -165,8 +167,8 @@ def _reason(call, reason: str) -> None:
 def _target(**overrides: object) -> TargetBinding:
     values = {
         "environment": EXPECTED_ENVIRONMENT,
-        "protected_source_sha": PROTECTED_SOURCE_SHA,
-        "protected_source_tree": PROTECTED_SOURCE_TREE,
+        "protected_source_sha": RUNTIME_POLICY_CANDIDATE_SHA,
+        "protected_source_tree": RUNTIME_POLICY_CANDIDATE_TREE,
         "contract_version": CONTRACT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "algorithm_version": ALGORITHM_VERSION,
@@ -507,8 +509,8 @@ def _historical_bundle(target: TargetBinding, payload: SnapshotPairPayloadEviden
         manifest_digest="",
         builder_identity="manifest-builder-v2",
         builder_instance_identity="manifest-builder-instance-v2",
-        candidate_sha=PROTECTED_SOURCE_SHA,
-        candidate_tree=PROTECTED_SOURCE_TREE,
+        candidate_sha=RUNTIME_POLICY_CANDIDATE_SHA,
+        candidate_tree=RUNTIME_POLICY_CANDIDATE_TREE,
         run_id=RUN_ID,
         issued_at=NOW - timedelta(seconds=40),
         complete=True,
@@ -524,8 +526,8 @@ def _historical_bundle(target: TargetBinding, payload: SnapshotPairPayloadEviden
         provider_identity="historical-provider-v2",
         provider_instance_identity="historical-provider-instance-v2",
         provenance="INDEPENDENT_HISTORICAL_FG3_SOURCE",
-        candidate_sha=PROTECTED_SOURCE_SHA,
-        candidate_tree=PROTECTED_SOURCE_TREE,
+        candidate_sha=RUNTIME_POLICY_CANDIDATE_SHA,
+        candidate_tree=RUNTIME_POLICY_CANDIDATE_TREE,
         run_id=RUN_ID,
         issued_at=NOW - timedelta(seconds=30),
     )
@@ -899,10 +901,16 @@ def test_v2_3_freezes_v2_2_and_valid_request_stops_at_trust() -> None:
     assert HISTORICAL_V2_STATUS == "HISTORICAL_ANTECENT_NOT_FIT_FOR_CONNECTED_MODE".replace(
         "ANTECENT", "ANTECEDENT"
     )
-    assert PROTECTED_SOURCE_SHA == "74defb6326d8432bf790cb84b4aa549fefc425be"
-    assert PROTECTED_SOURCE_TREE == "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528"
+    assert RUNTIME_POLICY_STATUS == "RUNTIME_POLICY_REQUIRED_NOT_CONFIGURED"
+    assert RUNTIME_POLICY_BINDING_NAMES == (
+        "G5_ALLOWED_CANDIDATE_SHA",
+        "G5_ALLOWED_CANDIDATE_TREE",
+        "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+    )
+    assert LEGACY_POLICY_DENYLIST[0]["candidate_sha"] == "74defb6326d8432bf790cb84b4aa549fefc425be"
+    assert LEGACY_POLICY_DENYLIST[0]["candidate_tree"] == "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528"
+    assert LEGACY_POLICY_DENYLIST[0]["workflow_blob_sha"] == "992308681c31dd5b2be3ab9c3fb1d20369120d92"
     assert EXPECTED_WORKFLOW_PATH == ".github/workflows/g5-manual-trust-gate.yml"
-    assert EXPECTED_WORKFLOW_BLOB_SHA == "992308681c31dd5b2be3ab9c3fb1d20369120d92"
     assert CURRENT_GATE_STATUS == "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
     assert CONNECTED_STOP == "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
     assert G5_WORKFLOW_CONNECTED_PR_C_STATUS == "MERGED_POST_MERGE_VERIFIED"
@@ -924,12 +932,12 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         owner_id=18040405,
         ref=EXPECTED_REF,
         ref_protected=True,
-        candidate_sha=PROTECTED_SOURCE_SHA,
-        candidate_tree=PROTECTED_SOURCE_TREE,
+        candidate_sha=RUNTIME_POLICY_CANDIDATE_SHA,
+        candidate_tree=RUNTIME_POLICY_CANDIDATE_TREE,
         workflow_path=EXPECTED_WORKFLOW_PATH,
         workflow_ref=f"{EXPECTED_REPOSITORY}/{EXPECTED_WORKFLOW_PATH}@{EXPECTED_REF}",
-        workflow_sha=EXPECTED_WORKFLOW_SHA,
-        workflow_blob_sha=EXPECTED_WORKFLOW_BLOB_SHA,
+        workflow_sha=RUNTIME_POLICY_CANDIDATE_SHA,
+        workflow_blob_sha=RUNTIME_POLICY_WORKFLOW_BLOB_SHA,
         run_id=31896356280,
         run_attempt=1,
         check_run_id=95040164691,
@@ -1059,6 +1067,40 @@ def test_trust_plane_validates_closed_bindings_then_requires_atomic_ledger() -> 
     _trust_reason(_trust_plane(), STOP_ATOMIC_LEDGER_REQUIRED)
 
 
+def test_legacy_pr_c_sha_tree_blob_are_denylist_not_authority() -> None:
+    legacy = LEGACY_POLICY_DENYLIST[0]
+    _reason(
+        lambda: target_binding_digest(
+            _target(protected_source_sha=legacy["candidate_sha"]),
+        ),
+        STOP_TARGET_BINDING_INVALID,
+    )
+    _reason(
+        lambda: target_binding_digest(
+            _target(protected_source_tree=legacy["candidate_tree"]),
+        ),
+        STOP_TARGET_BINDING_INVALID,
+    )
+    _trust_reason(
+        _trust_plane(
+            intent=replace(
+                _trust_plane()["intent"],
+                candidate_sha=legacy["candidate_sha"],
+            ),
+        ),
+        STOP_AUTHORITY_INVALID,
+    )
+    _trust_reason(
+        _trust_plane(
+            intent=replace(
+                _trust_plane()["intent"],
+                workflow_blob_sha=legacy["workflow_blob_sha"],
+            ),
+        ),
+        STOP_AUTHORITY_INVALID,
+    )
+
+
 @pytest.mark.parametrize(
     "field,value,reason",
     (
@@ -1079,23 +1121,23 @@ def test_trust_plane_rejects_invalid_oidc_issuer_audience_claims(
 
 
 @pytest.mark.parametrize(
-    "intent_field,run_field,value",
+    "intent_field,run_field,value,intent_reason",
     (
-        ("candidate_sha", "head_sha", "0" * 40),
-        ("candidate_tree", "head_tree", "1" * 40),
-        ("workflow_sha", "workflow_sha", "2" * 40),
-        ("workflow_blob_sha", "workflow_blob_sha", "3" * 40),
+        ("candidate_sha", "head_sha", "0" * 40, STOP_AUTHORITY_INVALID),
+        ("candidate_tree", "head_tree", "1" * 40, STOP_BINDING_DRIFT),
+        ("workflow_sha", "workflow_sha", "2" * 40, STOP_AUTHORITY_INVALID),
+        ("workflow_blob_sha", "workflow_blob_sha", "3" * 40, STOP_BINDING_DRIFT),
     ),
 )
 def test_trust_plane_rejects_sha_tree_workflow_drift(
-    intent_field: str, run_field: str, value: object,
+    intent_field: str, run_field: str, value: object, intent_reason: str,
 ) -> None:
     values = _trust_plane()
     values["workflow_run"] = replace(values["workflow_run"], **{run_field: value})
     _trust_reason(values, STOP_BINDING_DRIFT)
     values = _trust_plane()
     values["intent"] = replace(values["intent"], **{intent_field: value})
-    _trust_reason(values, STOP_AUTHORITY_INVALID)
+    _trust_reason(values, intent_reason)
 
 
 def test_trust_plane_rejects_rerun_and_partial_rerun() -> None:

@@ -11,30 +11,47 @@ const CONNECTED_DISABLED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED";
 const CONNECTED_STOP = CONNECTED_DISABLED;
 const TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED";
 const CONFIG_STOP = "STOP_G5_CONNECTED_MODE_DISABLED_NOT_CONFIGURED";
+const RUNTIME_ENABLED_CONFIG_NAME = "G5_TRUST_RUNTIME_ENABLED";
+const GITHUB_API_BASE = "https://api.github.com";
+const GITHUB_JWKS_URL = `${ISSUER}/.well-known/jwks`;
 const MAX_TOKEN_LIFETIME_SECONDS = 600;
 const MAX_LEDGER_RECORDS = 10_000;
 const STRICT_TIMEOUT_MS = 15_000;
 const MAX_RESPONSE_BYTES = 32_000_000;
+const MAX_GITHUB_RESPONSE_BYTES = 1_048_576;
+const MAX_GITHUB_TOKEN_RESPONSE_BYTES = 16_384;
+const GITHUB_APP_JWT_LIFETIME_SECONDS = 540;
+const JWKS_CACHE_SECONDS = 300;
 const PAGE_SIZE = 1_000;
 const MAX_PAGES = 50;
 const MAX_ROWS = 50_000;
 const MAX_SOURCE_TARGETS = 64;
 const MAX_PROFILE_SOURCE_PAIRS = 50_000;
 const TRUST_BROKER_ENDPOINT_CONFIG_NAME = "G5_TRUST_BROKER_ENDPOINT";
+const RUNTIME_POLICY_BINDING_NAMES = Object.freeze({
+  candidateSha: "G5_ALLOWED_CANDIDATE_SHA",
+  candidateTree: "G5_ALLOWED_CANDIDATE_TREE",
+  workflowBlobSha: "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+});
+const GITHUB_APP_CONFIG_NAMES = Object.freeze({
+  appId: "G5_GITHUB_APP_ID",
+  installationId: "G5_GITHUB_APP_INSTALLATION_ID",
+  privateKey: "G5_GITHUB_APP_PRIVATE_KEY",
+});
 const SUPABASE_SECRET_KEY_PREFIX = ["sb", "secret", ""].join("_");
 const GITHUB_ACTIONS_OIDC_HOST = "token.actions.githubusercontent.com";
 const VALIDATED_RECEIPT = Symbol("g5.validatedReceipt");
-const REPOSITORY_POLICY = Object.freeze({
-  repository: REPOSITORY,
-  workflowRef: WORKFLOW_REF,
-  candidateSha: "74defb6326d8432bf790cb84b4aa549fefc425be",
-  candidateTree: "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528",
-  workflowBlobSha: "992308681c31dd5b2be3ab9c3fb1d20369120d92",
-});
+const LEGACY_POLICY_DENYLIST = Object.freeze([
+  Object.freeze({
+    candidateSha: "74defb6326d8432bf790cb84b4aa549fefc425be",
+    candidateTree: "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528",
+    workflowBlobSha: "992308681c31dd5b2be3ab9c3fb1d20369120d92",
+  }),
+]);
 const MANUAL_WORKFLOW_POLICY = Object.freeze({
   state: "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
   dispatchDefined: true,
-  operationalGuard: "vars.G5_TRUST_OPERATIONAL_ENABLED == 'true'",
+  operationalGuard: "vars.G5_TRUST_RUNTIME_ENABLED == 'true'",
   defaultEnabled: false,
   mainRef: MAIN_REF,
   runAttempt: 1,
@@ -155,6 +172,64 @@ function base64urlDecode(value) {
   return Uint8Array.from(atob(normalized + padding), (character) => character.charCodeAt(0));
 }
 
+function base64urlEncode(bytes) {
+  let text = "";
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function encodeBase64urlJson(value) {
+  return base64urlEncode(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function pemToPkcs8Bytes(pem) {
+  if (typeof pem !== "string" || pem.length > 10_000 || !pem.includes("BEGIN PRIVATE KEY")) stop(REASONS.CONFIG);
+  const material = pem.replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/=]+$/.test(material)) stop(REASONS.CONFIG);
+  return Uint8Array.from(atob(material), (character) => character.charCodeAt(0));
+}
+
+async function signRs256(material, privateKeyPem) {
+  let key;
+  try {
+    key = await crypto.subtle.importKey(
+      "pkcs8",
+      pemToPkcs8Bytes(privateKeyPem),
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const signature = await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      key,
+      new TextEncoder().encode(material),
+    );
+    return base64urlEncode(new Uint8Array(signature));
+  } catch (error) {
+    if (error instanceof TrustBrokerError) throw error;
+    stop(REASONS.CONFIG);
+  }
+}
+
+export async function createGithubAppJwt({ appId, privateKey, nowEpochSeconds, signer = signRs256 } = {}) {
+  if (!positiveDecimalString(appId) || typeof privateKey !== "string" || !Number.isSafeInteger(nowEpochSeconds)) {
+    stop(REASONS.CONFIG);
+  }
+  if (typeof signer !== "function") stop(REASONS.CONFIG);
+  const header = encodeBase64urlJson({ alg: "RS256", typ: "JWT" });
+  const payload = encodeBase64urlJson({
+    iat: nowEpochSeconds - 30,
+    exp: nowEpochSeconds + GITHUB_APP_JWT_LIFETIME_SECONDS,
+    iss: appId,
+  });
+  const material = `${header}.${payload}`;
+  const signature = await signer(material, privateKey);
+  if (typeof signature !== "string" || !/^[A-Za-z0-9_-]+$/.test(signature)) stop(REASONS.CONFIG);
+  return `${material}.${signature}`;
+}
+
 function decodeJson(value) {
   try {
     return JSON.parse(new TextDecoder().decode(base64urlDecode(value)));
@@ -179,6 +254,53 @@ async function digest(value) {
 
 function sha(value) {
   return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
+}
+
+function runtimeEnabled(env) {
+  return exactObject(env) && env[RUNTIME_ENABLED_CONFIG_NAME] === "true";
+}
+
+function validateRepositoryPolicy(policy) {
+  if (
+    !exactObject(policy) || policy.repository !== REPOSITORY ||
+    policy.workflowRef !== WORKFLOW_REF || !sha(policy.candidateSha) ||
+    !sha(policy.candidateTree) || !sha(policy.workflowBlobSha)
+  ) stop(REASONS.CONFIG);
+  if (LEGACY_POLICY_DENYLIST.some((legacy) => (
+    policy.candidateSha === legacy.candidateSha ||
+    policy.candidateTree === legacy.candidateTree ||
+    policy.workflowBlobSha === legacy.workflowBlobSha
+  ))) stop(REASONS.BINDING);
+  return Object.freeze({
+    repository: policy.repository,
+    workflowRef: policy.workflowRef,
+    candidateSha: policy.candidateSha,
+    candidateTree: policy.candidateTree,
+    workflowBlobSha: policy.workflowBlobSha,
+  });
+}
+
+export function repositoryPolicyFromRuntimeBindings(env = {}) {
+  if (!exactObject(env)) stop(REASONS.CONFIG);
+  const policy = {
+    repository: REPOSITORY,
+    workflowRef: WORKFLOW_REF,
+    candidateSha: env[RUNTIME_POLICY_BINDING_NAMES.candidateSha],
+    candidateTree: env[RUNTIME_POLICY_BINDING_NAMES.candidateTree],
+    workflowBlobSha: env[RUNTIME_POLICY_BINDING_NAMES.workflowBlobSha],
+  };
+  return validateRepositoryPolicy(policy);
+}
+
+function requireRuntimeReady(env, { endpointApproved = false } = {}) {
+  if (!runtimeEnabled(env)) stop(CONNECTED_STOP);
+  const policy = repositoryPolicyFromRuntimeBindings(env);
+  if (endpointApproved !== true) stop(CONNECTED_STOP);
+  return policy;
+}
+
+function endpointApprovedFromRuntimeBindings(env) {
+  return typeof env?.[TRUST_BROKER_ENDPOINT_CONFIG_NAME] === "string" && env[TRUST_BROKER_ENDPOINT_CONFIG_NAME].trim().length > 0;
 }
 
 function digestText(value) {
@@ -439,6 +561,45 @@ export async function verifyGithubOidc(token, jwks, nowEpochSeconds) {
   });
 }
 
+export class G5GithubJwksClient {
+  constructor({ transport, timeoutMs = 5_000, maxBytes = 65_536, cacheSeconds = JWKS_CACHE_SECONDS } = {}) {
+    if (typeof transport?.fetch !== "function") stop(REASONS.CONFIG);
+    if (!positiveInteger(timeoutMs) || !positiveInteger(maxBytes) || !positiveInteger(cacheSeconds)) stop(REASONS.CONFIG);
+    this.transport = transport;
+    this.timeoutMs = timeoutMs;
+    this.maxBytes = maxBytes;
+    this.cacheSeconds = cacheSeconds;
+    this.cached = null;
+  }
+
+  async jwks(nowEpochSeconds = Math.floor(Date.now() / 1000)) {
+    if (!Number.isSafeInteger(nowEpochSeconds)) stop(REASONS.PROOF);
+    if (this.cached && this.cached.expiresAt > nowEpochSeconds) return this.cached.jwks;
+    const endpoint = requireSafeHttpsUrl(GITHUB_JWKS_URL, REASONS.PROOF);
+    if (endpoint.hostname !== GITHUB_ACTIONS_OIDC_HOST) stop(REASONS.PROOF);
+    const response = await fetchWithTimeout(
+      this.transport,
+      new Request(endpoint, { method: "GET", redirect: "manual", headers: { accept: "application/json" } }),
+      this.timeoutMs,
+    );
+    if (!response || response.status < 200 || response.status >= 300) stop(REASONS.PROOF);
+    const body = await responseJsonWithLimit(response, this.maxBytes, this.timeoutMs);
+    if (!exactObject(body) || !Array.isArray(body.keys) || body.keys.length === 0 || body.keys.length > 16) stop(REASONS.PROOF);
+    for (const key of body.keys) {
+      if (!exactObject(key) || key.kty !== "RSA" || key.alg !== "RS256" || key.use !== "sig" || typeof key.kid !== "string") {
+        stop(REASONS.PROOF);
+      }
+    }
+    const jwks = Object.freeze({ keys: Object.freeze(body.keys.map((key) => Object.freeze({ ...key }))) });
+    this.cached = Object.freeze({ jwks, expiresAt: nowEpochSeconds + this.cacheSeconds });
+    return jwks;
+  }
+
+  async verify(token, nowEpochSeconds = Math.floor(Date.now() / 1000)) {
+    return verifyGithubOidc(token, await this.jwks(nowEpochSeconds), nowEpochSeconds);
+  }
+}
+
 export class GithubAppReadOnlyAdapter {
   constructor(transport) {
     const methods = [
@@ -474,23 +635,230 @@ export class GithubAppReadOnlyAdapter {
 }
 
 export class G5ConnectedGithubAppAdapter {
-  constructor(options = {}) {
-    if (!exactObject(options) || options.enabled !== false) stop(CONNECTED_STOP);
-    this.state = CONNECTED_DISABLED;
+  constructor({
+    env = {}, transport, policy, endpointApproved = false, timeoutMs = 5_000,
+    maxBytes = MAX_GITHUB_RESPONSE_BYTES, now = () => Math.floor(Date.now() / 1000),
+    signer = signRs256,
+  } = {}) {
+    if (!exactObject(env) || typeof transport?.fetch !== "function") stop(CONNECTED_STOP);
+    if (typeof now !== "function" || typeof signer !== "function") stop(REASONS.CONFIG);
+    this.policy = validateRepositoryPolicy(policy ?? requireRuntimeReady(env, { endpointApproved }));
+    if (!runtimeEnabled(env) || endpointApproved !== true) stop(CONNECTED_STOP);
+    const appId = env[GITHUB_APP_CONFIG_NAMES.appId];
+    const installationId = env[GITHUB_APP_CONFIG_NAMES.installationId];
+    const privateKey = env[GITHUB_APP_CONFIG_NAMES.privateKey];
+    if (!positiveDecimalString(appId) || !positiveDecimalString(installationId) || typeof privateKey !== "string") {
+      stop(REASONS.CONFIG);
+    }
+    if (!positiveInteger(timeoutMs) || !positiveInteger(maxBytes) || maxBytes > MAX_GITHUB_RESPONSE_BYTES) stop(REASONS.CONFIG);
+    this.env = env;
+    this.transport = transport;
+    this.appId = appId;
+    this.installationId = installationId;
+    this.privateKey = privateKey;
+    this.timeoutMs = timeoutMs;
+    this.maxBytes = maxBytes;
+    this.now = now;
+    this.signer = signer;
+    this.tokenPromise = null;
+    this.token = null;
+    this.state = "LIVE_READY_GUARDED";
   }
 
   async authoritativeEvidence(claims) {
-    void claims;
-    stop(CONNECTED_STOP);
+    const adapter = new GithubAppReadOnlyAdapter(this);
+    return adapter.authoritativeEvidence(claims);
+  }
+
+  ensureReference(reference) {
+    if (
+      !exactObject(reference) || reference.repository !== REPOSITORY ||
+      reference.runAttempt !== 1 || reference.candidateSha !== this.policy.candidateSha ||
+      reference.workflowRef !== WORKFLOW_REF || reference.environment !== ENVIRONMENT
+    ) stop(REASONS.BINDING);
+  }
+
+  async createAppJwt() {
+    return createGithubAppJwt({
+      appId: this.appId,
+      privateKey: this.privateKey,
+      nowEpochSeconds: this.now(),
+      signer: this.signer,
+    });
+  }
+
+  async installationToken() {
+    const nowEpochSeconds = this.now();
+    if (this.token && this.token.expiresAt - nowEpochSeconds > 60) return this.token.value;
+    if (this.tokenPromise) return this.tokenPromise;
+    this.tokenPromise = this.createInstallationToken(nowEpochSeconds).finally(() => {
+      this.tokenPromise = null;
+    });
+    return this.tokenPromise;
+  }
+
+  async createInstallationToken(nowEpochSeconds) {
+    const jwt = await this.createAppJwt();
+    const body = {
+      permissions: {
+        actions: "read",
+        checks: "read",
+        contents: "read",
+        deployments: "read",
+        metadata: "read",
+      },
+    };
+    const response = await this.githubFetch(
+      "POST",
+      `/app/installations/${this.installationId}/access_tokens`,
+      {
+        headers: { authorization: `Bearer ${jwt}` },
+        body: JSON.stringify(body),
+        maxBytes: MAX_GITHUB_TOKEN_RESPONSE_BYTES,
+      },
+    );
+    if (!exactObject(response) || typeof response.token !== "string" || response.token.length < 16 || response.token.length > 512) {
+      stop(REASONS.TRANSPORT);
+    }
+    if (!exactObject(response.permissions)) stop(REASONS.TRANSPORT);
+    for (const [permission, access] of Object.entries(response.permissions)) {
+      if (!Object.hasOwn(body.permissions, permission) || access !== "read") stop(REASONS.TRANSPORT);
+    }
+    const expiresAt = Date.parse(response.expires_at ?? "");
+    if (!Number.isFinite(expiresAt)) stop(REASONS.TRANSPORT);
+    this.token = Object.freeze({ value: response.token, expiresAt: Math.floor(expiresAt / 1000) });
+    if (this.token.expiresAt <= nowEpochSeconds) stop(REASONS.EXPIRED);
+    return response.token;
+  }
+
+  async githubFetch(method, path, { headers = {}, body, maxBytes = this.maxBytes } = {}) {
+    if (method !== "GET" && !(method === "POST" && path === `/app/installations/${this.installationId}/access_tokens`)) {
+      stop(REASONS.TRANSPORT);
+    }
+    if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) stop(REASONS.TRANSPORT);
+    const url = new URL(path, GITHUB_API_BASE);
+    if (url.origin !== GITHUB_API_BASE) stop(REASONS.TRANSPORT);
+    const response = await fetchWithTimeout(
+      this.transport,
+      new Request(url, {
+        method,
+        redirect: "manual",
+        headers: {
+          accept: "application/vnd.github+json",
+          "x-github-api-version": "2022-11-28",
+          ...headers,
+        },
+        body,
+      }),
+      this.timeoutMs,
+    );
+    if (!response || response.status < 200 || response.status >= 300) stop(REASONS.TRANSPORT);
+    return responseJsonWithLimit(response, maxBytes, this.timeoutMs);
+  }
+
+  async githubGet(path) {
+    const token = await this.installationToken();
+    return this.githubFetch("GET", path, { headers: { authorization: `Bearer ${token}` } });
+  }
+
+  complete(items) {
+    return Object.freeze({ complete: true, items: Object.freeze(items.map((item) => Object.freeze(item))) });
+  }
+
+  async getWorkflowRun(reference) {
+    this.ensureReference(reference);
+    const run = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}`);
+    const item = exactObject(run) && run.id !== undefined ? {
+      id: Number(run.id),
+      repositoryId: Number(run.repository?.id),
+      ownerId: Number(run.repository?.owner?.id),
+      repository: run.repository?.full_name,
+      ref: run.head_branch === "main" ? MAIN_REF : run.head_branch,
+      refProtected: run.ref_protected === true,
+      attempt: Number(run.run_attempt),
+      event: run.event,
+      headSha: run.head_sha,
+      actorId: Number(run.actor?.id),
+      triggeringActorId: Number(run.triggering_actor?.id),
+      conclusion: run.conclusion,
+    } : null;
+    return this.complete(item ? [item] : []);
+  }
+
+  async listWorkflowJobs(reference) {
+    this.ensureReference(reference);
+    const jobs = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/jobs?per_page=100`);
+    const checks = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}/check-runs?check_name=${encodeURIComponent(WORKFLOW_NAME)}`);
+    const jobItems = Array.isArray(jobs.jobs) ? jobs.jobs.filter((job) => job.name === WORKFLOW_NAME) : [];
+    const checkItems = Array.isArray(checks.check_runs) ? checks.check_runs.filter((check) => check.name === WORKFLOW_NAME) : [];
+    const job = jobItems.length === 1 ? jobItems[0] : null;
+    const check = checkItems.length === 1 ? checkItems[0] : null;
+    return this.complete(job && check ? [{ id: Number(check.id), runId: Number(reference.runId), name: job.name, conclusion: job.conclusion }] : []);
+  }
+
+  async listDeployments(reference) {
+    this.ensureReference(reference);
+    const deployments = await this.githubGet(`/repos/${REPOSITORY}/deployments?sha=${reference.candidateSha}&environment=${encodeURIComponent(ENVIRONMENT)}&per_page=100`);
+    const items = Array.isArray(deployments) ? deployments.map((deployment) => ({
+      id: Number(deployment.id),
+      runId: Number(reference.runId),
+      sha: deployment.sha,
+      environmentId: Number(deployment.environment_id),
+      environment: deployment.environment,
+    })) : [];
+    return this.complete(items);
+  }
+
+  async getEnvironment(reference) {
+    this.ensureReference(reference);
+    const environment = await this.githubGet(`/repos/${REPOSITORY}/environments/${encodeURIComponent(ENVIRONMENT)}`);
+    return this.complete([{
+      id: Number(environment.id),
+      name: environment.name,
+      protected: Array.isArray(environment.protection_rules) && environment.protection_rules.length > 0,
+    }]);
+  }
+
+  async listApprovals(reference) {
+    this.ensureReference(reference);
+    const body = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/approvals`);
+    const approvals = Array.isArray(body) ? body : body.approvals;
+    const items = Array.isArray(approvals) ? approvals.map((approval) => ({
+      runId: Number(reference.runId),
+      checkRunId: Number(approval.check_run_id),
+      deploymentId: Number(approval.deployment_id),
+      environmentId: Number(approval.environment_id),
+      sha: approval.sha,
+      workflowSha: approval.workflow_sha,
+      state: approval.state,
+      reviewerId: Number(approval.user?.id ?? approval.reviewer_id),
+    })) : [];
+    return this.complete(items);
+  }
+
+  async getCommit(reference) {
+    this.ensureReference(reference);
+    const commit = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}`);
+    return this.complete([{ sha: commit.sha, tree: commit.commit?.tree?.sha }]);
+  }
+
+  async getWorkflowBlob(reference) {
+    this.ensureReference(reference);
+    const blob = await this.githubGet(`/repos/${REPOSITORY}/contents/${WORKFLOW_PATH}?ref=${reference.candidateSha}`);
+    return this.complete([{ ref: reference.workflowRef, workflowSha: reference.candidateSha, blobSha: blob.sha }]);
   }
 }
 
 export function createDisabledConnectedGithubAppAdapter(options = Object.freeze({ enabled: false })) {
-  return new G5ConnectedGithubAppAdapter(options);
+  if (!exactObject(options) || options.enabled !== false) stop(CONNECTED_STOP);
+  return Object.freeze({
+    state: CONNECTED_DISABLED,
+    authoritativeEvidence: async () => stop(CONNECTED_STOP),
+  });
 }
 
 export function g5WorkflowGuard({ vars = {}, ref, runAttempt } = {}) {
-  const enabled = vars.G5_TRUST_OPERATIONAL_ENABLED === "true";
+  const enabled = vars[RUNTIME_ENABLED_CONFIG_NAME] === "true";
   return Object.freeze({
     enabled: enabled && ref === MAIN_REF && runAttempt === 1,
     guard: MANUAL_WORKFLOW_POLICY.operationalGuard,
@@ -542,7 +910,7 @@ export class G5GithubActionsOidcClient {
 }
 
 export class G5TrustBrokerHttpClient {
-  constructor({ endpoint, transport, dnsResolve, proofVerifier, timeoutMs = 5_000, maxBytes = 16_384 } = {}) {
+  constructor({ endpoint, transport, dnsResolve, proofVerifier, policy, timeoutMs = 5_000, maxBytes = 16_384 } = {}) {
     if (typeof endpoint !== "string" || typeof transport?.fetch !== "function") stop(REASONS.CONFIG);
     if (!proofVerifier || typeof proofVerifier.verify !== "function") stop(REASONS.CONFIG);
     if (!positiveInteger(timeoutMs) || !positiveInteger(maxBytes)) stop(REASONS.CONFIG);
@@ -550,6 +918,7 @@ export class G5TrustBrokerHttpClient {
     this.transport = transport;
     this.dnsResolve = dnsResolve;
     this.proofVerifier = proofVerifier;
+    this.policy = validateRepositoryPolicy(policy);
     this.timeoutMs = timeoutMs;
     this.maxBytes = maxBytes;
   }
@@ -583,7 +952,7 @@ export class G5TrustBrokerHttpClient {
       stop(REASONS.TRANSPORT);
     }
     const body = await responseJsonWithLimit(response, this.maxBytes, this.timeoutMs);
-    return validateTrustBrokerReceipt(body, context, REPOSITORY_POLICY, this.proofVerifier);
+    return validateTrustBrokerReceipt(body, context, this.policy, this.proofVerifier);
   }
 }
 
@@ -601,8 +970,9 @@ async function verifyReceiptProof(proofVerifier, proof, receipt, receiptDigest) 
   if (verified !== true) stop(REASONS.RECEIPT);
 }
 
-export async function validateTrustBrokerReceipt(body, context, policy = REPOSITORY_POLICY, proofVerifier) {
+export async function validateTrustBrokerReceipt(body, context, policy, proofVerifier) {
   if (!proofVerifier || typeof proofVerifier.verify !== "function") stop(REASONS.RECEIPT);
+  const trustedPolicy = validateRepositoryPolicy(policy);
   const nowEpochSeconds = Number.isSafeInteger(context?.nowEpochSeconds)
     ? context.nowEpochSeconds
     : Math.floor(Date.now() / 1000);
@@ -630,9 +1000,9 @@ export async function validateTrustBrokerReceipt(body, context, policy = REPOSIT
     binding.repositoryId !== expectedIds.repositoryId || binding.runId !== expectedIds.runId ||
     binding.runAttempt !== 1 || !positiveInteger(binding.checkRunId) ||
     binding.jobName !== WORKFLOW_NAME || !positiveInteger(binding.environmentId) ||
-    !positiveInteger(binding.deploymentId) || binding.candidateSha !== policy.candidateSha ||
-    binding.candidateTree !== policy.candidateTree || binding.workflowSha !== policy.candidateSha ||
-    binding.workflowBlobSha !== policy.workflowBlobSha || !digestText(binding.contractDigest) ||
+    !positiveInteger(binding.deploymentId) || binding.candidateSha !== trustedPolicy.candidateSha ||
+    binding.candidateTree !== trustedPolicy.candidateTree || binding.workflowSha !== trustedPolicy.candidateSha ||
+    binding.workflowBlobSha !== trustedPolicy.workflowBlobSha || !digestText(binding.contractDigest) ||
     !digestText(binding.schemaDigest) || !digestText(binding.algorithmDigest) ||
     !digestText(binding.capabilityDigest)
   ) stop(REASONS.RECEIPT);
@@ -1098,7 +1468,8 @@ export async function gateIdentity(binding) {
   ]);
 }
 
-function validateLedgerBinding(binding) {
+function validateLedgerBinding(binding, policy) {
+  const trustedPolicy = validateRepositoryPolicy(policy);
   if (!exactObject(binding)) stop(REASONS.LEDGER);
   const expectedKeys = [
     "actorId", "candidateSha", "candidateTree", "checkRunId", "deploymentId",
@@ -1117,10 +1488,10 @@ function validateLedgerBinding(binding) {
     binding.runAttempt !== 1 ||
     typeof binding.nonce !== "string" || !/^sha256:[0-9a-f]{64}$/.test(binding.nonce) ||
     typeof binding.jti !== "string" || binding.jti.length < 16 || binding.jti.length > 256 ||
-    binding.workflowRef !== WORKFLOW_REF || binding.workflowSha !== REPOSITORY_POLICY.candidateSha ||
-    binding.candidateSha !== REPOSITORY_POLICY.candidateSha ||
-    binding.candidateTree !== REPOSITORY_POLICY.candidateTree ||
-    binding.workflowBlobSha !== REPOSITORY_POLICY.workflowBlobSha
+    binding.workflowRef !== WORKFLOW_REF || binding.workflowSha !== trustedPolicy.candidateSha ||
+    binding.candidateSha !== trustedPolicy.candidateSha ||
+    binding.candidateTree !== trustedPolicy.candidateTree ||
+    binding.workflowBlobSha !== trustedPolicy.workflowBlobSha
   ) stop(REASONS.LEDGER);
 }
 
@@ -1137,11 +1508,12 @@ export class G5AtomicLedgerDurableObject extends DurableObjectBase {
     super(state, env);
     if (!state?.storage || typeof state.storage.transaction !== "function") stop(REASONS.AUTHORITY);
     this.storage = state.storage;
+    this.policy = validateRepositoryPolicy(env.policy ?? repositoryPolicyFromRuntimeBindings(env));
     this.clock = typeof env.clock === "function" ? env.clock : () => Math.floor(Date.now() / 1000);
   }
 
   async consume(binding) {
-    validateLedgerBinding(binding);
+    validateLedgerBinding(binding, this.policy);
     const identity = await gateIdentity(binding);
     const gateKey = `gate:${identity}`;
     const nonceKey = `nonce:${await digest(binding.nonce)}`;
@@ -1237,11 +1609,11 @@ export class G5AtomicLedgerDurableObject extends DurableObjectBase {
 }
 
 export class G5TrustBroker {
-  constructor({ jwks, githubApp, ledger, clock }) {
+  constructor({ jwks, githubApp, ledger, clock, policy }) {
     this.jwks = jwks;
     this.githubApp = githubApp;
     this.ledger = ledger;
-    this.policy = REPOSITORY_POLICY;
+    this.policy = validateRepositoryPolicy(policy);
     this.clock = clock;
   }
 
@@ -1274,11 +1646,22 @@ export default {
     }
     try {
       const body = await request.json();
-      const githubApp = new GithubAppReadOnlyAdapter(env.G5_GITHUB_APP_READ_ONLY);
+      const endpointApproved = endpointApprovedFromRuntimeBindings(env);
+      const policy = requireRuntimeReady(env, { endpointApproved });
+      const githubApp = env.G5_GITHUB_APP_READ_ONLY
+        ? new GithubAppReadOnlyAdapter(env.G5_GITHUB_APP_READ_ONLY)
+        : new G5ConnectedGithubAppAdapter({
+          env,
+          transport: env.G5_GITHUB_TRANSPORT ?? { fetch: globalThis.fetch?.bind(globalThis) },
+          policy,
+          endpointApproved,
+        });
+      if (!env.G5_ATOMIC_LEDGER || typeof env.G5_ATOMIC_LEDGER.getByName !== "function") stop(REASONS.LEDGER);
       const broker = new G5TrustBroker({
         jwks: env.G5_OFFLINE_JWKS,
         githubApp,
         ledger: env.G5_ATOMIC_LEDGER.getByName("g5-atomic-ledger-v1"),
+        policy,
         clock: () => Math.floor(Date.now() / 1000),
       });
       return Response.json(await broker.authorize(body));
@@ -1311,7 +1694,9 @@ if (globalThis.process?.argv?.includes("--g5-connected-diagnostic")) {
 export const INTERNALS = Object.freeze({
   VERSION, ISSUER, AUDIENCE, MAIN_REF, ENVIRONMENT, REPOSITORY, WORKFLOW_REF,
   WORKFLOW_NAME, CONNECTED_DISABLED, TRUST_BROKER_ENDPOINT_CONFIG_NAME,
-  REPOSITORY_POLICY, MANUAL_WORKFLOW_POLICY, SUPABASE_TABLES,
+  RUNTIME_ENABLED_CONFIG_NAME, RUNTIME_POLICY_BINDING_NAMES, GITHUB_APP_CONFIG_NAMES,
+  LEGACY_POLICY_DENYLIST, MANUAL_WORKFLOW_POLICY, SUPABASE_TABLES,
   MAX_TOKEN_LIFETIME_SECONDS, MAX_LEDGER_RECORDS, STRICT_TIMEOUT_MS, MAX_RESPONSE_BYTES,
+  MAX_GITHUB_RESPONSE_BYTES, MAX_GITHUB_TOKEN_RESPONSE_BYTES, JWKS_CACHE_SECONDS,
   PAGE_SIZE, MAX_PAGES, MAX_ROWS,
 });

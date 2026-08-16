@@ -151,6 +151,18 @@ y el [manifest name-only](./g5_operational_activation_manifest_2026_08_15.json).
 Estos artifacts definen E1-E6 sin ejecutar Cloudflare, GitHub App, environment,
 OIDC live, Production, Supabase, SQL, writers o schedules.
 
+PR H agrega [ADR-0018](../decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md)
+y remedia la autoridad hardcodeada repository-only. `PROTECTED_SOURCE_SHA`,
+`PROTECTED_SOURCE_TREE`, `EXPECTED_WORKFLOW_SHA` y `EXPECTED_WORKFLOW_BLOB_SHA`
+dejan de ser autoridad exportada por el contrato. La autoridad operacional futura
+debe provenir solo de bindings runtime name-only ausentes:
+`G5_ALLOWED_CANDIDATE_SHA`, `G5_ALLOWED_CANDIDATE_TREE` y
+`G5_ALLOWED_WORKFLOW_BLOB_SHA`. Los valores PR C quedan como denylist legacy; si
+aparecen como candidate SHA, tree o workflow blob, el contrato falla cerrado. Este
+cambio no habilita trust operacional: `validate_future_trust_plane` sigue
+terminando en `STOP_G5_ATOMIC_LEDGER_REQUIRED`/`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`
+segun la capa evaluada y no crea transporte ni autoridad remota.
+
 La salida publica contiene solo version, decision, reason code, receipt digest y
 flags falsos. No registra JWT, Authorization, installation token, URL, host, UUID,
 project ref, payload, claims completos ni datos operativos. GitHub App futuro queda

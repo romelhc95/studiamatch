@@ -6,6 +6,7 @@ import worker, {
   G5AtomicLedgerDurableObject,
   G5ConnectedGithubAppAdapter,
   G5ConnectedSupabaseCollector,
+  G5GithubJwksClient,
   G5GithubActionsOidcClient,
   G5SingleUseReceiptSession,
   G5TrustBroker,
@@ -15,8 +16,10 @@ import worker, {
   REASONS,
   TrustBrokerError,
   createDisabledConnectedGithubAppAdapter,
+  createGithubAppJwt,
   gateIdentity,
   g5WorkflowGuard,
+  repositoryPolicyFromRuntimeBindings,
   rejectCallerAuthority,
   runG5ConnectedDiagnosticCli,
   validateTrustBrokerReceipt,
@@ -24,11 +27,24 @@ import worker, {
 } from "../src/index.mjs";
 
 const NOW = 1_787_000_000;
-const SHA = INTERNALS.REPOSITORY_POLICY.candidateSha;
-const TREE = INTERNALS.REPOSITORY_POLICY.candidateTree;
+const SHA = "1".repeat(40);
+const TREE = "2".repeat(40);
 const WORKFLOW_SHA = SHA;
-const WORKFLOW_BLOB = INTERNALS.REPOSITORY_POLICY.workflowBlobSha;
+const WORKFLOW_BLOB = "3".repeat(40);
 const WORKFLOW_REF = INTERNALS.WORKFLOW_REF;
+const POLICY_ENV = Object.freeze({
+  G5_ALLOWED_CANDIDATE_SHA: SHA,
+  G5_ALLOWED_CANDIDATE_TREE: TREE,
+  G5_ALLOWED_WORKFLOW_BLOB_SHA: WORKFLOW_BLOB,
+});
+const POLICY = repositoryPolicyFromRuntimeBindings(POLICY_ENV);
+const RUNTIME_ENV = Object.freeze({
+  ...POLICY_ENV,
+  G5_TRUST_RUNTIME_ENABLED: "true",
+  G5_GITHUB_APP_ID: "12345",
+  G5_GITHUB_APP_INSTALLATION_ID: "67890",
+  G5_GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nZmFrZQ==\n-----END PRIVATE KEY-----",
+});
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const publicJwk = publicKey.export({ format: "jwk" });
@@ -273,11 +289,12 @@ class FakeDurableStorage {
 function setup({ payload = claims(), data = fixture(), transportOptions = {}, policy } = {}) {
   const storage = new FakeDurableStorage();
   const clock = { now: NOW };
-  const ledger = new G5AtomicLedgerDurableObject({ storage }, { clock: () => clock.now });
+  const runtimePolicy = policy ?? POLICY;
+  const ledger = new G5AtomicLedgerDurableObject({ storage }, { policy: runtimePolicy, clock: () => clock.now });
   const transport = new FakeGithubTransport(data, transportOptions);
   const githubApp = new GithubAppReadOnlyAdapter(transport);
   const broker = new G5TrustBroker({
-    jwks: JWKS, githubApp, ledger, policy,
+    jwks: JWKS, githubApp, ledger, policy: runtimePolicy,
     clock: () => clock.now,
   });
   const request = { bearerOidc: token(payload), gateReference: { runId: 303, expectedRunAttempt: 1 } };
@@ -302,7 +319,13 @@ async function onlyGate(storage) {
 }
 
 async function reason(call, expected) {
-  await assert.rejects(call, (error) => error instanceof TrustBrokerError && error.reason === expected);
+  let thrown;
+  try {
+    await call();
+  } catch (error) {
+    thrown = error;
+  }
+  assert.equal(thrown instanceof TrustBrokerError && thrown.reason === expected, true);
 }
 
 test("valid JWT and authoritative exact-one evidence consume once with sanitized receipt", async () => {
@@ -415,20 +438,33 @@ test("commit tree and workflow blob drift are rejected", async () => {
   }
 });
 
-test("matching alternate evidence and injected policy cannot replace frozen policy", async () => {
-  const alternateTree = "8".repeat(40);
-  const alternateBlob = "7".repeat(40);
-  const data = fixture({
-    commit_tree: [{ sha: SHA, tree: alternateTree }],
-    workflow_blob: [{ ...fixture().workflow_blob[0], blobSha: alternateBlob }],
-  });
-  const policy = {
-    ...INTERNALS.REPOSITORY_POLICY,
-    candidateTree: alternateTree,
-    workflowBlobSha: alternateBlob,
-  };
-  const { broker, request } = setup({ data, policy });
-  await reason(() => broker.authorize(request), REASONS.BINDING);
+test("runtime policy comes from bindings and legacy protected source is rejected", async () => {
+  await reason(() => repositoryPolicyFromRuntimeBindings({}), REASONS.CONFIG);
+  await reason(
+    () => repositoryPolicyFromRuntimeBindings({
+      G5_ALLOWED_CANDIDATE_SHA: INTERNALS.LEGACY_POLICY_DENYLIST[0].candidateSha,
+      G5_ALLOWED_CANDIDATE_TREE: TREE,
+      G5_ALLOWED_WORKFLOW_BLOB_SHA: WORKFLOW_BLOB,
+    }),
+    REASONS.BINDING,
+  );
+  await reason(
+    () => repositoryPolicyFromRuntimeBindings({
+      G5_ALLOWED_CANDIDATE_SHA: SHA,
+      G5_ALLOWED_CANDIDATE_TREE: INTERNALS.LEGACY_POLICY_DENYLIST[0].candidateTree,
+      G5_ALLOWED_WORKFLOW_BLOB_SHA: WORKFLOW_BLOB,
+    }),
+    REASONS.BINDING,
+  );
+  await reason(
+    () => repositoryPolicyFromRuntimeBindings({
+      G5_ALLOWED_CANDIDATE_SHA: SHA,
+      G5_ALLOWED_CANDIDATE_TREE: TREE,
+      G5_ALLOWED_WORKFLOW_BLOB_SHA: INTERNALS.LEGACY_POLICY_DENYLIST[0].workflowBlobSha,
+    }),
+    REASONS.BINDING,
+  );
+  assert.deepEqual(repositoryPolicyFromRuntimeBindings(POLICY_ENV), POLICY);
 });
 
 test("caller-supplied authority is rejected before JWT verification", async () => {
@@ -624,13 +660,153 @@ test("connected GitHub App adapter remains implemented but disabled by default",
   await reason(async () => {
     new G5ConnectedGithubAppAdapter({ enabled: true });
   }, INTERNALS.CONNECTED_DISABLED);
+  await reason(async () => {
+    new G5ConnectedGithubAppAdapter({
+      env: { ...RUNTIME_ENV, G5_TRUST_RUNTIME_ENABLED: "false" },
+      transport: new FakeFetchTransport(() => Response.json({})),
+      policy: POLICY,
+      endpointApproved: true,
+      signer: async () => "signature",
+    });
+  }, INTERNALS.CONNECTED_DISABLED);
+});
+
+test("connected GitHub App adapter uses only read permissions and fake transport", async () => {
+  const messages = [];
+  const originalLog = console.log;
+  console.log = (...values) => messages.push(values.join(" "));
+  const transport = new FakeFetchTransport((request, call) => {
+    const url = new URL(request.url);
+    if (request.method === "POST") {
+      assert.equal(url.pathname, "/app/installations/67890/access_tokens");
+      const body = JSON.parse(call.body);
+      assert.deepEqual(body.permissions, {
+        actions: "read",
+        checks: "read",
+        contents: "read",
+        deployments: "read",
+        metadata: "read",
+      });
+      return Response.json({
+        token: "installation-token-redacted",
+        expires_at: new Date((NOW + 300) * 1000).toISOString(),
+        permissions: body.permissions,
+      });
+    }
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.get("authorization"), "Bearer installation-token-redacted");
+    if (url.pathname.endsWith("/actions/runs/303")) {
+      return Response.json({
+        id: 303,
+        repository: { id: 101, full_name: "romelhc95/studiamatch", owner: { id: 202 } },
+        head_branch: "main",
+        ref_protected: true,
+        run_attempt: 1,
+        event: "workflow_dispatch",
+        head_sha: SHA,
+        actor: { id: 404 },
+        triggering_actor: { id: 405 },
+        conclusion: "success",
+      });
+    }
+    if (url.pathname.endsWith("/actions/runs/303/jobs")) {
+      return Response.json({ jobs: [{ name: INTERNALS.WORKFLOW_NAME, conclusion: "success" }] });
+    }
+    if (url.pathname.endsWith(`/commits/${SHA}/check-runs`)) {
+      return Response.json({ check_runs: [{ id: 505, name: INTERNALS.WORKFLOW_NAME }] });
+    }
+    if (url.pathname.endsWith("/deployments")) {
+      return Response.json([{ id: 606, sha: SHA, environment_id: 707, environment: "Production" }]);
+    }
+    if (url.pathname.endsWith("/environments/Production")) {
+      return Response.json({ id: 707, name: "Production", protection_rules: [{ type: "required_reviewers" }] });
+    }
+    if (url.pathname.endsWith("/actions/runs/303/approvals")) {
+      return Response.json([{
+        check_run_id: 505,
+        deployment_id: 606,
+        environment_id: 707,
+        sha: SHA,
+        workflow_sha: SHA,
+        state: "approved",
+        user: { id: 808 },
+      }]);
+    }
+    if (url.pathname.endsWith(`/commits/${SHA}`)) {
+      return Response.json({ sha: SHA, commit: { tree: { sha: TREE } } });
+    }
+    if (url.pathname.endsWith("/contents/.github/workflows/g5-manual-trust-gate.yml")) {
+      return Response.json({ sha: WORKFLOW_BLOB });
+    }
+    throw new Error(`unexpected fake GitHub path ${url.pathname}`);
+  });
+  try {
+    const adapter = new G5ConnectedGithubAppAdapter({
+      env: RUNTIME_ENV,
+      transport,
+      policy: POLICY,
+      endpointApproved: true,
+      now: () => NOW,
+      signer: async () => "signature",
+    });
+    const callsBeforeUnsafePath = transport.calls.length;
+    await reason(() => adapter.githubFetch("GET", "//evil.invalid/repos/romelhc95/studiamatch"), REASONS.TRANSPORT);
+    assert.equal(transport.calls.length, callsBeforeUnsafePath);
+    const { broker, request, ledger } = setup();
+    broker.githubApp = adapter;
+    broker.ledger = ledger;
+    const result = await broker.authorize(request);
+    assert.equal(result.decision, "STOP");
+    assert.match(result.receiptDigest, /^sha256:/);
+    assert.equal(transport.calls.filter((call) => call.method === "POST").length, 1);
+    assert.equal(transport.calls.every((call) => call.method === "GET" || call.url.endsWith("/access_tokens")), true);
+    assert.equal(messages.join("\n").includes("installation-token-redacted"), false);
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+test("GitHub App JWT and JWKS client fail closed without logging secrets", async () => {
+  const jwt = await createGithubAppJwt({
+    appId: "12345",
+    privateKey: "not-logged-private-key",
+    nowEpochSeconds: NOW,
+    signer: async (material, privateKey) => {
+      assert.equal(privateKey, "not-logged-private-key");
+      assert.equal(material.split(".").length, 2);
+      return "signature";
+    },
+  });
+  assert.equal(jwt.split(".").length, 3);
+  assert.equal(jwt.includes("not-logged-private-key"), false);
+
+  const timeoutClient = new G5GithubJwksClient({
+    timeoutMs: 1,
+    transport: {
+      fetch: async (_request, init) => new Promise((_, reject) => {
+        init.signal.addEventListener("abort", () => reject(new Error("aborted")));
+      }),
+    },
+  });
+  await reason(() => timeoutClient.jwks(NOW), REASONS.TRANSPORT);
+
+  const failingClient = new G5GithubJwksClient({
+    transport: new FakeFetchTransport(() => Response.json({ keys: [] })),
+  });
+  await reason(() => failingClient.jwks(NOW), REASONS.PROOF);
+
+  const okClient = new G5GithubJwksClient({
+    transport: new FakeFetchTransport(() => Response.json(JWKS)),
+  });
+  assert.equal((await okClient.jwks(NOW)).keys[0].kid, "offline-key-1");
+  assert.equal((await okClient.jwks(NOW + 1)).keys[0].kid, "offline-key-1");
 });
 
 test("manual workflow policy is deployment-ready but disabled without operational var", () => {
   assert.deepEqual(INTERNALS.MANUAL_WORKFLOW_POLICY, {
     state: "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
     dispatchDefined: true,
-    operationalGuard: "vars.G5_TRUST_OPERATIONAL_ENABLED == 'true'",
+    operationalGuard: "vars.G5_TRUST_RUNTIME_ENABLED == 'true'",
     defaultEnabled: false,
     mainRef: "refs/heads/main",
     runAttempt: 1,
@@ -640,9 +816,9 @@ test("manual workflow policy is deployment-ready but disabled without operationa
     concurrencyIsLedger: false,
   });
   assert.equal(g5WorkflowGuard({ vars: {}, ref: INTERNALS.MAIN_REF, runAttempt: 1 }).enabled, false);
-  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: "refs/heads/desarrollo", runAttempt: 1 }).enabled, false);
-  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 2 }).enabled, false);
-  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_OPERATIONAL_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 1 }).enabled, true);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_RUNTIME_ENABLED: "true" }, ref: "refs/heads/desarrollo", runAttempt: 1 }).enabled, false);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_RUNTIME_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 2 }).enabled, false);
+  assert.equal(g5WorkflowGuard({ vars: { G5_TRUST_RUNTIME_ENABLED: "true" }, ref: INTERNALS.MAIN_REF, runAttempt: 1 }).enabled, true);
 });
 
 test("OIDC client fetches a sanitized token with fixed audience", async () => {
@@ -694,6 +870,7 @@ test("trust broker HTTP client requires future config and validates one receipt"
     transport,
     dnsResolve: async () => ["93.184.216.34"],
     proofVerifier,
+    policy: POLICY,
   });
   const receipt = await client.authorize({ oidcToken: "header.payload.signature", context });
   assert.equal(receipt.digest, body.receiptDigest);
@@ -701,11 +878,11 @@ test("trust broker HTTP client requires future config and validates one receipt"
   assert.equal(session.consume(receipt).receiptDigest, body.receiptDigest);
   assert.throws(() => session.consume(receipt), TrustBrokerError);
   await reason(
-    () => validateTrustBrokerReceipt({ ...body, receiptDigest: digest({ drift: true }) }, context, INTERNALS.REPOSITORY_POLICY, proofVerifier),
+    () => validateTrustBrokerReceipt({ ...body, receiptDigest: digest({ drift: true }) }, context, POLICY, proofVerifier),
     REASONS.RECEIPT,
   );
   await reason(
-    () => validateTrustBrokerReceipt(validBrokerReceipt({ ...context, expiresAt: NOW - 1 }), { ...context, nowEpochSeconds: NOW }, INTERNALS.REPOSITORY_POLICY, proofVerifier),
+    () => validateTrustBrokerReceipt(validBrokerReceipt({ ...context, expiresAt: NOW - 1 }), { ...context, nowEpochSeconds: NOW }, POLICY, proofVerifier),
     REASONS.EXPIRED,
   );
 });
@@ -717,6 +894,7 @@ test("trust broker HTTP client rejects unsafe endpoints before transport", async
       transport: new FakeFetchTransport(() => Response.json({})),
       dnsResolve: async () => ["127.0.0.1"],
       proofVerifier,
+      policy: POLICY,
     });
   }, REASONS.TRANSPORT);
   await reason(async () => {
@@ -725,6 +903,7 @@ test("trust broker HTTP client rejects unsafe endpoints before transport", async
       transport: new FakeFetchTransport(() => Response.json({})),
       dnsResolve: async () => ["93.184.216.34"],
       proofVerifier,
+      policy: POLICY,
     });
   }, REASONS.TRANSPORT);
   await reason(async () => {
@@ -766,7 +945,7 @@ test("connected Supabase collector is GET-only, publishable-only, paginated, and
   });
   const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
     repositoryId: 101, runId: 303, runAttempt: 1,
-  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  }, POLICY, proofVerifier);
   tables.institution_site_profiles[0] = {
     ...tables.institution_site_profiles[0],
     discovery_enabled: true,
@@ -811,7 +990,7 @@ test("connected Supabase collector rejects forged receipts and incomplete counts
   }), REASONS.RECEIPT);
   const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
     repositoryId: 101, runId: 303, runAttempt: 1,
-  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  }, POLICY, proofVerifier);
   await reason(() => collector.collect({ receipt }), REASONS.PAGINATION);
 
   const countDriftTables = oneRowTables();
@@ -914,7 +1093,7 @@ test("connected Supabase collector derives required source targets from enabled 
   });
   const receipt = await validateTrustBrokerReceipt(validBrokerReceipt(), {
     repositoryId: 101, runId: 303, runAttempt: 1,
-  }, INTERNALS.REPOSITORY_POLICY, proofVerifier);
+  }, POLICY, proofVerifier);
   const result = await collector.collect({ receipt });
   assert.equal(result.decision, "STOP");
   assert.equal(result.reasonCode, REASONS.SOURCE);
@@ -987,6 +1166,8 @@ test("broker emits no logs or sensitive token material", async () => {
 test("Worker handler constructs broker from repository-only bindings", async () => {
   const setupValues = setup();
   const env = {
+    ...RUNTIME_ENV,
+    G5_TRUST_BROKER_ENDPOINT: "https://g5-trust-broker.example.invalid/authorize",
     G5_OFFLINE_JWKS: JWKS,
     G5_GITHUB_APP_READ_ONLY: setupValues.transport,
     G5_ATOMIC_LEDGER: { getByName: () => setupValues.ledger },
@@ -1008,12 +1189,32 @@ test("Worker handler constructs broker from repository-only bindings", async () 
   }
 });
 
+test("Worker handler stops when runtime bindings are absent", async () => {
+  const setupValues = setup();
+  const request = new Request("https://repository-only.invalid/authorize", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(setupValues.request),
+  });
+  const response = await worker.fetch(request, {
+    G5_OFFLINE_JWKS: JWKS,
+    G5_GITHUB_APP_READ_ONLY: setupValues.transport,
+    G5_ATOMIC_LEDGER: { getByName: () => setupValues.ledger },
+  });
+  const body = await response.json();
+  assert.equal(response.status, 400);
+  assert.equal(body.decision, "STOP");
+  assert.equal(body.reasonCode, INTERNALS.CONNECTED_DISABLED);
+});
+
 test("Worker handler closes arbitrary dependency errors to sanitized reason", async () => {
   const setupValues = setup();
   setupValues.transport.getWorkflowRun = async () => {
     throw new TrustBrokerError("private dependency detail");
   };
   const env = {
+    ...RUNTIME_ENV,
+    G5_TRUST_BROKER_ENDPOINT: "https://g5-trust-broker.example.invalid/authorize",
     G5_OFFLINE_JWKS: JWKS,
     G5_GITHUB_APP_READ_ONLY: setupValues.transport,
     G5_ATOMIC_LEDGER: { getByName: () => setupValues.ledger },
