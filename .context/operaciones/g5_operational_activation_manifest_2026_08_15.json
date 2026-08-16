@@ -85,6 +85,7 @@
     "get_only_contract": "f10.9-g5-get-only-adapter-contract.v2.3",
     "trust_broker": "f10.9-g5-trust-broker.v2",
     "worker_config": "repository-only-v1",
+    "wrangler": "4.44.0",
     "workflow_path": ".github/workflows/g5-manual-trust-gate.yml"
   },
   "gates": [
@@ -93,10 +94,10 @@
       "name": "Cloudflare Worker and Durable Object deployment",
       "domain": "cloudflare_trust_plane_deployment",
       "future_authorization_required": true,
-      "preconditions": ["PR F hardening merged", "repository CI PASS", "no Production operation", "dry-run PASS before deploy"],
+      "preconditions": ["PR F hardening merged", "PR G Wrangler compatibility merged", "repository CI PASS", "no Production operation", "dry-run PASS before deploy"],
       "sanitized_outputs": ["worker version", "durable binding name", "deployment digest"],
       "rollback": ["disable route", "restore previous worker version", "preserve ledger records"],
-      "stop_conditions": ["missing binding", "unexpected route", "preview URL enabled", "unfrozen worker version"]
+      "stop_conditions": ["missing binding", "unexpected route", "preview URL enabled", "unfrozen worker version", "Wrangler strict flag unsupported"]
     },
     {
       "id": "E2",

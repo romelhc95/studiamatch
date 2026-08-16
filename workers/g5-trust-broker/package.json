@@ -9,6 +9,6 @@
     "e1:deploy": "wrangler deploy --strict --config wrangler.repository-only.jsonc"
   },
   "devDependencies": {
-    "wrangler": "4.30.0"
+    "wrangler": "4.44.0"
   }
 }

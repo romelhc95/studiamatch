@@ -5,10 +5,11 @@
 | Estado | `ACCEPTED_REPOSITORY_ONLY` |
 | Fecha | 2026-08-15 |
 | Subfase | `F10.9` |
-| Alcance | PR E + PR F repository-only |
-| PR reconciliado | `#387`, `#388` |
+| Alcance | PR E + PR F + PR G repository-only |
+| PR reconciliado | `#387`, `#388`, `#389` |
 | Resultado PR #387 | `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY` |
 | Resultado PR #388 | `MERGED_POST_MERGE_VERIFIED` |
+| Resultado PR #389 | `MERGED_POST_MERGE_VERIFIED` |
 | Gate real | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust operacional | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
@@ -58,6 +59,24 @@ El preflight operacional read-only de cuenta queda registrado como
 `NOT_EXECUTED`. Antes de autorizar deployment, [ADR-0017](ADR-0017_g5_e1_cloudflare_deployment_hardening.md)
 mantiene `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` hasta que el paquete
 reproducible, aislado y sin endpoints quede promovido por PR protegido.
+
+PR #389 integro PR F y queda congelado como:
+
+```text
+candidate = f48d0f25154970531744815e1d3769a20731717a
+merge = 4bdc698cd9a8569e4e8290257effa6bc3aa3bb15
+tree = 874ccffa3db9871189ca351d88cc84e120251e95
+security = 31921056993=PASS
+f9_7_run = 31921056963=PASS
+focused = 95100885045=PASS
+f9_7_job = 95100958336=PASS
+run_attempt = 1
+```
+
+El hallazgo `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado por
+incompatibilidad de Wrangler `4.30.0` con `deploy --strict`. PR G no ejecuta E1;
+solo fija Wrangler exacto `4.44.0`, demuestra `--strict` y valida dry-run offline
+sin credenciales Cloudflare.
 
 ## Decision
 
@@ -139,8 +158,10 @@ Workflow:
 
 - PR #387 queda transparente como `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`.
 - PR #388 queda transparente como `MERGED_POST_MERGE_VERIFIED`.
+- PR #389 queda transparente como `MERGED_POST_MERGE_VERIFIED`.
 - `E1_ACCOUNT_READINESS_GO` no autoriza deployment; E1 sigue `NOT_EXECUTED`.
 - `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` queda documentado hasta PR F.
+- `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda documentado hasta PR G.
 - Attempt 1 queda preservado como `CI_INFRA_TIMEOUT_PLAYWRIGHT_APT`.
 - Attempt 2 queda preservado como `CI_RETRY_PASS`.
 - `run_attempt=2` es solo CI; G5 operacional futuro exige `run_attempt=1`.

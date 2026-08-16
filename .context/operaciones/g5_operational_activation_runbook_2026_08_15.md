@@ -4,7 +4,7 @@
 |---|---|
 | Estado | `PREPARED_NOT_CONFIGURED` |
 | Subfase | `F10.9` |
-| Alcance | PR E + PR F repository-only |
+| Alcance | PR E + PR F + PR G repository-only |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -15,7 +15,7 @@
 ## Proposito
 
 Este runbook prepara, sin ejecutar, la secuencia futura para activar G5 de forma
-operacional. PR E y PR F no despliegan Cloudflare, no configuran GitHub App, no modifican
+operacional. PR E, PR F y PR G no despliegan Cloudflare, no configuran GitHub App, no modifican
 environments, no solicita OIDC live, no ejecuta Production, no accede a Supabase
 o fuentes, no ejecuta SQL y no crea writers o schedules.
 
@@ -58,6 +58,24 @@ El preflight operacional read-only de cuenta queda `E1_ACCOUNT_READINESS_GO`, co
 Workers existentes `0` y deployment `NOT_EXECUTED`. PR F registra
 `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` para endurecer el paquete antes
 de solicitar deployment real.
+
+La reconciliacion PR #389 queda clasificada como `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = f48d0f25154970531744815e1d3769a20731717a
+merge = 4bdc698cd9a8569e4e8290257effa6bc3aa3bb15
+tree = 874ccffa3db9871189ca351d88cc84e120251e95
+security = 31921056993=PASS
+f9_7_run = 31921056963=PASS
+focused = 95100885045=PASS
+f9_7_job = 95100958336=PASS
+run_attempt = 1
+```
+
+El hallazgo `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado:
+Wrangler `4.30.0` no expone `deploy --strict`, por lo que PR G fija Wrangler
+exacto `4.44.0` y exige dry-run offline sin credenciales Cloudflare. E1 sigue
+`NOT_EXECUTED` hasta autorizacion separada.
 
 ## Nombres Repository-Only
 
@@ -111,14 +129,14 @@ con aprobacion separada.
 
 Precondiciones:
 
-- PR F fusionado y CI repository-only PASS.
+- PR F y PR G fusionados y CI repository-only PASS.
 - ADR-0016 aceptada en `desarrollo`.
 - [ADR-0017](../decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md) aceptada en `desarrollo`.
 - Versiones congeladas: `f10.9-g5-trust-broker.v2` y `repository-only-v1`.
-- Wrangler exacto `4.30.0` instalado desde lockfile dentro del contenedor.
+- Wrangler exacto `4.44.0` instalado desde lockfile dentro del contenedor.
 - `wrangler.repository-only.jsonc` mantiene `workers_dev:false` y `preview_urls:false`.
 - Cero routes, domains, custom domains, preview URLs o triggers.
-- Dry-run obligatorio completado antes de deployment.
+- Dry-run obligatorio completado offline antes de deployment, sin `CLOUDFLARE_API_TOKEN` ni `CLOUDFLARE_ACCOUNT_ID`.
 - Sin Production y sin data plane.
 
 Comando dry-run obligatorio previo:
@@ -157,6 +175,7 @@ STOP:
 
 - Binding faltante o inesperado.
 - Version no congelada.
+- `deploy --strict` no soportado por Wrangler congelado.
 - `workers_dev` distinto de `false` o `preview_urls` distinto de `false`.
 - Cualquier intento de route/domain/trigger/deployment fuera del gate E1 aprobado.
 - Cualquier prompt de billing, plan o costo.

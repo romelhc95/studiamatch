@@ -85,6 +85,7 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_gate"] == CURRENT_GATE
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
+    assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
     assert any(
         item["name"] == "G5_TRUST_OPERATIONAL_ENABLED"
         and item["state"] == "ABSENT_NOT_CONFIGURED"

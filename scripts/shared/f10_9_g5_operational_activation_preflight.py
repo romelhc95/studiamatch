@@ -124,6 +124,7 @@ EXPECTED_FROZEN_VERSIONS = MappingProxyType(
         "get_only_contract": "f10.9-g5-get-only-adapter-contract.v2.3",
         "trust_broker": "f10.9-g5-trust-broker.v2",
         "worker_config": "repository-only-v1",
+        "wrangler": "4.44.0",
         "workflow_path": ".github/workflows/g5-manual-trust-gate.yml",
     }
 )
