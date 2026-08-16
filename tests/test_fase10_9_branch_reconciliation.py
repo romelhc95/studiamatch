@@ -4990,7 +4990,7 @@ class F109BoundaryTest(unittest.TestCase):
             G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
             G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(repo, 78, 430)
+        context_mock.assert_called_once_with(repo, 78, 429)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

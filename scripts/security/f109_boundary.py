@@ -4752,7 +4752,7 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
         not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
         "G5 PR K preflight indirect capability",
     )
-    validate_context_graph(repo, 78, 430)
+    validate_context_graph(repo, 78, 429)
 
 
 def detect_mode(
