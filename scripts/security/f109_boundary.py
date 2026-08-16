@@ -187,6 +187,11 @@ G5_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-j-security-remediation"
 G5_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
 G5_SECURITY_REMEDIATION_PR392_CANDIDATE = "b3f9678e0df76ef8f9dfde8af9147a458a2e033b"
 G5_SECURITY_REMEDIATION_E2_STOP = "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
+G5_RESIDUAL_SECURITY_REMEDIATION_BASE = "51aaac5d289226b1f8f16de1daf69a16a084d585"
+G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE = "7e7be8072cc416d76d2034a126d39393cdbcc968"
+G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-k-security-remediation"
+G5_RESIDUAL_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED"
+G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE = "4d5d97bb37ffcd5126d467bde9152e705a895c85"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -718,6 +723,25 @@ G5_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
 }
 G5_SECURITY_REMEDIATION_ALLOWED_MODES = {
     path: "100644" for path in G5_SECURITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4470,7 +4494,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
         "jobId",
         "currentDeploymentStatus",
         "updatedAtMs",
-        "stable(bindingA) !== stable(binding)",
+        "stable(bindingA) !== stable(bindingB)",
         "repository_ids: [repositoryId]",
         "EXPECTED_GITHUB_APP_PERMISSIONS",
         "repository_selection",
@@ -4543,6 +4567,317 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
         "G5 PR J preflight indirect capability",
     )
     validate_context_graph(repo, 77, 428)
+
+
+def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+        "unexpected G5 residual security remediation base",
+    )
+    require_sha(repo, "G5_RESIDUAL_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 residual security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 residual security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 residual security remediation merge tree drift",
+        )
+    intermediate_heads: list[str] = []
+    current = candidate_head
+    while current != base:
+        parents = commit_parents(repo, current)
+        require(
+            len(parents) == 1,
+            "G5 residual security remediation candidate must be a linear descendant of base",
+        )
+        current = parents[0]
+        if current != base:
+            intermediate_heads.append(current)
+    for intermediate_head in intermediate_heads:
+        require_exact_delta(
+            repo,
+            base,
+            intermediate_head,
+            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr21 = (repo / ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+
+    def tree_text(treeish: str, relative: str) -> str:
+        return str(git(repo, "show", f"{treeish}:{relative}"))
+
+    def validate_residual_security_texts(
+        manifest_text_at: str,
+        preflight_source_at: str,
+        preflight_tests_at: str,
+        f97_workflow_at: str,
+        worker_source_at: str,
+        worker_tests_at: str,
+        label: str,
+    ) -> None:
+        require(
+            ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md" in f97_workflow_at,
+            f"{label} focused CI path drift",
+        )
+        for forbidden in (
+            "const current = statuses[0]",
+            "repositorySelection !== undefined",
+            "app?.slug === EXPECTED_GITHUB_ACTIONS_APP_SLUG",
+        ):
+            require(forbidden not in worker_source_at, f"{label} obsolete authority drift")
+        for required in (
+            "terminalEvidence",
+            "validateTerminalAuthority",
+            "terminalBinding",
+            "GITHUB_ACTIONS_APP_ID",
+            "GITHUB_ACTIONS_APP_OWNER_ID",
+            "repository_selection",
+            "EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS",
+            "tokenPromises.get(repositoryId)",
+            "splitLinkHeader",
+            "total_count",
+        ):
+            require(required in worker_source_at, f"{label} runtime remediation drift")
+        for required in (
+            "terminal confirmation rechecks run job check and deployment immediately before CAS",
+            "installation token promises are segmented by repository id under concurrency",
+            "repository_selection: \"all\"",
+            "token_schema_drift",
+            "total_count",
+            "app: { id: 15369",
+        ):
+            require(required in worker_tests_at, f"{label} worker test drift")
+        for required in (
+            "test_pr393_and_residual_remediation_contract_are_registered",
+            "terminal_confirmation",
+            "github_actions_app_identity",
+            "token_promise_cache",
+            G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+        ):
+            require(required in preflight_tests_at or required in preflight_source_at, f"{label} preflight drift")
+        for forbidden in (
+            "https://",
+            "http://",
+            "sb_secret_",
+            "sb_publishable_",
+            "eyJhbG",
+            "-----BEGIN",
+            "project_ref",
+            "account_id",
+            "worker_id",
+            '"value"',
+            '"token"',
+            '"private_key"',
+        ):
+            require(forbidden not in manifest_text_at, f"{label} manifest contains sensitive or live value")
+        preflight_tree_at = ast.parse(preflight_source_at)
+        imported_roots_at: set[str] = set()
+        called_names_at: set[str] = set()
+        referenced_names_at: set[str] = set()
+        for node in ast.walk(preflight_tree_at):
+            if isinstance(node, ast.Import):
+                imported_roots_at.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported_roots_at.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    called_names_at.add(node.func.id)
+                elif isinstance(node.func, ast.Attribute):
+                    called_names_at.add(node.func.attr)
+            elif isinstance(node, ast.Name):
+                referenced_names_at.add(node.id)
+        require(
+            imported_roots_at <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+            f"{label} preflight import drift",
+        )
+        require(
+            not imported_roots_at & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+            f"{label} preflight remote capability",
+        )
+        require(
+            not called_names_at & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+            f"{label} preflight runtime capability",
+        )
+        require(
+            not referenced_names_at & {"environ", "workflow_dispatch", "wrangler"},
+            f"{label} preflight indirect capability",
+        )
+
+    for intermediate_head in intermediate_heads:
+        validate_residual_security_texts(
+            tree_text(intermediate_head, ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"),
+            tree_text(intermediate_head, "scripts/shared/f10_9_g5_operational_activation_preflight.py"),
+            tree_text(intermediate_head, "tests/test_fase10_9_g5_operational_activation_preflight.py"),
+            tree_text(intermediate_head, ".github/workflows/f9-7-contract.yml"),
+            tree_text(intermediate_head, "workers/g5-trust-broker/src/index.mjs"),
+            tree_text(intermediate_head, "workers/g5-trust-broker/test/trust-broker.test.mjs"),
+            "G5 PR K intermediate",
+        )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr21, runbook, manifest_text))
+    for required in (
+        G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+        G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE,
+        G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+        G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE,
+        "31962569422=PASS",
+        "31962569598=PASS",
+        "95202690713=PASS",
+        "95202805508=PASS",
+        "run_attempt=1",
+        "terminal confirmation",
+        "GitHub Actions",
+        "15368",
+        "9919",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0021",
+    ):
+        require(required in combined, "G5 PR K reconciliation evidence drift")
+    pr393 = manifest.get("pr_393_reconciliation", {})
+    require(pr393.get("candidate_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE, "G5 PR K candidate evidence drift")
+    require(pr393.get("merge_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_BASE, "G5 PR K merge evidence drift")
+    require(pr393.get("tree_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE, "G5 PR K tree evidence drift")
+    require(
+        manifest.get("github_actions_app_identity") == {
+            "slug": "github-actions",
+            "name": "GitHub Actions",
+            "id": 15368,
+            "owner_id": 9919,
+        },
+        "G5 PR K GitHub Actions App identity drift",
+    )
+    terminal = manifest.get("terminal_confirmation", {})
+    require(
+        terminal.get("external_request_after_terminal_confirmation") == "FORBIDDEN",
+        "G5 PR K terminal request ordering drift",
+    )
+    require(terminal.get("cas_retry") == "FORBIDDEN", "G5 PR K terminal CAS retry drift")
+    require(
+        ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md" in f97_workflow,
+        "G5 PR K focused CI path drift",
+    )
+    findings = manifest.get("post_merge_pr393_residual_findings")
+    require(isinstance(findings, list) and len(findings) == 6, "G5 PR K finding count drift")
+    require(sum(1 for item in findings if item.get("severity") == "HIGH") == 1, "G5 PR K high finding drift")
+    require(sum(1 for item in findings if item.get("severity") == "MEDIUM") == 5, "G5 PR K medium finding drift")
+    require(
+        {item.get("status") for item in findings} == {"REMEDIATED_REPOSITORY_ONLY"},
+        "G5 PR K residual finding status drift",
+    )
+    for forbidden in (
+        "const current = statuses[0]",
+        "repositorySelection !== undefined",
+        "app?.slug === EXPECTED_GITHUB_ACTIONS_APP_SLUG",
+    ):
+        require(forbidden not in worker_source, "G5 PR K obsolete authority drift")
+    for required in (
+        "terminalEvidence",
+        "validateTerminalAuthority",
+        "terminalBinding",
+        "GITHUB_ACTIONS_APP_ID",
+        "GITHUB_ACTIONS_APP_OWNER_ID",
+        "repository_selection",
+        "EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS",
+        "tokenPromises.get(repositoryId)",
+        "splitLinkHeader",
+        "total_count",
+    ):
+        require(required in worker_source, "G5 PR K runtime remediation drift")
+    for required in (
+        "terminal confirmation rechecks run job check and deployment immediately before CAS",
+        "installation token promises are segmented by repository id under concurrency",
+        "repository_selection: \"all\"",
+        "token_schema_drift",
+        "total_count",
+        "app: { id: 15369",
+    ):
+        require(required in worker_tests, "G5 PR K worker test drift")
+    for required in (
+        "test_pr393_and_residual_remediation_contract_are_registered",
+        "terminal_confirmation",
+        "github_actions_app_identity",
+        "token_promise_cache",
+        G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+    ):
+        require(required in preflight_tests or required in preflight_source, "G5 PR K preflight drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR K manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR K preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR K preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR K preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR K preflight indirect capability",
+    )
+    validate_context_graph(repo, 78, 429)
 
 
 def detect_mode(
@@ -4753,6 +5088,12 @@ def detect_mode(
         return "g5_security_remediation"
     if (
         base_ref == "desarrollo"
+        and base == G5_RESIDUAL_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_residual_security_remediation"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -4903,6 +5244,10 @@ def main() -> int:
             if args.event == "pull_request" and args.head_ref == G5_SECURITY_REMEDIATION_HEAD_REF:
                 raise BoundaryError(
                     "G5 PR J security remediation branch requires the frozen PR #392 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR K residual security remediation branch requires the frozen PR #393 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -5414,6 +5759,10 @@ def main() -> int:
             )
         elif mode == "g5_security_remediation":
             validate_g5_security_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_residual_security_remediation":
+            validate_g5_residual_security_remediation(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

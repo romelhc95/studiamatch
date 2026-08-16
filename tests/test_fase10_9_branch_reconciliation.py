@@ -202,6 +202,13 @@ from scripts.security.f109_boundary import (
     G5_SECURITY_REMEDIATION_HEAD_REF,
     G5_SECURITY_REMEDIATION_PR392_CANDIDATE,
     G5_SECURITY_REMEDIATION_STATUS,
+    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+    G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+    G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE,
+    G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF,
+    G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE,
+    G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -284,6 +291,7 @@ from scripts.security.f109_boundary import (
     validate_g5_e1_wrangler_compat,
     validate_g5_trust_live_remediation,
     validate_g5_github_runtime_schema,
+    validate_g5_residual_security_remediation,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -4914,6 +4922,93 @@ class F109BoundaryTest(unittest.TestCase):
             G5_SECURITY_REMEDIATION_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 77, 428)
+
+    def test_g5_residual_security_remediation_allowlist_is_minimal_pr_k_paths(self) -> None:
+        self.assertEqual(
+            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+            {
+                ".context/00_INDICE.md": "M",
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+                "workers/g5-trust-broker/src/index.mjs": "M",
+                "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+            },
+        )
+        self.assertEqual(set(G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_residual_security_remediation(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF,
+                G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+            ),
+            "g5_residual_security_remediation",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_residual_security_remediation_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock, git_mock,
+    ) -> None:
+        self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_BASE, "51aaac5d289226b1f8f16de1daf69a16a084d585")
+        self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE, "7e7be8072cc416d76d2034a126d39393cdbcc968")
+        self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF, "feat/f10-9-pr-k-security-remediation")
+        self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE, "4d5d97bb37ffcd5126d467bde9152e705a895c85")
+        self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_STATUS, "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED")
+        head = "a" * 40
+        prior = "b" * 40
+        tree_mock.return_value = G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [prior],
+            prior: [G5_RESIDUAL_SECURITY_REMEDIATION_BASE],
+        }[commit]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        git_mock.side_effect = lambda tree_repo, _command, spec: (
+            tree_repo / spec.split(":", 1)[1]
+        ).read_text(encoding="utf-8")
+
+        validate_g5_residual_security_remediation(repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, head, "pull_request")
+
+        delta_mock.assert_has_calls(
+            [
+                mock.call(
+                    repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, prior,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+                ),
+                mock.call(
+                    repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, head,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+                ),
+            ]
+        )
+        self.assertEqual(delta_mock.call_count, 2)
+        context_mock.assert_called_once_with(repo, 78, 429)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
