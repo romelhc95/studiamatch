@@ -13,7 +13,7 @@ jobs:
   production-read-only-diagnostic:
     name: F10.9 G5 Production Read-Only Diagnostic
     if: >-
-      ${{ vars.G5_TRUST_OPERATIONAL_ENABLED == 'true' &&
+      ${{ vars.G5_TRUST_RUNTIME_ENABLED == 'true' &&
           github.ref == 'refs/heads/main' &&
           github.run_attempt == 1 }}
     runs-on: ubuntu-latest

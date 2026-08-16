@@ -49,11 +49,13 @@ Nota PR F: PR #388 queda `MERGED_POST_MERGE_VERIFIED` con candidate `eb052c27559
 
 Nota base PR G: PR #389 queda `MERGED_POST_MERGE_VERIFIED` con candidate `f48d0f25154970531744815e1d3769a20731717a`, merge `4bdc698cd9a8569e4e8290257effa6bc3aa3bb15` / tree `874ccffa3db9871189ca351d88cc84e120251e95`; Security `31921056993=PASS`, F9.7 run `31921056963=PASS`, focused `95100885045=PASS`, F9.7 job `95100958336=PASS`, `run_attempt=1`. `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado por incompatibilidad de Wrangler `4.30.0` con `deploy --strict`; PR G solo fija Wrangler exacto `4.44.0` y prueba dry-run offline sin credenciales Cloudflare. `E3A` queda `DEFINED_NOT_EXECUTED`; E4 permanece bloqueado por E3A. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
 
+Nota base PR H: PR #390 queda `MERGED_POST_MERGE_VERIFIED` con candidate `c36cc9b6efb166f2f840615759793b7917142f38`, merge protegido `9811b19e1527b39366e43907990c4b77d1394f75` / tree `edb7c827621fce1089d636b50494405115d348a6`; Security `31926378062=PASS`, F9.7 run `31926378069=PASS`, focused G5 job `95114516929=PASS`, F9.7 job `95114603279=PASS`, `run_attempt=1`. E1 queda `E1_DEPLOYMENT_PASS` con bootstrap Worker/Durable Object aislado y evidencia sanitizada; `E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED` queda registrado sin valores. PR H repository-only remedia la autoridad hardcodeada: SHA/tree/blob pasan a bindings runtime name-only ausentes y los valores PR C quedan como denylist legacy, no como fallback. La secuencia E4-before-E5 queda `E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE`; el orden vigente es E1 completed, E2, E3, E4, E4A, E4B, E5 y E6. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+
 Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `74` archivos Markdown, `418` enlaces locales y
+- el Context Graph contiene `75` archivos Markdown, `426` enlaces locales y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;

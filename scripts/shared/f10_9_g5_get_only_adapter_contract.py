@@ -33,10 +33,21 @@ EXPECTED_REPOSITORY = "romelhc95/studiamatch"
 EXPECTED_REF = "refs/heads/main"
 EXPECTED_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 EXPECTED_OIDC_AUDIENCE = "studiamatch-f10-9-g5-production-trust-plane"
-PROTECTED_SOURCE_SHA = "74defb6326d8432bf790cb84b4aa549fefc425be"
-PROTECTED_SOURCE_TREE = "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528"
-EXPECTED_WORKFLOW_SHA = PROTECTED_SOURCE_SHA
-EXPECTED_WORKFLOW_BLOB_SHA = "992308681c31dd5b2be3ab9c3fb1d20369120d92"
+RUNTIME_POLICY_STATUS = "RUNTIME_POLICY_REQUIRED_NOT_CONFIGURED"
+RUNTIME_POLICY_BINDING_NAMES = (
+    "G5_ALLOWED_CANDIDATE_SHA",
+    "G5_ALLOWED_CANDIDATE_TREE",
+    "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+)
+LEGACY_POLICY_DENYLIST = (
+    MappingProxyType(
+        {
+            "candidate_sha": "74defb6326d8432bf790cb84b4aa549fefc425be",
+            "candidate_tree": "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528",
+            "workflow_blob_sha": "992308681c31dd5b2be3ab9c3fb1d20369120d92",
+        }
+    ),
+)
 CURRENT_GATE_STATUS = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CONNECTED_STOP = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
 TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
@@ -1039,10 +1050,8 @@ def _validate_target_binding(binding: object) -> TargetBinding:
     if (
         type(binding.environment) is not str
         or binding.environment != EXPECTED_ENVIRONMENT
-        or type(binding.protected_source_sha) is not str
-        or binding.protected_source_sha != PROTECTED_SOURCE_SHA
-        or type(binding.protected_source_tree) is not str
-        or binding.protected_source_tree != PROTECTED_SOURCE_TREE
+        or not _valid_runtime_policy_sha(binding.protected_source_sha, "candidate_sha")
+        or not _valid_runtime_policy_sha(binding.protected_source_tree, "candidate_tree")
         or type(binding.contract_version) is not str
         or binding.contract_version != CONTRACT_VERSION
         or type(binding.schema_version) is not str
@@ -1107,6 +1116,26 @@ def _valid_positive_id(value: object) -> bool:
     return type(value) is int and value > 0 and value <= MAX_IMMUTABLE_INTEGER_ABS
 
 
+def _valid_runtime_policy_sha(value: object, legacy_key: str) -> bool:
+    return (
+        type(value) is str
+        and _SHA_RE.fullmatch(value) is not None
+        and all(value != legacy[legacy_key] for legacy in LEGACY_POLICY_DENYLIST)
+    )
+
+
+def _valid_runtime_policy_triplet(
+    candidate_sha: object,
+    candidate_tree: object,
+    workflow_blob_sha: object,
+) -> bool:
+    return (
+        _valid_runtime_policy_sha(candidate_sha, "candidate_sha")
+        and _valid_runtime_policy_sha(candidate_tree, "candidate_tree")
+        and _valid_runtime_policy_sha(workflow_blob_sha, "workflow_blob_sha")
+    )
+
+
 def _validate_gate_intent(intent: object, evaluated_at: datetime) -> GateIntent:
     _require_complete(intent, GateIntent, STOP_AUTHORITY_INVALID)
     if (
@@ -1116,12 +1145,14 @@ def _validate_gate_intent(intent: object, evaluated_at: datetime) -> GateIntent:
         or intent.ref != EXPECTED_REF
         or type(intent.ref_protected) is not bool
         or not intent.ref_protected
-        or intent.candidate_sha != PROTECTED_SOURCE_SHA
-        or intent.candidate_tree != PROTECTED_SOURCE_TREE
+        or not _valid_runtime_policy_triplet(
+            intent.candidate_sha,
+            intent.candidate_tree,
+            intent.workflow_blob_sha,
+        )
         or intent.workflow_path != EXPECTED_WORKFLOW_PATH
         or intent.workflow_ref != f"{EXPECTED_REPOSITORY}/{EXPECTED_WORKFLOW_PATH}@{EXPECTED_REF}"
-        or intent.workflow_sha != EXPECTED_WORKFLOW_SHA
-        or intent.workflow_blob_sha != EXPECTED_WORKFLOW_BLOB_SHA
+        or intent.workflow_sha != intent.candidate_sha
         or not _valid_positive_id(intent.run_id)
         or intent.run_attempt != 1
         or not _valid_positive_id(intent.check_run_id)
@@ -3384,9 +3415,7 @@ __all__ = [
     "EXPECTED_REPOSITORY",
     "EXPECTED_REF",
     "EXPECTED_WORKFLOW",
-    "EXPECTED_WORKFLOW_BLOB_SHA",
     "EXPECTED_WORKFLOW_PATH",
-    "EXPECTED_WORKFLOW_SHA",
     "EXCLUDED_DYNAMIC_SOURCE_KINDS",
     "EffectiveProfileRouting",
     "FG3CohortEvidence",
@@ -3421,10 +3450,9 @@ __all__ = [
     "LIFECYCLE_TIMESTAMP_ORIGINS",
     "LifecycleEvidence",
     "LifecycleProxy",
+    "LEGACY_POLICY_DENYLIST",
     "ManifestBuilderEvidenceReceipt",
     "PUBLIC_PROJECTION_FORBIDDEN_FIELDS",
-    "PROTECTED_SOURCE_SHA",
-    "PROTECTED_SOURCE_TREE",
     "PageEvidence",
     "PaginationEvidence",
     "QueryCapability",
@@ -3471,6 +3499,8 @@ __all__ = [
     "StaticSourceTarget",
     "SnapshotPairPayloadEvidence",
     "TABLE_COLUMNS",
+    "RUNTIME_POLICY_BINDING_NAMES",
+    "RUNTIME_POLICY_STATUS",
     "TRUST_MODEL_FUTURE_REQUIREMENTS",
     "TRUST_STOP",
     "TargetBinding",

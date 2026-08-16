@@ -81,6 +81,13 @@
 - [ADR-0009](decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md)
 - [ADR-0010](decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md)
 - [ADR-0011](decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md)
+- [ADR-0012](decisiones/ADR-0012_trust_plane_g5_repository_only.md)
+- [ADR-0013](decisiones/ADR-0013_trust_broker_durable_object_ledger.md)
+- [ADR-0014](decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md)
+- [ADR-0015](decisiones/ADR-0015_g5_deployment_ready_disabled.md)
+- [ADR-0016](decisiones/ADR-0016_g5_operational_activation_gates.md)
+- [ADR-0017](decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md)
+- [ADR-0018](decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04

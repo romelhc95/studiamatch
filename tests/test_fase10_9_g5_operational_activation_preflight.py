@@ -25,6 +25,7 @@ from scripts.shared.f10_9_g5_operational_activation_preflight import (
 MANIFEST_PATH = Path(".context/operaciones/g5_operational_activation_manifest_2026_08_15.json")
 RUNBOOK_PATH = Path(".context/operaciones/g5_operational_activation_runbook_2026_08_15.md")
 ADR_PATH = Path(".context/decisiones/ADR-0016_g5_operational_activation_gates.md")
+ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -86,11 +87,44 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
     assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
-    assert any(
-        item["name"] == "G5_TRUST_OPERATIONAL_ENABLED"
-        and item["state"] == "ABSENT_NOT_CONFIGURED"
-        for item in manifest["required_configuration_names"]
-    )
+    assert all(item["state"] == "ABSENT_NOT_CONFIGURED" for item in manifest["required_configuration_names"])
+    assert [item["name"] for item in manifest["required_configuration_names"]] == list(EXPECTED_CONFIGURATION_NAMES)
+
+
+def test_pr390_and_e1_deployment_are_sanitized_and_reconciled() -> None:
+    manifest = _manifest()
+    pr390 = manifest["pr_390_reconciliation"]
+    assert pr390 == {
+        "candidate_sha": "c36cc9b6efb166f2f840615759793b7917142f38",
+        "merge_sha": "9811b19e1527b39366e43907990c4b77d1394f75",
+        "tree_sha": "edb7c827621fce1089d636b50494405115d348a6",
+        "status": "MERGED_POST_MERGE_VERIFIED",
+        "security_run_id": "31926378062",
+        "security_conclusion": "PASS",
+        "f9_7_run_id": "31926378069",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95114516929",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95114603279",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+    }
+    e1 = manifest["e1_deployment_reconciliation"]
+    assert e1["status"] == "E1_DEPLOYMENT_PASS"
+    assert e1["credential_state"] == "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED"
+    assert e1["version"] == "f10.9-g5-trust-broker.v2"
+    assert e1["binding"] == "G5_ATOMIC_LEDGER"
+    assert e1["class_name"] == "G5AtomicLedgerDurableObject"
+    assert e1["migration_tag"] == "repository-only-v1"
+    assert e1["worker_count_expected"] == 1
+    assert e1["workers_dev_enabled"] is False
+    assert e1["preview_urls_enabled"] is False
+    assert e1["endpoint_public"] is False
+    assert e1["routes_count"] == e1["custom_domains_count"] == 0
+    assert e1["schedules_count"] == e1["vars_count"] == e1["secrets_count"] == 0
+    assert len(e1["dry_run_bundle_sha256"]) == len(e1["deployed_payload_sha256"]) == 64
+    assert "account" not in json.dumps(e1).lower()
+    assert "token" not in json.dumps(e1).lower()
 
 
 def test_manifest_contains_no_configuration_values_or_remote_identifiers() -> None:
@@ -106,10 +140,10 @@ def test_manifest_contains_no_configuration_values_or_remote_identifiers() -> No
         "sb_publishable_",
         "eyJhbG",
         "-----BEGIN",
-        "installation_id",
+        "installation_identifier",
         "project_ref",
         "account_id",
-        "workers_dev",
+        "worker_id",
     ):
         assert forbidden not in serialized
     forbidden_keys = {"value", "secret", "token", "private_key", "current_value"}
@@ -128,12 +162,12 @@ def test_permissions_are_exact_and_write_permissions_are_minimal() -> None:
     ] == ["id-token"]
 
 
-def test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing() -> None:
+def test_gates_e1_to_e6_are_reordered_and_non_executing() -> None:
     manifest = _manifest()
     gates = manifest["gates"]
     assert [gate["id"] for gate in gates] == list(EXPECTED_GATES)
     domains = [gate["domain"] for gate in gates]
-    assert len(domains) == len(set(domains)) == 7
+    assert len(domains) == len(set(domains)) == 8
     for gate in gates:
         assert gate["future_authorization_required"] is True
         assert gate["preconditions"]
@@ -141,14 +175,22 @@ def test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing() -> None:
         assert gate["rollback"]
         assert gate["stop_conditions"]
     gates_by_id = {gate["id"]: gate for gate in gates}
-    assert gates_by_id["E3A"]["domain"] == "trust_broker_endpoint_exposure_decision"
-    assert "DEFINED_NOT_EXECUTED" in RUNBOOK_PATH.read_text(encoding="utf-8")
-    assert any("E3A" in condition for condition in gates_by_id["E4"]["preconditions"])
-    assert any("E3A" in condition for condition in gates_by_id["E4"]["stop_conditions"])
+    assert gates_by_id["E4A"]["domain"] == "runtime_policy_exact_binding_and_redeploy"
+    assert gates_by_id["E4B"]["domain"] == "trust_broker_endpoint_exposure_decision"
+    assert "SUPERSEDED_NOT_EXECUTABLE" in RUNBOOK_PATH.read_text(encoding="utf-8")
+    assert all(
+        any(required in condition for condition in gates_by_id["E5"]["preconditions"])
+        for required in ("E4", "E4A", "E4B")
+    )
+    assert manifest["superseded_sequence"] == "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE"
 
 
 def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
-    combined = RUNBOOK_PATH.read_text(encoding="utf-8") + ADR_PATH.read_text(encoding="utf-8")
+    combined = (
+        RUNBOOK_PATH.read_text(encoding="utf-8")
+        + ADR_PATH.read_text(encoding="utf-8")
+        + ADR18_PATH.read_text(encoding="utf-8")
+    )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
         "attempt_1_job = 95079764790=CANCELLED",
@@ -160,6 +202,10 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "E1_DEPLOYMENT_PASS",
+        "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
+        "G5_TRUST_RUNTIME_ENABLED",
+        "SUPERSEDED_NOT_EXECUTABLE",
     ):
         assert marker in combined
     assert "No se puede combinar" in combined

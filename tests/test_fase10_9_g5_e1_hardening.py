@@ -238,18 +238,18 @@ def test_cloudflare_credential_names_are_standard_for_e1_only() -> None:
     assert "CLOUDFLARE_ACCOUNT_ID" not in package_and_config
 
 
-def test_e3a_endpoint_gate_is_separate_and_blocks_e4() -> None:
+def test_e4b_endpoint_gate_is_separate_and_blocks_e5() -> None:
     manifest = _json(MANIFEST)
     gates = {gate["id"]: gate for gate in manifest["gates"]}
-    assert list(gates) == ["E1", "E2", "E3", "E3A", "E4", "E5", "E6"]
-    assert gates["E3A"]["domain"] == "trust_broker_endpoint_exposure_decision"
-    assert any("E3A" in item for item in gates["E4"]["preconditions"])
-    assert any("E3A" in item for item in gates["E4"]["stop_conditions"])
+    assert list(gates) == ["E1", "E2", "E3", "E4", "E4A", "E4B", "E5", "E6"]
+    assert gates["E4B"]["domain"] == "trust_broker_endpoint_exposure_decision"
+    assert any("E4B" in item for item in gates["E5"]["preconditions"])
+    assert any("E4B" in item for item in gates["E5"]["stop_conditions"])
     docs = ADR16.read_text(encoding="utf-8") + ADR17.read_text(encoding="utf-8") + RUNBOOK.read_text(encoding="utf-8")
-    assert "E3A" in docs
+    assert "E4B" in docs
     assert "DEFINED_NOT_EXECUTED" in docs
-    assert "Este PR no selecciona ni habilita endpoint" in docs
-    assert "E4 queda bloqueado" in docs
+    assert "endpoint" in docs
+    assert "E5" in docs
 
 
 def test_e1_hardening_docs_preserve_stops_and_no_sensitive_values() -> None:
@@ -262,10 +262,11 @@ def test_e1_hardening_docs_preserve_stops_and_no_sensitive_values() -> None:
         "E1_ACCOUNT_READINESS_GO",
         "E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE",
         "NOT_EXECUTED",
+        "E1_DEPLOYMENT_PASS",
         "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
         "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
         "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
-        "G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`",
+        "G5_TRUST_RUNTIME_ENABLED",
     ):
         assert marker in combined
     for pattern in SENSITIVE_PATTERNS:

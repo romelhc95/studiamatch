@@ -4,25 +4,31 @@
 |---|---|
 | Estado | `PREPARED_NOT_CONFIGURED` |
 | Subfase | `F10.9` |
-| Alcance | PR E + PR F + PR G repository-only |
+| Alcance | PR H repository-only posterior a E1 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust actual | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected actual | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
-| Operacion remota | `NO` |
+| Operacion remota en PR H | `NO` |
 
 ## Proposito
 
-Este runbook prepara, sin ejecutar, la secuencia futura para activar G5 de forma
-operacional. PR E, PR F y PR G no despliegan Cloudflare, no configuran GitHub App, no modifican
-environments, no solicita OIDC live, no ejecuta Production, no accede a Supabase
-o fuentes, no ejecuta SQL y no crea writers o schedules.
+Este runbook registra E1 ya ejecutado como bootstrap aislado valido y corrige la
+secuencia operacional futura sin desplegar Cloudflare, configurar GitHub App,
+habilitar endpoint, ejecutar OIDC live, acceder a Production, Supabase o fuentes,
+aplicar SQL, crear writers o schedules, ni ejecutar `workflow_dispatch`.
 
-La reconciliacion PR #387 queda clasificada como
-`MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`:
+E1 desplego un Worker/Durable Object bootstrap aislado. E1 no acredita trust
+operacional porque no existen bindings runtime de policy exacta, GitHub App live,
+endpoint aprobado ni smoke trust-only. El trust permanece
+`STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` y el gate permanece
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`.
+
+## Reconciliacion PR #387
 
 ```text
+status = MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY
 candidate = d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d
 merge = bd0d82864c26755435e551b835d145b864383810
 tree = 135af5a95237a1d4d6e1b977e8bb9ab82ac95e16
@@ -41,55 +47,69 @@ attempt_2_run_attempt = 2
 mantiene `run_attempt=1` obligatorio para evitar replay, partial rerun o aprobacion
 ambigua. El retry CI no constituye gate G5 operacional.
 
-La reconciliacion PR #388 queda clasificada como `MERGED_POST_MERGE_VERIFIED`:
+## Reconciliacion PR #390 Y E1
+
+PR #390 queda `MERGED_POST_MERGE_VERIFIED`:
 
 ```text
-candidate = eb052c2755937a2bf239cd778bc814274fbc846f
-merge = 71d6640b990b934fa02401518650ec38dca6cae4
-tree = 815a2316c8de67047567d89a9928576869f43c4f
-security = 31917838025=PASS
-f9_7_run = 31917838011=PASS
-focused = 95092629457=PASS
-f9_7_job = 95092706912=PASS
+candidate = c36cc9b6efb166f2f840615759793b7917142f38
+merge = 9811b19e1527b39366e43907990c4b77d1394f75
+tree = edb7c827621fce1089d636b50494405115d348a6
+security = 31926378062=PASS
+f9_7_run = 31926378069=PASS
+focused_g5_job = 95114516929=PASS
+f9_7_job = 95114603279=PASS
 run_attempt = 1
 ```
 
-El preflight operacional read-only de cuenta queda `E1_ACCOUNT_READINESS_GO`, con
-Workers existentes `0` y deployment `NOT_EXECUTED`. PR F registra
-`E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` para endurecer el paquete antes
-de solicitar deployment real.
-
-La reconciliacion PR #389 queda clasificada como `MERGED_POST_MERGE_VERIFIED`:
+E1 queda registrado como `E1_DEPLOYMENT_PASS` con evidencia sanitizada:
 
 ```text
-candidate = f48d0f25154970531744815e1d3769a20731717a
-merge = 4bdc698cd9a8569e4e8290257effa6bc3aa3bb15
-tree = 874ccffa3db9871189ca351d88cc84e120251e95
-security = 31921056993=PASS
-f9_7_run = 31921056963=PASS
-focused = 95100885045=PASS
-f9_7_job = 95100958336=PASS
-run_attempt = 1
+credential_state = E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED
+worker_count_expected = 1
+version = f10.9-g5-trust-broker.v2
+binding = G5_ATOMIC_LEDGER
+class = G5AtomicLedgerDurableObject
+migration_tag = repository-only-v1
+dry_run_bundle_sha256 = 5eeada06370b303bdd205f39d907f4ef8bddd091a8b965b65ff9659207acdfdf
+deployed_payload_sha256 = 2a7ec2810a225a682f641925b1fe93aa45fff6b7d6e41712a51fcc25e17e360c
+workers_dev = false
+preview_urls = false
+routes = 0
+custom_domains = 0
+schedules = 0
+vars = 0
+secrets = 0
+endpoint_public = false
 ```
 
-El hallazgo `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado:
-Wrangler `4.30.0` no expone `deploy --strict`, por lo que PR G fija Wrangler
-exacto `4.44.0` y exige dry-run offline sin credenciales Cloudflare. E1 sigue
-`NOT_EXECUTED` hasta autorizacion separada.
+No se registra account ID, token, Worker ID, deployment ID, URL ni subdomain.
 
-## Nombres Repository-Only
+## Policy Runtime Futura
 
-El manifest registra solo nombres futuros, sin valores:
+Los SHA/tree/blob dejan de ser autoridad hardcodeada final. La secuencia futura
+queda resuelta asi:
 
+1. Se promociona primero el commit diagnostico a `main`.
+2. Luego se configuran `G5_ALLOWED_CANDIDATE_SHA`, `G5_ALLOWED_CANDIDATE_TREE` y `G5_ALLOWED_WORKFLOW_BLOB_SHA` con los valores exactos de `main`.
+3. El broker consume esos bindings como policy inmutable.
+4. Ningun caller puede aportar SHA/tree/blob, workflow, approval, environment, deployment, OIDC claims o receipt.
+5. Cualquier fallback a SHA/tree/blob legacy queda prohibido.
+
+Nombres futuros repository-only, todos `ABSENT_NOT_CONFIGURED`:
+
+- `G5_ALLOWED_CANDIDATE_SHA`.
+- `G5_ALLOWED_CANDIDATE_TREE`.
+- `G5_ALLOWED_WORKFLOW_BLOB_SHA`.
 - `G5_GITHUB_APP_PRIVATE_KEY`.
 - `G5_GITHUB_APP_ID`.
+- `G5_GITHUB_APP_INSTALLATION_ID`.
 - `G5_OIDC_AUDIENCE`.
 - `G5_TRUST_BROKER_ENDPOINT`.
-- `G5_TRUST_OPERATIONAL_ENABLED`.
+- `G5_TRUST_RUNTIME_ENABLED`.
 
-`G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`. Este runbook no
-incluye identificadores numericos remotos, direcciones reales, installation IDs,
-project refs, tokens, secrets, claves ni material privado.
+`G5_TRUST_RUNTIME_ENABLED` permanece ausente. Este PR no configura secretos,
+variables ni environments.
 
 ## Permisos Futuros Minimos
 
@@ -103,7 +123,9 @@ GitHub App read-only:
 | Deployments | `read` |
 | Metadata | `read` |
 
-Todo permiso GitHub App `write` queda prohibido.
+Todo permiso GitHub App `write` queda prohibido. El POST para obtener installation
+token solo se permite contra el endpoint de token de instalacion y con permisos
+read-only; cualquier otra llamada GitHub no-GET queda prohibida.
 
 Workflow:
 
@@ -115,258 +137,89 @@ Workflow:
 | `id-token` | `write` |
 
 Todo otro permiso workflow `write` queda prohibido. La rama futura debe ser
-`main`, la ref `refs/heads/main` y el environment `Production`.
+`main`, la ref `refs/heads/main`, `run_attempt=1` y environment `Production`.
+
+## Orden Operacional Corregido
+
+La secuencia anterior E4-before-E5 queda
+`E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE`. El orden vigente es:
+
+| Gate | Alcance unico | Estado |
+|---|---|---|
+| `E1` | Bootstrap Cloudflare Worker/Durable Object aislado | `COMPLETED` |
+| `E2` | GitHub App read-only | `NOT_EXECUTED` |
+| `E3` | Environment Production disabled | `NOT_EXECUTED` |
+| `E4` | Promocion diagnostica Certification/Main | `NOT_EXECUTED` |
+| `E4A` | Binding exacto SHA/tree/blob y redeploy aislado | `NOT_EXECUTED` |
+| `E4B` | Exposicion endpoint | `NOT_EXECUTED` |
+| `E5` | Smoke trust-only sin data plane | `NOT_EXECUTED` |
+| `E6` | Creacion, aprobacion y consumo G5 | `NOT_EXECUTED` |
+
+E5 queda bloqueado hasta que E4, E4A y E4B esten completos. E2-E6 permanecen
+`NOT_EXECUTED`. El endpoint permanece inexistente.
 
 ## Separacion Trust Plane / Data Plane
 
-Cloudflare Worker y Durable Object pertenecen al trust plane G5. El trust plane
-solo valida identidad, receipt, nonce, `jti`, gate single-use y reason codes. No
-lee ni escribe data plane, no consulta Supabase por si mismo y no reemplaza los
-guards del collector GET-only. El data plane permanece fuera hasta un gate futuro
-con aprobacion separada.
+El Worker y Durable Object pertenecen al trust plane G5. El trust plane solo valida
+identidad, receipt, nonce, `jti`, gate single-use y reason codes. No lee ni escribe
+data plane, no consulta Supabase por si mismo y no reemplaza los guards del
+collector GET-only. El data plane queda fuera hasta autorizacion separada.
 
-## Gate E1 - Deployment Cloudflare Worker/Durable Object
+## Gate E1 - Bootstrap Cloudflare Worker/Durable Object
 
-Precondiciones:
+Estado: `COMPLETED`.
 
-- PR F y PR G fusionados y CI repository-only PASS.
-- ADR-0016 aceptada en `desarrollo`.
-- [ADR-0017](../decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md) aceptada en `desarrollo`.
-- Versiones congeladas: `f10.9-g5-trust-broker.v2` y `repository-only-v1`.
-- Wrangler exacto `4.44.0` instalado desde lockfile dentro del contenedor.
-- `wrangler.repository-only.jsonc` mantiene `workers_dev:false` y `preview_urls:false`.
-- Cero routes, domains, custom domains, preview URLs o triggers.
-- Dry-run obligatorio completado offline antes de deployment, sin `CLOUDFLARE_API_TOKEN` ni `CLOUDFLARE_ACCOUNT_ID`.
-- Sin Production y sin data plane.
+E1 desplego un bootstrap aislado con `workers.dev=false`, preview URLs disabled,
+cero routes/domains/schedules/vars/secrets y sin endpoint publico. El Worker remoto
+no se modifica en PR H.
 
-Comando dry-run obligatorio previo:
+STOP posterior a E1:
 
-```bash
-wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run
-```
+- Runtime policy binding ausente.
+- GitHub App config ausente.
+- Endpoint no aprobado.
+- `G5_TRUST_RUNTIME_ENABLED` ausente.
+- Cualquier intento de data plane.
 
-Comando deployment futuro exacto:
+## Gates Pendientes
 
-```bash
-wrangler deploy --strict --config wrangler.repository-only.jsonc
-```
+E2 GitHub App read-only requiere autorizacion separada, matriz read-only, private
+key no registrada y obtencion de installation token con timeout y limites.
 
-Flags prohibidos en E1: `--temporary`, `--route`, `--routes`, `--domain`,
-`--triggers`, `--schedule`, `--schedules`, `--env-file`, `--secrets-file`,
-`--keep-vars` y autoconfiguracion. Los nombres de
-credencial E1 son exclusivamente `CLOUDFLARE_API_TOKEN` y
-`CLOUDFLARE_ACCOUNT_ID`. `CF_API_TOKEN` y `CF_ACCOUNT_ID` permanecen solo para
-usos legacy existentes fuera de E1. Wrangler consumira credenciales durante E1,
-pero no puede imprimirlas, retornarlas ni persistirlas.
+E3 Environment Production disabled requiere autorizacion separada y conserva
+`G5_TRUST_RUNTIME_ENABLED` ausente hasta que corresponda.
 
-Outputs sanitizados:
+E4 promociona primero el commit diagnostico a `main` para resolver la
+autorreferencia SHA/tree/blob sin que el caller aporte valores.
 
-- Version del Worker.
-- Nombre logico del Durable Object.
-- Digest de deployment, sin direccion real ni identificador remoto.
+E4A configura bindings exactos y redeploy aislado. Sin E4A, el broker termina STOP.
 
-Rollback:
+E4B decide y aprueba endpoint. Sin E4B, no existe endpoint publico.
 
-- Deshabilitar ruta o binding futuro.
-- Restaurar version previa del Worker.
-- Preservar ledger y receipts para auditoria.
+E5 ejecuta smoke trust-only sin data plane. E5 se bloquea si falta E4, E4A o E4B.
 
-STOP:
-
-- Binding faltante o inesperado.
-- Version no congelada.
-- `deploy --strict` no soportado por Wrangler congelado.
-- `workers_dev` distinto de `false` o `preview_urls` distinto de `false`.
-- Cualquier intento de route/domain/trigger/deployment fuera del gate E1 aprobado.
-- Cualquier prompt de billing, plan o costo.
-
-## Gate E2 - GitHub App Read-Only
-
-Precondiciones:
-
-- Evidencia E1 revisada.
-- Matriz read-only aprobada.
-- Ningun permiso `write` solicitado.
-
-Outputs sanitizados:
-
-- Matriz de permisos.
-- Alias del app, sin identificador numerico.
-- Inventario de nombres, sin valores.
-
-Rollback:
-
-- Revocar instalacion futura.
-- Retirar nombre de clave configurada.
-- Conservar nota de auditoria sanitizada.
-
-STOP:
-
-- Cualquier permiso `write`.
-- Alcance de repositorio inesperado.
-- Material privado no revisado o expuesto.
-
-## Gate E3 - Environment Production
-
-Precondiciones:
-
-- Evidencia E2 revisada.
-- Branch policy `main` confirmada por nombre.
-- Reviewer humano requerido y self-review bloqueado.
-- `G5_TRUST_OPERATIONAL_ENABLED` sigue ausente antes de este gate.
-
-Outputs sanitizados:
-
-- Inventario name-only de variables/secrets.
-- Estado de reviewer policy.
-- Estado disabled por defecto.
-
-Rollback:
-
-- Remover `G5_TRUST_OPERATIONAL_ENABLED`.
-- Retirar nombres de configuracion agregados.
-- Restaurar estado disabled.
-
-STOP:
-
-- Branch distinta de `main`.
-- Environment distinto de `Production`.
-- Flag operacional habilitado antes de autorizacion E6.
-
-## Gate E3A - Exposicion Del Endpoint Del Trust Broker
-
-Estado: `DEFINED_NOT_EXECUTED`.
-
-Precondiciones:
-
-- Evidencia E1 revisada con Worker aislado y no accesible publicamente.
-- Evidencia E2 y E3 revisada.
-- Ningun endpoint seleccionado o habilitado por PR F.
-
-Opciones futuras, con autorizacion separada:
-
-- workers.dev explicito y temporal.
-- route/custom domain protegido.
-
-Outputs sanitizados:
-
-- Decision de estrategia de endpoint.
-- Estado temporal de exposicion.
-- Requisito de proteccion.
-
-Rollback:
-
-- Deshabilitar exposicion workers.dev.
-- Retirar route/custom domain si se hubiera aprobado posteriormente.
-- Mantener E1 aislado.
-
-STOP:
-
-- Endpoint seleccionado sin aprobacion E3A.
-- Exposicion publica antes de E3A.
-- Intento de E4 antes de E3A.
-
-## Gate E4 - Smoke Test Trust-Only Sin Production
-
-Precondiciones:
-
-- E1-E3A revisados.
-- E3A aprobado por separado.
-- Sin target data plane configurado.
-- Solo trust broker y ledger disponibles.
-
-Outputs sanitizados:
-
-- Reason code de trust.
-- Receipt digest.
-- Prueba de no acceso data plane.
-
-Rollback:
-
-- Deshabilitar flag operacional.
-- Expirar gate de smoke.
-- Conservar receipts sanitizados.
-
-STOP:
-
-- Intento de data plane.
-- E3A no aprobado.
-- Receipt ausente o ambiguo.
-- Capacidad write detectada.
-
-## Gate E5 - Promocion Diagnostica Certification/Main
-
-Precondiciones:
-
-- E4 PASS.
-- Reviews protegidas frescas.
-- Alcance diagnostico, sin Production operacional.
-
-Outputs sanitizados:
-
-- Commit y tree.
-- Nombres de required checks.
-- Decision de promocion diagnostica.
-
-Rollback:
-
-- Revertir PR diagnostico si corresponde.
-- Mantener G5 disabled.
-- Bloquear gate sucesor.
-
-STOP:
-
-- Approval stale.
-- Tree drift.
-- Job Production inesperado.
-
-## Gate E6 - Creacion, Aprobacion Y Consumo G5
-
-Precondiciones:
-
-- E5 PASS.
-- Approval manual listo.
-- `run_attempt=1` obligatorio.
-- Gate `READY` no consumido.
-
-Outputs sanitizados:
-
-- Digest de identidad del gate.
-- Receipt digest.
-- Reason code final.
-
-Rollback:
-
-- Preservar gate consumido aunque falle el diagnostico posterior.
-- Deshabilitar flag operacional.
-- Abrir remediacion repository-only si hay ambiguedad.
-
-STOP:
-
-- `run_attempt != 1`.
-- Approval mismatch.
-- Receipt replay o consumo ambiguo.
+E6 crea, aprueba y consume G5 con `run_attempt=1`, exact-one repository/ref/workflow,
+run/environment/approval y receipt single-use.
 
 ## Regla De No Combinacion
 
-E1, E2, E3, E3A, E4, E5 y E6 requieren autorizaciones separadas. No se puede combinar
-deployment, GitHub App, environment, endpoint y Production en una sola autorizacion. Un gate
-PASS no concede el siguiente. E4 queda bloqueado hasta que E3A tenga aprobacion separada.
-
-Un gate PASS no concede el siguiente.
+E1, E2, E3, E4, E4A, E4B, E5 y E6 requieren autorizaciones separadas. No se puede
+combinar deployment, GitHub App, environment, endpoint, runtime bindings, smoke y
+Production en una sola autorizacion. Un gate PASS no concede el siguiente.
 
 ## Preflight Offline
 
 El preflight offline valida solo:
 
-- presencia futura por nombre;
-- formato no sensible de nombres;
-- permisos exactos;
-- branch `main`;
-- environment `Production`;
-- versiones congeladas;
+- PR #390 reconciliado.
+- E1 PASS sanitizado.
+- credencial E1 revocada y removida localmente.
+- presencia futura por nombre y ausencia de valores.
+- permisos exactos.
+- branch `main` y environment `Production`.
+- versions congeladas.
+- gates separados y reordenados.
 - ausencia de writes y operaciones remotas.
 
 El preflight no lee valores reales, no consulta variables de entorno, no realiza red
-y no prueba disponibilidad operacional. Su salida PASS solo significa que el paquete
-repository-only no contiene configuracion sensible ni combinacion de gates.
+y no prueba disponibilidad operacional.

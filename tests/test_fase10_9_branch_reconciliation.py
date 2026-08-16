@@ -177,6 +177,15 @@ from scripts.security.f109_boundary import (
     G5_E1_WRANGLER_COMPAT_BASE_TREE,
     G5_E1_WRANGLER_COMPAT_HEAD_REF,
     G5_E1_WRANGLER_COMPAT_STATUS,
+    G5_E1_CREDENTIAL_ATTESTATION,
+    G5_E1_DEPLOYMENT_STATUS,
+    G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES,
+    G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+    G5_TRUST_LIVE_REMEDIATION_BASE,
+    G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+    G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
+    G5_TRUST_LIVE_REMEDIATION_STATUS,
+    G5_TRUST_RUNTIME_POLICY_NAMES,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -257,6 +266,7 @@ from scripts.security.f109_boundary import (
     validate_g5_operational_runbook,
     validate_g5_e1_hardening,
     validate_g5_e1_wrangler_compat,
+    validate_g5_trust_live_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -4457,6 +4467,215 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_E1_WRANGLER_COMPAT_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_trust_live_remediation_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(
+            G5_TRUST_LIVE_REMEDIATION_BASE,
+            "9811b19e1527b39366e43907990c4b77d1394f75",
+        )
+        self.assertEqual(
+            G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+            "edb7c827621fce1089d636b50494405115d348a6",
+        )
+        self.assertEqual(
+            G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
+            "feat/f10-9-pr-h-trust-live-remediation",
+        )
+        self.assertEqual(G5_TRUST_LIVE_REMEDIATION_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(G5_E1_DEPLOYMENT_STATUS, "E1_DEPLOYMENT_PASS")
+        self.assertEqual(
+            G5_E1_CREDENTIAL_ATTESTATION,
+            "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
+        )
+        head = "c" * 40
+        tree_mock.return_value = G5_TRUST_LIVE_REMEDIATION_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [G5_TRUST_LIVE_REMEDIATION_BASE],
+        }[commit]
+        repo = self.make_repo()
+        evidence = "\n".join(
+            (
+                G5_TRUST_LIVE_REMEDIATION_STATUS,
+                "c36cc9b6efb166f2f840615759793b7917142f38",
+                G5_TRUST_LIVE_REMEDIATION_BASE,
+                G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+                "31926378062=PASS",
+                "31926378069=PASS",
+                "95114516929=PASS",
+                "95114603279=PASS",
+                "run_attempt=1",
+                G5_E1_DEPLOYMENT_STATUS,
+                G5_E1_CREDENTIAL_ATTESTATION,
+                "f10.9-g5-trust-broker.v2",
+                "G5_ATOMIC_LEDGER",
+                "G5AtomicLedgerDurableObject",
+                "repository-only-v1",
+                "routes/domains/schedules/vars/secrets `0`",
+                "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
+                "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+                "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+                "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+                "Hito 1 `60%`",
+                "F10.9 `38%`",
+                "G5 `50%`",
+                *G5_TRUST_RUNTIME_POLICY_NAMES,
+            )
+        )
+        for relative in (
+            ".context/estado_del_proyecto.md",
+            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+            ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+            ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md",
+            ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+            ".context/decisiones/ADR-0016_g5_operational_activation_gates.md",
+            ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md",
+        ):
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(evidence, encoding="utf-8")
+        manifest_path = repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
+                    "e1_deployment_reconciliation": {
+                        "status": G5_E1_DEPLOYMENT_STATUS,
+                        "credential_state": G5_E1_CREDENTIAL_ATTESTATION,
+                    },
+                    "required_configuration_names": [
+                        {"name": name, "scope": "runtime", "state": "ABSENT_NOT_CONFIGURED"}
+                        for name in G5_TRUST_RUNTIME_POLICY_NAMES
+                    ],
+                    "gates": [
+                        {"id": gate}
+                        for gate in ("E1", "E2", "E3", "E4", "E4A", "E4B", "E5", "E6")
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        files = {
+            "scripts/shared/f10_9_g5_operational_activation_preflight.py": "from __future__ import annotations\nWRANGLER_VERSION = '4.44.0'\n",
+            "tests/test_fase10_9_g5_operational_activation_preflight.py": "\n".join(
+                (
+                    "test_pr390_and_e1_deployment_are_sanitized_and_reconciled",
+                    "test_gates_e1_to_e6_are_reordered_and_non_executing",
+                    "G5_TRUST_RUNTIME_ENABLED",
+                )
+            ),
+            "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "\n".join(
+                ("RUNTIME_POLICY_BINDING_NAMES", "LEGACY_POLICY_DENYLIST", "_valid_runtime_policy_triplet")
+            ),
+            "tests/test_fase10_9_g5_get_only_adapter_contract.py": "test_legacy_pr_c_sha_tree_blob_are_denylist_not_authority",
+            ".github/workflows/f9-7-contract.yml": ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md",
+            ".github/workflows/g5-manual-trust-gate.yml": "vars.G5_TRUST_RUNTIME_ENABLED == 'true'",
+            "workers/g5-trust-broker/src/index.mjs": "\n".join(
+                (
+                    "RUNTIME_POLICY_BINDING_NAMES",
+                    "G5ConnectedGithubAppAdapter",
+                    "G5GithubJwksClient",
+                    "createGithubAppJwt",
+                    "LEGACY_POLICY_DENYLIST",
+                    "G5_GITHUB_APP_INSTALLATION_ID",
+                    "G5_TRUST_RUNTIME_ENABLED",
+                )
+            ),
+            "workers/g5-trust-broker/test/trust-broker.test.mjs": "G5_TRUST_RUNTIME_ENABLED",
+        }
+        for relative, content in files.items():
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+        validate_g5_trust_live_remediation(
+            repo, G5_TRUST_LIVE_REMEDIATION_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            repo, G5_TRUST_LIVE_REMEDIATION_BASE, head,
+            G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+            G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 75, 426)
+
+    def test_g5_trust_live_remediation_allowlist_is_minimal_pr_h_paths(self) -> None:
+        self.assertEqual(
+            G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+            {
+                ".context/00_INDICE.md": "M",
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+                ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                ".github/workflows/g5-manual-trust-gate.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_e1_hardening.py": "M",
+                "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+                "workers/g5-trust-broker/src/index.mjs": "M",
+                "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+            },
+        )
+        self.assertEqual(set(G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_trust_live_remediation(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
+                G5_TRUST_LIVE_REMEDIATION_BASE,
+            ),
+            "g5_trust_live_remediation",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_trust_live_remediation_from_wrong_base(self, parse_args_mock) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_TRUST_LIVE_REMEDIATION_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",

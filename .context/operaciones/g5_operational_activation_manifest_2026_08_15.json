@@ -36,30 +36,91 @@
       }
     ]
   },
+  "pr_390_reconciliation": {
+    "candidate_sha": "c36cc9b6efb166f2f840615759793b7917142f38",
+    "merge_sha": "9811b19e1527b39366e43907990c4b77d1394f75",
+    "tree_sha": "edb7c827621fce1089d636b50494405115d348a6",
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "security_run_id": "31926378062",
+    "security_conclusion": "PASS",
+    "f9_7_run_id": "31926378069",
+    "f9_7_conclusion": "PASS",
+    "focused_job_id": "95114516929",
+    "focused_conclusion": "PASS",
+    "f9_7_job_id": "95114603279",
+    "f9_7_job_conclusion": "PASS",
+    "run_attempt": 1
+  },
+  "e1_deployment_reconciliation": {
+    "status": "E1_DEPLOYMENT_PASS",
+    "credential_state": "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
+    "worker_count_expected": 1,
+    "version": "f10.9-g5-trust-broker.v2",
+    "binding": "G5_ATOMIC_LEDGER",
+    "class_name": "G5AtomicLedgerDurableObject",
+    "migration_tag": "repository-only-v1",
+    "dry_run_bundle_sha256": "5eeada06370b303bdd205f39d907f4ef8bddd091a8b965b65ff9659207acdfdf",
+    "deployed_payload_sha256": "2a7ec2810a225a682f641925b1fe93aa45fff6b7d6e41712a51fcc25e17e360c",
+    "workers_dev_enabled": false,
+    "preview_urls_enabled": false,
+    "routes_count": 0,
+    "custom_domains_count": 0,
+    "schedules_count": 0,
+    "vars_count": 0,
+    "secrets_count": 0,
+    "endpoint_public": false
+  },
+  "runtime_policy_resolution": {
+    "source": "FUTURE_RUNTIME_BINDINGS_NAME_ONLY",
+    "promotion_order": "MAIN_PROMOTION_FIRST_THEN_CONFIGURE_SHA_TREE_BLOB_THEN_BROKER_CONSUMES_IMMUTABLE_POLICY",
+    "caller_supplied": "FORBIDDEN",
+    "legacy_fallback": "FORBIDDEN"
+  },
+  "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [
     {
+      "name": "G5_ALLOWED_CANDIDATE_SHA",
+      "scope": "future runtime binding name",
+      "state": "ABSENT_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_ALLOWED_CANDIDATE_TREE",
+      "scope": "future runtime binding name",
+      "state": "ABSENT_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+      "scope": "future runtime binding name",
+      "state": "ABSENT_NOT_CONFIGURED"
+    },
+    {
       "name": "G5_GITHUB_APP_PRIVATE_KEY",
-      "scope": "Production environment secret name",
-      "state": "NAME_ONLY_NOT_CONFIGURED"
+      "scope": "future Production environment secret name",
+      "state": "ABSENT_NOT_CONFIGURED"
     },
     {
       "name": "G5_GITHUB_APP_ID",
-      "scope": "Production environment variable name",
-      "state": "NAME_ONLY_NOT_CONFIGURED"
+      "scope": "future Production environment variable name",
+      "state": "ABSENT_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_GITHUB_APP_INSTALLATION_ID",
+      "scope": "future Production environment variable name",
+      "state": "ABSENT_NOT_CONFIGURED"
     },
     {
       "name": "G5_OIDC_AUDIENCE",
-      "scope": "Production environment variable name",
-      "state": "NAME_ONLY_NOT_CONFIGURED"
+      "scope": "future Production environment variable name",
+      "state": "ABSENT_NOT_CONFIGURED"
     },
     {
       "name": "G5_TRUST_BROKER_ENDPOINT",
-      "scope": "Production environment variable name",
-      "state": "NAME_ONLY_NOT_CONFIGURED"
+      "scope": "future Production environment variable name after endpoint approval",
+      "state": "ABSENT_NOT_CONFIGURED"
     },
     {
-      "name": "G5_TRUST_OPERATIONAL_ENABLED",
-      "scope": "Production environment variable name",
+      "name": "G5_TRUST_RUNTIME_ENABLED",
+      "scope": "future Production environment variable name",
       "state": "ABSENT_NOT_CONFIGURED"
     }
   ],
@@ -91,72 +152,82 @@
   "gates": [
     {
       "id": "E1",
-      "name": "Cloudflare Worker and Durable Object deployment",
-      "domain": "cloudflare_trust_plane_deployment",
+      "name": "Cloudflare Worker and Durable Object bootstrap deployment",
+      "domain": "cloudflare_trust_plane_bootstrap_deployment",
       "future_authorization_required": true,
-      "preconditions": ["PR F hardening merged", "PR G Wrangler compatibility merged", "repository CI PASS", "no Production operation", "dry-run PASS before deploy"],
-      "sanitized_outputs": ["worker version", "durable binding name", "deployment digest"],
-      "rollback": ["disable route", "restore previous worker version", "preserve ledger records"],
-      "stop_conditions": ["missing binding", "unexpected route", "preview URL enabled", "unfrozen worker version", "Wrangler strict flag unsupported"]
+      "preconditions": ["PR G merged", "human E1 credential revocation attested", "repository CI PASS", "no endpoint exposure"],
+      "sanitized_outputs": ["worker version", "durable binding name", "migration tag", "deployment digest", "disabled exposure flags"],
+      "rollback": ["do not delete bootstrap on postverify failure", "keep remote isolated", "preserve ledger records"],
+      "stop_conditions": ["unexpected route", "preview URL enabled", "worker count drift", "runtime binding values configured early"]
     },
     {
       "id": "E2",
       "name": "GitHub App read-only configuration",
       "domain": "github_app_read_only_configuration",
       "future_authorization_required": true,
-      "preconditions": ["E1 evidence reviewed", "read-only permission matrix approved"],
-      "sanitized_outputs": ["permission matrix", "app slug alias", "name inventory"],
+      "preconditions": ["E1 bootstrap evidence reviewed", "read-only permission matrix approved", "no runtime enable flag"],
+      "sanitized_outputs": ["permission matrix", "name-only inventory", "no write permissions"],
       "rollback": ["revoke installation", "remove stored key name", "preserve audit note"],
-      "stop_conditions": ["any write permission", "unexpected repository scope", "unreviewed key material"]
+      "stop_conditions": ["any write permission", "unexpected repository scope", "unreviewed private key material"]
     },
     {
       "id": "E3",
-      "name": "Production environment configuration",
-      "domain": "github_environment_production_configuration",
+      "name": "Production environment disabled configuration",
+      "domain": "github_environment_production_disabled_configuration",
       "future_authorization_required": true,
-      "preconditions": ["E2 evidence reviewed", "main branch policy confirmed"],
-      "sanitized_outputs": ["name-only configuration inventory", "reviewer policy status"],
-      "rollback": ["unset operational variable", "remove name-only bindings", "restore disabled state"],
-      "stop_conditions": ["branch is not main", "environment is not Production", "operational flag enabled early"]
-    },
-    {
-      "id": "E3A",
-      "name": "Trust broker endpoint exposure decision",
-      "domain": "trust_broker_endpoint_exposure_decision",
-      "future_authorization_required": true,
-      "preconditions": ["E1 isolated deployment evidence reviewed", "E2 and E3 evidence reviewed", "no endpoint selected by PR F"],
-      "sanitized_outputs": ["endpoint strategy decision", "temporary exposure status", "protection requirement"],
-      "rollback": ["disable workers.dev exposure", "remove route or custom domain", "keep E1 deployment isolated"],
-      "stop_conditions": ["endpoint selected without approval", "public exposure before E3A", "E4 attempted before E3A approval"]
+      "preconditions": ["E2 evidence reviewed", "main branch policy confirmed", "G5_TRUST_RUNTIME_ENABLED remains absent"],
+      "sanitized_outputs": ["name-only configuration inventory", "reviewer policy status", "disabled state"],
+      "rollback": ["remove future runtime names", "restore disabled state"],
+      "stop_conditions": ["branch is not main", "environment is not Production", "runtime flag enabled early"]
     },
     {
       "id": "E4",
-      "name": "Trust-only smoke without Production",
-      "domain": "trust_only_smoke_without_production",
-      "future_authorization_required": true,
-      "preconditions": ["E1 through E3A reviewed", "no data-plane target configured", "endpoint exposure approved separately"],
-      "sanitized_outputs": ["trust reason code", "receipt digest", "no data-plane proof"],
-      "rollback": ["disable operational variable", "expire smoke gate", "keep receipts for audit"],
-      "stop_conditions": ["E3A not approved", "data-plane access attempted", "receipt missing", "unexpected write capability"]
-    },
-    {
-      "id": "E5",
       "name": "Diagnostic Certification/Main promotion",
       "domain": "diagnostic_certification_main_promotion",
       "future_authorization_required": true,
-      "preconditions": ["E4 PASS", "protected PR reviews fresh", "diagnostic only scope"],
-      "sanitized_outputs": ["commit and tree", "required check names", "promotion decision"],
-      "rollback": ["revert diagnostic PR", "keep G5 disabled", "block successor gate"],
-      "stop_conditions": ["stale approval", "tree drift", "unexpected Production job"]
+      "preconditions": ["E1 through E3 reviewed", "diagnostic-only PR", "no trust smoke", "no endpoint exposure"],
+      "sanitized_outputs": ["main commit", "tree", "workflow blob", "required check names"],
+      "rollback": ["revert diagnostic PR", "keep G5 disabled", "block E4A"],
+      "stop_conditions": ["stale approval", "tree drift", "Production job executed"]
+    },
+    {
+      "id": "E4A",
+      "name": "Bind exact SHA tree blob and redeploy isolated Worker",
+      "domain": "runtime_policy_exact_binding_and_redeploy",
+      "future_authorization_required": true,
+      "preconditions": ["E4 PASS", "main commit promoted first", "exact SHA tree blob known", "Worker remains isolated"],
+      "sanitized_outputs": ["runtime binding names", "redacted policy digest", "deployment digest"],
+      "rollback": ["remove exact runtime bindings", "restore previous isolated Worker", "keep E5 blocked"],
+      "stop_conditions": ["caller supplied SHA", "legacy SHA fallback", "endpoint exposure", "policy missing"]
+    },
+    {
+      "id": "E4B",
+      "name": "Trust broker endpoint exposure decision",
+      "domain": "trust_broker_endpoint_exposure_decision",
+      "future_authorization_required": true,
+      "preconditions": ["E4A PASS", "endpoint strategy approved separately", "runtime still disabled until smoke"],
+      "sanitized_outputs": ["endpoint strategy decision", "temporary exposure status", "protection requirement"],
+      "rollback": ["disable workers.dev exposure", "remove route or custom domain", "keep E1 bootstrap isolated if no approval"],
+      "stop_conditions": ["endpoint selected without approval", "public exposure before E4B", "route/domain drift"]
+    },
+    {
+      "id": "E5",
+      "name": "Trust-only smoke without data plane",
+      "domain": "trust_only_smoke_without_data_plane",
+      "future_authorization_required": true,
+      "preconditions": ["E4 PASS", "E4A PASS", "E4B PASS", "no data-plane target configured", "run_attempt remains 1"],
+      "sanitized_outputs": ["trust reason code", "receipt digest", "no data-plane proof"],
+      "rollback": ["disable runtime flag", "expire smoke gate", "keep receipts for audit"],
+      "stop_conditions": ["E4A not complete", "E4B not approved", "data-plane access attempted", "receipt missing"]
     },
     {
       "id": "E6",
       "name": "G5 creation approval and consumption",
       "domain": "g5_creation_approval_consumption",
       "future_authorization_required": true,
-      "preconditions": ["E5 PASS", "manual approval ready", "run_attempt remains 1"],
+      "preconditions": ["E5 PASS", "manual approval ready", "run_attempt remains 1", "gate READY not consumed"],
       "sanitized_outputs": ["gate identity digest", "receipt digest", "final reason code"],
-      "rollback": ["preserve consumed gate", "disable operational variable", "open remediation issue"],
+      "rollback": ["preserve consumed gate", "disable runtime flag", "open remediation issue"],
       "stop_conditions": ["run_attempt is not 1", "approval mismatch", "receipt replay or ambiguity"]
     }
   ],

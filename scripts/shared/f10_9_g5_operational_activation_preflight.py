@@ -21,6 +21,8 @@ MANIFEST_SCHEMA = "f10.9-g5-operational-activation-manifest.v1"
 MANIFEST_MODE = "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES"
 EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED"
 PR387_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
+PR390_STATUS = "MERGED_POST_MERGE_VERIFIED"
+E1_STATUS = "E1_DEPLOYMENT_PASS"
 CURRENT_GATE = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CURRENT_TRUST = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
 CURRENT_CONNECTED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
@@ -31,11 +33,15 @@ OPERATIONAL_RUN_ATTEMPT_REQUIRED = 1
 CI_RETRY_RUN_ATTEMPT = 2
 
 EXPECTED_CONFIGURATION_NAMES = (
+    "G5_ALLOWED_CANDIDATE_SHA",
+    "G5_ALLOWED_CANDIDATE_TREE",
+    "G5_ALLOWED_WORKFLOW_BLOB_SHA",
     "G5_GITHUB_APP_PRIVATE_KEY",
     "G5_GITHUB_APP_ID",
+    "G5_GITHUB_APP_INSTALLATION_ID",
     "G5_OIDC_AUDIENCE",
     "G5_TRUST_BROKER_ENDPOINT",
-    "G5_TRUST_OPERATIONAL_ENABLED",
+    "G5_TRUST_RUNTIME_ENABLED",
 )
 EXPECTED_MANIFEST_KEYS = frozenset(
     {
@@ -46,6 +52,10 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "current_trust",
         "current_connected",
         "pr_387_reconciliation",
+        "pr_390_reconciliation",
+        "e1_deployment_reconciliation",
+        "runtime_policy_resolution",
+        "superseded_sequence",
         "required_configuration_names",
         "target",
         "github_app_permissions",
@@ -76,6 +86,47 @@ EXPECTED_PR387_KEYS = frozenset(
 EXPECTED_ATTEMPT_KEYS = frozenset(
     {"attempt", "job_id", "conclusion", "classification", "scope"}
 )
+EXPECTED_PR390_KEYS = frozenset(
+    {
+        "candidate_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "f9_7_run_id",
+        "f9_7_conclusion",
+        "focused_job_id",
+        "focused_conclusion",
+        "f9_7_job_id",
+        "f9_7_job_conclusion",
+        "run_attempt",
+    }
+)
+EXPECTED_E1_KEYS = frozenset(
+    {
+        "status",
+        "credential_state",
+        "worker_count_expected",
+        "version",
+        "binding",
+        "class_name",
+        "migration_tag",
+        "dry_run_bundle_sha256",
+        "deployed_payload_sha256",
+        "workers_dev_enabled",
+        "preview_urls_enabled",
+        "routes_count",
+        "custom_domains_count",
+        "schedules_count",
+        "vars_count",
+        "secrets_count",
+        "endpoint_public",
+    }
+)
+EXPECTED_RUNTIME_POLICY_KEYS = frozenset(
+    {"source", "promotion_order", "caller_supplied", "legacy_fallback"}
+)
 EXPECTED_CONFIGURATION_ENTRY_KEYS = frozenset({"name", "scope", "state"})
 EXPECTED_TARGET_KEYS = frozenset({"branch", "ref", "environment"})
 EXPECTED_GATE_KEYS = frozenset(
@@ -90,15 +141,16 @@ EXPECTED_GATE_KEYS = frozenset(
         "stop_conditions",
     }
 )
-EXPECTED_GATES = ("E1", "E2", "E3", "E3A", "E4", "E5", "E6")
+EXPECTED_GATES = ("E1", "E2", "E3", "E4", "E4A", "E4B", "E5", "E6")
 EXPECTED_GATE_DOMAINS = MappingProxyType(
     {
-        "E1": "cloudflare_trust_plane_deployment",
+        "E1": "cloudflare_trust_plane_bootstrap_deployment",
         "E2": "github_app_read_only_configuration",
-        "E3": "github_environment_production_configuration",
-        "E3A": "trust_broker_endpoint_exposure_decision",
-        "E4": "trust_only_smoke_without_production",
-        "E5": "diagnostic_certification_main_promotion",
+        "E3": "github_environment_production_disabled_configuration",
+        "E4": "diagnostic_certification_main_promotion",
+        "E4A": "runtime_policy_exact_binding_and_redeploy",
+        "E4B": "trust_broker_endpoint_exposure_decision",
+        "E5": "trust_only_smoke_without_data_plane",
         "E6": "g5_creation_approval_consumption",
     }
 )
@@ -204,6 +256,9 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
         errors,
     )
     _validate_pr387(manifest.get("pr_387_reconciliation"), errors)
+    _validate_pr390(manifest.get("pr_390_reconciliation"), errors)
+    _validate_e1(manifest.get("e1_deployment_reconciliation"), errors)
+    _validate_runtime_policy(manifest.get("runtime_policy_resolution"), errors)
     checked_names = _validate_required_names(manifest.get("required_configuration_names"), errors)
     checked_gates = _validate_gates(manifest.get("gates"), errors)
     _validate_target(manifest.get("target"), errors)
@@ -227,6 +282,11 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
         errors,
     )
     _validate_absence_of_writes(manifest, errors)
+    _expect(
+        manifest.get("superseded_sequence") == "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
+        "STOP_G5_E_SUPERSEDED_SEQUENCE",
+        errors,
+    )
     if errors:
         raise G5OperationalPreflightError(",".join(sorted(set(errors))))
     return PreflightResult(
@@ -309,6 +369,71 @@ def _validate_pr387(value: Any, errors: list[str]) -> None:
         _expect(attempt.get("scope") == "CI_ONLY", "STOP_G5_E_PR387_ATTEMPTS", errors)
 
 
+def _validate_pr390(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR390_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR390_KEYS, "STOP_G5_E_PR390_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "c36cc9b6efb166f2f840615759793b7917142f38",
+        "merge_sha": "9811b19e1527b39366e43907990c4b77d1394f75",
+        "tree_sha": "edb7c827621fce1089d636b50494405115d348a6",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR390_SHA", errors)
+    _expect(value.get("status") == PR390_STATUS, "STOP_G5_E_PR390_STATUS", errors)
+    _expect(value.get("security_run_id") == "31926378062", "STOP_G5_E_PR390_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR390_SECURITY", errors)
+    _expect(value.get("f9_7_run_id") == "31926378069", "STOP_G5_E_PR390_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR390_F97", errors)
+    _expect(value.get("focused_job_id") == "95114516929", "STOP_G5_E_PR390_FOCUSED", errors)
+    _expect(value.get("focused_conclusion") == "PASS", "STOP_G5_E_PR390_FOCUSED", errors)
+    _expect(value.get("f9_7_job_id") == "95114603279", "STOP_G5_E_PR390_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR390_F97_JOB", errors)
+    _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR390_ATTEMPT", errors)
+
+
+def _validate_e1(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_E1_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_E1_KEYS, "STOP_G5_E_E1_KEYS", errors)
+    _expect(value.get("status") == E1_STATUS, "STOP_G5_E_E1_STATUS", errors)
+    _expect(
+        value.get("credential_state") == "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
+        "STOP_G5_E_E1_CREDENTIAL",
+        errors,
+    )
+    _expect(value.get("worker_count_expected") == 1, "STOP_G5_E_E1_WORKER_COUNT", errors)
+    _expect(value.get("version") == "f10.9-g5-trust-broker.v2", "STOP_G5_E_E1_VERSION", errors)
+    _expect(value.get("binding") == "G5_ATOMIC_LEDGER", "STOP_G5_E_E1_BINDING", errors)
+    _expect(value.get("class_name") == "G5AtomicLedgerDurableObject", "STOP_G5_E_E1_CLASS", errors)
+    _expect(value.get("migration_tag") == "repository-only-v1", "STOP_G5_E_E1_MIGRATION", errors)
+    for key in ("dry_run_bundle_sha256", "deployed_payload_sha256"):
+        _expect(bool(re.fullmatch(r"[0-9a-f]{64}", str(value.get(key, "")))), "STOP_G5_E_E1_DIGEST", errors)
+    for key in ("workers_dev_enabled", "preview_urls_enabled", "endpoint_public"):
+        _expect(value.get(key) is False, "STOP_G5_E_E1_EXPOSURE", errors)
+    for key in ("routes_count", "custom_domains_count", "schedules_count", "vars_count", "secrets_count"):
+        _expect(value.get(key) == 0, "STOP_G5_E_E1_ZERO_SURFACE", errors)
+
+
+def _validate_runtime_policy(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_RUNTIME_POLICY")
+        return
+    _validate_exact_keys(value, EXPECTED_RUNTIME_POLICY_KEYS, "STOP_G5_E_RUNTIME_POLICY_KEYS", errors)
+    _expect(value.get("source") == "FUTURE_RUNTIME_BINDINGS_NAME_ONLY", "STOP_G5_E_RUNTIME_POLICY", errors)
+    _expect(
+        value.get("promotion_order")
+        == "MAIN_PROMOTION_FIRST_THEN_CONFIGURE_SHA_TREE_BLOB_THEN_BROKER_CONSUMES_IMMUTABLE_POLICY",
+        "STOP_G5_E_RUNTIME_POLICY_ORDER",
+        errors,
+    )
+    _expect(value.get("caller_supplied") == "FORBIDDEN", "STOP_G5_E_RUNTIME_POLICY_CALLER", errors)
+    _expect(value.get("legacy_fallback") == "FORBIDDEN", "STOP_G5_E_RUNTIME_POLICY_LEGACY", errors)
+
+
 def _validate_required_names(value: Any, errors: list[str]) -> tuple[str, ...]:
     if not isinstance(value, list):
         errors.append("STOP_G5_E_CONFIGURATION_NAMES")
@@ -332,8 +457,8 @@ def _validate_required_names(value: Any, errors: list[str]) -> tuple[str, ...]:
             "STOP_G5_E_CONFIGURATION_NAME_STATE",
             errors,
         )
-        if name == "G5_TRUST_OPERATIONAL_ENABLED":
-            _expect(item.get("state") == "ABSENT_NOT_CONFIGURED", "STOP_G5_E_OPERATIONAL_VAR_PRESENT", errors)
+        if name in EXPECTED_CONFIGURATION_NAMES:
+            _expect(item.get("state") == "ABSENT_NOT_CONFIGURED", "STOP_G5_E_RUNTIME_NAME_PRESENT", errors)
     _expect(tuple(names) == EXPECTED_CONFIGURATION_NAMES, "STOP_G5_E_CONFIGURATION_NAMES", errors)
     return tuple(names)
 
@@ -365,11 +490,12 @@ def _validate_gates(value: Any, errors: list[str]) -> tuple[str, ...]:
             for item in value
             if isinstance(item, Mapping)
         }
-        e4 = gates_by_id.get("E4", {})
-        e4_preconditions = " ".join(map(str, e4.get("preconditions", ()))) if isinstance(e4, Mapping) else ""
-        e4_stop_conditions = " ".join(map(str, e4.get("stop_conditions", ()))) if isinstance(e4, Mapping) else ""
-        _expect("E3A" in e4_preconditions, "STOP_G5_E_E4_NOT_BLOCKED_BY_E3A", errors)
-        _expect("E3A" in e4_stop_conditions, "STOP_G5_E_E4_NOT_BLOCKED_BY_E3A", errors)
+        e5 = gates_by_id.get("E5", {})
+        e5_text = " ".join(
+            map(str, (*e5.get("preconditions", ()), *e5.get("stop_conditions", ())))
+        ) if isinstance(e5, Mapping) else ""
+        for required in ("E4", "E4A", "E4B"):
+            _expect(required in e5_text, "STOP_G5_E_E5_NOT_BLOCKED_BY_PRIOR_GATES", errors)
     return tuple(ids)
 
 

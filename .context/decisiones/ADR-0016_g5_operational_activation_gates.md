@@ -10,6 +10,8 @@
 | Resultado PR #387 | `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY` |
 | Resultado PR #388 | `MERGED_POST_MERGE_VERIFIED` |
 | Resultado PR #389 | `MERGED_POST_MERGE_VERIFIED` |
+| Resultado PR #390 | `MERGED_POST_MERGE_VERIFIED` |
+| E1 | `E1_DEPLOYMENT_PASS` |
 | Gate real | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust operacional | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
@@ -103,17 +105,21 @@ el [runbook G5](../operaciones/g5_operational_activation_runbook_2026_08_15.md):
 
 | Gate | Alcance unico | Estado repository-only |
 |---|---|---|
-| `E1` | Cloudflare Worker/Durable Object trust plane | `DEFINED_NOT_EXECUTED` |
+| `E1` | Cloudflare Worker/Durable Object trust plane | `E1_DEPLOYMENT_PASS` |
 | `E2` | GitHub App read-only | `DEFINED_NOT_EXECUTED` |
 | `E3` | Environment `Production` | `DEFINED_NOT_EXECUTED` |
-| `E3A` | Decision separada de endpoint del trust broker | `DEFINED_NOT_EXECUTED` |
-| `E4` | Smoke trust-only sin Production | `DEFINED_NOT_EXECUTED` |
-| `E5` | Promocion diagnostica Certification/Main | `DEFINED_NOT_EXECUTED` |
+| `E4` | Promocion diagnostica Certification/Main | `DEFINED_NOT_EXECUTED` |
+| `E4A` | Binding exacto SHA/tree/blob y redeploy aislado | `DEFINED_NOT_EXECUTED` |
+| `E4B` | Decision separada de endpoint del trust broker | `DEFINED_NOT_EXECUTED` |
+| `E5` | Smoke trust-only sin Production | `DEFINED_NOT_EXECUTED` |
 | `E6` | Creacion, aprobacion y consumo G5 | `DEFINED_NOT_EXECUTED` |
 
 Ningun gate concede el siguiente. No se permite combinar deployment, GitHub App,
-environment, endpoint y Production en una sola autorizacion. `E4` queda bloqueado
-hasta que `E3A` tenga aprobacion separada.
+environment, endpoint y Production en una sola autorizacion. `E5` queda bloqueado
+hasta que `E4`, `E4A` y `E4B` tengan aprobacion separada.
+
+No se puede combinar gates operacionales ni reinterpretar un gate completado como
+autorizacion implicita del siguiente.
 
 ## Manifest Y Preflight
 
@@ -123,11 +129,15 @@ son:
 
 - `G5_GITHUB_APP_PRIVATE_KEY`.
 - `G5_GITHUB_APP_ID`.
+- `G5_GITHUB_APP_INSTALLATION_ID`.
 - `G5_OIDC_AUDIENCE`.
 - `G5_TRUST_BROKER_ENDPOINT`.
-- `G5_TRUST_OPERATIONAL_ENABLED`.
+- `G5_ALLOWED_CANDIDATE_SHA`.
+- `G5_ALLOWED_CANDIDATE_TREE`.
+- `G5_ALLOWED_WORKFLOW_BLOB_SHA`.
+- `G5_TRUST_RUNTIME_ENABLED`.
 
-`G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`.
+`G5_TRUST_RUNTIME_ENABLED` permanece `ABSENT_NOT_CONFIGURED`.
 
 El preflight offline `scripts/shared/f10_9_g5_operational_activation_preflight.py`
 valida solo estructura repository-only: nombres, permisos exactos, branch `main`,
@@ -159,9 +169,10 @@ Workflow:
 - PR #387 queda transparente como `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`.
 - PR #388 queda transparente como `MERGED_POST_MERGE_VERIFIED`.
 - PR #389 queda transparente como `MERGED_POST_MERGE_VERIFIED`.
-- `E1_ACCOUNT_READINESS_GO` no autoriza deployment; E1 sigue `NOT_EXECUTED`.
-- `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` queda documentado hasta PR F.
-- `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda documentado hasta PR G.
+- `E1_ACCOUNT_READINESS_GO` no autorizo deployment por si solo.
+- `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` queda como blocker historico resuelto por PR F.
+- `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda como blocker historico resuelto por PR G.
+- `E1_DEPLOYMENT_PASS` no acredita trust operacional ni habilita E2-E6.
 - Attempt 1 queda preservado como `CI_INFRA_TIMEOUT_PLAYWRIGHT_APT`.
 - Attempt 2 queda preservado como `CI_RETRY_PASS`.
 - `run_attempt=2` es solo CI; G5 operacional futuro exige `run_attempt=1`.
@@ -181,3 +192,40 @@ Workflow:
 - No Production.
 - No Supabase, SQL, writers, schedules ni migrations.
 - No routes, domains, bindings remotos ni secrets.
+
+## Enmienda PR H - Reconciliacion E1 Y Orden Operacional
+
+PR #390 queda `MERGED_POST_MERGE_VERIFIED` con candidate
+`c36cc9b6efb166f2f840615759793b7917142f38`, merge protegido
+`9811b19e1527b39366e43907990c4b77d1394f75` y tree
+`edb7c827621fce1089d636b50494405115d348a6`. Security `31926378062=PASS`,
+F9.7 run `31926378069=PASS`, focused G5 job `95114516929=PASS`, F9.7 job
+`95114603279=PASS` y `run_attempt=1` quedan reconciliados.
+
+E1 queda `E1_DEPLOYMENT_PASS` y la credencial queda atestada como
+`E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED`. La evidencia conservada es solo
+sanitizada: version `f10.9-g5-trust-broker.v2`, binding `G5_ATOMIC_LEDGER`, clase
+`G5AtomicLedgerDurableObject`, migration tag `repository-only-v1`, digests
+sanitizados, `workers.dev=false`, preview URLs disabled, routes/domains/schedules
+/vars/secrets `0` y endpoint publico inexistente. No se registra account ID, token,
+Worker ID, deployment ID, URL ni subdomain.
+
+E1 desplego un bootstrap aislado valido, pero no acredita trust operacional. El
+trust sigue `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`, el gate sigue
+`NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` y E2-E6 siguen `NOT_EXECUTED`.
+
+La secuencia previa E4-before-E5 queda
+`E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE`. El orden vigente pasa a: E1 bootstrap
+aislado `COMPLETED`; E2 GitHub App read-only; E3 Environment Production disabled;
+E4 promocion diagnostica Certification/Main; E4A binding exacto SHA/tree/blob y
+redeploy aislado; E4B exposicion endpoint; E5 smoke trust-only sin data plane; E6
+creacion, aprobacion y consumo G5.
+
+La policy runtime futura usa solo nombres ausentes: `G5_ALLOWED_CANDIDATE_SHA`,
+`G5_ALLOWED_CANDIDATE_TREE`, `G5_ALLOWED_WORKFLOW_BLOB_SHA`,
+`G5_GITHUB_APP_INSTALLATION_ID` y `G5_TRUST_RUNTIME_ENABLED`, ademas de los nombres
+GitHub App/OIDC ya definidos. El commit de `main` se promociona primero; luego se
+configuran SHA/tree/blob exactos; el broker los consume como policy inmutable; ningun
+caller puede aportarlos; cualquier fallback a SHA/tree/blob legacy queda prohibido.
+
+Ver [ADR-0018](ADR-0018_g5_trust_live_remediation_repository_only.md).
