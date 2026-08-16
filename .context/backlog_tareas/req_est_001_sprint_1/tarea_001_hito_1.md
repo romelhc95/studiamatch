@@ -123,16 +123,26 @@ aprobaciones separadas; este documento no las concede.
    `31905626274=success`, focused
    `95062812645=F10.9 G5 Workflow PR C Repository-Only success`, F9.7 run
    `31905626285=success` / job
-   `95062903177=F9.7 Release Gate Contract success`, `run_attempt=1`. PR D
-   queda `DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED` y define
-   [ADR-0015](../../decisiones/ADR-0015_g5_deployment_ready_disabled.md):
-   workflow manual deployment-ready apagado por `G5_TRUST_OPERATIONAL_ENABLED`,
+   `95062903177=F9.7 Release Gate Contract success`, `run_attempt=1`. PR #387,
+   PR D, queda `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`: candidate
+   `d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d`, merge protegido
+   `bd0d82864c26755435e551b835d145b864383810`, tree
+   `135af5a95237a1d4d6e1b977e8bb9ab82ac95e16`; Security
+   `31912540519=PASS`, focused PR D `95079685172=PASS`, M3
+   `95079685191=PASS`, F9.7 run `31912540528`; attempt 1 job
+   `95079764790=CANCELLED` queda preservado y clasificado
+   `CI_INFRA_TIMEOUT_PLAYWRIGHT_APT`; attempt 2 job `95084155346=PASS` queda
+   clasificado `CI_RETRY_PASS`, `run_attempt=2` solo CI. [ADR-0015](../../decisiones/ADR-0015_g5_deployment_ready_disabled.md)
+   define workflow manual deployment-ready apagado por `G5_TRUST_OPERATIONAL_ENABLED`,
    OIDC/broker client inyectables, receipt single-use y collector Supabase GET-only
-   publishable-only. Gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust
-   operacional `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
-   `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; cero workflow ejecutado, deployment,
-   Production operacional, configuracion remota, Supabase live, SQL, writers,
-   schedules o red live.
+   publishable-only. [ADR-0016](../../decisiones/ADR-0016_g5_operational_activation_gates.md)
+   prepara E1-E6 como gates operacionales separados, sin ejecutarlos. Gate
+   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
+   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
+   `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; futuro G5 operacional mantiene
+   `run_attempt=1` obligatorio; cero workflow ejecutado, deployment, Production
+   operacional, configuracion remota, Supabase live, SQL, writers, schedules o red
+   live.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
@@ -195,14 +205,14 @@ El alcance contractual vigente permanece en [REQ-EST-001](./_index.md) y [HITO-0
 ## Tracking Only F10.9
 
 Esta vista es `TRACKING_ONLY`: no modifica estados, criterios, gates ni autoridad
-ejecutable. Hito 1 contractual = `60%`; F10.9 = `38%`; G5 end-to-end = `40%`.
+ejecutable. Hito 1 contractual = `60%`; F10.9 = `38%`; G5 end-to-end = `50%`.
 Formula: avance ponderado observado = componentes repository-only verificados /
 componentes end-to-end requeridos. Denominadores informativos: Hito 1 `3/5`
-bloques CA1 mayores, F10.9 `3/8` gates operativos G5-G13 reabiertos con G4
-historico fuera del denominador, G5 `4/10` dominios end-to-end (estructura
-GET-only, routing real, trust-plane modelado y ledger/broker repository-only; quedan
-workflow real ejecutado, OIDC live, approval real, Production, connected transport y
-observacion). Solo se
+bloques CA1 mayores, F10.9 `3/8` gates operativos reabiertos medidos por F10.9
+con G4 historico fuera del denominador, G5 `5/10` dominios end-to-end (estructura
+GET-only, routing real, trust-plane modelado, ledger/broker repository-only y
+connected collector deployment-ready; quedan workflow real ejecutado, OIDC live,
+approval real, Production y observacion). Solo se
 actualiza tras PR protegido post-merge con Security, F9.7 y focused PASS y sin drift
 del Context Graph.
 

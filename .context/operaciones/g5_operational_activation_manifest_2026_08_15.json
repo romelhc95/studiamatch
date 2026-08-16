@@ -1,0 +1,162 @@
+{
+  "schema": "f10.9-g5-operational-activation-manifest.v1",
+  "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
+  "status": "PREPARED_NOT_CONFIGURED",
+  "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+  "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+  "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+  "pr_387_reconciliation": {
+    "candidate_sha": "d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d",
+    "merge_sha": "bd0d82864c26755435e551b835d145b864383810",
+    "tree_sha": "135af5a95237a1d4d6e1b977e8bb9ab82ac95e16",
+    "status": "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
+    "security_run_id": "31912540519",
+    "security_conclusion": "PASS",
+    "focused_job_id": "95079685172",
+    "focused_conclusion": "PASS",
+    "m3_job_id": "95079685191",
+    "m3_conclusion": "PASS",
+    "f9_7_run_id": "31912540528",
+    "ci_run_attempt": 2,
+    "operational_g5_run_attempt_required": 1,
+    "attempts": [
+      {
+        "attempt": 1,
+        "job_id": "95079764790",
+        "conclusion": "CANCELLED",
+        "classification": "CI_INFRA_TIMEOUT_PLAYWRIGHT_APT",
+        "scope": "CI_ONLY"
+      },
+      {
+        "attempt": 2,
+        "job_id": "95084155346",
+        "conclusion": "PASS",
+        "classification": "CI_RETRY_PASS",
+        "scope": "CI_ONLY"
+      }
+    ]
+  },
+  "required_configuration_names": [
+    {
+      "name": "G5_GITHUB_APP_PRIVATE_KEY",
+      "scope": "Production environment secret name",
+      "state": "NAME_ONLY_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_GITHUB_APP_ID",
+      "scope": "Production environment variable name",
+      "state": "NAME_ONLY_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_OIDC_AUDIENCE",
+      "scope": "Production environment variable name",
+      "state": "NAME_ONLY_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_TRUST_BROKER_ENDPOINT",
+      "scope": "Production environment variable name",
+      "state": "NAME_ONLY_NOT_CONFIGURED"
+    },
+    {
+      "name": "G5_TRUST_OPERATIONAL_ENABLED",
+      "scope": "Production environment variable name",
+      "state": "ABSENT_NOT_CONFIGURED"
+    }
+  ],
+  "target": {
+    "branch": "main",
+    "ref": "refs/heads/main",
+    "environment": "Production"
+  },
+  "github_app_permissions": {
+    "actions": "read",
+    "checks": "read",
+    "contents": "read",
+    "deployments": "read",
+    "metadata": "read"
+  },
+  "workflow_permissions": {
+    "actions": "read",
+    "contents": "read",
+    "deployments": "read",
+    "id-token": "write"
+  },
+  "frozen_versions": {
+    "get_only_contract": "f10.9-g5-get-only-adapter-contract.v2.3",
+    "trust_broker": "f10.9-g5-trust-broker.v2",
+    "worker_config": "repository-only-v1",
+    "workflow_path": ".github/workflows/g5-manual-trust-gate.yml"
+  },
+  "gates": [
+    {
+      "id": "E1",
+      "name": "Cloudflare Worker and Durable Object deployment",
+      "domain": "cloudflare_trust_plane_deployment",
+      "future_authorization_required": true,
+      "preconditions": ["PR E merged", "repository CI PASS", "no Production operation"],
+      "sanitized_outputs": ["worker version", "durable binding name", "deployment digest"],
+      "rollback": ["disable route", "restore previous worker version", "preserve ledger records"],
+      "stop_conditions": ["missing binding", "unexpected route", "unfrozen worker version"]
+    },
+    {
+      "id": "E2",
+      "name": "GitHub App read-only configuration",
+      "domain": "github_app_read_only_configuration",
+      "future_authorization_required": true,
+      "preconditions": ["E1 evidence reviewed", "read-only permission matrix approved"],
+      "sanitized_outputs": ["permission matrix", "app slug alias", "name inventory"],
+      "rollback": ["revoke installation", "remove stored key name", "preserve audit note"],
+      "stop_conditions": ["any write permission", "unexpected repository scope", "unreviewed key material"]
+    },
+    {
+      "id": "E3",
+      "name": "Production environment configuration",
+      "domain": "github_environment_production_configuration",
+      "future_authorization_required": true,
+      "preconditions": ["E2 evidence reviewed", "main branch policy confirmed"],
+      "sanitized_outputs": ["name-only configuration inventory", "reviewer policy status"],
+      "rollback": ["unset operational variable", "remove name-only bindings", "restore disabled state"],
+      "stop_conditions": ["branch is not main", "environment is not Production", "operational flag enabled early"]
+    },
+    {
+      "id": "E4",
+      "name": "Trust-only smoke without Production",
+      "domain": "trust_only_smoke_without_production",
+      "future_authorization_required": true,
+      "preconditions": ["E1 through E3 reviewed", "no data-plane target configured"],
+      "sanitized_outputs": ["trust reason code", "receipt digest", "no data-plane proof"],
+      "rollback": ["disable operational variable", "expire smoke gate", "keep receipts for audit"],
+      "stop_conditions": ["data-plane access attempted", "receipt missing", "unexpected write capability"]
+    },
+    {
+      "id": "E5",
+      "name": "Diagnostic Certification/Main promotion",
+      "domain": "diagnostic_certification_main_promotion",
+      "future_authorization_required": true,
+      "preconditions": ["E4 PASS", "protected PR reviews fresh", "diagnostic only scope"],
+      "sanitized_outputs": ["commit and tree", "required check names", "promotion decision"],
+      "rollback": ["revert diagnostic PR", "keep G5 disabled", "block successor gate"],
+      "stop_conditions": ["stale approval", "tree drift", "unexpected Production job"]
+    },
+    {
+      "id": "E6",
+      "name": "G5 creation approval and consumption",
+      "domain": "g5_creation_approval_consumption",
+      "future_authorization_required": true,
+      "preconditions": ["E5 PASS", "manual approval ready", "run_attempt remains 1"],
+      "sanitized_outputs": ["gate identity digest", "receipt digest", "final reason code"],
+      "rollback": ["preserve consumed gate", "disable operational variable", "open remediation issue"],
+      "stop_conditions": ["run_attempt is not 1", "approval mismatch", "receipt replay or ambiguity"]
+    }
+  ],
+  "forbidden_operations": [
+    "writes",
+    "Cloudflare remote changes",
+    "GitHub App remote changes",
+    "Production execution",
+    "Supabase access",
+    "SQL",
+    "schedules",
+    "manual workflow dispatch"
+  ]
+}
