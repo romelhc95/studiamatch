@@ -90,12 +90,13 @@ EXPECTED_GATE_KEYS = frozenset(
         "stop_conditions",
     }
 )
-EXPECTED_GATES = ("E1", "E2", "E3", "E4", "E5", "E6")
+EXPECTED_GATES = ("E1", "E2", "E3", "E3A", "E4", "E5", "E6")
 EXPECTED_GATE_DOMAINS = MappingProxyType(
     {
         "E1": "cloudflare_trust_plane_deployment",
         "E2": "github_app_read_only_configuration",
         "E3": "github_environment_production_configuration",
+        "E3A": "trust_broker_endpoint_exposure_decision",
         "E4": "trust_only_smoke_without_production",
         "E5": "diagnostic_certification_main_promotion",
         "E6": "g5_creation_approval_consumption",
@@ -357,6 +358,17 @@ def _validate_gates(value: Any, errors: list[str]) -> tuple[str, ...]:
             _expect(isinstance(item.get(field), list) and len(item[field]) > 0, "STOP_G5_E_GATE_RUNBOOK", errors)
     _expect(tuple(ids) == EXPECTED_GATES, "STOP_G5_E_GATES", errors)
     _expect(len(domains) == len(EXPECTED_GATES), "STOP_G5_E_GATE_COMBINATION", errors)
+    if isinstance(value, list):
+        gates_by_id = {
+            str(item.get("id", "")): item
+            for item in value
+            if isinstance(item, Mapping)
+        }
+        e4 = gates_by_id.get("E4", {})
+        e4_preconditions = " ".join(map(str, e4.get("preconditions", ()))) if isinstance(e4, Mapping) else ""
+        e4_stop_conditions = " ".join(map(str, e4.get("stop_conditions", ()))) if isinstance(e4, Mapping) else ""
+        _expect("E3A" in e4_preconditions, "STOP_G5_E_E4_NOT_BLOCKED_BY_E3A", errors)
+        _expect("E3A" in e4_stop_conditions, "STOP_G5_E_E4_NOT_BLOCKED_BY_E3A", errors)
     return tuple(ids)
 
 

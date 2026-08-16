@@ -127,18 +127,23 @@ def test_permissions_are_exact_and_write_permissions_are_minimal() -> None:
     ] == ["id-token"]
 
 
-def test_gates_e1_to_e6_are_separate_and_non_executing() -> None:
+def test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing() -> None:
     manifest = _manifest()
     gates = manifest["gates"]
     assert [gate["id"] for gate in gates] == list(EXPECTED_GATES)
     domains = [gate["domain"] for gate in gates]
-    assert len(domains) == len(set(domains)) == 6
+    assert len(domains) == len(set(domains)) == 7
     for gate in gates:
         assert gate["future_authorization_required"] is True
         assert gate["preconditions"]
         assert gate["sanitized_outputs"]
         assert gate["rollback"]
         assert gate["stop_conditions"]
+    gates_by_id = {gate["id"]: gate for gate in gates}
+    assert gates_by_id["E3A"]["domain"] == "trust_broker_endpoint_exposure_decision"
+    assert "DEFINED_NOT_EXECUTED" in RUNBOOK_PATH.read_text(encoding="utf-8")
+    assert any("E3A" in condition for condition in gates_by_id["E4"]["preconditions"])
+    assert any("E3A" in condition for condition in gates_by_id["E4"]["stop_conditions"])
 
 
 def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:

@@ -45,11 +45,13 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 | Data plane | `NOT_AUTHORIZED` | Cero lecturas Production, repair apply, DDL/DML, provider calls, backfill o re-enrichment autorizados por este documento. |
 | Observacion | `NOT_STARTED` | Pares aceptados `0`; exige tres pares naturales consecutivos durante al menos 72 horas. |
 
+Nota PR F: PR #388 queda `MERGED_POST_MERGE_VERIFIED` con candidate `eb052c2755937a2bf239cd778bc814274fbc846f`, merge `71d6640b990b934fa02401518650ec38dca6cae4` / tree `815a2316c8de67047567d89a9928576869f43c4f`; Security `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`. `E1_ACCOUNT_READINESS_GO` queda registrado solo como preflight read-only; `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` exige PR F repository-only antes de solicitar deployment Cloudflare. `E3A` queda `DEFINED_NOT_EXECUTED`; E4 permanece bloqueado por E3A. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+
 Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `73` archivos Markdown, `416` enlaces locales y
+- el Context Graph contiene `74` archivos Markdown, `418` enlaces locales y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;

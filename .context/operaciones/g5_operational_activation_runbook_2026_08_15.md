@@ -4,7 +4,7 @@
 |---|---|
 | Estado | `PREPARED_NOT_CONFIGURED` |
 | Subfase | `F10.9` |
-| Alcance | PR E repository-only |
+| Alcance | PR E + PR F repository-only |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -15,7 +15,7 @@
 ## Proposito
 
 Este runbook prepara, sin ejecutar, la secuencia futura para activar G5 de forma
-operacional. PR E no despliega Cloudflare, no configura GitHub App, no modifica
+operacional. PR E y PR F no despliegan Cloudflare, no configuran GitHub App, no modifican
 environments, no solicita OIDC live, no ejecuta Production, no accede a Supabase
 o fuentes, no ejecuta SQL y no crea writers o schedules.
 
@@ -40,6 +40,24 @@ attempt_2_run_attempt = 2
 `run_attempt=2` pertenece solo al retry CI de F9.7. El gate G5 operacional futuro
 mantiene `run_attempt=1` obligatorio para evitar replay, partial rerun o aprobacion
 ambigua. El retry CI no constituye gate G5 operacional.
+
+La reconciliacion PR #388 queda clasificada como `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = eb052c2755937a2bf239cd778bc814274fbc846f
+merge = 71d6640b990b934fa02401518650ec38dca6cae4
+tree = 815a2316c8de67047567d89a9928576869f43c4f
+security = 31917838025=PASS
+f9_7_run = 31917838011=PASS
+focused = 95092629457=PASS
+f9_7_job = 95092706912=PASS
+run_attempt = 1
+```
+
+El preflight operacional read-only de cuenta queda `E1_ACCOUNT_READINESS_GO`, con
+Workers existentes `0` y deployment `NOT_EXECUTED`. PR F registra
+`E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` para endurecer el paquete antes
+de solicitar deployment real.
 
 ## Nombres Repository-Only
 
@@ -93,10 +111,35 @@ con aprobacion separada.
 
 Precondiciones:
 
-- PR E fusionado y CI repository-only PASS.
+- PR F fusionado y CI repository-only PASS.
 - ADR-0016 aceptada en `desarrollo`.
+- [ADR-0017](../decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md) aceptada en `desarrollo`.
 - Versiones congeladas: `f10.9-g5-trust-broker.v2` y `repository-only-v1`.
+- Wrangler exacto `4.30.0` instalado desde lockfile dentro del contenedor.
+- `wrangler.repository-only.jsonc` mantiene `workers_dev:false` y `preview_urls:false`.
+- Cero routes, domains, custom domains, preview URLs o triggers.
+- Dry-run obligatorio completado antes de deployment.
 - Sin Production y sin data plane.
+
+Comando dry-run obligatorio previo:
+
+```bash
+wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run
+```
+
+Comando deployment futuro exacto:
+
+```bash
+wrangler deploy --strict --config wrangler.repository-only.jsonc
+```
+
+Flags prohibidos en E1: `--temporary`, `--route`, `--routes`, `--domain`,
+`--triggers`, `--schedule`, `--schedules`, `--env-file`, `--secrets-file`,
+`--keep-vars` y autoconfiguracion. Los nombres de
+credencial E1 son exclusivamente `CLOUDFLARE_API_TOKEN` y
+`CLOUDFLARE_ACCOUNT_ID`. `CF_API_TOKEN` y `CF_ACCOUNT_ID` permanecen solo para
+usos legacy existentes fuera de E1. Wrangler consumira credenciales durante E1,
+pero no puede imprimirlas, retornarlas ni persistirlas.
 
 Outputs sanitizados:
 
@@ -114,7 +157,9 @@ STOP:
 
 - Binding faltante o inesperado.
 - Version no congelada.
-- Cualquier intento de route/domain/deployment fuera del gate E1 aprobado.
+- `workers_dev` distinto de `false` o `preview_urls` distinto de `false`.
+- Cualquier intento de route/domain/trigger/deployment fuera del gate E1 aprobado.
+- Cualquier prompt de billing, plan o costo.
 
 ## Gate E2 - GitHub App Read-Only
 
@@ -169,11 +214,45 @@ STOP:
 - Environment distinto de `Production`.
 - Flag operacional habilitado antes de autorizacion E6.
 
+## Gate E3A - Exposicion Del Endpoint Del Trust Broker
+
+Estado: `DEFINED_NOT_EXECUTED`.
+
+Precondiciones:
+
+- Evidencia E1 revisada con Worker aislado y no accesible publicamente.
+- Evidencia E2 y E3 revisada.
+- Ningun endpoint seleccionado o habilitado por PR F.
+
+Opciones futuras, con autorizacion separada:
+
+- workers.dev explicito y temporal.
+- route/custom domain protegido.
+
+Outputs sanitizados:
+
+- Decision de estrategia de endpoint.
+- Estado temporal de exposicion.
+- Requisito de proteccion.
+
+Rollback:
+
+- Deshabilitar exposicion workers.dev.
+- Retirar route/custom domain si se hubiera aprobado posteriormente.
+- Mantener E1 aislado.
+
+STOP:
+
+- Endpoint seleccionado sin aprobacion E3A.
+- Exposicion publica antes de E3A.
+- Intento de E4 antes de E3A.
+
 ## Gate E4 - Smoke Test Trust-Only Sin Production
 
 Precondiciones:
 
-- E1-E3 revisados.
+- E1-E3A revisados.
+- E3A aprobado por separado.
 - Sin target data plane configurado.
 - Solo trust broker y ledger disponibles.
 
@@ -192,6 +271,7 @@ Rollback:
 STOP:
 
 - Intento de data plane.
+- E3A no aprobado.
 - Receipt ausente o ambiguo.
 - Capacidad write detectada.
 
@@ -250,9 +330,9 @@ STOP:
 
 ## Regla De No Combinacion
 
-E1, E2, E3, E4, E5 y E6 requieren autorizaciones separadas. No se puede combinar
-deployment, GitHub App, environment y Production en una sola autorizacion. Un gate
-PASS no concede el siguiente.
+E1, E2, E3, E3A, E4, E5 y E6 requieren autorizaciones separadas. No se puede combinar
+deployment, GitHub App, environment, endpoint y Production en una sola autorizacion. Un gate
+PASS no concede el siguiente. E4 queda bloqueado hasta que E3A tenga aprobacion separada.
 
 Un gate PASS no concede el siguiente.
 

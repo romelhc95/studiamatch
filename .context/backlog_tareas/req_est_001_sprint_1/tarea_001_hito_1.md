@@ -138,11 +138,22 @@ aprobaciones separadas; este documento no las concede.
    publishable-only. [ADR-0016](../../decisiones/ADR-0016_g5_operational_activation_gates.md)
    prepara E1-E6 como gates operacionales separados, sin ejecutarlos. Gate
    `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; trust operacional
-   `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
-   `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; futuro G5 operacional mantiene
-   `run_attempt=1` obligatorio; cero workflow ejecutado, deployment, Production
-   operacional, configuracion remota, Supabase live, SQL, writers, schedules o red
-   live.
+    `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; connected mode
+    `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; futuro G5 operacional mantiene
+    `run_attempt=1` obligatorio; cero workflow ejecutado, deployment, Production
+    operacional, configuracion remota, Supabase live, SQL, writers, schedules o red
+    live.
+   PR #388, PR E, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `eb052c2755937a2bf239cd778bc814274fbc846f`, merge protegido
+   `71d6640b990b934fa02401518650ec38dca6cae4`, tree
+   `815a2316c8de67047567d89a9928576869f43c4f`; Security
+   `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused
+   `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`.
+   El preflight operacional read-only queda `E1_ACCOUNT_READINESS_GO`, Workers
+   existentes `0` y deployment `NOT_EXECUTED`. PR F queda autorizado solo como
+   hardening repository-only previo: `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED`,
+   Wrangler exacto, lockfile, `preview_urls=false`, E1 aislado y E3A endpoint
+   separado `DEFINED_NOT_EXECUTED`, sin deployment ni configuracion remota.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

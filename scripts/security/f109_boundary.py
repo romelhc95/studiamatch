@@ -150,6 +150,12 @@ G5_OPERATIONAL_RUNBOOK_BASE = "bd0d82864c26755435e551b835d145b864383810"
 G5_OPERATIONAL_RUNBOOK_BASE_TREE = "135af5a95237a1d4d6e1b977e8bb9ab82ac95e16"
 G5_OPERATIONAL_RUNBOOK_HEAD_REF = "feat/f10-9-pr-e-reconcile-g5-runbook"
 G5_OPERATIONAL_RUNBOOK_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
+G5_E1_HARDENING_BASE = "71d6640b990b934fa02401518650ec38dca6cae4"
+G5_E1_HARDENING_BASE_TREE = "815a2316c8de67047567d89a9928576869f43c4f"
+G5_E1_HARDENING_HEAD_REF = "feat/f10-9-pr-f-e1-hardening"
+G5_E1_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_E1_READINESS_STATUS = "E1_ACCOUNT_READINESS_GO"
+G5_E1_DEPLOYMENT_STOP = "E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -572,6 +578,28 @@ G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES = {
 }
 G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES = {
     path: "100644" for path in G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES
+}
+
+G5_E1_HARDENING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+    ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_e1_hardening.py": "A",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/package-lock.json": "A",
+    "workers/g5-trust-broker/package.json": "A",
+    "workers/g5-trust-broker/wrangler.repository-only.jsonc": "M",
+}
+G5_E1_HARDENING_ALLOWED_MODES = {
+    path: "100644" for path in G5_E1_HARDENING_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -3441,7 +3469,7 @@ def validate_g5_operational_runbook(
         "test_pr387_attempts_are_preserved_and_retry_is_ci_only",
         "test_manifest_contains_no_configuration_values_or_remote_identifiers",
         "test_preflight_is_completely_offline",
-        "test_gates_e1_to_e6_are_separate_and_non_executing",
+        "test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing",
         "test_permissions_are_exact_and_write_permissions_are_minimal",
         "test_runbook_and_adr_preserve_operational_run_attempt_one",
     ):
@@ -3454,6 +3482,181 @@ def validate_g5_operational_runbook(
     ):
         require(required in workflow, "G5 PR E focused CI drift")
     validate_context_graph(repo, 73, 416)
+
+
+def validate_g5_e1_hardening(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_E1_HARDENING_BASE, "unexpected G5 E1 hardening base")
+    require_sha(repo, "G5_E1_HARDENING_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_E1_HARDENING_BASE_TREE,
+        "G5 E1 hardening base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 E1 hardening push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 E1 hardening merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 E1 hardening candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_E1_HARDENING_ALLOWED_STATUSES,
+        G5_E1_HARDENING_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(
+        encoding="utf-8"
+    )
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md").read_text(
+        encoding="utf-8"
+    )
+    adr17 = (
+        repo / ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    e1_tests = (repo / "tests/test_fase10_9_g5_e1_hardening.py").read_text(
+        encoding="utf-8"
+    )
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    wrangler_config = json.loads(
+        (repo / "workers/g5-trust-broker/wrangler.repository-only.jsonc").read_text(
+            encoding="utf-8"
+        )
+    )
+    package_json = json.loads(
+        (repo / "workers/g5-trust-broker/package.json").read_text(encoding="utf-8")
+    )
+    package_lock = json.loads(
+        (repo / "workers/g5-trust-broker/package-lock.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, plan, runbook, adr16, adr17, manifest_text))
+    for required in (
+        G5_E1_HARDENING_STATUS,
+        G5_E1_HARDENING_BASE,
+        G5_E1_HARDENING_BASE_TREE,
+        "eb052c2755937a2bf239cd778bc814274fbc846f",
+        "31917838025=PASS",
+        "31917838011=PASS",
+        "95092629457=PASS",
+        "95092706912=PASS",
+        "run_attempt=1",
+        G5_E1_READINESS_STATUS,
+        "Workers existentes `0`",
+        "NOT_EXECUTED",
+        G5_E1_DEPLOYMENT_STOP,
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`",
+    ):
+        require(required in combined, "G5 E1 hardening evidence drift")
+    for required in (
+        "preview_urls:false",
+        "workers_dev:false",
+        "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+        "--dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CF_API_TOKEN",
+        "CF_ACCOUNT_ID",
+        "E3A",
+        "DEFINED_NOT_EXECUTED",
+        "E4 queda bloqueado",
+        "Este PR no selecciona ni habilita endpoint",
+    ):
+        require(required in combined, "G5 E1 hardening runbook drift")
+    require(wrangler_config.get("name") == "g5-trust-broker-repository-only", "G5 E1 worker name drift")
+    require(wrangler_config.get("main") == "src/index.mjs", "G5 E1 worker main drift")
+    require(wrangler_config.get("compatibility_date") == "2026-08-15", "G5 E1 compatibility drift")
+    require(wrangler_config.get("workers_dev") is False, "G5 E1 workers_dev drift")
+    require(wrangler_config.get("preview_urls") is False, "G5 E1 preview_urls drift")
+    for forbidden_key in ("route", "routes", "domain", "domains", "custom_domain", "custom_domains", "triggers"):
+        require(forbidden_key not in wrangler_config, "G5 E1 public exposure config drift")
+    require(
+        wrangler_config.get("durable_objects") == {
+            "bindings": [
+                {"name": "G5_ATOMIC_LEDGER", "class_name": "G5AtomicLedgerDurableObject"}
+            ]
+        },
+        "G5 E1 durable binding drift",
+    )
+    require(
+        wrangler_config.get("migrations") == [
+            {"tag": "repository-only-v1", "new_sqlite_classes": ["G5AtomicLedgerDurableObject"]}
+        ],
+        "G5 E1 durable migration drift",
+    )
+    scripts = package_json.get("scripts", {})
+    require(package_json.get("devDependencies") == {"wrangler": "4.30.0"}, "G5 E1 wrangler pin drift")
+    require(package_lock.get("lockfileVersion") == 3, "G5 E1 lockfile drift")
+    require(
+        package_lock.get("packages", {}).get("node_modules/wrangler", {}).get("version") == "4.30.0",
+        "G5 E1 lockfile wrangler drift",
+    )
+    require(
+        list(scripts) == ["e1:dry-run", "e1:deploy"],
+        "G5 E1 script order drift",
+    )
+    require(
+        scripts.get("e1:dry-run")
+        == "wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "G5 E1 dry-run command drift",
+    )
+    require(
+        scripts.get("e1:deploy") == "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+        "G5 E1 deploy command drift",
+    )
+    for command in scripts.values():
+        for forbidden in ("--temporary", "--route", "--routes", "--domain", "--triggers", "--schedule", "--schedules", "--env-file", "--secrets-file", "--keep-vars"):
+            require(forbidden not in command, "G5 E1 forbidden deploy flag drift")
+    require([gate.get("id") for gate in manifest.get("gates", [])] == ["E1", "E2", "E3", "E3A", "E4", "E5", "E6"], "G5 E1 manifest gate drift")
+    for required in (
+        "test_wrangler_version_is_exact_and_lockfile_is_versioned",
+        "test_wrangler_config_is_isolated_and_explicitly_non_public",
+        "test_package_scripts_require_dry_run_before_exact_deploy_command",
+        "test_cloudflare_credential_names_are_standard_for_e1_only",
+        "test_e3a_endpoint_gate_is_separate_and_blocks_e4",
+        "test_e1_hardening_docs_preserve_stops_and_no_sensitive_values",
+    ):
+        require(required in e1_tests, "G5 E1 test coverage drift")
+    require(
+        "test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing" in preflight_tests,
+        "G5 E1 preflight test coverage drift",
+    )
+    for required in (
+        "tests/test_fase10_9_g5_e1_hardening.py",
+        "tests/test_fase10_9_g5_operational_activation_preflight.py",
+    ):
+        require(required in workflow, "G5 E1 focused CI drift")
+    validate_context_graph(repo, 74, 418)
 
 
 def detect_mode(
@@ -3634,6 +3837,12 @@ def detect_mode(
         return "g5_operational_runbook"
     if (
         base_ref == "desarrollo"
+        and base == G5_E1_HARDENING_BASE
+        and (event == "push" or head_ref == G5_E1_HARDENING_HEAD_REF)
+    ):
+        return "g5_e1_hardening"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -3764,6 +3973,10 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "G5 PR E runbook branch requires the frozen PR #387 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_E1_HARDENING_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR F E1 hardening branch requires the frozen PR #388 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -4210,6 +4423,10 @@ def main() -> int:
             )
         elif mode == "g5_operational_runbook":
             validate_g5_operational_runbook(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_e1_hardening":
+            validate_g5_e1_hardening(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

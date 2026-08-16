@@ -93,10 +93,10 @@
       "name": "Cloudflare Worker and Durable Object deployment",
       "domain": "cloudflare_trust_plane_deployment",
       "future_authorization_required": true,
-      "preconditions": ["PR E merged", "repository CI PASS", "no Production operation"],
+      "preconditions": ["PR F hardening merged", "repository CI PASS", "no Production operation", "dry-run PASS before deploy"],
       "sanitized_outputs": ["worker version", "durable binding name", "deployment digest"],
       "rollback": ["disable route", "restore previous worker version", "preserve ledger records"],
-      "stop_conditions": ["missing binding", "unexpected route", "unfrozen worker version"]
+      "stop_conditions": ["missing binding", "unexpected route", "preview URL enabled", "unfrozen worker version"]
     },
     {
       "id": "E2",
@@ -119,14 +119,24 @@
       "stop_conditions": ["branch is not main", "environment is not Production", "operational flag enabled early"]
     },
     {
+      "id": "E3A",
+      "name": "Trust broker endpoint exposure decision",
+      "domain": "trust_broker_endpoint_exposure_decision",
+      "future_authorization_required": true,
+      "preconditions": ["E1 isolated deployment evidence reviewed", "E2 and E3 evidence reviewed", "no endpoint selected by PR F"],
+      "sanitized_outputs": ["endpoint strategy decision", "temporary exposure status", "protection requirement"],
+      "rollback": ["disable workers.dev exposure", "remove route or custom domain", "keep E1 deployment isolated"],
+      "stop_conditions": ["endpoint selected without approval", "public exposure before E3A", "E4 attempted before E3A approval"]
+    },
+    {
       "id": "E4",
       "name": "Trust-only smoke without Production",
       "domain": "trust_only_smoke_without_production",
       "future_authorization_required": true,
-      "preconditions": ["E1 through E3 reviewed", "no data-plane target configured"],
+      "preconditions": ["E1 through E3A reviewed", "no data-plane target configured", "endpoint exposure approved separately"],
       "sanitized_outputs": ["trust reason code", "receipt digest", "no data-plane proof"],
       "rollback": ["disable operational variable", "expire smoke gate", "keep receipts for audit"],
-      "stop_conditions": ["data-plane access attempted", "receipt missing", "unexpected write capability"]
+      "stop_conditions": ["E3A not approved", "data-plane access attempted", "receipt missing", "unexpected write capability"]
     },
     {
       "id": "E5",
