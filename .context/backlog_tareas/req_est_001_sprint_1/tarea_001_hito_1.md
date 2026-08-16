@@ -193,11 +193,20 @@ aprobaciones separadas; este documento no las concede.
    `31958015767=PASS`, F9.7 run `31958015698=PASS`, focused G5 job
    `95191560687=PASS`, F9.7 job `95191665616=PASS`, `run_attempt=1`. El GO
    Security Auditor anterior queda preservado, pero E2 permanece `NOT_EXECUTED`
-   con `E2_STOP_SECURITY_REMEDIATION_REQUIRED` hasta cerrar repository-only los
-   hallazgos de binding job/check, status deployment deterministico, snapshot
-   doble antes del CAS, identidad job/status, token limitado al repositorio y
-   preflight E2 read-only futuro. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no
-   cambian.
+    con `E2_STOP_SECURITY_REMEDIATION_REQUIRED`; PR #393 queda
+    `MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED`: candidate
+    `4d5d97bb37ffcd5126d467bde9152e705a895c85`, merge protegido
+    `51aaac5d289226b1f8f16de1daf69a16a084d585`, tree
+    `7e7be8072cc416d76d2034a126d39393cdbcc968`; Security post-merge
+    `31962569422=PASS`, branch reconciliation `95202690518=PASS`, focused G5 job
+    `95202690713=PASS`, F9.7 run `31962569598=PASS` y F9.7 job
+    `95202805508=PASS`, `run_attempt=1`. PR K queda limitado a terminal
+    confirmation antes del CAS, parser `Link rel=next`, `total_count` canonico,
+    identidad GitHub Actions `id=15368`/`owner.id=9919`, token schema exacto,
+    `repository_selection=selected` y cache por `repositoryId`. E2-E6,
+    endpoint, GitHub App config, Cloudflare, OIDC live, Production, Supabase,
+    SQL, writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5
+    `50%` no cambian.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

@@ -19,6 +19,8 @@ const GITHUB_API_REPOSITORY_URL = `${GITHUB_API_BASE}/repos/${REPOSITORY}`;
 const GITHUB_JWKS_URL = `${ISSUER}/.well-known/jwks`;
 const GITHUB_ACTIONS_APP_SLUG = "github-actions";
 const GITHUB_ACTIONS_APP_NAME = "GitHub Actions";
+const GITHUB_ACTIONS_APP_ID = 15368;
+const GITHUB_ACTIONS_APP_OWNER_ID = 9919;
 const EXPECTED_GITHUB_APP_PERMISSIONS = Object.freeze({
   actions: "read",
   checks: "read",
@@ -26,6 +28,9 @@ const EXPECTED_GITHUB_APP_PERMISSIONS = Object.freeze({
   deployments: "read",
   metadata: "read",
 });
+const EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS = Object.freeze([
+  "expires_at", "permissions", "repositories", "repository_selection", "token",
+]);
 const MAX_TOKEN_LIFETIME_SECONDS = 600;
 const MAX_LEDGER_RECORDS = 10_000;
 const STRICT_TIMEOUT_MS = 15_000;
@@ -334,6 +339,37 @@ function decimalId(value) {
 function lowerHeader(headers, name) {
   if (!headers || typeof headers.get !== "function") return null;
   return headers.get(name) ?? headers.get(name.toLowerCase()) ?? headers.get(name.toUpperCase());
+}
+
+function splitLinkHeader(value) {
+  const parts = [];
+  let start = 0;
+  let quoted = false;
+  let angled = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '"' && value[index - 1] !== "\\") quoted = !quoted;
+    if (!quoted && character === "<") angled = true;
+    if (!quoted && character === ">") angled = false;
+    if (!quoted && !angled && character === ",") {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+function linkHeaderHasRelNext(value) {
+  if (typeof value !== "string") return false;
+  return splitLinkHeader(value).some((entry) => entry.split(";").slice(1).some((parameter) => {
+    const equals = parameter.indexOf("=");
+    if (equals === -1) return false;
+    const name = parameter.slice(0, equals).trim().toLowerCase();
+    let relation = parameter.slice(equals + 1).trim().toLowerCase();
+    if (relation.startsWith('"') && relation.endsWith('"')) relation = relation.slice(1, -1);
+    return name === "rel" && relation.split(/\s+/).includes("next");
+  }));
 }
 
 async function responseTextWithLimit(response, maxBytes, timeoutMs = STRICT_TIMEOUT_MS) {
@@ -650,6 +686,21 @@ export class GithubAppReadOnlyAdapter {
     );
     return Object.freeze({ run, check, branch, deployment, environment, approval, commit, workflowBlob });
   }
+
+  async terminalEvidence(claims) {
+    const reference = Object.freeze({
+      repository: claims.repository, runId: claims.runId, runAttempt: claims.runAttempt,
+      repositoryId: claims.repositoryId, ownerId: claims.ownerId, candidateSha: claims.candidateSha,
+      workflowRef: claims.workflowRef, environment: claims.environment,
+    });
+    const run = exactOneComplete(await this.transport.getWorkflowRun(reference), REASONS.BINDING);
+    const check = exactOneComplete(await this.transport.listWorkflowJobs(reference), REASONS.BINDING);
+    const deployment = exactOneComplete(
+      await this.transport.listDeployments(Object.freeze({ ...reference, jobId: check.jobId })),
+      REASONS.BINDING,
+    );
+    return Object.freeze({ run, check, deployment });
+  }
 }
 
 export class G5ConnectedGithubAppAdapter {
@@ -678,14 +729,19 @@ export class G5ConnectedGithubAppAdapter {
     this.maxBytes = maxBytes;
     this.now = now;
     this.signer = signer;
-    this.tokenPromise = null;
-    this.token = null;
+    this.tokenPromises = new Map();
+    this.tokens = new Map();
     this.state = "LIVE_READY_GUARDED";
   }
 
   async authoritativeEvidence(claims) {
     const adapter = new GithubAppReadOnlyAdapter(this);
     return adapter.authoritativeEvidence(claims);
+  }
+
+  async terminalEvidence(claims) {
+    const adapter = new GithubAppReadOnlyAdapter(this);
+    return adapter.terminalEvidence(claims);
   }
 
   ensureReference(reference) {
@@ -709,12 +765,15 @@ export class G5ConnectedGithubAppAdapter {
   async installationToken(repositoryId) {
     if (!positiveInteger(repositoryId)) stop(REASONS.TRANSPORT);
     const nowEpochSeconds = this.now();
-    if (this.token && this.token.repositoryId === repositoryId && this.token.expiresAt - nowEpochSeconds > 60) return this.token.value;
-    if (this.tokenPromise) return this.tokenPromise;
-    this.tokenPromise = this.createInstallationToken(nowEpochSeconds, repositoryId).finally(() => {
-      this.tokenPromise = null;
+    const cached = this.tokens.get(repositoryId);
+    if (cached && cached.expiresAt - nowEpochSeconds > 60) return cached.value;
+    const existing = this.tokenPromises.get(repositoryId);
+    if (existing) return existing;
+    const tokenPromise = this.createInstallationToken(nowEpochSeconds, repositoryId).finally(() => {
+      this.tokenPromises.delete(repositoryId);
     });
-    return this.tokenPromise;
+    this.tokenPromises.set(repositoryId, tokenPromise);
+    return tokenPromise;
   }
 
   async createInstallationToken(nowEpochSeconds, repositoryId) {
@@ -735,12 +794,13 @@ export class G5ConnectedGithubAppAdapter {
     if (!exactObject(response) || typeof response.token !== "string" || response.token.length < 16 || response.token.length > 512) {
       stop(REASONS.TRANSPORT);
     }
+    exactKeys(response, EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS, REASONS.TRANSPORT);
     if (!exactObject(response.permissions)) stop(REASONS.TRANSPORT);
     exactKeys(response.permissions, Object.keys(EXPECTED_GITHUB_APP_PERMISSIONS), REASONS.TRANSPORT);
     for (const [permission, access] of Object.entries(response.permissions)) {
       if (EXPECTED_GITHUB_APP_PERMISSIONS[permission] !== access) stop(REASONS.TRANSPORT);
     }
-    if (response.repository_selection !== undefined && response.repository_selection !== "selected") stop(REASONS.TRANSPORT);
+    if (response.repository_selection !== "selected") stop(REASONS.TRANSPORT);
     if (!Array.isArray(response.repositories) || response.repositories.length !== 1) stop(REASONS.TRANSPORT);
     const repository = response.repositories[0];
     if (!exactObject(repository) || Number(repository.id) !== repositoryId || repository.full_name !== REPOSITORY) {
@@ -748,8 +808,9 @@ export class G5ConnectedGithubAppAdapter {
     }
     const expiresAt = Date.parse(response.expires_at ?? "");
     if (!Number.isFinite(expiresAt)) stop(REASONS.TRANSPORT);
-    this.token = Object.freeze({ value: response.token, repositoryId, expiresAt: Math.floor(expiresAt / 1000) });
-    if (this.token.expiresAt <= nowEpochSeconds) stop(REASONS.EXPIRED);
+    const token = Object.freeze({ value: response.token, repositoryId, expiresAt: Math.floor(expiresAt / 1000) });
+    if (token.expiresAt <= nowEpochSeconds) stop(REASONS.EXPIRED);
+    this.tokens.set(repositoryId, token);
     return response.token;
   }
 
@@ -776,7 +837,7 @@ export class G5ConnectedGithubAppAdapter {
     );
     if (!response || response.status < 200 || response.status >= 300) stop(REASONS.TRANSPORT);
     const link = lowerHeader(response.headers, "link");
-    if (typeof link === "string" && /(?:^|,)\s*<[^>]+>\s*;\s*rel="?next"?/i.test(link)) stop(REASONS.BINDING);
+    if (linkHeaderHasRelNext(link)) stop(REASONS.BINDING);
     return responseJsonWithLimit(response, maxBytes, this.timeoutMs);
   }
 
@@ -855,7 +916,9 @@ export class G5ConnectedGithubAppAdapter {
     this.ensureReference(reference);
     const jobs = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/jobs?per_page=100`, reference.repositoryId);
     if (!Array.isArray(jobs.jobs)) stop(REASONS.BINDING);
-    if (Number(jobs.total_count ?? jobs.jobs.length) > jobs.jobs.length || jobs.jobs.length >= 100) stop(REASONS.BINDING);
+    if (!Number.isSafeInteger(jobs.total_count) || jobs.total_count !== jobs.jobs.length || jobs.jobs.length >= 100) {
+      stop(REASONS.BINDING);
+    }
     const jobItems = Array.isArray(jobs.jobs) ? jobs.jobs.filter((job) => job.name === WORKFLOW_NAME) : [];
     if (jobItems.length !== 1) stop(REASONS.BINDING);
     const job = jobItems[0];
@@ -871,7 +934,8 @@ export class G5ConnectedGithubAppAdapter {
       job.status !== "in_progress" || (job.conclusion ?? null) !== null ||
       check.head_sha !== reference.candidateSha || check.name !== WORKFLOW_NAME ||
       check.status !== "in_progress" || (check.conclusion ?? null) !== null ||
-      app.slug !== GITHUB_ACTIONS_APP_SLUG || app.name !== GITHUB_ACTIONS_APP_NAME
+      app.slug !== GITHUB_ACTIONS_APP_SLUG || app.name !== GITHUB_ACTIONS_APP_NAME ||
+      Number(app.id) !== GITHUB_ACTIONS_APP_ID || Number(app.owner?.id) !== GITHUB_ACTIONS_APP_OWNER_ID
     ) stop(REASONS.BINDING);
     return this.complete([{
       id: checkBinding.id,
@@ -890,6 +954,8 @@ export class G5ConnectedGithubAppAdapter {
       checkConclusion: check.conclusion ?? null,
       checkAppSlug: app.slug,
       checkAppName: app.name,
+      checkAppId: Number(app.id),
+      checkAppOwnerId: Number(app.owner?.id),
     }]);
   }
 
@@ -1630,6 +1696,7 @@ function validateAuthority(claims, evidence, policy) {
     check.checkName !== check.name || check.checkHeadSha !== claims.candidateSha ||
     check.checkStatus !== "in_progress" || check.checkConclusion !== null ||
     check.checkAppSlug !== GITHUB_ACTIONS_APP_SLUG || check.checkAppName !== GITHUB_ACTIONS_APP_NAME ||
+    check.checkAppId !== GITHUB_ACTIONS_APP_ID || check.checkAppOwnerId !== GITHUB_ACTIONS_APP_OWNER_ID ||
     deployment.runId !== run.id || deployment.jobId !== check.jobId || deployment.statusState !== "in_progress" ||
     deployment.sha !== claims.candidateSha || deployment.environment !== ENVIRONMENT || !positiveInteger(deployment.id) ||
     !positiveInteger(deployment.deploymentStatusId) ||
@@ -1654,6 +1721,43 @@ function validateAuthority(claims, evidence, policy) {
     triggeringActorId: run.triggeringActorId, reviewerId: approval.reviewerId,
     nonce: claims.nonce, jti: claims.jti, expiresAt: claims.expiresAt,
   });
+}
+
+function terminalBinding(binding) {
+  return Object.freeze({
+    repositoryId: binding.repositoryId,
+    runId: binding.runId,
+    runAttempt: binding.runAttempt,
+    checkRunId: binding.checkRunId,
+    checkSuiteId: binding.checkSuiteId,
+    jobId: binding.jobId,
+    deploymentId: binding.deploymentId,
+    deploymentStatusId: binding.deploymentStatusId,
+  });
+}
+
+function validateTerminalAuthority(claims, evidence, expectedBinding) {
+  const { run, check, deployment } = evidence;
+  if (
+    !exactObject(expectedBinding) ||
+    run.id !== claims.runId || run.repositoryId !== claims.repositoryId ||
+    run.ownerId !== claims.ownerId || run.repository !== claims.repository ||
+    run.ref !== claims.ref || run.attempt !== 1 || run.event !== "workflow_dispatch" ||
+    run.headSha !== claims.candidateSha || run.actorId !== claims.actorId ||
+    !positiveInteger(run.triggeringActorId) || run.status !== "in_progress" || run.conclusion !== null ||
+    check.runId !== run.id || check.runAttempt !== 1 || check.id !== expectedBinding.checkRunId ||
+    check.checkSuiteId !== expectedBinding.checkSuiteId || check.jobId !== expectedBinding.jobId ||
+    check.headSha !== claims.candidateSha || check.name !== WORKFLOW_NAME ||
+    check.jobStatus !== "in_progress" || check.jobConclusion !== null ||
+    check.checkHeadSha !== claims.candidateSha || check.checkName !== WORKFLOW_NAME ||
+    check.checkStatus !== "in_progress" || check.checkConclusion !== null ||
+    check.checkAppSlug !== GITHUB_ACTIONS_APP_SLUG || check.checkAppName !== GITHUB_ACTIONS_APP_NAME ||
+    check.checkAppId !== GITHUB_ACTIONS_APP_ID || check.checkAppOwnerId !== GITHUB_ACTIONS_APP_OWNER_ID ||
+    deployment.runId !== run.id || deployment.jobId !== check.jobId || deployment.id !== expectedBinding.deploymentId ||
+    deployment.deploymentStatusId !== expectedBinding.deploymentStatusId || deployment.statusState !== "in_progress" ||
+    deployment.sha !== claims.candidateSha || deployment.environment !== ENVIRONMENT
+  ) stop(REASONS.BINDING);
+  return terminalBinding(expectedBinding);
 }
 
 export async function gateIdentity(binding) {
@@ -1841,12 +1945,19 @@ export class G5TrustBroker {
     const bindingA = validateAuthority(claims, evidenceA, this.policy);
     if (!this.ledger || typeof this.ledger.consume !== "function") stop(REASONS.AUTHORITY);
     if (hooks.beforeCas) await hooks.beforeCas();
+    if (hooks.beforeSnapshotB) await hooks.beforeSnapshotB();
     const evidenceB = await this.githubApp.authoritativeEvidence(claims);
-    const binding = validateAuthority(claims, evidenceB, this.policy);
-    if (stable(bindingA) !== stable(binding)) stop(REASONS.BINDING);
+    const bindingB = validateAuthority(claims, evidenceB, this.policy);
+    if (stable(bindingA) !== stable(bindingB)) stop(REASONS.BINDING);
+    if (hooks.beforeTerminalConfirmation) await hooks.beforeTerminalConfirmation();
+    if (typeof this.githubApp.terminalEvidence !== "function") stop(REASONS.AUTHORITY);
+    const terminalEvidence = await this.githubApp.terminalEvidence(claims, bindingB);
+    if (stable(validateTerminalAuthority(claims, terminalEvidence, bindingB)) !== stable(terminalBinding(bindingB))) {
+      stop(REASONS.BINDING);
+    }
     let result;
     try {
-      result = await this.ledger.consume(binding);
+      result = await this.ledger.consume(bindingB);
     } catch (error) {
       const reason = publicReasonFromError(error);
       if (reason) stop(reason);
@@ -1914,6 +2025,7 @@ export const INTERNALS = Object.freeze({
   WORKFLOW_NAME, CONNECTED_DISABLED, TRUST_BROKER_ENDPOINT_CONFIG_NAME,
   RUNTIME_ENABLED_CONFIG_NAME, RUNTIME_POLICY_BINDING_NAMES, GITHUB_APP_CONFIG_NAMES,
   LEGACY_POLICY_DENYLIST, MANUAL_WORKFLOW_POLICY, SUPABASE_TABLES,
+  GITHUB_ACTIONS_APP_ID, GITHUB_ACTIONS_APP_OWNER_ID,
   MAX_TOKEN_LIFETIME_SECONDS, MAX_LEDGER_RECORDS, STRICT_TIMEOUT_MS, MAX_RESPONSE_BYTES,
   MAX_GITHUB_RESPONSE_BYTES, MAX_GITHUB_TOKEN_RESPONSE_BYTES, JWKS_CACHE_SECONDS,
   PAGE_SIZE, MAX_PAGES, MAX_ROWS,

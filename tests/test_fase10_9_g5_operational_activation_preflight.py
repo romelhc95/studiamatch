@@ -28,6 +28,7 @@ ADR_PATH = Path(".context/decisiones/ADR-0016_g5_operational_activation_gates.md
 ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md")
 ADR19_PATH = Path(".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md")
 ADR20_PATH = Path(".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md")
+ADR21_PATH = Path(".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -198,6 +199,57 @@ def test_pr392_and_e2_security_remediation_stop_are_registered() -> None:
     )
 
 
+def test_pr393_and_residual_remediation_contract_are_registered() -> None:
+    manifest = _manifest()
+    assert manifest["pr_393_reconciliation"] == {
+        "candidate_sha": "4d5d97bb37ffcd5126d467bde9152e705a895c85",
+        "merge_sha": "51aaac5d289226b1f8f16de1daf69a16a084d585",
+        "tree_sha": "7e7be8072cc416d76d2034a126d39393cdbcc968",
+        "status": "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED",
+        "security_run_id": "31962569422",
+        "security_conclusion": "PASS",
+        "security_aggregate_job_id": "95202769920",
+        "security_aggregate_conclusion": "PASS",
+        "branch_reconciliation_job_id": "95202690518",
+        "branch_reconciliation_conclusion": "PASS",
+        "f9_7_run_id": "31962569598",
+        "f9_7_conclusion": "PASS",
+        "focused_job_id": "95202690713",
+        "focused_conclusion": "PASS",
+        "f9_7_job_id": "95202805508",
+        "f9_7_job_conclusion": "PASS",
+        "run_attempt": 1,
+        "merge_tree_reconciled": True,
+        "post_merge_residual_remediation_required": True,
+    }
+    residual = manifest["post_merge_pr393_residual_findings"]
+    assert len(residual) == 6
+    assert [finding["severity"] for finding in residual].count("HIGH") == 1
+    assert [finding["severity"] for finding in residual].count("MEDIUM") == 5
+    assert all(finding["status"] == "REMEDIATED_REPOSITORY_ONLY" for finding in residual)
+    assert manifest["terminal_confirmation"] == {
+        "source": "requery_run_job_check_and_deployment_status_after_snapshot_b_immediately_before_cas",
+        "covered_bindings": [
+            "repositoryId",
+            "runId",
+            "runAttempt",
+            "checkRunId",
+            "checkSuiteId",
+            "jobId",
+            "deploymentId",
+            "deploymentStatusId",
+        ],
+        "external_request_after_terminal_confirmation": "FORBIDDEN",
+        "cas_retry": "FORBIDDEN",
+    }
+    assert manifest["github_actions_app_identity"] == {
+        "slug": "github-actions",
+        "name": "GitHub Actions",
+        "id": 15368,
+        "owner_id": 9919,
+    }
+
+
 def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> None:
     manifest = _manifest()
     findings = manifest["post_merge_security_findings"]
@@ -215,6 +267,9 @@ def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> 
     }
     assert manifest["snapshot_cas"]["internal_retry"] == "FORBIDDEN"
     assert manifest["installation_token_scope"]["repository_ids_request"] == "exact_single_repository_id"
+    assert manifest["installation_token_scope"]["repository_selection"] == "selected_required"
+    assert manifest["installation_token_scope"]["token_schema"] == "exact_known_response_keys"
+    assert manifest["installation_token_scope"]["token_promise_cache"] == "segmented_by_repository_id"
     assert manifest["installation_token_scope"]["permissions"] == EXPECTED_GITHUB_APP_PERMISSIONS
     assert manifest["future_e2_readonly_preflight"] == {
         "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
@@ -303,6 +358,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         + ADR18_PATH.read_text(encoding="utf-8")
         + ADR19_PATH.read_text(encoding="utf-8")
         + ADR20_PATH.read_text(encoding="utf-8")
+        + ADR21_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
@@ -323,6 +379,9 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "GET /repos/{owner}/{repo}/branches/main",
         "G5_TRUST_RUNTIME_ENABLED",
         "SUPERSEDED_NOT_EXECUTABLE",
+        "terminal confirmation",
+        "51aaac5d289226b1f8f16de1daf69a16a084d585",
+        "7e7be8072cc416d76d2034a126d39393cdbcc968",
     ):
         assert marker in combined
     assert "No se puede combinar" in combined

@@ -228,6 +228,7 @@ function fixture(overrides = {}) {
       checkRunUrl: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505",
       checkSuiteId: 506, checkHeadSha: SHA, checkName: "F10.9 G5 Production Read-Only Diagnostic",
       checkAppSlug: "github-actions", checkAppName: "GitHub Actions",
+      checkAppId: 15368, checkAppOwnerId: 9919,
       jobStatus: "in_progress", jobConclusion: null, checkStatus: "in_progress", checkConclusion: null,
     }],
     deployment: [{
@@ -367,7 +368,7 @@ test("valid JWT and authoritative exact-one evidence consume once with sanitized
   const gate = await onlyGate(storage);
   assert.equal(await ledger.receipt(gate.identity), result.receiptDigest);
   const resources = transport.calls.map((call) => call.resource).sort();
-  assert.equal(resources.length, 16);
+  assert.equal(resources.length, 19);
   assert.deepEqual([...new Set(resources)], [
     "approval", "branch", "check_run_job", "commit_tree", "deployment", "environment",
     "workflow_blob", "workflow_run",
@@ -489,6 +490,8 @@ test("job and check run must be the exact in-progress workflow job", async () =>
     [{ ...fixture().check_run_job[0], checkName: "F10.9 G5 Production Read-Only Diagnostic Copy" }],
     [{ ...fixture().check_run_job[0], checkAppSlug: "external-ci" }],
     [{ ...fixture().check_run_job[0], checkAppName: "External CI" }],
+    [{ ...fixture().check_run_job[0], checkAppId: 15369 }],
+    [{ ...fixture().check_run_job[0], checkAppOwnerId: 9920 }],
     [{ ...fixture().check_run_job[0], jobStatus: "completed", jobConclusion: "success" }],
     [{ ...fixture().check_run_job[0], checkStatus: "completed", checkConclusion: "success" }],
     [{ ...fixture().check_run_job[0], jobConclusion: "failure" }],
@@ -636,6 +639,59 @@ test("snapshot B must match snapshot A immediately before CAS", async () => {
     REASONS.BINDING,
   );
   assert.equal([...approvalChanged.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+});
+
+test("terminal confirmation rechecks run job check and deployment immediately before CAS", async () => {
+  const valid = setup();
+  await valid.broker.authorize(valid.request);
+  assert.deepEqual(valid.transport.calls.slice(-3).map((call) => call.resource), [
+    "workflow_run", "check_run_job", "deployment",
+  ]);
+
+  const runCompleted = setup();
+  await reason(
+    () => runCompleted.broker.authorize(runCompleted.request, {
+      beforeTerminalConfirmation: async () => {
+        runCompleted.transport.data.workflow_run = [{
+          ...fixture().workflow_run[0],
+          status: "completed",
+          conclusion: "success",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...runCompleted.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+
+  const jobCompleted = setup();
+  await reason(
+    () => jobCompleted.broker.authorize(jobCompleted.request, {
+      beforeTerminalConfirmation: async () => {
+        jobCompleted.transport.data.check_run_job = [{
+          ...fixture().check_run_job[0],
+          checkStatus: "completed",
+          checkConclusion: "success",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...jobCompleted.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+
+  const statusChanged = setup();
+  await reason(
+    () => statusChanged.broker.authorize(statusChanged.request, {
+      beforeTerminalConfirmation: async () => {
+        statusChanged.transport.data.deployment = [{
+          ...fixture().deployment[0],
+          deploymentStatusId: 608,
+          statusUpdatedAt: "2026-08-16T00:00:03Z",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...statusChanged.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
 });
 
 test("nonce and jti indexes reject replay independently across gate identities", async () => {
@@ -893,7 +949,7 @@ test("connected GitHub App adapter uses only read permissions and fake transport
         status: "in_progress",
         conclusion: null,
         check_suite: { id: 506 },
-        app: { slug: "github-actions", name: "GitHub Actions" },
+        app: { id: 15368, slug: "github-actions", name: "GitHub Actions", owner: { id: 9919 } },
       });
     }
     if (url.pathname.endsWith("/deployments")) {
@@ -1001,12 +1057,53 @@ test("installation token is scoped to exactly one repository and exact read perm
   for (const responseOverrides of [
     { repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }, { id: 102, full_name: "romelhc95/other" }] },
     { repositories: [{ id: 102, full_name: "romelhc95/other" }] },
+    { repository_selection: "all" },
+    { token_schema_drift: true },
     { permissions: { actions: "read", checks: "read", contents: "read", deployments: "read" } },
     { permissions: { actions: "read", checks: "read", contents: "read", deployments: "read", metadata: "read", issues: "read" } },
     { permissions: { actions: "read", checks: "write", contents: "read", deployments: "read", metadata: "read" } },
   ]) {
     await reason(() => createTokenWith(responseOverrides), REASONS.TRANSPORT);
   }
+});
+
+test("installation token promises are segmented by repository id under concurrency", async () => {
+  const bodies = [];
+  const adapter = new G5ConnectedGithubAppAdapter({
+    env: RUNTIME_ENV,
+    transport: new FakeFetchTransport((_request, call) => {
+      const body = JSON.parse(call.body);
+      bodies.push(body.repository_ids[0]);
+      const repositoryId = body.repository_ids[0];
+      return Response.json({
+        token: `installation-token-redacted-${repositoryId}`,
+        expires_at: new Date((NOW + 300) * 1000).toISOString(),
+        permissions: body.permissions,
+        repository_selection: "selected",
+        repositories: [{ id: repositoryId, full_name: repositoryId === 101 ? "romelhc95/studiamatch" : "romelhc95/other" }],
+      });
+    }),
+    policy: POLICY,
+    endpointApproved: true,
+    now: () => NOW,
+    signer: async () => "signature",
+  });
+
+  const sameRepository = await Promise.all([
+    adapter.installationToken(101),
+    adapter.installationToken(101),
+  ]);
+  assert.deepEqual(sameRepository, ["installation-token-redacted-101", "installation-token-redacted-101"]);
+  assert.deepEqual(bodies, [101]);
+
+  const crossRepository = await Promise.allSettled([
+    adapter.installationToken(101),
+    adapter.installationToken(102),
+  ]);
+  assert.equal(crossRepository[0].status, "fulfilled");
+  assert.equal(crossRepository[1].status, "rejected");
+  assert.equal(crossRepository[1].reason.reason, REASONS.TRANSPORT);
+  assert.deepEqual(bodies, [101, 102]);
 });
 
 test("connected adapter binds check authority only through job.check_run_url", async () => {
@@ -1037,9 +1134,9 @@ test("connected adapter binds check authority only through job.check_run_url", a
     status: "in_progress",
     conclusion: null,
     check_suite: { id: 506 },
-    app: { slug: "github-actions", name: "GitHub Actions" },
+    app: { id: 15368, slug: "github-actions", name: "GitHub Actions", owner: { id: 9919 } },
   };
-  function adapterFor({ jobs = [validJob], check = validCheck, link } = {}) {
+  function adapterFor({ jobs = [validJob], check = validCheck, link, totalCount = jobs.length } = {}) {
     return new G5ConnectedGithubAppAdapter({
       env: RUNTIME_ENV,
       transport: new FakeFetchTransport((request, call) => {
@@ -1054,7 +1151,7 @@ test("connected adapter binds check authority only through job.check_run_url", a
           });
         }
         if (url.pathname.endsWith("/actions/runs/303/jobs")) {
-          return Response.json({ total_count: jobs.length, jobs }, link ? { headers: { link } } : undefined);
+          return Response.json({ total_count: totalCount, jobs }, link ? { headers: { link } } : undefined);
         }
         if (url.pathname.endsWith("/check-runs/505") || url.pathname.endsWith("/check-runs/506")) {
           return Response.json(check);
@@ -1090,6 +1187,8 @@ test("connected adapter binds check authority only through job.check_run_url", a
       checkConclusion: null,
       checkAppSlug: "github-actions",
       checkAppName: "GitHub Actions",
+      checkAppId: 15368,
+      checkAppOwnerId: 9919,
     }],
   });
 
@@ -1102,10 +1201,17 @@ test("connected adapter binds check authority only through job.check_run_url", a
     await reason(() => adapterFor({ jobs: [job] }).listWorkflowJobs(reference), REASONS.TRANSPORT);
   }
   await reason(() => adapterFor({ jobs: [validJob, { ...validJob, id: 910 }] }).listWorkflowJobs(reference), REASONS.BINDING);
+  for (const totalCount of [null, "1", 0, 2, -1]) {
+    await reason(() => adapterFor({ totalCount }).listWorkflowJobs(reference), REASONS.BINDING);
+  }
   await reason(() => adapterFor({ jobs: [{ ...validJob, check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/506" }] }).listWorkflowJobs(reference), REASONS.BINDING);
   await reason(() => adapterFor({ check: { ...validCheck, app: { slug: "external-ci", name: "External CI" } } }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ check: { ...validCheck, app: { id: 15369, slug: "github-actions", name: "GitHub Actions", owner: { id: 9919 } } } }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ check: { ...validCheck, app: { id: 15368, slug: "github-actions", name: "GitHub Actions", owner: { id: 9920 } } } }).listWorkflowJobs(reference), REASONS.BINDING);
   await reason(() => adapterFor({ check: { ...validCheck, name: "Homonymous external check" } }).listWorkflowJobs(reference), REASONS.BINDING);
   await reason(() => adapterFor({ link: "<https://api.github.com/next>; rel=\"next\"" }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ link: "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/next>; type=\"application/json\"; rel=next" }).listWorkflowJobs(reference), REASONS.BINDING);
+  assert.equal((await adapterFor({ link: "<https://api.github.com/last>; title=\"last\"; rel=\"last\"" }).listWorkflowJobs(reference)).items.length, 1);
 });
 
 test("connected adapter derives deployment from GitHub deployment statuses", async () => {
