@@ -4592,10 +4592,24 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
             commit_tree(repo, head) == commit_tree(repo, candidate_head),
             "G5 residual security remediation merge tree drift",
         )
-    else:
+    intermediate_heads: list[str] = []
+    current = candidate_head
+    while current != base:
+        parents = commit_parents(repo, current)
         require(
-            commit_parents(repo, head) == [base],
-            "G5 residual security remediation candidate must be one direct commit",
+            len(parents) == 1,
+            "G5 residual security remediation candidate must be a linear descendant of base",
+        )
+        current = parents[0]
+        if current != base:
+            intermediate_heads.append(current)
+    for intermediate_head in intermediate_heads:
+        require_exact_delta(
+            repo,
+            base,
+            intermediate_head,
+            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
         )
     require_exact_delta(
         repo,
@@ -4614,6 +4628,117 @@ def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, 
     f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
     worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
     worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+
+    def tree_text(treeish: str, relative: str) -> str:
+        return str(git(repo, "show", f"{treeish}:{relative}"))
+
+    def validate_residual_security_texts(
+        manifest_text_at: str,
+        preflight_source_at: str,
+        preflight_tests_at: str,
+        f97_workflow_at: str,
+        worker_source_at: str,
+        worker_tests_at: str,
+        label: str,
+    ) -> None:
+        require(
+            ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md" in f97_workflow_at,
+            f"{label} focused CI path drift",
+        )
+        for forbidden in (
+            "const current = statuses[0]",
+            "repositorySelection !== undefined",
+            "app?.slug === EXPECTED_GITHUB_ACTIONS_APP_SLUG",
+        ):
+            require(forbidden not in worker_source_at, f"{label} obsolete authority drift")
+        for required in (
+            "terminalEvidence",
+            "validateTerminalAuthority",
+            "terminalBinding",
+            "GITHUB_ACTIONS_APP_ID",
+            "GITHUB_ACTIONS_APP_OWNER_ID",
+            "repository_selection",
+            "EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS",
+            "tokenPromises.get(repositoryId)",
+            "splitLinkHeader",
+            "total_count",
+        ):
+            require(required in worker_source_at, f"{label} runtime remediation drift")
+        for required in (
+            "terminal confirmation rechecks run job check and deployment immediately before CAS",
+            "installation token promises are segmented by repository id under concurrency",
+            "repository_selection: \"all\"",
+            "token_schema_drift",
+            "total_count",
+            "app: { id: 15369",
+        ):
+            require(required in worker_tests_at, f"{label} worker test drift")
+        for required in (
+            "test_pr393_and_residual_remediation_contract_are_registered",
+            "terminal_confirmation",
+            "github_actions_app_identity",
+            "token_promise_cache",
+            G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+        ):
+            require(required in preflight_tests_at or required in preflight_source_at, f"{label} preflight drift")
+        for forbidden in (
+            "https://",
+            "http://",
+            "sb_secret_",
+            "sb_publishable_",
+            "eyJhbG",
+            "-----BEGIN",
+            "project_ref",
+            "account_id",
+            "worker_id",
+            '"value"',
+            '"token"',
+            '"private_key"',
+        ):
+            require(forbidden not in manifest_text_at, f"{label} manifest contains sensitive or live value")
+        preflight_tree_at = ast.parse(preflight_source_at)
+        imported_roots_at: set[str] = set()
+        called_names_at: set[str] = set()
+        referenced_names_at: set[str] = set()
+        for node in ast.walk(preflight_tree_at):
+            if isinstance(node, ast.Import):
+                imported_roots_at.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported_roots_at.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    called_names_at.add(node.func.id)
+                elif isinstance(node.func, ast.Attribute):
+                    called_names_at.add(node.func.attr)
+            elif isinstance(node, ast.Name):
+                referenced_names_at.add(node.id)
+        require(
+            imported_roots_at <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+            f"{label} preflight import drift",
+        )
+        require(
+            not imported_roots_at & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+            f"{label} preflight remote capability",
+        )
+        require(
+            not called_names_at & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+            f"{label} preflight runtime capability",
+        )
+        require(
+            not referenced_names_at & {"environ", "workflow_dispatch", "wrangler"},
+            f"{label} preflight indirect capability",
+        )
+
+    for intermediate_head in intermediate_heads:
+        validate_residual_security_texts(
+            tree_text(intermediate_head, ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"),
+            tree_text(intermediate_head, "scripts/shared/f10_9_g5_operational_activation_preflight.py"),
+            tree_text(intermediate_head, "tests/test_fase10_9_g5_operational_activation_preflight.py"),
+            tree_text(intermediate_head, ".github/workflows/f9-7-contract.yml"),
+            tree_text(intermediate_head, "workers/g5-trust-broker/src/index.mjs"),
+            tree_text(intermediate_head, "workers/g5-trust-broker/test/trust-broker.test.mjs"),
+            "G5 PR K intermediate",
+        )
     manifest = json.loads(manifest_text)
     combined = "\n".join((state, index, adr21, runbook, manifest_text))
     for required in (

@@ -4960,13 +4960,14 @@ class F109BoundaryTest(unittest.TestCase):
             "skip",
         )
 
+    @mock.patch("scripts.security.f109_boundary.git")
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")
     @mock.patch("scripts.security.f109_boundary.commit_parents")
     @mock.patch("scripts.security.f109_boundary.commit_tree")
     @mock.patch("scripts.security.f109_boundary.require_sha")
     def test_g5_residual_security_remediation_accepts_exact_candidate(
-        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock, git_mock,
     ) -> None:
         self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_BASE, "51aaac5d289226b1f8f16de1daf69a16a084d585")
         self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE, "7e7be8072cc416d76d2034a126d39393cdbcc968")
@@ -4974,22 +4975,39 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE, "4d5d97bb37ffcd5126d467bde9152e705a895c85")
         self.assertEqual(G5_RESIDUAL_SECURITY_REMEDIATION_STATUS, "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED")
         head = "a" * 40
+        prior = "b" * 40
         tree_mock.return_value = G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE
-        parents_mock.side_effect = lambda _repo, commit: {head: [G5_RESIDUAL_SECURITY_REMEDIATION_BASE]}[commit]
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [prior],
+            prior: [G5_RESIDUAL_SECURITY_REMEDIATION_BASE],
+        }[commit]
         repo = self.make_repo()
         source_root = Path(__file__).resolve().parents[1]
         for relative in G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES:
             path = repo / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        git_mock.side_effect = lambda tree_repo, _command, spec: (
+            tree_repo / spec.split(":", 1)[1]
+        ).read_text(encoding="utf-8")
 
         validate_g5_residual_security_remediation(repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, head, "pull_request")
 
-        delta_mock.assert_called_once_with(
-            repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, head,
-            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
-            G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+        delta_mock.assert_has_calls(
+            [
+                mock.call(
+                    repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, prior,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+                ),
+                mock.call(
+                    repo, G5_RESIDUAL_SECURITY_REMEDIATION_BASE, head,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+                ),
+            ]
         )
+        self.assertEqual(delta_mock.call_count, 2)
         context_mock.assert_called_once_with(repo, 78, 429)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
