@@ -182,9 +182,22 @@ aprobaciones separadas; este documento no las concede.
    `E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE`; orden vigente: E1 completed, E2,
    E3, E4, E4A, E4B, E5 y E6. Trust operacional permanece
    `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate
-   `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; E2-E6 `NOT_EXECUTED`; sin endpoint,
-   GitHub App config, OIDC live, workflow ejecutado, Production, Supabase, SQL,
-   writers ni schedules.
+    `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; E2-E6 `NOT_EXECUTED`; sin endpoint,
+    GitHub App config, OIDC live, workflow ejecutado, Production, Supabase, SQL,
+    writers ni schedules.
+   PR #391 queda `MERGED_POST_MERGE_VERIFIED` como base PR I y PR #392 queda
+   `MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED`: candidate
+   `b3f9678e0df76ef8f9dfde8af9147a458a2e033b`, merge protegido
+   `0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e`, tree
+   `7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98`; Security post-merge
+   `31958015767=PASS`, F9.7 run `31958015698=PASS`, focused G5 job
+   `95191560687=PASS`, F9.7 job `95191665616=PASS`, `run_attempt=1`. El GO
+   Security Auditor anterior queda preservado, pero E2 permanece `NOT_EXECUTED`
+   con `E2_STOP_SECURITY_REMEDIATION_REQUIRED` hasta cerrar repository-only los
+   hallazgos de binding job/check, status deployment deterministico, snapshot
+   doble antes del CAS, identidad job/status, token limitado al repositorio y
+   preflight E2 read-only futuro. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no
+   cambian.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

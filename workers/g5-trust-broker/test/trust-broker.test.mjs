@@ -102,9 +102,12 @@ function validBrokerReceipt(context = {}) {
     runId: context.runId ?? 303,
     runAttempt: 1,
     checkRunId: context.checkRunId ?? 505,
+    checkSuiteId: context.checkSuiteId ?? 506,
+    jobId: context.jobId ?? 909,
     jobName: INTERNALS.WORKFLOW_NAME,
     environmentId: context.environmentId ?? 707,
     deploymentId: context.deploymentId ?? 606,
+    deploymentStatusId: context.deploymentStatusId ?? 607,
     candidateSha: SHA,
     candidateTree: TREE,
     workflowSha: SHA,
@@ -221,9 +224,17 @@ function fixture(overrides = {}) {
     branch: [{ name: "main", protected: true }],
     check_run_job: [{
       id: 505, jobId: 909, runId: 303, name: "F10.9 G5 Production Read-Only Diagnostic",
+      runAttempt: 1, headSha: SHA,
+      checkRunUrl: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505",
+      checkSuiteId: 506, checkHeadSha: SHA, checkName: "F10.9 G5 Production Read-Only Diagnostic",
+      checkAppSlug: "github-actions", checkAppName: "GitHub Actions",
       jobStatus: "in_progress", jobConclusion: null, checkStatus: "in_progress", checkConclusion: null,
     }],
-    deployment: [{ id: 606, runId: 303, jobId: 909, sha: SHA, environment: "Production", statusState: "in_progress" }],
+    deployment: [{
+      id: 606, deploymentStatusId: 607, runId: 303, jobId: 909, sha: SHA,
+      environment: "Production", statusState: "in_progress",
+      statusCreatedAt: "2026-08-16T00:00:01Z", statusUpdatedAt: "2026-08-16T00:00:02Z",
+    }],
     environment: [{ id: 707, name: "Production", protected: true }],
     approval: [{ runId: 303, environmentId: 707, environment: "Production", state: "approved", reviewerId: 808 }],
     commit_tree: [{ sha: SHA, tree: TREE }],
@@ -306,7 +317,8 @@ function setup({ payload = claims(), data = fixture(), transportOptions = {}, po
 function ledgerBinding(overrides = {}) {
   return {
     repositoryId: 101, runId: 303, runAttempt: 1, checkRunId: 505,
-    environmentId: 707, deploymentId: 606, candidateSha: SHA, candidateTree: TREE,
+    checkSuiteId: 506, jobId: 909, environmentId: 707, deploymentId: 606,
+    deploymentStatusId: 607, candidateSha: SHA, candidateTree: TREE,
     workflowRef: WORKFLOW_REF, workflowSha: WORKFLOW_SHA, workflowBlobSha: WORKFLOW_BLOB,
     actorId: 404, triggeringActorId: 405, reviewerId: 808,
     nonce: `sha256:${"a".repeat(64)}`, jti: "offline-jti-00000001", expiresAt: NOW + 300,
@@ -335,15 +347,28 @@ test("valid JWT and authoritative exact-one evidence consume once with sanitized
   const { broker, ledger, storage, request, transport } = setupValues;
   const result = await broker.authorize(request);
   assert.deepEqual(Object.keys(result).sort(), [
-    "authorizationComplete", "connectedMode", "decision", "operationalTrust",
-    "reasonCode", "receiptDigest", "transportCreated", "version",
+    "authorizationComplete", "connectedMode", "decision", "gateBinding",
+    "operationalTrust", "reasonCode", "receiptDigest", "transportCreated", "version",
   ]);
+  assert.deepEqual(result.gateBinding, {
+    repositoryId: 101,
+    runId: 303,
+    runAttempt: 1,
+    checkRunId: 505,
+    checkSuiteId: 506,
+    jobId: 909,
+    environmentId: 707,
+    deploymentId: 606,
+    deploymentStatusId: 607,
+  });
   assert.match(result.receiptDigest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(result.authorizationComplete, false);
   assert.equal(result.transportCreated, false);
   const gate = await onlyGate(storage);
   assert.equal(await ledger.receipt(gate.identity), result.receiptDigest);
-  assert.deepEqual(transport.calls.map((call) => call.resource).sort(), [
+  const resources = transport.calls.map((call) => call.resource).sort();
+  assert.equal(resources.length, 16);
+  assert.deepEqual([...new Set(resources)], [
     "approval", "branch", "check_run_job", "commit_tree", "deployment", "environment",
     "workflow_blob", "workflow_run",
   ]);
@@ -452,6 +477,18 @@ test("branch protection is verified through the branch endpoint", async () => {
 test("job and check run must be the exact in-progress workflow job", async () => {
   for (const check_run_job of [
     [{ ...fixture().check_run_job[0], name: "Other job" }],
+    [{ ...fixture().check_run_job[0], runId: 304 }],
+    [{ ...fixture().check_run_job[0], runAttempt: 2 }],
+    [{ ...fixture().check_run_job[0], headSha: "9".repeat(40) }],
+    [{ ...fixture().check_run_job[0], checkRunUrl: "http://api.github.com/repos/romelhc95/studiamatch/check-runs/505" }],
+    [{ ...fixture().check_run_job[0], checkRunUrl: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505?x=1" }],
+    [{ ...fixture().check_run_job[0], checkRunUrl: "https://api.github.com/repos/romelhc95/other/check-runs/505" }],
+    [{ ...fixture().check_run_job[0], checkRunUrl: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/506" }],
+    [{ ...fixture().check_run_job[0], checkSuiteId: 0 }],
+    [{ ...fixture().check_run_job[0], checkHeadSha: "9".repeat(40) }],
+    [{ ...fixture().check_run_job[0], checkName: "F10.9 G5 Production Read-Only Diagnostic Copy" }],
+    [{ ...fixture().check_run_job[0], checkAppSlug: "external-ci" }],
+    [{ ...fixture().check_run_job[0], checkAppName: "External CI" }],
     [{ ...fixture().check_run_job[0], jobStatus: "completed", jobConclusion: "success" }],
     [{ ...fixture().check_run_job[0], checkStatus: "completed", checkConclusion: "success" }],
     [{ ...fixture().check_run_job[0], jobConclusion: "failure" }],
@@ -481,6 +518,7 @@ test("deployment must be exact-one and bound to candidate SHA", async () => {
     [{ ...fixture().deployment[0], sha: "9".repeat(40) }],
     [{ ...fixture().deployment[0], jobId: 910 }],
     [{ ...fixture().deployment[0], statusState: "failure" }],
+    [{ ...fixture().deployment[0], deploymentStatusId: 0 }],
   ]) {
     const { broker, request } = setup({ data: fixture({ deployment }) });
     await reason(() => broker.authorize(request), REASONS.BINDING);
@@ -540,6 +578,64 @@ test("nonce and jti replay are rejected even with a different signed JWT", async
   await broker.authorize(request);
   const different = { ...request, bearerOidc: token(claims({ iat: NOW - 9 })) };
   await reason(() => broker.authorize(different), REASONS.REPLAY);
+});
+
+test("snapshot B must match snapshot A immediately before CAS", async () => {
+  const cancelled = setup();
+  await reason(
+    () => cancelled.broker.authorize(cancelled.request, {
+      beforeCas: async () => {
+        cancelled.transport.data.workflow_run = [{
+          ...fixture().workflow_run[0],
+          status: "completed",
+          conclusion: "cancelled",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...cancelled.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+
+  const completedJob = setup();
+  await reason(
+    () => completedJob.broker.authorize(completedJob.request, {
+      beforeCas: async () => {
+        completedJob.transport.data.check_run_job = [{
+          ...fixture().check_run_job[0],
+          jobStatus: "completed",
+          jobConclusion: "success",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...completedJob.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+
+  const newerStatus = setup();
+  await reason(
+    () => newerStatus.broker.authorize(newerStatus.request, {
+      beforeCas: async () => {
+        newerStatus.transport.data.deployment = [{
+          ...fixture().deployment[0],
+          deploymentStatusId: 608,
+          statusUpdatedAt: "2026-08-16T00:00:03Z",
+        }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...newerStatus.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
+
+  const approvalChanged = setup();
+  await reason(
+    () => approvalChanged.broker.authorize(approvalChanged.request, {
+      beforeCas: async () => {
+        approvalChanged.transport.data.approval = [{ ...fixture().approval[0], reviewerId: 809 }];
+      },
+    }),
+    REASONS.BINDING,
+  );
+  assert.equal([...approvalChanged.storage.values.keys()].some((key) => key.startsWith("gate:")), false);
 });
 
 test("nonce and jti indexes reject replay independently across gate identities", async () => {
@@ -739,6 +835,7 @@ test("connected GitHub App adapter uses only read permissions and fake transport
     if (request.method === "POST") {
       assert.equal(url.pathname, "/app/installations/67890/access_tokens");
       const body = JSON.parse(call.body);
+      assert.deepEqual(body.repository_ids, [101]);
       assert.deepEqual(body.permissions, {
         actions: "read",
         checks: "read",
@@ -750,6 +847,8 @@ test("connected GitHub App adapter uses only read permissions and fake transport
         token: "installation-token-redacted",
         expires_at: new Date((NOW + 300) * 1000).toISOString(),
         permissions: body.permissions,
+        repository_selection: "selected",
+        repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
       });
     }
     assert.equal(request.method, "GET");
@@ -772,11 +871,29 @@ test("connected GitHub App adapter uses only read permissions and fake transport
       return Response.json({ name: "main", protected: true });
     }
     if (url.pathname.endsWith("/actions/runs/303/jobs")) {
-      return Response.json({ jobs: [{ id: 909, name: INTERNALS.WORKFLOW_NAME, status: "in_progress", conclusion: null }] });
-    }
-    if (url.pathname.endsWith(`/commits/${SHA}/check-runs`)) {
       return Response.json({
-        check_runs: [{ id: 505, name: INTERNALS.WORKFLOW_NAME, status: "in_progress", conclusion: null }],
+        total_count: 1,
+        jobs: [{
+          id: 909,
+          run_id: 303,
+          run_attempt: 1,
+          head_sha: SHA,
+          name: INTERNALS.WORKFLOW_NAME,
+          status: "in_progress",
+          conclusion: null,
+          check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505",
+        }],
+      });
+    }
+    if (url.pathname.endsWith("/check-runs/505")) {
+      return Response.json({
+        id: 505,
+        head_sha: SHA,
+        name: INTERNALS.WORKFLOW_NAME,
+        status: "in_progress",
+        conclusion: null,
+        check_suite: { id: 506 },
+        app: { slug: "github-actions", name: "GitHub Actions" },
       });
     }
     if (url.pathname.endsWith("/deployments")) {
@@ -791,7 +908,11 @@ test("connected GitHub App adapter uses only read permissions and fake transport
     if (url.pathname.endsWith("/deployments/606/statuses")) {
       const jobUrl = "https://github.com/romelhc95/studiamatch/actions/runs/303/job/909";
       return Response.json([{
+        id: 607,
         state: "in_progress",
+        created_at: "2026-08-16T00:00:01Z",
+        updated_at: "2026-08-16T00:00:02Z",
+        deployment_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/606",
         environment: "Production",
         log_url: jobUrl,
         target_url: jobUrl,
@@ -842,6 +963,151 @@ test("connected GitHub App adapter uses only read permissions and fake transport
   }
 });
 
+test("installation token is scoped to exactly one repository and exact read permissions", async () => {
+  async function createTokenWith(responseOverrides = {}, bodyCheck = () => undefined) {
+    const adapter = new G5ConnectedGithubAppAdapter({
+      env: RUNTIME_ENV,
+      transport: new FakeFetchTransport((_request, call) => {
+        const body = JSON.parse(call.body);
+        bodyCheck(body);
+        return Response.json({
+          token: "installation-token-redacted",
+          expires_at: new Date((NOW + 300) * 1000).toISOString(),
+          permissions: body.permissions,
+          repository_selection: "selected",
+          repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
+          ...responseOverrides,
+        });
+      }),
+      policy: POLICY,
+      endpointApproved: true,
+      now: () => NOW,
+      signer: async () => "signature",
+    });
+    return adapter.installationToken(101);
+  }
+
+  assert.equal(await createTokenWith({}, (body) => {
+    assert.deepEqual(body.repository_ids, [101]);
+    assert.deepEqual(body.permissions, {
+      actions: "read",
+      checks: "read",
+      contents: "read",
+      deployments: "read",
+      metadata: "read",
+    });
+  }), "installation-token-redacted");
+
+  for (const responseOverrides of [
+    { repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }, { id: 102, full_name: "romelhc95/other" }] },
+    { repositories: [{ id: 102, full_name: "romelhc95/other" }] },
+    { permissions: { actions: "read", checks: "read", contents: "read", deployments: "read" } },
+    { permissions: { actions: "read", checks: "read", contents: "read", deployments: "read", metadata: "read", issues: "read" } },
+    { permissions: { actions: "read", checks: "write", contents: "read", deployments: "read", metadata: "read" } },
+  ]) {
+    await reason(() => createTokenWith(responseOverrides), REASONS.TRANSPORT);
+  }
+});
+
+test("connected adapter binds check authority only through job.check_run_url", async () => {
+  const reference = Object.freeze({
+    repository: "romelhc95/studiamatch",
+    runId: 303,
+    runAttempt: 1,
+    repositoryId: 101,
+    ownerId: 202,
+    candidateSha: SHA,
+    workflowRef: WORKFLOW_REF,
+    environment: "Production",
+  });
+  const validJob = {
+    id: 909,
+    run_id: 303,
+    run_attempt: 1,
+    head_sha: SHA,
+    name: INTERNALS.WORKFLOW_NAME,
+    status: "in_progress",
+    conclusion: null,
+    check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505",
+  };
+  const validCheck = {
+    id: 505,
+    head_sha: SHA,
+    name: INTERNALS.WORKFLOW_NAME,
+    status: "in_progress",
+    conclusion: null,
+    check_suite: { id: 506 },
+    app: { slug: "github-actions", name: "GitHub Actions" },
+  };
+  function adapterFor({ jobs = [validJob], check = validCheck, link } = {}) {
+    return new G5ConnectedGithubAppAdapter({
+      env: RUNTIME_ENV,
+      transport: new FakeFetchTransport((request, call) => {
+        const url = new URL(request.url);
+        if (request.method === "POST") {
+          return Response.json({
+            token: "installation-token-redacted",
+            expires_at: new Date((NOW + 300) * 1000).toISOString(),
+            permissions: JSON.parse(call.body).permissions,
+            repository_selection: "selected",
+            repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
+          });
+        }
+        if (url.pathname.endsWith("/actions/runs/303/jobs")) {
+          return Response.json({ total_count: jobs.length, jobs }, link ? { headers: { link } } : undefined);
+        }
+        if (url.pathname.endsWith("/check-runs/505") || url.pathname.endsWith("/check-runs/506")) {
+          return Response.json(check);
+        }
+        if (url.pathname.includes(`/commits/${SHA}/check-runs`)) {
+          throw new Error("independent check-runs search must not be used");
+        }
+        throw new Error(`unexpected fake GitHub path ${url.pathname}`);
+      }),
+      policy: POLICY,
+      endpointApproved: true,
+      now: () => NOW,
+      signer: async () => "signature",
+    });
+  }
+
+  assert.deepEqual(await adapterFor().listWorkflowJobs(reference), {
+    complete: true,
+    items: [{
+      id: 505,
+      checkSuiteId: 506,
+      jobId: 909,
+      runId: 303,
+      runAttempt: 1,
+      headSha: SHA,
+      checkRunUrl: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505",
+      name: INTERNALS.WORKFLOW_NAME,
+      jobStatus: "in_progress",
+      jobConclusion: null,
+      checkHeadSha: SHA,
+      checkName: INTERNALS.WORKFLOW_NAME,
+      checkStatus: "in_progress",
+      checkConclusion: null,
+      checkAppSlug: "github-actions",
+      checkAppName: "GitHub Actions",
+    }],
+  });
+
+  for (const job of [
+    { ...validJob, check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505?x=1" },
+    { ...validJob, check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/505#x" },
+    { ...validJob, check_run_url: "https://user:pass@api.github.com/repos/romelhc95/studiamatch/check-runs/505" },
+    { ...validJob, check_run_url: "https://api.github.com/repos/romelhc95/other/check-runs/505" },
+  ]) {
+    await reason(() => adapterFor({ jobs: [job] }).listWorkflowJobs(reference), REASONS.TRANSPORT);
+  }
+  await reason(() => adapterFor({ jobs: [validJob, { ...validJob, id: 910 }] }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ jobs: [{ ...validJob, check_run_url: "https://api.github.com/repos/romelhc95/studiamatch/check-runs/506" }] }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ check: { ...validCheck, app: { slug: "external-ci", name: "External CI" } } }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ check: { ...validCheck, name: "Homonymous external check" } }).listWorkflowJobs(reference), REASONS.BINDING);
+  await reason(() => adapterFor({ link: "<https://api.github.com/next>; rel=\"next\"" }).listWorkflowJobs(reference), REASONS.BINDING);
+});
+
 test("connected adapter derives deployment from GitHub deployment statuses", async () => {
   const jobUrl = "https://github.com/romelhc95/studiamatch/actions/runs/303/job/909";
   function transportFor({ deployments, statusesByDeployment }) {
@@ -852,6 +1118,8 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
           token: "installation-token-redacted",
           expires_at: new Date((NOW + 300) * 1000).toISOString(),
           permissions: JSON.parse(call.body).permissions,
+          repository_selection: "selected",
+          repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
         });
       }
       if (url.pathname.endsWith("/deployments")) return Response.json(deployments);
@@ -871,7 +1139,11 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
     statuses_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/606/statuses",
   };
   const validStatus = {
+    id: 607,
     state: "in_progress",
+    created_at: "2026-08-16T00:00:01Z",
+    updated_at: "2026-08-16T00:00:02Z",
+    deployment_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/606",
     environment: "Production",
     log_url: jobUrl,
     target_url: jobUrl,
@@ -881,6 +1153,8 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
     repository: "romelhc95/studiamatch",
     runId: 303,
     runAttempt: 1,
+    repositoryId: 101,
+    ownerId: 202,
     candidateSha: SHA,
     workflowRef: WORKFLOW_REF,
     environment: "Production",
@@ -896,14 +1170,26 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
   });
   assert.deepEqual(await adapter.listDeployments(reference), {
     complete: true,
-    items: [{ id: 606, runId: 303, jobId: 909, sha: SHA, environment: "Production", statusState: "in_progress" }],
+    items: [{
+      id: 606,
+      deploymentStatusId: 607,
+      runId: 303,
+      jobId: 909,
+      sha: SHA,
+      environment: "Production",
+      statusState: "in_progress",
+      statusCreatedAt: "2026-08-16T00:00:01Z",
+      statusUpdatedAt: "2026-08-16T00:00:02Z",
+    }],
   });
 
   for (const status of [
     { ...validStatus, target_url: "https://github.com/romelhc95/studiamatch/actions/runs/304/job/909" },
     { ...validStatus, log_url: "https://github.com/romelhc95/studiamatch/actions/runs/303/job/910" },
     { ...validStatus, target_url: "https://evil.example/romelhc95/studiamatch/actions/runs/303/job/909" },
-    { ...validStatus, state: "failure" },
+    { ...validStatus, deployment_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/607" },
+    { ...validStatus, created_at: "invalid" },
+    { ...validStatus, updated_at: "2026-08-16T00:00:00Z" },
     { ...validStatus, repository_url: "https://api.github.com/repos/other/repo" },
     { ...validStatus, repository_url: undefined },
   ]) {
@@ -915,21 +1201,31 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
       now: () => NOW,
       signer: async () => "signature",
     });
-    assert.deepEqual(await drift.listDeployments(reference), { complete: true, items: [] });
+    await reason(() => drift.listDeployments(reference), REASONS.BINDING);
   }
+
+  const notInProgress = new G5ConnectedGithubAppAdapter({
+    env: RUNTIME_ENV,
+    transport: transportFor({ deployments: [deployment], statusesByDeployment: { 606: [{ ...validStatus, state: "failure" }] } }),
+    policy: POLICY,
+    endpointApproved: true,
+    now: () => NOW,
+    signer: async () => "signature",
+  });
+  assert.deepEqual(await notInProgress.listDeployments(reference), { complete: true, items: [] });
 
   const staleHistoricalInProgress = new G5ConnectedGithubAppAdapter({
     env: RUNTIME_ENV,
     transport: transportFor({
       deployments: [deployment],
-      statusesByDeployment: { 606: [{ ...validStatus, state: "failure" }, validStatus] },
+      statusesByDeployment: { 606: [{ ...validStatus, id: 608, state: "failure", updated_at: "2026-08-16T00:00:03Z" }, validStatus] },
     }),
     policy: POLICY,
     endpointApproved: true,
     now: () => NOW,
     signer: async () => "signature",
   });
-  assert.deepEqual(await staleHistoricalInProgress.listDeployments(reference), { complete: true, items: [] });
+  await reason(() => staleHistoricalInProgress.listDeployments(reference), REASONS.BINDING);
 
   const multi = new G5ConnectedGithubAppAdapter({
     env: RUNTIME_ENV,
@@ -938,7 +1234,10 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
         deployment,
         { ...deployment, id: 607, statuses_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/607/statuses" },
       ],
-      statusesByDeployment: { 606: [validStatus], 607: [validStatus] },
+      statusesByDeployment: {
+        606: [validStatus],
+        607: [{ ...validStatus, id: 608, deployment_url: "https://api.github.com/repos/romelhc95/studiamatch/deployments/607" }],
+      },
     }),
     policy: POLICY,
     endpointApproved: true,
@@ -946,6 +1245,39 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
     signer: async () => "signature",
   });
   assert.equal((await multi.listDeployments(reference)).items.length, 2);
+
+  const unsorted = new G5ConnectedGithubAppAdapter({
+    env: RUNTIME_ENV,
+    transport: transportFor({
+      deployments: [deployment],
+      statusesByDeployment: {
+        606: [
+          { ...validStatus, id: 608, state: "failure", updated_at: "2026-08-16T00:00:01Z" },
+          { ...validStatus, id: 607, updated_at: "2026-08-16T00:00:03Z" },
+        ],
+      },
+    }),
+    policy: POLICY,
+    endpointApproved: true,
+    now: () => NOW,
+    signer: async () => "signature",
+  });
+  assert.equal((await unsorted.listDeployments(reference)).items[0].deploymentStatusId, 607);
+
+  for (const statuses of [
+    [validStatus, { ...validStatus, id: 608 }],
+    [validStatus, { ...validStatus, id: 607, updated_at: "2026-08-16T00:00:03Z" }],
+  ]) {
+    const invalid = new G5ConnectedGithubAppAdapter({
+      env: RUNTIME_ENV,
+      transport: transportFor({ deployments: [deployment], statusesByDeployment: { 606: statuses } }),
+      policy: POLICY,
+      endpointApproved: true,
+      now: () => NOW,
+      signer: async () => "signature",
+    });
+    await reason(() => invalid.listDeployments(reference), REASONS.BINDING);
+  }
 
   const saturatedDeployments = new G5ConnectedGithubAppAdapter({
     env: RUNTIME_ENV,
@@ -976,6 +1308,31 @@ test("connected adapter derives deployment from GitHub deployment statuses", asy
     signer: async () => "signature",
   });
   await reason(() => saturatedStatuses.listDeployments(reference), REASONS.BINDING);
+
+  const linkedNext = new G5ConnectedGithubAppAdapter({
+    env: RUNTIME_ENV,
+    transport: new FakeFetchTransport((request, call) => {
+      const url = new URL(request.url);
+      if (request.method === "POST") {
+        return Response.json({
+          token: "installation-token-redacted",
+          expires_at: new Date((NOW + 300) * 1000).toISOString(),
+          permissions: JSON.parse(call.body).permissions,
+          repository_selection: "selected",
+          repositories: [{ id: 101, full_name: "romelhc95/studiamatch" }],
+        });
+      }
+      if (url.pathname.endsWith("/deployments")) {
+        return Response.json([deployment], { headers: { link: "<https://api.github.com/next>; rel=\"next\"" } });
+      }
+      throw new Error(`unexpected fake GitHub path ${url.pathname}`);
+    }),
+    policy: POLICY,
+    endpointApproved: true,
+    now: () => NOW,
+    signer: async () => "signature",
+  });
+  await reason(() => linkedNext.listDeployments(reference), REASONS.BINDING);
 });
 
 test("GitHub App JWT and JWKS client fail closed without logging secrets", async () => {
@@ -1063,7 +1420,17 @@ test("OIDC client fetches a sanitized token with fixed audience", async () => {
 });
 
 test("trust broker HTTP client requires future config and validates one receipt", async () => {
-  const context = { repositoryId: 101, runId: 303, runAttempt: 1, checkRunId: 505, environmentId: 707, deploymentId: 606 };
+  const context = {
+    repositoryId: 101,
+    runId: 303,
+    runAttempt: 1,
+    checkRunId: 505,
+    checkSuiteId: 506,
+    jobId: 909,
+    environmentId: 707,
+    deploymentId: 606,
+    deploymentStatusId: 607,
+  };
   const body = validBrokerReceipt(context);
   const transport = new FakeFetchTransport(async (request, call) => {
     assert.equal(request.method, "POST");
@@ -1351,8 +1718,18 @@ test("connected diagnostic CLI reports disabled instead of silently no-op", asyn
   assert.equal(result.reasonCode, REASONS.CONFIG);
 });
 
-test("identity includes all six authoritative numeric bindings", async () => {
-  const base = { repositoryId: 1, runId: 2, runAttempt: 1, checkRunId: 3, environmentId: 4, deploymentId: 5 };
+test("identity includes all authoritative numeric runtime bindings", async () => {
+  const base = {
+    repositoryId: 1,
+    runId: 2,
+    runAttempt: 1,
+    checkRunId: 3,
+    checkSuiteId: 4,
+    jobId: 5,
+    environmentId: 6,
+    deploymentId: 7,
+    deploymentStatusId: 8,
+  };
   const original = await gateIdentity(base);
   for (const field of Object.keys(base)) {
     assert.notEqual(await gateIdentity({ ...base, [field]: base[field] + 1 }), original);
