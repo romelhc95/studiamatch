@@ -7,12 +7,15 @@ const REPOSITORY = "romelhc95/studiamatch";
 const WORKFLOW_PATH = ".github/workflows/g5-manual-trust-gate.yml";
 const WORKFLOW_NAME = "F10.9 G5 Production Read-Only Diagnostic";
 const WORKFLOW_REF = `${REPOSITORY}/${WORKFLOW_PATH}@${MAIN_REF}`;
+const MAIN_BRANCH = "main";
 const CONNECTED_DISABLED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED";
 const CONNECTED_STOP = CONNECTED_DISABLED;
 const TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED";
 const CONFIG_STOP = "STOP_G5_CONNECTED_MODE_DISABLED_NOT_CONFIGURED";
 const RUNTIME_ENABLED_CONFIG_NAME = "G5_TRUST_RUNTIME_ENABLED";
 const GITHUB_API_BASE = "https://api.github.com";
+const GITHUB_WEB_BASE = "https://github.com";
+const GITHUB_API_REPOSITORY_URL = `${GITHUB_API_BASE}/repos/${REPOSITORY}`;
 const GITHUB_JWKS_URL = `${ISSUER}/.well-known/jwks`;
 const MAX_TOKEN_LIFETIME_SECONDS = 600;
 const MAX_LEDGER_RECORDS = 10_000;
@@ -604,7 +607,7 @@ export class GithubAppReadOnlyAdapter {
   constructor(transport) {
     const methods = [
       "getWorkflowRun", "listWorkflowJobs", "listDeployments", "getEnvironment",
-      "listApprovals", "getCommit", "getWorkflowBlob",
+      "listApprovals", "getCommit", "getWorkflowBlob", "getBranch",
     ];
     if (!transport || methods.some((method) => typeof transport[method] !== "function")) {
       stop(REASONS.AUTHORITY);
@@ -618,10 +621,10 @@ export class GithubAppReadOnlyAdapter {
       candidateSha: claims.candidateSha, workflowRef: claims.workflowRef,
       environment: claims.environment,
     });
-    const [run, check, deployment, environment, approval, commit, workflowBlob] = await Promise.all([
+    const [run, check, branch, environment, approval, commit, workflowBlob] = await Promise.all([
       this.transport.getWorkflowRun(reference),
       this.transport.listWorkflowJobs(reference),
-      this.transport.listDeployments(reference),
+      this.transport.getBranch(reference),
       this.transport.getEnvironment(reference),
       this.transport.listApprovals(reference),
       this.transport.getCommit(reference),
@@ -630,7 +633,11 @@ export class GithubAppReadOnlyAdapter {
       group,
       index === 4 ? REASONS.APPROVAL : REASONS.BINDING,
     )));
-    return Object.freeze({ run, check, deployment, environment, approval, commit, workflowBlob });
+    const deployment = exactOneComplete(
+      await this.transport.listDeployments(Object.freeze({ ...reference, jobId: check.jobId })),
+      REASONS.BINDING,
+    );
+    return Object.freeze({ run, check, branch, deployment, environment, approval, commit, workflowBlob });
   }
 }
 
@@ -765,6 +772,26 @@ export class G5ConnectedGithubAppAdapter {
     return Object.freeze({ complete: true, items: Object.freeze(items.map((item) => Object.freeze(item))) });
   }
 
+  githubApiPathFromUrl(raw, expectedPrefix) {
+    if (typeof raw !== "string") stop(REASONS.TRANSPORT);
+    const url = requireSafeHttpsUrl(raw, REASONS.TRANSPORT);
+    if (url.origin !== GITHUB_API_BASE || url.pathname.startsWith("//")) stop(REASONS.TRANSPORT);
+    if (typeof expectedPrefix === "string" && url.pathname !== expectedPrefix) stop(REASONS.TRANSPORT);
+    if (url.search !== "" || url.hash !== "") stop(REASONS.TRANSPORT);
+    return `${url.pathname}${url.search}`;
+  }
+
+  githubActionJobUrlBinding(raw, reference, jobId) {
+    if (!positiveInteger(jobId) || typeof raw !== "string") return null;
+    const url = requireSafeHttpsUrl(raw, REASONS.TRANSPORT);
+    const expectedPath = `/${REPOSITORY}/actions/runs/${reference.runId}/job/${jobId}`;
+    if (
+      url.origin !== GITHUB_WEB_BASE || url.pathname !== expectedPath ||
+      url.search !== "" || url.hash !== ""
+    ) return null;
+    return Object.freeze({ repository: REPOSITORY, runId: reference.runId, jobId });
+  }
+
   async getWorkflowRun(reference) {
     this.ensureReference(reference);
     const run = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}`);
@@ -773,39 +800,84 @@ export class G5ConnectedGithubAppAdapter {
       repositoryId: Number(run.repository?.id),
       ownerId: Number(run.repository?.owner?.id),
       repository: run.repository?.full_name,
-      ref: run.head_branch === "main" ? MAIN_REF : run.head_branch,
-      refProtected: run.ref_protected === true,
+      ref: run.head_branch === MAIN_BRANCH || run.head_branch === MAIN_REF ? MAIN_REF : run.head_branch,
       attempt: Number(run.run_attempt),
       event: run.event,
+      status: run.status,
       headSha: run.head_sha,
       actorId: Number(run.actor?.id),
       triggeringActorId: Number(run.triggering_actor?.id),
-      conclusion: run.conclusion,
+      conclusion: run.conclusion ?? null,
     } : null;
     return this.complete(item ? [item] : []);
+  }
+
+  async getBranch(reference) {
+    this.ensureReference(reference);
+    const branch = await this.githubGet(`/repos/${REPOSITORY}/branches/${MAIN_BRANCH}`);
+    return this.complete([{
+      name: branch.name,
+      protected: branch.protected === true,
+    }]);
   }
 
   async listWorkflowJobs(reference) {
     this.ensureReference(reference);
     const jobs = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/jobs?per_page=100`);
     const checks = await this.githubGet(`/repos/${REPOSITORY}/commits/${reference.candidateSha}/check-runs?check_name=${encodeURIComponent(WORKFLOW_NAME)}`);
+    if (!Array.isArray(jobs.jobs) || !Array.isArray(checks.check_runs)) stop(REASONS.BINDING);
+    if (Number(jobs.total_count ?? jobs.jobs.length) > jobs.jobs.length || jobs.jobs.length >= 100) stop(REASONS.BINDING);
+    if (Number(checks.total_count ?? checks.check_runs.length) > checks.check_runs.length || checks.check_runs.length >= 100) stop(REASONS.BINDING);
     const jobItems = Array.isArray(jobs.jobs) ? jobs.jobs.filter((job) => job.name === WORKFLOW_NAME) : [];
     const checkItems = Array.isArray(checks.check_runs) ? checks.check_runs.filter((check) => check.name === WORKFLOW_NAME) : [];
     const job = jobItems.length === 1 ? jobItems[0] : null;
     const check = checkItems.length === 1 ? checkItems[0] : null;
-    return this.complete(job && check ? [{ id: Number(check.id), runId: Number(reference.runId), name: job.name, conclusion: job.conclusion }] : []);
+    return this.complete(job && check ? [{
+      id: Number(check.id),
+      jobId: Number(job.id),
+      runId: Number(reference.runId),
+      name: job.name,
+      jobStatus: job.status,
+      jobConclusion: job.conclusion ?? null,
+      checkStatus: check.status,
+      checkConclusion: check.conclusion ?? null,
+    }] : []);
   }
 
   async listDeployments(reference) {
     this.ensureReference(reference);
+    if (!positiveInteger(reference.jobId)) stop(REASONS.BINDING);
     const deployments = await this.githubGet(`/repos/${REPOSITORY}/deployments?sha=${reference.candidateSha}&environment=${encodeURIComponent(ENVIRONMENT)}&per_page=100`);
-    const items = Array.isArray(deployments) ? deployments.map((deployment) => ({
-      id: Number(deployment.id),
-      runId: Number(reference.runId),
-      sha: deployment.sha,
-      environmentId: Number(deployment.environment_id),
-      environment: deployment.environment,
-    })) : [];
+    if (!Array.isArray(deployments) || deployments.length >= 100) stop(REASONS.BINDING);
+    const candidates = Array.isArray(deployments) ? deployments.filter((deployment) => (
+      exactObject(deployment) && deployment.sha === reference.candidateSha && deployment.environment === ENVIRONMENT
+    )) : [];
+    const items = [];
+    for (const deployment of candidates) {
+      const statusesPath = this.githubApiPathFromUrl(
+        deployment.statuses_url,
+        `/repos/${REPOSITORY}/deployments/${deployment.id}/statuses`,
+      );
+      const statuses = await this.githubGet(`${statusesPath}?per_page=100`);
+      if (!Array.isArray(statuses)) stop(REASONS.BINDING);
+      if (statuses.length >= 100) stop(REASONS.BINDING);
+      const current = statuses[0];
+      const currentLog = exactObject(current) ? this.githubActionJobUrlBinding(current.log_url, reference, reference.jobId) : null;
+      const currentTarget = exactObject(current) ? this.githubActionJobUrlBinding(current.target_url, reference, reference.jobId) : null;
+      if (
+        exactObject(current) && current.environment === ENVIRONMENT && current.state === "in_progress" &&
+        current.repository_url === GITHUB_API_REPOSITORY_URL && currentLog !== null && currentTarget !== null
+      ) {
+        items.push({
+          id: Number(deployment.id),
+          runId: Number(reference.runId),
+          jobId: Number(reference.jobId),
+          sha: deployment.sha,
+          environment: deployment.environment,
+          statusState: current.state,
+        });
+      }
+    }
     return this.complete(items);
   }
 
@@ -823,16 +895,22 @@ export class G5ConnectedGithubAppAdapter {
     this.ensureReference(reference);
     const body = await this.githubGet(`/repos/${REPOSITORY}/actions/runs/${reference.runId}/approvals`);
     const approvals = Array.isArray(body) ? body : body.approvals;
-    const items = Array.isArray(approvals) ? approvals.map((approval) => ({
-      runId: Number(reference.runId),
-      checkRunId: Number(approval.check_run_id),
-      deploymentId: Number(approval.deployment_id),
-      environmentId: Number(approval.environment_id),
-      sha: approval.sha,
-      workflowSha: approval.workflow_sha,
-      state: approval.state,
-      reviewerId: Number(approval.user?.id ?? approval.reviewer_id),
-    })) : [];
+    const items = [];
+    if (Array.isArray(approvals)) {
+      if (approvals.length >= 100) stop(REASONS.APPROVAL);
+      for (const approval of approvals) {
+        const environments = Array.isArray(approval?.environments) ? approval.environments : [];
+        const productionEnvironments = environments.filter((environment) => environment?.name === ENVIRONMENT);
+        if (productionEnvironments.length !== 1) continue;
+        items.push({
+          runId: Number(reference.runId),
+          environmentId: Number(productionEnvironments[0].id),
+          environment: productionEnvironments[0].name,
+          state: approval.state,
+          reviewerId: Number(approval.user?.id),
+        });
+      }
+    }
     return this.complete(items);
   }
 
@@ -1423,31 +1501,31 @@ export class G5ConnectedSupabaseCollector {
 }
 
 function validateAuthority(claims, evidence, policy) {
-  const { run, check, deployment, environment, approval, commit, workflowBlob } = evidence;
+  const { run, check, branch, deployment, environment, approval, commit, workflowBlob } = evidence;
   if (
     !exactObject(policy) || policy.repository !== REPOSITORY ||
     policy.workflowRef !== WORKFLOW_REF || policy.candidateSha !== claims.candidateSha ||
     policy.candidateTree !== commit.tree || policy.workflowBlobSha !== workflowBlob.blobSha ||
     run.id !== claims.runId || run.repositoryId !== claims.repositoryId ||
     run.ownerId !== claims.ownerId || run.repository !== claims.repository ||
-    run.ref !== claims.ref || run.refProtected !== true ||
+    run.ref !== claims.ref || branch.name !== MAIN_BRANCH || branch.protected !== true ||
     run.attempt !== 1 || run.event !== "workflow_dispatch" ||
     run.headSha !== claims.candidateSha || run.actorId !== claims.actorId ||
-    !positiveInteger(run.triggeringActorId) || run.conclusion !== "success" ||
-    check.runId !== run.id || !positiveInteger(check.id) || check.name !== "F10.9 G5 Production Read-Only Diagnostic" ||
-    check.conclusion !== "success" || deployment.runId !== run.id ||
-    deployment.sha !== claims.candidateSha || deployment.environmentId !== environment.id ||
-    deployment.environment !== ENVIRONMENT || !positiveInteger(deployment.id) ||
+    !positiveInteger(run.triggeringActorId) || run.status !== "in_progress" || run.conclusion !== null ||
+    check.runId !== run.id || !positiveInteger(check.id) || !positiveInteger(check.jobId) ||
+    check.name !== "F10.9 G5 Production Read-Only Diagnostic" ||
+    check.jobStatus !== "in_progress" || check.jobConclusion !== null ||
+    check.checkStatus !== "in_progress" || check.checkConclusion !== null ||
+    deployment.runId !== run.id || deployment.jobId !== check.jobId || deployment.statusState !== "in_progress" ||
+    deployment.sha !== claims.candidateSha || deployment.environment !== ENVIRONMENT || !positiveInteger(deployment.id) ||
     environment.name !== ENVIRONMENT || !positiveInteger(environment.id) || environment.protected !== true ||
     commit.sha !== claims.candidateSha ||
     !/^[0-9a-f]{40}$/.test(commit.tree) || workflowBlob.ref !== claims.workflowRef ||
     workflowBlob.workflowSha !== claims.workflowSha || !/^[0-9a-f]{40}$/.test(workflowBlob.blobSha)
   ) stop(REASONS.BINDING);
   if (
-    approval.runId !== run.id || approval.checkRunId !== check.id ||
-    approval.deploymentId !== deployment.id || approval.environmentId !== environment.id ||
-    approval.sha !== claims.candidateSha || approval.workflowSha !== claims.workflowSha ||
-    approval.state !== "approved" || !positiveInteger(approval.reviewerId) ||
+    approval.runId !== run.id || approval.environmentId !== environment.id ||
+    approval.environment !== ENVIRONMENT || approval.state !== "approved" || !positiveInteger(approval.reviewerId) ||
     approval.reviewerId === claims.actorId || approval.reviewerId === run.triggeringActorId
   ) stop(REASONS.APPROVAL);
   return Object.freeze({
@@ -1692,7 +1770,7 @@ if (globalThis.process?.argv?.includes("--g5-connected-diagnostic")) {
 }
 
 export const INTERNALS = Object.freeze({
-  VERSION, ISSUER, AUDIENCE, MAIN_REF, ENVIRONMENT, REPOSITORY, WORKFLOW_REF,
+  VERSION, ISSUER, AUDIENCE, MAIN_REF, MAIN_BRANCH, ENVIRONMENT, REPOSITORY, WORKFLOW_REF,
   WORKFLOW_NAME, CONNECTED_DISABLED, TRUST_BROKER_ENDPOINT_CONFIG_NAME,
   RUNTIME_ENABLED_CONFIG_NAME, RUNTIME_POLICY_BINDING_NAMES, GITHUB_APP_CONFIG_NAMES,
   LEGACY_POLICY_DENYLIST, MANUAL_WORKFLOW_POLICY, SUPABASE_TABLES,

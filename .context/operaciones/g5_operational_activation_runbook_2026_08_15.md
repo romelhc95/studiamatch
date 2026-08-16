@@ -4,13 +4,13 @@
 |---|---|
 | Estado | `PREPARED_NOT_CONFIGURED` |
 | Subfase | `F10.9` |
-| Alcance | PR H repository-only posterior a E1 |
+| Alcance | PR I repository-only posterior a PR #391 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust actual | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected actual | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
-| Operacion remota en PR H | `NO` |
+| Operacion remota en PR I | `NO` |
 
 ## Proposito
 
@@ -85,6 +85,26 @@ endpoint_public = false
 
 No se registra account ID, token, Worker ID, deployment ID, URL ni subdomain.
 
+## Reconciliacion PR #391 Y STOP E2
+
+PR #391 queda `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = 77f475af2e5900bc1338967676ebded71b672642
+merge = 5a76abaae8760a9ce6a418511264e6742fa5c74c
+tree = 9bd83392ade9e245f3fc4ab85bb85eb4f9031040
+security = 31951803908=PASS
+f9_7_run = 31951803820=PASS
+focused_g5_job = 95176303149=PASS
+f9_7_job = 95176398983=PASS
+run_attempt = 1
+```
+
+E2 queda `NOT_EXECUTED` y se registra
+`E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE`. El STOP no configura GitHub App,
+private key, installation, secrets, variables ni endpoint; solo habilita la
+remediacion repository-only del adapter para el schema real de GitHub Actions.
+
 ## Policy Runtime Futura
 
 Los SHA/tree/blob dejan de ser autoridad hardcodeada final. La secuencia futura
@@ -139,6 +159,28 @@ Workflow:
 Todo otro permiso workflow `write` queda prohibido. La rama futura debe ser
 `main`, la ref `refs/heads/main`, `run_attempt=1` y environment `Production`.
 
+## Schema GitHub Runtime Real
+
+El adapter PR I consume solo fields reales y no requiere fields inventados:
+
+| Evidencia | Endpoint | Regla |
+|---|---|---|
+| workflow run | `GET /repos/{owner}/{repo}/actions/runs/{run_id}` | `status=in_progress`, `conclusion=null`, `event=workflow_dispatch`, `run_attempt=1` |
+| workflow jobs | `GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs` | exact-one job por nombre, `status=in_progress`, `conclusion=null` |
+| check runs | `GET /repos/{owner}/{repo}/commits/{sha}/check-runs` | exact-one check por nombre, `status=in_progress`, `conclusion=null` |
+| branch | `GET /repos/{owner}/{repo}/branches/main` | `name=main` y `protected=true`; no se usa `run.ref_protected` |
+| environment | `GET /repos/{owner}/{repo}/environments/Production` | exact-one `Production`, id positivo |
+| approvals | `GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals` | solo `state`, `user.id`, `environments[].id/name`; no `check_run_id`, `deployment_id`, `sha`, `workflow_sha` |
+| deployments | `GET /repos/{owner}/{repo}/deployments` | filter por SHA y `Production`; no `deployment.environment_id` |
+| deployment statuses | `GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100` | primer status actual `state=in_progress`, `repository_url`, `log_url` y `target_url` HTTPS GitHub ligados al mismo run/job, sin redirect ni hostname alterno; 100 status detienen por paginacion ambigua |
+| commit | `GET /repos/{owner}/{repo}/commits/{sha}` | SHA y tree derivan del endpoint |
+| workflow content/blob | `GET /repos/{owner}/{repo}/contents/.github/workflows/g5-manual-trust-gate.yml?ref={candidate_sha}` | blob SHA deriva del endpoint en el candidate SHA |
+
+El broker rechaza workflow queued, waiting inesperado, completed, cancelled,
+failure, skipped o rerun; rechaza job completed o job distinto; rechaza cero o
+multiples deployments ligados; rechaza self-review; y rechaza cualquier authority
+caller-supplied.
+
 ## Orden Operacional Corregido
 
 La secuencia anterior E4-before-E5 queda
@@ -171,7 +213,7 @@ Estado: `COMPLETED`.
 
 E1 desplego un bootstrap aislado con `workers.dev=false`, preview URLs disabled,
 cero routes/domains/schedules/vars/secrets y sin endpoint publico. El Worker remoto
-no se modifica en PR H.
+no se modifica en PR I; ese bootstrap proviene de PR H y queda como base #391.
 
 STOP posterior a E1:
 
@@ -212,8 +254,11 @@ Production en una sola autorizacion. Un gate PASS no concede el siguiente.
 El preflight offline valida solo:
 
 - PR #390 reconciliado.
+- PR #391 reconciliado.
 - E1 PASS sanitizado.
+- E2 STOP schema/lifecycle registrado.
 - credencial E1 revocada y removida localmente.
+- shapes GitHub reales documentados con identificadores sinteticos.
 - presencia futura por nombre y ausencia de valores.
 - permisos exactos.
 - branch `main` y environment `Production`.

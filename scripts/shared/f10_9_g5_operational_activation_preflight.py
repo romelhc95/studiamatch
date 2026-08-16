@@ -22,7 +22,9 @@ MANIFEST_MODE = "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES"
 EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED"
 PR387_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
 PR390_STATUS = "MERGED_POST_MERGE_VERIFIED"
+PR391_STATUS = "MERGED_POST_MERGE_VERIFIED"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
+E2_STOP = "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
 CURRENT_GATE = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CURRENT_TRUST = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
 CURRENT_CONNECTED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
@@ -53,7 +55,10 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "current_connected",
         "pr_387_reconciliation",
         "pr_390_reconciliation",
+        "pr_391_reconciliation",
         "e1_deployment_reconciliation",
+        "e2_stop",
+        "github_runtime_shapes",
         "runtime_policy_resolution",
         "superseded_sequence",
         "required_configuration_names",
@@ -103,6 +108,7 @@ EXPECTED_PR390_KEYS = frozenset(
         "run_attempt",
     }
 )
+EXPECTED_PR391_KEYS = EXPECTED_PR390_KEYS
 EXPECTED_E1_KEYS = frozenset(
     {
         "status",
@@ -122,6 +128,91 @@ EXPECTED_E1_KEYS = frozenset(
         "vars_count",
         "secrets_count",
         "endpoint_public",
+    }
+)
+EXPECTED_RUNTIME_SHAPES = frozenset(
+    {
+        "workflow_run",
+        "workflow_jobs",
+        "check_runs",
+        "branch",
+        "environment",
+        "approvals",
+        "deployments",
+        "deployment_statuses",
+        "commit",
+        "workflow_content_blob",
+    }
+)
+EXPECTED_RUNTIME_SHAPE_ENTRY_KEYS = frozenset(
+    {"source", "required_fields", "forbidden_fields", "lifecycle"}
+)
+EXPECTED_RUNTIME_SHAPE_ENTRIES = MappingProxyType(
+    {
+        "workflow_run": {
+            "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
+            "required_fields": (
+                "id", "repository.id", "repository.full_name", "repository.owner.id",
+                "head_branch", "run_attempt", "event", "status", "conclusion",
+                "head_sha", "actor.id", "triggering_actor.id",
+            ),
+            "forbidden_fields": ("ref_protected", "caller_supplied_sha", "caller_supplied_tree"),
+            "lifecycle": "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1",
+        },
+        "workflow_jobs": {
+            "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+            "required_fields": ("jobs[].id", "jobs[].name", "jobs[].status", "jobs[].conclusion"),
+            "forbidden_fields": ("caller_supplied_job_id",),
+            "lifecycle": "exact job name status=in_progress conclusion=null",
+        },
+        "check_runs": {
+            "source": "GET /repos/{owner}/{repo}/commits/{sha}/check-runs",
+            "required_fields": ("check_runs[].id", "check_runs[].name", "check_runs[].status", "check_runs[].conclusion"),
+            "forbidden_fields": ("caller_supplied_check_run_id",),
+            "lifecycle": "exact check name status=in_progress conclusion=null",
+        },
+        "branch": {
+            "source": "GET /repos/{owner}/{repo}/branches/main",
+            "required_fields": ("name", "protected"),
+            "forbidden_fields": ("ref_protected", "run.ref_protected"),
+            "lifecycle": "name=main protected=true",
+        },
+        "environment": {
+            "source": "GET /repos/{owner}/{repo}/environments/Production",
+            "required_fields": ("id", "name", "protection_rules"),
+            "forbidden_fields": ("caller_supplied_environment_id",),
+            "lifecycle": "name=Production exact-one",
+        },
+        "approvals": {
+            "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
+            "required_fields": ("state", "user.id", "environments[].id", "environments[].name"),
+            "forbidden_fields": ("check_run_id", "deployment_id", "sha", "workflow_sha"),
+            "lifecycle": "exact-one state=approved for Production bound by run endpoint",
+        },
+        "deployments": {
+            "source": "GET /repos/{owner}/{repo}/deployments",
+            "required_fields": ("id", "sha", "environment", "statuses_url", "repository_url"),
+            "forbidden_fields": ("environment_id", "caller_supplied_deployment_id"),
+            "lifecycle": "filter by exact sha and Production before statuses",
+        },
+        "deployment_statuses": {
+            "source": "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100",
+            "required_fields": ("environment", "state", "log_url", "target_url", "repository_url"),
+            "forbidden_fields": ("redirect", "alternate_hostname"),
+            "lifecycle": "current-first state=in_progress deployment linked to same run_id and job_id through GitHub job URLs",
+        },
+        "commit": {
+            "source": "GET /repos/{owner}/{repo}/commits/{sha}",
+            "required_fields": ("sha", "commit.tree.sha"),
+            "forbidden_fields": ("caller_supplied_tree",),
+            "lifecycle": "candidate sha and tree derive from commit endpoint",
+        },
+        "workflow_content_blob": {
+            "source": "GET /repos/{owner}/{repo}/contents/.github/workflows/g5-manual-trust-gate.yml?ref={candidate_sha}",
+            "required_fields": ("sha",),
+            "forbidden_fields": ("caller_supplied_workflow_blob_sha",),
+            "lifecycle": "workflow blob derives from contents endpoint at candidate sha",
+        },
     }
 )
 EXPECTED_RUNTIME_POLICY_KEYS = frozenset(
@@ -257,7 +348,10 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     )
     _validate_pr387(manifest.get("pr_387_reconciliation"), errors)
     _validate_pr390(manifest.get("pr_390_reconciliation"), errors)
+    _validate_pr391(manifest.get("pr_391_reconciliation"), errors)
     _validate_e1(manifest.get("e1_deployment_reconciliation"), errors)
+    _expect(manifest.get("e2_stop") == E2_STOP, "STOP_G5_E_E2_STOP", errors)
+    _validate_runtime_shapes(manifest.get("github_runtime_shapes"), errors)
     _validate_runtime_policy(manifest.get("runtime_policy_resolution"), errors)
     checked_names = _validate_required_names(manifest.get("required_configuration_names"), errors)
     checked_gates = _validate_gates(manifest.get("gates"), errors)
@@ -392,6 +486,57 @@ def _validate_pr390(value: Any, errors: list[str]) -> None:
     _expect(value.get("f9_7_job_id") == "95114603279", "STOP_G5_E_PR390_F97_JOB", errors)
     _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR390_F97_JOB", errors)
     _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR390_ATTEMPT", errors)
+
+
+def _validate_pr391(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR391_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR391_KEYS, "STOP_G5_E_PR391_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "77f475af2e5900bc1338967676ebded71b672642",
+        "merge_sha": "5a76abaae8760a9ce6a418511264e6742fa5c74c",
+        "tree_sha": "9bd83392ade9e245f3fc4ab85bb85eb4f9031040",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR391_SHA", errors)
+    _expect(value.get("status") == PR391_STATUS, "STOP_G5_E_PR391_STATUS", errors)
+    _expect(value.get("security_run_id") == "31951803908", "STOP_G5_E_PR391_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR391_SECURITY", errors)
+    _expect(value.get("f9_7_run_id") == "31951803820", "STOP_G5_E_PR391_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR391_F97", errors)
+    _expect(value.get("focused_job_id") == "95176303149", "STOP_G5_E_PR391_FOCUSED", errors)
+    _expect(value.get("focused_conclusion") == "PASS", "STOP_G5_E_PR391_FOCUSED", errors)
+    _expect(value.get("f9_7_job_id") == "95176398983", "STOP_G5_E_PR391_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR391_F97_JOB", errors)
+    _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR391_ATTEMPT", errors)
+
+
+def _validate_runtime_shapes(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_RUNTIME_SHAPES")
+        return
+    _validate_exact_keys(value, EXPECTED_RUNTIME_SHAPES, "STOP_G5_E_RUNTIME_SHAPE_KEYS", errors)
+    for name, shape in value.items():
+        if not isinstance(shape, Mapping):
+            errors.append("STOP_G5_E_RUNTIME_SHAPES")
+            continue
+        _validate_exact_keys(shape, EXPECTED_RUNTIME_SHAPE_ENTRY_KEYS, "STOP_G5_E_RUNTIME_SHAPE_ENTRY_KEYS", errors)
+        expected = EXPECTED_RUNTIME_SHAPE_ENTRIES.get(str(name))
+        if expected is None:
+            errors.append("STOP_G5_E_RUNTIME_SHAPE_KEYS")
+            continue
+        _expect(shape.get("source") == expected["source"], "STOP_G5_E_RUNTIME_SHAPE_SOURCE", errors)
+        _expect(shape.get("lifecycle") == expected["lifecycle"], "STOP_G5_E_RUNTIME_SHAPE_LIFECYCLE", errors)
+        for key in ("required_fields", "forbidden_fields"):
+            fields = shape.get(key)
+            _expect(
+                isinstance(fields, list)
+                and tuple(fields) == expected[key],
+                "STOP_G5_E_RUNTIME_SHAPE_FIELDS",
+                errors,
+            )
 
 
 def _validate_e1(value: Any, errors: list[str]) -> None:
@@ -531,7 +676,7 @@ def _validate_absence_of_writes(manifest: Mapping[str, Any], errors: list[str]) 
     forbidden = manifest.get("forbidden_operations")
     _expect(isinstance(forbidden, list) and "writes" in forbidden, "STOP_G5_E_WRITE_GUARD", errors)
     text = json.dumps(manifest, sort_keys=True)
-    for marker in ("deploy_now", "configure_remote", "workflow_dispatch", "sql_apply"):
+    for marker in ("deploy_now", "configure_remote", "sql_apply"):
         _expect(marker not in text, "STOP_G5_E_REMOTE_OPERATION_MARKER", errors)
 
 

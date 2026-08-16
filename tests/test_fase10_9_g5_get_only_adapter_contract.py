@@ -65,6 +65,7 @@ from scripts.shared.f10_9_g5_get_only_adapter_contract import (
     ManifestBuilderEvidenceReceipt,
     AnchorProviderEvidenceReceipt,
     ApprovalEvidence,
+    BranchEvidence,
     PageEvidence,
     PaginationEvidence,
     PUBLIC_PROJECTION_FORBIDDEN_FIELDS,
@@ -931,7 +932,6 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         repository_id=1804040501,
         owner_id=18040405,
         ref=EXPECTED_REF,
-        ref_protected=True,
         candidate_sha=RUNTIME_POLICY_CANDIDATE_SHA,
         candidate_tree=RUNTIME_POLICY_CANDIDATE_TREE,
         workflow_path=EXPECTED_WORKFLOW_PATH,
@@ -941,6 +941,7 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         run_id=31896356280,
         run_attempt=1,
         check_run_id=95040164691,
+        job_id=95040164692,
         job_name=EXPECTED_WORKFLOW,
         environment_name=EXPECTED_ENVIRONMENT,
         environment_id=1001,
@@ -962,7 +963,6 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         repository_id=intent.repository_id,
         owner_id=intent.owner_id,
         ref=intent.ref,
-        ref_protected=True,
         sha=intent.candidate_sha,
         workflow_ref=intent.workflow_ref,
         workflow_sha=intent.workflow_sha,
@@ -980,6 +980,7 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         run_id=intent.run_id,
         run_attempt=1,
         check_run_id=intent.check_run_id,
+        job_id=intent.job_id,
         job_name=intent.job_name,
         workflow_path=intent.workflow_path,
         workflow_ref=intent.workflow_ref,
@@ -990,8 +991,14 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         actor_id=intent.actor_id,
         triggering_actor_id=intent.triggering_actor_id,
         event="workflow_dispatch",
-        conclusion="success",
+        run_status="in_progress",
+        run_conclusion=None,
+        job_status="in_progress",
+        job_conclusion=None,
+        check_status="in_progress",
+        check_conclusion=None,
     )
+    branch = BranchEvidence(name="main", protected=True)
     environment = EnvironmentEvidence(
         name=EXPECTED_ENVIRONMENT,
         environment_id=intent.environment_id,
@@ -1002,23 +1009,18 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         environment_name=EXPECTED_ENVIRONMENT,
         environment_id=intent.environment_id,
         run_id=intent.run_id,
-        check_run_id=intent.check_run_id,
-        deployment_id=intent.deployment_id,
-        sha=intent.candidate_sha,
-        workflow_sha=intent.workflow_sha,
         approver_id=intent.approver_id,
         approver_login="reviewer1",
-        initiated_by_id=intent.actor_id,
         state="approved",
         approved_at=NOW,
     )
     deployment = DeploymentEvidence(
         deployment_id=intent.deployment_id,
         environment_name=EXPECTED_ENVIRONMENT,
-        environment_id=intent.environment_id,
+        run_id=intent.run_id,
+        job_id=intent.job_id,
         sha=intent.candidate_sha,
-        ref=intent.ref,
-        state="success",
+        status_state="in_progress",
     )
     receipt = GateConsumptionReceipt(
         gate_id=intent.gate_id,
@@ -1039,6 +1041,7 @@ def _trust_plane(**overrides: object) -> dict[str, object]:
         "intent": intent,
         "oidc_claims": claims,
         "workflow_run": run,
+        "branch": branch,
         "environment": environment,
         "approvals": (approval,),
         "deployments": (deployment,),
@@ -1149,21 +1152,63 @@ def test_trust_plane_rejects_rerun_and_partial_rerun() -> None:
     _trust_reason(values, STOP_PROOF_INVALID)
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("run_status", "queued"),
+        ("run_status", "waiting"),
+        ("run_status", "completed"),
+        ("run_conclusion", "failure"),
+        ("run_conclusion", "cancelled"),
+        ("run_conclusion", "skipped"),
+        ("job_status", "completed"),
+        ("job_conclusion", "success"),
+        ("check_status", "completed"),
+        ("check_conclusion", "success"),
+    ),
+)
+def test_trust_plane_requires_in_progress_run_job_and_null_conclusions(field: str, value: object) -> None:
+    values = _trust_plane()
+    values["workflow_run"] = replace(values["workflow_run"], **{field: value})
+    _trust_reason(values, STOP_BINDING_DRIFT)
+
+
+def test_trust_plane_uses_branch_endpoint_not_run_ref_protected() -> None:
+    values = _trust_plane()
+    values["branch"] = BranchEvidence(name="main", protected=False)
+    _trust_reason(values, STOP_BINDING_DRIFT)
+    values = _trust_plane()
+    values["branch"] = BranchEvidence(name="desarrollo", protected=True)
+    _trust_reason(values, STOP_BINDING_DRIFT)
+
+
 def test_trust_plane_rejects_self_review_and_login_only_review() -> None:
     values = _trust_plane()
     approval = values["approvals"][0]
-    values["approvals"] = (replace(approval, approver_id=approval.initiated_by_id),)
+    values["approvals"] = (replace(approval, approver_id=values["intent"].actor_id),)
+    _trust_reason(values, STOP_APPROVAL_INVALID)
+    values = _trust_plane()
+    approval = values["approvals"][0]
+    values["approvals"] = (replace(approval, approver_id=values["intent"].triggering_actor_id),)
     _trust_reason(values, STOP_APPROVAL_INVALID)
     values = _trust_plane()
     approval = values["approvals"][0]
     values["approvals"] = (replace(approval, approver_id=0, approver_login="reviewer1"),)
+    _trust_reason(values, STOP_APPROVAL_INVALID)
+    values = _trust_plane()
+    approval = values["approvals"][0]
+    values["approvals"] = (replace(approval, state="rejected"),)
     _trust_reason(values, STOP_APPROVAL_INVALID)
 
 
 def test_trust_plane_rejects_approval_binding_drift_and_future_timestamps() -> None:
     values = _trust_plane()
     approval = values["approvals"][0]
-    values["approvals"] = (replace(approval, deployment_id=9999),)
+    values["approvals"] = (replace(approval, environment_id=9999),)
+    _trust_reason(values, STOP_APPROVAL_INVALID)
+    values = _trust_plane()
+    approval = values["approvals"][0]
+    values["approvals"] = (replace(approval, run_id=9999),)
     _trust_reason(values, STOP_APPROVAL_INVALID)
     values = _trust_plane()
     approval = values["approvals"][0]
@@ -1183,6 +1228,14 @@ def test_trust_plane_rejects_missing_or_duplicate_approval_and_deployment() -> N
     values = _trust_plane()
     deployment = values["deployments"][0]
     values["deployments"] = (deployment, deployment)
+    _trust_reason(values, STOP_BINDING_DRIFT)
+    values = _trust_plane()
+    deployment = values["deployments"][0]
+    values["deployments"] = (replace(deployment, job_id=deployment.job_id + 1),)
+    _trust_reason(values, STOP_BINDING_DRIFT)
+    values = _trust_plane()
+    deployment = values["deployments"][0]
+    values["deployments"] = (replace(deployment, status_state="failure"),)
     _trust_reason(values, STOP_BINDING_DRIFT)
 
 

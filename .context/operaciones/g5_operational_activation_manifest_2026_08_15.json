@@ -51,6 +51,21 @@
     "f9_7_job_conclusion": "PASS",
     "run_attempt": 1
   },
+  "pr_391_reconciliation": {
+    "candidate_sha": "77f475af2e5900bc1338967676ebded71b672642",
+    "merge_sha": "5a76abaae8760a9ce6a418511264e6742fa5c74c",
+    "tree_sha": "9bd83392ade9e245f3fc4ab85bb85eb4f9031040",
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "security_run_id": "31951803908",
+    "security_conclusion": "PASS",
+    "f9_7_run_id": "31951803820",
+    "f9_7_conclusion": "PASS",
+    "focused_job_id": "95176303149",
+    "focused_conclusion": "PASS",
+    "f9_7_job_id": "95176398983",
+    "f9_7_job_conclusion": "PASS",
+    "run_attempt": 1
+  },
   "e1_deployment_reconciliation": {
     "status": "E1_DEPLOYMENT_PASS",
     "credential_state": "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED",
@@ -69,6 +84,69 @@
     "vars_count": 0,
     "secrets_count": 0,
     "endpoint_public": false
+  },
+  "e2_stop": "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE",
+  "github_runtime_shapes": {
+    "workflow_run": {
+      "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
+      "required_fields": ["id", "repository.id", "repository.full_name", "repository.owner.id", "head_branch", "run_attempt", "event", "status", "conclusion", "head_sha", "actor.id", "triggering_actor.id"],
+      "forbidden_fields": ["ref_protected", "caller_supplied_sha", "caller_supplied_tree"],
+      "lifecycle": "status=in_progress conclusion=null event=workflow_dispatch run_attempt=1"
+    },
+    "workflow_jobs": {
+      "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+      "required_fields": ["jobs[].id", "jobs[].name", "jobs[].status", "jobs[].conclusion"],
+      "forbidden_fields": ["caller_supplied_job_id"],
+      "lifecycle": "exact job name status=in_progress conclusion=null"
+    },
+    "check_runs": {
+      "source": "GET /repos/{owner}/{repo}/commits/{sha}/check-runs",
+      "required_fields": ["check_runs[].id", "check_runs[].name", "check_runs[].status", "check_runs[].conclusion"],
+      "forbidden_fields": ["caller_supplied_check_run_id"],
+      "lifecycle": "exact check name status=in_progress conclusion=null"
+    },
+    "branch": {
+      "source": "GET /repos/{owner}/{repo}/branches/main",
+      "required_fields": ["name", "protected"],
+      "forbidden_fields": ["ref_protected", "run.ref_protected"],
+      "lifecycle": "name=main protected=true"
+    },
+    "environment": {
+      "source": "GET /repos/{owner}/{repo}/environments/Production",
+      "required_fields": ["id", "name", "protection_rules"],
+      "forbidden_fields": ["caller_supplied_environment_id"],
+      "lifecycle": "name=Production exact-one"
+    },
+    "approvals": {
+      "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
+      "required_fields": ["state", "user.id", "environments[].id", "environments[].name"],
+      "forbidden_fields": ["check_run_id", "deployment_id", "sha", "workflow_sha"],
+      "lifecycle": "exact-one state=approved for Production bound by run endpoint"
+    },
+    "deployments": {
+      "source": "GET /repos/{owner}/{repo}/deployments",
+      "required_fields": ["id", "sha", "environment", "statuses_url", "repository_url"],
+      "forbidden_fields": ["environment_id", "caller_supplied_deployment_id"],
+      "lifecycle": "filter by exact sha and Production before statuses"
+    },
+    "deployment_statuses": {
+      "source": "GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses?per_page=100",
+      "required_fields": ["environment", "state", "log_url", "target_url", "repository_url"],
+      "forbidden_fields": ["redirect", "alternate_hostname"],
+      "lifecycle": "current-first state=in_progress deployment linked to same run_id and job_id through GitHub job URLs"
+    },
+    "commit": {
+      "source": "GET /repos/{owner}/{repo}/commits/{sha}",
+      "required_fields": ["sha", "commit.tree.sha"],
+      "forbidden_fields": ["caller_supplied_tree"],
+      "lifecycle": "candidate sha and tree derive from commit endpoint"
+    },
+    "workflow_content_blob": {
+      "source": "GET /repos/{owner}/{repo}/contents/.github/workflows/g5-manual-trust-gate.yml?ref={candidate_sha}",
+      "required_fields": ["sha"],
+      "forbidden_fields": ["caller_supplied_workflow_blob_sha"],
+      "lifecycle": "workflow blob derives from contents endpoint at candidate sha"
+    }
   },
   "runtime_policy_resolution": {
     "source": "FUTURE_RUNTIME_BINDINGS_NAME_ONLY",

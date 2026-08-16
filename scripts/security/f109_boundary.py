@@ -175,6 +175,12 @@ G5_TRUST_RUNTIME_POLICY_NAMES = (
     "G5_GITHUB_APP_INSTALLATION_ID",
     "G5_TRUST_RUNTIME_ENABLED",
 )
+G5_GITHUB_RUNTIME_SCHEMA_BASE = "5a76abaae8760a9ce6a418511264e6742fa5c74c"
+G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE = "9bd83392ade9e245f3fc4ab85bb85eb4f9031040"
+G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF = "feat/f10-9-pr-i-github-runtime-schema"
+G5_GITHUB_RUNTIME_SCHEMA_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE = "77f475af2e5900bc1338967676ebded71b672642"
+G5_GITHUB_RUNTIME_SCHEMA_E2_STOP = "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -667,6 +673,26 @@ G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES = {
 }
 G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES = {
     path: "100644" for path in G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES = {
+    path: "100644" for path in G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4107,6 +4133,225 @@ def validate_g5_trust_live_remediation(repo: Path, base: str, head: str, event: 
     validate_context_graph(repo, 75, 426)
 
 
+def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_GITHUB_RUNTIME_SCHEMA_BASE, "unexpected G5 GitHub runtime schema base")
+    require_sha(repo, "G5_GITHUB_RUNTIME_SCHEMA_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+        "G5 GitHub runtime schema base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 GitHub runtime schema push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 GitHub runtime schema merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 GitHub runtime schema candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+        G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr19 = (
+        repo / ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_source = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    get_only_source = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    get_only_tests = (
+        repo / "tests/test_fase10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(
+        encoding="utf-8"
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr19, runbook, manifest_text))
+    for required in (
+        G5_GITHUB_RUNTIME_SCHEMA_STATUS,
+        G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+        G5_GITHUB_RUNTIME_SCHEMA_BASE,
+        G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+        "31951803908=PASS",
+        "31951803820=PASS",
+        "95176303149=PASS",
+        "95176398983=PASS",
+        "run_attempt=1",
+        "E1 permanece `COMPLETED`",
+        "E2 queda `NOT_EXECUTED`",
+        G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0019",
+    ):
+        require(required in combined, "G5 PR I reconciliation evidence drift")
+    require(
+        manifest.get("pr_391_reconciliation", {}).get("candidate_sha")
+        == G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+        "G5 PR I candidate evidence drift",
+    )
+    require(
+        manifest.get("pr_391_reconciliation", {}).get("merge_sha")
+        == G5_GITHUB_RUNTIME_SCHEMA_BASE,
+        "G5 PR I merge evidence drift",
+    )
+    require(
+        manifest.get("e2_stop") == G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        "G5 PR I E2 stop drift",
+    )
+    require(
+        ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md" in f97_workflow,
+        "G5 PR I focused CI path drift",
+    )
+    for required in (
+        "BranchEvidence",
+        "def _validate_branch",
+        "run.run_status != \"in_progress\"",
+        "run.run_conclusion is not None",
+        "run.job_status != \"in_progress\"",
+        "run.job_conclusion is not None",
+        "run.check_status != \"in_progress\"",
+        "run.check_conclusion is not None",
+        "deployment.job_id != intent.job_id",
+        "deployment.status_state != \"in_progress\"",
+    ):
+        require(required in get_only_source, "G5 GET-only GitHub runtime contract drift")
+    for forbidden in ("ref_protected", "deployment.environment_id"):
+        require(forbidden not in get_only_source, "G5 GET-only obsolete GitHub field drift")
+    for required in (
+        "test_trust_plane_requires_in_progress_run_job_and_null_conclusions",
+        "test_trust_plane_uses_branch_endpoint_not_run_ref_protected",
+        "test_trust_plane_rejects_missing_or_duplicate_approval_and_deployment",
+        "job_id=deployment.job_id + 1",
+    ):
+        require(required in get_only_tests, "G5 GET-only GitHub runtime test drift")
+    for required in (
+        "`/repos/${REPOSITORY}/branches/${MAIN_BRANCH}`",
+        "branch.name !== MAIN_BRANCH",
+        "branch.protected !== true",
+        "run.status !== \"in_progress\"",
+        "run.conclusion !== null",
+        "check.jobStatus !== \"in_progress\"",
+        "check.jobConclusion !== null",
+        "check.checkStatus !== \"in_progress\"",
+        "check.checkConclusion !== null",
+        "deployment.statuses_url",
+        "githubActionJobUrlBinding",
+        "?per_page=100",
+        "statuses.length >= 100",
+        "const current = statuses[0]",
+        "current.state === \"in_progress\"",
+        "current.repository_url === GITHUB_API_REPOSITORY_URL",
+        "deployment.statusState !== \"in_progress\"",
+        "approval.state",
+        "approval.user?.id",
+        "approval?.environments",
+    ):
+        require(required in worker_source, "G5 broker GitHub runtime schema drift")
+    require("ref_protected" not in worker_source, "G5 broker obsolete ref_protected drift")
+    for required in (
+        "workflow run does not require ref_protected and must be in progress",
+        "branch protection is verified through the branch endpoint",
+        "deployment must be exact-one and bound to candidate SHA",
+        "connected adapter derives deployment from GitHub deployment statuses",
+        "staleHistoricalInProgress",
+        "caller-supplied authority is rejected before JWT verification",
+    ):
+        require(required in worker_tests, "G5 broker GitHub runtime test drift")
+    for required in (
+        "test_pr391_and_e2_schema_stop_are_registered",
+        "test_runtime_shapes_are_exact_and_fail_closed",
+        "github_runtime_shapes",
+        G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        "GET /repos/{owner}/{repo}/branches/main",
+        "status=in_progress",
+    ):
+        require(required in preflight_tests, "G5 PR I preflight test drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR I manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR I preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR I preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR I preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR I preflight indirect capability",
+    )
+    validate_context_graph(repo, 76, 427)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -4303,6 +4548,12 @@ def detect_mode(
         return "g5_trust_live_remediation"
     if (
         base_ref == "desarrollo"
+        and base == G5_GITHUB_RUNTIME_SCHEMA_BASE
+        and (event == "push" or head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF)
+    ):
+        return "g5_github_runtime_schema"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -4446,6 +4697,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR H trust live remediation branch requires the frozen PR #390 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR I GitHub runtime schema branch requires the frozen PR #391 merge baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -4550,6 +4805,9 @@ def main() -> int:
             touched_g5_trust_live_remediation = set(actual).intersection(
                 G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
             )
+            touched_g5_github_runtime_schema = set(actual).intersection(
+                G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
+            )
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -4588,6 +4846,7 @@ def main() -> int:
                         touched_f1010_m3_public_acl_v2_evidence,
                         touched_f1010_m3_public_acl_final_readiness,
                         touched_g5_trust_live_remediation,
+                        touched_g5_github_runtime_schema,
                     )
                 )
                 <= 1,
@@ -4740,6 +4999,17 @@ def main() -> int:
                     "partial or expanded G5 PR H delta is forbidden",
                 )
                 mode = "g5_trust_live_remediation"
+            elif touched_g5_github_runtime_schema:
+                require(
+                    args.head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR I paths require the protected GitHub runtime schema branch",
+                )
+                require(
+                    actual == G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR I delta is forbidden",
+                )
+                mode = "g5_github_runtime_schema"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -4918,6 +5188,10 @@ def main() -> int:
             )
         elif mode == "g5_trust_live_remediation":
             validate_g5_trust_live_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_github_runtime_schema":
+            validate_g5_github_runtime_schema(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
