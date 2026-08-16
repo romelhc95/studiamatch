@@ -5,9 +5,10 @@
 | Estado | `ACCEPTED_REPOSITORY_ONLY` |
 | Fecha | 2026-08-15 |
 | Subfase | `F10.9` |
-| Alcance | PR E repository-only |
-| PR reconciliado | `#387` |
+| Alcance | PR E + PR F repository-only |
+| PR reconciliado | `#387`, `#388` |
 | Resultado PR #387 | `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY` |
+| Resultado PR #388 | `MERGED_POST_MERGE_VERIFIED` |
 | Gate real | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust operacional | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected mode | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
@@ -38,6 +39,26 @@ El retry fue un retry CI de failed jobs por timeout APT en Playwright `--with-de
 No reemplaza ni oculta el attempt 1. Tampoco autoriza un rerun operacional G5:
 `run_attempt=1` sigue siendo obligatorio para el futuro gate G5 real.
 
+PR #388 integro PR E en `desarrollo` como paquete repository-only de runbook,
+manifest y preflight E1-E6. La evidencia post-merge queda congelada como:
+
+```text
+candidate = eb052c2755937a2bf239cd778bc814274fbc846f
+merge = 71d6640b990b934fa02401518650ec38dca6cae4
+tree = 815a2316c8de67047567d89a9928576869f43c4f
+security = 31917838025=PASS
+f9_7_run = 31917838011=PASS
+focused = 95092629457=PASS
+f9_7_job = 95092706912=PASS
+run_attempt = 1
+```
+
+El preflight operacional read-only de cuenta queda registrado como
+`E1_ACCOUNT_READINESS_GO`, con Workers existentes `0` y deployment
+`NOT_EXECUTED`. Antes de autorizar deployment, [ADR-0017](ADR-0017_g5_e1_cloudflare_deployment_hardening.md)
+mantiene `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` hasta que el paquete
+reproducible, aislado y sin endpoints quede promovido por PR protegido.
+
 ## Decision
 
 G5 avanza a 50% tracking-only porque PR #387 agrega el quinto dominio
@@ -58,20 +79,22 @@ Permanecen pendientes:
 4. Production;
 5. observacion.
 
-La activacion operacional futura se divide en seis gates separados definidos en
+La activacion operacional futura se divide en gates separados definidos en
 el [runbook G5](../operaciones/g5_operational_activation_runbook_2026_08_15.md):
 
-| Gate | Alcance unico | Estado PR E |
+| Gate | Alcance unico | Estado repository-only |
 |---|---|---|
 | `E1` | Cloudflare Worker/Durable Object trust plane | `DEFINED_NOT_EXECUTED` |
 | `E2` | GitHub App read-only | `DEFINED_NOT_EXECUTED` |
 | `E3` | Environment `Production` | `DEFINED_NOT_EXECUTED` |
+| `E3A` | Decision separada de endpoint del trust broker | `DEFINED_NOT_EXECUTED` |
 | `E4` | Smoke trust-only sin Production | `DEFINED_NOT_EXECUTED` |
 | `E5` | Promocion diagnostica Certification/Main | `DEFINED_NOT_EXECUTED` |
 | `E6` | Creacion, aprobacion y consumo G5 | `DEFINED_NOT_EXECUTED` |
 
 Ningun gate concede el siguiente. No se permite combinar deployment, GitHub App,
-environment y Production en una sola autorizacion.
+environment, endpoint y Production en una sola autorizacion. `E4` queda bloqueado
+hasta que `E3A` tenga aprobacion separada.
 
 ## Manifest Y Preflight
 
@@ -115,6 +138,9 @@ Workflow:
 ## Consecuencias
 
 - PR #387 queda transparente como `MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`.
+- PR #388 queda transparente como `MERGED_POST_MERGE_VERIFIED`.
+- `E1_ACCOUNT_READINESS_GO` no autoriza deployment; E1 sigue `NOT_EXECUTED`.
+- `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` queda documentado hasta PR F.
 - Attempt 1 queda preservado como `CI_INFRA_TIMEOUT_PLAYWRIGHT_APT`.
 - Attempt 2 queda preservado como `CI_RETRY_PASS`.
 - `run_attempt=2` es solo CI; G5 operacional futuro exige `run_attempt=1`.

@@ -49,6 +49,8 @@ Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 
 Base tecnica post-cierre documental F10.8: `main@38314170197a907ac5c4c815a9bb18b3d5f29b06` / tree `741627eda4b4fbcf76503b8e353abb08ac0eb1c4`.
 
+Nota F10.9 PR F: PR #388 queda `MERGED_POST_MERGE_VERIFIED`: candidate `eb052c2755937a2bf239cd778bc814274fbc846f`, merge protegido `71d6640b990b934fa02401518650ec38dca6cae4` / tree `815a2316c8de67047567d89a9928576869f43c4f`; Security `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`. El preflight operacional read-only queda `E1_ACCOUNT_READINESS_GO`, Workers existentes `0`, deployment `NOT_EXECUTED`. Antes de deployment real queda `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED`: PR F endurece repository-only Wrangler, lockfile, `preview_urls=false`, E1 aislado y E3A endpoint separado sin ejecutar. Hito 1 `60%`, F10.9 `38%` y G5 `50%` permanecen sin cambio.
+
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
@@ -60,7 +62,7 @@ Base tecnica post-cierre documental F10.8: `main@38314170197a907ac5c4c815a9bb18b
 - Compatibilidad contractual: Production Canary F10.8 `31272290614=PASS` verifica `EVID-H1-010`. `EVID-H1-011..013` requieren tres pares naturales consecutivos durante al menos 72 horas; `EVID-H1-016` y F11.1 siguen posteriores y separados. Metadata incompleta pasa a H2-CA2 y no bloquea esos umbrales.
 - Autorizacion documental anterior: `REGISTRAR_APROBACION_ADENDA_Y_REBASELINE_HITO1_CA1_ONLY`, completada y fusionada por el rebaseline PR #269 en `desarrollo@d9c7f180495c985a1e9a0ada4a42525fda60a870` / tree `7c510dfdbf90a97b97d2358596cab12a8cc4c2a3`.
 - PR #268 de arquitectura y matrices fue mergeado en `desarrollo@f8b898745b7ff35949640227af0049ddde06f901` / tree `3d044210792a11b099efb102a511ee1f41e8a52c`.
-- Siguiente accion: promover mediante PR protegido el PR E repository-only de reconciliacion PR #387 y preparacion de gates E1-E6. Aun con PR #387 verificado post-merge mediante un unico retry CI, trust operacional permanece `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode `IMPLEMENTED_DISABLED_NOT_CONFIGURED`. Deployment ejecutado, configuracion Cloudflare/GitHub App, Production operacional, API/JWKS live, workflow ejecutado, protection rule, SQL, writers y schedules permanecen fuera.
+- Siguiente accion: promover mediante PR protegido el PR F repository-only de hardening previo a Gate E1 Cloudflare. Aun con PR #388 verificado post-merge y `E1_ACCOUNT_READINESS_GO`, trust operacional permanece `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`; gate `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`; connected mode `IMPLEMENTED_DISABLED_NOT_CONFIGURED`. Deployment, Durable Object remoto, routes/domains, preview URLs, configuracion Cloudflare/GitHub App, Production operacional, API/JWKS live, workflow ejecutado, protection rule, SQL, writers y schedules permanecen fuera.
 
 ## Tracking Only
 

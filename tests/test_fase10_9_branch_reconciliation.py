@@ -163,6 +163,14 @@ from scripts.security.f109_boundary import (
     G5_OPERATIONAL_RUNBOOK_BASE_TREE,
     G5_OPERATIONAL_RUNBOOK_HEAD_REF,
     G5_OPERATIONAL_RUNBOOK_STATUS,
+    G5_E1_DEPLOYMENT_STOP,
+    G5_E1_HARDENING_ALLOWED_MODES,
+    G5_E1_HARDENING_ALLOWED_STATUSES,
+    G5_E1_HARDENING_BASE,
+    G5_E1_HARDENING_BASE_TREE,
+    G5_E1_HARDENING_HEAD_REF,
+    G5_E1_HARDENING_STATUS,
+    G5_E1_READINESS_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -241,6 +249,7 @@ from scripts.security.f109_boundary import (
     validate_g5_production_readonly,
     validate_g5_get_only_adapter,
     validate_g5_operational_runbook,
+    validate_g5_e1_hardening,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -4115,6 +4124,111 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_OPERATIONAL_RUNBOOK_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_e1_hardening_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(
+            G5_E1_HARDENING_BASE,
+            "71d6640b990b934fa02401518650ec38dca6cae4",
+        )
+        self.assertEqual(
+            G5_E1_HARDENING_BASE_TREE,
+            "815a2316c8de67047567d89a9928576869f43c4f",
+        )
+        self.assertEqual(G5_E1_HARDENING_HEAD_REF, "feat/f10-9-pr-f-e1-hardening")
+        self.assertEqual(G5_E1_HARDENING_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(G5_E1_READINESS_STATUS, "E1_ACCOUNT_READINESS_GO")
+        self.assertEqual(
+            G5_E1_DEPLOYMENT_STOP,
+            "E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED",
+        )
+        head = "b" * 40
+        tree_mock.return_value = G5_E1_HARDENING_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [G5_E1_HARDENING_BASE],
+        }[commit]
+
+        validate_g5_e1_hardening(Path("."), G5_E1_HARDENING_BASE, head, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_E1_HARDENING_BASE, head,
+            G5_E1_HARDENING_ALLOWED_STATUSES,
+            G5_E1_HARDENING_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 74, 418)
+
+    def test_g5_e1_hardening_allowlist_is_minimal_pr_f_paths(self) -> None:
+        self.assertEqual(
+            G5_E1_HARDENING_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+                ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_e1_hardening.py": "A",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+                "workers/g5-trust-broker/package-lock.json": "A",
+                "workers/g5-trust-broker/package.json": "A",
+                "workers/g5-trust-broker/wrangler.repository-only.jsonc": "M",
+            },
+        )
+        self.assertEqual(set(G5_E1_HARDENING_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_e1_hardening(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_E1_HARDENING_HEAD_REF,
+                G5_E1_HARDENING_BASE,
+            ),
+            "g5_e1_hardening",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_E1_HARDENING_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_e1_hardening_from_wrong_base(self, parse_args_mock) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_E1_HARDENING_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",

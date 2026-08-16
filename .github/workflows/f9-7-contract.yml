@@ -71,6 +71,7 @@ on:
       - 'tests/test_fase09_7_pipeline_no_regression.py'
       - 'tests/test_fase09_7_release_gates.py'
       - 'tests/test_fase10_9_g5_get_only_adapter_contract.py'
+      - 'tests/test_fase10_9_g5_e1_hardening.py'
       - 'tests/test_fase10_9_g5_operational_activation_preflight.py'
       - 'tests/test_fase10_9_g5_production_readonly.py'
       - 'tests/test_fase10_9_branch_reconciliation.py'
@@ -107,6 +108,7 @@ on:
       - '.context/operaciones/plan_remediacion_f10_9_fg2_fg3.md'
       - '.context/decisiones/ADR-0015_g5_deployment_ready_disabled.md'
       - '.context/decisiones/ADR-0016_g5_operational_activation_gates.md'
+      - '.context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md'
       - 'requirements-fg1.txt'
       - 'requirements-pipeline.txt'
       - 'requirements-fg3.txt'
@@ -176,6 +178,7 @@ jobs:
             env -i HOME=/tmp CI=true PATH="$PATH" PYTHONPATH="$GITHUB_WORKSPACE" \
             PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider \
             tests/test_fase10_9_g5_get_only_adapter_contract.py \
+            tests/test_fase10_9_g5_e1_hardening.py \
             tests/test_fase10_9_g5_operational_activation_preflight.py \
             tests/test_fase10_9_g5_production_readonly.py
       - name: Run repository-only G5 trust broker and Durable Object contract
