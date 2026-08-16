@@ -217,6 +217,14 @@ from scripts.security.f109_boundary import (
     G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
     G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF,
     G5_FOLLOWUP_SECURITY_REMEDIATION_STATUS,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE,
+    G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -301,6 +309,7 @@ from scripts.security.f109_boundary import (
     validate_g5_github_runtime_schema,
     validate_g5_residual_security_remediation,
     validate_g5_followup_security_remediation,
+    validate_g5_trusted_boundary_bootstrap,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -5108,6 +5117,78 @@ class F109BoundaryTest(unittest.TestCase):
             G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 79, 430)
+
+    def test_g5_trusted_boundary_bootstrap_allowlist_is_minimal_pr_m_paths(self) -> None:
+        self.assertEqual(
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES,
+            {
+                ".context/00_INDICE.md": "M",
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "A",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/security/f109_trusted_boundary_bootstrap.py": "A",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_f109_trusted_boundary_bootstrap.py": "A",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+            },
+        )
+        self.assertEqual(set(G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_trusted_boundary_bootstrap(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF,
+                G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE,
+            ),
+            "g5_trusted_boundary_bootstrap",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_trusted_boundary_bootstrap_accepts_one_direct_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE, "d04a174915910f50b8adf3d4d4b1216ffbc90b75")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE, "b30329f66ad8b8ba36e6cbd51303bd8e729036a0")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF, "feat/f10-9-pr-m-trusted-boundary-bootstrap")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS, "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE, "444c674cf2ff2143bb4b511e88ff6cd30c1fb589")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP, "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED")
+        head = "a" * 40
+        tree_mock.return_value = G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE
+        parents_mock.return_value = [G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_trusted_boundary_bootstrap(repo, G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE, head, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            repo, G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE, head,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 80, 431)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

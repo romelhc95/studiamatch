@@ -53,13 +53,15 @@ Nota base PR H: PR #390 queda `MERGED_POST_MERGE_VERIFIED` con candidate `c36cc9
 
 Nota PR L: PR #394 queda `MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` con commits exactos `7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa`, `03bab905901f62dba7631a9fe0a87290d70802d9` y `82ef6e92c125040cededb4a648d1eedd6d519ecf`; merge protegido `25be9caffe5674156c7515735a15ad45c5ad22e2` / tree `9f81f71bdabb2012ab593b1999cf4df92fa712eb`; Security `31968991218=PASS`, F9.7 run `31968990202=PASS`, focused G5 job `95218353795=PASS`, F9.7 job `95218447778=PASS`, `run_attempt=1`. PR L repository-only elimina soporte generico de cadenas follow-up, exige un unico commit directo para futuras remediaciones, endurece Link headers, fixtures de installation token y mutaciones terminales. E2-E6 siguen `NOT_EXECUTED` con `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
 
+Nota PR M: PR #395 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` con candidate `444c674cf2ff2143bb4b511e88ff6cd30c1fb589`, merge protegido `d04a174915910f50b8adf3d4d4b1216ffbc90b75` / tree `b30329f66ad8b8ba36e6cbd51303bd8e729036a0`; Security `31974315708=PASS`, F9.7 run `31974315810=PASS`, focused G5 job `95231385472=PASS`, F9.7 job `95231489296=PASS`, `run_attempt=1`. PR M agrega bootstrap repository-only de raiz independiente con workflow `pull_request_target`, check exclusivo `F10.9 Trusted Boundary Bootstrap`, `permissions: contents: read`, cero secrets, codigo de base protegida, candidate tratado como Git objects no confiables y validacion fail-closed de base/head, commit directo, ancestry y delta path/status/mode exacto. PR M es `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`; no cierra Link hardening, que queda `NOT_CLOSED_DEFERRED_TO_PR_N` despues del merge de PR M. E2-E6 siguen `NOT_EXECUTED` con `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+
 Backlog no ejecutable y cotizable `BK-F10.9-G5-ATOMIC-AUTHORITY`: rediseño futuro de autoridad atomica para eliminar la carrera residual multi-endpoint documentada como `DOCUMENTED_NO_FULL_ATOMICITY_CLAIM`. No se incluye en el avance del hito, no esta autorizado para implementacion en F10.9 y requiere estimacion y aprobacion del cliente.
 
 Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `75` archivos Markdown, `426` enlaces locales y
+- el Context Graph contiene `80` archivos Markdown, `431` enlaces locales y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;

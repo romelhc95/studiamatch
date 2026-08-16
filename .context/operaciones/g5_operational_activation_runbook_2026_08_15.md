@@ -2,15 +2,15 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PREPARED_NOT_CONFIGURED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` |
+| Estado | `PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` |
 | Subfase | `F10.9` |
-| Alcance | PR L repository-only posterior a PR #394 |
+| Alcance | PR M repository-only posterior a PR #395 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust actual | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected actual | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
-| Operacion remota en PR L | `NO` |
+| Operacion remota en PR M | `NO` |
 
 ## Proposito
 
@@ -173,9 +173,10 @@ PR L elimina el soporte generico para cadenas follow-up: PR #394 solo se preserv
 por la identidad historica exacta de esos tres commits y las remediaciones futuras
 deben ser un unico commit directo desde su base congelada.
 
-El STOP vigente pasa a `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`. E2-E6
-siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
-Production, Supabase, SQL, writers ni schedules.
+El STOP antecedente posterior a PR L fue
+`E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED`. E2-E6 siguen `NOT_EXECUTED`; no
+se configura GitHub App, Cloudflare, endpoint, OIDC live, Production, Supabase,
+SQL, writers ni schedules.
 
 La remediacion PR L tambien endurece el contrato repository-only:
 
@@ -192,7 +193,48 @@ la ventana TOCTOU, pero no declaran atomicidad completa sobre endpoints GitHub
 separados.
 
 Backlog no ejecutable y cotizable: `BK-F10.9-G5-ATOMIC-AUTHORITY`. No suma avance
-al hito, no se implementa en PR L y requiere estimacion y aprobacion del cliente.
+al hito, no se implementa en PR L ni PR M y requiere estimacion y aprobacion del
+cliente.
+
+## Reconciliacion PR #395 Y Bootstrap PR M
+
+PR #395 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`:
+
+```text
+candidate = 444c674cf2ff2143bb4b511e88ff6cd30c1fb589
+merge = d04a174915910f50b8adf3d4d4b1216ffbc90b75
+tree = b30329f66ad8b8ba36e6cbd51303bd8e729036a0
+security = 31974315708=PASS
+f9_7_run = 31974315810=PASS
+focused_g5_job = 95231385472=PASS
+f9_7_job = 95231489296=PASS
+run_attempt=1
+```
+
+PR M agrega la raiz repository-only independiente para boundaries G5:
+
+- workflow `pull_request_target` `.github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml`;
+- check exclusivo `F10.9 Trusted Boundary Bootstrap`;
+- `permissions: contents: read` y cero `secrets.*`;
+- acciones pinneadas por SHA;
+- checkout del `base.sha` protegido, sin checkout del candidate;
+- inspeccion de Git objects del candidate como `GIT_OBJECTS_AS_UNTRUSTED_DATA`;
+- rechazo fail-closed de forks, repos cruzados, multi-commit, ancestry invalido,
+  renames, modes inesperados y delta path/status no exacto;
+- no sustituye `security-audit`, F9.7 ni los tests funcionales `pull_request`.
+
+PR M es `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`: no puede autoatestiguarse antes de
+estar fusionado en `desarrollo`, porque el workflow `pull_request_target` corre
+exclusivamente desde la rama protegida. La atestacion de PR M depende de revision
+humana y checks `pull_request` existentes.
+
+El cierre del hardening `Link` queda `NOT_CLOSED_DEFERRED_TO_PR_N`. PR L conserva
+sus cambios repository-only como antecedente, pero PR N debe revalidar/cerrar bajo
+el check protegido posterior al merge de PR M.
+
+El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`. E2-E6 siguen
+`NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
+Production, Supabase, SQL, writers ni schedules.
 
 ## Policy Runtime Futura
 
@@ -350,7 +392,11 @@ El preflight offline valida solo:
 - PR #392 registrado como security remediation required.
 - PR #393 registrado como residual remediation required.
 - PR #394 registrado como follow-up security remediation required.
-- `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` vigente.
+- PR #395 registrado como trusted boundary bootstrap required.
+- `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` vigente.
+- `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` preservado como antecedente.
+- Link hardening `NOT_CLOSED_DEFERRED_TO_PR_N`.
+- Bootstrap `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`.
 - Binding runtime con `jobId`, `deploymentStatusId` y `checkSuiteId`.
 - Snapshot doble antes de CAS.
 - Terminal confirmation antes de CAS.
