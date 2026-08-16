@@ -146,6 +146,10 @@ G5_GET_ONLY_ADAPTER_STATUS = "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED"
 G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT = (
     "MERGED_POST_MERGE_VERIFIED"
 )
+G5_OPERATIONAL_RUNBOOK_BASE = "bd0d82864c26755435e551b835d145b864383810"
+G5_OPERATIONAL_RUNBOOK_BASE_TREE = "135af5a95237a1d4d6e1b977e8bb9ab82ac95e16"
+G5_OPERATIONAL_RUNBOOK_HEAD_REF = "feat/f10-9-pr-e-reconcile-g5-runbook"
+G5_OPERATIONAL_RUNBOOK_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -550,6 +554,24 @@ G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
 }
 G5_GET_ONLY_ADAPTER_ALLOWED_MODES = {
     path: "100644" for path in G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES
+}
+
+G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "A",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "A",
+}
+G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES = {
+    path: "100644" for path in G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -3247,6 +3269,193 @@ def validate_g5_get_only_adapter(
     validate_context_graph(repo, 71, 408)
 
 
+def validate_g5_operational_runbook(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_OPERATIONAL_RUNBOOK_BASE, "unexpected G5 operational runbook base")
+    require_sha(repo, "G5_OPERATIONAL_RUNBOOK_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+        "G5 operational runbook base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 operational runbook push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 operational runbook merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 operational runbook candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES,
+        G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (
+        repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (
+        repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md"
+    ).read_text(encoding="utf-8")
+    manifest = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    combined = "\n".join((state, task, plan, evidence, runbook, adr16, manifest))
+    for required in (
+        G5_OPERATIONAL_RUNBOOK_STATUS,
+        "d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d",
+        G5_OPERATIONAL_RUNBOOK_BASE,
+        G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+        "31912540519=PASS",
+        "95079685172=PASS",
+        "95079685191=PASS",
+        "31912540528",
+        "95079764790=CANCELLED",
+        "CI_INFRA_TIMEOUT_PLAYWRIGHT_APT",
+        "95084155346=PASS",
+        "CI_RETRY_PASS",
+        "run_attempt=2",
+        "run_attempt=1",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "G5 end-to-end = `50%`",
+        "G5 `5/10` dominios end-to-end",
+        "connected collector deployment-ready",
+    ):
+        require(required in combined, "G5 PR E reconciliation evidence drift")
+    for required in (
+        "Gate E1",
+        "Gate E2",
+        "Gate E3",
+        "Gate E4",
+        "Gate E5",
+        "Gate E6",
+        "Precondiciones",
+        "Outputs sanitizados",
+        "Rollback",
+        "STOP",
+        "No se puede combinar",
+        "Un gate PASS no concede el siguiente",
+    ):
+        require(required in runbook, "G5 PR E runbook gate drift")
+    for required in (
+        "G5_GITHUB_APP_PRIVATE_KEY",
+        "G5_GITHUB_APP_ID",
+        "G5_OIDC_AUDIENCE",
+        "G5_TRUST_BROKER_ENDPOINT",
+        "G5_TRUST_OPERATIONAL_ENABLED",
+        "ABSENT_NOT_CONFIGURED",
+        "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
+        "PREPARED_NOT_CONFIGURED",
+        '"actions": "read"',
+        '"checks": "read"',
+        '"contents": "read"',
+        '"deployments": "read"',
+        '"metadata": "read"',
+        '"id-token": "write"',
+    ):
+        require(required in manifest, "G5 PR E manifest drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "installation_id",
+        "project_ref",
+        "account_id",
+        "workers_dev",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest, "G5 PR E manifest contains sensitive value")
+    preflight_tree = ast.parse(preflight)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR E preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR E preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR E preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR E preflight indirect capability",
+    )
+    for required in (
+        "test_pr387_attempts_are_preserved_and_retry_is_ci_only",
+        "test_manifest_contains_no_configuration_values_or_remote_identifiers",
+        "test_preflight_is_completely_offline",
+        "test_gates_e1_to_e6_are_separate_and_non_executing",
+        "test_permissions_are_exact_and_write_permissions_are_minimal",
+        "test_runbook_and_adr_preserve_operational_run_attempt_one",
+    ):
+        require(required in preflight_tests, "G5 PR E test coverage drift")
+    for required in (
+        "tests/test_fase10_9_g5_operational_activation_preflight.py",
+        ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json",
+        ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+        ".context/decisiones/ADR-0016_g5_operational_activation_gates.md",
+    ):
+        require(required in workflow, "G5 PR E focused CI drift")
+    validate_context_graph(repo, 73, 416)
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -3419,6 +3628,12 @@ def detect_mode(
         return "g5_get_only_adapter"
     if (
         base_ref == "desarrollo"
+        and base == G5_OPERATIONAL_RUNBOOK_BASE
+        and (event == "push" or head_ref == G5_OPERATIONAL_RUNBOOK_HEAD_REF)
+    ):
+        return "g5_operational_runbook"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -3542,6 +3757,13 @@ def main() -> int:
             ):
                 raise BoundaryError(
                     "G5 GET-only adapter contract branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_OPERATIONAL_RUNBOOK_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 PR E runbook branch requires the frozen PR #387 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -3984,6 +4206,10 @@ def main() -> int:
             )
         elif mode == "g5_get_only_adapter":
             validate_g5_get_only_adapter(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_operational_runbook":
+            validate_g5_operational_runbook(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

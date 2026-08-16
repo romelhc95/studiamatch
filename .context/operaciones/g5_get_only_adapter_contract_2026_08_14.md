@@ -122,6 +122,35 @@ lee Supabase live y no habilita Production. Connected queda
 `IMPLEMENTED_DISABLED_NOT_CONFIGURED`; trust operacional permanece
 `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED`.
 
+PR #387 promovio PR D y queda congelado como
+`MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY`:
+
+```text
+candidate = d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d
+merge = bd0d82864c26755435e551b835d145b864383810
+tree = 135af5a95237a1d4d6e1b977e8bb9ab82ac95e16
+security = 31912540519=PASS
+focused_pr_d = 95079685172=PASS
+m3 = 95079685191=PASS
+f9_7_run = 31912540528
+attempt_1_job = 95079764790=CANCELLED
+attempt_1_classification = CI_INFRA_TIMEOUT_PLAYWRIGHT_APT
+attempt_2_job = 95084155346=PASS
+attempt_2_classification = CI_RETRY_PASS
+attempt_2_run_attempt = 2
+```
+
+El attempt 1 queda preservado como timeout de infraestructura durante
+Playwright `--with-deps`; el attempt 2 queda preservado como retry CI PASS. Ese
+`run_attempt=2` no modifica el contrato G5 operacional: el workflow futuro exige
+`run_attempt=1` para creacion, aprobacion y consumo G5.
+
+PR E agrega [ADR-0016](../decisiones/ADR-0016_g5_operational_activation_gates.md),
+el [runbook de activacion operacional](./g5_operational_activation_runbook_2026_08_15.md)
+y el [manifest name-only](./g5_operational_activation_manifest_2026_08_15.json).
+Estos artifacts definen E1-E6 sin ejecutar Cloudflare, GitHub App, environment,
+OIDC live, Production, Supabase, SQL, writers o schedules.
+
 La salida publica contiene solo version, decision, reason code, receipt digest y
 flags falsos. No registra JWT, Authorization, installation token, URL, host, UUID,
 project ref, payload, claims completos ni datos operativos. GitHub App futuro queda

@@ -157,6 +157,12 @@ from scripts.security.f109_boundary import (
     G5_GET_ONLY_ADAPTER_PREVIOUS_BASE,
     G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
     G5_GET_ONLY_ADAPTER_STATUS,
+    G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES,
+    G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES,
+    G5_OPERATIONAL_RUNBOOK_BASE,
+    G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+    G5_OPERATIONAL_RUNBOOK_HEAD_REF,
+    G5_OPERATIONAL_RUNBOOK_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -234,6 +240,7 @@ from scripts.security.f109_boundary import (
     validate_f1010_h1_ca1_rebaseline,
     validate_g5_production_readonly,
     validate_g5_get_only_adapter,
+    validate_g5_operational_runbook,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -4002,6 +4009,112 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_GET_ONLY_ADAPTER_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_operational_runbook_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(
+            G5_OPERATIONAL_RUNBOOK_BASE,
+            "bd0d82864c26755435e551b835d145b864383810",
+        )
+        self.assertEqual(
+            G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+            "135af5a95237a1d4d6e1b977e8bb9ab82ac95e16",
+        )
+        self.assertEqual(
+            G5_OPERATIONAL_RUNBOOK_HEAD_REF,
+            "feat/f10-9-pr-e-reconcile-g5-runbook",
+        )
+        self.assertEqual(
+            G5_OPERATIONAL_RUNBOOK_STATUS,
+            "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
+        )
+        head = "a" * 40
+        tree_mock.return_value = G5_OPERATIONAL_RUNBOOK_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [G5_OPERATIONAL_RUNBOOK_BASE],
+        }[commit]
+
+        validate_g5_operational_runbook(
+            Path("."), G5_OPERATIONAL_RUNBOOK_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_OPERATIONAL_RUNBOOK_BASE, head,
+            G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES,
+            G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 73, 416)
+
+    def test_g5_operational_runbook_allowlist_is_minimal_pr_e_paths(self) -> None:
+        self.assertEqual(
+            G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "A",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "A",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "A",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "A",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "A",
+            },
+        )
+        self.assertEqual(set(G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_operational_runbook(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_OPERATIONAL_RUNBOOK_HEAD_REF,
+                G5_OPERATIONAL_RUNBOOK_BASE,
+            ),
+            "g5_operational_runbook",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_OPERATIONAL_RUNBOOK_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_operational_runbook_from_wrong_base(
+        self, parse_args_mock,
+    ) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_OPERATIONAL_RUNBOOK_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",
