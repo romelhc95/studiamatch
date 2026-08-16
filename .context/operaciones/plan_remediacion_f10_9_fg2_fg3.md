@@ -47,6 +47,8 @@ no autoriza pushes, aprobaciones, merges ni operaciones remotas.
 
 Nota PR F: PR #388 queda `MERGED_POST_MERGE_VERIFIED` con candidate `eb052c2755937a2bf239cd778bc814274fbc846f`, merge `71d6640b990b934fa02401518650ec38dca6cae4` / tree `815a2316c8de67047567d89a9928576869f43c4f`; Security `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`. `E1_ACCOUNT_READINESS_GO` queda registrado solo como preflight read-only; `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` exige PR F repository-only antes de solicitar deployment Cloudflare. `E3A` queda `DEFINED_NOT_EXECUTED`; E4 permanece bloqueado por E3A. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
 
+Nota base PR G: PR #389 queda `MERGED_POST_MERGE_VERIFIED` con candidate `f48d0f25154970531744815e1d3769a20731717a`, merge `4bdc698cd9a8569e4e8290257effa6bc3aa3bb15` / tree `874ccffa3db9871189ca351d88cc84e120251e95`; Security `31921056993=PASS`, F9.7 run `31921056963=PASS`, focused `95100885045=PASS`, F9.7 job `95100958336=PASS`, `run_attempt=1`. `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado por incompatibilidad de Wrangler `4.30.0` con `deploy --strict`; PR G solo fija Wrangler exacto `4.44.0` y prueba dry-run offline sin credenciales Cloudflare. `E3A` queda `DEFINED_NOT_EXECUTED`; E4 permanece bloqueado por E3A. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+
 Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;

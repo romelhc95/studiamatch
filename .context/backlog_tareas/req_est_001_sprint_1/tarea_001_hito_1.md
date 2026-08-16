@@ -147,13 +147,23 @@ aprobaciones separadas; este documento no las concede.
    `eb052c2755937a2bf239cd778bc814274fbc846f`, merge protegido
    `71d6640b990b934fa02401518650ec38dca6cae4`, tree
    `815a2316c8de67047567d89a9928576869f43c4f`; Security
-   `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused
-   `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`.
-   El preflight operacional read-only queda `E1_ACCOUNT_READINESS_GO`, Workers
-   existentes `0` y deployment `NOT_EXECUTED`. PR F queda autorizado solo como
-   hardening repository-only previo: `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED`,
-   Wrangler exacto, lockfile, `preview_urls=false`, E1 aislado y E3A endpoint
-   separado `DEFINED_NOT_EXECUTED`, sin deployment ni configuracion remota.
+    `31917838025=PASS`, F9.7 run `31917838011=PASS`, focused
+    `95092629457=PASS`, F9.7 job `95092706912=PASS`, `run_attempt=1`.
+    El preflight operacional read-only queda `E1_ACCOUNT_READINESS_GO`, Workers
+    existentes `0` y deployment `NOT_EXECUTED`. PR F queda autorizado solo como
+    hardening repository-only previo: `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED`,
+    Wrangler exacto, lockfile, `preview_urls=false`, E1 aislado y E3A endpoint
+    separado `DEFINED_NOT_EXECUTED`, sin deployment ni configuracion remota.
+   PR #389, PR F, queda `MERGED_POST_MERGE_VERIFIED`: candidate
+   `f48d0f25154970531744815e1d3769a20731717a`, merge protegido
+   `4bdc698cd9a8569e4e8290257effa6bc3aa3bb15`, tree
+   `874ccffa3db9871189ca351d88cc84e120251e95`; Security
+   `31921056993=PASS`, F9.7 run `31921056963=PASS`, focused
+   `95100885045=PASS`, F9.7 job `95100958336=PASS`, `run_attempt=1`.
+   El hallazgo `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` queda registrado
+   porque Wrangler `4.30.0` no soporta `deploy --strict`; PR G queda limitado a
+   fijar Wrangler exacto `4.44.0`, demostrar `--strict` y ejecutar dry-run offline
+   sin credenciales ni Cloudflare, manteniendo E1 `NOT_EXECUTED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

@@ -5,11 +5,11 @@
 | Estado | `ACCEPTED_REPOSITORY_ONLY` |
 | Fecha | 2026-08-16 |
 | Subfase | `F10.9` |
-| Alcance | PR F repository-only |
-| Base protegida | PR #388 `MERGED_POST_MERGE_VERIFIED` |
+| Alcance | PR F + PR G repository-only |
+| Base protegida | PR #389 `MERGED_POST_MERGE_VERIFIED` |
 | E1 account readiness | `E1_ACCOUNT_READINESS_GO` |
 | Deployment | `NOT_EXECUTED` |
-| Stop vigente | `E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED` |
+| Stop vigente | `E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` |
 | Operacion remota | `NO` |
 
 ## Contexto
@@ -32,14 +32,35 @@ sin Workers existentes y con deployment `NOT_EXECUTED`. Esa lectura no autoriza
 despliegue. Antes de solicitar E1 real se requiere congelar el paquete de
 deployment para impedir rutas, preview URLs, endpoints o configuracion adicional.
 
+PR #389 quedo fusionado en `desarrollo` y verificado post-merge:
+
+```text
+candidate = f48d0f25154970531744815e1d3769a20731717a
+merge = 4bdc698cd9a8569e4e8290257effa6bc3aa3bb15
+tree = 874ccffa3db9871189ca351d88cc84e120251e95
+security = 31921056993=PASS
+f9_7_run = 31921056963=PASS
+focused = 95100885045=PASS
+f9_7_job = 95100958336=PASS
+run_attempt = 1
+```
+
+El hallazgo posterior es fail-closed: Wrangler `4.30.0` no expone
+`deploy --strict`, aunque el comando congelado de E1 lo exige. E1 queda
+`E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE` hasta fijar una version compatible
+sin ejecutar deployment.
+
 ## Decision
 
 El deployment futuro de E1 queda limitado a un Worker aislado, sin exposicion
 publica y sin endpoint seleccionado en este PR:
 
-- Wrangler queda fijado a `4.30.0` en `workers/g5-trust-broker/package.json`.
+- Wrangler queda fijado a `4.44.0` en `workers/g5-trust-broker/package.json`.
 - `package-lock.json` queda versionado para reproducibilidad.
-- La instalacion local de preparacion debe usar `npm install --package-lock-only --ignore-scripts` dentro del contenedor.
+- La regeneracion del lockfile debe usar solo el registry npm dentro del contenedor.
+- La instalacion local de verificacion debe usar `npm ci --ignore-scripts` dentro del contenedor.
+- `wrangler deploy --help` debe demostrar soporte de `--strict` antes de E1.
+- El dry-run debe pasar sin `CLOUDFLARE_API_TOKEN`, sin `CLOUDFLARE_ACCOUNT_ID` y con egress externo bloqueado.
 - `workers_dev` permanece `false`.
 - `preview_urls` queda explicitamente `false`.
 - No hay `routes`, `route`, `domains`, `custom_domains` ni `triggers` en la configuracion.
@@ -99,6 +120,7 @@ tenga aprobacion separada y evidencia revisada.
 - No despliegue Cloudflare.
 - No Durable Object remoto creado.
 - No routes, domains, custom domains, preview URLs ni triggers.
+- No acceso Cloudflare durante el dry-run PR G.
 - No billing, plan o costo aceptado.
 - No GitHub App o environment configurado.
 - No OIDC live ni workflow dispatch.

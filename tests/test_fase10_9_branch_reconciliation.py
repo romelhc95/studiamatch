@@ -171,6 +171,12 @@ from scripts.security.f109_boundary import (
     G5_E1_HARDENING_HEAD_REF,
     G5_E1_HARDENING_STATUS,
     G5_E1_READINESS_STATUS,
+    G5_E1_WRANGLER_COMPAT_ALLOWED_MODES,
+    G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES,
+    G5_E1_WRANGLER_COMPAT_BASE,
+    G5_E1_WRANGLER_COMPAT_BASE_TREE,
+    G5_E1_WRANGLER_COMPAT_HEAD_REF,
+    G5_E1_WRANGLER_COMPAT_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -250,6 +256,7 @@ from scripts.security.f109_boundary import (
     validate_g5_get_only_adapter,
     validate_g5_operational_runbook,
     validate_g5_e1_hardening,
+    validate_g5_e1_wrangler_compat,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
     validate_g2,
@@ -4172,15 +4179,136 @@ class F109BoundaryTest(unittest.TestCase):
         parents_mock.side_effect = lambda _repo, commit: {
             head: [G5_E1_HARDENING_BASE],
         }[commit]
+        repo = self.make_repo()
+        evidence = "\n".join(
+            (
+                G5_E1_HARDENING_STATUS,
+                G5_E1_HARDENING_BASE,
+                G5_E1_HARDENING_BASE_TREE,
+                "eb052c2755937a2bf239cd778bc814274fbc846f",
+                "31917838025=PASS",
+                "31917838011=PASS",
+                "95092629457=PASS",
+                "95092706912=PASS",
+                "run_attempt=1",
+                G5_E1_READINESS_STATUS,
+                "Workers existentes `0`",
+                "NOT_EXECUTED",
+                G5_E1_DEPLOYMENT_STOP,
+                "Hito 1 `60%`",
+                "F10.9 `38%`",
+                "G5 `50%`",
+                "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+                "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+                "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+                "G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`",
+                "preview_urls:false",
+                "workers_dev:false",
+                "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+                "--dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+                "CLOUDFLARE_API_TOKEN",
+                "CLOUDFLARE_ACCOUNT_ID",
+                "CF_API_TOKEN",
+                "CF_ACCOUNT_ID",
+                "E3A",
+                "DEFINED_NOT_EXECUTED",
+                "E4 queda bloqueado",
+                "Este PR no selecciona ni habilita endpoint",
+            )
+        )
+        for relative in (
+            ".context/estado_del_proyecto.md",
+            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+            ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
+            ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+            ".context/decisiones/ADR-0016_g5_operational_activation_gates.md",
+            ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md",
+        ):
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(evidence, encoding="utf-8")
+        manifest_path = repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps({"gates": [{"id": gate} for gate in ("E1", "E2", "E3", "E3A", "E4", "E5", "E6")]}),
+            encoding="utf-8",
+        )
+        preflight_path = repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+        preflight_path.parent.mkdir(parents=True, exist_ok=True)
+        preflight_path.write_text(
+            "test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing",
+            encoding="utf-8",
+        )
+        e1_path = repo / "tests/test_fase10_9_g5_e1_hardening.py"
+        e1_path.write_text(
+            "\n".join(
+                (
+                    "test_wrangler_version_is_exact_and_lockfile_is_versioned",
+                    "test_wrangler_config_is_isolated_and_explicitly_non_public",
+                    "test_package_scripts_require_dry_run_before_exact_deploy_command",
+                    "test_cloudflare_credential_names_are_standard_for_e1_only",
+                    "test_e3a_endpoint_gate_is_separate_and_blocks_e4",
+                    "test_e1_hardening_docs_preserve_stops_and_no_sensitive_values",
+                )
+            ),
+            encoding="utf-8",
+        )
+        workflow_path = repo / ".github/workflows/f9-7-contract.yml"
+        workflow_path.parent.mkdir(parents=True, exist_ok=True)
+        workflow_path.write_text(
+            "tests/test_fase10_9_g5_e1_hardening.py\n"
+            "tests/test_fase10_9_g5_operational_activation_preflight.py\n",
+            encoding="utf-8",
+        )
+        config_path = repo / "workers/g5-trust-broker/wrangler.repository-only.jsonc"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            json.dumps(
+                {
+                    "name": "g5-trust-broker-repository-only",
+                    "main": "src/index.mjs",
+                    "compatibility_date": "2026-08-15",
+                    "workers_dev": False,
+                    "preview_urls": False,
+                    "durable_objects": {
+                        "bindings": [
+                            {"name": "G5_ATOMIC_LEDGER", "class_name": "G5AtomicLedgerDurableObject"}
+                        ]
+                    },
+                    "migrations": [
+                        {"tag": "repository-only-v1", "new_sqlite_classes": ["G5AtomicLedgerDurableObject"]}
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        package_path = repo / "workers/g5-trust-broker/package.json"
+        package_path.write_text(
+            json.dumps(
+                {
+                    "scripts": {
+                        "e1:dry-run": "wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+                        "e1:deploy": "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+                    },
+                    "devDependencies": {"wrangler": "4.30.0"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        lock_path = repo / "workers/g5-trust-broker/package-lock.json"
+        lock_path.write_text(
+            json.dumps({"lockfileVersion": 3, "packages": {"node_modules/wrangler": {"version": "4.30.0"}}}),
+            encoding="utf-8",
+        )
 
-        validate_g5_e1_hardening(Path("."), G5_E1_HARDENING_BASE, head, "pull_request")
+        validate_g5_e1_hardening(repo, G5_E1_HARDENING_BASE, head, "pull_request")
 
         delta_mock.assert_called_once_with(
-            Path("."), G5_E1_HARDENING_BASE, head,
+            repo, G5_E1_HARDENING_BASE, head,
             G5_E1_HARDENING_ALLOWED_STATUSES,
             G5_E1_HARDENING_ALLOWED_MODES,
         )
-        context_mock.assert_called_once_with(Path("."), 74, 418)
+        context_mock.assert_called_once_with(repo, 74, 418)
 
     def test_g5_e1_hardening_allowlist_is_minimal_pr_f_paths(self) -> None:
         self.assertEqual(
@@ -4229,6 +4357,106 @@ class F109BoundaryTest(unittest.TestCase):
             event="pull_request",
             base_ref="desarrollo",
             head_ref=G5_E1_HARDENING_HEAD_REF,
+            base_sha="0" * 40,
+            head_sha="1" * 40,
+            base_repo="owner/repo",
+            head_repo="owner/repo",
+            cert_tip="",
+            p1_base="",
+            p1_base_tree="",
+            p2_base="",
+            p2_base_tree="",
+            g2_base="",
+            g2_base_tree="",
+            p5_base="",
+            p5_base_tree="",
+            f1010_m1_base="",
+            f1010_m1_base_tree="",
+            github_output="",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_e1_wrangler_compat_accepts_exact_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        self.assertEqual(
+            G5_E1_WRANGLER_COMPAT_BASE,
+            "4bdc698cd9a8569e4e8290257effa6bc3aa3bb15",
+        )
+        self.assertEqual(
+            G5_E1_WRANGLER_COMPAT_BASE_TREE,
+            "874ccffa3db9871189ca351d88cc84e120251e95",
+        )
+        self.assertEqual(G5_E1_WRANGLER_COMPAT_HEAD_REF, "feat/f10-9-pr-g-wrangler-compat")
+        self.assertEqual(G5_E1_WRANGLER_COMPAT_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        head = "b" * 40
+        tree_mock.return_value = G5_E1_WRANGLER_COMPAT_BASE_TREE
+        parents_mock.side_effect = lambda _repo, commit: {
+            head: [G5_E1_WRANGLER_COMPAT_BASE],
+        }[commit]
+
+        validate_g5_e1_wrangler_compat(Path("."), G5_E1_WRANGLER_COMPAT_BASE, head, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            Path("."), G5_E1_WRANGLER_COMPAT_BASE, head,
+            G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES,
+            G5_E1_WRANGLER_COMPAT_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(Path("."), 74, 418)
+
+    def test_g5_e1_wrangler_compat_allowlist_is_minimal_pr_g_paths(self) -> None:
+        self.assertEqual(
+            G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+                ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md": "M",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f9-7-contract.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_e1_hardening.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+                "workers/g5-trust-broker/package-lock.json": "M",
+                "workers/g5-trust-broker/package.json": "M",
+                "workers/g5-trust-broker/test/block-egress.mjs": "A",
+            },
+        )
+        self.assertEqual(set(G5_E1_WRANGLER_COMPAT_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_e1_wrangler_compat(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_E1_WRANGLER_COMPAT_HEAD_REF,
+                G5_E1_WRANGLER_COMPAT_BASE,
+            ),
+            "g5_e1_wrangler_compat",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_E1_WRANGLER_COMPAT_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_rejects_g5_e1_wrangler_compat_from_wrong_base(self, parse_args_mock) -> None:
+        parse_args_mock.return_value = SimpleNamespace(
+            repo=Path("."),
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=G5_E1_WRANGLER_COMPAT_HEAD_REF,
             base_sha="0" * 40,
             head_sha="1" * 40,
             base_repo="owner/repo",
