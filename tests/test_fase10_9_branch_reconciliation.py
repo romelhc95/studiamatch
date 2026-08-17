@@ -4,6 +4,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -264,11 +265,20 @@ from scripts.security.f109_boundary import (
     G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE,
     G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF,
     G5_CERTIFICATION_WIRING_STATUS,
+    G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP,
+    G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF,
+    G5_CERTIFICATION_BOOTSTRAP_SIDECAR,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
     G5_PR401_STATUS,
     G5_PR401_TREE,
+    G5_PR402_CANDIDATE,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -358,6 +368,8 @@ from scripts.security.f109_boundary import (
     validate_g5_link_hardening_closure,
     validate_g5_default_branch_trusted_workflow_registration,
     validate_g5_certification_wiring_bootstrap,
+    validate_g5_bootstrap_freeze_sidecar,
+    validate_g5_certification_bootstrap_freeze,
     validate_g5_control_plane_exception_payload,
     validate_g5_definitive_promotion_source,
     validate_g5_security_remediation,
@@ -5641,6 +5653,138 @@ class F109BoundaryTest(unittest.TestCase):
         mutated["snapshot_after"] = "DRIFT"
         with self.assertRaises(BoundaryError):
             validate_g5_control_plane_exception_payload(mutated)
+
+    def test_g5_certification_bootstrap_freeze_sidecar_contract_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        sidecar = json.loads((root / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+
+        validate_g5_bootstrap_freeze_sidecar(sidecar)
+        self.assertTrue(sidecar["sidecar_excluded_from_certification_delta"])
+        self.assertNotIn(G5_CERTIFICATION_BOOTSTRAP_SIDECAR, sidecar["certification_delta"])
+        self.assertEqual(sidecar["expected_candidate_tree"], G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE)
+        self.assertEqual(sidecar["source_commit"], G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE)
+        self.assertEqual(sidecar["source_tree"], G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE)
+        self.assertEqual(sidecar["preconditions"]["wiring_pr_expected_head_sha"], G5_PR402_CANDIDATE)
+        self.assertEqual(sidecar["preconditions"]["other_mergeable_prs_to_certificacion"], 0)
+        self.assertIn("github_api_503", sidecar["execution_rules"]["abort_on"])
+        self.assertEqual(sidecar["execution_rules"]["restore_security_audit"], {"context": "security-audit", "app_id": 15368})
+        self.assertFalse(sidecar["candidate_controlled_check_policy"]["pre_merge_security_audit_authoritative"])
+        self.assertTrue(sidecar["candidate_controlled_check_policy"]["protected_base_failure_expected"])
+        self.assertFalse(sidecar["candidate_controlled_check_policy"]["candidate_controlled_pass_can_substitute"])
+
+    def test_g5_certification_bootstrap_freeze_hashes_and_snapshots_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        sidecar = json.loads((root / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+        canonical = lambda value: hashlib.sha256(
+            json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+        self.assertEqual(sidecar["snapshot_canonical_hash"], canonical(sidecar["snapshot_before"]))
+        self.assertEqual(sidecar["canonical_digest"], canonical(sidecar["canonical_digest_input"]))
+        self.assertEqual(sidecar["restore_state"], sidecar["snapshot_before"])
+        self.assertNotEqual(sidecar["temporary_state"], sidecar["snapshot_before"])
+        self.assertEqual(sidecar["snapshot_before"]["required_status_checks"]["checks"], [{"context": "security-audit", "app_id": 15368}])
+        self.assertEqual(sidecar["temporary_state"]["required_status_checks"]["checks"], [])
+        changed = [
+            key for key in sidecar["snapshot_before"]
+            if sidecar["temporary_state"].get(key) != sidecar["snapshot_before"].get(key)
+        ]
+        self.assertEqual(changed, ["required_status_checks"])
+
+    def test_g5_certification_bootstrap_freeze_four_blobs_modes_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        sidecar = json.loads((root / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+        self.assertEqual(sidecar["certification_delta"], {
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": {
+                "status": "A",
+                "mode": "100644",
+                "blob_sha": "4fa98320015e39a905644f03e89a75af43dc72cc",
+            },
+            ".github/workflows/security-audit.yml": {
+                "status": "M",
+                "mode": "100755",
+                "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045",
+            },
+            "scripts/security/f109_boundary.py": {
+                "status": "M",
+                "mode": "100644",
+                "blob_sha": "e36a5de1ab6513e973cc5bc940bdb12a5a1c7335",
+            },
+            "tests/test_fase10_9_branch_reconciliation.py": {
+                "status": "M",
+                "mode": "100644",
+                "blob_sha": "f911e7bc46e9be474ab4b917d9d96d263c1a64e1",
+            },
+        })
+
+    def test_g5_certification_bootstrap_freeze_fail_closed_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        sidecar = json.loads((root / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+        cases = [
+            ("expected_candidate_tree", "0" * 40),
+            ("source_commit", "0" * 40),
+            ("same_repository", False),
+        ]
+        for key, value in cases:
+            mutated = json.loads(json.dumps(sidecar))
+            mutated[key] = value
+            with self.assertRaises(BoundaryError):
+                validate_g5_bootstrap_freeze_sidecar(mutated)
+
+        mutated = json.loads(json.dumps(sidecar))
+        mutated["execution_rules"]["abort_on"].remove("github_api_503")
+        with self.assertRaises(BoundaryError):
+            validate_g5_bootstrap_freeze_sidecar(mutated)
+
+        mutated = json.loads(json.dumps(sidecar))
+        mutated["preconditions"]["other_mergeable_prs_to_certificacion"] = 1
+        with self.assertRaises(BoundaryError):
+            validate_g5_bootstrap_freeze_sidecar(mutated)
+
+        mutated = json.loads(json.dumps(sidecar))
+        mutated["preconditions"]["wiring_pr_expected_head_sha"] = "0" * 40
+        with self.assertRaises(BoundaryError):
+            validate_g5_bootstrap_freeze_sidecar(mutated)
+
+    def test_g5_certification_bootstrap_freeze_live_delta_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        env = os.environ.copy()
+        git_file = root / ".git"
+        if git_file.is_file() and "C:/" in git_file.read_text(encoding="utf-8"):
+            env["GIT_DIR"] = "/app/.git/worktrees/f10-9-pr-t-certification-bootstrap-freeze-v2"
+            env["GIT_WORK_TREE"] = str(root)
+        head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True, env=env).strip()
+        parents = subprocess.check_output(["git", "-C", str(root), "show", "-s", "--format=%P", head], text=True, env=env).split()
+        event = "push" if len(parents) == 2 and parents[0] == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE else "pull_request"
+        previous = {key: os.environ.get(key) for key in ("GIT_DIR", "GIT_WORK_TREE")}
+        os.environ.update({key: value for key, value in env.items() if key in ("GIT_DIR", "GIT_WORK_TREE")})
+        try:
+            validate_g5_certification_bootstrap_freeze(root, G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, head, event)
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+        self.assertEqual(G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES[G5_CERTIFICATION_BOOTSTRAP_SIDECAR], "A")
+        self.assertEqual(G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES[G5_CERTIFICATION_BOOTSTRAP_SIDECAR], "100644")
+
+    def test_detect_mode_selects_g5_certification_bootstrap_freeze_no_mocks(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF,
+                G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE,
+            ),
+            "g5_certification_bootstrap_freeze",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+        self.assertEqual(G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP, "E2_STOP_CERTIFICATION_CONTROL_PLANE_ENVELOPE_REQUIRED")
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

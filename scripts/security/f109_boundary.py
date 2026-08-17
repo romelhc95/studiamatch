@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import re
 import subprocess
@@ -243,6 +244,18 @@ G5_PR401_CANDIDATE = "6dcb1ce9087797be2fb7131063dbce8f880a23b4"
 G5_PR401_MERGE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE
 G5_PR401_TREE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
 G5_PR401_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE = "a9bbc6079472879d1c04f2e1fce9b36393b166d6"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE = "0595d1e69c38334ae61ed12fb03cc2701cfb06ec"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF = "feat/f10-9-pr-t-certification-bootstrap-freeze-v2"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS = "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP = "E2_STOP_CERTIFICATION_CONTROL_PLANE_ENVELOPE_REQUIRED"
+G5_PR402_CANDIDATE = "40db8d47df3b130f03afea627074bc1653b56975"
+G5_PR402_BASE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+G5_PR402_MERGE = G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE
+G5_PR402_TREE = G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE
+G5_PR402_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE = "40b7e797ebec35fef9ab770240b983ed91944026"
+G5_CERTIFICATION_BOOTSTRAP_SIDECAR = ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -904,6 +917,15 @@ G5_CERTIFICATION_WIRING_ALLOWED_STATUSES = {
     ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
 }
 G5_CERTIFICATION_WIRING_ALLOWED_MODES = G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES = {
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+    G5_CERTIFICATION_BOOTSTRAP_SIDECAR: "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES = {
+    path: "100644" for path in G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
+}
 G5_DEFINITIVE_PROMOTION_FILES = {
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
         "mode": "100644",
@@ -6026,6 +6048,138 @@ def validate_g5_control_plane_exception_payload(payload: dict[str, object]) -> N
     require(payload.get("abort_policy") == "ABORT_AND_RESTORE_ON_ANY_DRIFT", "G5 control-plane exception abort drift")
 
 
+def canonical_sha256(value: object) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def validate_g5_bootstrap_freeze_sidecar(sidecar: dict[str, object]) -> None:
+    require(sidecar.get("schema") == "f10.9-g5-certification-wiring-bootstrap-freeze.v1", "G5 sidecar schema drift")
+    require(sidecar.get("status") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS, "G5 sidecar status drift")
+    require(sidecar.get("sidecar_policy") == "EXTERNAL_REPOSITORY_ONLY_NOT_PROMOTED_TO_CERTIFICATION", "G5 sidecar policy drift")
+    require(sidecar.get("source_commit") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, "G5 sidecar source commit drift")
+    require(sidecar.get("source_tree") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE, "G5 sidecar source tree drift")
+    require(sidecar.get("certification_parent") == G5_CERTIFICATION_WIRING_BASE, "G5 sidecar certification parent drift")
+    require(sidecar.get("certification_parent_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 sidecar certification tree drift")
+    require(sidecar.get("head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 sidecar head ref drift")
+    require(sidecar.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 sidecar commit count drift")
+    require(sidecar.get("same_repository") is True, "G5 sidecar same-repository drift")
+    require(sidecar.get("expected_candidate_tree") == G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE, "G5 sidecar candidate tree drift")
+    require(sidecar.get("sidecar_path") == G5_CERTIFICATION_BOOTSTRAP_SIDECAR, "G5 sidecar path drift")
+    require(sidecar.get("sidecar_excluded_from_certification_delta") is True, "G5 sidecar certification exclusion drift")
+    expected_files = {
+        ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": {
+            "status": "A",
+            "mode": "100644",
+            "blob_sha": "4fa98320015e39a905644f03e89a75af43dc72cc",
+        },
+        ".github/workflows/security-audit.yml": {
+            "status": "M",
+            "mode": "100755",
+            "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045",
+        },
+        "scripts/security/f109_boundary.py": {
+            "status": "M",
+            "mode": "100644",
+            "blob_sha": "e36a5de1ab6513e973cc5bc940bdb12a5a1c7335",
+        },
+        "tests/test_fase10_9_branch_reconciliation.py": {
+            "status": "M",
+            "mode": "100644",
+            "blob_sha": "f911e7bc46e9be474ab4b917d9d96d263c1a64e1",
+        },
+    }
+    require(sidecar.get("certification_delta") == expected_files, "G5 sidecar certification delta drift")
+    require(G5_CERTIFICATION_BOOTSTRAP_SIDECAR not in expected_files, "G5 sidecar leaked into certification delta")
+    snapshot = sidecar.get("snapshot_before")
+    temporary = sidecar.get("temporary_state")
+    restore = sidecar.get("restore_state")
+    require(isinstance(snapshot, dict), "G5 sidecar snapshot missing")
+    require(isinstance(temporary, dict), "G5 sidecar temporary state missing")
+    require(isinstance(restore, dict), "G5 sidecar restore state missing")
+    require(restore == snapshot, "G5 sidecar restore must match snapshot exactly")
+    require(sidecar.get("snapshot_canonical_hash") == canonical_sha256(snapshot), "G5 sidecar snapshot hash drift")
+    required_checks = snapshot.get("required_status_checks")
+    temporary_checks = temporary.get("required_status_checks")
+    require(isinstance(required_checks, dict), "G5 sidecar required checks missing")
+    require(isinstance(temporary_checks, dict), "G5 sidecar temporary checks missing")
+    require(required_checks.get("strict") is True, "G5 sidecar strict drift")
+    require(required_checks.get("contexts") == ["security-audit"], "G5 sidecar context drift")
+    require(required_checks.get("checks") == [{"context": "security-audit", "app_id": 15368}], "G5 sidecar app drift")
+    require(temporary_checks.get("strict") is True, "G5 sidecar temporary strict drift")
+    require(temporary_checks.get("contexts") == [], "G5 sidecar temporary context drift")
+    require(temporary_checks.get("checks") == [], "G5 sidecar temporary check drift")
+    changed = [key for key in snapshot if temporary.get(key) != snapshot.get(key)]
+    require(changed == ["required_status_checks"], "G5 sidecar temporary state changes more than security-audit")
+    preconditions = sidecar.get("preconditions")
+    require(isinstance(preconditions, dict), "G5 sidecar preconditions missing")
+    require(preconditions.get("live_snapshot_must_match_hash") == sidecar.get("snapshot_canonical_hash"), "G5 sidecar live hash precondition drift")
+    require(preconditions.get("revalidate_branch_sha") == G5_CERTIFICATION_WIRING_BASE, "G5 sidecar branch SHA precondition drift")
+    require(preconditions.get("revalidate_branch_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 sidecar branch tree precondition drift")
+    require(preconditions.get("other_mergeable_prs_to_certificacion") == 0, "G5 sidecar concurrent PR precondition drift")
+    require(preconditions.get("wiring_pr_head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 sidecar wiring PR precondition drift")
+    require(preconditions.get("wiring_pr_expected_head_sha") == G5_PR402_CANDIDATE, "G5 sidecar candidate SHA precondition drift")
+    require(preconditions.get("wiring_pr_expected_tree") == G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE, "G5 sidecar expected tree precondition drift")
+    execution = sidecar.get("execution_rules")
+    require(isinstance(execution, dict), "G5 sidecar execution rules missing")
+    require(execution.get("max_window_minutes") == 10, "G5 sidecar max window drift")
+    require(execution.get("merge_only_head_sha") == G5_PR402_CANDIDATE, "G5 sidecar merge SHA drift")
+    require(execution.get("restore_on_any_exit") is True, "G5 sidecar restore-on-exit drift")
+    require(execution.get("restore_security_audit") == {"context": "security-audit", "app_id": 15368}, "G5 sidecar restore app drift")
+    require(execution.get("post_restore_compare") == "EXACT_MATCH_SNAPSHOT_BEFORE", "G5 sidecar post-restore compare drift")
+    require(execution.get("post_merge_required_check") == {"context": "security-audit", "app_id": 15368, "conclusion": "PASS"}, "G5 sidecar post-merge check drift")
+    require(execution.get("abort_on") == ["github_api_503", "snapshot_drift", "unverifiable_field", "candidate_sha_drift", "concurrent_mergeable_certification_pr"], "G5 sidecar abort policy drift")
+    notes = sidecar.get("candidate_controlled_check_policy")
+    require(isinstance(notes, dict), "G5 sidecar candidate-controlled policy missing")
+    require(notes.get("pre_merge_security_audit_authoritative") is False, "G5 sidecar candidate authority drift")
+    require(notes.get("protected_base_failure_expected") is True, "G5 sidecar protected-base failure drift")
+    require(notes.get("candidate_controlled_pass_can_substitute") is False, "G5 sidecar candidate PASS substitution drift")
+    digest_input = sidecar.get("canonical_digest_input")
+    require(isinstance(digest_input, dict), "G5 sidecar canonical digest input missing")
+    require(sidecar.get("canonical_digest") == canonical_sha256(digest_input), "G5 sidecar canonical digest drift")
+
+
+def validate_g5_certification_bootstrap_freeze(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, "unexpected G5 certification bootstrap freeze base")
+    require_sha(repo, "G5 certification bootstrap freeze base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE, "G5 certification bootstrap freeze base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "G5 certification bootstrap freeze push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G5 certification bootstrap freeze merge tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "G5 certification bootstrap freeze candidate must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES,
+    )
+    manifest_text = (repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    pr402 = manifest.get("future_probe", {}).get("pr_402_reconciliation", {})
+    require(pr402.get("status") == G5_PR402_STATUS, "G5 PR T PR402 status drift")
+    require(pr402.get("candidate_sha") == G5_PR402_CANDIDATE, "G5 PR T PR402 candidate drift")
+    require(pr402.get("base_sha") == G5_PR402_BASE, "G5 PR T PR402 base drift")
+    require(pr402.get("merge_sha") == G5_PR402_MERGE, "G5 PR T PR402 merge drift")
+    require(pr402.get("tree_sha") == G5_PR402_TREE, "G5 PR T PR402 tree drift")
+    require(pr402.get("security_run_id") == "32041862517", "G5 PR T PR402 security run drift")
+    require(pr402.get("security_attempt") == 1, "G5 PR T PR402 security attempt drift")
+    require(pr402.get("security_audit_job_id") == "95422582708", "G5 PR T PR402 security-audit drift")
+    require(pr402.get("f9_7_run_id") == "32041862512", "G5 PR T PR402 F9.7 run drift")
+    require(pr402.get("f9_7_attempt") == 1, "G5 PR T PR402 F9.7 attempt drift")
+    require(pr402.get("f9_7_job_id") == "95422583531", "G5 PR T PR402 F9.7 job drift")
+    require(pr402.get("focused_g5_job_id") == "95422477740", "G5 PR T PR402 focused drift")
+    require(pr402.get("m3_job_id") == "95422477720", "G5 PR T PR402 M3 drift")
+    tracking = manifest.get("future_probe", {}).get("hito_tracking_preserved", {})
+    require(tracking.get("stop") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP, "G5 PR T stop drift")
+    sidecar = json.loads((repo / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+    validate_g5_bootstrap_freeze_sidecar(sidecar)
+
+
 def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
     if base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE:
         expected_tree = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
@@ -6069,7 +6223,7 @@ def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str,
         G5_PR401_MERGE,
         G5_PR401_TREE,
         G5_CERTIFICATION_WIRING_STATUS,
-        G5_CERTIFICATION_WIRING_E2_STOP,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP,
         G5_CERTIFICATION_WIRING_BASE,
         G5_CERTIFICATION_WIRING_BASE_TREE,
         G5_CERTIFICATION_WIRING_HEAD_REF,
@@ -6367,6 +6521,12 @@ def detect_mode(
     ):
         return "g5_certification_wiring_bootstrap"
     if (
+        base_ref == "desarrollo"
+        and base == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE
+        and (event == "push" or head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF)
+    ):
+        return "g5_certification_bootstrap_freeze"
+    if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
         and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_HEAD_REF)
@@ -6549,6 +6709,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR S certification wiring branch requires the frozen PR #401 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR T certification bootstrap freeze branch requires the frozen PR #402 merge baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -6668,6 +6832,11 @@ def main() -> int:
             touched_g5_certification_wiring = set(actual).intersection(
                 G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
             )
+            touched_g5_certification_bootstrap_freeze = set(actual).intersection(
+                G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
+            )
+            if touched_g5_certification_bootstrap_freeze:
+                touched_g5_certification_wiring = set()
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -6711,6 +6880,7 @@ def main() -> int:
                         touched_g5_trusted_boundary_bootstrap,
                         touched_g5_trusted_boundary_hardening,
                         touched_g5_certification_wiring,
+                        touched_g5_certification_bootstrap_freeze,
                     )
                 )
                 <= 1,
@@ -6918,6 +7088,17 @@ def main() -> int:
                     "partial or expanded G5 PR S delta is forbidden",
                 )
                 mode = "g5_certification_wiring_bootstrap"
+            elif touched_g5_certification_bootstrap_freeze:
+                require(
+                    args.head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR T paths require the protected certification bootstrap freeze branch",
+                )
+                require(
+                    actual == G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR T delta is forbidden",
+                )
+                mode = "g5_certification_bootstrap_freeze"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -7132,6 +7313,10 @@ def main() -> int:
             )
         elif mode == "g5_certification_wiring_bootstrap":
             validate_g5_certification_wiring_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_certification_bootstrap_freeze":
+            validate_g5_certification_bootstrap_freeze(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
