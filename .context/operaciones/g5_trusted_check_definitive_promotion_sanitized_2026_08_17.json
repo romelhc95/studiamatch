@@ -53,7 +53,104 @@
     },
     "fork_policy": "REJECT",
     "candidate_workflows": "FORBIDDEN",
-    "candidate_trusted_validator_code": "FORBIDDEN"
+    "candidate_trusted_validator_code": "FORBIDDEN",
+    "pr_401_reconciliation": {
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "candidate_sha": "6dcb1ce9087797be2fb7131063dbce8f880a23b4",
+    "base_sha": "13a44fb7de6e8d754106b744f96e15c959c45685",
+    "merge_sha": "3970ab07f5b07095fbd52837e96dfdeae965279e",
+    "tree_sha": "2500228097e19e9d25f2def666e854fe754216c3",
+    "security_run_id": "32035019827",
+    "security_conclusion": "PASS",
+    "security_attempt": 1,
+    "security_audit_job_id": "95403467690",
+    "security_audit_conclusion": "PASS",
+    "f9_7_run_id": "32035020120",
+    "f9_7_conclusion": "PASS",
+    "f9_7_attempt": 1,
+    "f9_7_job_id": "95403550219",
+    "f9_7_job_conclusion": "PASS",
+    "focused_g5_job_id": "95403297024",
+    "focused_g5_conclusion": "PASS",
+    "m3_job_id": "95403296944",
+    "m3_conclusion": "PASS"
+    },
+    "certification_wiring_bootstrap": {
+    "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+    "repository_pr_s_base": "3970ab07f5b07095fbd52837e96dfdeae965279e",
+    "repository_pr_s_base_tree": "2500228097e19e9d25f2def666e854fe754216c3",
+    "certification_base": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "certification_base_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "head_ref": "promote/f10-9-g5-certification-wiring-bootstrap",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "allowed_delta": {
+      ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+      ".github/workflows/security-audit.yml": "M",
+      "scripts/security/f109_boundary.py": "M",
+      "tests/test_fase10_9_branch_reconciliation.py": "M"
+    },
+    "allowed_modes": {
+      ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "100644",
+      ".github/workflows/security-audit.yml": "100755",
+      "scripts/security/f109_boundary.py": "100644",
+      "tests/test_fase10_9_branch_reconciliation.py": "100644"
+    },
+    "candidate_tree_freeze": "REQUIRED_AFTER_PR_S_MERGE_BEFORE_CERTIFICATION_PR",
+    "candidate_blob_freeze": "REQUIRED_AFTER_PR_S_MERGE_BEFORE_CERTIFICATION_PR",
+    "authority": "PROTECTED_BASE_ONLY_NOT_CANDIDATE_CODE",
+    "protected_wiring_effect": "ONCE_PROTECTED_IN_CERTIFICACION_SECURITY_AUDIT_RECOGNIZES_ONLY_CERTIFICATION_BASE_AND_FIXED_HEAD_REF",
+    "reject": ["forks", "renames", "paths_extra", "mode_drift", "base_drift", "tree_drift", "multiple_commits", "candidate_code_authority"],
+    "future_four_blob_promotion": "PASS_UNDER_PROTECTED_WIRING_ONLY"
+    },
+    "control_plane_exception": {
+    "status": "PREPARED_NOT_EXECUTED",
+    "one_time_only": true,
+    "reversible": true,
+    "target_branch": "certificacion",
+    "precondition_certification_commit": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "precondition_certification_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "precondition_other_mergeable_certification_prs": 0,
+    "snapshot_before": "FULL_BRANCH_PROTECTION_REQUIRED",
+    "temporarily_removed_required_checks": ["security-audit"],
+    "preserve": {
+      "strict": true,
+      "reviews": true,
+      "dismiss_stale_reviews": true,
+      "require_last_push_approval": true,
+      "admin_enforcement": true,
+      "allow_force_pushes": false,
+      "allow_deletions": false,
+      "restrictions": "PRESERVE_EXACT"
+    },
+    "allowed_candidate_head_ref": "promote/f10-9-g5-certification-wiring-bootstrap",
+    "allowed_candidate_delta": {
+      ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+      ".github/workflows/security-audit.yml": "M",
+      "scripts/security/f109_boundary.py": "M",
+      "tests/test_fase10_9_branch_reconciliation.py": "M"
+    },
+    "restored_required_check": {
+      "context": "security-audit",
+      "app_id": 15368
+    },
+    "snapshot_after": "MUST_MATCH_SNAPSHOT_BEFORE_EXACTLY",
+    "post_merge_required_check": {
+      "context": "security-audit",
+      "conclusion": "PASS"
+    },
+    "abort_policy": "ABORT_AND_RESTORE_ON_ANY_DRIFT"
+    },
+    "hito_tracking_preserved": {
+    "ca1_tecnico_original": "PASS",
+    "hito_1_status": "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+    "hito_1_tracking": "60%",
+    "f10_9_tracking": "38%",
+    "g5_tracking": "50%",
+    "readiness": "75%",
+    "cierre_formal": "NOT_READY",
+    "stop": "E2_STOP_CERTIFICATION_WIRING_BOOTSTRAP_REQUIRED",
+    "backlog": "BK-F10.9-G5-ATOMIC-AUTHORITY no ejecutable y cotizable"
+    }
   },
   "out_of_scope_safe": {
     "classification": "OUT_OF_SCOPE_SAFE",
@@ -69,7 +166,7 @@
   "supersedes": ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
   "forbidden_operations": [
     "default_branch_change",
-    "branch_protection_mutation",
+    "branch_protection_mutation_execution",
     "actions_api_enable",
     "github_app_configuration",
     "cloudflare_configuration",

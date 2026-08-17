@@ -252,6 +252,23 @@ from scripts.security.f109_boundary import (
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
+    G5_CERTIFICATION_WIRING_ALLOWED_MODES,
+    G5_CERTIFICATION_WIRING_ALLOWED_STATUSES,
+    G5_CERTIFICATION_WIRING_BASE,
+    G5_CERTIFICATION_WIRING_BASE_TREE,
+    G5_CERTIFICATION_WIRING_E2_STOP,
+    G5_CERTIFICATION_WIRING_HEAD_REF,
+    G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES,
+    G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+    G5_CERTIFICATION_WIRING_REPOSITORY_BASE,
+    G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE,
+    G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF,
+    G5_CERTIFICATION_WIRING_STATUS,
+    G5_DEFINITIVE_PROMOTION_FILES,
+    G5_PR401_CANDIDATE,
+    G5_PR401_MERGE,
+    G5_PR401_STATUS,
+    G5_PR401_TREE,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -340,6 +357,9 @@ from scripts.security.f109_boundary import (
     validate_g5_trusted_boundary_hardening,
     validate_g5_link_hardening_closure,
     validate_g5_default_branch_trusted_workflow_registration,
+    validate_g5_certification_wiring_bootstrap,
+    validate_g5_control_plane_exception_payload,
+    validate_g5_definitive_promotion_source,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -5445,6 +5465,182 @@ class F109BoundaryTest(unittest.TestCase):
             G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 83, 433)
+
+    def test_g5_certification_wiring_allowlist_matches_pr_s_profile(self) -> None:
+        self.assertEqual(G5_PR401_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(G5_PR401_CANDIDATE, "6dcb1ce9087797be2fb7131063dbce8f880a23b4")
+        self.assertEqual(G5_PR401_MERGE, "3970ab07f5b07095fbd52837e96dfdeae965279e")
+        self.assertEqual(G5_PR401_TREE, "2500228097e19e9d25f2def666e854fe754216c3")
+        self.assertEqual(G5_CERTIFICATION_WIRING_REPOSITORY_BASE, G5_PR401_MERGE)
+        self.assertEqual(G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE, G5_PR401_TREE)
+        self.assertEqual(G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF, "feat/f10-9-pr-s-certification-wiring-bootstrap")
+        self.assertEqual(G5_CERTIFICATION_WIRING_BASE, "4f16f314284324c3b5e9c11c4536eef5ee04c7f3")
+        self.assertEqual(G5_CERTIFICATION_WIRING_BASE_TREE, "cad3f1061cbdc00b2883f7812602a4f80bda0853")
+        self.assertEqual(G5_CERTIFICATION_WIRING_HEAD_REF, "promote/f10-9-g5-certification-wiring-bootstrap")
+        self.assertEqual(G5_CERTIFICATION_WIRING_STATUS, "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED")
+        self.assertEqual(G5_CERTIFICATION_WIRING_E2_STOP, "E2_STOP_CERTIFICATION_WIRING_BOOTSTRAP_REQUIRED")
+        self.assertEqual(G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES, {
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+            ".github/workflows/security-audit.yml": "M",
+            "scripts/security/f109_boundary.py": "M",
+            "tests/test_fase10_9_branch_reconciliation.py": "M",
+        })
+        self.assertEqual(G5_CERTIFICATION_WIRING_ALLOWED_STATUSES, {
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+            ".github/workflows/security-audit.yml": "M",
+            "scripts/security/f109_boundary.py": "M",
+            "tests/test_fase10_9_branch_reconciliation.py": "M",
+        })
+        self.assertEqual(G5_CERTIFICATION_WIRING_ALLOWED_MODES[".github/workflows/security-audit.yml"], "100755")
+        self.assertEqual(G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES["scripts/security/f109_boundary.py"], "100644")
+
+    def test_detect_mode_selects_g5_certification_wiring_only_for_exact_baselines(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF,
+                G5_CERTIFICATION_WIRING_REPOSITORY_BASE,
+            ),
+            "g5_certification_wiring_bootstrap",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "certificacion", G5_CERTIFICATION_WIRING_HEAD_REF,
+                G5_CERTIFICATION_WIRING_BASE,
+            ),
+            "g5_certification_wiring_bootstrap",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "certificacion", G5_CERTIFICATION_WIRING_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_g5_definitive_promotion_source")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_certification_wiring_accepts_repository_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, promotion_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
+        parents_mock.return_value = [G5_CERTIFICATION_WIRING_REPOSITORY_BASE]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_certification_wiring_bootstrap(
+            repo, G5_CERTIFICATION_WIRING_REPOSITORY_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            repo,
+            G5_CERTIFICATION_WIRING_REPOSITORY_BASE,
+            head,
+            G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+            G5_CERTIFICATION_WIRING_ALLOWED_MODES,
+        )
+        promotion_mock.assert_called_once_with(repo)
+
+    @mock.patch("scripts.security.f109_boundary.validate_g5_definitive_promotion_source")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_certification_wiring_accepts_future_certification_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, promotion_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_CERTIFICATION_WIRING_BASE_TREE
+        parents_mock.return_value = [G5_CERTIFICATION_WIRING_BASE]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_certification_wiring_bootstrap(
+            repo, G5_CERTIFICATION_WIRING_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            repo,
+            G5_CERTIFICATION_WIRING_BASE,
+            head,
+            G5_CERTIFICATION_WIRING_ALLOWED_STATUSES,
+            G5_CERTIFICATION_WIRING_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_g5_definitive_promotion_source")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=["0" * 40])
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value=G5_CERTIFICATION_WIRING_BASE_TREE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_certification_wiring_rejects_candidate_drift(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, promotion_mock,
+    ) -> None:
+        with self.assertRaises(BoundaryError):
+            validate_g5_certification_wiring_bootstrap(
+                Path("."), G5_CERTIFICATION_WIRING_BASE, "a" * 40, "pull_request"
+            )
+        delta_mock.assert_not_called()
+        promotion_mock.assert_not_called()
+
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value=G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_definitive_four_blob_promotion_passes_under_protected_wiring(
+        self, require_sha_mock, tree_mock, git_mock,
+    ) -> None:
+        def git_side_effect(repo_arg, *args, **kwargs):
+            self.assertEqual(args[0], "ls-tree")
+            relative = args[-1]
+            expected = G5_DEFINITIVE_PROMOTION_FILES[relative]
+            return f"{expected['mode']} blob {expected['blob_sha']}\t{relative}"
+
+        git_mock.side_effect = git_side_effect
+        validate_g5_definitive_promotion_source(Path("."))
+
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value=G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_definitive_four_blob_promotion_rejects_path_blob_mode_tree_drift(
+        self, require_sha_mock, tree_mock, git_mock,
+    ) -> None:
+        def git_side_effect(repo_arg, *args, **kwargs):
+            relative = args[-1]
+            expected = G5_DEFINITIVE_PROMOTION_FILES[relative]
+            return f"100755 blob {expected['blob_sha']}\t{relative}"
+
+        git_mock.side_effect = git_side_effect
+        with self.assertRaises(BoundaryError):
+            validate_g5_definitive_promotion_source(Path("."))
+        tree_mock.return_value = "0" * 40
+        with self.assertRaises(BoundaryError):
+            validate_g5_definitive_promotion_source(Path("."))
+
+    def test_g5_control_plane_exception_payload_exact_and_fail_closed(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads(
+            (root / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+        )
+        payload = manifest["future_probe"]["control_plane_exception"]
+        validate_g5_control_plane_exception_payload(payload)
+        self.assertEqual(payload["snapshot_before"], "FULL_BRANCH_PROTECTION_REQUIRED")
+        self.assertEqual(payload["temporarily_removed_required_checks"], ["security-audit"])
+        self.assertEqual(payload["snapshot_after"], "MUST_MATCH_SNAPSHOT_BEFORE_EXACTLY")
+        self.assertEqual(payload["abort_policy"], "ABORT_AND_RESTORE_ON_ANY_DRIFT")
+        mutated = dict(payload)
+        mutated["snapshot_after"] = "DRIFT"
+        with self.assertRaises(BoundaryError):
+            validate_g5_control_plane_exception_payload(mutated)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
