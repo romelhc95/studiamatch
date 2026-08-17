@@ -216,6 +216,12 @@ G5_TRUSTED_BOUNDARY_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUND
 G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE = "063fb88b3b3dabda78ea641f46da69af09058ab7"
 G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
+G5_LINK_HARDENING_CLOSURE_BASE = "9a5fcf539c69b635a41616e52716c0ee34837df4"
+G5_LINK_HARDENING_CLOSURE_BASE_TREE = "b33228a031312062b165f8f612d27eacee2fea00"
+G5_LINK_HARDENING_CLOSURE_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
+G5_LINK_HARDENING_CLOSURE_STATUS = "CLOSED_BY_PR_N_TRUSTED_BOUNDARY"
+G5_LINK_HARDENING_CLOSURE_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
+G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE = "8adede3ed10605f3af36e905d8f11e7489815d8a"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -826,6 +832,25 @@ G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES = {
 }
 G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES = {
     path: "100644" for path in G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
+}
+
+G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES = {
+    path: "100644" for path in G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4369,6 +4394,7 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
             G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
         },
         "G5 PR I E2 stop drift",
     )
@@ -4567,6 +4593,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
             G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
         },
         "G5 PR J E2 stop drift",
     )
@@ -5061,6 +5088,7 @@ def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, 
             G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
         },
         "G5 PR L E2 stop drift",
     )
@@ -5251,7 +5279,11 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
     require(pr395.get("status") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS, "G5 PR M PR395 status drift")
     require(
         manifest.get("e2_stop")
-        in {G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP, G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP},
+        in {
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
+        },
         "G5 PR M E2 stop drift",
     )
     bootstrap = manifest.get("trusted_boundary_bootstrap", {})
@@ -5262,7 +5294,10 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
     require(bootstrap.get("fork_policy") == "REJECT", "G5 PR M fork policy drift")
     require(bootstrap.get("does_not_replace_pull_request_tests") is True, "G5 PR M PR test replacement drift")
     link_closure = manifest.get("link_hardening_closure", {})
-    require(link_closure.get("status") == "NOT_CLOSED_DEFERRED_TO_PR_N", "G5 PR M Link closure drift")
+    require(
+        link_closure.get("status") in {"NOT_CLOSED_DEFERRED_TO_PR_N", G5_LINK_HARDENING_CLOSURE_STATUS},
+        "G5 PR M Link closure drift",
+    )
     require(link_closure.get("trusted_boundary_required_first") is True, "G5 PR M Link boundary prerequisite drift")
     for required in (
         "pull_request_target:",
@@ -5309,9 +5344,13 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
     for required in (
         "test_pr395_pr396_and_trusted_boundary_hardening_are_registered",
         "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
-        "NOT_CLOSED_DEFERRED_TO_PR_N",
     ):
         require(required in preflight_tests or required in preflight_source, "G5 PR M preflight drift")
+    require(
+        "NOT_CLOSED_DEFERRED_TO_PR_N" in preflight_tests + preflight_source
+        or G5_LINK_HARDENING_CLOSURE_STATUS in preflight_tests + preflight_source,
+        "G5 PR M Link closure preflight drift",
+    )
     for forbidden in (
         "https://",
         "http://",
@@ -5402,7 +5441,10 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
     require(pr396.get("merge_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE, "G5 PR M2 PR396 merge drift")
     require(pr396.get("tree_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "G5 PR M2 PR396 tree drift")
     require(pr396.get("status") == G5_TRUSTED_BOUNDARY_HARDENING_STATUS, "G5 PR M2 PR396 status drift")
-    require(manifest.get("e2_stop") == G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, "G5 PR M2 E2 stop drift")
+    require(
+        manifest.get("e2_stop") in {G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, G5_LINK_HARDENING_CLOSURE_E2_STOP},
+        "G5 PR M2 E2 stop drift",
+    )
     hardening = manifest.get("trusted_boundary_hardening", {})
     require(hardening.get("check_name") == G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "G5 PR M2 check name drift")
     require(hardening.get("pr_n_workflow_modifications") == "FORBIDDEN", "G5 PR M2 workflow exclusion drift")
@@ -5473,6 +5515,188 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
     ):
         require(forbidden not in manifest_text + payload_text, "G5 PR M2 sensitive marker drift")
     validate_context_graph(repo, 80, 431)
+
+
+def validate_g5_link_hardening_closure(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_LINK_HARDENING_CLOSURE_BASE, "unexpected G5 Link hardening closure base")
+    require_sha(repo, "G5_LINK_HARDENING_CLOSURE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_LINK_HARDENING_CLOSURE_BASE_TREE,
+        "G5 Link hardening closure base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 Link hardening closure push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 Link hardening closure merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 Link hardening closure candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES,
+        G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr24 = (repo / ".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, index, adr24, runbook, manifest_text, plan, preflight_source, preflight_tests, worker_source, worker_tests))
+    for required in (
+        G5_LINK_HARDENING_CLOSURE_STATUS,
+        G5_LINK_HARDENING_CLOSURE_BASE,
+        G5_LINK_HARDENING_CLOSURE_BASE_TREE,
+        G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE,
+        "9a5fcf539c69b635a41616e52716c0ee34837df4",
+        "b33228a031312062b165f8f612d27eacee2fea00",
+        "31984379751=PASS",
+        "95256753465=PASS",
+        "31984379715=PASS",
+        "95256780481=PASS",
+        "95256691723=PASS",
+        "95256691760=PASS",
+        "run_attempt=1",
+        G5_LINK_HARDENING_CLOSURE_E2_STOP,
+        G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
+        "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "evidence_readiness",
+        "75%",
+        "formal_closure",
+        "NOT_READY",
+        "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+        "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+        "require_last_push_approval",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR N Link hardening closure evidence drift")
+    hito_status = manifest.get("hito1_integral_status", {})
+    require(hito_status.get("ca1_original_technical") == "PASS", "G5 PR N CA1 original drift")
+    require(
+        hito_status.get("integral_state") == "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "G5 PR N Hito 1 integral status drift",
+    )
+    require(hito_status.get("evidence_readiness") == "75%", "G5 PR N evidence readiness drift")
+    require(hito_status.get("formal_closure") == "NOT_READY", "G5 PR N formal closure drift")
+    pr397 = manifest.get("pr_397_reconciliation", {})
+    require(pr397.get("candidate_sha") == G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE, "G5 PR N PR397 candidate drift")
+    require(pr397.get("merge_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR N PR397 merge drift")
+    require(pr397.get("tree_sha") == G5_LINK_HARDENING_CLOSURE_BASE_TREE, "G5 PR N PR397 tree drift")
+    require(pr397.get("status") == "MERGED_POST_MERGE_VERIFIED", "G5 PR N PR397 status drift")
+    require(pr397.get("security_audit_job_id") == "95256753465", "G5 PR N PR397 security-audit drift")
+    require(pr397.get("run_attempt") == 1, "G5 PR N PR397 attempt drift")
+    link_closure = manifest.get("link_hardening_closure", {})
+    require(link_closure.get("status") == G5_LINK_HARDENING_CLOSURE_STATUS, "G5 PR N Link closure status drift")
+    require(
+        link_closure.get("link_header_contract") == "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+        "G5 PR N Link contract drift",
+    )
+    require(manifest.get("e2_stop") == G5_LINK_HARDENING_CLOSURE_E2_STOP, "G5 PR N E2 stop drift")
+    branch_update = manifest.get("branch_protection_required_check_update", {})
+    expected_container_keys = {
+        "required_status_checks",
+        "required_pull_request_reviews",
+        "enforce_admins",
+        "restrictions",
+        "required_linear_history",
+        "allow_force_pushes",
+        "allow_deletions",
+        "block_creations",
+        "required_conversation_resolution",
+        "lock_branch",
+        "allow_fork_syncing",
+    }
+    expected_status_check_keys = {"strict", "checks"}
+    for container in (branch_update.get("live_state_preserved", {}), branch_update.get("request_body", {})):
+        require(set(container) == expected_container_keys, "G5 PR N branch protection container key drift")
+        require(set(container.get("required_status_checks", {})) == expected_status_check_keys, "G5 PR N status check key drift")
+    checks = branch_update.get("request_body", {}).get("required_status_checks", {}).get("checks", [])
+    require(
+        checks == [
+            {"context": "security-audit", "app_id": 15368},
+            {"context": G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "app_id": 15368},
+        ],
+        "G5 PR N payload checks drift",
+    )
+    require(branch_update.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR N payload strict drift")
+    require(branch_update.get("request_body", {}).get("enforce_admins") is True, "G5 PR N payload admin drift")
+    require(branch_update.get("request_body", {}).get("restrictions") is None, "G5 PR N restriction drift")
+    expected_reviews = {
+        "dismiss_stale_reviews": True,
+        "require_code_owner_reviews": False,
+        "require_last_push_approval": True,
+        "required_approving_review_count": 1,
+    }
+    for container in (branch_update.get("live_state_preserved", {}), branch_update.get("request_body", {})):
+        require(container.get("required_pull_request_reviews") == expected_reviews, "G5 PR N review policy drift")
+        for flag in (
+            "required_linear_history",
+            "allow_force_pushes",
+            "allow_deletions",
+            "block_creations",
+            "required_conversation_resolution",
+            "lock_branch",
+            "allow_fork_syncing",
+        ):
+            require(container.get(flag) is False, "G5 PR N branch protection flag drift")
+    require("if (name !== \"rel\") stop(REASONS.BINDING);" in worker_source, "G5 PR N Link parser allows unexpected parameters")
+    require('const ALLOWED_LINK_RELATIONS = new Set(["last"]);' in worker_source, "G5 PR N Link allowed relations drift")
+    for forbidden in (
+        "title=\\\"last\\\"; rel=\\\"last\\\" }).listWorkflowJobs(reference)).items.length, 1)",
+        "type=\\\"application/json\\\"; rel=\\\"last\\\" }).listWorkflowJobs(reference)).items.length, 1)",
+    ):
+        require(forbidden not in worker_tests, "G5 PR N Link tests still allow unexpected parameters")
+    for required in (
+        "title=\\\"last\\\"; rel=\\\"last\\\"",
+        "type=\\\"application/json\\\"; rel=\\\"last\\\"",
+        "<https://api.github.com/first>; rel=\\\"first\\\"",
+        "<https://api.github.com/prev>; rel=\\\"prev\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"first\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"prev\\\"",
+        "<https://api.github.com/last>; rel=\\\"last\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"last\\\"",
+    ):
+        require(required in worker_tests, "G5 PR N Link tests drift")
+    for required in (
+        G5_LINK_HARDENING_CLOSURE_STATUS,
+        G5_LINK_HARDENING_CLOSURE_E2_STOP,
+        "_validate_pr397",
+        "_validate_hito1_integral_status",
+    ):
+        require(required in preflight_source, "G5 PR N preflight source drift")
+        require(required in preflight_tests or required in preflight_source, "G5 PR N preflight tests drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+    ):
+        require(forbidden not in manifest_text, "G5 PR N sensitive marker drift")
+    validate_context_graph(repo, 81, 432)
 
 
 def detect_mode(
@@ -5707,6 +5931,12 @@ def detect_mode(
         return "g5_trusted_boundary_hardening"
     if (
         base_ref == "desarrollo"
+        and base == G5_LINK_HARDENING_CLOSURE_BASE
+        and (event == "push" or head_ref == G5_LINK_HARDENING_CLOSURE_HEAD_REF)
+    ):
+        return "g5_link_hardening_closure"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -5869,6 +6099,10 @@ def main() -> int:
             if args.event == "pull_request" and args.head_ref == G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF:
                 raise BoundaryError(
                     "G5 PR M trusted boundary bootstrap branch requires the frozen PR #395 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_LINK_HARDENING_CLOSURE_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR N Link hardening closure branch requires the frozen PR #397 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -6426,6 +6660,10 @@ def main() -> int:
             )
         elif mode == "g5_trusted_boundary_hardening":
             validate_g5_trusted_boundary_hardening(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_link_hardening_closure":
+            validate_g5_link_hardening_closure(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

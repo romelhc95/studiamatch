@@ -360,9 +360,36 @@ function splitLinkHeader(value) {
   return parts;
 }
 
-const ALLOWED_LINK_RELATIONS = new Set(["first", "prev", "last"]);
+const ALLOWED_LINK_RELATIONS = new Set(["last"]);
 
-function linkHeaderHasRelNext(value) {
+function canonicalQueryParams(url) {
+  const params = new Map();
+  for (const [name, paramValue] of url.searchParams) {
+    if (!/^[a-z][a-z0-9_]*$/.test(name) || params.has(name) || paramValue.length === 0) {
+      stop(REASONS.BINDING);
+    }
+    params.set(name, paramValue);
+  }
+  return params;
+}
+
+function requireCanonicalLinkUrl(url, requestUrl) {
+  if (url.origin !== GITHUB_API_BASE || url.hash !== "" || url.pathname !== requestUrl.pathname) stop(REASONS.BINDING);
+  const requestParams = canonicalQueryParams(requestUrl);
+  const linkParams = canonicalQueryParams(url);
+  for (const [name, paramValue] of requestParams) {
+    if (name !== "page" && linkParams.get(name) !== paramValue) stop(REASONS.BINDING);
+  }
+  for (const [name, paramValue] of linkParams) {
+    if (name === "page") {
+      if (!positiveDecimalString(paramValue)) stop(REASONS.BINDING);
+    } else if (requestParams.get(name) !== paramValue) {
+      stop(REASONS.BINDING);
+    }
+  }
+}
+
+function linkHeaderHasRelNext(value, requestUrl) {
   if (typeof value !== "string") return false;
   const entries = splitLinkHeader(value);
   if (entries.length === 0) stop(REASONS.BINDING);
@@ -373,7 +400,7 @@ function linkHeaderHasRelNext(value) {
     const match = entry.match(/^<([^<>\s]+)>\s*(;.*)$/);
     if (!match) stop(REASONS.BINDING);
     const url = requireSafeHttpsUrl(match[1], REASONS.BINDING);
-    if (url.origin !== GITHUB_API_BASE || url.hash !== "") stop(REASONS.BINDING);
+    requireCanonicalLinkUrl(url, requestUrl);
     const seenParameters = new Set();
     let relation = null;
     for (const rawParameter of match[2].split(";").slice(1)) {
@@ -386,12 +413,7 @@ function linkHeaderHasRelNext(value) {
         stop(REASONS.BINDING);
       }
       seenParameters.add(name);
-      if (name !== "rel") {
-        if ((parameterValue.startsWith('"') || parameterValue.endsWith('"')) && !(parameterValue.startsWith('"') && parameterValue.endsWith('"'))) {
-          stop(REASONS.BINDING);
-        }
-        continue;
-      }
+      if (name !== "rel") stop(REASONS.BINDING);
       if (!parameterValue.startsWith('"') || !parameterValue.endsWith('"')) stop(REASONS.BINDING);
       const tokens = parameterValue.slice(1, -1).trim().toLowerCase().split(/\s+/).filter(Boolean);
       if (tokens.length !== 1 || relation !== null) stop(REASONS.BINDING);
@@ -872,7 +894,7 @@ export class G5ConnectedGithubAppAdapter {
     );
     if (!response || response.status < 200 || response.status >= 300) stop(REASONS.TRANSPORT);
     const link = lowerHeader(response.headers, "link");
-    if (linkHeaderHasRelNext(link)) stop(REASONS.BINDING);
+    if (linkHeaderHasRelNext(link, url)) stop(REASONS.BINDING);
     return responseJsonWithLimit(response, maxBytes, this.timeoutMs);
   }
 

@@ -1,10 +1,21 @@
 {
   "schema": "f10.9-g5-operational-activation-manifest.v1",
   "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
-  "status": "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
+  "status": "PREPARED_NOT_CONFIGURED_LINK_HARDENING_CLOSED_REQUIRED_CHECK_APPROVAL_PENDING",
   "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
   "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
   "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+  "hito1_integral_status": {
+    "ca1_original_technical": "PASS",
+    "integral_state": "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+    "evidence_readiness": "75%",
+    "formal_closure": "NOT_READY",
+    "tracking_only": {
+      "hito1": "60%",
+      "f10_9": "38%",
+      "g5": "50%"
+    }
+  },
   "pr_387_reconciliation": {
     "candidate_sha": "d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d",
     "merge_sha": "bd0d82864c26755435e551b835d145b864383810",
@@ -157,6 +168,25 @@
     "f9_7_job_conclusion": "PASS",
     "run_attempt": 1,
     "trusted_boundary_hardening_required": true
+  },
+  "pr_397_reconciliation": {
+    "candidate_sha": "8adede3ed10605f3af36e905d8f11e7489815d8a",
+    "merge_sha": "9a5fcf539c69b635a41616e52716c0ee34837df4",
+    "tree_sha": "b33228a031312062b165f8f612d27eacee2fea00",
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "security_run_id": "31984379751",
+    "security_conclusion": "PASS",
+    "security_audit_job_id": "95256753465",
+    "security_audit_conclusion": "PASS",
+    "f9_7_run_id": "31984379715",
+    "f9_7_conclusion": "PASS",
+    "f9_7_job_id": "95256780481",
+    "f9_7_job_conclusion": "PASS",
+    "focused_g5_job_id": "95256691723",
+    "focused_g5_conclusion": "PASS",
+    "m3_job_id": "95256691760",
+    "m3_conclusion": "PASS",
+    "run_attempt": 1
   },
   "post_merge_security_findings": [
     {
@@ -351,11 +381,79 @@
     "required_check_state": "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
     "branch_protection_payload_path": ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json"
   },
+  "branch_protection_required_check_update": {
+    "status": "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+    "prepared_from_live_state": true,
+    "live_state_observed_at_utc": "2026-08-17T01:20:00Z",
+    "target_branch": "desarrollo",
+    "required_check_to_add": {
+      "context": "F10.9 Trusted Boundary PR N v1",
+      "app_id": 15368
+    },
+    "live_state_preserved": {
+      "required_status_checks": {
+        "strict": true,
+        "checks": [
+          {
+            "context": "security-audit",
+            "app_id": 15368
+          }
+        ]
+      },
+      "required_pull_request_reviews": {
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": true,
+        "required_approving_review_count": 1
+      },
+      "enforce_admins": true,
+      "restrictions": null,
+      "required_linear_history": false,
+      "allow_force_pushes": false,
+      "allow_deletions": false,
+      "block_creations": false,
+      "required_conversation_resolution": false,
+      "lock_branch": false,
+      "allow_fork_syncing": false
+    },
+    "request_body": {
+      "required_status_checks": {
+        "strict": true,
+        "checks": [
+          {
+            "context": "security-audit",
+            "app_id": 15368
+          },
+          {
+            "context": "F10.9 Trusted Boundary PR N v1",
+            "app_id": 15368
+          }
+        ]
+      },
+      "enforce_admins": true,
+      "required_pull_request_reviews": {
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": true,
+        "required_approving_review_count": 1
+      },
+      "restrictions": null,
+      "required_linear_history": false,
+      "allow_force_pushes": false,
+      "allow_deletions": false,
+      "block_creations": false,
+      "required_conversation_resolution": false,
+      "lock_branch": false,
+      "allow_fork_syncing": false
+    },
+    "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL"
+  },
   "link_hardening_closure": {
-    "status": "NOT_CLOSED_DEFERRED_TO_PR_N",
+    "status": "CLOSED_BY_PR_N_TRUSTED_BOUNDARY",
     "trusted_boundary_required_first": true,
-    "deferred_to": "PR_N_AFTER_PR_M_MERGE",
-    "pr_l_repository_only_changes": "PRESENT_BUT_NOT_TRUSTED_BOUNDARY_CLOSED"
+    "closed_by": "PR_N_LINK_HARDENING_CLOSURE",
+    "link_header_contract": "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+    "pr_l_repository_only_changes": "REVALIDATED_AND_CLOSED_UNDER_TRUSTED_BOUNDARY_PR_N"
   },
   "e1_deployment_reconciliation": {
     "status": "E1_DEPLOYMENT_PASS",
@@ -376,7 +474,7 @@
     "secrets_count": 0,
     "endpoint_public": false
   },
-  "e2_stop": "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
+  "e2_stop": "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING",
   "github_runtime_shapes": {
     "workflow_run": {
       "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -492,7 +590,7 @@
     "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
     "state": "DOCUMENTED_NOT_EXECUTED",
     "permission_added_now": false,
-    "stop": "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+    "stop": "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
   },
   "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [
@@ -653,6 +751,7 @@
     "writes",
     "Cloudflare remote changes",
     "GitHub App remote changes",
+    "branch protection remote changes",
     "Production execution",
     "Supabase access",
     "SQL",

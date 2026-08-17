@@ -1262,6 +1262,11 @@ test("connected adapter binds check authority only through job.check_run_url", a
     "<https://api.github.com/next>; rel=\"next\"",
     "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/next>; type=\"application/json\"; rel=next",
     "<https://api.github.com/last>; rel=last",
+    "<https://api.github.com/last>; rel=\"last\"",
+    "<https://api.github.com/first>; rel=\"first\"",
+    "<https://api.github.com/prev>; rel=\"prev\"",
+    "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\"first\"",
+    "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\"prev\"",
     "<https://api.github.com/last>; rel=\"last\"; rel=\"prev\"",
     "<https://api.github.com/last>; rel=\"last\", <https://api.github.com/also-last>; rel=\"last\"",
     "<https://api.github.com/unknown>; rel=\"unknown\"",
@@ -1269,10 +1274,12 @@ test("connected adapter binds check authority only through job.check_run_url", a
     "https://api.github.com/last; rel=\"last\"",
     "<https://evil.invalid/last>; rel=\"last\"",
     "<https://api.github.com/last>; title=\"unterminated; rel=\"last\"",
+    "<https://api.github.com/last>; title=\"last\"; rel=\"last\"",
+    "<https://api.github.com/last>; type=\"application/json\"; rel=\"last\"",
   ]) {
     await reason(() => adapterFor({ link }).listWorkflowJobs(reference), REASONS.BINDING);
   }
-  assert.equal((await adapterFor({ link: "<https://api.github.com/last>; title=\"last\"; rel=\"last\"" }).listWorkflowJobs(reference)).items.length, 1);
+  assert.equal((await adapterFor({ link: "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\"last\"" }).listWorkflowJobs(reference)).items.length, 1);
 });
 
 test("connected adapter derives deployment from GitHub deployment statuses", async () => {

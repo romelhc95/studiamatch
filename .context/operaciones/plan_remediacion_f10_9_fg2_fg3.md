@@ -57,13 +57,15 @@ Nota PR M: PR #395 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_
 
 Nota PR M2: PR #396 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED` con candidate `063fb88b3b3dabda78ea641f46da69af09058ab7`, merge protegido `0ec3da6c77b7819a38adcd2f38cd81699adc9283` / tree `ecbe760d50f06d0edce0f36ef84fabacb0a4037c`; Security `31979524771=PASS`, F9.7 run `31979524732=PASS`, focused G5 job `95243979388=PASS`, F9.7 job `95244079936=PASS`, `run_attempt=1`. PR M2 solo endurece la raiz trusted-boundary fusionada: check versionado `F10.9 Trusted Boundary PR N v1`, `edited`, SHA hex exacto antes de Git, Git config aislada, hooks deshabilitados, fetch sin submodules, cero credenciales persistidas, PR N sin `.github/workflows/**` ni trusted-validator, y cero ejecucion de codigo/scripts/actions/tests del candidate. El payload sanitizado para volver required ese check queda preparado pero no ejecutado; requiere aprobacion remota separada y debe preservar `security-audit`, `strict=true`, reviews y admin enforcement. E2-E6 siguen `NOT_EXECUTED` con `E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED`. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
 
+Nota PR N: PR #397 queda `MERGED_POST_MERGE_VERIFIED` con candidate `8adede3ed10605f3af36e905d8f11e7489815d8a`, merge protegido `9a5fcf539c69b635a41616e52716c0ee34837df4` / tree `b33228a031312062b165f8f612d27eacee2fea00`; Security `31984379751=PASS`, `security-audit` job `95256753465=PASS`, F9.7 run `31984379715=PASS`, F9.7 job `95256780481=PASS`, focused G5 `95256691723=PASS`, M3 `95256691760=PASS`, `run_attempt=1`. PR N cierra el hardening `Link` repository-only bajo `F10.9 Trusted Boundary PR N v1`: contrato `CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED`, `rel="next"` bloqueado, parametros extra bloqueados, sin `.github/workflows/**` ni trusted validator y sin ejecucion de codigo/scripts/actions/tests del candidate. CA1 tecnico original permanece `PASS`; Hito 1 integral queda `CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING`, readiness de evidencias `75%` y cierre formal `NOT_READY`. El payload required-check se prepara desde estado vivo preservando `security-audit`, `strict=true`, `require_last_push_approval=true`, reviews, admin enforcement y restricciones nulas observadas; no se ejecuta. E2-E6 siguen `NOT_EXECUTED` con `E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING`. Hito 1 `60%`, F10.9 `38%` y G5 `50%` permanecen solo como tracking tecnico interno.
+
 Backlog no ejecutable y cotizable `BK-F10.9-G5-ATOMIC-AUTHORITY`: rediseño futuro de autoridad atomica para eliminar la carrera residual multi-endpoint documentada como `DOCUMENTED_NO_FULL_ATOMICITY_CLAIM`. No se incluye en el avance del hito, no esta autorizado para implementacion en F10.9 y requiere estimacion y aprobacion del cliente.
 
 Validacion documental local vigente de este snapshot:
 
 - los targets de enlaces tocados por esta actualizacion existen;
 - `git diff --check` y credential scan pasan;
-- el Context Graph contiene `80` archivos Markdown, `431` enlaces locales y
+- el Context Graph contiene `81` archivos Markdown, enlaces locales verificados y
   `0` targets rotos;
 - el blocker heredado de Context Graph registrado en el snapshot inicial quedo
   superado por R0 y no permanece como accion pendiente;

@@ -2,9 +2,9 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_HARDENING_REQUIRED` |
+| Estado | `PREPARED_NOT_CONFIGURED_LINK_HARDENING_CLOSED_REQUIRED_CHECK_APPROVAL_PENDING` |
 | Subfase | `F10.9` |
-| Alcance | PR M2 repository-only posterior a PR #396 |
+| Alcance | PR N repository-only posterior a PR #397 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -24,6 +24,11 @@ operacional porque no existen bindings runtime de policy exacta, GitHub App live
 endpoint aprobado ni smoke trust-only. El trust permanece
 `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` y el gate permanece
 `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED`.
+
+CA1 tecnico original permanece `PASS`; el estado integral del Hito 1 queda
+`CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING`, readiness de evidencias `75%` y
+cierre formal `NOT_READY`. Hito 1 `60%`, F10.9 `38%` y G5 `50%` son tracking
+tecnico interno, no denominadores de aceptacion.
 
 ## Reconciliacion PR #387
 
@@ -274,6 +279,41 @@ El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED`. E2-E6 sigu
 `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
 Production, Supabase, SQL, writers, schedules ni branch protection remota.
 
+## Reconciliacion PR #397 Y Cierre PR N
+
+PR #397 queda `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = 8adede3ed10605f3af36e905d8f11e7489815d8a
+merge = 9a5fcf539c69b635a41616e52716c0ee34837df4
+tree = b33228a031312062b165f8f612d27eacee2fea00
+security = 31984379751=PASS
+security_audit_job = 95256753465=PASS
+f9_7_run = 31984379715=PASS
+f9_7_job = 95256780481=PASS
+focused_g5_job = 95256691723=PASS
+m3_job = 95256691760=PASS
+run_attempt=1
+```
+
+PR N cierra exclusivamente el hardening `Link` bajo el perfil protegido
+`F10.9 Trusted Boundary PR N v1`. El contrato queda
+`CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED`: solo se acepta `rel="last"`
+canonico, del mismo endpoint solicitado y sin parametros extra; `rel="first"`,
+`rel="prev"`, `rel="next"`, parametros adicionales y headers malformados,
+ambiguos, duplicados o inesperados fallan cerrado con `STOP_G5_BINDING_DRIFT`.
+
+El payload remoto para convertir `F10.9 Trusted Boundary PR N v1` en required check
+queda preparado desde branch protection vivo, preservando `security-audit`,
+`strict=true`, `require_last_push_approval=true`, una aprobacion requerida,
+`dismiss_stale_reviews=true`, admin enforcement y restricciones nulas observadas.
+No se ejecuta sin aprobacion explicita adicional.
+
+El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING`.
+E2-E6 siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint,
+OIDC live, Production, Supabase, SQL, writers, schedules, branch protection remota
+ni `workflow_dispatch`.
+
 ## Policy Runtime Futura
 
 Los SHA/tree/blob dejan de ser autoridad hardcodeada final. La secuencia futura
@@ -433,7 +473,7 @@ El preflight offline valida solo:
 - PR #395 registrado como trusted boundary bootstrap required.
 - `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` vigente.
 - `E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED` preservado como antecedente.
-- Link hardening `NOT_CLOSED_DEFERRED_TO_PR_N`.
+- Link hardening `CLOSED_BY_PR_N_TRUSTED_BOUNDARY`.
 - Bootstrap `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`.
 - Binding runtime con `jobId`, `deploymentStatusId` y `checkSuiteId`.
 - Snapshot doble antes de CAS.
@@ -452,7 +492,7 @@ El preflight offline valida solo:
 - branch `main` y environment `Production`.
 - versions congeladas.
 - gates separados y reordenados.
-- ausencia de writes y operaciones remotas.
+- ausencia de writes, branch protection ejecutada y operaciones remotas.
 
 El preflight no lee valores reales, no consulta variables de entorno, no realiza red
 y no prueba disponibilidad operacional.

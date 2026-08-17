@@ -260,6 +260,28 @@ aprobaciones separadas; este documento no las concede.
        branch protection remota, Cloudflare, OIDC live, Production, Supabase, SQL,
        writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5 `50%`
        no cambian. `BK-F10.9-G5-ATOMIC-AUTHORITY` sigue no ejecutable y cotizable.
+       PR #397 queda `MERGED_POST_MERGE_VERIFIED` con candidate
+       `8adede3ed10605f3af36e905d8f11e7489815d8a`, merge protegido
+       `9a5fcf539c69b635a41616e52716c0ee34837df4`, tree
+       `b33228a031312062b165f8f612d27eacee2fea00`; Security
+       `31984379751=PASS`, `security-audit` job `95256753465=PASS`, F9.7 run
+       `31984379715=PASS`, F9.7 job `95256780481=PASS`, focused G5
+       `95256691723=PASS`, M3 `95256691760=PASS`, `run_attempt=1`. PR N cierra
+       hardening `Link` como `CLOSED_BY_PR_N_TRUSTED_BOUNDARY` y contrato
+       `CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED`: solo `rel="last"`
+       canonico, del mismo endpoint y sin parametros extra; `rel="first"`,
+       `rel="prev"`, `rel="next"` y cualquier `Link` inesperado fallan cerrado.
+       CA1 tecnico original permanece `PASS`; Hito 1 integral queda
+       `CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING`, readiness de evidencias
+       `75%` y cierre formal `NOT_READY`. El payload de branch protection queda
+       preparado desde estado vivo y no ejecutado; preserva `security-audit`,
+       `strict=true`, `require_last_push_approval=true`, una aprobacion requerida,
+       stale reviews, admin enforcement y restricciones nulas observadas. E2-E6
+       permanecen `NOT_EXECUTED` con
+       `E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING`; no se configura
+       GitHub App, Cloudflare, endpoint, OIDC live, Production, Supabase, SQL,
+       writers, schedules ni `workflow_dispatch`. `BK-F10.9-G5-ATOMIC-AUTHORITY`
+       sigue no ejecutable y cotizable.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
@@ -313,7 +335,7 @@ TASK-H1-001
 
 | Criterio | Estado contractual | Base implementada o aceptada | Pendiente para certificacion |
 |---|---|---|---|
-| `H1-CA1` | `ACTIVE_CA1_ONLY` | Workflows, schedules, gates/circuit breakers, QA, entrega tecnica y Production Canary `31272290614=PASS` | Remediacion operacional FG2/FG3, promociones protegidas, `GO_SCHEDULES`, tres pares naturales consecutivos durante al menos 72 horas, `EVID-H1-011..013` y `EVID-H1-016` posterior |
+| `H1-CA1` | `ACTIVE_CA1_ONLY` | CA1 tecnico original `PASS`; workflows, schedules, gates/circuit breakers, QA, entrega tecnica y Production Canary `31272290614=PASS` | Aceptacion correctiva integral pendiente: trusted boundary required check remoto, E2-E6, criterios correctivos FG2/FG3, `GO_SCHEDULES`, tres pares naturales consecutivos durante al menos 72 horas, `EVID-H1-011..013` y `EVID-H1-016` posterior |
 | `H1-CA2P` | `HISTORICAL_TRANSFERRED_TO_H2_CA2` | Schema local F6-F8, calidad y seguridad base como preparacion historica | No cierra Hito 1; Hito 2 debe producir candidate, adopcion y evidencia nueva |
 | `H1-CA7P` | `HISTORICAL_TRANSFERRED_TO_H4_CA7` | Contrato documentado, Context Graph y `SRC-REQ-001` reconciliada | No cierra Hito 1; Hito 4 debe producir documentacion y evidencia nueva |
 
@@ -331,7 +353,9 @@ GET-only, routing real, trust-plane modelado, ledger/broker repository-only y
 connected collector deployment-ready; quedan workflow real ejecutado, OIDC live,
 approval real, Production y observacion). Solo se
 actualiza tras PR protegido post-merge con Security, F9.7 y focused PASS y sin drift
-del Context Graph.
+del Context Graph. Estos porcentajes no son denominadores de aceptacion. Estado
+integral: `CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING`, readiness de evidencias
+`75%`, cierre formal `NOT_READY`.
 
 ## Equivalencias Aceptadas De H1-CA2P
 
