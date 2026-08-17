@@ -5237,13 +5237,14 @@ class F109BoundaryTest(unittest.TestCase):
             "skip",
         )
 
+    @mock.patch("scripts.security.f109_boundary.is_ancestor")
     @mock.patch("scripts.security.f109_boundary.validate_context_graph")
     @mock.patch("scripts.security.f109_boundary.require_exact_delta")
     @mock.patch("scripts.security.f109_boundary.commit_parents")
     @mock.patch("scripts.security.f109_boundary.commit_tree")
     @mock.patch("scripts.security.f109_boundary.require_sha")
     def test_g5_trusted_boundary_hardening_accepts_one_direct_candidate(
-        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock, ancestor_mock,
     ) -> None:
         self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_BASE, "0ec3da6c77b7819a38adcd2f38cd81699adc9283")
         self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "ecbe760d50f06d0edce0f36ef84fabacb0a4037c")
@@ -5255,6 +5256,7 @@ class F109BoundaryTest(unittest.TestCase):
         head = "a" * 40
         tree_mock.return_value = G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE
         parents_mock.return_value = [G5_TRUSTED_BOUNDARY_HARDENING_BASE]
+        ancestor_mock.return_value = True
         repo = self.make_repo()
         source_root = Path(__file__).resolve().parents[1]
         for relative in G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES:
@@ -5270,6 +5272,7 @@ class F109BoundaryTest(unittest.TestCase):
             G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 80, 431)
+        ancestor_mock.assert_called_once_with(repo, G5_TRUSTED_BOUNDARY_HARDENING_BASE, head)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

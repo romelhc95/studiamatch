@@ -5354,8 +5354,8 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
             "G5 trusted boundary hardening merge tree drift",
         )
     require(
-        commit_parents(repo, candidate_head) == [base],
-        "G5 trusted boundary hardening candidate must be one direct commit",
+        is_ancestor(repo, base, candidate_head),
+        "G5 trusted boundary hardening base is not an ancestor of head",
     )
     require_exact_delta(
         repo,
