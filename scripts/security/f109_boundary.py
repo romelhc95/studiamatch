@@ -209,6 +209,13 @@ G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUND
 G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE = "444c674cf2ff2143bb4b511e88ff6cd30c1fb589"
 G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
 G5_TRUSTED_BOUNDARY_CHECK_NAME = "F10.9 Trusted Boundary Bootstrap"
+G5_TRUSTED_BOUNDARY_HARDENING_BASE = "0ec3da6c77b7819a38adcd2f38cd81699adc9283"
+G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE = "ecbe760d50f06d0edce0f36ef84fabacb0a4037c"
+G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF = "feat/f10-9-pr-m2-trusted-boundary-hardening"
+G5_TRUSTED_BOUNDARY_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE = "063fb88b3b3dabda78ea641f46da69af09058ab7"
+G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -800,6 +807,25 @@ G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES = {
 }
 G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES = {
     path: "100644" for path in G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES
+}
+
+G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+}
+G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES = {
+    path: "100644" for path in G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4342,6 +4368,7 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
             G5_SECURITY_REMEDIATION_E2_STOP,
             G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
         },
         "G5 PR I E2 stop drift",
     )
@@ -4539,6 +4566,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
             G5_SECURITY_REMEDIATION_E2_STOP,
             G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
         },
         "G5 PR J E2 stop drift",
     )
@@ -5028,7 +5056,11 @@ def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, 
     require(pr394.get("tree_sha") == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE, "G5 PR L PR394 tree evidence drift")
     require(
         manifest.get("e2_stop")
-        in {G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP, G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP},
+        in {
+            G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+        },
         "G5 PR L E2 stop drift",
     )
     require(
@@ -5215,7 +5247,11 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
     require(pr395.get("merge_sha") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE, "G5 PR M PR395 merge drift")
     require(pr395.get("tree_sha") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE, "G5 PR M PR395 tree drift")
     require(pr395.get("status") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS, "G5 PR M PR395 status drift")
-    require(manifest.get("e2_stop") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP, "G5 PR M E2 stop drift")
+    require(
+        manifest.get("e2_stop")
+        in {G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP, G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP},
+        "G5 PR M E2 stop drift",
+    )
     bootstrap = manifest.get("trusted_boundary_bootstrap", {})
     require(bootstrap.get("workflow") == ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml", "G5 PR M workflow evidence drift")
     require(bootstrap.get("check_name") == G5_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR M check name drift")
@@ -5232,7 +5268,7 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
         "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
         "ref: ${{ github.event.pull_request.base.sha }}",
         "persist-credentials: false",
-        "git cat-file -e",
+        "cat-file -e",
         "without executing candidate code",
     ):
         require(required in trusted_workflow, "G5 PR M trusted workflow contract drift")
@@ -5269,8 +5305,8 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
     ):
         require(required in f97_workflow, "G5 PR M focused CI path drift")
     for required in (
-        "test_pr395_and_trusted_boundary_bootstrap_are_registered",
-        "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED",
+        "test_pr395_pr396_and_trusted_boundary_hardening_are_registered",
+        "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
         "NOT_CLOSED_DEFERRED_TO_PR_N",
     ):
         require(required in preflight_tests or required in preflight_source, "G5 PR M preflight drift")
@@ -5289,6 +5325,151 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
         '"private_key"',
     ):
         require(forbidden not in manifest_text, "G5 PR M manifest contains sensitive or live value")
+    validate_context_graph(repo, 80, 431)
+
+
+def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+        "unexpected G5 trusted boundary hardening base",
+    )
+    require_sha(repo, "G5_TRUSTED_BOUNDARY_HARDENING_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE,
+        "G5 trusted boundary hardening base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 trusted boundary hardening push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 trusted boundary hardening merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 trusted boundary hardening candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+        G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    payload_text = (repo / ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json").read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    trusted_tests = (repo / "tests/test_f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    payload = json.loads(payload_text)
+    combined = "\n".join((state, task, runbook, manifest_text, plan, payload_text, workflow, trusted_script, trusted_tests))
+    for required in (
+        G5_TRUSTED_BOUNDARY_HARDENING_STATUS,
+        G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE,
+        G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+        G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE,
+        "31979524771=PASS",
+        "31979524732=PASS",
+        "95243979388=PASS",
+        "95244079936=PASS",
+        "run_attempt=1",
+        G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+        G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
+        "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+        "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR M2 trusted boundary hardening evidence drift")
+    pr396 = manifest.get("pr_396_reconciliation", {})
+    require(pr396.get("candidate_sha") == G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE, "G5 PR M2 PR396 candidate drift")
+    require(pr396.get("merge_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE, "G5 PR M2 PR396 merge drift")
+    require(pr396.get("tree_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "G5 PR M2 PR396 tree drift")
+    require(pr396.get("status") == G5_TRUSTED_BOUNDARY_HARDENING_STATUS, "G5 PR M2 PR396 status drift")
+    require(manifest.get("e2_stop") == G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, "G5 PR M2 E2 stop drift")
+    hardening = manifest.get("trusted_boundary_hardening", {})
+    require(hardening.get("check_name") == G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "G5 PR M2 check name drift")
+    require(hardening.get("pr_n_workflow_modifications") == "FORBIDDEN", "G5 PR M2 workflow exclusion drift")
+    require(hardening.get("trusted_validator_modifications") == "FORBIDDEN", "G5 PR M2 trusted validator exclusion drift")
+    require(hardening.get("required_check_state") == "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL", "G5 PR M2 required check state drift")
+    require(payload.get("status") == "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL", "G5 PR M2 payload status drift")
+    checks = payload.get("request_body", {}).get("required_status_checks", {}).get("checks", [])
+    require({check.get("context") for check in checks} == {"security-audit", G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME}, "G5 PR M2 payload checks drift")
+    require(all(check.get("app_id") == 15368 for check in checks), "G5 PR M2 payload app id drift")
+    require(payload.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR M2 payload strict drift")
+    require(payload.get("request_body", {}).get("enforce_admins") is True, "G5 PR M2 payload admin drift")
+    for required in (
+        "name: F10.9 Trusted Boundary PR N v1",
+        "types: [opened, synchronize, reopened, ready_for_review, edited]",
+        "persist-credentials: false",
+        "submodules: false",
+        "--no-recurse-submodules",
+        "core.hooksPath=/dev/null",
+        "GIT_CONFIG_GLOBAL: /dev/null",
+        "PROTECTED_BASE_SHA",
+        "without executing candidate code",
+    ):
+        require(required in workflow, "G5 PR M2 workflow hardening drift")
+    for forbidden in (
+        "- '.github/workflows/f9-7-contract.yml'",
+        "- '.github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml'",
+        "- 'scripts/security/f109_trusted_boundary_bootstrap.py'",
+        "secrets.",
+        "workflow_dispatch",
+        "ref: ${{ github.event.pull_request.head.sha }}",
+        "npm ",
+        "node --test",
+        "pytest",
+        "wrangler",
+        "supabase",
+        "id-token",
+        "deployments:",
+    ):
+        require(forbidden not in workflow, "G5 PR M2 workflow forbidden capability")
+    for required in (
+        "PR_N_TRUSTED_CHECK_NAME",
+        "FORBIDDEN_PR_N_PREFIXES",
+        "FORBIDDEN_PR_N_PATHS",
+        "protected_base_sha",
+        "validate_sha",
+        "GIT_CONFIG_NOSYSTEM",
+        "core.hooksPath=/dev/null",
+        "renames/copies are not allowed",
+    ):
+        require(required in trusted_script, "G5 PR M2 trusted script hardening drift")
+    for required in (
+        "test_trusted_boundary_rejects_stale_protected_base",
+        "test_trusted_boundary_rejects_retargeted_edited_event",
+        "test_trusted_boundary_rejects_duplicate_check_name",
+        "test_trusted_boundary_rejects_invalid_oid_before_git",
+        "test_trusted_boundary_rejects_symlink_or_mode_drift",
+        "test_trusted_boundary_rejects_renames",
+        "test_trusted_boundary_rejects_inconsistent_metadata",
+    ):
+        require(required in trusted_tests, "G5 PR M2 trusted tests drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+    ):
+        require(forbidden not in manifest_text + payload_text, "G5 PR M2 sensitive marker drift")
     validate_context_graph(repo, 80, 431)
 
 
@@ -5516,6 +5697,12 @@ def detect_mode(
         and (event == "push" or head_ref == G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF)
     ):
         return "g5_trusted_boundary_bootstrap"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_TRUSTED_BOUNDARY_HARDENING_BASE
+        and (event == "push" or head_ref == G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF)
+    ):
+        return "g5_trusted_boundary_hardening"
     if (
         base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
@@ -5794,6 +5981,9 @@ def main() -> int:
             touched_g5_trusted_boundary_bootstrap = set(actual).intersection(
                 G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES
             )
+            touched_g5_trusted_boundary_hardening = set(actual).intersection(
+                G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
+            )
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -5835,6 +6025,7 @@ def main() -> int:
                         touched_g5_github_runtime_schema,
                         touched_g5_security_remediation,
                         touched_g5_trusted_boundary_bootstrap,
+                        touched_g5_trusted_boundary_hardening,
                     )
                 )
                 <= 1,
@@ -6020,6 +6211,17 @@ def main() -> int:
                     "partial or expanded G5 PR M delta is forbidden",
                 )
                 mode = "g5_trusted_boundary_bootstrap"
+            elif touched_g5_trusted_boundary_hardening:
+                require(
+                    args.head_ref == G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR M2 paths require the protected trusted boundary hardening branch",
+                )
+                require(
+                    actual == G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR M2 delta is forbidden",
+                )
+                mode = "g5_trusted_boundary_hardening"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -6218,6 +6420,10 @@ def main() -> int:
             )
         elif mode == "g5_trusted_boundary_bootstrap":
             validate_g5_trusted_boundary_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_trusted_boundary_hardening":
+            validate_g5_trusted_boundary_hardening(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

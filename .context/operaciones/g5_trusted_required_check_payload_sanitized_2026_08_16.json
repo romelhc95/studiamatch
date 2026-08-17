@@ -1,0 +1,42 @@
+{
+  "schema": "f10.9-g5-trusted-required-check-payload.v1",
+  "status": "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+  "target_branch": "desarrollo",
+  "operation": "PATCH_BRANCH_PROTECTION_AFTER_APPROVAL_ONLY",
+  "preconditions": [
+    "PR_M2_merged_to_desarrollo",
+    "F10.9 Trusted Boundary PR N v1 visible as a successful check from GitHub Actions app_id 15368",
+    "existing security-audit required check preserved",
+    "strict branch status checks preserved as true",
+    "pull request reviews preserved",
+    "admin enforcement preserved"
+  ],
+  "request_body": {
+    "required_status_checks": {
+      "strict": true,
+      "checks": [
+        {
+          "context": "security-audit",
+          "app_id": 15368
+        },
+        {
+          "context": "F10.9 Trusted Boundary PR N v1",
+          "app_id": 15368
+        }
+      ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": true,
+      "require_code_owner_reviews": false,
+      "required_approving_review_count": 1
+    },
+    "restrictions": null
+  },
+  "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL",
+  "notes": [
+    "This file is a sanitized proposal only and does not modify branch protection.",
+    "Refresh the live branch protection state before execution and stop on drift.",
+    "Do not drop any existing required check, review rule, admin enforcement, or restriction not represented here."
+  ]
+}

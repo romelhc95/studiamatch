@@ -236,11 +236,30 @@ aprobaciones separadas; este documento no las concede.
       secrets, sin codigo/tests/scripts/actions del candidate y con Git objects no
       confiables validados por base/head, commit directo, ancestry y delta
       path/status/mode exacto. PR M es `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`; no
-      cierra Link hardening, que queda `NOT_CLOSED_DEFERRED_TO_PR_N` despues del
-      merge de PR M. E2-E6 permanecen `NOT_EXECUTED` con
-      `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`; endpoint, GitHub App config,
-      Cloudflare, OIDC live, Production, Supabase, SQL, writers y schedules
-      permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+       cierra Link hardening, que queda `NOT_CLOSED_DEFERRED_TO_PR_N` despues del
+       merge de PR M. E2-E6 permanecen `NOT_EXECUTED` con
+       `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`; endpoint, GitHub App config,
+       Cloudflare, OIDC live, Production, Supabase, SQL, writers y schedules
+       permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5 `50%` no cambian.
+       PR #396 queda
+       `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED` con
+       candidate `063fb88b3b3dabda78ea641f46da69af09058ab7`, merge protegido
+       `0ec3da6c77b7819a38adcd2f38cd81699adc9283`, tree
+       `ecbe760d50f06d0edce0f36ef84fabacb0a4037c`; Security
+       `31979524771=PASS`, F9.7 run `31979524732=PASS`, focused G5 job
+       `95243979388=PASS`, F9.7 job `95244079936=PASS`, `run_attempt=1`.
+       PR M2 queda limitado a hardening repository-only de la raiz trusted-boundary:
+       check versionado `F10.9 Trusted Boundary PR N v1`, evento `edited`, OIDs SHA
+       hex exactos antes de Git, config Git aislada, hooks deshabilitados, fetch sin
+       submodules, `persist-credentials=false`, exclusion de `.github/workflows/**`
+       para PR N, rechazo de modificaciones del trusted validator y cero ejecucion de
+       codigo/scripts/actions/tests del candidate. El check no es required hasta
+       aprobacion remota separada; el payload sanitizado queda preparado y no
+       ejecutado. E2-E6 permanecen `NOT_EXECUTED` con
+       `E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED`; endpoint, GitHub App config,
+       branch protection remota, Cloudflare, OIDC live, Production, Supabase, SQL,
+       writers y schedules permanecen fuera. Hito 1 `60%`, F10.9 `38%` y G5 `50%`
+       no cambian. `BK-F10.9-G5-ATOMIC-AUTHORITY` sigue no ejecutable y cotizable.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.
