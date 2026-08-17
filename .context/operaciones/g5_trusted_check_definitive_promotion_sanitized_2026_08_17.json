@@ -1,0 +1,60 @@
+{
+  "schema": "f10.9-g5-trusted-check-definitive-promotion.v1",
+  "status": "PREPARED_NOT_EXECUTED",
+  "scope": "SELECTIVE_TRUSTED_CHECK_REGISTRATION_AND_HARDENING_ONLY",
+  "source_branch": "desarrollo",
+  "source_commit": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+  "source_tree": "fb0b0166b67a58cab14dd0c20e89f034a8adab6e",
+  "intermediate_branch": "certificacion",
+  "target_default_branch": "main",
+  "promotion_path": ["desarrollo", "certificacion", "main"],
+  "files_to_promote": [
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+    "scripts/security/f109_trusted_boundary_bootstrap.py",
+    "tests/test_f109_trusted_boundary_bootstrap.py",
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md"
+  ],
+  "required_check": {
+    "context": "F10.9 Trusted Boundary v1",
+    "app_id": 15368,
+    "app_name": "GitHub Actions"
+  },
+  "future_probe": {
+    "branch": "feat/f10-9-pr-p-trusted-boundary-registration-probe",
+    "check_name": "F10.9 Trusted Boundary v1",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "allowed_statuses": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"
+    },
+    "fork_policy": "REJECT",
+    "candidate_workflows": "FORBIDDEN",
+    "candidate_trusted_validator_code": "FORBIDDEN"
+  },
+  "out_of_scope_safe": {
+    "classification": "OUT_OF_SCOPE_SAFE",
+    "protected_base_evaluation": "REQUIRED",
+    "sensitive_surfaces_without_explicit_profile": "FAIL"
+  },
+  "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+  "default_branch_change": "FORBIDDEN",
+  "branch_protection_change": "FORBIDDEN",
+  "workflow_dispatch": "FORBIDDEN",
+  "github_actions_api_enable": "FORBIDDEN",
+  "required_check_preservation": "PRESERVE_EXISTING_REQUIRED_CHECKS_NO_REMOTE_MUTATION",
+  "supersedes": ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
+  "forbidden_operations": [
+    "default_branch_change",
+    "branch_protection_mutation",
+    "actions_api_enable",
+    "github_app_configuration",
+    "cloudflare_configuration",
+    "endpoint_configuration",
+    "oidc_configuration",
+    "production_access",
+    "supabase_access",
+    "sql",
+    "writers",
+    "schedules",
+    "workflow_dispatch"
+  ]
+}

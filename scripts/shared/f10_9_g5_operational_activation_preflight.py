@@ -30,6 +30,7 @@ PR395_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
 PR396_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 PR397_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR398_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED"
+PR399_STATUS = "MERGED_POST_MERGE_VERIFIED"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
 E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
 LEGACY_LINK_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
@@ -72,8 +73,10 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "pr_396_reconciliation",
         "pr_397_reconciliation",
         "pr_398_reconciliation",
+        "pr_399_reconciliation",
         "default_branch_trusted_workflow_registration",
         "trusted_boundary_pr_p_profile",
+        "permanent_trusted_check_hardening",
         "selective_promotion_manifest",
         "post_merge_security_findings",
         "post_merge_pr393_residual_findings",
@@ -297,6 +300,29 @@ EXPECTED_PR398_KEYS = frozenset(
         "retroactive_merge_gate_attestation",
     }
 )
+EXPECTED_PR399_KEYS = frozenset(
+    {
+        "candidate_sha",
+        "base_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "security_run_attempt",
+        "security_audit_job_id",
+        "security_audit_conclusion",
+        "f9_7_run_id",
+        "f9_7_conclusion",
+        "f9_7_run_attempt",
+        "f9_7_job_id",
+        "f9_7_job_conclusion",
+        "focused_g5_job_id",
+        "focused_g5_conclusion",
+        "m3_job_id",
+        "m3_conclusion",
+    }
+)
 EXPECTED_DEFAULT_BRANCH_REGISTRATION_KEYS = frozenset(
     {
         "default_branch",
@@ -341,6 +367,31 @@ EXPECTED_SELECTIVE_PROMOTION_KEYS = frozenset(
         "branch_protection_change",
         "workflow_dispatch",
         "required_check_preservation",
+    }
+)
+EXPECTED_PERMANENT_TRUSTED_CHECK_HARDENING_KEYS = frozenset(
+    {
+        "status",
+        "stable_check_name",
+        "legacy_one_shot_check_name",
+        "pull_request_target_branches",
+        "pull_request_target_types",
+        "path_filters",
+        "out_of_scope_classification",
+        "protected_base_evaluation",
+        "sensitive_surfaces_without_profile",
+        "candidate_workflow_changes",
+        "candidate_trusted_validator_changes",
+        "candidate_execution",
+        "candidate_actions",
+        "candidate_tests",
+        "candidate_scripts",
+        "permissions",
+        "persist_credentials",
+        "submodules",
+        "git_policy",
+        "secrets",
+        "github_actions_app_provenance",
     }
 )
 EXPECTED_FINDING_KEYS = frozenset(
@@ -752,8 +803,10 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     _validate_pr396(manifest.get("pr_396_reconciliation"), errors)
     _validate_pr397(manifest.get("pr_397_reconciliation"), errors)
     _validate_pr398(manifest.get("pr_398_reconciliation"), errors)
+    _validate_pr399(manifest.get("pr_399_reconciliation"), errors)
     _validate_default_branch_registration(manifest.get("default_branch_trusted_workflow_registration"), errors)
     _validate_pr_p_profile(manifest.get("trusted_boundary_pr_p_profile"), errors)
+    _validate_permanent_trusted_check_hardening(manifest.get("permanent_trusted_check_hardening"), errors)
     _validate_selective_promotion(manifest.get("selective_promotion_manifest"), errors)
     _validate_findings(manifest.get("post_merge_security_findings"), errors)
     _validate_residual_findings(manifest.get("post_merge_pr393_residual_findings"), errors)
@@ -1160,6 +1213,37 @@ def _validate_pr398(value: Any, errors: list[str]) -> None:
     _expect(value.get("retroactive_merge_gate_attestation") == "FORBIDDEN", "STOP_G5_E_PR398_RETROACTIVE", errors)
 
 
+def _validate_pr399(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR399_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR399_KEYS, "STOP_G5_E_PR399_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "2e7422e9f67e91ee6b02b4b44fccc060248c13a3",
+        "base_sha": "85d7f647a37dc784fe16c11da0318956e255b698",
+        "merge_sha": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+        "tree_sha": "fb0b0166b67a58cab14dd0c20e89f034a8adab6e",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR399_SHA", errors)
+    _expect(value.get("status") == PR399_STATUS, "STOP_G5_E_PR399_STATUS", errors)
+    _expect(value.get("security_run_id") == "31998458176", "STOP_G5_E_PR399_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR399_SECURITY", errors)
+    _expect(value.get("security_run_attempt") == 1, "STOP_G5_E_PR399_SECURITY_ATTEMPT", errors)
+    _expect(value.get("security_audit_job_id") == "95294350579", "STOP_G5_E_PR399_SECURITY_AUDIT", errors)
+    _expect(value.get("security_audit_conclusion") == "PASS", "STOP_G5_E_PR399_SECURITY_AUDIT", errors)
+    _expect(value.get("f9_7_run_id") == "31998458172", "STOP_G5_E_PR399_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR399_F97", errors)
+    _expect(value.get("f9_7_run_attempt") == 1, "STOP_G5_E_PR399_F97_ATTEMPT", errors)
+    _expect(value.get("f9_7_job_id") == "95294383627", "STOP_G5_E_PR399_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR399_F97_JOB", errors)
+    _expect(value.get("focused_g5_job_id") == "95294259790", "STOP_G5_E_PR399_FOCUSED", errors)
+    _expect(value.get("focused_g5_conclusion") == "PASS", "STOP_G5_E_PR399_FOCUSED", errors)
+    _expect(value.get("m3_job_id") == "95294259769", "STOP_G5_E_PR399_M3", errors)
+    _expect(value.get("m3_conclusion") == "PASS", "STOP_G5_E_PR399_M3", errors)
+
+
 def _validate_default_branch_registration(value: Any, errors: list[str]) -> None:
     if not isinstance(value, Mapping):
         errors.append("STOP_G5_E_DEFAULT_BRANCH_REGISTRATION")
@@ -1182,7 +1266,7 @@ def _validate_pr_p_profile(value: Any, errors: list[str]) -> None:
         return
     _validate_exact_keys(value, EXPECTED_PR_P_PROFILE_KEYS, "STOP_G5_E_PR_P_PROFILE_KEYS", errors)
     _expect(value.get("status") == "PREPARED_HUMAN_BOOTSTRAP_NOT_SELF_ATTESTED", "STOP_G5_E_PR_P_PROFILE_STATUS", errors)
-    _expect(value.get("check_name") == "F10.9 Trusted Boundary PR P v1", "STOP_G5_E_PR_P_CHECK", errors)
+    _expect(value.get("check_name") == "F10.9 Trusted Boundary v1", "STOP_G5_E_PR_P_CHECK", errors)
     _expect(value.get("head_ref") == "feat/f10-9-pr-p-trusted-boundary-registration-probe", "STOP_G5_E_PR_P_HEAD", errors)
     _expect(value.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "STOP_G5_E_PR_P_COMMITS", errors)
     _expect(value.get("allowed_statuses") == {".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"}, "STOP_G5_E_PR_P_DELTA", errors)
@@ -1197,13 +1281,44 @@ def _validate_pr_p_profile(value: Any, errors: list[str]) -> None:
         _expect(value.get(key) == "FORBIDDEN", "STOP_G5_E_PR_P_CANDIDATE", errors)
 
 
+def _validate_permanent_trusted_check_hardening(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PERMANENT_TRUSTED_CHECK_HARDENING")
+        return
+    _validate_exact_keys(
+        value,
+        EXPECTED_PERMANENT_TRUSTED_CHECK_HARDENING_KEYS,
+        "STOP_G5_E_PERMANENT_TRUSTED_CHECK_HARDENING_KEYS",
+        errors,
+    )
+    _expect(value.get("status") == "PREPARED_REPOSITORY_ONLY_REQUIRED_CHECK_HARDENING", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_STATUS", errors)
+    _expect(value.get("stable_check_name") == "F10.9 Trusted Boundary v1", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_NAME", errors)
+    _expect(value.get("legacy_one_shot_check_name") == "F10.9 Trusted Boundary PR P v1", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_LEGACY", errors)
+    _expect(value.get("pull_request_target_branches") == ["desarrollo"], "STOP_G5_E_PERMANENT_TRUSTED_CHECK_BRANCHES", errors)
+    _expect(value.get("pull_request_target_types") == ["opened", "synchronize", "reopened", "ready_for_review", "edited"], "STOP_G5_E_PERMANENT_TRUSTED_CHECK_EVENTS", errors)
+    _expect(value.get("path_filters") == "NONE_ALWAYS_REPORT_STATUS", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_PATHS", errors)
+    _expect(value.get("out_of_scope_classification") == "OUT_OF_SCOPE_SAFE", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_OUT_OF_SCOPE", errors)
+    _expect(value.get("protected_base_evaluation") == "REQUIRED", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_BASE", errors)
+    _expect(value.get("sensitive_surfaces_without_profile") == "FAIL", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_SENSITIVE", errors)
+    _expect(value.get("candidate_workflow_changes") == "FAIL", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_WORKFLOW", errors)
+    _expect(value.get("candidate_trusted_validator_changes") == "FAIL", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_VALIDATOR", errors)
+    for key in ("candidate_execution", "candidate_actions", "candidate_tests", "candidate_scripts"):
+        _expect(value.get(key) == "FORBIDDEN", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_CANDIDATE", errors)
+    _expect(value.get("permissions") == {"contents": "read"}, "STOP_G5_E_PERMANENT_TRUSTED_CHECK_PERMISSIONS", errors)
+    _expect(value.get("persist_credentials") is False, "STOP_G5_E_PERMANENT_TRUSTED_CHECK_CREDENTIALS", errors)
+    _expect(value.get("submodules") is False, "STOP_G5_E_PERMANENT_TRUSTED_CHECK_SUBMODULES", errors)
+    _expect(value.get("git_policy") == "ISOLATED_CONFIG_HOOKS_DISABLED_FETCH_NO_SUBMODULES", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_GIT", errors)
+    _expect(value.get("secrets") == "FORBIDDEN", "STOP_G5_E_PERMANENT_TRUSTED_CHECK_SECRETS", errors)
+    _expect(value.get("github_actions_app_provenance") == {"name": "GitHub Actions", "app_id": 15368}, "STOP_G5_E_PERMANENT_TRUSTED_CHECK_APP", errors)
+
+
 def _validate_selective_promotion(value: Any, errors: list[str]) -> None:
     if not isinstance(value, Mapping):
         errors.append("STOP_G5_E_SELECTIVE_PROMOTION")
         return
     _validate_exact_keys(value, EXPECTED_SELECTIVE_PROMOTION_KEYS, "STOP_G5_E_SELECTIVE_PROMOTION_KEYS", errors)
     _expect(value.get("status") == "PREPARED_NOT_EXECUTED", "STOP_G5_E_SELECTIVE_PROMOTION_STATUS", errors)
-    _expect(value.get("path") == ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json", "STOP_G5_E_SELECTIVE_PROMOTION_PATH", errors)
+    _expect(value.get("path") == ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json", "STOP_G5_E_SELECTIVE_PROMOTION_PATH", errors)
     _expect(value.get("scope") == "SELECTIVE_WORKFLOW_REGISTRATION_ONLY", "STOP_G5_E_SELECTIVE_PROMOTION_SCOPE", errors)
     _expect(value.get("promotion_path") == ["desarrollo", "certificacion", "main"], "STOP_G5_E_SELECTIVE_PROMOTION_PATHS", errors)
     _expect(value.get("execution_guard") == "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL", "STOP_G5_E_SELECTIVE_PROMOTION_GUARD", errors)
@@ -1370,7 +1485,7 @@ def _validate_branch_protection_update(value: Any, errors: list[str]) -> None:
     _expect(value.get("target_branch") == "desarrollo", "STOP_G5_E_BRANCH_PROTECTION_BRANCH", errors)
     _expect(value.get("execution_guard") == "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL", "STOP_G5_E_BRANCH_PROTECTION_GUARD", errors)
     required = value.get("required_check_to_add")
-    _expect(required == {"context": "F10.9 Trusted Boundary PR N v1", "app_id": 15368}, "STOP_G5_E_BRANCH_PROTECTION_REQUIRED_CHECK", errors)
+    _expect(required == {"context": "F10.9 Trusted Boundary v1", "app_id": 15368}, "STOP_G5_E_BRANCH_PROTECTION_REQUIRED_CHECK", errors)
     live = value.get("live_state_preserved")
     body = value.get("request_body")
     if not isinstance(live, Mapping) or not isinstance(body, Mapping):
@@ -1390,7 +1505,7 @@ def _validate_branch_protection_update(value: Any, errors: list[str]) -> None:
     _expect(
         body_checks.get("checks") == [
             {"context": "security-audit", "app_id": 15368},
-            {"context": "F10.9 Trusted Boundary PR N v1", "app_id": 15368},
+            {"context": "F10.9 Trusted Boundary v1", "app_id": 15368},
         ],
         "STOP_G5_E_BRANCH_PROTECTION_CHECKS",
         errors,

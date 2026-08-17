@@ -4,7 +4,7 @@
 |---|---|
 | Estado | `PREPARED_NOT_CONFIGURED_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED` |
 | Subfase | `F10.9` |
-| Alcance | PR O repository-only posterior a PR #398 |
+| Alcance | PR Q repository-only posterior a PR #399 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -362,6 +362,48 @@ La promocion selectiva queda preparada y no ejecutada en
 `desarrollo -> certificacion -> main`. No cambia `default_branch`, no modifica
 branch protection, no usa API enable de Actions ni `workflow_dispatch` y preserva
 required checks existentes sin mutacion remota.
+
+## Reconciliacion PR #399 Y Hardening PR Q
+
+PR #399 queda `MERGED_POST_MERGE_VERIFIED`:
+
+```text
+candidate = 2e7422e9f67e91ee6b02b4b44fccc060248c13a3
+base = 85d7f647a37dc784fe16c11da0318956e255b698
+merge = ab5b0dffe8fe7d677c083e258e86f590d393b731
+tree = fb0b0166b67a58cab14dd0c20e89f034a8adab6e
+security = 31998458176=PASS
+security_attempt = 1
+security_audit_job = 95294350579=PASS
+f9_7_run = 31998458172=PASS
+f9_7_attempt = 1
+f9_7_job = 95294383627=PASS
+focused_g5_job = 95294259790=PASS
+m3_job = 95294259769=PASS
+```
+
+PR Q corrige el hallazgo previo a cualquier promocion: el check requerido preparado
+pasa a nombre estable `F10.9 Trusted Boundary v1`, se eliminan `paths` y
+`paths-ignore` del workflow `pull_request_target`, y se conserva
+`branches=[desarrollo]` con eventos `opened`, `synchronize`, `reopened`,
+`ready_for_review` y `edited`.
+
+El perfil PR P exacto se conserva para
+`feat/f10-9-pr-p-trusted-boundary-registration-probe`, con delta unico sobre
+`.context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md`, pero el check
+esperado pasa a `F10.9 Trusted Boundary v1`.
+
+Los PRs normales fuera de alcance pueden concluir `OUT_OF_SCOPE_SAFE` solo si el
+delta no toca superficies trust, F10.9, workflows o trusted-validator protegidas.
+Cambios candidate a `.github/workflows/**` o a
+`scripts/security/f109_trusted_boundary_bootstrap.py` fallan siempre. Superficies
+sensibles sin perfil explicito, forks, metadata inconsistente, SHA invalido, stale
+base y mode drift fallan cerrado.
+
+El manifiesto anterior
+`g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json` queda
+`SUPERSEDED_NOT_EXECUTABLE`. La promocion definitiva queda preparada y no ejecutada
+ruta `desarrollo -> certificacion -> main`.
 
 El STOP vigente pasa a `E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED`.
 E2-E6 siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint,

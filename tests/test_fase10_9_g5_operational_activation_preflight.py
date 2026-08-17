@@ -451,7 +451,7 @@ def test_pr395_pr396_and_trusted_boundary_hardening_are_registered() -> None:
     assert branch_update["status"] == "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL"
     assert branch_update["prepared_from_live_state"] is True
     assert branch_update["required_check_to_add"] == {
-        "context": "F10.9 Trusted Boundary PR N v1",
+        "context": "F10.9 Trusted Boundary v1",
         "app_id": 15368,
     }
     assert branch_update["live_state_preserved"]["required_status_checks"]["strict"] is True
@@ -460,7 +460,7 @@ def test_pr395_pr396_and_trusted_boundary_hardening_are_registered() -> None:
     ]
     assert branch_update["request_body"]["required_status_checks"]["checks"] == [
         {"context": "security-audit", "app_id": 15368},
-        {"context": "F10.9 Trusted Boundary PR N v1", "app_id": 15368},
+        {"context": "F10.9 Trusted Boundary v1", "app_id": 15368},
     ]
     expected_reviews = {
         "dismiss_stale_reviews": True,
@@ -496,6 +496,27 @@ def test_pr395_pr396_and_trusted_boundary_hardening_are_registered() -> None:
 
 def test_default_branch_registration_root_cause_and_pr_p_profile_are_registered() -> None:
     manifest = _manifest()
+    assert manifest["pr_399_reconciliation"] == {
+        "candidate_sha": "2e7422e9f67e91ee6b02b4b44fccc060248c13a3",
+        "base_sha": "85d7f647a37dc784fe16c11da0318956e255b698",
+        "merge_sha": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+        "tree_sha": "fb0b0166b67a58cab14dd0c20e89f034a8adab6e",
+        "status": "MERGED_POST_MERGE_VERIFIED",
+        "security_run_id": "31998458176",
+        "security_conclusion": "PASS",
+        "security_run_attempt": 1,
+        "security_audit_job_id": "95294350579",
+        "security_audit_conclusion": "PASS",
+        "f9_7_run_id": "31998458172",
+        "f9_7_conclusion": "PASS",
+        "f9_7_run_attempt": 1,
+        "f9_7_job_id": "95294383627",
+        "f9_7_job_conclusion": "PASS",
+        "focused_g5_job_id": "95294259790",
+        "focused_g5_conclusion": "PASS",
+        "m3_job_id": "95294259769",
+        "m3_conclusion": "PASS",
+    }
     assert manifest["default_branch_trusted_workflow_registration"] == {
         "default_branch": "main",
         "workflow_path": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
@@ -509,7 +530,7 @@ def test_default_branch_registration_root_cause_and_pr_p_profile_are_registered(
     }
     assert manifest["trusted_boundary_pr_p_profile"] == {
         "status": "PREPARED_HUMAN_BOOTSTRAP_NOT_SELF_ATTESTED",
-        "check_name": "F10.9 Trusted Boundary PR P v1",
+        "check_name": "F10.9 Trusted Boundary v1",
         "head_ref": "feat/f10-9-pr-p-trusted-boundary-registration-probe",
         "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
         "allowed_statuses": {
@@ -527,13 +548,36 @@ def test_default_branch_registration_root_cause_and_pr_p_profile_are_registered(
         "candidate_tests": "FORBIDDEN",
         "candidate_scripts": "FORBIDDEN",
     }
+    assert manifest["permanent_trusted_check_hardening"] == {
+        "status": "PREPARED_REPOSITORY_ONLY_REQUIRED_CHECK_HARDENING",
+        "stable_check_name": "F10.9 Trusted Boundary v1",
+        "legacy_one_shot_check_name": "F10.9 Trusted Boundary PR P v1",
+        "pull_request_target_branches": ["desarrollo"],
+        "pull_request_target_types": ["opened", "synchronize", "reopened", "ready_for_review", "edited"],
+        "path_filters": "NONE_ALWAYS_REPORT_STATUS",
+        "out_of_scope_classification": "OUT_OF_SCOPE_SAFE",
+        "protected_base_evaluation": "REQUIRED",
+        "sensitive_surfaces_without_profile": "FAIL",
+        "candidate_workflow_changes": "FAIL",
+        "candidate_trusted_validator_changes": "FAIL",
+        "candidate_execution": "FORBIDDEN",
+        "candidate_actions": "FORBIDDEN",
+        "candidate_tests": "FORBIDDEN",
+        "candidate_scripts": "FORBIDDEN",
+        "permissions": {"contents": "read"},
+        "persist_credentials": False,
+        "submodules": False,
+        "git_policy": "ISOLATED_CONFIG_HOOKS_DISABLED_FETCH_NO_SUBMODULES",
+        "secrets": "FORBIDDEN",
+        "github_actions_app_provenance": {"name": "GitHub Actions", "app_id": 15368},
+    }
 
 
 def test_selective_promotion_manifest_is_prepared_not_executed() -> None:
     manifest = _manifest()
     assert manifest["selective_promotion_manifest"] == {
         "status": "PREPARED_NOT_EXECUTED",
-        "path": ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
+        "path": ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json",
         "scope": "SELECTIVE_WORKFLOW_REGISTRATION_ONLY",
         "promotion_path": ["desarrollo", "certificacion", "main"],
         "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",

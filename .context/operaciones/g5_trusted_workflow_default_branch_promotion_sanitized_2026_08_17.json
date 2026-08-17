@@ -1,6 +1,6 @@
 {
   "schema": "f10.9-g5-trusted-workflow-default-branch-promotion.v1",
-  "status": "PREPARED_NOT_EXECUTED",
+  "status": "SUPERSEDED_NOT_EXECUTABLE",
   "scope": "SELECTIVE_WORKFLOW_REGISTRATION_ONLY",
   "source_branch": "desarrollo",
   "intermediate_branch": "certificacion",
@@ -12,7 +12,7 @@
     "tests/test_f109_trusted_boundary_bootstrap.py"
   ],
   "human_bootstrap": "REQUIRED_NOT_SELF_ATTESTED",
-  "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+  "execution_guard": "DO_NOT_EXECUTE_SUPERSEDED_BY_G5_TRUSTED_CHECK_DEFINITIVE_PROMOTION",
   "default_branch_change": "FORBIDDEN",
   "branch_protection_change": "FORBIDDEN",
   "workflow_dispatch": "FORBIDDEN",

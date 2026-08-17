@@ -296,6 +296,19 @@ aprobaciones separadas; este documento no las concede.
        puede acreditarse retroactivamente como merge-gated. PR O solo prepara
        bootstrap humano y promocion selectiva no ejecutada; E2 queda
        `E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED`.
+       PR #399 queda `MERGED_POST_MERGE_VERIFIED` con candidate
+       `2e7422e9f67e91ee6b02b4b44fccc060248c13a3`, base
+       `85d7f647a37dc784fe16c11da0318956e255b698`, merge protegido
+       `ab5b0dffe8fe7d677c083e258e86f590d393b731`, tree
+       `fb0b0166b67a58cab14dd0c20e89f034a8adab6e`, Security
+       `31998458176=PASS`, `security-audit` job `95294350579=PASS`, F9.7
+       `31998458172=PASS`, F9.7 job `95294383627=PASS`, focused G5
+       `95294259790=PASS` y M3 `95294259769=PASS`. PR Q prepara hardening
+       repository-only del check estable `F10.9 Trusted Boundary v1`, sin
+       `paths`/`paths-ignore`, con `OUT_OF_SCOPE_SAFE` para deltas no sensibles
+       y fail-closed para workflows, trusted-validator y superficies F10.9/trust
+       sin perfil. La promocion definitiva `desarrollo -> certificacion -> main`
+       queda preparada y no ejecutada.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

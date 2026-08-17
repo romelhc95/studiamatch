@@ -15,6 +15,7 @@ from scripts.security.f109_trusted_boundary_bootstrap import (
     PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES,
     PR_P_REGISTRATION_PROBE_HEAD_REF,
     PR_P_TRUSTED_CHECK_NAME,
+    STABLE_TRUSTED_CHECK_NAME,
     TRUSTED_CHECK_NAME,
     TRUSTED_PROFILES,
     TrustedBoundaryError,
@@ -111,6 +112,24 @@ def _build_profile_repo(allowed_statuses: dict[str, str]) -> tuple[Path, str, st
     return repo, base, head, temp
 
 
+def _build_out_of_scope_repo(path: str = "docs/out-of-scope.md") -> tuple[Path, str, str, tempfile.TemporaryDirectory[str]]:
+    temp = tempfile.TemporaryDirectory()
+    repo = Path(temp.name)
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.invalid")
+    _git(repo, "config", "user.name", "Trusted Boundary Test")
+    _write(repo, "README.md", "base\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base = _git(repo, "rev-parse", "HEAD")
+
+    _write(repo, path, "safe candidate\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "out of scope")
+    head = _git(repo, "rev-parse", "HEAD")
+    return repo, base, head, temp
+
+
 def _commit_current(repo: Path, message: str) -> str:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", message)
@@ -127,7 +146,7 @@ def _validate(repo: Path, base: str, head: str, event: dict[str, object], **over
         "base_repo": "romelhc95/studiamatch",
         "head_repo": "romelhc95/studiamatch",
         "repository": "romelhc95/studiamatch",
-        "check_name": PR_N_TRUSTED_CHECK_NAME,
+        "check_name": TRUSTED_CHECK_NAME,
         "protected_base_sha": base,
     }
     values.update(overrides)
@@ -161,11 +180,12 @@ def test_workflow_registered_on_default_branch_enables_future_pr_p_profile() -> 
     default_branch_workflows = {"security-audit.yml", "f9-7-contract.yml", "f10-9-g5-trusted-boundary-bootstrap.yml"}
     trusted_workflow = "f10-9-g5-trusted-boundary-bootstrap.yml"
     assert trusted_workflow in default_branch_workflows
-    assert TRUSTED_PROFILES[PR_P_REGISTRATION_PROBE_HEAD_REF].check_name == PR_P_TRUSTED_CHECK_NAME
+    assert TRUSTED_PROFILES[PR_P_REGISTRATION_PROBE_HEAD_REF].check_name == TRUSTED_CHECK_NAME
 
 
 def test_check_provenance_uses_pr_p_name_and_preserves_pr_n_history() -> None:
-    assert TRUSTED_CHECK_NAME == PR_P_TRUSTED_CHECK_NAME
+    assert TRUSTED_CHECK_NAME == "F10.9 Trusted Boundary v1"
+    assert TRUSTED_CHECK_NAME == STABLE_TRUSTED_CHECK_NAME
     assert PR_N_TRUSTED_CHECK_NAME == "F10.9 Trusted Boundary PR N v1"
     assert PR_P_TRUSTED_CHECK_NAME == "F10.9 Trusted Boundary PR P v1"
 
@@ -186,9 +206,24 @@ def test_pr_p_registration_probe_accepts_one_direct_exact_candidate() -> None:
                 head,
                 _event(base, head, head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF),
                 head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
-                check_name=PR_P_TRUSTED_CHECK_NAME,
+                check_name=TRUSTED_CHECK_NAME,
             )
             == "PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE"
+        )
+
+
+def test_normal_out_of_scope_pr_passes_without_explicit_profile() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo()
+    with temp:
+        assert (
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/docs-copy"),
+                head_ref="feat/docs-copy",
+            )
+            == "OUT_OF_SCOPE_SAFE"
         )
 
 
@@ -263,7 +298,7 @@ def test_trusted_boundary_rejects_duplicate_check_name() -> None:
 def test_trusted_boundary_rejects_pr_n_check_for_future_pr_p_profile() -> None:
     repo, base, head, temp = _build_profile_repo(dict(PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES))
     with temp:
-        with pytest.raises(TrustedBoundaryError, match="check name drift"):
+        with pytest.raises(TrustedBoundaryError, match="retired trusted boundary check name"):
             _validate(
                 repo,
                 base,
@@ -271,6 +306,73 @@ def test_trusted_boundary_rejects_pr_n_check_for_future_pr_p_profile() -> None:
                 _event(base, head, head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF),
                 head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
                 check_name=PR_N_TRUSTED_CHECK_NAME,
+            )
+
+
+def test_workflow_runs_for_paths_outside_previous_filter() -> None:
+    workflow = Path(".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    assert "pull_request_target:" in workflow
+    assert "branches: [desarrollo]" in workflow
+    assert "paths:" not in workflow
+    assert "paths-ignore:" not in workflow
+
+
+def test_required_check_uses_stable_name() -> None:
+    workflow = Path(".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    assert "name: F10.9 Trusted Boundary v1" in workflow
+    assert "CHECK_NAME: F10.9 Trusted Boundary v1" in workflow
+    assert "name: F10.9 Trusted Boundary PR P v1" not in workflow
+
+
+def test_workflow_candidate_fails_even_without_explicit_profile() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo(".github/workflows/unsafe.yml")
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="workflow modifications are forbidden"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/workflow-change"),
+                head_ref="feat/workflow-change",
+            )
+
+
+def test_trusted_validator_candidate_fails_even_without_explicit_profile() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo("scripts/security/f109_trusted_boundary_bootstrap.py")
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="trusted validator modification is forbidden"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/validator-change"),
+                head_ref="feat/validator-change",
+            )
+
+
+def test_sensitive_path_without_explicit_profile_fails() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo("tests/test_fase10_9_new_guard.py")
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="sensitive path requires explicit trusted profile"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/f10-9-unprofiled"),
+                head_ref="feat/f10-9-unprofiled",
+            )
+
+
+def test_neutral_named_operational_manifest_without_explicit_profile_fails() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo(".context/operaciones/remote_actions_manifest.json")
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="sensitive path requires explicit trusted profile"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/ops-manifest"),
+                head_ref="feat/ops-manifest",
             )
 
 

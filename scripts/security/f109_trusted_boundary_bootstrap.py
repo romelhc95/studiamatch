@@ -15,8 +15,13 @@ from typing import Any, Mapping
 PROTECTED_BASE_REF = "desarrollo"
 PR_N_TRUSTED_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
 PR_P_TRUSTED_CHECK_NAME = "F10.9 Trusted Boundary PR P v1"
-TRUSTED_CHECK_NAME = PR_P_TRUSTED_CHECK_NAME
-RETIRED_TRUSTED_CHECK_NAMES = {"F10.9 Trusted Boundary Bootstrap"}
+STABLE_TRUSTED_CHECK_NAME = "F10.9 Trusted Boundary v1"
+TRUSTED_CHECK_NAME = STABLE_TRUSTED_CHECK_NAME
+RETIRED_TRUSTED_CHECK_NAMES = {
+    "F10.9 Trusted Boundary Bootstrap",
+    PR_N_TRUSTED_CHECK_NAME,
+    PR_P_TRUSTED_CHECK_NAME,
+}
 PR_N_LINK_HARDENING_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
 PR_P_REGISTRATION_PROBE_HEAD_REF = "feat/f10-9-pr-p-trusted-boundary-registration-probe"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -25,6 +30,29 @@ FORBIDDEN_PR_N_PATHS = {"scripts/security/f109_trusted_boundary_bootstrap.py"}
 FORBIDDEN_PR_N_PREFIXES = (".github/workflows/",)
 FORBIDDEN_CANDIDATE_VALIDATOR_PATHS = FORBIDDEN_PR_N_PATHS
 FORBIDDEN_CANDIDATE_WORKFLOW_PREFIXES = FORBIDDEN_PR_N_PREFIXES
+SENSITIVE_EXACT_PATHS = {
+    ".context/00_INDICE.md",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+    ".context/estado_del_proyecto.md",
+    "scripts/security/f109_boundary.py",
+    "scripts/security/f109_trusted_boundary_bootstrap.py",
+}
+SENSITIVE_PREFIXES = (
+    ".context/decisiones/",
+    ".context/operaciones/",
+    ".github/workflows/",
+    "workers/g5-trust-broker/",
+)
+SENSITIVE_FRAGMENTS = (
+    "f10_9",
+    "f10-9",
+    "fase10_9",
+    "f109",
+    "g5_",
+    "g5-",
+    "trusted_boundary",
+    "trusted-boundary",
+)
 GIT_CONFIG_ARGS = (
     "-c",
     "core.hooksPath=/dev/null",
@@ -76,14 +104,14 @@ TRUSTED_PROFILES = {
     PR_N_LINK_HARDENING_HEAD_REF: BoundaryProfile(
         name="PR_N_LINK_HARDENING_CLOSURE",
         head_ref=PR_N_LINK_HARDENING_HEAD_REF,
-        check_name=PR_N_TRUSTED_CHECK_NAME,
+        check_name=STABLE_TRUSTED_CHECK_NAME,
         allowed_statuses=PR_N_LINK_HARDENING_ALLOWED_STATUSES,
         allowed_modes=PR_N_LINK_HARDENING_ALLOWED_MODES,
     ),
     PR_P_REGISTRATION_PROBE_HEAD_REF: BoundaryProfile(
         name="PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE",
         head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
-        check_name=PR_P_TRUSTED_CHECK_NAME,
+        check_name=STABLE_TRUSTED_CHECK_NAME,
         allowed_statuses=PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES,
         allowed_modes=PR_P_REGISTRATION_PROBE_ALLOWED_MODES,
     ),
@@ -172,6 +200,29 @@ def validate_no_forbidden_paths(paths: list[str] | tuple[str, ...]) -> None:
         )
 
 
+def is_sensitive_path(path: str) -> bool:
+    lowered = path.lower()
+    return (
+        path in SENSITIVE_EXACT_PATHS
+        or any(path.startswith(prefix) for prefix in SENSITIVE_PREFIXES)
+        or any(fragment in lowered for fragment in SENSITIVE_FRAGMENTS)
+    )
+
+
+def validate_out_of_scope_delta(repo: Path, base: str, head: str) -> str:
+    actual = changed_statuses(repo, base, head)
+    require(actual, "empty candidate delta is not a trusted boundary candidate")
+    sensitive = sorted(path for path in actual if is_sensitive_path(path))
+    if sensitive:
+        raise TrustedBoundaryError(f"sensitive path requires explicit trusted profile: {sensitive[0]}")
+    for path, status in actual.items():
+        if status == "D":
+            continue
+        mode = blob_mode(repo, head, path)
+        require(mode == "100644", f"candidate file mode drift: {path}")
+    return "OUT_OF_SCOPE_SAFE"
+
+
 def blob_mode(repo: Path, revision: str, path: str) -> str:
     metadata = git(repo, "ls-tree", revision, "--", path).split(None, 3)
     require(len(metadata) == 4 and metadata[1] == "blob" and metadata[3] == path, f"unexpected git object for {path}")
@@ -205,7 +256,7 @@ def validate_event_shape(
     repository: str,
     check_name: str,
     protected_base_sha: str,
-) -> BoundaryProfile:
+) -> BoundaryProfile | None:
     require(event_name == "pull_request_target", "trusted boundary must run only on pull_request_target")
     require(check_name not in RETIRED_TRUSTED_CHECK_NAMES, "retired trusted boundary check name")
     validate_sha(base_sha, "base")
@@ -232,10 +283,8 @@ def validate_event_shape(
     validate_sha(str(pull_request.get("base", {}).get("sha", "")), "event base")
     validate_sha(str(pull_request.get("head", {}).get("sha", "")), "event head")
 
-    profile = TRUSTED_PROFILES.get(head_ref)
-    require(profile is not None, "unexpected trusted boundary head ref")
-    require(check_name == profile.check_name, "trusted boundary check name drift")
-    return profile
+    require(check_name == STABLE_TRUSTED_CHECK_NAME, "trusted boundary check name drift")
+    return TRUSTED_PROFILES.get(head_ref)
 
 
 def validate_trusted_boundary(
@@ -252,7 +301,7 @@ def validate_trusted_boundary(
     repository: str,
     check_name: str,
     protected_base_sha: str,
-) -> str:
+    ) -> str:
     profile = validate_event_shape(
         event,
         event_name=event_name,
@@ -268,7 +317,6 @@ def validate_trusted_boundary(
     )
     require(commit_exists(repo, base_sha), "base commit object is unavailable")
     require(commit_exists(repo, head_sha), "candidate commit object is unavailable")
-    require(commit_parents(repo, head_sha) == [base_sha], "candidate must be exactly one direct commit")
     subprocess.run(
         ["git", *GIT_CONFIG_ARGS, "-c", f"safe.directory={repo.resolve()}", "merge-base", "--is-ancestor", base_sha, head_sha],
         cwd=repo,
@@ -277,6 +325,9 @@ def validate_trusted_boundary(
         stderr=subprocess.PIPE,
         env=isolated_git_env(),
     )
+    if profile is None:
+        return validate_out_of_scope_delta(repo, base_sha, head_sha)
+    require(commit_parents(repo, head_sha) == [base_sha], "candidate must be exactly one direct commit")
     validate_exact_delta(repo, base_sha, head_sha, profile)
     return profile.name
 
