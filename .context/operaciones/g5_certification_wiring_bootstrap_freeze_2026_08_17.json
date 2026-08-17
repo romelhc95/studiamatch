@@ -1,0 +1,244 @@
+{
+  "schema": "f10.9-g5-certification-wiring-bootstrap-freeze.v1",
+  "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+  "sidecar_policy": "EXTERNAL_REPOSITORY_ONLY_NOT_PROMOTED_TO_CERTIFICATION",
+  "sidecar_path": ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json",
+  "sidecar_excluded_from_certification_delta": true,
+  "source_commit": "a9bbc6079472879d1c04f2e1fce9b36393b166d6",
+  "source_tree": "0595d1e69c38334ae61ed12fb03cc2701cfb06ec",
+  "certification_parent": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+  "certification_parent_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+  "head_ref": "promote/f10-9-g5-certification-wiring-bootstrap",
+  "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+  "same_repository": true,
+  "expected_candidate_tree": "40b7e797ebec35fef9ab770240b983ed91944026",
+  "certification_delta": {
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": {
+      "status": "A",
+      "mode": "100644",
+      "blob_sha": "4fa98320015e39a905644f03e89a75af43dc72cc"
+    },
+    ".github/workflows/security-audit.yml": {
+      "status": "M",
+      "mode": "100755",
+      "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045"
+    },
+    "scripts/security/f109_boundary.py": {
+      "status": "M",
+      "mode": "100644",
+      "blob_sha": "e36a5de1ab6513e973cc5bc940bdb12a5a1c7335"
+    },
+    "tests/test_fase10_9_branch_reconciliation.py": {
+      "status": "M",
+      "mode": "100644",
+      "blob_sha": "f911e7bc46e9be474ab4b917d9d96d263c1a64e1"
+    }
+  },
+  "snapshot_canonical_hash": "4d2a83f40bd12ff3f13937b1f3b14940866acf9a53dbe1f448bb3a46991f05d2",
+  "snapshot_before": {
+    "required_status_checks": {
+      "strict": true,
+      "contexts": ["security-audit"],
+      "checks": [
+        {
+          "context": "security-audit",
+          "app_id": 15368
+        }
+      ]
+    },
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": true,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": true,
+      "required_approving_review_count": 1
+    },
+    "required_signatures": {
+      "enabled": false
+    },
+    "enforce_admins": {
+      "enabled": true
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": false
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    },
+    "restrictions": null
+  },
+  "temporary_state": {
+    "required_status_checks": {
+      "strict": true,
+      "contexts": [],
+      "checks": []
+    },
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": true,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": true,
+      "required_approving_review_count": 1
+    },
+    "required_signatures": {
+      "enabled": false
+    },
+    "enforce_admins": {
+      "enabled": true
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": false
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    },
+    "restrictions": null
+  },
+  "restore_state": {
+    "required_status_checks": {
+      "strict": true,
+      "contexts": ["security-audit"],
+      "checks": [
+        {
+          "context": "security-audit",
+          "app_id": 15368
+        }
+      ]
+    },
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": true,
+      "require_code_owner_reviews": false,
+      "require_last_push_approval": true,
+      "required_approving_review_count": 1
+    },
+    "required_signatures": {
+      "enabled": false
+    },
+    "enforce_admins": {
+      "enabled": true
+    },
+    "required_linear_history": {
+      "enabled": false
+    },
+    "allow_force_pushes": {
+      "enabled": false
+    },
+    "allow_deletions": {
+      "enabled": false
+    },
+    "block_creations": {
+      "enabled": false
+    },
+    "required_conversation_resolution": {
+      "enabled": false
+    },
+    "lock_branch": {
+      "enabled": false
+    },
+    "allow_fork_syncing": {
+      "enabled": false
+    },
+    "restrictions": null
+  },
+  "preconditions": {
+    "live_snapshot_must_match_hash": "4d2a83f40bd12ff3f13937b1f3b14940866acf9a53dbe1f448bb3a46991f05d2",
+    "revalidate_branch_sha": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "revalidate_branch_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "other_mergeable_prs_to_certificacion": 0,
+    "wiring_pr_head_ref": "promote/f10-9-g5-certification-wiring-bootstrap",
+    "wiring_pr_expected_head_sha": "40db8d47df3b130f03afea627074bc1653b56975",
+    "wiring_pr_expected_tree": "40b7e797ebec35fef9ab770240b983ed91944026",
+    "wiring_pr_approved": true,
+    "wiring_pr_no_drift": true
+  },
+  "execution_rules": {
+    "max_window_minutes": 10,
+    "merge_only_head_sha": "40db8d47df3b130f03afea627074bc1653b56975",
+    "restore_on_any_exit": true,
+    "restore_security_audit": {
+      "context": "security-audit",
+      "app_id": 15368
+    },
+    "post_restore_compare": "EXACT_MATCH_SNAPSHOT_BEFORE",
+    "post_merge_required_check": {
+      "context": "security-audit",
+      "app_id": 15368,
+      "conclusion": "PASS"
+    },
+    "abort_on": [
+      "github_api_503",
+      "snapshot_drift",
+      "unverifiable_field",
+      "candidate_sha_drift",
+      "concurrent_mergeable_certification_pr"
+    ]
+  },
+  "candidate_controlled_check_policy": {
+    "pre_merge_security_audit_authoritative": false,
+    "protected_base_failure_expected": true,
+    "exception_authority": "sidecar_exact_blobs_tree_independent_security_auditor_human_approval",
+    "candidate_controlled_pass_can_substitute": false,
+    "note": "El security-audit pre-merge del wiring no es autoridad confiable; su fallo por protected-base antiguo es esperado. Ningun PASS candidate-controlled sustituye sidecar, blobs/tree exactos, Security Auditor independiente y aprobacion humana."
+  },
+  "canonical_digest": "6ad7a6aba12d3a7056d773157371e8f6f60ed41b1b38b34271fbd2c30537f411",
+  "canonical_digest_input": {
+    "source_commit": "a9bbc6079472879d1c04f2e1fce9b36393b166d6",
+    "source_tree": "0595d1e69c38334ae61ed12fb03cc2701cfb06ec",
+    "certification_parent": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "certification_parent_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "head_ref": "promote/f10-9-g5-certification-wiring-bootstrap",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "same_repository": true,
+    "expected_candidate_tree": "40b7e797ebec35fef9ab770240b983ed91944026",
+    "certification_delta": {
+      ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": {
+        "status": "A",
+        "mode": "100644",
+        "blob_sha": "4fa98320015e39a905644f03e89a75af43dc72cc"
+      },
+      ".github/workflows/security-audit.yml": {
+        "status": "M",
+        "mode": "100755",
+        "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045"
+      },
+      "scripts/security/f109_boundary.py": {
+        "status": "M",
+        "mode": "100644",
+        "blob_sha": "e36a5de1ab6513e973cc5bc940bdb12a5a1c7335"
+      },
+      "tests/test_fase10_9_branch_reconciliation.py": {
+        "status": "M",
+        "mode": "100644",
+        "blob_sha": "f911e7bc46e9be474ab4b917d9d96d263c1a64e1"
+      }
+    }
+  }
+}

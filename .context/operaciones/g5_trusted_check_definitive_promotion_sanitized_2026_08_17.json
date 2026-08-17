@@ -75,6 +75,27 @@
     "m3_job_id": "95403296944",
     "m3_conclusion": "PASS"
     },
+    "pr_402_reconciliation": {
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "candidate_sha": "40db8d47df3b130f03afea627074bc1653b56975",
+    "base_sha": "3970ab07f5b07095fbd52837e96dfdeae965279e",
+    "merge_sha": "a9bbc6079472879d1c04f2e1fce9b36393b166d6",
+    "tree_sha": "0595d1e69c38334ae61ed12fb03cc2701cfb06ec",
+    "security_run_id": "32041862517",
+    "security_conclusion": "PASS",
+    "security_attempt": 1,
+    "security_audit_job_id": "95422582708",
+    "security_audit_conclusion": "PASS",
+    "f9_7_run_id": "32041862512",
+    "f9_7_conclusion": "PASS",
+    "f9_7_attempt": 1,
+    "f9_7_job_id": "95422583531",
+    "f9_7_job_conclusion": "PASS",
+    "focused_g5_job_id": "95422477740",
+    "focused_g5_conclusion": "PASS",
+    "m3_job_id": "95422477720",
+    "m3_conclusion": "PASS"
+    },
     "certification_wiring_bootstrap": {
     "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
     "repository_pr_s_base": "3970ab07f5b07095fbd52837e96dfdeae965279e",
@@ -111,6 +132,10 @@
     "precondition_certification_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
     "precondition_other_mergeable_certification_prs": 0,
     "snapshot_before": "FULL_BRANCH_PROTECTION_REQUIRED",
+    "sidecar": ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json",
+    "sidecar_status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+    "sidecar_excluded_from_certification_delta": true,
+    "expected_candidate_tree": "40b7e797ebec35fef9ab770240b983ed91944026",
     "temporarily_removed_required_checks": ["security-audit"],
     "preserve": {
       "strict": true,
@@ -148,7 +173,7 @@
     "g5_tracking": "50%",
     "readiness": "75%",
     "cierre_formal": "NOT_READY",
-    "stop": "E2_STOP_CERTIFICATION_WIRING_BOOTSTRAP_REQUIRED",
+    "stop": "E2_STOP_CERTIFICATION_CONTROL_PLANE_ENVELOPE_REQUIRED",
     "backlog": "BK-F10.9-G5-ATOMIC-AUTHORITY no ejecutable y cotizable"
     }
   },
