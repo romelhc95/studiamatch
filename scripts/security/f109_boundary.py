@@ -231,6 +231,18 @@ G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WOR
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE = "2e7422e9f67e91ee6b02b4b44fccc060248c13a3"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE = "1995120d98562763f3551f13f9af5db15c087c4c"
+G5_CERTIFICATION_WIRING_REPOSITORY_BASE = "3970ab07f5b07095fbd52837e96dfdeae965279e"
+G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE = "2500228097e19e9d25f2def666e854fe754216c3"
+G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF = "feat/f10-9-pr-s-certification-wiring-bootstrap"
+G5_CERTIFICATION_WIRING_BASE = "4f16f314284324c3b5e9c11c4536eef5ee04c7f3"
+G5_CERTIFICATION_WIRING_BASE_TREE = "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+G5_CERTIFICATION_WIRING_HEAD_REF = "promote/f10-9-g5-certification-wiring-bootstrap"
+G5_CERTIFICATION_WIRING_STATUS = "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED"
+G5_CERTIFICATION_WIRING_E2_STOP = "E2_STOP_CERTIFICATION_WIRING_BOOTSTRAP_REQUIRED"
+G5_PR401_CANDIDATE = "6dcb1ce9087797be2fb7131063dbce8f880a23b4"
+G5_PR401_MERGE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+G5_PR401_TREE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
+G5_PR401_STATUS = "MERGED_POST_MERGE_VERIFIED"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -876,6 +888,48 @@ G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES = {
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES = {
     path: "100644" for path in G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES
 }
+
+G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES = {
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+}
+G5_CERTIFICATION_WIRING_ALLOWED_STATUSES = {
+    **G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+}
+G5_CERTIFICATION_WIRING_ALLOWED_MODES = G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES
+G5_DEFINITIVE_PROMOTION_FILES = {
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+        "mode": "100644",
+        "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+    },
+    "scripts/security/f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b",
+    },
+    "tests/test_f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1",
+    },
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+        "mode": "100644",
+        "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3",
+    },
+}
+G5_CERTIFICATION_WIRING_FORBIDDEN_MARKERS = (
+    "workflow_dispatch",
+    "id-token: write",
+    "secrets.",
+    "wrangler",
+    "CF_API_TOKEN",
+    "NEXT_SUPABASE_SECRET_KEY",
+)
 
 F1010_M3_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
@@ -5927,6 +5981,143 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     validate_context_graph(repo, 83, 433)
 
 
+def validate_g5_definitive_promotion_source(repo: Path) -> None:
+    require_sha(repo, "G5 definitive source", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE)
+    require(
+        commit_tree(repo, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE)
+        == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        "G5 definitive source tree drift",
+    )
+    for relative, expected in G5_DEFINITIVE_PROMOTION_FILES.items():
+        metadata = str(git(repo, "ls-tree", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "--", relative)).strip().split(None, 3)
+        require(len(metadata) == 4, f"G5 definitive source missing tree entry: {relative}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(
+            (mode, kind, blob_sha, tree_path) == (expected["mode"], "blob", expected["blob_sha"], relative),
+            f"G5 definitive source blob/mode drift: {relative}",
+        )
+
+
+def validate_g5_control_plane_exception_payload(payload: dict[str, object]) -> None:
+    require(payload.get("status") == "PREPARED_NOT_EXECUTED", "G5 control-plane exception status drift")
+    require(payload.get("one_time_only") is True, "G5 control-plane exception one-time drift")
+    require(payload.get("reversible") is True, "G5 control-plane exception reversible drift")
+    require(payload.get("target_branch") == "certificacion", "G5 control-plane exception branch drift")
+    require(payload.get("precondition_certification_commit") == G5_CERTIFICATION_WIRING_BASE, "G5 control-plane exception base drift")
+    require(payload.get("precondition_certification_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 control-plane exception tree drift")
+    require(payload.get("precondition_other_mergeable_certification_prs") == 0, "G5 control-plane exception PR drift")
+    require(payload.get("temporarily_removed_required_checks") == ["security-audit"], "G5 control-plane exception required-check drift")
+    require(payload.get("restored_required_check") == {"context": "security-audit", "app_id": 15368}, "G5 control-plane exception restore app drift")
+    require(payload.get("allowed_candidate_head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 control-plane exception head ref drift")
+    require(payload.get("allowed_candidate_delta") == G5_CERTIFICATION_WIRING_ALLOWED_STATUSES, "G5 control-plane exception delta drift")
+    require(payload.get("preserve") == {
+        "strict": True,
+        "reviews": True,
+        "dismiss_stale_reviews": True,
+        "require_last_push_approval": True,
+        "admin_enforcement": True,
+        "allow_force_pushes": False,
+        "allow_deletions": False,
+        "restrictions": "PRESERVE_EXACT",
+    }, "G5 control-plane exception preserve drift")
+    require(payload.get("snapshot_before") == "FULL_BRANCH_PROTECTION_REQUIRED", "G5 control-plane exception before snapshot drift")
+    require(payload.get("snapshot_after") == "MUST_MATCH_SNAPSHOT_BEFORE_EXACTLY", "G5 control-plane exception restore snapshot drift")
+    require(payload.get("post_merge_required_check") == {"context": "security-audit", "conclusion": "PASS"}, "G5 control-plane exception post-merge check drift")
+    require(payload.get("abort_policy") == "ABORT_AND_RESTORE_ON_ANY_DRIFT", "G5 control-plane exception abort drift")
+
+
+def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    if base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE:
+        expected_tree = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
+        expected_statuses = G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+    else:
+        require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected G5 certification wiring base")
+        expected_tree = G5_CERTIFICATION_WIRING_BASE_TREE
+        expected_statuses = G5_CERTIFICATION_WIRING_ALLOWED_STATUSES
+    require_sha(repo, "G5 certification wiring base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == expected_tree, "G5 certification wiring base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 certification wiring push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G5 certification wiring merge tree drift")
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 certification wiring candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        expected_statuses,
+        G5_CERTIFICATION_WIRING_ALLOWED_MODES,
+    )
+    manifest_path = repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    workflow = (repo / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
+    for forbidden in G5_CERTIFICATION_WIRING_FORBIDDEN_MARKERS:
+        require(forbidden not in workflow, "G5 certification wiring workflow forbidden capability")
+    for required in (
+        G5_PR401_STATUS,
+        G5_PR401_CANDIDATE,
+        G5_PR401_MERGE,
+        G5_PR401_TREE,
+        G5_CERTIFICATION_WIRING_STATUS,
+        G5_CERTIFICATION_WIRING_E2_STOP,
+        G5_CERTIFICATION_WIRING_BASE,
+        G5_CERTIFICATION_WIRING_BASE_TREE,
+        G5_CERTIFICATION_WIRING_HEAD_REF,
+        "32035019827",
+        "95403467690",
+        "32035020120",
+        "95403550219",
+        "95403297024",
+        "95403296944",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "NOT_READY",
+    ):
+        require(required in manifest_text, "G5 certification wiring manifest evidence drift")
+    extensions = manifest.get("future_probe", {})
+    require(isinstance(extensions, dict), "G5 PR S future_probe extension drift")
+    pr401 = extensions.get("pr_401_reconciliation", {})
+    require(pr401.get("candidate_sha") == G5_PR401_CANDIDATE, "G5 PR S PR401 candidate drift")
+    require(pr401.get("base_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR S PR401 base drift")
+    require(pr401.get("merge_sha") == G5_PR401_MERGE, "G5 PR S PR401 merge drift")
+    require(pr401.get("tree_sha") == G5_PR401_TREE, "G5 PR S PR401 tree drift")
+    require(pr401.get("status") == G5_PR401_STATUS, "G5 PR S PR401 status drift")
+    require(pr401.get("security_run_id") == "32035019827", "G5 PR S PR401 security run drift")
+    require(pr401.get("security_attempt") == 1, "G5 PR S PR401 security attempt drift")
+    require(pr401.get("security_audit_job_id") == "95403467690", "G5 PR S PR401 security-audit drift")
+    require(pr401.get("f9_7_run_id") == "32035020120", "G5 PR S PR401 F9.7 run drift")
+    require(pr401.get("f9_7_attempt") == 1, "G5 PR S PR401 F9.7 attempt drift")
+    require(pr401.get("f9_7_job_id") == "95403550219", "G5 PR S PR401 F9.7 job drift")
+    require(pr401.get("focused_g5_job_id") == "95403297024", "G5 PR S PR401 focused drift")
+    require(pr401.get("m3_job_id") == "95403296944", "G5 PR S PR401 M3 drift")
+    promotion = manifest.get("definitive_promotion", manifest)
+    require(promotion.get("source_commit") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR S promotion source commit drift")
+    require(promotion.get("source_tree") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR S promotion source tree drift")
+    require(promotion.get("expected_files") == G5_DEFINITIVE_PROMOTION_FILES, "G5 PR S promotion files drift")
+    validate_g5_definitive_promotion_source(repo)
+    wiring = extensions.get("certification_wiring_bootstrap", {})
+    require(wiring.get("status") == G5_CERTIFICATION_WIRING_STATUS, "G5 certification wiring status drift")
+    require(wiring.get("certification_base") == G5_CERTIFICATION_WIRING_BASE, "G5 certification wiring base drift")
+    require(wiring.get("certification_base_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 certification wiring base tree drift")
+    require(wiring.get("head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 certification wiring head ref drift")
+    require(wiring.get("allowed_delta") == G5_CERTIFICATION_WIRING_ALLOWED_STATUSES, "G5 certification wiring delta drift")
+    require(wiring.get("allowed_modes") == G5_CERTIFICATION_WIRING_ALLOWED_MODES, "G5 certification wiring mode drift")
+    require(wiring.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 certification wiring commit drift")
+    require(wiring.get("authority") == "PROTECTED_BASE_ONLY_NOT_CANDIDATE_CODE", "G5 certification wiring authority drift")
+    require(wiring.get("reject") == ["forks", "renames", "paths_extra", "mode_drift", "base_drift", "tree_drift", "multiple_commits", "candidate_code_authority"], "G5 certification wiring rejection drift")
+    validate_g5_control_plane_exception_payload(extensions.get("control_plane_exception", {}))
+
+
 def detect_mode(
     event: str,
     base_ref: str,
@@ -6171,6 +6362,18 @@ def detect_mode(
         return "g5_default_branch_trusted_workflow_registration"
     if (
         base_ref == "desarrollo"
+        and base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+        and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF)
+    ):
+        return "g5_certification_wiring_bootstrap"
+    if (
+        base_ref == "certificacion"
+        and base == G5_CERTIFICATION_WIRING_BASE
+        and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_HEAD_REF)
+    ):
+        return "g5_certification_wiring_bootstrap"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -6342,6 +6545,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR O default-branch trusted workflow branch requires the frozen PR #398 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR S certification wiring branch requires the frozen PR #401 merge baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -6458,6 +6665,9 @@ def main() -> int:
             touched_g5_trusted_boundary_hardening = set(actual).intersection(
                 G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
             )
+            touched_g5_certification_wiring = set(actual).intersection(
+                G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+            )
             if touched_f1010_m3_public_acl_final_readiness:
                 touched_f1010_m3_public_acl_preflight = set()
             if touched_f1010_m3_public_acl_v2_evidence:
@@ -6500,6 +6710,7 @@ def main() -> int:
                         touched_g5_security_remediation,
                         touched_g5_trusted_boundary_bootstrap,
                         touched_g5_trusted_boundary_hardening,
+                        touched_g5_certification_wiring,
                     )
                 )
                 <= 1,
@@ -6696,6 +6907,17 @@ def main() -> int:
                     "partial or expanded G5 PR M2 delta is forbidden",
                 )
                 mode = "g5_trusted_boundary_hardening"
+            elif touched_g5_certification_wiring:
+                require(
+                    args.head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR S paths require the protected certification wiring branch",
+                )
+                require(
+                    actual == G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR S delta is forbidden",
+                )
+                mode = "g5_certification_wiring_bootstrap"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -6906,6 +7128,10 @@ def main() -> int:
             )
         elif mode == "g5_default_branch_trusted_workflow_registration":
             validate_g5_default_branch_trusted_workflow_registration(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_certification_wiring_bootstrap":
+            validate_g5_certification_wiring_bootstrap(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
