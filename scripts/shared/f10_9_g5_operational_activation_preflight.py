@@ -31,6 +31,7 @@ PR396_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 PR397_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR398_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED"
 PR399_STATUS = "MERGED_POST_MERGE_VERIFIED"
+PR400_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
 E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
 LEGACY_LINK_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
@@ -74,6 +75,7 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "pr_397_reconciliation",
         "pr_398_reconciliation",
         "pr_399_reconciliation",
+        "pr_400_reconciliation",
         "default_branch_trusted_workflow_registration",
         "trusted_boundary_pr_p_profile",
         "permanent_trusted_check_hardening",
@@ -321,6 +323,78 @@ EXPECTED_PR399_KEYS = frozenset(
         "focused_g5_conclusion",
         "m3_job_id",
         "m3_conclusion",
+    }
+)
+EXPECTED_PR400_KEYS = frozenset(
+    {
+        "candidate_sha",
+        "base_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "security_audit_job_id",
+        "security_audit_conclusion",
+        "focused_g5_job_id",
+        "focused_g5_conclusion",
+        "m3_job_id",
+        "m3_conclusion",
+        "f9_7_run_id",
+        "operational_g5_run_attempt_required",
+        "attempts",
+    }
+)
+EXPECTED_PR400_ATTEMPT_KEYS = frozenset(
+    {"attempt", "job_id", "conclusion", "classification", "scope", "cancelled_step"}
+)
+EXPECTED_PR400_RETRY_ATTEMPT_KEYS = frozenset(
+    {"attempt", "job_id", "conclusion", "classification", "scope"}
+)
+EXPECTED_PROMOTION_SCHEMA = "f10.9-g5-trusted-check-definitive-promotion.v1"
+EXPECTED_PROMOTION_SOURCE_COMMIT = "13a44fb7de6e8d754106b744f96e15c959c45685"
+EXPECTED_PROMOTION_SOURCE_TREE = "b126b5119224010372ea704b87459f98afff2c2a"
+EXPECTED_PROMOTION_FILES = MappingProxyType(
+    {
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": MappingProxyType(
+            {"mode": "100644", "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d"}
+        ),
+        "scripts/security/f109_trusted_boundary_bootstrap.py": MappingProxyType(
+            {"mode": "100644", "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b"}
+        ),
+        "tests/test_f109_trusted_boundary_bootstrap.py": MappingProxyType(
+            {"mode": "100644", "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1"}
+        ),
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": MappingProxyType(
+            {"mode": "100644", "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3"}
+        ),
+    }
+)
+EXPECTED_PROMOTION_KEYS = frozenset(
+    {
+        "schema",
+        "status",
+        "scope",
+        "source_branch",
+        "source_commit",
+        "source_tree",
+        "intermediate_branch",
+        "target_default_branch",
+        "promotion_path",
+        "files_to_promote",
+        "expected_files",
+        "drift_policy",
+        "required_check",
+        "future_probe",
+        "out_of_scope_safe",
+        "execution_guard",
+        "default_branch_change",
+        "branch_protection_change",
+        "workflow_dispatch",
+        "github_actions_api_enable",
+        "required_check_preservation",
+        "supersedes",
+        "forbidden_operations",
     }
 )
 EXPECTED_DEFAULT_BRANCH_REGISTRATION_KEYS = frozenset(
@@ -804,6 +878,7 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     _validate_pr397(manifest.get("pr_397_reconciliation"), errors)
     _validate_pr398(manifest.get("pr_398_reconciliation"), errors)
     _validate_pr399(manifest.get("pr_399_reconciliation"), errors)
+    _validate_pr400(manifest.get("pr_400_reconciliation"), errors)
     _validate_default_branch_registration(manifest.get("default_branch_trusted_workflow_registration"), errors)
     _validate_pr_p_profile(manifest.get("trusted_boundary_pr_p_profile"), errors)
     _validate_permanent_trusted_check_hardening(manifest.get("permanent_trusted_check_hardening"), errors)
@@ -863,6 +938,84 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
         reason_codes=(),
         checked_names=checked_names,
         checked_gates=checked_gates,
+    )
+
+
+def validate_definitive_promotion_manifest(promotion: Mapping[str, Any]) -> PreflightResult:
+    errors: list[str] = []
+    _validate_exact_keys(promotion, EXPECTED_PROMOTION_KEYS, "STOP_G5_E_PROMOTION_KEYS", errors)
+    _expect(promotion.get("schema") == EXPECTED_PROMOTION_SCHEMA, "STOP_G5_E_PROMOTION_SCHEMA", errors)
+    _expect(promotion.get("status") == "PREPARED_NOT_EXECUTED", "STOP_G5_E_PROMOTION_STATUS", errors)
+    _expect(
+        promotion.get("scope") == "SELECTIVE_TRUSTED_CHECK_REGISTRATION_AND_HARDENING_ONLY",
+        "STOP_G5_E_PROMOTION_SCOPE",
+        errors,
+    )
+    _expect(promotion.get("source_branch") == "desarrollo", "STOP_G5_E_PROMOTION_SOURCE_BRANCH", errors)
+    _expect(promotion.get("source_commit") == EXPECTED_PROMOTION_SOURCE_COMMIT, "STOP_G5_E_PROMOTION_SOURCE_COMMIT", errors)
+    _expect(promotion.get("source_tree") == EXPECTED_PROMOTION_SOURCE_TREE, "STOP_G5_E_PROMOTION_SOURCE_TREE", errors)
+    _expect(promotion.get("intermediate_branch") == "certificacion", "STOP_G5_E_PROMOTION_INTERMEDIATE", errors)
+    _expect(promotion.get("target_default_branch") == "main", "STOP_G5_E_PROMOTION_TARGET", errors)
+    _expect(promotion.get("promotion_path") == ["desarrollo", "certificacion", "main"], "STOP_G5_E_PROMOTION_PATH", errors)
+    expected_files = {path: dict(metadata) for path, metadata in EXPECTED_PROMOTION_FILES.items()}
+    _expect(promotion.get("files_to_promote") == list(expected_files), "STOP_G5_E_PROMOTION_FILES", errors)
+    _expect(promotion.get("expected_files") == expected_files, "STOP_G5_E_PROMOTION_FILE_DIGESTS", errors)
+    _expect(
+        promotion.get("drift_policy") == {
+            "source_commit": "FAIL_IF_NOT_EXACT",
+            "source_tree": "FAIL_IF_NOT_EXACT",
+            "paths": "FAIL_IF_ANY_PATH_DIFFERS",
+            "modes": "FAIL_IF_ANY_MODE_DIFFERS",
+            "blob_shas": "FAIL_IF_ANY_BLOB_DIFFERS",
+        },
+        "STOP_G5_E_PROMOTION_DRIFT_POLICY",
+        errors,
+    )
+    _expect(
+        promotion.get("required_check") == {
+            "context": "F10.9 Trusted Boundary v1",
+            "app_id": 15368,
+            "app_name": "GitHub Actions",
+        },
+        "STOP_G5_E_PROMOTION_REQUIRED_CHECK",
+        errors,
+    )
+    future_probe = promotion.get("future_probe")
+    _expect(
+        isinstance(future_probe, Mapping)
+        and future_probe.get("check_name") == "F10.9 Trusted Boundary v1"
+        and future_probe.get("candidate_workflows") == "FORBIDDEN"
+        and future_probe.get("candidate_trusted_validator_code") == "FORBIDDEN",
+        "STOP_G5_E_PROMOTION_FUTURE_PROBE",
+        errors,
+    )
+    for key in (
+        "execution_guard",
+        "default_branch_change",
+        "branch_protection_change",
+        "workflow_dispatch",
+        "github_actions_api_enable",
+    ):
+        expected = "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL" if key == "execution_guard" else "FORBIDDEN"
+        _expect(promotion.get(key) == expected, "STOP_G5_E_PROMOTION_FORBIDDEN", errors)
+    _expect(
+        promotion.get("required_check_preservation") == "PRESERVE_EXISTING_REQUIRED_CHECKS_NO_REMOTE_MUTATION",
+        "STOP_G5_E_PROMOTION_REQUIRED_PRESERVATION",
+        errors,
+    )
+    _expect(
+        promotion.get("supersedes") == ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
+        "STOP_G5_E_PROMOTION_SUPERSEDES",
+        errors,
+    )
+    if errors:
+        raise G5OperationalPreflightError(",".join(sorted(set(errors))))
+    return PreflightResult(
+        decision="PASS",
+        version=PREFLIGHT_VERSION,
+        reason_codes=(),
+        checked_names=(),
+        checked_gates=(),
     )
 
 
@@ -1242,6 +1395,58 @@ def _validate_pr399(value: Any, errors: list[str]) -> None:
     _expect(value.get("focused_g5_conclusion") == "PASS", "STOP_G5_E_PR399_FOCUSED", errors)
     _expect(value.get("m3_job_id") == "95294259769", "STOP_G5_E_PR399_M3", errors)
     _expect(value.get("m3_conclusion") == "PASS", "STOP_G5_E_PR399_M3", errors)
+
+
+def _validate_pr400(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR400_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR400_KEYS, "STOP_G5_E_PR400_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "1995120d98562763f3551f13f9af5db15c087c4c",
+        "base_sha": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+        "merge_sha": EXPECTED_PROMOTION_SOURCE_COMMIT,
+        "tree_sha": EXPECTED_PROMOTION_SOURCE_TREE,
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR400_SHA", errors)
+    _expect(value.get("status") == PR400_STATUS, "STOP_G5_E_PR400_STATUS", errors)
+    _expect(value.get("security_run_id") == "32025689377", "STOP_G5_E_PR400_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR400_SECURITY", errors)
+    _expect(value.get("security_audit_job_id") == "95374636974", "STOP_G5_E_PR400_SECURITY_AUDIT", errors)
+    _expect(value.get("security_audit_conclusion") == "PASS", "STOP_G5_E_PR400_SECURITY_AUDIT", errors)
+    _expect(value.get("focused_g5_job_id") == "95374505684", "STOP_G5_E_PR400_FOCUSED", errors)
+    _expect(value.get("focused_g5_conclusion") == "PASS", "STOP_G5_E_PR400_FOCUSED", errors)
+    _expect(value.get("m3_job_id") == "95374505556", "STOP_G5_E_PR400_M3", errors)
+    _expect(value.get("m3_conclusion") == "PASS", "STOP_G5_E_PR400_M3", errors)
+    _expect(value.get("f9_7_run_id") == "32025689461", "STOP_G5_E_PR400_F97", errors)
+    _expect(value.get("operational_g5_run_attempt_required") == 1, "STOP_G5_E_PR400_OPERATIONAL_ATTEMPT", errors)
+    attempts = value.get("attempts")
+    if not isinstance(attempts, list) or len(attempts) != 2:
+        errors.append("STOP_G5_E_PR400_ATTEMPTS")
+        return
+    first, retry = attempts
+    if not isinstance(first, Mapping) or not isinstance(retry, Mapping):
+        errors.append("STOP_G5_E_PR400_ATTEMPTS")
+        return
+    _validate_exact_keys(first, EXPECTED_PR400_ATTEMPT_KEYS, "STOP_G5_E_PR400_ATTEMPT_KEYS", errors)
+    _validate_exact_keys(retry, EXPECTED_PR400_RETRY_ATTEMPT_KEYS, "STOP_G5_E_PR400_RETRY_KEYS", errors)
+    _expect(first.get("attempt") == 1, "STOP_G5_E_PR400_ATTEMPT1", errors)
+    _expect(first.get("job_id") == "95374786287", "STOP_G5_E_PR400_ATTEMPT1", errors)
+    _expect(first.get("conclusion") == "CANCELLED", "STOP_G5_E_PR400_ATTEMPT1", errors)
+    _expect(
+        first.get("classification") == "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "STOP_G5_E_PR400_ATTEMPT1_CLASSIFICATION",
+        errors,
+    )
+    _expect(first.get("cancelled_step") == "Run local-only Python and PostgreSQL contracts", "STOP_G5_E_PR400_ATTEMPT1_STEP", errors)
+    _expect(first.get("scope") == "CI_ONLY", "STOP_G5_E_PR400_ATTEMPT1_SCOPE", errors)
+    _expect(retry.get("attempt") == 2, "STOP_G5_E_PR400_ATTEMPT2", errors)
+    _expect(retry.get("job_id") == "95380342703", "STOP_G5_E_PR400_ATTEMPT2", errors)
+    _expect(retry.get("conclusion") == "PASS", "STOP_G5_E_PR400_ATTEMPT2", errors)
+    _expect(retry.get("classification") == "CI_RETRY_PASS", "STOP_G5_E_PR400_ATTEMPT2", errors)
+    _expect(retry.get("scope") == "CI_ONLY", "STOP_G5_E_PR400_ATTEMPT2_SCOPE", errors)
 
 
 def _validate_default_branch_registration(value: Any, errors: list[str]) -> None:

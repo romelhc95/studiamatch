@@ -409,6 +409,46 @@ El STOP vigente pasa a `E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQ
 E2-E6 siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint,
 OIDC live, Production, Supabase, SQL, writers, schedules ni branch protection remota.
 
+## Reconciliacion PR #400 Y Retry CI PR R
+
+PR #400 queda `MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY`:
+
+```text
+candidate = 1995120d98562763f3551f13f9af5db15c087c4c
+base = ab5b0dffe8fe7d677c083e258e86f590d393b731
+merge = 13a44fb7de6e8d754106b744f96e15c959c45685
+tree = b126b5119224010372ea704b87459f98afff2c2a
+security = 32025689377=PASS
+security_audit_job = 95374636974=PASS
+focused_g5_job = 95374505684=PASS
+m3_job = 95374505556=PASS
+f9_7_run = 32025689461
+attempt_1_job = 95374786287=CANCELLED
+attempt_1_cancelled_step = Run local-only Python and PostgreSQL contracts
+attempt_1_classification = CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN
+attempt_2_job = 95380342703=PASS
+attempt_2_classification = CI_RETRY_PASS
+```
+
+El retry es exclusivamente CI. Aunque el run use `run_attempt=2`, el futuro gate
+operacional G5 conserva `run_attempt=1` obligatorio y no queda ejecutado.
+
+La promocion definitiva preparada y no ejecutada actualiza su fuente exacta a
+`source_commit=13a44fb7de6e8d754106b744f96e15c959c45685` y
+`source_tree=b126b5119224010372ea704b87459f98afff2c2a`. Tambien fija path,
+modo `100644` y blob SHA exacto para los cuatro archivos promovibles:
+
+```text
+.github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml 100644 40d979dd0af57f530e0999ac7736d61ec62b986d
+scripts/security/f109_trusted_boundary_bootstrap.py 100644 c814f6124e1d10ad85f455118e22caba6a35ea9b
+tests/test_f109_trusted_boundary_bootstrap.py 100644 5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1
+.context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md 100644 a1853df0c0e6187352869b26984e74576c564db3
+```
+
+Cualquier source commit, source tree, path, modo o blob distinto debe fallar
+cerrado antes de una promocion futura. PR R no modifica esos cuatro archivos y
+no ejecuta promocion a `certificacion` ni `main`.
+
 ## Policy Runtime Futura
 
 Los SHA/tree/blob dejan de ser autoridad hardcodeada final. La secuencia futura
