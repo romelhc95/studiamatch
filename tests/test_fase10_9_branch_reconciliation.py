@@ -242,6 +242,14 @@ from scripts.security.f109_boundary import (
     G5_LINK_HARDENING_CLOSURE_HEAD_REF,
     G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE,
     G5_LINK_HARDENING_CLOSURE_STATUS,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -329,6 +337,7 @@ from scripts.security.f109_boundary import (
     validate_g5_trusted_boundary_bootstrap,
     validate_g5_trusted_boundary_hardening,
     validate_g5_link_hardening_closure,
+    validate_g5_default_branch_trusted_workflow_registration,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -5349,6 +5358,71 @@ class F109BoundaryTest(unittest.TestCase):
             G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 81, 432)
+
+    def test_g5_default_branch_trusted_workflow_allowlist_matches_pr_o_profile(self) -> None:
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "85d7f647a37dc784fe16c11da0318956e255b698")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "91706dfcc3766fbf69b4fb8c893318786445a2a9")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF, "feat/f10-9-pr-o-default-branch-registration")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "d03ee28ce90abcbf8efd7c4b37de99b72717207e")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES, {
+            ".context/00_INDICE.md": "M",
+            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+            ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "A",
+            ".context/estado_del_proyecto.md": "M",
+            ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+            ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
+            ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "A",
+            ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+            ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
+            "scripts/security/f109_boundary.py": "M",
+            "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+            "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+            "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+            "tests/test_fase10_9_branch_reconciliation.py": "M",
+            "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+        })
+        self.assertEqual(set(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_default_branch_trusted_workflow_registration(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF,
+                G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
+            ),
+            "g5_default_branch_trusted_workflow_registration",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_default_branch_trusted_workflow_accepts_one_direct_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE
+        parents_mock.return_value = [G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_default_branch_trusted_workflow_registration(
+            repo, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, head, "pull_request"
+        )
+
+        delta_mock.assert_called_once_with(
+            repo, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, head,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 83, 433)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

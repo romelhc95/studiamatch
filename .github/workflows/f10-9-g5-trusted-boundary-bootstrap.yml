@@ -1,4 +1,4 @@
-name: F10.9 Trusted Boundary PR N v1
+name: F10.9 Trusted Boundary PR P v1
 
 on:
   pull_request_target:
@@ -11,6 +11,7 @@ on:
       - '.context/estado_del_proyecto.md'
       - '.context/operaciones/g5_operational_activation_manifest_2026_08_15.json'
       - '.context/operaciones/g5_operational_activation_runbook_2026_08_15.md'
+      - '.context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md'
       - '.context/operaciones/plan_remediacion_f10_9_fg2_fg3.md'
       - 'scripts/security/f109_boundary.py'
       - 'scripts/shared/f10_9_g5_operational_activation_preflight.py'
@@ -28,7 +29,7 @@ concurrency:
 
 jobs:
   trusted-boundary:
-    name: F10.9 Trusted Boundary PR N v1
+    name: F10.9 Trusted Boundary PR P v1
     runs-on: ubuntu-latest
     steps:
       - name: Checkout protected base only
@@ -73,7 +74,7 @@ jobs:
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
-          CHECK_NAME: F10.9 Trusted Boundary PR N v1
+          CHECK_NAME: F10.9 Trusted Boundary PR P v1
           GIT_CONFIG_GLOBAL: /dev/null
           GIT_CONFIG_NOSYSTEM: '1'
           GIT_TERMINAL_PROMPT: '0'

@@ -1,0 +1,47 @@
+{
+  "schema": "f10.9-g5-trusted-workflow-default-branch-promotion.v1",
+  "status": "PREPARED_NOT_EXECUTED",
+  "scope": "SELECTIVE_WORKFLOW_REGISTRATION_ONLY",
+  "source_branch": "desarrollo",
+  "intermediate_branch": "certificacion",
+  "target_default_branch": "main",
+  "promotion_path": ["desarrollo", "certificacion", "main"],
+  "files_to_promote": [
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+    "scripts/security/f109_trusted_boundary_bootstrap.py",
+    "tests/test_f109_trusted_boundary_bootstrap.py"
+  ],
+  "human_bootstrap": "REQUIRED_NOT_SELF_ATTESTED",
+  "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+  "default_branch_change": "FORBIDDEN",
+  "branch_protection_change": "FORBIDDEN",
+  "workflow_dispatch": "FORBIDDEN",
+  "github_actions_api_enable": "FORBIDDEN",
+  "required_check_preservation": "PRESERVE_EXISTING_REQUIRED_CHECKS_NO_REMOTE_MUTATION",
+  "future_probe": {
+    "branch": "feat/f10-9-pr-p-trusted-boundary-registration-probe",
+    "check_name": "F10.9 Trusted Boundary PR P v1",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "allowed_statuses": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"
+    },
+    "fork_policy": "REJECT",
+    "candidate_workflows": "FORBIDDEN",
+    "candidate_trusted_validator_code": "FORBIDDEN"
+  },
+  "forbidden_operations": [
+    "default_branch_change",
+    "branch_protection_mutation",
+    "actions_api_enable",
+    "github_app_configuration",
+    "cloudflare_configuration",
+    "endpoint_configuration",
+    "oidc_configuration",
+    "production_access",
+    "supabase_access",
+    "sql",
+    "writers",
+    "schedules",
+    "workflow_dispatch"
+  ]
+}

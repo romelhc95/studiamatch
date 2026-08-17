@@ -222,6 +222,12 @@ G5_LINK_HARDENING_CLOSURE_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
 G5_LINK_HARDENING_CLOSURE_STATUS = "CLOSED_BY_PR_N_TRUSTED_BOUNDARY"
 G5_LINK_HARDENING_CLOSURE_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
 G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE = "8adede3ed10605f3af36e905d8f11e7489815d8a"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "85d7f647a37dc784fe16c11da0318956e255b698"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "91706dfcc3766fbf69b4fb8c893318786445a2a9"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-o-default-branch-registration"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -851,6 +857,28 @@ G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES = {
 }
 G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES = {
     path: "100644" for path in G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES
+}
+
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
+    ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+}
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES = {
+    path: "100644" for path in G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES
 }
 
 F1010_M3_ALLOWED_STATUSES = {
@@ -4395,6 +4423,7 @@ def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: s
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
         },
         "G5 PR I E2 stop drift",
     )
@@ -4594,6 +4623,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
         },
         "G5 PR J E2 stop drift",
     )
@@ -5089,6 +5119,7 @@ def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, 
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
         },
         "G5 PR L E2 stop drift",
     )
@@ -5283,6 +5314,7 @@ def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, eve
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
             G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
         },
         "G5 PR M E2 stop drift",
     )
@@ -5442,7 +5474,7 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
     require(pr396.get("tree_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "G5 PR M2 PR396 tree drift")
     require(pr396.get("status") == G5_TRUSTED_BOUNDARY_HARDENING_STATUS, "G5 PR M2 PR396 status drift")
     require(
-        manifest.get("e2_stop") in {G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, G5_LINK_HARDENING_CLOSURE_E2_STOP},
+        manifest.get("e2_stop") in {G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, G5_LINK_HARDENING_CLOSURE_E2_STOP, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP},
         "G5 PR M2 E2 stop drift",
     )
     hardening = manifest.get("trusted_boundary_hardening", {})
@@ -5456,8 +5488,12 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
     require(all(check.get("app_id") == 15368 for check in checks), "G5 PR M2 payload app id drift")
     require(payload.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR M2 payload strict drift")
     require(payload.get("request_body", {}).get("enforce_admins") is True, "G5 PR M2 payload admin drift")
+    require(
+        "name: F10.9 Trusted Boundary PR N v1" in workflow
+        or "name: F10.9 Trusted Boundary PR P v1" in workflow,
+        "G5 PR M2 workflow check name drift",
+    )
     for required in (
-        "name: F10.9 Trusted Boundary PR N v1",
         "types: [opened, synchronize, reopened, ready_for_review, edited]",
         "persist-credentials: false",
         "submodules: false",
@@ -5613,7 +5649,10 @@ def validate_g5_link_hardening_closure(repo: Path, base: str, head: str, event: 
         link_closure.get("link_header_contract") == "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
         "G5 PR N Link contract drift",
     )
-    require(manifest.get("e2_stop") == G5_LINK_HARDENING_CLOSURE_E2_STOP, "G5 PR N E2 stop drift")
+    require(
+        manifest.get("e2_stop") in {G5_LINK_HARDENING_CLOSURE_E2_STOP, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP},
+        "G5 PR N E2 stop drift",
+    )
     branch_update = manifest.get("branch_protection_required_check_update", {})
     expected_container_keys = {
         "required_status_checks",
@@ -5697,6 +5736,104 @@ def validate_g5_link_hardening_closure(repo: Path, base: str, head: str, event: 
     ):
         require(forbidden not in manifest_text, "G5 PR N sensitive marker drift")
     validate_context_graph(repo, 81, 432)
+
+
+def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "unexpected G5 default-branch trusted workflow base")
+    require_sha(repo, "G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        "G5 default-branch trusted workflow base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 default-branch trusted workflow push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 default-branch trusted workflow merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 default-branch trusted workflow candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr25 = (repo / ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    promotion_text = (repo / ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    probe = (repo / ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md").read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    trusted_tests = (repo / "tests/test_f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    promotion = json.loads(promotion_text)
+    combined = "\n".join((state, task, index, adr25, runbook, manifest_text, promotion_text, probe, workflow, trusted_script, preflight_source, trusted_tests, preflight_tests))
+    for required in (
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
+        "31992887172=PASS",
+        "95279485661=PASS",
+        "31992887025=PASS",
+        "95279525942=PASS",
+        "95279414529=PASS",
+        "95279414473=PASS",
+        "trusted check=NOT_EXECUTED",
+        "default_branch=main",
+        "workflow_exists_in_desarrollo=true",
+        "workflow_exists_in_main=false",
+        "pull_request_target requires the workflow file on default branch",
+        "PR #398 no puede acreditarse retroactivamente como merge-gated",
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        "F10.9 Trusted Boundary PR P v1",
+        "PREPARED_NOT_EXECUTED",
+        "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR O default-branch trusted workflow evidence drift")
+    pr398 = manifest.get("pr_398_reconciliation", {})
+    require(pr398.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "G5 PR O PR398 candidate drift")
+    require(pr398.get("base_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR O PR398 base drift")
+    require(pr398.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR O PR398 merge drift")
+    require(pr398.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR O PR398 tree drift")
+    require(pr398.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR O PR398 status drift")
+    require(pr398.get("trusted_check") == "NOT_EXECUTED", "G5 PR O trusted check drift")
+    registration = manifest.get("default_branch_trusted_workflow_registration", {})
+    require(registration.get("default_branch") == "main", "G5 PR O default branch drift")
+    require(registration.get("workflow_exists_in_desarrollo") is True, "G5 PR O desarrollo workflow drift")
+    require(registration.get("workflow_exists_in_main") is False, "G5 PR O main workflow drift")
+    require(registration.get("stop") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "G5 PR O stop drift")
+    prp = manifest.get("trusted_boundary_pr_p_profile", {})
+    require(prp.get("check_name") == "F10.9 Trusted Boundary PR P v1", "G5 PR O PR P check drift")
+    require(prp.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 PR O PR P commit drift")
+    require(prp.get("allowed_statuses") == {".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"}, "G5 PR O PR P delta drift")
+    require(promotion.get("status") == "PREPARED_NOT_EXECUTED", "G5 PR O promotion status drift")
+    require(promotion.get("promotion_path") == ["desarrollo", "certificacion", "main"], "G5 PR O promotion path drift")
+    require(promotion.get("branch_protection_change") == "FORBIDDEN", "G5 PR O branch protection drift")
+    for forbidden in ("secrets.", "workflow_dispatch", "id-token", "deployments:", "supabase", "wrangler"):
+        require(forbidden not in workflow, "G5 PR O workflow forbidden capability")
+    validate_context_graph(repo, 83, 433)
 
 
 def detect_mode(
@@ -5937,6 +6074,12 @@ def detect_mode(
         return "g5_link_hardening_closure"
     if (
         base_ref == "desarrollo"
+        and base == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE
+        and (event == "push" or head_ref == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF)
+    ):
+        return "g5_default_branch_trusted_workflow_registration"
+    if (
+        base_ref == "desarrollo"
         and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
         and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
     ):
@@ -6103,6 +6246,10 @@ def main() -> int:
             if args.event == "pull_request" and args.head_ref == G5_LINK_HARDENING_CLOSURE_HEAD_REF:
                 raise BoundaryError(
                     "G5 PR N Link hardening closure branch requires the frozen PR #397 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR O default-branch trusted workflow branch requires the frozen PR #398 merge baseline"
                 )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
@@ -6664,6 +6811,10 @@ def main() -> int:
             )
         elif mode == "g5_link_hardening_closure":
             validate_g5_link_hardening_closure(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_default_branch_trusted_workflow_registration":
+            validate_g5_default_branch_trusted_workflow_registration(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

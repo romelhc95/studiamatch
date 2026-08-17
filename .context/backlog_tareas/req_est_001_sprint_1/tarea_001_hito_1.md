@@ -280,8 +280,22 @@ aprobaciones separadas; este documento no las concede.
        permanecen `NOT_EXECUTED` con
        `E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING`; no se configura
        GitHub App, Cloudflare, endpoint, OIDC live, Production, Supabase, SQL,
-       writers, schedules ni `workflow_dispatch`. `BK-F10.9-G5-ATOMIC-AUTHORITY`
-       sigue no ejecutable y cotizable.
+        writers, schedules ni `workflow_dispatch`. `BK-F10.9-G5-ATOMIC-AUTHORITY`
+        sigue no ejecutable y cotizable.
+       PR #398 queda
+       `MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED`
+       con candidate `d03ee28ce90abcbf8efd7c4b37de99b72717207e`, base
+       `9a5fcf539c69b635a41616e52716c0ee34837df4`, merge protegido
+       `85d7f647a37dc784fe16c11da0318956e255b698`, tree
+       `91706dfcc3766fbf69b4fb8c893318786445a2a9`; Security
+       `31992887172=PASS`, `security-audit` job `95279485661=PASS`, F9.7
+       `31992887025=PASS`, F9.7 job `95279525942=PASS`, focused G5
+       `95279414529=PASS`, M3 `95279414473=PASS`, trusted check=`NOT_EXECUTED`.
+       La causa raiz es default_branch=main con workflow ausente en `main`;
+       `pull_request_target` requiere archivo en la rama por defecto y PR #398 no
+       puede acreditarse retroactivamente como merge-gated. PR O solo prepara
+       bootstrap humano y promocion selectiva no ejecutada; E2 queda
+       `E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED`.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

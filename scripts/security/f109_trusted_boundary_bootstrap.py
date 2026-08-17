@@ -14,13 +14,17 @@ from typing import Any, Mapping
 
 PROTECTED_BASE_REF = "desarrollo"
 PR_N_TRUSTED_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
-TRUSTED_CHECK_NAME = PR_N_TRUSTED_CHECK_NAME
+PR_P_TRUSTED_CHECK_NAME = "F10.9 Trusted Boundary PR P v1"
+TRUSTED_CHECK_NAME = PR_P_TRUSTED_CHECK_NAME
 RETIRED_TRUSTED_CHECK_NAMES = {"F10.9 Trusted Boundary Bootstrap"}
 PR_N_LINK_HARDENING_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
+PR_P_REGISTRATION_PROBE_HEAD_REF = "feat/f10-9-pr-p-trusted-boundary-registration-probe"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ALLOWED_ACTIONS = {"opened", "synchronize", "reopened", "ready_for_review", "edited"}
 FORBIDDEN_PR_N_PATHS = {"scripts/security/f109_trusted_boundary_bootstrap.py"}
 FORBIDDEN_PR_N_PREFIXES = (".github/workflows/",)
+FORBIDDEN_CANDIDATE_VALIDATOR_PATHS = FORBIDDEN_PR_N_PATHS
+FORBIDDEN_CANDIDATE_WORKFLOW_PREFIXES = FORBIDDEN_PR_N_PREFIXES
 GIT_CONFIG_ARGS = (
     "-c",
     "core.hooksPath=/dev/null",
@@ -47,6 +51,13 @@ PR_N_LINK_HARDENING_ALLOWED_MODES = {
     path: "100644" for path in PR_N_LINK_HARDENING_ALLOWED_STATUSES
 }
 
+PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES = {
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M",
+}
+PR_P_REGISTRATION_PROBE_ALLOWED_MODES = {
+    path: "100644" for path in PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES
+}
+
 
 class TrustedBoundaryError(RuntimeError):
     pass
@@ -56,6 +67,7 @@ class TrustedBoundaryError(RuntimeError):
 class BoundaryProfile:
     name: str
     head_ref: str
+    check_name: str
     allowed_statuses: Mapping[str, str]
     allowed_modes: Mapping[str, str]
 
@@ -64,9 +76,17 @@ TRUSTED_PROFILES = {
     PR_N_LINK_HARDENING_HEAD_REF: BoundaryProfile(
         name="PR_N_LINK_HARDENING_CLOSURE",
         head_ref=PR_N_LINK_HARDENING_HEAD_REF,
+        check_name=PR_N_TRUSTED_CHECK_NAME,
         allowed_statuses=PR_N_LINK_HARDENING_ALLOWED_STATUSES,
         allowed_modes=PR_N_LINK_HARDENING_ALLOWED_MODES,
-    )
+    ),
+    PR_P_REGISTRATION_PROBE_HEAD_REF: BoundaryProfile(
+        name="PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE",
+        head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
+        check_name=PR_P_TRUSTED_CHECK_NAME,
+        allowed_statuses=PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES,
+        allowed_modes=PR_P_REGISTRATION_PROBE_ALLOWED_MODES,
+    ),
 }
 
 
@@ -145,10 +165,10 @@ def changed_statuses(repo: Path, base: str, head: str) -> dict[str, str]:
 
 def validate_no_forbidden_paths(paths: list[str] | tuple[str, ...]) -> None:
     for path in paths:
-        require(path not in FORBIDDEN_PR_N_PATHS, "trusted validator modification is forbidden")
+        require(path not in FORBIDDEN_CANDIDATE_VALIDATOR_PATHS, "trusted validator modification is forbidden")
         require(
-            not any(path.startswith(prefix) for prefix in FORBIDDEN_PR_N_PREFIXES),
-            "workflow modifications are forbidden for PR N",
+            not any(path.startswith(prefix) for prefix in FORBIDDEN_CANDIDATE_WORKFLOW_PREFIXES),
+            "workflow modifications are forbidden for trusted candidates",
         )
 
 
@@ -187,8 +207,7 @@ def validate_event_shape(
     protected_base_sha: str,
 ) -> BoundaryProfile:
     require(event_name == "pull_request_target", "trusted boundary must run only on pull_request_target")
-    require(check_name not in RETIRED_TRUSTED_CHECK_NAMES, "duplicate trusted boundary check name")
-    require(check_name == TRUSTED_CHECK_NAME, "trusted boundary check name drift")
+    require(check_name not in RETIRED_TRUSTED_CHECK_NAMES, "retired trusted boundary check name")
     validate_sha(base_sha, "base")
     validate_sha(head_sha, "head")
     validate_sha(protected_base_sha, "protected base")
@@ -215,6 +234,7 @@ def validate_event_shape(
 
     profile = TRUSTED_PROFILES.get(head_ref)
     require(profile is not None, "unexpected trusted boundary head ref")
+    require(check_name == profile.check_name, "trusted boundary check name drift")
     return profile
 
 

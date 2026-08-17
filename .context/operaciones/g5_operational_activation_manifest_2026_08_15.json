@@ -1,7 +1,7 @@
 {
   "schema": "f10.9-g5-operational-activation-manifest.v1",
   "mode": "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
-  "status": "PREPARED_NOT_CONFIGURED_LINK_HARDENING_CLOSED_REQUIRED_CHECK_APPROVAL_PENDING",
+  "status": "PREPARED_NOT_CONFIGURED_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED",
   "current_gate": "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
   "current_trust": "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
   "current_connected": "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
@@ -187,6 +187,71 @@
     "m3_job_id": "95256691760",
     "m3_conclusion": "PASS",
     "run_attempt": 1
+  },
+  "pr_398_reconciliation": {
+    "candidate_sha": "d03ee28ce90abcbf8efd7c4b37de99b72717207e",
+    "base_sha": "9a5fcf539c69b635a41616e52716c0ee34837df4",
+    "merge_sha": "85d7f647a37dc784fe16c11da0318956e255b698",
+    "tree_sha": "91706dfcc3766fbf69b4fb8c893318786445a2a9",
+    "status": "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED",
+    "security_run_id": "31992887172",
+    "security_conclusion": "PASS",
+    "security_run_attempt": 1,
+    "security_audit_job_id": "95279485661",
+    "security_audit_conclusion": "PASS",
+    "f9_7_run_id": "31992887025",
+    "f9_7_conclusion": "PASS",
+    "f9_7_run_attempt": 1,
+    "f9_7_job_id": "95279525942",
+    "f9_7_job_conclusion": "PASS",
+    "focused_g5_job_id": "95279414529",
+    "focused_g5_conclusion": "PASS",
+    "m3_job_id": "95279414473",
+    "m3_conclusion": "PASS",
+    "trusted_check": "NOT_EXECUTED",
+    "retroactive_merge_gate_attestation": "FORBIDDEN"
+  },
+  "default_branch_trusted_workflow_registration": {
+    "default_branch": "main",
+    "workflow_path": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+    "workflow_exists_in_desarrollo": true,
+    "workflow_exists_in_main": false,
+    "pull_request_target_requires_default_branch_file": true,
+    "edited_retry_api_enable_can_fix_absence": false,
+    "pr_398_retroactive_merge_gate_attestation_allowed": false,
+    "root_cause": "DEFAULT_BRANCH_TRUSTED_WORKFLOW_ABSENT",
+    "stop": "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
+  },
+  "trusted_boundary_pr_p_profile": {
+    "status": "PREPARED_HUMAN_BOOTSTRAP_NOT_SELF_ATTESTED",
+    "check_name": "F10.9 Trusted Boundary PR P v1",
+    "head_ref": "feat/f10-9-pr-p-trusted-boundary-registration-probe",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "allowed_statuses": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"
+    },
+    "forbidden_workflow_prefixes": [".github/workflows/"],
+    "forbidden_validator_paths": ["scripts/security/f109_trusted_boundary_bootstrap.py"],
+    "fork_policy": "REJECT",
+    "permissions": {"contents": "read"},
+    "persist_credentials": false,
+    "git_policy": "ISOLATED_CONFIG_HOOKS_DISABLED_FETCH_NO_SUBMODULES",
+    "secrets": "FORBIDDEN",
+    "candidate_execution": "FORBIDDEN",
+    "candidate_actions": "FORBIDDEN",
+    "candidate_tests": "FORBIDDEN",
+    "candidate_scripts": "FORBIDDEN"
+  },
+  "selective_promotion_manifest": {
+    "status": "PREPARED_NOT_EXECUTED",
+    "path": ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
+    "scope": "SELECTIVE_WORKFLOW_REGISTRATION_ONLY",
+    "promotion_path": ["desarrollo", "certificacion", "main"],
+    "execution_guard": "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+    "default_branch_change": "FORBIDDEN",
+    "branch_protection_change": "FORBIDDEN",
+    "workflow_dispatch": "FORBIDDEN",
+    "required_check_preservation": "PRESERVE_EXISTING_REQUIRED_CHECKS_NO_REMOTE_MUTATION"
   },
   "post_merge_security_findings": [
     {
@@ -474,7 +539,7 @@
     "secrets_count": 0,
     "endpoint_public": false
   },
-  "e2_stop": "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING",
+  "e2_stop": "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED",
   "github_runtime_shapes": {
     "workflow_run": {
       "source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
@@ -590,7 +655,7 @@
     "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
     "state": "DOCUMENTED_NOT_EXECUTED",
     "permission_added_now": false,
-    "stop": "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
+    "stop": "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
   },
   "superseded_sequence": "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
   "required_configuration_names": [
