@@ -19,7 +19,7 @@ from typing import Any, Mapping
 PREFLIGHT_VERSION = "f10.9-g5-operational-activation-preflight.v1"
 MANIFEST_SCHEMA = "f10.9-g5-operational-activation-manifest.v1"
 MANIFEST_MODE = "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES"
-EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
+EXPECTED_STATUS = "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 PR387_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
 PR390_STATUS = "MERGED_POST_MERGE_VERIFIED"
 PR391_STATUS = "MERGED_POST_MERGE_VERIFIED"
@@ -27,8 +27,9 @@ PR392_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
 PR393_STATUS = "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED"
 PR394_STATUS = "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
 PR395_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
+PR396_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 E1_STATUS = "E1_DEPLOYMENT_PASS"
-E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
+E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 CURRENT_GATE = "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED"
 CURRENT_TRUST = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"
 CURRENT_CONNECTED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"
@@ -64,12 +65,14 @@ EXPECTED_MANIFEST_KEYS = frozenset(
         "pr_393_reconciliation",
         "pr_394_reconciliation",
         "pr_395_reconciliation",
+        "pr_396_reconciliation",
         "post_merge_security_findings",
         "post_merge_pr393_residual_findings",
         "post_merge_pr394_followup_findings",
         "followup_security_remediation",
         "atomic_authority_backlog",
         "trusted_boundary_bootstrap",
+        "trusted_boundary_hardening",
         "link_hardening_closure",
         "e1_deployment_reconciliation",
         "e2_stop",
@@ -210,6 +213,24 @@ EXPECTED_PR395_KEYS = frozenset(
         "link_hardening_closure_deferred_to_pr_n",
     }
 )
+EXPECTED_PR396_KEYS = frozenset(
+    {
+        "candidate_sha",
+        "merge_sha",
+        "tree_sha",
+        "status",
+        "security_run_id",
+        "security_conclusion",
+        "f9_7_run_id",
+        "f9_7_conclusion",
+        "focused_job_id",
+        "focused_conclusion",
+        "f9_7_job_id",
+        "f9_7_job_conclusion",
+        "run_attempt",
+        "trusted_boundary_hardening_required",
+    }
+)
 EXPECTED_FINDING_KEYS = frozenset(
     {"id", "severity", "finding", "required_remediation", "status"}
 )
@@ -252,6 +273,25 @@ EXPECTED_TRUSTED_BOUNDARY_BOOTSTRAP_KEYS = frozenset(
         "actions_pinned_by_sha",
         "does_not_replace_pull_request_tests",
         "future_profile",
+    }
+)
+EXPECTED_TRUSTED_BOUNDARY_HARDENING_KEYS = frozenset(
+    {
+        "workflow",
+        "check_name",
+        "status",
+        "pull_request_target_types",
+        "pr_n_workflow_modifications",
+        "trusted_validator_modifications",
+        "oid_policy",
+        "git_policy",
+        "persist_credentials",
+        "candidate_execution",
+        "candidate_actions",
+        "candidate_tests",
+        "candidate_scripts",
+        "required_check_state",
+        "branch_protection_payload_path",
     }
 )
 EXPECTED_LINK_HARDENING_CLOSURE_KEYS = frozenset(
@@ -550,12 +590,14 @@ def validate_manifest(manifest: Mapping[str, Any]) -> PreflightResult:
     _validate_pr393(manifest.get("pr_393_reconciliation"), errors)
     _validate_pr394(manifest.get("pr_394_reconciliation"), errors)
     _validate_pr395(manifest.get("pr_395_reconciliation"), errors)
+    _validate_pr396(manifest.get("pr_396_reconciliation"), errors)
     _validate_findings(manifest.get("post_merge_security_findings"), errors)
     _validate_residual_findings(manifest.get("post_merge_pr393_residual_findings"), errors)
     _validate_followup_findings(manifest.get("post_merge_pr394_followup_findings"), errors)
     _validate_followup_remediation(manifest.get("followup_security_remediation"), errors)
     _validate_atomic_backlog(manifest.get("atomic_authority_backlog"), errors)
     _validate_trusted_boundary_bootstrap(manifest.get("trusted_boundary_bootstrap"), errors)
+    _validate_trusted_boundary_hardening(manifest.get("trusted_boundary_hardening"), errors)
     _validate_link_hardening_closure(manifest.get("link_hardening_closure"), errors)
     _validate_e1(manifest.get("e1_deployment_reconciliation"), errors)
     _expect(manifest.get("e2_stop") == E2_STOP, "STOP_G5_E_E2_STOP", errors)
@@ -844,6 +886,32 @@ def _validate_pr395(value: Any, errors: list[str]) -> None:
     _expect(value.get("link_hardening_closure_deferred_to_pr_n") is True, "STOP_G5_E_PR395_LINK_DEFERRED", errors)
 
 
+def _validate_pr396(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_PR396_EVIDENCE")
+        return
+    _validate_exact_keys(value, EXPECTED_PR396_KEYS, "STOP_G5_E_PR396_KEYS", errors)
+    expected_shas = {
+        "candidate_sha": "063fb88b3b3dabda78ea641f46da69af09058ab7",
+        "merge_sha": "0ec3da6c77b7819a38adcd2f38cd81699adc9283",
+        "tree_sha": "ecbe760d50f06d0edce0f36ef84fabacb0a4037c",
+    }
+    for key, expected in expected_shas.items():
+        current = value.get(key)
+        _expect(current == expected and bool(_SHA_RE.fullmatch(str(current))), "STOP_G5_E_PR396_SHA", errors)
+    _expect(value.get("status") == PR396_STATUS, "STOP_G5_E_PR396_STATUS", errors)
+    _expect(value.get("security_run_id") == "31979524771", "STOP_G5_E_PR396_SECURITY", errors)
+    _expect(value.get("security_conclusion") == "PASS", "STOP_G5_E_PR396_SECURITY", errors)
+    _expect(value.get("f9_7_run_id") == "31979524732", "STOP_G5_E_PR396_F97", errors)
+    _expect(value.get("f9_7_conclusion") == "PASS", "STOP_G5_E_PR396_F97", errors)
+    _expect(value.get("focused_job_id") == "95243979388", "STOP_G5_E_PR396_FOCUSED", errors)
+    _expect(value.get("focused_conclusion") == "PASS", "STOP_G5_E_PR396_FOCUSED", errors)
+    _expect(value.get("f9_7_job_id") == "95244079936", "STOP_G5_E_PR396_F97_JOB", errors)
+    _expect(value.get("f9_7_job_conclusion") == "PASS", "STOP_G5_E_PR396_F97_JOB", errors)
+    _expect(value.get("run_attempt") == 1, "STOP_G5_E_PR396_ATTEMPT", errors)
+    _expect(value.get("trusted_boundary_hardening_required") is True, "STOP_G5_E_PR396_HARDENING", errors)
+
+
 def _validate_findings(value: Any, errors: list[str]) -> None:
     if not isinstance(value, list) or len(value) != 6:
         errors.append("STOP_G5_E_SECURITY_FINDINGS")
@@ -952,6 +1020,43 @@ def _validate_trusted_boundary_bootstrap(value: Any, errors: list[str]) -> None:
     _expect(value.get("actions_pinned_by_sha") is True, "STOP_G5_E_TRUSTED_BOUNDARY_PIN", errors)
     _expect(value.get("does_not_replace_pull_request_tests") is True, "STOP_G5_E_TRUSTED_BOUNDARY_REPLACEMENT", errors)
     _expect(value.get("future_profile") == "PR_N_LINK_HARDENING_CLOSURE_ONLY", "STOP_G5_E_TRUSTED_BOUNDARY_PROFILE", errors)
+
+
+def _validate_trusted_boundary_hardening(value: Any, errors: list[str]) -> None:
+    if not isinstance(value, Mapping):
+        errors.append("STOP_G5_E_TRUSTED_BOUNDARY_HARDENING")
+        return
+    _validate_exact_keys(
+        value,
+        EXPECTED_TRUSTED_BOUNDARY_HARDENING_KEYS,
+        "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_KEYS",
+        errors,
+    )
+    _expect(value.get("workflow") == ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_WORKFLOW", errors)
+    _expect(value.get("check_name") == "F10.9 Trusted Boundary PR N v1", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_CHECK", errors)
+    _expect(value.get("status") == "REPOSITORY_ONLY_HARDENED_NOT_REQUIRED_CHECK", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_STATUS", errors)
+    _expect(
+        value.get("pull_request_target_types") == ["opened", "synchronize", "reopened", "ready_for_review", "edited"],
+        "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_EVENTS",
+        errors,
+    )
+    _expect(value.get("pr_n_workflow_modifications") == "FORBIDDEN", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_WORKFLOWS", errors)
+    _expect(value.get("trusted_validator_modifications") == "FORBIDDEN", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_VALIDATOR", errors)
+    _expect(value.get("oid_policy") == "LOWERCASE_HEX_SHA_40_BEFORE_GIT", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_OID", errors)
+    _expect(value.get("git_policy") == "ISOLATED_CONFIG_HOOKS_DISABLED_FETCH_NO_SUBMODULES", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_GIT", errors)
+    _expect(value.get("persist_credentials") is False, "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_CREDENTIALS", errors)
+    for key in ("candidate_execution", "candidate_actions", "candidate_tests", "candidate_scripts"):
+        _expect(value.get(key) == "FORBIDDEN", "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_CANDIDATE", errors)
+    _expect(
+        value.get("required_check_state") == "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_REQUIRED_CHECK",
+        errors,
+    )
+    _expect(
+        value.get("branch_protection_payload_path") == ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json",
+        "STOP_G5_E_TRUSTED_BOUNDARY_HARDENING_PAYLOAD",
+        errors,
+    )
 
 
 def _validate_link_hardening_closure(value: Any, errors: list[str]) -> None:

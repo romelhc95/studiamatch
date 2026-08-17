@@ -225,6 +225,15 @@ from scripts.security.f109_boundary import (
     G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF,
     G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE,
     G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS,
+    G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES,
+    G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+    G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+    G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE,
+    G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+    G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF,
+    G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE,
+    G5_TRUSTED_BOUNDARY_HARDENING_STATUS,
+    G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -310,6 +319,7 @@ from scripts.security.f109_boundary import (
     validate_g5_residual_security_remediation,
     validate_g5_followup_security_remediation,
     validate_g5_trusted_boundary_bootstrap,
+    validate_g5_trusted_boundary_hardening,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -5189,6 +5199,80 @@ class F109BoundaryTest(unittest.TestCase):
             G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES,
         )
         context_mock.assert_called_once_with(repo, 80, 431)
+
+    def test_g5_trusted_boundary_hardening_allowlist_is_minimal_pr_m2_paths(self) -> None:
+        self.assertEqual(
+            G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+            {
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                ".context/estado_del_proyecto.md": "M",
+                ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+                ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+                ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json": "A",
+                ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+                ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+                "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+                "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+                "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+            },
+        )
+        self.assertEqual(set(G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_trusted_boundary_hardening(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF,
+                G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+            ),
+            "g5_trusted_boundary_hardening",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.is_ancestor")
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_trusted_boundary_hardening_accepts_one_direct_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock, ancestor_mock,
+    ) -> None:
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_BASE, "0ec3da6c77b7819a38adcd2f38cd81699adc9283")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "ecbe760d50f06d0edce0f36ef84fabacb0a4037c")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF, "feat/f10-9-pr-m2-trusted-boundary-hardening")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_STATUS, "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE, "063fb88b3b3dabda78ea641f46da69af09058ab7")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED")
+        self.assertEqual(G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "F10.9 Trusted Boundary PR N v1")
+        head = "a" * 40
+        tree_mock.return_value = G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE
+        parents_mock.return_value = [G5_TRUSTED_BOUNDARY_HARDENING_BASE]
+        ancestor_mock.return_value = True
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_trusted_boundary_hardening(repo, G5_TRUSTED_BOUNDARY_HARDENING_BASE, head, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            repo, G5_TRUSTED_BOUNDARY_HARDENING_BASE, head,
+            G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+            G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 80, 431)
+        ancestor_mock.assert_called_once_with(repo, G5_TRUSTED_BOUNDARY_HARDENING_BASE, head)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:

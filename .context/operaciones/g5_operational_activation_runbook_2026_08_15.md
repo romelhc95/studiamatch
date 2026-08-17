@@ -2,15 +2,15 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED` |
+| Estado | `PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_HARDENING_REQUIRED` |
 | Subfase | `F10.9` |
-| Alcance | PR M repository-only posterior a PR #395 |
+| Alcance | PR M2 repository-only posterior a PR #396 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
 | Trust actual | `STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED` |
 | Connected actual | `IMPLEMENTED_DISABLED_NOT_CONFIGURED` |
-| Operacion remota en PR M | `NO` |
+| Operacion remota en PR M2 | `NO` |
 
 ## Proposito
 
@@ -235,6 +235,44 @@ el check protegido posterior al merge de PR M.
 El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED`. E2-E6 siguen
 `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
 Production, Supabase, SQL, writers ni schedules.
+
+## Reconciliacion PR #396 Y Hardening PR M2
+
+PR #396 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED`:
+
+```text
+candidate = 063fb88b3b3dabda78ea641f46da69af09058ab7
+merge = 0ec3da6c77b7819a38adcd2f38cd81699adc9283
+tree = ecbe760d50f06d0edce0f36ef84fabacb0a4037c
+security = 31979524771=PASS
+f9_7_run = 31979524732=PASS
+focused_g5_job = 95243979388=PASS
+f9_7_job = 95244079936=PASS
+run_attempt=1
+```
+
+PR M2 endurece solo la raiz trusted-boundary ya fusionada:
+
+- check versionado y exclusivo para PR N: `F10.9 Trusted Boundary PR N v1`;
+- `pull_request_target` incluye `edited` para cubrir retargets o cambios de metadata;
+- PR N no puede modificar `.github/workflows/**` ni el trusted validator
+  `scripts/security/f109_trusted_boundary_bootstrap.py`;
+- los OIDs se validan como SHA hex exactos antes de cualquier comando Git;
+- Git usa config aislada, hooks deshabilitados y fetch `--no-recurse-submodules`;
+- `persist-credentials=false` permanece obligatorio;
+- el workflow ejecuta codigo del base protegido solamente y no ejecuta codigo,
+  scripts, actions ni tests del candidate.
+
+El check `F10.9 Trusted Boundary PR N v1` queda
+`NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL`. Convertirlo en required check
+necesita una aprobacion remota separada posterior a PR M2. El payload sanitizado
+preparado para esa accion es
+`g5_trusted_required_check_payload_sanitized_2026_08_16.json`; no se ejecuto y debe
+detenerse ante drift de branch protection.
+
+El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED`. E2-E6 siguen
+`NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint, OIDC live,
+Production, Supabase, SQL, writers, schedules ni branch protection remota.
 
 ## Policy Runtime Futura
 

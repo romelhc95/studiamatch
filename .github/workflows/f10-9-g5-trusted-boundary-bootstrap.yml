@@ -1,9 +1,9 @@
-name: F10.9 Trusted Boundary Bootstrap
+name: F10.9 Trusted Boundary PR N v1
 
 on:
   pull_request_target:
     branches: [desarrollo]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     paths:
       - '.context/00_INDICE.md'
       - '.context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md'
@@ -12,12 +12,8 @@ on:
       - '.context/operaciones/g5_operational_activation_manifest_2026_08_15.json'
       - '.context/operaciones/g5_operational_activation_runbook_2026_08_15.md'
       - '.context/operaciones/plan_remediacion_f10_9_fg2_fg3.md'
-      - '.github/workflows/f9-7-contract.yml'
-      - '.github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml'
       - 'scripts/security/f109_boundary.py'
-      - 'scripts/security/f109_trusted_boundary_bootstrap.py'
       - 'scripts/shared/f10_9_g5_operational_activation_preflight.py'
-      - 'tests/test_f109_trusted_boundary_bootstrap.py'
       - 'tests/test_fase10_9_branch_reconciliation.py'
       - 'tests/test_fase10_9_g5_operational_activation_preflight.py'
       - 'workers/g5-trust-broker/src/index.mjs'
@@ -32,7 +28,7 @@ concurrency:
 
 jobs:
   trusted-boundary:
-    name: F10.9 Trusted Boundary Bootstrap
+    name: F10.9 Trusted Boundary PR N v1
     runs-on: ubuntu-latest
     steps:
       - name: Checkout protected base only
@@ -41,20 +37,32 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
+          submodules: false
       - name: Ensure candidate object is available as untrusted data
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: '1'
+          GIT_TERMINAL_PROMPT: '0'
         run: |
           set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$BASE_REPO" = "$REPOSITORY"
           test "$HEAD_REPO" = "$REPOSITORY"
-          git cat-file -e "$BASE_SHA^{commit}"
-          git cat-file -e "$HEAD_SHA^{commit}" || git fetch --no-tags --depth=2 origin "+$HEAD_SHA:refs/f10-9-g5-trusted-boundary/candidate"
-          git cat-file -e "$HEAD_SHA^{commit}"
+          git -c core.hooksPath=/dev/null -c protocol.file.allow=never fetch --no-tags --depth=1 --no-recurse-submodules origin "+refs/heads/$BASE_REF:refs/f10-9-g5-trusted-boundary/protected-base"
+          PROTECTED_BASE_SHA="$(git -c core.hooksPath=/dev/null -c protocol.file.allow=never rev-parse refs/f10-9-g5-trusted-boundary/protected-base)"
+          [[ "$PROTECTED_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$PROTECTED_BASE_SHA" = "$BASE_SHA"
+          git -c core.hooksPath=/dev/null -c protocol.file.allow=never cat-file -e "$BASE_SHA^{commit}"
+          git -c core.hooksPath=/dev/null -c protocol.file.allow=never cat-file -e "$HEAD_SHA^{commit}" || git -c core.hooksPath=/dev/null -c protocol.file.allow=never fetch --no-tags --depth=2 --no-recurse-submodules origin "+$HEAD_SHA:refs/f10-9-g5-trusted-boundary/candidate"
+          git -c core.hooksPath=/dev/null -c protocol.file.allow=never cat-file -e "$HEAD_SHA^{commit}"
+          echo "PROTECTED_BASE_SHA=$PROTECTED_BASE_SHA" >> "$GITHUB_ENV"
       - name: Validate candidate git objects without executing candidate code
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -65,7 +73,10 @@ jobs:
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
-          CHECK_NAME: F10.9 Trusted Boundary Bootstrap
+          CHECK_NAME: F10.9 Trusted Boundary PR N v1
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: '1'
+          GIT_TERMINAL_PROMPT: '0'
         run: |
           set -euo pipefail
           python3 scripts/security/f109_trusted_boundary_bootstrap.py \
@@ -79,4 +90,5 @@ jobs:
             --base-repo "$BASE_REPO" \
             --head-repo "$HEAD_REPO" \
             --repository "$REPOSITORY" \
-            --check-name "$CHECK_NAME"
+            --check-name "$CHECK_NAME" \
+            --protected-base-sha "$PROTECTED_BASE_SHA"
