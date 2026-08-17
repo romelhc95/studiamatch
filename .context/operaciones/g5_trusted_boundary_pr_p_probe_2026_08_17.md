@@ -9,6 +9,7 @@ modificaciones a `.github/workflows/**`, modificaciones a
 `scripts/security/f109_trusted_boundary_bootstrap.py`, multiples commits,
 renames, mode drift y cualquier path adicional.
 
-El check esperado para ese futuro PR es `F10.9 Trusted Boundary PR P v1`. PR O no
-puede autoatestiguarse porque es el bootstrap humano que registra el workflow en
-la rama por defecto mediante promocion selectiva posterior y no ejecutada aqui.
+El check esperado para ese futuro PR es `F10.9 Trusted Boundary v1`. PR O no pudo
+autoatestiguarse porque fue el bootstrap humano que registra el workflow en la
+rama por defecto; PR Q conserva este perfil exacto y endurece el check permanente
+antes de la promocion selectiva posterior, preparada y no ejecutada aqui.

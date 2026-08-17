@@ -216,18 +216,20 @@ G5_TRUSTED_BOUNDARY_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUND
 G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE = "063fb88b3b3dabda78ea641f46da69af09058ab7"
 G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
 G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
+G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME = "F10.9 Trusted Boundary v1"
 G5_LINK_HARDENING_CLOSURE_BASE = "9a5fcf539c69b635a41616e52716c0ee34837df4"
 G5_LINK_HARDENING_CLOSURE_BASE_TREE = "b33228a031312062b165f8f612d27eacee2fea00"
 G5_LINK_HARDENING_CLOSURE_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
 G5_LINK_HARDENING_CLOSURE_STATUS = "CLOSED_BY_PR_N_TRUSTED_BOUNDARY"
 G5_LINK_HARDENING_CLOSURE_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
 G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE = "8adede3ed10605f3af36e905d8f11e7489815d8a"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "85d7f647a37dc784fe16c11da0318956e255b698"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "91706dfcc3766fbf69b4fb8c893318786445a2a9"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-o-default-branch-registration"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "ab5b0dffe8fe7d677c083e258e86f590d393b731"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "fb0b0166b67a58cab14dd0c20e89f034a8adab6e"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-q-trusted-check-hardening"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE = "2e7422e9f67e91ee6b02b4b44fccc060248c13a3"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -860,14 +862,14 @@ G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES = {
 }
 
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES = {
-    ".context/00_INDICE.md": "M",
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-    ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "A",
+    ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "M",
     ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
     ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
     ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
-    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
-    ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "A",
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M",
+    ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "M",
     ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
     "scripts/security/f109_boundary.py": "M",
@@ -5490,7 +5492,8 @@ def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, eve
     require(payload.get("request_body", {}).get("enforce_admins") is True, "G5 PR M2 payload admin drift")
     require(
         "name: F10.9 Trusted Boundary PR N v1" in workflow
-        or "name: F10.9 Trusted Boundary PR P v1" in workflow,
+        or "name: F10.9 Trusted Boundary PR P v1" in workflow
+        or "name: F10.9 Trusted Boundary v1" in workflow,
         "G5 PR M2 workflow check name drift",
     )
     for required in (
@@ -5673,10 +5676,17 @@ def validate_g5_link_hardening_closure(repo: Path, base: str, head: str, event: 
         require(set(container.get("required_status_checks", {})) == expected_status_check_keys, "G5 PR N status check key drift")
     checks = branch_update.get("request_body", {}).get("required_status_checks", {}).get("checks", [])
     require(
-        checks == [
-            {"context": "security-audit", "app_id": 15368},
-            {"context": G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "app_id": 15368},
-        ],
+        checks
+        in (
+            [
+                {"context": "security-audit", "app_id": 15368},
+                {"context": G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "app_id": 15368},
+            ],
+            [
+                {"context": "security-audit", "app_id": 15368},
+                {"context": G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "app_id": 15368},
+            ],
+        ),
         "G5 PR N payload checks drift",
     )
     require(branch_update.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR N payload strict drift")
@@ -5771,12 +5781,15 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     )
     state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
     task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
-    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    index_path = repo / ".context/00_INDICE.md"
+    index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
     adr25 = (repo / ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md").read_text(encoding="utf-8")
     runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
     manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
-    promotion_text = (repo / ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
-    probe = (repo / ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md").read_text(encoding="utf-8")
+    superseded_promotion_text = (repo / ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    promotion_text = (repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    probe_path = repo / ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md"
+    probe = probe_path.read_text(encoding="utf-8") if probe_path.exists() else ""
     workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
     trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
     preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
@@ -5784,26 +5797,26 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
     manifest = json.loads(manifest_text)
     promotion = json.loads(promotion_text)
-    combined = "\n".join((state, task, index, adr25, runbook, manifest_text, promotion_text, probe, workflow, trusted_script, preflight_source, trusted_tests, preflight_tests))
+    superseded_promotion = json.loads(superseded_promotion_text)
+    combined = "\n".join((state, task, index, adr25, runbook, manifest_text, promotion_text, superseded_promotion_text, probe, workflow, trusted_script, preflight_source, trusted_tests, preflight_tests))
     for required in (
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
-        "31992887172=PASS",
-        "95279485661=PASS",
-        "31992887025=PASS",
-        "95279525942=PASS",
-        "95279414529=PASS",
-        "95279414473=PASS",
-        "trusted check=NOT_EXECUTED",
+        "31998458176",
+        "95294350579",
+        "31998458172",
+        "95294383627",
+        "95294259790",
+        "95294259769",
         "default_branch=main",
-        "workflow_exists_in_desarrollo=true",
-        "workflow_exists_in_main=false",
         "pull_request_target requires the workflow file on default branch",
-        "PR #398 no puede acreditarse retroactivamente como merge-gated",
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
-        "F10.9 Trusted Boundary PR P v1",
+        G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME,
+        "OUT_OF_SCOPE_SAFE",
+        "SUPERSEDED_NOT_EXECUTABLE",
         "PREPARED_NOT_EXECUTED",
         "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
         "BK-F10.9-G5-ATOMIC-AUTHORITY",
@@ -5811,23 +5824,36 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
         "F10.9 `38%`",
         "G5 `50%`",
     ):
-        require(required in combined, "G5 PR O default-branch trusted workflow evidence drift")
+        require(required in combined, "G5 PR Q trusted check hardening evidence drift")
     pr398 = manifest.get("pr_398_reconciliation", {})
     require(pr398.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "G5 PR O PR398 candidate drift")
     require(pr398.get("base_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR O PR398 base drift")
-    require(pr398.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR O PR398 merge drift")
-    require(pr398.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR O PR398 tree drift")
-    require(pr398.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR O PR398 status drift")
+    require(pr398.get("merge_sha") == "85d7f647a37dc784fe16c11da0318956e255b698", "G5 PR O PR398 merge drift")
+    require(pr398.get("tree_sha") == "91706dfcc3766fbf69b4fb8c893318786445a2a9", "G5 PR O PR398 tree drift")
+    require(pr398.get("status") == "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED", "G5 PR O PR398 status drift")
     require(pr398.get("trusted_check") == "NOT_EXECUTED", "G5 PR O trusted check drift")
+    pr399 = manifest.get("pr_399_reconciliation", {})
+    require(pr399.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE, "G5 PR Q PR399 candidate drift")
+    require(pr399.get("base_sha") == "85d7f647a37dc784fe16c11da0318956e255b698", "G5 PR Q PR399 base drift")
+    require(pr399.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR Q PR399 merge drift")
+    require(pr399.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR Q PR399 tree drift")
+    require(pr399.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR Q PR399 status drift")
+    require(pr399.get("security_audit_job_id") == "95294350579", "G5 PR Q PR399 security-audit drift")
     registration = manifest.get("default_branch_trusted_workflow_registration", {})
     require(registration.get("default_branch") == "main", "G5 PR O default branch drift")
     require(registration.get("workflow_exists_in_desarrollo") is True, "G5 PR O desarrollo workflow drift")
     require(registration.get("workflow_exists_in_main") is False, "G5 PR O main workflow drift")
     require(registration.get("stop") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "G5 PR O stop drift")
     prp = manifest.get("trusted_boundary_pr_p_profile", {})
-    require(prp.get("check_name") == "F10.9 Trusted Boundary PR P v1", "G5 PR O PR P check drift")
+    require(prp.get("check_name") == G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR Q PR P check drift")
     require(prp.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 PR O PR P commit drift")
     require(prp.get("allowed_statuses") == {".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"}, "G5 PR O PR P delta drift")
+    hardening = manifest.get("permanent_trusted_check_hardening", {})
+    require(hardening.get("stable_check_name") == G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR Q stable check drift")
+    require(hardening.get("path_filters") == "NONE_ALWAYS_REPORT_STATUS", "G5 PR Q path filter drift")
+    require(hardening.get("out_of_scope_classification") == "OUT_OF_SCOPE_SAFE", "G5 PR Q out-of-scope drift")
+    require(hardening.get("github_actions_app_provenance") == {"name": "GitHub Actions", "app_id": 15368}, "G5 PR Q app provenance drift")
+    require(superseded_promotion.get("status") == "SUPERSEDED_NOT_EXECUTABLE", "G5 PR Q superseded promotion drift")
     require(promotion.get("status") == "PREPARED_NOT_EXECUTED", "G5 PR O promotion status drift")
     require(promotion.get("promotion_path") == ["desarrollo", "certificacion", "main"], "G5 PR O promotion path drift")
     require(promotion.get("branch_protection_change") == "FORBIDDEN", "G5 PR O branch protection drift")

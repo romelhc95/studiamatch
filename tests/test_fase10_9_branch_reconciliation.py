@@ -249,6 +249,7 @@ from scripts.security.f109_boundary import (
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
@@ -5359,22 +5360,23 @@ class F109BoundaryTest(unittest.TestCase):
         )
         context_mock.assert_called_once_with(repo, 81, 432)
 
-    def test_g5_default_branch_trusted_workflow_allowlist_matches_pr_o_profile(self) -> None:
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "85d7f647a37dc784fe16c11da0318956e255b698")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "91706dfcc3766fbf69b4fb8c893318786445a2a9")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF, "feat/f10-9-pr-o-default-branch-registration")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED")
+    def test_g5_default_branch_trusted_workflow_allowlist_matches_pr_q_profile(self) -> None:
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "ab5b0dffe8fe7d677c083e258e86f590d393b731")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "fb0b0166b67a58cab14dd0c20e89f034a8adab6e")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF, "feat/f10-9-pr-q-trusted-check-hardening")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "MERGED_POST_MERGE_VERIFIED")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "d03ee28ce90abcbf8efd7c4b37de99b72717207e")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE, "2e7422e9f67e91ee6b02b4b44fccc060248c13a3")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES, {
-            ".context/00_INDICE.md": "M",
             ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-            ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "A",
+            ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "M",
             ".context/estado_del_proyecto.md": "M",
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
             ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
             ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
-            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
-            ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "A",
+            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M",
+            ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "M",
             ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
             ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
             "scripts/security/f109_boundary.py": "M",
