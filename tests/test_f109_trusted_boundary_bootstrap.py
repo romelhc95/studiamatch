@@ -11,7 +11,12 @@ from scripts.security.f109_trusted_boundary_bootstrap import (
     FORBIDDEN_PR_N_PREFIXES,
     PR_N_LINK_HARDENING_ALLOWED_STATUSES,
     PR_N_LINK_HARDENING_HEAD_REF,
+    PR_N_TRUSTED_CHECK_NAME,
+    PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES,
+    PR_P_REGISTRATION_PROBE_HEAD_REF,
+    PR_P_TRUSTED_CHECK_NAME,
     TRUSTED_CHECK_NAME,
+    TRUSTED_PROFILES,
     TrustedBoundaryError,
     validate_trusted_boundary,
 )
@@ -84,6 +89,28 @@ def _build_repo() -> tuple[Path, str, str, tempfile.TemporaryDirectory[str]]:
     return repo, base, head, temp
 
 
+def _build_profile_repo(allowed_statuses: dict[str, str]) -> tuple[Path, str, str, tempfile.TemporaryDirectory[str]]:
+    temp = tempfile.TemporaryDirectory()
+    repo = Path(temp.name)
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.invalid")
+    _git(repo, "config", "user.name", "Trusted Boundary Test")
+
+    for relative, status in allowed_statuses.items():
+        if status == "M":
+            _write(repo, relative, f"base {relative}\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "base")
+    base = _git(repo, "rev-parse", "HEAD")
+
+    for relative, status in allowed_statuses.items():
+        _write(repo, relative, f"candidate {relative}\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "candidate")
+    head = _git(repo, "rev-parse", "HEAD")
+    return repo, base, head, temp
+
+
 def _commit_current(repo: Path, message: str) -> str:
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", message)
@@ -100,11 +127,47 @@ def _validate(repo: Path, base: str, head: str, event: dict[str, object], **over
         "base_repo": "romelhc95/studiamatch",
         "head_repo": "romelhc95/studiamatch",
         "repository": "romelhc95/studiamatch",
-        "check_name": TRUSTED_CHECK_NAME,
+        "check_name": PR_N_TRUSTED_CHECK_NAME,
         "protected_base_sha": base,
     }
     values.update(overrides)
     return validate_trusted_boundary(repo, event, **values)
+
+
+def test_default_branch_registration_missing_is_documented_fail_closed() -> None:
+    root_cause = {
+        "default_branch": "main",
+        "workflow_exists_in_desarrollo": True,
+        "workflow_exists_in_main": False,
+        "pull_request_target_requires_default_branch_file": True,
+        "edited_retry_api_enable_can_fix_absence": False,
+        "retroactive_merge_gate_attestation_allowed": False,
+    }
+    assert root_cause["default_branch"] == "main"
+    assert root_cause["workflow_exists_in_desarrollo"] is True
+    assert root_cause["workflow_exists_in_main"] is False
+    assert root_cause["pull_request_target_requires_default_branch_file"] is True
+    assert root_cause["edited_retry_api_enable_can_fix_absence"] is False
+    assert root_cause["retroactive_merge_gate_attestation_allowed"] is False
+
+
+def test_workflow_absent_from_default_branch_blocks_registration() -> None:
+    default_branch_workflows = {"security-audit.yml", "f9-7-contract.yml"}
+    trusted_workflow = "f10-9-g5-trusted-boundary-bootstrap.yml"
+    assert trusted_workflow not in default_branch_workflows
+
+
+def test_workflow_registered_on_default_branch_enables_future_pr_p_profile() -> None:
+    default_branch_workflows = {"security-audit.yml", "f9-7-contract.yml", "f10-9-g5-trusted-boundary-bootstrap.yml"}
+    trusted_workflow = "f10-9-g5-trusted-boundary-bootstrap.yml"
+    assert trusted_workflow in default_branch_workflows
+    assert TRUSTED_PROFILES[PR_P_REGISTRATION_PROBE_HEAD_REF].check_name == PR_P_TRUSTED_CHECK_NAME
+
+
+def test_check_provenance_uses_pr_p_name_and_preserves_pr_n_history() -> None:
+    assert TRUSTED_CHECK_NAME == PR_P_TRUSTED_CHECK_NAME
+    assert PR_N_TRUSTED_CHECK_NAME == "F10.9 Trusted Boundary PR N v1"
+    assert PR_P_TRUSTED_CHECK_NAME == "F10.9 Trusted Boundary PR P v1"
 
 
 def test_trusted_boundary_accepts_one_direct_exact_same_repo_candidate() -> None:
@@ -113,11 +176,34 @@ def test_trusted_boundary_accepts_one_direct_exact_same_repo_candidate() -> None
         assert _validate(repo, base, head, _event(base, head)) == "PR_N_LINK_HARDENING_CLOSURE"
 
 
+def test_pr_p_registration_probe_accepts_one_direct_exact_candidate() -> None:
+    repo, base, head, temp = _build_profile_repo(dict(PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES))
+    with temp:
+        assert (
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF),
+                head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
+                check_name=PR_P_TRUSTED_CHECK_NAME,
+            )
+            == "PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE"
+        )
+
+
 def test_pr_n_allowlist_excludes_workflows_and_trusted_validator() -> None:
     assert not any(path.startswith(FORBIDDEN_PR_N_PREFIXES) for path in PR_N_LINK_HARDENING_ALLOWED_STATUSES)
     assert not FORBIDDEN_PR_N_PATHS.intersection(PR_N_LINK_HARDENING_ALLOWED_STATUSES)
     assert ".github/workflows/f9-7-contract.yml" not in PR_N_LINK_HARDENING_ALLOWED_STATUSES
     assert "scripts/security/f109_trusted_boundary_bootstrap.py" not in PR_N_LINK_HARDENING_ALLOWED_STATUSES
+
+
+def test_required_check_preservation_profile_excludes_workflows_and_validator() -> None:
+    assert not any(path.startswith(FORBIDDEN_PR_N_PREFIXES) for path in PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES)
+    assert not FORBIDDEN_PR_N_PATHS.intersection(PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES)
+    assert ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml" not in PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES
+    assert "scripts/security/f109_trusted_boundary_bootstrap.py" not in PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES
 
 
 def test_trusted_boundary_accepts_edited_event_when_metadata_stays_protected() -> None:
@@ -170,8 +256,22 @@ def test_trusted_boundary_rejects_retargeted_edited_event() -> None:
 def test_trusted_boundary_rejects_duplicate_check_name() -> None:
     repo, base, head, temp = _build_repo()
     with temp:
-        with pytest.raises(TrustedBoundaryError, match="duplicate trusted boundary check name"):
+        with pytest.raises(TrustedBoundaryError, match="retired trusted boundary check name"):
             _validate(repo, base, head, _event(base, head), check_name="F10.9 Trusted Boundary Bootstrap")
+
+
+def test_trusted_boundary_rejects_pr_n_check_for_future_pr_p_profile() -> None:
+    repo, base, head, temp = _build_profile_repo(dict(PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES))
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="check name drift"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF),
+                head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
+                check_name=PR_N_TRUSTED_CHECK_NAME,
+            )
 
 
 def test_trusted_boundary_rejects_invalid_oid_before_git() -> None:

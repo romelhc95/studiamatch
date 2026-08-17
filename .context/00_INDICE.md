@@ -94,6 +94,7 @@
 - [ADR-0022](decisiones/ADR-0022_g5_followup_security_remediation.md)
 - [ADR-0023](decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md)
 - [ADR-0024](decisiones/ADR-0024_g5_link_header_hardening_closure.md)
+- [ADR-0025](decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md)
 - Changelog 2026-08-01
 - Changelog 2026-08-03
 - Changelog 2026-08-04

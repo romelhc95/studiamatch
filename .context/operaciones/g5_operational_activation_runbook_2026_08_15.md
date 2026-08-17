@@ -2,9 +2,9 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PREPARED_NOT_CONFIGURED_LINK_HARDENING_CLOSED_REQUIRED_CHECK_APPROVAL_PENDING` |
+| Estado | `PREPARED_NOT_CONFIGURED_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED` |
 | Subfase | `F10.9` |
-| Alcance | PR N repository-only posterior a PR #397 |
+| Alcance | PR O repository-only posterior a PR #398 |
 | Manifest | [`g5_operational_activation_manifest_2026_08_15.json`](./g5_operational_activation_manifest_2026_08_15.json) |
 | Preflight offline | `scripts/shared/f10_9_g5_operational_activation_preflight.py` |
 | Gate actual | `NOT_CREATED_NOT_APPROVED_NOT_CONSUMED` |
@@ -313,6 +313,59 @@ El STOP vigente pasa a `E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING
 E2-E6 siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint,
 OIDC live, Production, Supabase, SQL, writers, schedules, branch protection remota
 ni `workflow_dispatch`.
+
+## Reconciliacion PR #398 Y Bootstrap PR O
+
+PR #398 queda `MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED`:
+
+```text
+candidate = d03ee28ce90abcbf8efd7c4b37de99b72717207e
+base = 9a5fcf539c69b635a41616e52716c0ee34837df4
+merge = 85d7f647a37dc784fe16c11da0318956e255b698
+tree = 91706dfcc3766fbf69b4fb8c893318786445a2a9
+security = 31992887172=PASS
+security_attempt = 1
+security_audit_job = 95279485661=PASS
+f9_7_run = 31992887025=PASS
+f9_7_attempt = 1
+f9_7_job = 95279525942=PASS
+focused_g5_job = 95279414529=PASS
+m3_job = 95279414473=PASS
+trusted check=NOT_EXECUTED
+```
+
+Causa raiz exacta:
+
+```text
+default_branch=main
+workflow_exists_in_desarrollo=true
+workflow_exists_in_main=false
+pull_request_target requires the workflow file on default branch
+edited/retry/API enable cannot correct the missing default-branch file
+PR #398 no puede acreditarse retroactivamente como merge-gated
+```
+
+PR O es `BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED`: prepara el registro repository-only
+del workflow trusted en la rama por defecto, pero no puede autoatestiguar su propio
+merge. El check futuro cambia a `F10.9 Trusted Boundary PR P v1` y queda asociado
+al perfil `PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE`, que exige un unico commit
+directo, rechaza forks, prohibe candidate workflows y prohibe modificar
+`scripts/security/f109_trusted_boundary_bootstrap.py` desde el candidate.
+
+El workflow conserva `permissions: contents: read`, checkout de base protegida,
+`persist-credentials=false`, `submodules=false`, Git con config aislada,
+hooks deshabilitados, fetch sin submodules y cero `secrets.*`. No ejecuta codigo,
+scripts, actions ni tests del candidate.
+
+La promocion selectiva queda preparada y no ejecutada en
+`g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json` con ruta
+`desarrollo -> certificacion -> main`. No cambia `default_branch`, no modifica
+branch protection, no usa API enable de Actions ni `workflow_dispatch` y preserva
+required checks existentes sin mutacion remota.
+
+El STOP vigente pasa a `E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED`.
+E2-E6 siguen `NOT_EXECUTED`; no se configura GitHub App, Cloudflare, endpoint,
+OIDC live, Production, Supabase, SQL, writers, schedules ni branch protection remota.
 
 ## Policy Runtime Futura
 
