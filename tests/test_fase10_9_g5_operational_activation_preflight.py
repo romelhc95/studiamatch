@@ -31,6 +31,7 @@ ADR20_PATH = Path(".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.
 ADR21_PATH = Path(".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md")
 ADR22_PATH = Path(".context/decisiones/ADR-0022_g5_followup_security_remediation.md")
 ADR23_PATH = Path(".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md")
+ADR24_PATH = Path(".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md")
 PRELIGHT_PATH = Path("scripts/shared/f10_9_g5_operational_activation_preflight.py")
 
 
@@ -91,8 +92,15 @@ def test_manifest_validates_name_only_package_and_current_stops() -> None:
     assert manifest["current_gate"] == CURRENT_GATE
     assert manifest["current_trust"] == CURRENT_TRUST
     assert manifest["current_connected"] == CURRENT_CONNECTED
+    assert manifest["hito1_integral_status"] == {
+        "ca1_original_technical": "PASS",
+        "integral_state": "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "evidence_readiness": "75%",
+        "formal_closure": "NOT_READY",
+        "tracking_only": {"hito1": "60%", "f10_9": "38%", "g5": "50%"},
+    }
     assert manifest["frozen_versions"]["wrangler"] == "4.44.0"
-    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+    assert manifest["status"] == "PREPARED_NOT_CONFIGURED_LINK_HARDENING_CLOSED_REQUIRED_CHECK_APPROVAL_PENDING"
     assert all(item["state"] == "ABSENT_NOT_CONFIGURED" for item in manifest["required_configuration_names"])
     assert [item["name"] for item in manifest["required_configuration_names"]] == list(EXPECTED_CONFIGURATION_NAMES)
 
@@ -167,7 +175,7 @@ def test_pr392_and_e2_security_remediation_stop_are_registered() -> None:
         "previous_security_auditor_go_preserved": True,
         "post_merge_security_remediation_required": True,
     }
-    assert manifest["e2_stop"] == "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+    assert manifest["e2_stop"] == "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
     assert sorted(manifest["github_runtime_shapes"]) == sorted(
         [
             "approvals",
@@ -322,7 +330,7 @@ def test_pr392_security_findings_and_runtime_binding_contract_are_explicit() -> 
         "purpose": "confirm_whether_environment_endpoint_requires_additional_permission_before_e2",
         "state": "DOCUMENTED_NOT_EXECUTED",
         "permission_added_now": False,
-        "stop": "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
+        "stop": "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING",
     }
 
 
@@ -379,6 +387,25 @@ def test_pr395_pr396_and_trusted_boundary_hardening_are_registered() -> None:
         "run_attempt": 1,
         "trusted_boundary_hardening_required": True,
     }
+    assert manifest["pr_397_reconciliation"] == {
+        "candidate_sha": "8adede3ed10605f3af36e905d8f11e7489815d8a",
+        "merge_sha": "9a5fcf539c69b635a41616e52716c0ee34837df4",
+        "tree_sha": "b33228a031312062b165f8f612d27eacee2fea00",
+        "status": "MERGED_POST_MERGE_VERIFIED",
+        "security_run_id": "31984379751",
+        "security_conclusion": "PASS",
+        "security_audit_job_id": "95256753465",
+        "security_audit_conclusion": "PASS",
+        "f9_7_run_id": "31984379715",
+        "f9_7_conclusion": "PASS",
+        "f9_7_job_id": "95256780481",
+        "f9_7_job_conclusion": "PASS",
+        "focused_g5_job_id": "95256691723",
+        "focused_g5_conclusion": "PASS",
+        "m3_job_id": "95256691760",
+        "m3_conclusion": "PASS",
+        "run_attempt": 1,
+    }
     assert manifest["trusted_boundary_hardening"] == {
         "workflow": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
         "check_name": "F10.9 Trusted Boundary PR N v1",
@@ -396,11 +423,50 @@ def test_pr395_pr396_and_trusted_boundary_hardening_are_registered() -> None:
         "required_check_state": "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
         "branch_protection_payload_path": ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json",
     }
+    branch_update = manifest["branch_protection_required_check_update"]
+    assert branch_update["status"] == "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL"
+    assert branch_update["prepared_from_live_state"] is True
+    assert branch_update["required_check_to_add"] == {
+        "context": "F10.9 Trusted Boundary PR N v1",
+        "app_id": 15368,
+    }
+    assert branch_update["live_state_preserved"]["required_status_checks"]["strict"] is True
+    assert branch_update["live_state_preserved"]["required_status_checks"]["checks"] == [
+        {"context": "security-audit", "app_id": 15368},
+    ]
+    assert branch_update["request_body"]["required_status_checks"]["checks"] == [
+        {"context": "security-audit", "app_id": 15368},
+        {"context": "F10.9 Trusted Boundary PR N v1", "app_id": 15368},
+    ]
+    expected_reviews = {
+        "dismiss_stale_reviews": True,
+        "require_code_owner_reviews": False,
+        "require_last_push_approval": True,
+        "required_approving_review_count": 1,
+    }
+    assert branch_update["live_state_preserved"]["required_pull_request_reviews"] == expected_reviews
+    assert branch_update["request_body"]["required_pull_request_reviews"] == expected_reviews
+    assert branch_update["request_body"]["required_pull_request_reviews"]["require_last_push_approval"] is True
+    assert branch_update["request_body"]["enforce_admins"] is True
+    assert branch_update["request_body"]["restrictions"] is None
+    for flag in (
+        "required_linear_history",
+        "allow_force_pushes",
+        "allow_deletions",
+        "block_creations",
+        "required_conversation_resolution",
+        "lock_branch",
+        "allow_fork_syncing",
+    ):
+        assert branch_update["live_state_preserved"][flag] is False
+        assert branch_update["request_body"][flag] is False
+    assert branch_update["execution_guard"] == "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL"
     assert manifest["link_hardening_closure"] == {
-        "status": "NOT_CLOSED_DEFERRED_TO_PR_N",
+        "status": "CLOSED_BY_PR_N_TRUSTED_BOUNDARY",
         "trusted_boundary_required_first": True,
-        "deferred_to": "PR_N_AFTER_PR_M_MERGE",
-        "pr_l_repository_only_changes": "PRESENT_BUT_NOT_TRUSTED_BOUNDARY_CLOSED",
+        "closed_by": "PR_N_LINK_HARDENING_CLOSURE",
+        "link_header_contract": "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+        "pr_l_repository_only_changes": "REVALIDATED_AND_CLOSED_UNDER_TRUSTED_BOUNDARY_PR_N",
     }
 
 
@@ -486,6 +552,7 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         + ADR21_PATH.read_text(encoding="utf-8")
         + ADR22_PATH.read_text(encoding="utf-8")
         + ADR23_PATH.read_text(encoding="utf-8")
+        + ADR24_PATH.read_text(encoding="utf-8")
     )
     for marker in (
         "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY",
@@ -516,8 +583,11 @@ def test_runbook_and_adr_preserve_operational_run_attempt_one() -> None:
         "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED",
         "F10.9 Trusted Boundary Bootstrap",
         "F10.9 Trusted Boundary PR N v1",
-        "NOT_CLOSED_DEFERRED_TO_PR_N",
+        "CLOSED_BY_PR_N_TRUSTED_BOUNDARY",
+        "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
         "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING",
     ):
         assert marker in combined
     assert "No se puede combinar" in combined

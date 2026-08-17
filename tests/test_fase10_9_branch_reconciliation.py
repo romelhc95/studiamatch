@@ -234,6 +234,14 @@ from scripts.security.f109_boundary import (
     G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE,
     G5_TRUSTED_BOUNDARY_HARDENING_STATUS,
     G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
+    G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES,
+    G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES,
+    G5_LINK_HARDENING_CLOSURE_BASE,
+    G5_LINK_HARDENING_CLOSURE_BASE_TREE,
+    G5_LINK_HARDENING_CLOSURE_E2_STOP,
+    G5_LINK_HARDENING_CLOSURE_HEAD_REF,
+    G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE,
+    G5_LINK_HARDENING_CLOSURE_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
     G5_V2_ATTRIBUTION_BASE,
@@ -320,6 +328,7 @@ from scripts.security.f109_boundary import (
     validate_g5_followup_security_remediation,
     validate_g5_trusted_boundary_bootstrap,
     validate_g5_trusted_boundary_hardening,
+    validate_g5_link_hardening_closure,
     validate_g5_security_remediation,
     validate_g5_v2_attribution,
     validate_g5_v2_post_merge,
@@ -5273,6 +5282,73 @@ class F109BoundaryTest(unittest.TestCase):
         )
         context_mock.assert_called_once_with(repo, 80, 431)
         ancestor_mock.assert_called_once_with(repo, G5_TRUSTED_BOUNDARY_HARDENING_BASE, head)
+
+    def test_g5_link_hardening_closure_allowlist_matches_pr_n_profile(self) -> None:
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_BASE, "9a5fcf539c69b635a41616e52716c0ee34837df4")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_BASE_TREE, "b33228a031312062b165f8f612d27eacee2fea00")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_HEAD_REF, "feat/f10-9-pr-n-link-hardening-closure")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_STATUS, "CLOSED_BY_PR_N_TRUSTED_BOUNDARY")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_E2_STOP, "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE, "8adede3ed10605f3af36e905d8f11e7489815d8a")
+        self.assertEqual(G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES, {
+            ".context/00_INDICE.md": "M",
+            ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+            ".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md": "A",
+            ".context/estado_del_proyecto.md": "M",
+            ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+            ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+            ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+            "scripts/security/f109_boundary.py": "M",
+            "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+            "tests/test_fase10_9_branch_reconciliation.py": "M",
+            "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+            "workers/g5-trust-broker/src/index.mjs": "M",
+            "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+        })
+        self.assertEqual(set(G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES.values()), {"100644"})
+
+    def test_detect_mode_selects_g5_link_hardening_closure(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_LINK_HARDENING_CLOSURE_HEAD_REF,
+                G5_LINK_HARDENING_CLOSURE_BASE,
+            ),
+            "g5_link_hardening_closure",
+        )
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", G5_LINK_HARDENING_CLOSURE_HEAD_REF,
+                "0" * 40,
+            ),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_context_graph")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_g5_link_hardening_closure_accepts_one_direct_candidate(
+        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+    ) -> None:
+        head = "a" * 40
+        tree_mock.return_value = G5_LINK_HARDENING_CLOSURE_BASE_TREE
+        parents_mock.return_value = [G5_LINK_HARDENING_CLOSURE_BASE]
+        repo = self.make_repo()
+        source_root = Path(__file__).resolve().parents[1]
+        for relative in G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+
+        validate_g5_link_hardening_closure(repo, G5_LINK_HARDENING_CLOSURE_BASE, head, "pull_request")
+
+        delta_mock.assert_called_once_with(
+            repo, G5_LINK_HARDENING_CLOSURE_BASE, head,
+            G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES,
+            G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES,
+        )
+        context_mock.assert_called_once_with(repo, 81, 432)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
