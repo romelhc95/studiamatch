@@ -309,6 +309,23 @@ aprobaciones separadas; este documento no las concede.
        y fail-closed para workflows, trusted-validator y superficies F10.9/trust
        sin perfil. La promocion definitiva `desarrollo -> certificacion -> main`
        queda preparada y no ejecutada.
+       PR #400 queda `MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY` con candidate
+       `1995120d98562763f3551f13f9af5db15c087c4c`, base
+       `ab5b0dffe8fe7d677c083e258e86f590d393b731`, merge protegido
+       `13a44fb7de6e8d754106b744f96e15c959c45685`, tree
+       `b126b5119224010372ea704b87459f98afff2c2a`, Security
+       `32025689377=PASS`, `security-audit` job `95374636974=PASS`, focused G5
+       `95374505684=PASS` y M3 `95374505556=PASS`. F9.7 run
+       `32025689461` attempt 1 job `95374786287=CANCELLED`, step cancelado
+       `Run local-only Python and PostgreSQL contracts`, clasificacion
+       `CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN`; attempt 2 job
+       `95380342703=PASS`, clasificacion `CI_RETRY_PASS`. El retry es solo CI;
+       el futuro gate operacional G5 mantiene `run_attempt=1` obligatorio.
+       PR R corrige el manifiesto definitivo preparado con
+       `source_commit=13a44fb7de6e8d754106b744f96e15c959c45685`,
+       `source_tree=b126b5119224010372ea704b87459f98afff2c2a` y blob/mode/path
+       exactos para los cuatro archivos promovibles, sin modificarlos ni ejecutar
+       promocion.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

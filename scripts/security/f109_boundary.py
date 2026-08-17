@@ -223,13 +223,14 @@ G5_LINK_HARDENING_CLOSURE_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
 G5_LINK_HARDENING_CLOSURE_STATUS = "CLOSED_BY_PR_N_TRUSTED_BOUNDARY"
 G5_LINK_HARDENING_CLOSURE_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
 G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE = "8adede3ed10605f3af36e905d8f11e7489815d8a"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "ab5b0dffe8fe7d677c083e258e86f590d393b731"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "fb0b0166b67a58cab14dd0c20e89f034a8adab6e"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-q-trusted-check-hardening"
-G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "13a44fb7de6e8d754106b744f96e15c959c45685"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "b126b5119224010372ea704b87459f98afff2c2a"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-r-post-merge-reconciliation"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE = "2e7422e9f67e91ee6b02b4b44fccc060248c13a3"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE = "1995120d98562763f3551f13f9af5db15c087c4c"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -863,19 +864,12 @@ G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES = {
 
 G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES = {
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-    ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "M",
     ".context/estado_del_proyecto.md": "M",
-    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
     ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
     ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
-    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M",
-    ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "M",
-    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
-    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
     "scripts/security/f109_boundary.py": "M",
-    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
     "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
-    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
     "tests/test_fase10_9_branch_reconciliation.py": "M",
     "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
 }
@@ -5804,13 +5798,20 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE,
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
-        "31998458176",
-        "95294350579",
-        "31998458172",
-        "95294383627",
-        "95294259790",
-        "95294259769",
+        "32025689377",
+        "95374636974",
+        "32025689461",
+        "95374786287",
+        "95380342703",
+        "95374505684",
+        "95374505556",
+        "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "CI_RETRY_PASS",
+        "source_commit=13a44fb7de6e8d754106b744f96e15c959c45685",
+        "source_tree=b126b5119224010372ea704b87459f98afff2c2a",
+        "FAIL_IF_ANY_BLOB_DIFFERS",
         "default_branch=main",
         "pull_request_target requires the workflow file on default branch",
         G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
@@ -5824,7 +5825,7 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
         "F10.9 `38%`",
         "G5 `50%`",
     ):
-        require(required in combined, "G5 PR Q trusted check hardening evidence drift")
+        require(required in combined, "G5 PR R post-merge reconciliation evidence drift")
     pr398 = manifest.get("pr_398_reconciliation", {})
     require(pr398.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "G5 PR O PR398 candidate drift")
     require(pr398.get("base_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR O PR398 base drift")
@@ -5835,10 +5836,44 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     pr399 = manifest.get("pr_399_reconciliation", {})
     require(pr399.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE, "G5 PR Q PR399 candidate drift")
     require(pr399.get("base_sha") == "85d7f647a37dc784fe16c11da0318956e255b698", "G5 PR Q PR399 base drift")
-    require(pr399.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR Q PR399 merge drift")
-    require(pr399.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR Q PR399 tree drift")
-    require(pr399.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR Q PR399 status drift")
+    require(pr399.get("merge_sha") == "ab5b0dffe8fe7d677c083e258e86f590d393b731", "G5 PR Q PR399 merge drift")
+    require(pr399.get("tree_sha") == "fb0b0166b67a58cab14dd0c20e89f034a8adab6e", "G5 PR Q PR399 tree drift")
+    require(pr399.get("status") == "MERGED_POST_MERGE_VERIFIED", "G5 PR Q PR399 status drift")
     require(pr399.get("security_audit_job_id") == "95294350579", "G5 PR Q PR399 security-audit drift")
+    pr400 = manifest.get("pr_400_reconciliation", {})
+    require(pr400.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE, "G5 PR R PR400 candidate drift")
+    require(pr400.get("base_sha") == "ab5b0dffe8fe7d677c083e258e86f590d393b731", "G5 PR R PR400 base drift")
+    require(pr400.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR R PR400 merge drift")
+    require(pr400.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR R PR400 tree drift")
+    require(pr400.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR R PR400 status drift")
+    require(pr400.get("security_audit_job_id") == "95374636974", "G5 PR R PR400 security-audit drift")
+    require(pr400.get("security_run_id") == "32025689377", "G5 PR R PR400 security run drift")
+    require(pr400.get("security_conclusion") == "PASS", "G5 PR R PR400 security conclusion drift")
+    require(pr400.get("focused_g5_job_id") == "95374505684", "G5 PR R PR400 focused drift")
+    require(pr400.get("focused_g5_conclusion") == "PASS", "G5 PR R PR400 focused conclusion drift")
+    require(pr400.get("m3_job_id") == "95374505556", "G5 PR R PR400 M3 drift")
+    require(pr400.get("m3_conclusion") == "PASS", "G5 PR R PR400 M3 conclusion drift")
+    require(pr400.get("f9_7_run_id") == "32025689461", "G5 PR R PR400 F9.7 run drift")
+    require(pr400.get("operational_g5_run_attempt_required") == 1, "G5 PR R PR400 operational attempt drift")
+    pr400_attempts = pr400.get("attempts", [])
+    require(isinstance(pr400_attempts, list) and len(pr400_attempts) == 2, "G5 PR R PR400 attempts drift")
+    require(pr400_attempts[0].get("attempt") == 1, "G5 PR R PR400 attempt 1 number drift")
+    require(pr400_attempts[0].get("job_id") == "95374786287", "G5 PR R PR400 attempt 1 job drift")
+    require(pr400_attempts[0].get("conclusion") == "CANCELLED", "G5 PR R PR400 attempt 1 drift")
+    require(
+        pr400_attempts[0].get("classification") == "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "G5 PR R PR400 attempt 1 classification drift",
+    )
+    require(
+        pr400_attempts[0].get("cancelled_step") == "Run local-only Python and PostgreSQL contracts",
+        "G5 PR R PR400 attempt 1 cancelled step drift",
+    )
+    require(pr400_attempts[0].get("scope") == "CI_ONLY", "G5 PR R PR400 attempt 1 scope drift")
+    require(pr400_attempts[1].get("attempt") == 2, "G5 PR R PR400 attempt 2 number drift")
+    require(pr400_attempts[1].get("job_id") == "95380342703", "G5 PR R PR400 attempt 2 job drift")
+    require(pr400_attempts[1].get("conclusion") == "PASS", "G5 PR R PR400 attempt 2 drift")
+    require(pr400_attempts[1].get("classification") == "CI_RETRY_PASS", "G5 PR R PR400 attempt 2 classification drift")
+    require(pr400_attempts[1].get("scope") == "CI_ONLY", "G5 PR R PR400 attempt 2 scope drift")
     registration = manifest.get("default_branch_trusted_workflow_registration", {})
     require(registration.get("default_branch") == "main", "G5 PR O default branch drift")
     require(registration.get("workflow_exists_in_desarrollo") is True, "G5 PR O desarrollo workflow drift")
@@ -5855,6 +5890,36 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     require(hardening.get("github_actions_app_provenance") == {"name": "GitHub Actions", "app_id": 15368}, "G5 PR Q app provenance drift")
     require(superseded_promotion.get("status") == "SUPERSEDED_NOT_EXECUTABLE", "G5 PR Q superseded promotion drift")
     require(promotion.get("status") == "PREPARED_NOT_EXECUTED", "G5 PR O promotion status drift")
+    require(promotion.get("source_commit") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR R promotion source commit drift")
+    require(promotion.get("source_tree") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR R promotion source tree drift")
+    require(promotion.get("files_to_promote") == [
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+        "scripts/security/f109_trusted_boundary_bootstrap.py",
+        "tests/test_f109_trusted_boundary_bootstrap.py",
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md",
+    ], "G5 PR R promotion path drift")
+    expected_promotion_files = {
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {"mode": "100644", "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d"},
+        "scripts/security/f109_trusted_boundary_bootstrap.py": {"mode": "100644", "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b"},
+        "tests/test_f109_trusted_boundary_bootstrap.py": {"mode": "100644", "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1"},
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {"mode": "100644", "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3"},
+    }
+    require(promotion.get("expected_files") == expected_promotion_files, "G5 PR R promotion blob/mode drift")
+    for relative, expected in expected_promotion_files.items():
+        metadata = str(git(repo, "ls-tree", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "--", relative)).strip().split(None, 3)
+        require(len(metadata) == 4, f"G5 PR R promotion missing source tree entry: {relative}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(
+            (mode, kind, blob_sha, tree_path) == (expected["mode"], "blob", expected["blob_sha"], relative),
+            f"G5 PR R promotion source tree blob/mode drift: {relative}",
+        )
+    require(promotion.get("drift_policy") == {
+        "source_commit": "FAIL_IF_NOT_EXACT",
+        "source_tree": "FAIL_IF_NOT_EXACT",
+        "paths": "FAIL_IF_ANY_PATH_DIFFERS",
+        "modes": "FAIL_IF_ANY_MODE_DIFFERS",
+        "blob_shas": "FAIL_IF_ANY_BLOB_DIFFERS",
+    }, "G5 PR R promotion drift policy drift")
     require(promotion.get("promotion_path") == ["desarrollo", "certificacion", "main"], "G5 PR O promotion path drift")
     require(promotion.get("branch_protection_change") == "FORBIDDEN", "G5 PR O branch protection drift")
     for forbidden in ("secrets.", "workflow_dispatch", "id-token", "deployments:", "supabase", "wrangler"):

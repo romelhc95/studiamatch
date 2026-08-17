@@ -232,6 +232,40 @@
     "m3_job_id": "95294259769",
     "m3_conclusion": "PASS"
   },
+  "pr_400_reconciliation": {
+    "candidate_sha": "1995120d98562763f3551f13f9af5db15c087c4c",
+    "base_sha": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+    "merge_sha": "13a44fb7de6e8d754106b744f96e15c959c45685",
+    "tree_sha": "b126b5119224010372ea704b87459f98afff2c2a",
+    "status": "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY",
+    "security_run_id": "32025689377",
+    "security_conclusion": "PASS",
+    "security_audit_job_id": "95374636974",
+    "security_audit_conclusion": "PASS",
+    "focused_g5_job_id": "95374505684",
+    "focused_g5_conclusion": "PASS",
+    "m3_job_id": "95374505556",
+    "m3_conclusion": "PASS",
+    "f9_7_run_id": "32025689461",
+    "operational_g5_run_attempt_required": 1,
+    "attempts": [
+      {
+        "attempt": 1,
+        "job_id": "95374786287",
+        "conclusion": "CANCELLED",
+        "classification": "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "cancelled_step": "Run local-only Python and PostgreSQL contracts",
+        "scope": "CI_ONLY"
+      },
+      {
+        "attempt": 2,
+        "job_id": "95380342703",
+        "conclusion": "PASS",
+        "classification": "CI_RETRY_PASS",
+        "scope": "CI_ONLY"
+      }
+    ]
+  },
   "default_branch_trusted_workflow_registration": {
     "default_branch": "main",
     "workflow_path": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",

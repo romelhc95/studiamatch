@@ -18,11 +18,13 @@ from scripts.shared.f10_9_g5_operational_activation_preflight import (
     G5OperationalPreflightError,
     OPERATIONAL_RUN_ATTEMPT_REQUIRED,
     PREFLIGHT_VERSION,
+    validate_definitive_promotion_manifest,
     validate_manifest,
 )
 
 
 MANIFEST_PATH = Path(".context/operaciones/g5_operational_activation_manifest_2026_08_15.json")
+PROMOTION_PATH = Path(".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json")
 RUNBOOK_PATH = Path(".context/operaciones/g5_operational_activation_runbook_2026_08_15.md")
 ADR_PATH = Path(".context/decisiones/ADR-0016_g5_operational_activation_gates.md")
 ADR18_PATH = Path(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md")
@@ -517,6 +519,40 @@ def test_default_branch_registration_root_cause_and_pr_p_profile_are_registered(
         "m3_job_id": "95294259769",
         "m3_conclusion": "PASS",
     }
+    assert manifest["pr_400_reconciliation"] == {
+        "candidate_sha": "1995120d98562763f3551f13f9af5db15c087c4c",
+        "base_sha": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
+        "merge_sha": "13a44fb7de6e8d754106b744f96e15c959c45685",
+        "tree_sha": "b126b5119224010372ea704b87459f98afff2c2a",
+        "status": "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY",
+        "security_run_id": "32025689377",
+        "security_conclusion": "PASS",
+        "security_audit_job_id": "95374636974",
+        "security_audit_conclusion": "PASS",
+        "focused_g5_job_id": "95374505684",
+        "focused_g5_conclusion": "PASS",
+        "m3_job_id": "95374505556",
+        "m3_conclusion": "PASS",
+        "f9_7_run_id": "32025689461",
+        "operational_g5_run_attempt_required": OPERATIONAL_RUN_ATTEMPT_REQUIRED,
+        "attempts": [
+            {
+                "attempt": 1,
+                "job_id": "95374786287",
+                "conclusion": "CANCELLED",
+                "classification": "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+                "cancelled_step": "Run local-only Python and PostgreSQL contracts",
+                "scope": "CI_ONLY",
+            },
+            {
+                "attempt": 2,
+                "job_id": "95380342703",
+                "conclusion": "PASS",
+                "classification": "CI_RETRY_PASS",
+                "scope": "CI_ONLY",
+            },
+        ],
+    }
     assert manifest["default_branch_trusted_workflow_registration"] == {
         "default_branch": "main",
         "workflow_path": ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
@@ -586,6 +622,77 @@ def test_selective_promotion_manifest_is_prepared_not_executed() -> None:
         "workflow_dispatch": "FORBIDDEN",
         "required_check_preservation": "PRESERVE_EXISTING_REQUIRED_CHECKS_NO_REMOTE_MUTATION",
     }
+
+
+def test_definitive_promotion_manifest_pins_source_and_blob_modes() -> None:
+    promotion = json.loads(PROMOTION_PATH.read_text(encoding="utf-8"))
+    result = validate_definitive_promotion_manifest(promotion)
+    assert result.decision == "PASS"
+    assert promotion["source_commit"] == "13a44fb7de6e8d754106b744f96e15c959c45685"
+    assert promotion["source_tree"] == "b126b5119224010372ea704b87459f98afff2c2a"
+    assert promotion["files_to_promote"] == [
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+        "scripts/security/f109_trusted_boundary_bootstrap.py",
+        "tests/test_f109_trusted_boundary_bootstrap.py",
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md",
+    ]
+    assert promotion["expected_files"] == {
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+            "mode": "100644",
+            "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+        },
+        "scripts/security/f109_trusted_boundary_bootstrap.py": {
+            "mode": "100644",
+            "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b",
+        },
+        "tests/test_f109_trusted_boundary_bootstrap.py": {
+            "mode": "100644",
+            "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1",
+        },
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+            "mode": "100644",
+            "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3",
+        },
+    }
+    assert promotion["drift_policy"] == {
+        "source_commit": "FAIL_IF_NOT_EXACT",
+        "source_tree": "FAIL_IF_NOT_EXACT",
+        "paths": "FAIL_IF_ANY_PATH_DIFFERS",
+        "modes": "FAIL_IF_ANY_MODE_DIFFERS",
+        "blob_shas": "FAIL_IF_ANY_BLOB_DIFFERS",
+    }
+
+
+def test_definitive_promotion_manifest_fails_on_source_path_mode_or_blob_drift() -> None:
+    promotion = json.loads(PROMOTION_PATH.read_text(encoding="utf-8"))
+    for field, value, reason in (
+        ("source_commit", "0" * 40, "STOP_G5_E_PROMOTION_SOURCE_COMMIT"),
+        ("source_tree", "1" * 40, "STOP_G5_E_PROMOTION_SOURCE_TREE"),
+    ):
+        mutated = json.loads(json.dumps(promotion))
+        mutated[field] = value
+        with pytest.raises(G5OperationalPreflightError) as excinfo:
+            validate_definitive_promotion_manifest(mutated)
+        assert reason in str(excinfo.value)
+
+    mutated = json.loads(json.dumps(promotion))
+    mutated["files_to_promote"] = list(reversed(mutated["files_to_promote"]))
+    with pytest.raises(G5OperationalPreflightError) as excinfo:
+        validate_definitive_promotion_manifest(mutated)
+    assert "STOP_G5_E_PROMOTION_FILES" in str(excinfo.value)
+
+    protected_path = ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml"
+    mutated = json.loads(json.dumps(promotion))
+    mutated["expected_files"][protected_path]["mode"] = "100755"
+    with pytest.raises(G5OperationalPreflightError) as excinfo:
+        validate_definitive_promotion_manifest(mutated)
+    assert "STOP_G5_E_PROMOTION_FILE_DIGESTS" in str(excinfo.value)
+
+    mutated = json.loads(json.dumps(promotion))
+    mutated["expected_files"][protected_path]["blob_sha"] = "2" * 40
+    with pytest.raises(G5OperationalPreflightError) as excinfo:
+        validate_definitive_promotion_manifest(mutated)
+    assert "STOP_G5_E_PROMOTION_FILE_DIGESTS" in str(excinfo.value)
 
 
 def test_runtime_shapes_are_exact_and_fail_closed() -> None:

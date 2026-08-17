@@ -250,6 +250,7 @@ from scripts.security.f109_boundary import (
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
+    G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE,
     G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
     G5_V2_ATTRIBUTION_ALLOWED_MODES,
     G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
@@ -5361,28 +5362,22 @@ class F109BoundaryTest(unittest.TestCase):
         context_mock.assert_called_once_with(repo, 81, 432)
 
     def test_g5_default_branch_trusted_workflow_allowlist_matches_pr_q_profile(self) -> None:
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "ab5b0dffe8fe7d677c083e258e86f590d393b731")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "fb0b0166b67a58cab14dd0c20e89f034a8adab6e")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF, "feat/f10-9-pr-q-trusted-check-hardening")
-        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "13a44fb7de6e8d754106b744f96e15c959c45685")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "b126b5119224010372ea704b87459f98afff2c2a")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF, "feat/f10-9-pr-r-post-merge-reconciliation")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "d03ee28ce90abcbf8efd7c4b37de99b72717207e")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE, "2e7422e9f67e91ee6b02b4b44fccc060248c13a3")
+        self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE, "1995120d98562763f3551f13f9af5db15c087c4c")
         self.assertEqual(G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES, {
             ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
-            ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md": "M",
             ".context/estado_del_proyecto.md": "M",
-            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
             ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
             ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
-            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M",
-            ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json": "M",
-            ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
-            ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
             "scripts/security/f109_boundary.py": "M",
-            "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
             "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
-            "tests/test_f109_trusted_boundary_bootstrap.py": "M",
             "tests/test_fase10_9_branch_reconciliation.py": "M",
             "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
         })
@@ -5402,8 +5397,9 @@ class F109BoundaryTest(unittest.TestCase):
     @mock.patch("scripts.security.f109_boundary.commit_parents")
     @mock.patch("scripts.security.f109_boundary.commit_tree")
     @mock.patch("scripts.security.f109_boundary.require_sha")
+    @mock.patch("scripts.security.f109_boundary.git")
     def test_g5_default_branch_trusted_workflow_accepts_one_direct_candidate(
-        self, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
+        self, git_mock, require_sha_mock, tree_mock, parents_mock, delta_mock, context_mock,
     ) -> None:
         head = "a" * 40
         tree_mock.return_value = G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE
@@ -5414,6 +5410,30 @@ class F109BoundaryTest(unittest.TestCase):
             path = repo / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        for relative in (
+            ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md",
+            ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json",
+            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md",
+            ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+            "scripts/security/f109_trusted_boundary_bootstrap.py",
+            "tests/test_f109_trusted_boundary_bootstrap.py",
+        ):
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text((source_root / relative).read_text(encoding="utf-8"), encoding="utf-8")
+        expected_blobs = {
+            ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+            "scripts/security/f109_trusted_boundary_bootstrap.py": "c814f6124e1d10ad85f455118e22caba6a35ea9b",
+            "tests/test_f109_trusted_boundary_bootstrap.py": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1",
+            ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "a1853df0c0e6187352869b26984e74576c564db3",
+        }
+
+        def git_side_effect(repo_arg, *args, **kwargs):
+            self.assertEqual(args[0], "ls-tree")
+            relative = args[-1]
+            return f"100644 blob {expected_blobs[relative]}\t{relative}"
+
+        git_mock.side_effect = git_side_effect
 
         validate_g5_default_branch_trusted_workflow_registration(
             repo, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, head, "pull_request"

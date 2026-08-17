@@ -3,8 +3,8 @@
   "status": "PREPARED_NOT_EXECUTED",
   "scope": "SELECTIVE_TRUSTED_CHECK_REGISTRATION_AND_HARDENING_ONLY",
   "source_branch": "desarrollo",
-  "source_commit": "ab5b0dffe8fe7d677c083e258e86f590d393b731",
-  "source_tree": "fb0b0166b67a58cab14dd0c20e89f034a8adab6e",
+  "source_commit": "13a44fb7de6e8d754106b744f96e15c959c45685",
+  "source_tree": "b126b5119224010372ea704b87459f98afff2c2a",
   "intermediate_branch": "certificacion",
   "target_default_branch": "main",
   "promotion_path": ["desarrollo", "certificacion", "main"],
@@ -14,6 +14,31 @@
     "tests/test_f109_trusted_boundary_bootstrap.py",
     ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md"
   ],
+  "expected_files": {
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+      "mode": "100644",
+      "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d"
+    },
+    "scripts/security/f109_trusted_boundary_bootstrap.py": {
+      "mode": "100644",
+      "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b"
+    },
+    "tests/test_f109_trusted_boundary_bootstrap.py": {
+      "mode": "100644",
+      "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1"
+    },
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+      "mode": "100644",
+      "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3"
+    }
+  },
+  "drift_policy": {
+    "source_commit": "FAIL_IF_NOT_EXACT",
+    "source_tree": "FAIL_IF_NOT_EXACT",
+    "paths": "FAIL_IF_ANY_PATH_DIFFERS",
+    "modes": "FAIL_IF_ANY_MODE_DIFFERS",
+    "blob_shas": "FAIL_IF_ANY_BLOB_DIFFERS"
+  },
   "required_check": {
     "context": "F10.9 Trusted Boundary v1",
     "app_id": 15368,
