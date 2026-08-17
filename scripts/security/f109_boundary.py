@@ -4623,6 +4623,7 @@ def validate_g5_security_remediation(repo: Path, base: str, head: str, event: st
             for stop in (
                 G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
                 G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+                G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             )
         ),
         "G5 PR J preflight stop drift",
@@ -5113,6 +5114,7 @@ def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, 
             for stop in (
                 G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
                 G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+                G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
             )
         ),
         "G5 PR L preflight stop drift",
