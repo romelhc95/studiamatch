@@ -283,6 +283,9 @@ WP2A1_REPOSITORY_FIX_BASE = "f7b5eb9c6108df476fdb2d10767c23d5e1bf3578"
 WP2A1_REPOSITORY_FIX_BASE_TREE = "a2a70d3dce05af9865bbc6c9a127c23b33176d7b"
 WP2A1_REPOSITORY_FIX_HEAD_REF = "feat/f10-9-wp2a1-certification-push-manifest-continuity-fix"
 WP2A1_MANIFEST = ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json"
+WP2A1_CI_FOCUSED_SUITE_BASE = "80674393b0c40cfa10355711170f9f5842e6c2fe"
+WP2A1_CI_FOCUSED_SUITE_BASE_TREE = "ed70baa39bfda9721f9faf20c73f15b0a8b9739e"
+WP2A1_CI_FOCUSED_SUITE_HEAD_REF = "feat/f10-9-wp2a1-certification-ci-focused-suite"
 WP2A1_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a1-certification-control-bootstrap"
 WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF = "promote/f10-9-wp2b-certification-trusted-content"
 
@@ -1013,6 +1016,15 @@ WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES = {
 WP2A1_REPOSITORY_FIX_ALLOWED_MODES = {
     path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
     for path in WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES
+}
+WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES = {
+    WP2A1_MANIFEST: "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+}
+WP2A1_CI_FOCUSED_SUITE_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES
 }
 WP2A1_CERTIFICATION_CONTROL_STATUSES = {
     WP2A1_MANIFEST: "A",
@@ -6540,6 +6552,23 @@ def wp2a1_control_blobs(repo: Path) -> dict[str, str]:
     }
 
 
+def wp2a1_ci_focused_suite_blobs(repo: Path) -> dict[str, str]:
+    profile = wp2a1_manifest(repo)["wp2a1_certification_control_bootstrap"]
+    return {
+        path: entry["blob_sha"]
+        for path, entry in profile["files"].items()
+        if path in WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES and path != WP2A1_MANIFEST
+    }
+
+
+def require_frozen_blobs(repo: Path, head: str, expected_blobs: dict[str, str]) -> None:
+    for path, expected_blob in expected_blobs.items():
+        metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"missing tree metadata for {path}")
+        _mode, _kind, blob_sha, tree_path = metadata
+        require(tree_path == path and blob_sha == expected_blob, f"blob drift for {path}")
+
+
 def validate_wp2a1_manifest(repo: Path) -> None:
     manifest = wp2a1_manifest(repo)
     require(manifest.get("schema") == "studiamatch.f10_9.wp2a1_manifest_continuity.v1", "WP2A.1 schema drift")
@@ -6663,6 +6692,47 @@ def validate_wp2a1_repository_fix(repo: Path, base: str, head: str, event: str) 
     require_exact_delta(repo, base, candidate_head, WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES, WP2A1_REPOSITORY_FIX_ALLOWED_MODES)
     validate_wp2a_rebaseline_manifest(repo)
     validate_wp2a1_manifest(repo)
+
+
+def validate_wp2a1_ci_focused_suite(repo: Path, base: str, head: str, event: str) -> None:
+    require(event in {"pull_request", "push"}, "WP2A.1 CI focused suite event drift")
+    require(base == WP2A1_CI_FOCUSED_SUITE_BASE, "unexpected WP2A.1 CI focused suite base")
+    require_sha(repo, "WP2A.1 CI focused suite base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP2A1_CI_FOCUSED_SUITE_BASE_TREE,
+        "WP2A.1 CI focused suite base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP2A.1 CI focused suite PR must be one direct commit",
+        )
+    else:
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "WP2A.1 CI focused suite push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP2A.1 CI focused suite push candidate must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP2A.1 CI focused suite push tree drift",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES,
+        WP2A1_CI_FOCUSED_SUITE_ALLOWED_MODES,
+    )
+    validate_wp2a1_manifest(repo)
+    require_frozen_blobs(repo, candidate_head, wp2a1_ci_focused_suite_blobs(repo))
 
 
 def validate_wp2a_certification_control_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
@@ -7111,6 +7181,15 @@ def detect_mode(
         and (event == "push" or head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF)
     ):
         return "wp2a1_repository_fix"
+    if (
+        base_ref == "desarrollo"
+        and base == WP2A1_CI_FOCUSED_SUITE_BASE
+        and (
+            (event == "pull_request" and head_ref == WP2A1_CI_FOCUSED_SUITE_HEAD_REF)
+            or event == "push"
+        )
+    ):
+        return "wp2a1_ci_focused_suite"
     if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
@@ -8049,6 +8128,10 @@ def main() -> int:
             )
         elif mode == "wp2a1_repository_fix":
             validate_wp2a1_repository_fix(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a1_ci_focused_suite":
+            validate_wp2a1_ci_focused_suite(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         elif mode == "wp2a_certification_control_bootstrap":
