@@ -266,6 +266,14 @@ WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS = "MERGED_WITH_POST_MERGE_FAILURE_
 WP0_POST_MERGE_BOUNDARY_V2_BASE = WP0_TRUSTED_CONTENT_BINDING_MERGE
 WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE = WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE
 WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF = "fix/f10-9-wp0-post-merge-boundary-v2"
+WP0_1_VERIFIED_HEAD_SHA = "6ba27d0349433ef7681dc49de986fdcad970f397"
+WP0_1_VERIFIED_MERGE_SHA = "0f96b557e6a79dcd331abc7193848aadd387e6cd"
+WP0_1_VERIFIED_MERGE_TREE = "afbab3801d934dd04b1abee626ff8c965df74a93"
+WP0_POST_MERGE_BOUNDARY_V2_STATUS = "COMPLETED_POST_MERGE_VERIFIED"
+WP1_TRUSTED_PROMOTION_REFREEZE_BASE = WP0_1_VERIFIED_MERGE_SHA
+WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE = WP0_1_VERIFIED_MERGE_TREE
+WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF = "feat/f10-9-wp1-trusted-promotion-refreeze-post-wp0-1"
+WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST = ".context/operaciones/wp1_trusted_promotion_refreeze_post_wp0_1_2026_08_18.json"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -951,6 +959,46 @@ WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES = {
 }
 WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES = {
     path: "100644" for path in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST: "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES = {
+    path: "100644" for path in WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES = {
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+        "mode": "100644",
+        "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3",
+    },
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+        "mode": "100644",
+        "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+    },
+    ".github/workflows/security-audit.yml": {
+        "mode": "100755",
+        "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045",
+    },
+    "scripts/security/f109_boundary.py": {
+        "mode": "100644",
+        "blob_sha": "3e0b55ec344d9cdce4a9656ed1e82e7dd940f2ad",
+    },
+    "scripts/security/f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "1dbb583f9d6e8d7bdb3e80a10d172a32bd86f2c1",
+    },
+    "tests/test_f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "6496efd8f038fb0c425e62ef1824855b621a6fa7",
+    },
+    "tests/test_fase10_9_branch_reconciliation.py": {
+        "mode": "100644",
+        "blob_sha": "f63ebd2b0cc206b09debf63293b4be2f35c4e3f5",
+    },
 }
 G5_DEFINITIVE_PROMOTION_FILES = {
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
@@ -5991,7 +6039,10 @@ def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: s
     require(hardening.get("out_of_scope_classification") == "OUT_OF_SCOPE_SAFE", "G5 PR Q out-of-scope drift")
     require(hardening.get("github_actions_app_provenance") == {"name": "GitHub Actions", "app_id": 15368}, "G5 PR Q app provenance drift")
     require(superseded_promotion.get("status") == "SUPERSEDED_NOT_EXECUTABLE", "G5 PR Q superseded promotion drift")
-    require(promotion.get("status") == "PREPARED_NOT_EXECUTED", "G5 PR O promotion status drift")
+    require(
+        promotion.get("status") in {"PREPARED_NOT_EXECUTED", "SUPERSEDED_NOT_EXECUTABLE"},
+        "G5 PR O promotion status drift",
+    )
     require(promotion.get("source_commit") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR R promotion source commit drift")
     require(promotion.get("source_tree") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR R promotion source tree drift")
     require(promotion.get("files_to_promote") == [
@@ -6081,7 +6132,10 @@ def canonical_sha256(value: object) -> str:
 
 def validate_g5_bootstrap_freeze_sidecar(sidecar: dict[str, object]) -> None:
     require(sidecar.get("schema") == "f10.9-g5-certification-wiring-bootstrap-freeze.v1", "G5 sidecar schema drift")
-    require(sidecar.get("status") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS, "G5 sidecar status drift")
+    require(
+        sidecar.get("status") in {G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS, "SUPERSEDED_NOT_EXECUTABLE"},
+        "G5 sidecar status drift",
+    )
     require(sidecar.get("sidecar_policy") == "EXTERNAL_REPOSITORY_ONLY_NOT_PROMOTED_TO_CERTIFICATION", "G5 sidecar policy drift")
     require(sidecar.get("source_commit") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, "G5 sidecar source commit drift")
     require(sidecar.get("source_tree") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE, "G5 sidecar source tree drift")
@@ -6300,6 +6354,77 @@ def validate_wp0_post_merge_boundary_v2(repo: Path, base: str, head: str, event:
         candidate_head,
         WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
         WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+    )
+
+
+def validate_wp1_trusted_promotion_refreeze(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP1_TRUSTED_PROMOTION_REFREEZE_BASE, "unexpected WP1 refreeze baseline")
+    require_sha(repo, "WP1 refreeze base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE,
+        "WP1 refreeze base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP1 refreeze candidate must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "WP1 refreeze push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP1 refreeze merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP1 refreeze push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+        WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES,
+    )
+    manifest = json.loads((repo / WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST).read_text(encoding="utf-8"))
+    require(manifest.get("work_package") == "WP1_TRUSTED_PROMOTION_REFREEZE_POST_WP0_1", "WP1 manifest package drift")
+    require(manifest.get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP1 manifest status drift")
+    source = manifest.get("source_content_freeze", {})
+    require(source.get("source_commit") == WP1_TRUSTED_PROMOTION_REFREEZE_BASE, "WP1 source commit drift")
+    require(source.get("source_tree") == WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE, "WP1 source tree drift")
+    require(source.get("digest") == "98e99186e265fe343752fb27e784e9aad643e49a6c661f3e1c711cfb7bfa9e37", "WP1 source digest drift")
+    require(source.get("files") == WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES, "WP1 source file freeze drift")
+    for path, expected_entry in WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES.items():
+        metadata = str(git(repo, "ls-tree", base, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"WP1 missing source tree metadata for {path}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(kind == "blob" and tree_path == path, f"WP1 invalid source tree entry for {path}")
+        require(
+            {"mode": mode, "blob_sha": blob_sha} == expected_entry,
+            f"WP1 source blob drift for {path}",
+        )
+    future = manifest.get("future_certification_candidate", {})
+    require(future.get("candidate_head_sha") == "REQUIRED_AFTER_PR_CREATION", "WP1 future head must not be invented")
+    require(future.get("candidate_tree") == "REQUIRED_AFTER_PR_CREATION", "WP1 future tree must not be invented")
+    wp01 = manifest.get("wp0_1", {})
+    require(wp01.get("status") == WP0_POST_MERGE_BOUNDARY_V2_STATUS, "WP0.1 status drift")
+    require(wp01.get("pr_404_status") == WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS, "WP0 historical status drift")
+    require(manifest.get("pr_405", {}).get("status") == "CLOSED_NOT_MERGED_SCOPE_DRIFT", "PR405 status drift")
+    require(manifest.get("pr_405", {}).get("incorporate_blobs") is False, "PR405 blobs must remain excluded")
+    require(
+        manifest.get("branch_protection_snapshot", {}).get("digest") == "26b03e2e948ae4d709845af05c3132285b66cbb6c1c0af2eea2347e1fd5b800a",
+        "WP1 branch protection digest drift",
+    )
+    require(
+        manifest.get("security_policy", {}).get("candidate_controlled_security_audit_authoritative") is False,
+        "WP1 candidate-controlled policy drift",
     )
 
 
@@ -6662,6 +6787,12 @@ def detect_mode(
     ):
         return "wp0_post_merge_boundary_v2"
     if (
+        base_ref == "desarrollo"
+        and base == WP1_TRUSTED_PROMOTION_REFREEZE_BASE
+        and (event == "push" or head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF)
+    ):
+        return "wp1_trusted_promotion_refreeze"
+    if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
         and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_HEAD_REF)
@@ -6854,6 +6985,8 @@ def main() -> int:
                 )
             if args.event == "pull_request" and args.head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF:
                 raise BoundaryError("WP0 V2 branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF:
+                raise BoundaryError("WP1 trusted promotion refreeze branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -7001,6 +7134,13 @@ def main() -> int:
             touched_wp0_trusted_content_binding = set(actual).intersection(
                 WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
             )
+            touched_wp1_trusted_promotion_refreeze = set(actual).intersection(
+                WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES
+            )
+            if touched_wp1_trusted_promotion_refreeze:
+                touched_g5_certification_wiring = set()
+                touched_g5_certification_bootstrap_freeze = set()
+                touched_wp0_trusted_content_binding = set()
             if touched_wp0_trusted_content_binding:
                 touched_g5_trusted_boundary_hardening = set()
             if touched_g5_certification_bootstrap_freeze:
@@ -7050,6 +7190,7 @@ def main() -> int:
                         touched_g5_certification_wiring,
                         touched_g5_certification_bootstrap_freeze,
                         touched_wp0_trusted_content_binding,
+                        touched_wp1_trusted_promotion_refreeze,
                     )
                 )
                 <= 1,
@@ -7278,6 +7419,17 @@ def main() -> int:
                     "partial or expanded WP0 trusted content binding delta is forbidden",
                 )
                 mode = "wp0_trusted_content_binding"
+            elif touched_wp1_trusted_promotion_refreeze:
+                require(
+                    args.head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF
+                    or args.event == "push",
+                    "WP1 paths require the protected trusted promotion refreeze branch",
+                )
+                require(
+                    actual == WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+                    "partial or expanded WP1 trusted promotion refreeze delta is forbidden",
+                )
+                mode = "wp1_trusted_promotion_refreeze"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -7504,6 +7656,10 @@ def main() -> int:
             )
         elif mode == "wp0_post_merge_boundary_v2":
             validate_wp0_post_merge_boundary_v2(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp1_trusted_promotion_refreeze":
+            validate_wp1_trusted_promotion_refreeze(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
