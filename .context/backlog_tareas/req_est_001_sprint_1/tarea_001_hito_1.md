@@ -326,6 +326,26 @@ aprobaciones separadas; este documento no las concede.
        `source_tree=b126b5119224010372ea704b87459f98afff2c2a` y blob/mode/path
        exactos para los cuatro archivos promovibles, sin modificarlos ni ejecutar
        promocion.
+       WP0 preserva PR #404 como `MERGED_WITH_POST_MERGE_FAILURE_PRESERVED` sin
+       reclasificar sus fallos historicos como post-merge PASS. PR #405 queda
+       `CLOSED_NOT_MERGED_SCOPE_DRIFT` y sus blobs no se incorporan. WP0.1, PR
+       #406, queda `COMPLETED_POST_MERGE_VERIFIED` con candidate
+       `6ba27d0349433ef7681dc49de986fdcad970f397`, merge protegido
+       `0f96b557e6a79dcd331abc7193848aadd387e6cd` y tree
+       `afbab3801d934dd04b1abee626ff8c965df74a93`; Security post-merge
+       `32096622273=PASS`, `security-audit` job `95589223560=PASS`, Branch
+       Reconciliation `95589129218=PASS`, F9.7 `32096622284=PASS`, F9.7 job
+       `95589281099=PASS`, focused G5 `95589128368=PASS` y M3
+       `95589128448=PASS`. WP1 refreeze repository-only agrega un manifest nuevo
+       que declara supersedidas las versiones anteriores de promocion/wiring sin
+       mutar sus contratos legacy, congela `desarrollo@0f96b557e6a79dcd331abc7193848aadd387e6cd`
+       / tree `afbab3801d934dd04b1abee626ff8c965df74a93` y digest
+       `98e99186e265fe343752fb27e784e9aad643e49a6c661f3e1c711cfb7bfa9e37`.
+       Candidate head/tree futuros permanecen `REQUIRED_AFTER_PR_CREATION`; el
+       trusted workflow sigue ausente en `main`; E2-E6 siguen `NOT_EXECUTED`; no
+       se ejecuta branch protection, default_branch, Actions rerun, merge a
+       `certificacion`/`main`, Cloudflare, GitHub App, Supabase, SQL, Production,
+       writers ni schedules.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

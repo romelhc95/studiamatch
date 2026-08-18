@@ -287,6 +287,17 @@ from scripts.security.f109_boundary import (
     WP0_POST_MERGE_BOUNDARY_V2_BASE,
     WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE,
     WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF,
+    WP0_POST_MERGE_BOUNDARY_V2_STATUS,
+    WP0_1_VERIFIED_HEAD_SHA,
+    WP0_1_VERIFIED_MERGE_SHA,
+    WP0_1_VERIFIED_MERGE_TREE,
+    WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES,
+    WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+    WP1_TRUSTED_PROMOTION_REFREEZE_BASE,
+    WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE,
+    WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF,
+    WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST,
+    WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
@@ -385,6 +396,7 @@ from scripts.security.f109_boundary import (
     validate_g5_bootstrap_freeze_sidecar,
     validate_g5_certification_bootstrap_freeze,
     validate_wp0_post_merge_boundary_v2,
+    validate_wp1_trusted_promotion_refreeze,
     validate_wp0_trusted_content_binding,
     validate_wp0_trusted_content_binding_historical_push,
     validate_g5_control_plane_exception_payload,
@@ -6232,6 +6244,155 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(profile.name, "PR_N_LINK_HARDENING_CLOSURE")
         self.assertEqual(profile.expected_head_sha, bootstrap.PR_N_EXPECTED_HEAD_SHA)
         self.assertNotIn(bootstrap.PR_P_REGISTRATION_PROBE_HEAD_REF, bootstrap.TRUSTED_PROFILES)
+
+    def test_wp1_trusted_promotion_refreeze_detect_mode_and_allowlist_no_mocks(self) -> None:
+        self.assertEqual(WP0_POST_MERGE_BOUNDARY_V2_STATUS, "COMPLETED_POST_MERGE_VERIFIED")
+        self.assertEqual(WP0_1_VERIFIED_HEAD_SHA, "6ba27d0349433ef7681dc49de986fdcad970f397")
+        self.assertEqual(WP0_1_VERIFIED_MERGE_SHA, WP1_TRUSTED_PROMOTION_REFREEZE_BASE)
+        self.assertEqual(WP0_1_VERIFIED_MERGE_TREE, WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE)
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF,
+                WP1_TRUSTED_PROMOTION_REFREEZE_BASE,
+            ),
+            "wp1_trusted_promotion_refreeze",
+        )
+        self.assertEqual(
+            WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+            {
+                ".context/estado_del_proyecto.md": "M",
+                ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+                WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST: "A",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertEqual(set(WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES.values()), {"100644"})
+        self.assertEqual(
+            WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES["scripts/security/f109_boundary.py"],
+            {"mode": "100644", "blob_sha": "3e0b55ec344d9cdce4a9656ed1e82e7dd940f2ad"},
+        )
+
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp1_trusted_promotion_refreeze_validates_manifest_and_exact_delta(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock, git_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE
+        commit_parents_mock.return_value = [WP1_TRUSTED_PROMOTION_REFREEZE_BASE]
+        git_mock.side_effect = lambda _repo, *_args: (
+            f"{WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES[_args[-1]]['mode']} blob "
+            f"{WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES[_args[-1]]['blob_sha']}\t{_args[-1]}\n"
+        )
+        root = Path(__file__).resolve().parents[1]
+
+        validate_wp1_trusted_promotion_refreeze(
+            root, WP1_TRUSTED_PROMOTION_REFREEZE_BASE, head, "pull_request"
+        )
+
+        exact_delta_mock.assert_called_once_with(
+            root,
+            WP1_TRUSTED_PROMOTION_REFREEZE_BASE,
+            head,
+            WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+            WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.git")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp1_trusted_promotion_refreeze_accepts_protected_push(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock, git_mock,
+    ) -> None:
+        candidate = "a" * 40
+        merge_head = "c" * 40
+        commit_tree_mock.side_effect = lambda _repo, commit: (
+            WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE
+            if commit == WP1_TRUSTED_PROMOTION_REFREEZE_BASE
+            else "d" * 40
+        )
+        commit_parents_mock.side_effect = [
+            [WP1_TRUSTED_PROMOTION_REFREEZE_BASE, candidate],
+            [WP1_TRUSTED_PROMOTION_REFREEZE_BASE],
+        ]
+        git_mock.side_effect = lambda _repo, *_args: (
+            f"{WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES[_args[-1]]['mode']} blob "
+            f"{WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES[_args[-1]]['blob_sha']}\t{_args[-1]}\n"
+        )
+        root = Path(__file__).resolve().parents[1]
+
+        validate_wp1_trusted_promotion_refreeze(
+            root, WP1_TRUSTED_PROMOTION_REFREEZE_BASE, merge_head, "push"
+        )
+
+        exact_delta_mock.assert_called_once_with(
+            root,
+            WP1_TRUSTED_PROMOTION_REFREEZE_BASE,
+            candidate,
+            WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+            WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES,
+        )
+
+    def test_wp1_manifest_preserves_wp0_history_and_blocks_pr405_blobs_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST).read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["wp0_1"]["status"], "COMPLETED_POST_MERGE_VERIFIED")
+        self.assertEqual(manifest["wp0_1"]["pr_404_status"], "MERGED_WITH_POST_MERGE_FAILURE_PRESERVED")
+        self.assertNotEqual(manifest["wp0_1"]["pr_404_status"], "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(manifest["pr_405"]["status"], "CLOSED_NOT_MERGED_SCOPE_DRIFT")
+        self.assertFalse(manifest["pr_405"]["incorporate_blobs"])
+        self.assertEqual(manifest["source_content_freeze"]["files"], WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES)
+        self.assertEqual(
+            manifest["future_certification_candidate"]["candidate_head_sha"],
+            "REQUIRED_AFTER_PR_CREATION",
+        )
+        self.assertEqual(
+            manifest["future_certification_candidate"]["candidate_tree"],
+            "REQUIRED_AFTER_PR_CREATION",
+        )
+        self.assertFalse(manifest["security_policy"]["candidate_controlled_security_audit_authoritative"])
+
+    def test_wp1_manifest_supersedes_old_manifests_without_legacy_drift_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST).read_text(encoding="utf-8"))
+        promotion = json.loads(
+            (root / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+        )
+        sidecar = json.loads((root / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+
+        self.assertEqual(promotion["status"], "PREPARED_NOT_EXECUTED")
+        self.assertEqual(sidecar["status"], "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED")
+        self.assertEqual(
+            [entry["status"] for entry in manifest["supersedes"]],
+            ["SUPERSEDED_NOT_EXECUTABLE", "SUPERSEDED_NOT_EXECUTABLE"],
+        )
+        self.assertIn("13a44fb7de6e8d754106b744f96e15c959c45685", manifest["supersedes"][0]["version"])
+        self.assertIn(G5_PR402_CANDIDATE, manifest["supersedes"][1]["version"])
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp1_trusted_promotion_refreeze_rejects_stale_base_and_push(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE
+        commit_parents_mock.return_value = [WP1_TRUSTED_PROMOTION_REFREEZE_BASE]
+        root = Path(__file__).resolve().parents[1]
+
+        with self.assertRaises(BoundaryError):
+            validate_wp1_trusted_promotion_refreeze(root, "b" * 40, head, "pull_request")
+        with self.assertRaises(BoundaryError):
+            validate_wp1_trusted_promotion_refreeze(root, WP1_TRUSTED_PROMOTION_REFREEZE_BASE, head, "push")
+        exact_delta_mock.assert_not_called()
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
