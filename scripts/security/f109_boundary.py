@@ -259,6 +259,13 @@ G5_CERTIFICATION_BOOTSTRAP_SIDECAR = ".context/operaciones/g5_certification_wiri
 WP0_TRUSTED_CONTENT_BINDING_BASE = "2066102f50d1934f83c9f9725ce07be586238d4c"
 WP0_TRUSTED_CONTENT_BINDING_BASE_TREE = "b1e5ba503e258d85c32bd403539610d2ef210cbd"
 WP0_TRUSTED_CONTENT_BINDING_HEAD_REF = "feat/f10-9-wp0-trusted-content-binding"
+WP0_TRUSTED_CONTENT_BINDING_CANDIDATE = "a29b7147089816872f66a4d08d879a1ed671e7ea"
+WP0_TRUSTED_CONTENT_BINDING_MERGE = "0a8eaed0546e0eaa3d994dd217b2b081a381ed78"
+WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE = "9a075ac0c549700c9b52706ca0ca2e27089c8dea"
+WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS = "MERGED_WITH_POST_MERGE_FAILURE_PRESERVED"
+WP0_POST_MERGE_BOUNDARY_V2_BASE = WP0_TRUSTED_CONTENT_BINDING_MERGE
+WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE = WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE
+WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF = "fix/f10-9-wp0-post-merge-boundary-v2"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -937,6 +944,13 @@ WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES = {
 }
 WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES = {
     path: "100644" for path in WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
+}
+WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES = {
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES = {
+    path: "100644" for path in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES
 }
 G5_DEFINITIVE_PROMOTION_FILES = {
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
@@ -6213,6 +6227,82 @@ def validate_wp0_trusted_content_binding(repo: Path, base: str, head: str, event
     )
 
 
+def validate_wp0_trusted_content_binding_historical_push(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(event == "push", "WP0 historical recognition is push-only")
+    require(base == WP0_TRUSTED_CONTENT_BINDING_BASE, "unexpected WP0 historical push base")
+    require(head == WP0_TRUSTED_CONTENT_BINDING_MERGE, "unexpected WP0 historical push merge")
+    require_sha(repo, "WP0 historical base", base)
+    require_sha(repo, "WP0 historical candidate", WP0_TRUSTED_CONTENT_BINDING_CANDIDATE)
+    require_sha(repo, "WP0 historical merge", head)
+    require(
+        commit_tree(repo, base) == WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+        "WP0 historical push base tree drift",
+    )
+    require(
+        commit_tree(repo, head) == WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE,
+        "WP0 historical push merge tree drift",
+    )
+    require(
+        commit_parents(repo, head) == [base, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE],
+        "WP0 historical push parent drift",
+    )
+    require(
+        commit_parents(repo, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE) == [base],
+        "WP0 historical candidate parent drift",
+    )
+    require(
+        commit_tree(repo, head) == commit_tree(repo, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE),
+        "WP0 historical push tree differs from candidate",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        WP0_TRUSTED_CONTENT_BINDING_CANDIDATE,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+    )
+
+
+def validate_wp0_post_merge_boundary_v2(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP0_POST_MERGE_BOUNDARY_V2_BASE, "unexpected WP0 V2 baseline")
+    require_sha(repo, "WP0 V2 base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE,
+        "WP0 V2 base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP0 V2 PR head must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "WP0 V2 push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP0 V2 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP0 V2 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+        WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+    )
+
+
 def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
     if base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE:
         expected_tree = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
@@ -6566,6 +6656,12 @@ def detect_mode(
     ):
         return "wp0_trusted_content_binding"
     if (
+        base_ref == "desarrollo"
+        and base == WP0_POST_MERGE_BOUNDARY_V2_BASE
+        and (event == "push" or head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF)
+    ):
+        return "wp0_post_merge_boundary_v2"
+    if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
         and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_HEAD_REF)
@@ -6756,6 +6852,8 @@ def main() -> int:
                 raise BoundaryError(
                     "WP0 trusted content binding branch requires the frozen source baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF:
+                raise BoundaryError("WP0 V2 branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -6822,6 +6920,28 @@ def main() -> int:
                     "F10.10 M3 PUBLIC ACL final readiness branch requires its frozen protected desarrollo baseline"
                 )
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
+            if (
+                args.event == "push"
+                and args.base_ref == "desarrollo"
+                and args.base_sha == WP0_TRUSTED_CONTENT_BINDING_BASE
+                and args.head_sha == WP0_TRUSTED_CONTENT_BINDING_MERGE
+            ):
+                validate_wp0_trusted_content_binding_historical_push(
+                    args.repo, args.base_sha, args.head_sha, args.event,
+                )
+                emit_mode("wp0_trusted_content_binding_historical_push", args.github_output)
+                return 0
+            if (
+                args.base_ref == "desarrollo"
+                and args.base_sha == WP0_POST_MERGE_BOUNDARY_V2_BASE
+                and actual == WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES
+                and (args.event == "push" or args.head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF)
+            ):
+                validate_wp0_post_merge_boundary_v2(
+                    args.repo, args.base_sha, args.head_sha, args.event,
+                )
+                emit_mode("wp0_post_merge_boundary_v2", args.github_output)
+                return 0
             touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
             touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
             touched_g2 = set(actual).intersection(G2_ALLOWED_STATUSES)
@@ -7380,6 +7500,10 @@ def main() -> int:
             )
         elif mode == "wp0_trusted_content_binding":
             validate_wp0_trusted_content_binding(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp0_post_merge_boundary_v2":
+            validate_wp0_post_merge_boundary_v2(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:
