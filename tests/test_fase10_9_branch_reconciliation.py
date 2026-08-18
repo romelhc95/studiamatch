@@ -298,6 +298,19 @@ from scripts.security.f109_boundary import (
     WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF,
     WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST,
     WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES,
+    WP2A_CERTIFICATION_CONTROL_HEAD_REF,
+    WP2A_CERTIFICATION_CONTROL_MODES,
+    WP2A_CERTIFICATION_CONTROL_STATUSES,
+    WP2A_REBASELINE_ALLOWED_MODES,
+    WP2A_REBASELINE_ALLOWED_STATUSES,
+    WP2A_REBASELINE_BASE,
+    WP2A_REBASELINE_BASE_TREE,
+    WP2A_REBASELINE_HEAD_REF,
+    WP2A_REBASELINE_MANIFEST,
+    WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS,
+    WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF,
+    WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES,
+    WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
@@ -397,6 +410,9 @@ from scripts.security.f109_boundary import (
     validate_g5_certification_bootstrap_freeze,
     validate_wp0_post_merge_boundary_v2,
     validate_wp1_trusted_promotion_refreeze,
+    validate_wp2a_certification_control_bootstrap,
+    validate_wp2a_rebaseline,
+    validate_wp2b_certification_trusted_content,
     validate_wp0_trusted_content_binding,
     validate_wp0_trusted_content_binding_historical_push,
     validate_g5_control_plane_exception_payload,
@@ -6393,6 +6409,243 @@ class F109BoundaryTest(unittest.TestCase):
         with self.assertRaises(BoundaryError):
             validate_wp1_trusted_promotion_refreeze(root, WP1_TRUSTED_PROMOTION_REFREEZE_BASE, head, "push")
         exact_delta_mock.assert_not_called()
+
+    def test_wp2a_profiles_are_separate_from_legacy_and_wp2b_no_mocks(self) -> None:
+        self.assertEqual(WP2A_REBASELINE_BASE, "6967efe00113816beba3a3abe2d895e8e54600ca")
+        self.assertEqual(WP2A_REBASELINE_BASE_TREE, "7fc586e21c78a351c3773625c1ad4f16b83d106e")
+        self.assertEqual(WP2A_REBASELINE_HEAD_REF, "feat/f10-9-wp2a-certification-bootstrap-rebaseline")
+        self.assertEqual(WP2A_CERTIFICATION_CONTROL_HEAD_REF, "promote/f10-9-wp2a-certification-control-bootstrap")
+        self.assertEqual(WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF, "promote/f10-9-wp2b-certification-trusted-content")
+        self.assertEqual(
+            WP2A_CERTIFICATION_CONTROL_STATUSES,
+            {
+                ".github/workflows/security-audit.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertEqual(
+            WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES,
+            {
+                ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
+                ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "A",
+                "scripts/security/f109_trusted_boundary_bootstrap.py": "A",
+                "tests/test_f109_trusted_boundary_bootstrap.py": "A",
+            },
+        )
+        self.assertEqual(
+            G5_CERTIFICATION_WIRING_ALLOWED_STATUSES,
+            {
+                ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+                ".github/workflows/security-audit.yml": "M",
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+
+    def test_wp2a_manifest_preserves_wp1_and_splits_wp2a_wp2b_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = json.loads((root / WP2A_REBASELINE_MANIFEST).read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["wp1"]["status"], "COMPLETED")
+        self.assertEqual(manifest["wp1"]["merge_sha"], WP2A_REBASELINE_BASE)
+        self.assertEqual(manifest["local_diagnostic_candidate"]["status"], "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE")
+        self.assertTrue(manifest["local_diagnostic_candidate"]["reuse_forbidden"])
+        self.assertFalse(manifest["legacy_manifests"]["mutated"])
+        self.assertEqual(manifest["legacy_manifests"]["executable_use"], "SUPERSEDED_NOT_EXECUTABLE")
+        self.assertEqual(manifest["wp2a_certification_control_bootstrap"]["statuses"], WP2A_CERTIFICATION_CONTROL_STATUSES)
+        self.assertEqual(manifest["wp2a_certification_control_bootstrap"]["modes"], WP2A_CERTIFICATION_CONTROL_MODES)
+        self.assertEqual(
+            manifest["wp2a_certification_control_bootstrap"]["validator_authority"],
+            "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE",
+        )
+        self.assertEqual(manifest["wp2b_certification_trusted_content"]["statuses"], WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES)
+        self.assertEqual(manifest["wp2b_certification_trusted_content"]["modes"], WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES)
+        self.assertEqual(
+            manifest["wp2b_certification_trusted_content"]["protected_validator_source"],
+            "origin/desarrollo",
+        )
+        self.assertEqual(
+            {path: entry["blob_sha"] for path, entry in manifest["wp2b_certification_trusted_content"]["files"].items()},
+            WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS,
+        )
+        self.assertEqual(manifest["future_runtime_binding"]["wp2a_candidate_head_sha"], "REQUIRED_AFTER_PR_CREATION")
+        self.assertEqual(manifest["future_runtime_binding"]["wp2b_candidate_tree"], "REQUIRED_AFTER_PR_CREATION")
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp2a_rebaseline_validates_exact_repository_delta(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = WP2A_REBASELINE_BASE_TREE
+        commit_parents_mock.return_value = [WP2A_REBASELINE_BASE]
+        root = Path(__file__).resolve().parents[1]
+
+        validate_wp2a_rebaseline(root, WP2A_REBASELINE_BASE, head, "pull_request")
+
+        exact_delta_mock.assert_called_once_with(
+            root,
+            WP2A_REBASELINE_BASE,
+            head,
+            WP2A_REBASELINE_ALLOWED_STATUSES,
+            WP2A_REBASELINE_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta_blobs")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp2a_certification_control_accepts_pr_and_protected_push(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_blobs_mock,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        candidate = "a" * 40
+        merge_head = "b" * 40
+        commit_tree_mock.side_effect = lambda _repo, commit: (
+            G5_CERTIFICATION_WIRING_BASE_TREE if commit == G5_CERTIFICATION_WIRING_BASE else "c" * 40
+        )
+        commit_parents_mock.side_effect = [
+            [G5_CERTIFICATION_WIRING_BASE],
+            [G5_CERTIFICATION_WIRING_BASE, candidate],
+            [G5_CERTIFICATION_WIRING_BASE],
+        ]
+
+        validate_wp2a_certification_control_bootstrap(root, G5_CERTIFICATION_WIRING_BASE, candidate, "pull_request")
+        validate_wp2a_certification_control_bootstrap(root, G5_CERTIFICATION_WIRING_BASE, merge_head, "push")
+
+        self.assertEqual(exact_blobs_mock.call_count, 2)
+        self.assertEqual(exact_blobs_mock.call_args_list[0].args[1:4], (G5_CERTIFICATION_WIRING_BASE, candidate, WP2A_CERTIFICATION_CONTROL_STATUSES))
+        self.assertEqual(exact_blobs_mock.call_args_list[1].args[1:4], (G5_CERTIFICATION_WIRING_BASE, candidate, WP2A_CERTIFICATION_CONTROL_STATUSES))
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta_blobs")
+    def test_wp2b_certification_content_is_dormant_until_runtime_binding(
+        self, exact_blobs_mock,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        base = "d" * 40
+        head = "e" * 40
+
+        with self.assertRaises(BoundaryError):
+            validate_wp2b_certification_trusted_content(root, base, head, "pull_request")
+        exact_blobs_mock.assert_not_called()
+
+    def test_wp2a_detect_mode_and_wrong_ref_rejection(self) -> None:
+        self.assertEqual(
+            detect_mode("pull_request", "desarrollo", WP2A_REBASELINE_HEAD_REF, WP2A_REBASELINE_BASE),
+            "wp2a_rebaseline",
+        )
+        self.assertEqual(
+            detect_mode("pull_request", "certificacion", WP2A_CERTIFICATION_CONTROL_HEAD_REF, G5_CERTIFICATION_WIRING_BASE),
+            "wp2a_certification_control_bootstrap",
+        )
+        self.assertEqual(
+            detect_mode("pull_request", "certificacion", "wrong-ref", G5_CERTIFICATION_WIRING_BASE),
+            "skip",
+        )
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value=WP2A_REBASELINE_ALLOWED_STATUSES)
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2a_cli_rejects_wrong_branch_for_rebaseline(self, parse_args_mock, changed_statuses_mock) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            base_sha=WP2A_REBASELINE_BASE,
+            head_ref="wrong-ref",
+        )
+
+        self.assertEqual(main(), 1)
+        changed_statuses_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value=WP2A_CERTIFICATION_CONTROL_STATUSES)
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2a_certification_fallback_rejects_wrong_head_ref(self, parse_args_mock, changed_statuses_mock) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            base_ref="certificacion",
+            head_ref="wrong-ref",
+            base_sha=G5_CERTIFICATION_WIRING_BASE,
+            head_sha="c" * 40,
+        )
+
+        self.assertEqual(main(), 1)
+        changed_statuses_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value=WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES)
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2b_certification_fallback_rejects_wrong_head_ref(self, parse_args_mock, changed_statuses_mock) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            base_ref="certificacion",
+            head_ref="wrong-ref",
+            base_sha="c" * 40,
+            head_sha="d" * 40,
+        )
+
+        self.assertEqual(main(), 1)
+        changed_statuses_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.validate_wp2a_certification_control_bootstrap")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value=WP2A_CERTIFICATION_CONTROL_STATUSES)
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2a_certification_fallback_accepts_protected_push(
+        self, parse_args_mock, changed_statuses_mock, validate_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            event="push",
+            base_ref="certificacion",
+            head_ref="certificacion",
+            base_sha=G5_CERTIFICATION_WIRING_BASE,
+            head_sha="c" * 40,
+        )
+
+        self.assertEqual(main(), 0)
+        changed_statuses_mock.assert_called_once()
+        validate_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.validate_wp2b_certification_trusted_content")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses", return_value=WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES)
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2b_certification_fallback_accepts_protected_push(
+        self, parse_args_mock, changed_statuses_mock, validate_mock,
+    ) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            event="push",
+            base_ref="certificacion",
+            head_ref="certificacion",
+            base_sha="c" * 40,
+            head_sha="d" * 40,
+        )
+
+        self.assertEqual(main(), 0)
+        changed_statuses_mock.assert_called_once()
+        validate_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp2a_cli_rejects_partial_or_expanded_delta(self, parse_args_mock, changed_statuses_mock) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            base_sha=WP2A_REBASELINE_BASE,
+            head_ref=WP2A_REBASELINE_HEAD_REF,
+        )
+        for delta in (
+            {"scripts/security/f109_boundary.py": "M"},
+            {**WP2A_REBASELINE_ALLOWED_STATUSES, "extra.txt": "A"},
+        ):
+            with self.subTest(delta=delta):
+                changed_statuses_mock.return_value = delta
+                self.assertEqual(main(), 1)
+
+    def test_wp2a_workflow_keeps_legacy_base_boundary_compat_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        workflow = (root / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
+
+        self.assertIn('git show "$F109_BASE_SHA:scripts/security/f109_boundary.py"', workflow)
+        self.assertIn('git show origin/desarrollo:scripts/security/f109_boundary.py', workflow)
+        self.assertIn('git show origin/desarrollo:.context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json', workflow)
+        self.assertIn("github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content'", workflow)
+        self.assertIn('boundary_compat_args="legacy"', workflow)
+        self.assertIn('if [ "$boundary_compat_args" = "legacy" ]; then', workflow)
+        self.assertIn('[ "$F109_HEAD_REF" = "promote/f10-9-g5-certification-wiring-bootstrap" ]', workflow)
+        self.assertNotIn('test "$F109_HEAD_REF" = "promote/f10-9-wp2a-certification-control-bootstrap"', workflow)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
