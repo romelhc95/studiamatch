@@ -279,6 +279,11 @@ WP2A_REBASELINE_BASE_TREE = "7fc586e21c78a351c3773625c1ad4f16b83d106e"
 WP2A_REBASELINE_HEAD_REF = "feat/f10-9-wp2a-certification-bootstrap-rebaseline"
 WP2A_REBASELINE_MANIFEST = ".context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json"
 WP2A_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a-certification-control-bootstrap"
+WP2A1_REPOSITORY_FIX_BASE = "f7b5eb9c6108df476fdb2d10767c23d5e1bf3578"
+WP2A1_REPOSITORY_FIX_BASE_TREE = "a2a70d3dce05af9865bbc6c9a127c23b33176d7b"
+WP2A1_REPOSITORY_FIX_HEAD_REF = "feat/f10-9-wp2a1-certification-push-manifest-continuity-fix"
+WP2A1_MANIFEST = ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json"
+WP2A1_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a1-certification-control-bootstrap"
 WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF = "promote/f10-9-wp2b-certification-trusted-content"
 
 CONTEXT_EXPECTED_BLOBS = {
@@ -996,6 +1001,28 @@ WP2A_CERTIFICATION_CONTROL_STATUSES = {
 WP2A_CERTIFICATION_CONTROL_MODES = {
     path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
     for path in WP2A_CERTIFICATION_CONTROL_STATUSES
+}
+WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP2A1_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A1_REPOSITORY_FIX_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES
+}
+WP2A1_CERTIFICATION_CONTROL_STATUSES = {
+    WP2A1_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A1_CERTIFICATION_CONTROL_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_CERTIFICATION_CONTROL_STATUSES
 }
 WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES = {
     ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
@@ -6488,12 +6515,74 @@ def validate_wp1_trusted_promotion_refreeze(repo: Path, base: str, head: str, ev
 
 
 def wp2a_manifest(repo: Path) -> dict:
-    return json.loads((repo / WP2A_REBASELINE_MANIFEST).read_text(encoding="utf-8"))
+    path = repo / WP2A_REBASELINE_MANIFEST
+    require(path.exists(), "WP2A v1 manifest is required")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def wp2a1_manifest(repo: Path) -> dict:
+    path = repo / WP2A1_MANIFEST
+    require(path.exists(), "WP2A.1 manifest is required")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def wp2a_control_blobs(repo: Path) -> dict[str, str]:
     profile = wp2a_manifest(repo)["wp2a_certification_control_bootstrap"]
     return {path: entry["blob_sha"] for path, entry in profile["files"].items()}
+
+
+def wp2a1_control_blobs(repo: Path) -> dict[str, str]:
+    profile = wp2a1_manifest(repo)["wp2a1_certification_control_bootstrap"]
+    return {
+        path: entry["blob_sha"]
+        for path, entry in profile["files"].items()
+        if path != WP2A1_MANIFEST
+    }
+
+
+def validate_wp2a1_manifest(repo: Path) -> None:
+    manifest = wp2a1_manifest(repo)
+    require(manifest.get("schema") == "studiamatch.f10_9.wp2a1_manifest_continuity.v1", "WP2A.1 schema drift")
+    require(manifest.get("work_package") == "WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX", "WP2A.1 package drift")
+    require(manifest.get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP2A.1 status drift")
+    require(manifest.get("self_blob_sha") is None, "WP2A.1 manifest must not be self-referential")
+    require(manifest.get("wp2a_v1", {}).get("manifest") == WP2A_REBASELINE_MANIFEST, "WP2A v1 manifest reference drift")
+    require(manifest.get("wp2a_v1", {}).get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP2A v1 status drift")
+    require(manifest.get("wp2a_v1", {}).get("executable_use") == "SUPERSEDED_NOT_EXECUTABLE", "WP2A v1 executable-use drift")
+    pr408 = manifest.get("pr408", {})
+    require(pr408.get("status") == "MERGED_POST_MERGE_VERIFIED", "PR #408 status drift")
+    require(pr408.get("candidate_sha") == "ec57d89b19dc29a98083c0ade87c586242e15fbb", "PR #408 candidate drift")
+    require(pr408.get("candidate_tree") == WP2A1_REPOSITORY_FIX_BASE_TREE, "PR #408 candidate tree drift")
+    require(pr408.get("merge_sha") == WP2A1_REPOSITORY_FIX_BASE, "PR #408 merge drift")
+    require(pr408.get("merge_tree") == WP2A1_REPOSITORY_FIX_BASE_TREE, "PR #408 merge tree drift")
+    diagnostic = manifest.get("local_diagnostic_candidate", {})
+    require(diagnostic.get("sha") == "03fae3ee8a9393feb08aeab38968c0c4ee5533f6", "diagnostic candidate drift")
+    require(diagnostic.get("status") == "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE", "diagnostic candidate status drift")
+    require(diagnostic.get("reuse_forbidden") is True, "diagnostic candidate reuse must be forbidden")
+    gates = manifest.get("gates", {})
+    require(gates.get("e2_e6") == "NOT_EXECUTED", "E2-E6 must remain not executed")
+    require(gates.get("next") == "WP2A1_CERTIFICATION_CONTROL_BOOTSTRAP_PREPARATION", "WP2A.1 next gate drift")
+    tracking = manifest.get("tracking_preserved", {})
+    require(tracking.get("hito_1") == "60%", "Hito tracking drift")
+    require(tracking.get("f10_9") == "38%", "F10.9 tracking drift")
+    require(tracking.get("g5") == "50%", "G5 tracking drift")
+    forbidden = manifest.get("forbidden_operations", [])
+    for operation in ("certificacion", "branch_protection", "required_checks", "main", "actions_api", "cloudflare", "github_app", "supabase", "sql", "production", "writers", "schedules", "merge"):
+        require(operation in forbidden, f"forbidden operation missing: {operation}")
+    wp2a1 = manifest.get("wp2a1_certification_control_bootstrap", {})
+    require(wp2a1.get("profile") == "WP2A_1_CERTIFICATION_CONTROL_BOOTSTRAP", "WP2A.1 profile drift")
+    require(wp2a1.get("head_ref") == WP2A1_CERTIFICATION_CONTROL_HEAD_REF, "WP2A.1 head ref drift")
+    require(wp2a1.get("base") == G5_CERTIFICATION_WIRING_BASE, "WP2A.1 certification base drift")
+    require(wp2a1.get("base_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A.1 certification tree drift")
+    require(wp2a1.get("statuses") == WP2A1_CERTIFICATION_CONTROL_STATUSES, "WP2A.1 statuses drift")
+    require(wp2a1.get("modes") == WP2A1_CERTIFICATION_CONTROL_MODES, "WP2A.1 modes drift")
+    require(wp2a1.get("manifest_integrity") == "PRE_MERGE_PROTECTED_BLOB_EQUALITY_POST_MERGE_TREE_CONTINUITY", "WP2A.1 manifest-integrity drift")
+    require(set(wp2a1.get("files", {})) == set(WP2A1_CERTIFICATION_CONTROL_STATUSES), "WP2A.1 files drift")
+    require(set(wp2a1_control_blobs(repo)) == set(WP2A_CERTIFICATION_CONTROL_STATUSES), "WP2A.1 control blob set drift")
+    wp2b = manifest.get("wp2b_certification_trusted_content", {})
+    require(wp2b.get("base") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B must remain unbound")
+    require(wp2b.get("base_tree") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B tree must remain unbound")
+    require(wp2b.get("execution") == "FAIL_CLOSED", "WP2B must remain fail-closed")
 
 
 def validate_wp2a_rebaseline_manifest(repo: Path) -> None:
@@ -6559,6 +6648,23 @@ def validate_wp2a_rebaseline(repo: Path, base: str, head: str, event: str) -> No
     validate_wp2a_rebaseline_manifest(repo)
 
 
+def validate_wp2a1_repository_fix(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP2A1_REPOSITORY_FIX_BASE, "unexpected WP2A.1 repository fix base")
+    require_sha(repo, "WP2A.1 repository fix base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == WP2A1_REPOSITORY_FIX_BASE_TREE, "WP2A.1 repository fix base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A.1 repository fix push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A.1 repository fix push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A.1 repository fix must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES, WP2A1_REPOSITORY_FIX_ALLOWED_MODES)
+    validate_wp2a_rebaseline_manifest(repo)
+    validate_wp2a1_manifest(repo)
+
+
 def validate_wp2a_certification_control_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
     require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected WP2A certification base")
     require_sha(repo, "WP2A certification base", base)
@@ -6579,6 +6685,27 @@ def validate_wp2a_certification_control_bootstrap(repo: Path, base: str, head: s
         WP2A_CERTIFICATION_CONTROL_MODES,
         wp2a_control_blobs(repo),
     )
+
+
+def validate_wp2a1_certification_control_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected WP2A.1 certification base")
+    require_sha(repo, "WP2A.1 certification base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A.1 certification base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A.1 certification push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A.1 certification push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A.1 certification candidate must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2A1_CERTIFICATION_CONTROL_STATUSES, WP2A1_CERTIFICATION_CONTROL_MODES)
+    validate_wp2a1_manifest(repo)
+    for path, expected_blob in wp2a1_control_blobs(repo).items():
+        metadata = str(git(repo, "ls-tree", candidate_head, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"missing tree metadata for {path}")
+        _mode, _kind, blob_sha, tree_path = metadata
+        require(tree_path == path and blob_sha == expected_blob, f"blob drift for {path}")
 
 
 def validate_wp2b_certification_trusted_content(repo: Path, base: str, head: str, event: str) -> None:
@@ -6979,12 +7106,18 @@ def detect_mode(
     ):
         return "wp2a_rebaseline"
     if (
+        base_ref == "desarrollo"
+        and base == WP2A1_REPOSITORY_FIX_BASE
+        and (event == "push" or head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF)
+    ):
+        return "wp2a1_repository_fix"
+    if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
         and event == "pull_request"
-        and head_ref == WP2A_CERTIFICATION_CONTROL_HEAD_REF
+        and head_ref == WP2A1_CERTIFICATION_CONTROL_HEAD_REF
     ):
-        return "wp2a_certification_control_bootstrap"
+        return "wp2a1_certification_control_bootstrap"
     if (
         base_ref == "certificacion"
         and event == "pull_request"
@@ -7072,7 +7205,15 @@ def main() -> int:
         )
         if mode == "skip" and args.base_ref == "certificacion":
             actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
-            if actual == WP2A_CERTIFICATION_CONTROL_STATUSES:
+            if actual == WP2A1_CERTIFICATION_CONTROL_STATUSES:
+                require(
+                    (args.event == "pull_request" and args.head_ref == WP2A1_CERTIFICATION_CONTROL_HEAD_REF)
+                    or (args.event == "push" and args.head_ref == "certificacion"),
+                    "WP2A.1 certification control requires the canonical head ref or protected certification push",
+                )
+                mode = "wp2a1_certification_control_bootstrap"
+            elif actual == WP2A_CERTIFICATION_CONTROL_STATUSES:
+                require(args.head_ref != WP2A_CERTIFICATION_CONTROL_HEAD_REF, "WP2A v1 certification head ref is superseded")
                 require(
                     (args.event == "pull_request" and args.head_ref == WP2A_CERTIFICATION_CONTROL_HEAD_REF)
                     or (args.event == "push" and args.head_ref == "certificacion"),
@@ -7207,6 +7348,8 @@ def main() -> int:
                 raise BoundaryError("WP0 V2 branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF:
                 raise BoundaryError("WP1 trusted promotion refreeze branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF:
+                raise BoundaryError("WP2A.1 repository fix branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -7904,8 +8047,16 @@ def main() -> int:
             validate_wp2a_rebaseline(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
+        elif mode == "wp2a1_repository_fix":
+            validate_wp2a1_repository_fix(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
         elif mode == "wp2a_certification_control_bootstrap":
             validate_wp2a_certification_control_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a1_certification_control_bootstrap":
+            validate_wp2a1_certification_control_bootstrap(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         elif mode == "wp2b_certification_trusted_content":

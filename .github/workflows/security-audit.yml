@@ -1286,7 +1286,7 @@ jobs:
     name: F10.9 Branch Reconciliation
     if: >-
       (github.event_name == 'pull_request' &&
-        ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) ||
+        ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2a1-certification-control-bootstrap' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) ||
          github.base_ref == 'desarrollo')) ||
       (github.event_name == 'push' &&
         ((github.ref == 'refs/heads/certificacion') ||
@@ -1367,7 +1367,19 @@ jobs:
             git show "$F109_BASE_SHA:scripts/security/f109_boundary.py" > /tmp/f109_boundary_base.py
             boundary_script="/tmp/f109_boundary_base.py"
             boundary_compat_args="legacy"
-          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && { [ "$F109_HEAD_REF" = "promote/f10-9-wp2a-certification-control-bootstrap" ] || [ "$F109_HEAD_REF" = "promote/f10-9-wp2b-certification-trusted-content" ]; }; then
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2a-certification-control-bootstrap" ]; then
+            echo "WP2A v1 certification head ref is superseded by WP2A.1" >&2
+            exit 1
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2a1-certification-control-bootstrap" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            echo "F10.9 protected validator source: origin/desarrollo@$protected_dev_tip"
+            manifest_path=".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json"
+            candidate_manifest_blob="$(git rev-parse "$F109_HEAD_SHA:$manifest_path")"
+            protected_manifest_blob="$(git rev-parse "origin/desarrollo:$manifest_path")"
+            test "$candidate_manifest_blob" = "$protected_manifest_blob"
+            git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
+            boundary_script="/tmp/f109_boundary_protected_desarrollo.py"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2b-certification-trusted-content" ]; then
             git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
             mkdir -p .context/operaciones
             git show origin/desarrollo:.context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json > .context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json
@@ -1428,7 +1440,7 @@ jobs:
           F108_FG1_SOURCE: ${{ needs.f108-fg1-source-slug.result }}
           F108_FG1_MAIN_BOUNDARY: ${{ needs.f108-fg1-main-boundary.result }}
           F109_RECONCILIATION: ${{ needs.f109-branch-reconciliation.result }}
-          F109_REQUIRED: ${{ (github.event_name == 'pull_request' && ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) || github.base_ref == 'desarrollo')) || (github.event_name == 'push' && (github.ref == 'refs/heads/certificacion' || github.ref == 'refs/heads/desarrollo')) }}
+          F109_REQUIRED: ${{ (github.event_name == 'pull_request' && ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2a1-certification-control-bootstrap' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) || github.base_ref == 'desarrollo')) || (github.event_name == 'push' && (github.ref == 'refs/heads/certificacion' || github.ref == 'refs/heads/desarrollo')) }}
           CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
           MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}
