@@ -346,6 +346,21 @@ aprobaciones separadas; este documento no las concede.
        se ejecuta branch protection, default_branch, Actions rerun, merge a
        `certificacion`/`main`, Cloudflare, GitHub App, Supabase, SQL, Production,
        writers ni schedules.
+       PR #407 queda `MERGED_POST_MERGE_VERIFIED`; WP1 queda `COMPLETED` con
+       candidate `04eafe7bc61dc576f4007313dfd890eba34d3e37`, parent
+       `0f96b557e6a79dcd331abc7193848aadd387e6cd`, tree
+       `7fc586e21c78a351c3773625c1ad4f16b83d106e` y merge protegido
+       `6967efe00113816beba3a3abe2d895e8e54600ca`. El candidate local
+       `f0bd8944d7f1b952c4c327fcfb57c29bbae569d0` / tree
+       `263565b060b4ec044db9a9c8a551ce50f13495ce` queda
+       `LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE`, sin push, sin PR y prohibido
+       para reutilizacion. El proximo gate queda
+       `WP2A_CONTROL_BOOTSTRAP_PREPARATION` mediante el manifest
+       `wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json`, que
+       separa WP2A control bootstrap de tres paths y WP2B trusted content de
+       cuatro paths. E2-E6 siguen `NOT_EXECUTED`; Hito 1 `60%`, F10.9 `38%`,
+       G5 `50%`, readiness `75%`, pares `0` y observacion `NOT_STARTED`
+       permanecen sin cambio.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

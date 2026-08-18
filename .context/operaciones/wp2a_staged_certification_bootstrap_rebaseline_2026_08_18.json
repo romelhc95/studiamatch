@@ -1,0 +1,176 @@
+{
+  "schema": "f10.9-wp2a-staged-certification-bootstrap-rebaseline.v1",
+  "work_package": "WP2A_STAGED_CERTIFICATION_BOOTSTRAP_REBASELINE",
+  "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+  "scope": "DESARROLLO_REBASELINE_ONLY_FOR_FUTURE_CERTIFICATION_BOOTSTRAP",
+  "authority": {
+    "f10_9": "REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION",
+    "f10_10": "SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2",
+    "desarrollo": "6967efe00113816beba3a3abe2d895e8e54600ca",
+    "desarrollo_tree": "7fc586e21c78a351c3773625c1ad4f16b83d106e",
+    "certificacion": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "certificacion_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+  },
+  "wp1": {
+    "status": "COMPLETED",
+    "pr": 407,
+    "pr_status": "MERGED_POST_MERGE_VERIFIED",
+    "candidate_sha": "04eafe7bc61dc576f4007313dfd890eba34d3e37",
+    "candidate_parent": "0f96b557e6a79dcd331abc7193848aadd387e6cd",
+    "candidate_tree": "7fc586e21c78a351c3773625c1ad4f16b83d106e",
+    "merge_sha": "6967efe00113816beba3a3abe2d895e8e54600ca",
+    "merge_tree": "7fc586e21c78a351c3773625c1ad4f16b83d106e",
+    "source_freeze_commit": "0f96b557e6a79dcd331abc7193848aadd387e6cd",
+    "source_freeze_tree": "afbab3801d934dd04b1abee626ff8c965df74a93",
+    "source_freeze_digest": "98e99186e265fe343752fb27e784e9aad643e49a6c661f3e1c711cfb7bfa9e37"
+  },
+  "local_diagnostic_candidate": {
+    "sha": "f0bd8944d7f1b952c4c327fcfb57c29bbae569d0",
+    "parent": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "tree": "263565b060b4ec044db9a9c8a551ce50f13495ce",
+    "status": "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE",
+    "pushed": false,
+    "pr_created": false,
+    "reuse_forbidden": true
+  },
+  "stop_cause_preserved": {
+    "wp1_seven_path_candidate_mismatched_legacy_four_path_profile": true,
+    "certification_boundary_did_not_recognize_g5_on_4f16": true,
+    "development_only_change_cannot_retroactively_change_certification_validator": true,
+    "single_exception_against_seven_path_candidate_would_fail_post_merge": true
+  },
+  "legacy_manifests": {
+    "mutated": false,
+    "executable_use": "SUPERSEDED_NOT_EXECUTABLE",
+    "preserved_paths": [
+      ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json",
+      ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json"
+    ]
+  },
+  "gates": {
+    "next": "WP2A_CONTROL_BOOTSTRAP_PREPARATION",
+    "e2_e6": "NOT_EXECUTED",
+    "certificacion": "NOT_EXECUTED",
+    "main": "NOT_EXECUTED",
+    "branch_protection": "NOT_EXECUTED"
+  },
+  "wp2a_certification_control_bootstrap": {
+    "profile": "WP2A_CERTIFICATION_CONTROL_BOOTSTRAP",
+    "base": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "base_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "head_ref": "promote/f10-9-wp2a-certification-control-bootstrap",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "validator_authority": "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE",
+    "protected_validator_source": "origin/desarrollo",
+    "protected_manifest_source": "origin/desarrollo",
+    "statuses": {
+      ".github/workflows/security-audit.yml": "M",
+      "scripts/security/f109_boundary.py": "M",
+      "tests/test_fase10_9_branch_reconciliation.py": "M"
+    },
+    "modes": {
+      ".github/workflows/security-audit.yml": "100755",
+      "scripts/security/f109_boundary.py": "100644",
+      "tests/test_fase10_9_branch_reconciliation.py": "100644"
+    },
+    "files": {
+      ".github/workflows/security-audit.yml": {
+        "mode": "100755",
+        "blob_sha": "5112042f6fcc17bc4d1172181a8403c0d649ea99"
+      },
+      "scripts/security/f109_boundary.py": {
+        "mode": "100644",
+        "blob_sha": "18c2dbba8ea15cbfc5d16e5b6b4a7e0eddbeef18"
+      },
+      "tests/test_fase10_9_branch_reconciliation.py": {
+        "mode": "100644",
+        "blob_sha": "e26f81de01f67118b8ebdbb2e19f1e505137f020"
+      }
+    },
+    "reject": [
+      "forks",
+      "renames",
+      "copies",
+      "deletes",
+      "paths_extra",
+      "mode_drift",
+      "blob_drift",
+      "base_drift",
+      "tree_drift",
+      "multiple_commits",
+      "candidate_controlled_validator"
+    ]
+  },
+  "wp2b_certification_trusted_content": {
+    "profile": "WP2B_CERTIFICATION_TRUSTED_CONTENT",
+    "base": "REQUIRED_AFTER_WP2A_MERGE",
+    "base_tree": "REQUIRED_AFTER_WP2A_MERGE",
+    "head_ref": "promote/f10-9-wp2b-certification-trusted-content",
+    "candidate_commits": "EXACTLY_ONE_DIRECT_COMMIT",
+    "statuses": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
+      ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "A",
+      "scripts/security/f109_trusted_boundary_bootstrap.py": "A",
+      "tests/test_f109_trusted_boundary_bootstrap.py": "A"
+    },
+    "modes": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "100644",
+      ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "100644",
+      "scripts/security/f109_trusted_boundary_bootstrap.py": "100644",
+      "tests/test_f109_trusted_boundary_bootstrap.py": "100644"
+    },
+    "files": {
+      ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+        "mode": "100644",
+        "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3"
+      },
+      ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+        "mode": "100644",
+        "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d"
+      },
+      "scripts/security/f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "1dbb583f9d6e8d7bdb3e80a10d172a32bd86f2c1"
+      },
+      "tests/test_f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "6496efd8f038fb0c425e62ef1824855b621a6fa7"
+      }
+    },
+    "required_security_audit_restored": true,
+    "human_approval_after_last_push_required": true,
+    "runtime_base_binding_required_before_execution": true,
+    "validator_authority": "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE",
+    "protected_validator_source": "origin/desarrollo",
+    "protected_manifest_source": "origin/desarrollo"
+  },
+  "future_runtime_binding": {
+    "wp2a_candidate_head_sha": "REQUIRED_AFTER_PR_CREATION",
+    "wp2a_candidate_tree": "REQUIRED_AFTER_PR_CREATION",
+    "wp2b_candidate_head_sha": "REQUIRED_AFTER_PR_CREATION",
+    "wp2b_candidate_tree": "REQUIRED_AFTER_PR_CREATION"
+  },
+  "tracking_preserved": {
+    "hito_1": "60%",
+    "f10_9": "38%",
+    "g5": "50%",
+    "readiness": "75%",
+    "pares": 0,
+    "observacion": "NOT_STARTED"
+  },
+  "forbidden_operations": [
+    "certificacion",
+    "branch_protection",
+    "required_checks",
+    "main",
+    "actions_api",
+    "cloudflare",
+    "github_app",
+    "supabase",
+    "sql",
+    "production",
+    "writers",
+    "schedules",
+    "merge"
+  ]
+}
