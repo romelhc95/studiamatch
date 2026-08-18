@@ -277,7 +277,16 @@ from scripts.security.f109_boundary import (
     WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
     WP0_TRUSTED_CONTENT_BINDING_BASE,
     WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+    WP0_TRUSTED_CONTENT_BINDING_CANDIDATE,
     WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
+    WP0_TRUSTED_CONTENT_BINDING_MERGE,
+    WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE,
+    WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS,
+    WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+    WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+    WP0_POST_MERGE_BOUNDARY_V2_BASE,
+    WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE,
+    WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
@@ -375,7 +384,9 @@ from scripts.security.f109_boundary import (
     validate_g5_certification_wiring_bootstrap,
     validate_g5_bootstrap_freeze_sidecar,
     validate_g5_certification_bootstrap_freeze,
+    validate_wp0_post_merge_boundary_v2,
     validate_wp0_trusted_content_binding,
+    validate_wp0_trusted_content_binding_historical_push,
     validate_g5_control_plane_exception_payload,
     validate_g5_definitive_promotion_source,
     validate_g5_security_remediation,
@@ -5947,6 +5958,280 @@ class F109BoundaryTest(unittest.TestCase):
                 WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
                 WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
             )
+
+    def test_wp0_post_merge_boundary_v2_detect_mode_and_exact_allowlist_no_mocks(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF,
+                WP0_POST_MERGE_BOUNDARY_V2_BASE,
+            ),
+            "wp0_post_merge_boundary_v2",
+        )
+        self.assertEqual(
+            detect_mode("push", "desarrollo", "", WP0_POST_MERGE_BOUNDARY_V2_BASE),
+            "wp0_post_merge_boundary_v2",
+        )
+        self.assertEqual(
+            WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+            {
+                "scripts/security/f109_boundary.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertEqual(set(WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES.values()), {"100644"})
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_post_merge_boundary_v2_validates_pre_merge_exact_delta(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE
+        commit_parents_mock.return_value = [WP0_POST_MERGE_BOUNDARY_V2_BASE]
+
+        validate_wp0_post_merge_boundary_v2(
+            Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, head, "pull_request"
+        )
+
+        exact_delta_mock.assert_called_once_with(
+            Path("."),
+            WP0_POST_MERGE_BOUNDARY_V2_BASE,
+            head,
+            WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+            WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+        )
+
+    def test_wp0_post_merge_boundary_v2_rejects_denylisted_paths_no_mocks(self) -> None:
+        denylisted = [
+            ".context/estado_del_proyecto.md",
+            ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json",
+            ".github/workflows/security-audit.yml",
+            "scripts/security/f109_trusted_boundary_bootstrap.py",
+            "scripts/core/fg1_runtime.py",
+            "scripts/core/fg2_runtime.py",
+            "scripts/core/fg3_runtime.py",
+        ]
+        for extra in denylisted:
+            repo = self.make_repo()
+            for relative in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES:
+                path = repo / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f"base {relative}\n", encoding="utf-8")
+            extra_path = repo / extra
+            extra_path.parent.mkdir(parents=True, exist_ok=True)
+            extra_path.write_text("base\n", encoding="utf-8")
+            base = self.commit(repo, "base")
+            for relative in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES:
+                (repo / relative).write_text(f"head {relative}\n", encoding="utf-8")
+            extra_path.write_text("head\n", encoding="utf-8")
+            head = self.commit(repo, "extra path")
+
+            with self.assertRaises(BoundaryError):
+                require_exact_delta(
+                    repo,
+                    base,
+                    head,
+                    WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+                    WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+                )
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_post_merge_boundary_v2_rejects_stale_base_tree_drift_and_multi_commit(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = "0" * 40
+        commit_parents_mock.return_value = [WP0_POST_MERGE_BOUNDARY_V2_BASE]
+        with self.assertRaises(BoundaryError):
+            validate_wp0_post_merge_boundary_v2(Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, head, "pull_request")
+
+        commit_tree_mock.return_value = WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE
+        commit_parents_mock.return_value = [WP0_POST_MERGE_BOUNDARY_V2_BASE, "b" * 40]
+        with self.assertRaises(BoundaryError):
+            validate_wp0_post_merge_boundary_v2(Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, head, "pull_request")
+
+        with self.assertRaises(BoundaryError):
+            validate_wp0_post_merge_boundary_v2(Path("."), "b" * 40, head, "pull_request")
+        exact_delta_mock.assert_not_called()
+
+    def test_wp0_post_merge_boundary_v2_rejects_mode_drift_and_rename_no_mocks(self) -> None:
+        repo = self.make_repo()
+        for relative in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"base {relative}\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        drift = repo / "scripts/security/f109_boundary.py"
+        drift.write_text("candidate\n", encoding="utf-8")
+        drift.chmod(0o755)
+        head = self.commit(repo, "mode drift")
+        with self.assertRaises(BoundaryError):
+            require_exact_delta(repo, base, head, WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES, WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES)
+
+        repo = self.make_repo()
+        for relative in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"base {relative}\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        (repo / "tests/test_fase10_9_branch_reconciliation.py").rename(repo / "tests/test_fase10_9_branch_reconciliation_renamed.py")
+        head = self.commit(repo, "rename drift")
+        with self.assertRaises(BoundaryError):
+            require_exact_delta(repo, base, head, WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES, WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES)
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_historical_push_exact_recognition_preserves_failure_status(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        trees = {
+            WP0_TRUSTED_CONTENT_BINDING_BASE: WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+            WP0_TRUSTED_CONTENT_BINDING_CANDIDATE: WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE,
+            WP0_TRUSTED_CONTENT_BINDING_MERGE: WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE,
+        }
+        parents = {
+            WP0_TRUSTED_CONTENT_BINDING_CANDIDATE: [WP0_TRUSTED_CONTENT_BINDING_BASE],
+            WP0_TRUSTED_CONTENT_BINDING_MERGE: [WP0_TRUSTED_CONTENT_BINDING_BASE, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE],
+        }
+        commit_tree_mock.side_effect = lambda _repo, sha: trees[sha]
+        commit_parents_mock.side_effect = lambda _repo, sha: parents[sha]
+
+        validate_wp0_trusted_content_binding_historical_push(
+            Path("."), WP0_TRUSTED_CONTENT_BINDING_BASE, WP0_TRUSTED_CONTENT_BINDING_MERGE, "push"
+        )
+
+        self.assertEqual(WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS, "MERGED_WITH_POST_MERGE_FAILURE_PRESERVED")
+        exact_delta_mock.assert_called_once_with(
+            Path("."),
+            WP0_TRUSTED_CONTENT_BINDING_BASE,
+            WP0_TRUSTED_CONTENT_BINDING_CANDIDATE,
+            WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+            WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_historical_push_rejects_partial_matches(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        commit_tree_mock.return_value = WP0_TRUSTED_CONTENT_BINDING_BASE_TREE
+        commit_parents_mock.return_value = [WP0_TRUSTED_CONTENT_BINDING_BASE]
+        for base, head, event in (
+            ("b" * 40, WP0_TRUSTED_CONTENT_BINDING_MERGE, "push"),
+            (WP0_TRUSTED_CONTENT_BINDING_BASE, "c" * 40, "push"),
+            (WP0_TRUSTED_CONTENT_BINDING_BASE, WP0_TRUSTED_CONTENT_BINDING_MERGE, "pull_request"),
+        ):
+            with self.assertRaises(BoundaryError):
+                validate_wp0_trusted_content_binding_historical_push(Path("."), base, head, event)
+
+    @mock.patch("scripts.security.f109_boundary.validate_wp0_trusted_content_binding_historical_push")
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_cli_recognizes_historical_wp0_push_before_cross_surface_rejection(
+        self, parse_args_mock, changed_statuses_mock, historical_mock,
+    ) -> None:
+        changed_statuses_mock.return_value = dict(WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES)
+        parse_args_mock.return_value = self.cli_args(
+            event="push",
+            base_ref="desarrollo",
+            head_ref="",
+            base_sha=WP0_TRUSTED_CONTENT_BINDING_BASE,
+            head_sha=WP0_TRUSTED_CONTENT_BINDING_MERGE,
+            base_repo="romelhc95/studiamatch",
+            head_repo="romelhc95/studiamatch",
+        )
+
+        self.assertEqual(main(), 0)
+        historical_mock.assert_called_once()
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_post_merge_boundary_v2_accepts_structural_push_without_self_hashes(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        merge = "a" * 40
+        candidate = "b" * 40
+        commit_tree_mock.side_effect = lambda _repo, sha: (
+            WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE if sha == WP0_POST_MERGE_BOUNDARY_V2_BASE else "c" * 40
+        )
+        commit_parents_mock.side_effect = lambda _repo, sha: {
+            merge: [WP0_POST_MERGE_BOUNDARY_V2_BASE, candidate],
+            candidate: [WP0_POST_MERGE_BOUNDARY_V2_BASE],
+        }[sha]
+
+        validate_wp0_post_merge_boundary_v2(Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, merge, "push")
+
+        exact_delta_mock.assert_called_once_with(
+            Path("."),
+            WP0_POST_MERGE_BOUNDARY_V2_BASE,
+            candidate,
+            WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+            WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+        )
+        source = (Path(__file__).resolve().parents[1] / "scripts/security/f109_boundary.py").read_text(encoding="utf-8")
+        self.assertNotIn("wp0_post_merge_boundary_v2_candidate", source.lower())
+        self.assertNotIn("wp0_post_merge_boundary_v2_merge =", source.lower())
+        self.assertNotIn("wp0_post_merge_boundary_v2_blob", source.lower())
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_post_merge_boundary_v2_rejects_invalid_structural_push_partials(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        merge = "a" * 40
+        candidate = "b" * 40
+        other = "c" * 40
+        commit_tree_mock.return_value = WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE
+        for parents in (
+            [WP0_POST_MERGE_BOUNDARY_V2_BASE],
+            [other, candidate],
+            [WP0_POST_MERGE_BOUNDARY_V2_BASE, candidate],
+        ):
+            if parents == [WP0_POST_MERGE_BOUNDARY_V2_BASE, candidate]:
+                commit_parents_mock.side_effect = lambda _repo, sha: {
+                    merge: [WP0_POST_MERGE_BOUNDARY_V2_BASE, candidate],
+                    candidate: [other],
+                }[sha]
+            else:
+                commit_parents_mock.side_effect = None
+                commit_parents_mock.return_value = parents
+            with self.assertRaises(BoundaryError):
+                validate_wp0_post_merge_boundary_v2(Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, merge, "push")
+
+        commit_parents_mock.side_effect = lambda _repo, sha: {
+            merge: [WP0_POST_MERGE_BOUNDARY_V2_BASE, candidate],
+            candidate: [WP0_POST_MERGE_BOUNDARY_V2_BASE],
+        }[sha]
+        commit_tree_mock.side_effect = lambda _repo, sha: {
+            WP0_POST_MERGE_BOUNDARY_V2_BASE: WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE,
+            merge: "d" * 40,
+            candidate: "e" * 40,
+        }[sha]
+        with self.assertRaises(BoundaryError):
+            validate_wp0_post_merge_boundary_v2(Path("."), WP0_POST_MERGE_BOUNDARY_V2_BASE, merge, "push")
+        exact_delta_mock.assert_not_called()
+
+    def test_wp0_v2_preserves_pr_n_binding_and_does_not_restore_pr_p(self) -> None:
+        from scripts.security import f109_trusted_boundary_bootstrap as bootstrap
+
+        self.assertEqual(set(bootstrap.TRUSTED_PROFILES), {bootstrap.PR_N_LINK_HARDENING_HEAD_REF})
+        profile = bootstrap.TRUSTED_PROFILES[bootstrap.PR_N_LINK_HARDENING_HEAD_REF]
+        self.assertEqual(profile.name, "PR_N_LINK_HARDENING_CLOSURE")
+        self.assertEqual(profile.expected_head_sha, bootstrap.PR_N_EXPECTED_HEAD_SHA)
+        self.assertNotIn(bootstrap.PR_P_REGISTRATION_PROBE_HEAD_REF, bootstrap.TRUSTED_PROFILES)
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
