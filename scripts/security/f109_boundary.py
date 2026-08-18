@@ -256,6 +256,9 @@ G5_PR402_TREE = G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE
 G5_PR402_STATUS = "MERGED_POST_MERGE_VERIFIED"
 G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE = "40b7e797ebec35fef9ab770240b983ed91944026"
 G5_CERTIFICATION_BOOTSTRAP_SIDECAR = ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json"
+WP0_TRUSTED_CONTENT_BINDING_BASE = "2066102f50d1934f83c9f9725ce07be586238d4c"
+WP0_TRUSTED_CONTENT_BINDING_BASE_TREE = "b1e5ba503e258d85c32bd403539610d2ef210cbd"
+WP0_TRUSTED_CONTENT_BINDING_HEAD_REF = "feat/f10-9-wp0-trusted-content-binding"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -925,6 +928,15 @@ G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES = {
 }
 G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES = {
     path: "100644" for path in G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
+}
+WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES = {
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES = {
+    path: "100644" for path in WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
 }
 G5_DEFINITIVE_PROMOTION_FILES = {
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
@@ -6180,6 +6192,27 @@ def validate_g5_certification_bootstrap_freeze(repo: Path, base: str, head: str,
     validate_g5_bootstrap_freeze_sidecar(sidecar)
 
 
+def validate_wp0_trusted_content_binding(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP0_TRUSTED_CONTENT_BINDING_BASE, "unexpected WP0 trusted content binding base")
+    require_sha(repo, "WP0 trusted content binding base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+        "WP0 trusted content binding source tree drift",
+    )
+    require(
+        commit_parents(repo, head) == [base],
+        "WP0 trusted content binding candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        head,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+    )
+
+
 def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
     if base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE:
         expected_tree = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
@@ -6527,6 +6560,12 @@ def detect_mode(
     ):
         return "g5_certification_bootstrap_freeze"
     if (
+        base_ref == "desarrollo"
+        and base == WP0_TRUSTED_CONTENT_BINDING_BASE
+        and head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF
+    ):
+        return "wp0_trusted_content_binding"
+    if (
         base_ref == "certificacion"
         and base == G5_CERTIFICATION_WIRING_BASE
         and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_HEAD_REF)
@@ -6713,6 +6752,10 @@ def main() -> int:
                 raise BoundaryError(
                     "G5 PR T certification bootstrap freeze branch requires the frozen PR #402 merge baseline"
                 )
+            if args.event == "pull_request" and args.head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF:
+                raise BoundaryError(
+                    "WP0 trusted content binding branch requires the frozen source baseline"
+                )
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -6835,6 +6878,11 @@ def main() -> int:
             touched_g5_certification_bootstrap_freeze = set(actual).intersection(
                 G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
             )
+            touched_wp0_trusted_content_binding = set(actual).intersection(
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
+            )
+            if touched_wp0_trusted_content_binding:
+                touched_g5_trusted_boundary_hardening = set()
             if touched_g5_certification_bootstrap_freeze:
                 touched_g5_certification_wiring = set()
             if touched_f1010_m3_public_acl_final_readiness:
@@ -6881,6 +6929,7 @@ def main() -> int:
                         touched_g5_trusted_boundary_hardening,
                         touched_g5_certification_wiring,
                         touched_g5_certification_bootstrap_freeze,
+                        touched_wp0_trusted_content_binding,
                     )
                 )
                 <= 1,
@@ -7099,6 +7148,16 @@ def main() -> int:
                     "partial or expanded G5 PR T delta is forbidden",
                 )
                 mode = "g5_certification_bootstrap_freeze"
+            elif touched_wp0_trusted_content_binding:
+                require(
+                    args.head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
+                    "WP0 paths require the protected trusted content binding branch",
+                )
+                require(
+                    actual == WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+                    "partial or expanded WP0 trusted content binding delta is forbidden",
+                )
+                mode = "wp0_trusted_content_binding"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -7317,6 +7376,10 @@ def main() -> int:
             )
         elif mode == "g5_certification_bootstrap_freeze":
             validate_g5_certification_bootstrap_freeze(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp0_trusted_content_binding":
+            validate_wp0_trusted_content_binding(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         else:

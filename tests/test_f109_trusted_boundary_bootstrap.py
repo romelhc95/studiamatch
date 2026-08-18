@@ -6,9 +6,15 @@ from pathlib import Path
 
 import pytest
 
+import scripts.security.f109_trusted_boundary_bootstrap as trusted
 from scripts.security.f109_trusted_boundary_bootstrap import (
+    BoundaryProfile,
     FORBIDDEN_PR_N_PATHS,
     FORBIDDEN_PR_N_PREFIXES,
+    PR_N_EXPECTED_BASE_SHA,
+    PR_N_EXPECTED_BLOBS,
+    PR_N_EXPECTED_HEAD_SHA,
+    PR_N_EXPECTED_HEAD_TREE,
     PR_N_LINK_HARDENING_ALLOWED_STATUSES,
     PR_N_LINK_HARDENING_HEAD_REF,
     PR_N_TRUSTED_CHECK_NAME,
@@ -19,6 +25,7 @@ from scripts.security.f109_trusted_boundary_bootstrap import (
     TRUSTED_CHECK_NAME,
     TRUSTED_PROFILES,
     TrustedBoundaryError,
+    validate_exact_delta,
     validate_trusted_boundary,
 )
 
@@ -180,7 +187,7 @@ def test_workflow_registered_on_default_branch_enables_future_pr_p_profile() -> 
     default_branch_workflows = {"security-audit.yml", "f9-7-contract.yml", "f10-9-g5-trusted-boundary-bootstrap.yml"}
     trusted_workflow = "f10-9-g5-trusted-boundary-bootstrap.yml"
     assert trusted_workflow in default_branch_workflows
-    assert TRUSTED_PROFILES[PR_P_REGISTRATION_PROBE_HEAD_REF].check_name == TRUSTED_CHECK_NAME
+    assert PR_P_REGISTRATION_PROBE_HEAD_REF not in TRUSTED_PROFILES
 
 
 def test_check_provenance_uses_pr_p_name_and_preserves_pr_n_history() -> None:
@@ -193,13 +200,15 @@ def test_check_provenance_uses_pr_p_name_and_preserves_pr_n_history() -> None:
 def test_trusted_boundary_accepts_one_direct_exact_same_repo_candidate() -> None:
     repo, base, head, temp = _build_repo()
     with temp:
-        assert _validate(repo, base, head, _event(base, head)) == "PR_N_LINK_HARDENING_CLOSURE"
+        with pytest.raises(TrustedBoundaryError, match="base content binding drift"):
+            _validate(repo, base, head, _event(base, head))
 
 
-def test_pr_p_registration_probe_accepts_one_direct_exact_candidate() -> None:
+def test_pr_p_registration_probe_is_retired_without_dynamic_fallback() -> None:
     repo, base, head, temp = _build_profile_repo(dict(PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES))
     with temp:
-        assert (
+        assert PR_P_REGISTRATION_PROBE_HEAD_REF not in TRUSTED_PROFILES
+        with pytest.raises(TrustedBoundaryError, match="sensitive path requires explicit trusted profile"):
             _validate(
                 repo,
                 base,
@@ -208,8 +217,6 @@ def test_pr_p_registration_probe_accepts_one_direct_exact_candidate() -> None:
                 head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
                 check_name=TRUSTED_CHECK_NAME,
             )
-            == "PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE"
-        )
 
 
 def test_normal_out_of_scope_pr_passes_without_explicit_profile() -> None:
@@ -244,7 +251,8 @@ def test_required_check_preservation_profile_excludes_workflows_and_validator() 
 def test_trusted_boundary_accepts_edited_event_when_metadata_stays_protected() -> None:
     repo, base, head, temp = _build_repo()
     with temp:
-        assert _validate(repo, base, head, _event(base, head, action="edited")) == "PR_N_LINK_HARDENING_CLOSURE"
+        with pytest.raises(TrustedBoundaryError, match="base content binding drift"):
+            _validate(repo, base, head, _event(base, head, action="edited"))
 
 
 def test_trusted_boundary_rejects_forks_and_unexpected_shapes() -> None:
@@ -306,6 +314,76 @@ def test_trusted_boundary_rejects_pr_n_check_for_future_pr_p_profile() -> None:
                 _event(base, head, head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF),
                 head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
                 check_name=PR_N_TRUSTED_CHECK_NAME,
+            )
+
+
+def test_wp0_trusted_content_binding_pr_n_historical_profile_validates_tree_and_blobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    profile = TRUSTED_PROFILES[PR_N_LINK_HARDENING_HEAD_REF]
+
+    monkeypatch.setattr(trusted, "changed_statuses", lambda repo, base, head: dict(profile.allowed_statuses))
+    monkeypatch.setattr(trusted, "commit_tree", lambda repo, revision: PR_N_EXPECTED_HEAD_TREE)
+    monkeypatch.setattr(trusted, "blob_mode", lambda repo, revision, path: profile.allowed_modes[path])
+    monkeypatch.setattr(trusted, "blob_sha", lambda repo, revision, path: PR_N_EXPECTED_BLOBS[path])
+
+    validate_exact_delta(Path("."), PR_N_EXPECTED_BASE_SHA, PR_N_EXPECTED_HEAD_SHA, profile)
+
+
+def test_wp0_trusted_content_binding_one_byte_blob_drift_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    profile = TRUSTED_PROFILES[PR_N_LINK_HARDENING_HEAD_REF]
+    drift_path = "scripts/security/f109_boundary.py"
+
+    monkeypatch.setattr(trusted, "changed_statuses", lambda repo, base, head: dict(profile.allowed_statuses))
+    monkeypatch.setattr(trusted, "commit_tree", lambda repo, revision: PR_N_EXPECTED_HEAD_TREE)
+    monkeypatch.setattr(trusted, "blob_mode", lambda repo, revision, path: profile.allowed_modes[path])
+    monkeypatch.setattr(
+        trusted,
+        "blob_sha",
+        lambda repo, revision, path: "0" * 40 if path == drift_path else PR_N_EXPECTED_BLOBS[path],
+    )
+
+    with pytest.raises(TrustedBoundaryError, match="blob content binding drift"):
+        validate_exact_delta(Path("."), PR_N_EXPECTED_BASE_SHA, PR_N_EXPECTED_HEAD_SHA, profile)
+
+
+def test_wp0_trusted_content_binding_tree_drift_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    profile = TRUSTED_PROFILES[PR_N_LINK_HARDENING_HEAD_REF]
+    monkeypatch.setattr(trusted, "commit_tree", lambda repo, revision: "0" * 40)
+
+    with pytest.raises(TrustedBoundaryError, match="tree content binding drift"):
+        validate_exact_delta(Path("."), PR_N_EXPECTED_BASE_SHA, PR_N_EXPECTED_HEAD_SHA, profile)
+
+
+def test_wp0_trusted_content_binding_rejects_branch_recreated_with_same_name() -> None:
+    repo, base, head, temp = _build_repo()
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="base content binding drift"):
+            _validate(repo, base, head, _event(base, head, head_ref=PR_N_LINK_HARDENING_HEAD_REF))
+
+
+def test_wp0_trusted_content_binding_boundary_profile_expected_fields_are_historical_only() -> None:
+    profile = TRUSTED_PROFILES[PR_N_LINK_HARDENING_HEAD_REF]
+    assert isinstance(profile, BoundaryProfile)
+    assert profile.expected_base_sha == PR_N_EXPECTED_BASE_SHA
+    assert profile.expected_head_sha == PR_N_EXPECTED_HEAD_SHA
+    assert profile.expected_head_tree == PR_N_EXPECTED_HEAD_TREE
+    assert profile.expected_blob_sha == PR_N_EXPECTED_BLOBS
+    assert set(TRUSTED_PROFILES) == {PR_N_LINK_HARDENING_HEAD_REF}
+
+
+def test_wp0_trusted_content_binding_pr_p_removed_from_trusted_profiles() -> None:
+    assert PR_P_REGISTRATION_PROBE_HEAD_REF not in TRUSTED_PROFILES
+
+
+def test_wp0_trusted_content_binding_evidence_without_profile_fails() -> None:
+    repo, base, head, temp = _build_out_of_scope_repo(".context/evidencias_cliente/sprint_1/paquete_hito_001.md")
+    with temp:
+        with pytest.raises(TrustedBoundaryError, match="sensitive path requires explicit trusted profile"):
+            _validate(
+                repo,
+                base,
+                head,
+                _event(base, head, head_ref="feat/evidence-without-profile"),
+                head_ref="feat/evidence-without-profile",
             )
 
 
@@ -392,7 +470,7 @@ def test_trusted_boundary_rejects_symlink_or_mode_drift() -> None:
         path.unlink()
         path.symlink_to("target")
         drift_head = _commit_current(repo, "symlink drift")
-        with pytest.raises(TrustedBoundaryError, match="file mode drift"):
+        with pytest.raises(TrustedBoundaryError, match="content binding drift"):
             _validate(repo, base, drift_head, _event(base, drift_head))
 
 
@@ -404,7 +482,7 @@ def test_trusted_boundary_rejects_renames() -> None:
         path = repo / relative
         path.rename(repo / f"{relative}.renamed")
         drift_head = _commit_current(repo, "rename drift")
-        with pytest.raises(TrustedBoundaryError, match="renames/copies"):
+        with pytest.raises(TrustedBoundaryError, match="content binding drift"):
             _validate(repo, base, drift_head, _event(base, drift_head))
 
 

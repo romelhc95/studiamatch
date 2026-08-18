@@ -273,6 +273,11 @@ from scripts.security.f109_boundary import (
     G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP,
     G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF,
     G5_CERTIFICATION_BOOTSTRAP_SIDECAR,
+    WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+    WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+    WP0_TRUSTED_CONTENT_BINDING_BASE,
+    WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+    WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
@@ -370,6 +375,7 @@ from scripts.security.f109_boundary import (
     validate_g5_certification_wiring_bootstrap,
     validate_g5_bootstrap_freeze_sidecar,
     validate_g5_certification_bootstrap_freeze,
+    validate_wp0_trusted_content_binding,
     validate_g5_control_plane_exception_payload,
     validate_g5_definitive_promotion_source,
     validate_g5_security_remediation,
@@ -5756,6 +5762,8 @@ class F109BoundaryTest(unittest.TestCase):
         head = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True, env=env).strip()
         parents = subprocess.check_output(["git", "-C", str(root), "show", "-s", "--format=%P", head], text=True, env=env).split()
         event = "push" if len(parents) == 2 and parents[0] == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE else "pull_request"
+        if event == "pull_request" and parents != [G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE]:
+            self.skipTest("G5 PR T live delta only runs on the frozen PR T candidate checkout")
         previous = {key: os.environ.get(key) for key in ("GIT_DIR", "GIT_WORK_TREE")}
         os.environ.update({key: value for key, value in env.items() if key in ("GIT_DIR", "GIT_WORK_TREE")})
         try:
@@ -5785,6 +5793,160 @@ class F109BoundaryTest(unittest.TestCase):
             "skip",
         )
         self.assertEqual(G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP, "E2_STOP_CERTIFICATION_CONTROL_PLANE_ENVELOPE_REQUIRED")
+
+    def test_wp0_trusted_content_binding_detect_mode_and_allowlist_no_mocks(self) -> None:
+        self.assertEqual(
+            detect_mode(
+                "pull_request", "desarrollo", WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
+                WP0_TRUSTED_CONTENT_BINDING_BASE,
+            ),
+            "wp0_trusted_content_binding",
+        )
+        self.assertEqual(
+            detect_mode(
+                "push", "desarrollo", "feat/recreated-wp0-bypass",
+                WP0_TRUSTED_CONTENT_BINDING_BASE,
+            ),
+            "skip",
+        )
+        self.assertEqual(
+            WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+            {
+                "scripts/security/f109_boundary.py": "M",
+                "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+                "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+                "tests/test_fase10_9_branch_reconciliation.py": "M",
+            },
+        )
+        self.assertEqual(set(WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES.values()), {"100644"})
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_trusted_content_binding_validates_source_tree_direct_commit_and_exact_delta(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = WP0_TRUSTED_CONTENT_BINDING_BASE_TREE
+        commit_parents_mock.return_value = [WP0_TRUSTED_CONTENT_BINDING_BASE]
+
+        validate_wp0_trusted_content_binding(
+            Path("."), WP0_TRUSTED_CONTENT_BINDING_BASE, head, "pull_request"
+        )
+
+        exact_delta_mock.assert_called_once_with(
+            Path("."),
+            WP0_TRUSTED_CONTENT_BINDING_BASE,
+            head,
+            WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+            WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp0_trusted_content_binding_rejects_tree_drift_multi_commit_and_stale_base(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_delta_mock,
+    ) -> None:
+        head = "a" * 40
+        commit_tree_mock.return_value = "0" * 40
+        commit_parents_mock.return_value = [WP0_TRUSTED_CONTENT_BINDING_BASE]
+        with self.assertRaises(BoundaryError):
+            validate_wp0_trusted_content_binding(Path("."), WP0_TRUSTED_CONTENT_BINDING_BASE, head, "pull_request")
+
+        commit_tree_mock.return_value = WP0_TRUSTED_CONTENT_BINDING_BASE_TREE
+        commit_parents_mock.return_value = [WP0_TRUSTED_CONTENT_BINDING_BASE, "b" * 40]
+        with self.assertRaises(BoundaryError):
+            validate_wp0_trusted_content_binding(Path("."), WP0_TRUSTED_CONTENT_BINDING_BASE, head, "pull_request")
+
+        with self.assertRaises(BoundaryError):
+            validate_wp0_trusted_content_binding(Path("."), "b" * 40, head, "pull_request")
+
+        exact_delta_mock.assert_not_called()
+
+    def test_wp0_trusted_content_binding_has_no_self_referential_candidate_hashes_no_mocks(self) -> None:
+        source = Path(__file__).resolve().parents[1] / "scripts/security/f109_boundary.py"
+        bootstrap = Path(__file__).resolve().parents[1] / "scripts/security/f109_trusted_boundary_bootstrap.py"
+        combined = source.read_text(encoding="utf-8") + bootstrap.read_text(encoding="utf-8")
+        self.assertIn(WP0_TRUSTED_CONTENT_BINDING_BASE, combined)
+        self.assertIn(WP0_TRUSTED_CONTENT_BINDING_BASE_TREE, combined)
+        self.assertNotIn("expected_wp0_head_sha", combined.lower())
+        self.assertNotIn("expected_wp0_blob", combined.lower())
+
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp0_trusted_content_binding_cli_rejects_fork(self, parse_args_mock) -> None:
+        parse_args_mock.return_value = self.cli_args(
+            event="pull_request",
+            base_ref="desarrollo",
+            head_ref=WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
+            base_sha=WP0_TRUSTED_CONTENT_BINDING_BASE,
+            head_sha="a" * 40,
+            base_repo="romelhc95/studiamatch",
+            head_repo="external/fork",
+        )
+
+        self.assertEqual(main(), 1)
+
+    @mock.patch("scripts.security.f109_boundary.changed_statuses")
+    @mock.patch("scripts.security.f109_boundary.parse_args")
+    def test_wp0_trusted_content_binding_cli_rejects_push_with_wrong_head_ref(
+        self, parse_args_mock, changed_statuses_mock,
+    ) -> None:
+        changed_statuses_mock.return_value = dict(WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES)
+        parse_args_mock.return_value = self.cli_args(
+            event="push",
+            base_ref="desarrollo",
+            head_ref="feat/recreated-wp0-bypass",
+            base_sha=WP0_TRUSTED_CONTENT_BINDING_BASE,
+            head_sha="a" * 40,
+            base_repo="romelhc95/studiamatch",
+            head_repo="romelhc95/studiamatch",
+        )
+
+        self.assertEqual(main(), 1)
+
+    def test_wp0_trusted_content_binding_rejects_mode_drift_no_mocks(self) -> None:
+        repo = self.make_repo()
+        for relative in WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"base {relative}\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        drift = repo / "scripts/security/f109_boundary.py"
+        drift.write_text("candidate\n", encoding="utf-8")
+        drift.chmod(0o755)
+        head = self.commit(repo, "mode drift")
+
+        with self.assertRaises(BoundaryError):
+            require_exact_delta(
+                repo,
+                base,
+                head,
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+            )
+
+    def test_wp0_trusted_content_binding_rejects_rename_no_mocks(self) -> None:
+        repo = self.make_repo()
+        for relative in WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES:
+            path = repo / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"base {relative}\n", encoding="utf-8")
+        base = self.commit(repo, "base")
+        source = repo / "tests/test_f109_trusted_boundary_bootstrap.py"
+        source.rename(repo / "tests/test_f109_trusted_boundary_bootstrap_renamed.py")
+        head = self.commit(repo, "rename drift")
+
+        with self.assertRaises(BoundaryError):
+            require_exact_delta(
+                repo,
+                base,
+                head,
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+            )
 
     @mock.patch("scripts.security.f109_boundary.parse_args")
     def test_cli_rejects_g5_github_runtime_schema_from_wrong_base(self, parse_args_mock) -> None:
