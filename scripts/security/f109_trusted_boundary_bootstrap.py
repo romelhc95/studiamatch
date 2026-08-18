@@ -32,8 +32,15 @@ FORBIDDEN_CANDIDATE_VALIDATOR_PATHS = FORBIDDEN_PR_N_PATHS
 FORBIDDEN_CANDIDATE_WORKFLOW_PREFIXES = FORBIDDEN_PR_N_PREFIXES
 SENSITIVE_EXACT_PATHS = {
     ".context/00_INDICE.md",
+    ".context/backlog_tareas/req_est_001_sprint_1/_index.md",
+    ".context/backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md",
     ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md",
+    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md",
     ".context/estado_del_proyecto.md",
+    ".context/hitos/hito_001.md",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md",
     "scripts/security/f109_boundary.py",
     "scripts/security/f109_trusted_boundary_bootstrap.py",
 }
@@ -86,6 +93,16 @@ PR_P_REGISTRATION_PROBE_ALLOWED_MODES = {
     path: "100644" for path in PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES
 }
 
+PR_N_EXPECTED_BASE_SHA = "9a5fcf539c69b635a41616e52716c0ee34837df4"
+PR_N_EXPECTED_HEAD_SHA = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
+PR_N_EXPECTED_HEAD_TREE = "91706dfcc3766fbf69b4fb8c893318786445a2a9"
+PR_N_EXPECTED_BLOBS = {
+    "scripts/security/f109_boundary.py": "8c3bb8bdb6c9ebc9068174987ab4f556d7663b0a",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "8a04d7f9dc6530d402739f114680918568bdda71",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "ec6a087c90c95448444816c1f13ed47eb2815319",
+    "tests/test_fase10_9_branch_reconciliation.py": "810abeed703ad118ca7c667525fc3b3fdb1b72f3",
+}
+
 
 class TrustedBoundaryError(RuntimeError):
     pass
@@ -98,6 +115,10 @@ class BoundaryProfile:
     check_name: str
     allowed_statuses: Mapping[str, str]
     allowed_modes: Mapping[str, str]
+    expected_base_sha: str | None = None
+    expected_head_sha: str | None = None
+    expected_head_tree: str | None = None
+    expected_blob_sha: Mapping[str, str] | None = None
 
 
 TRUSTED_PROFILES = {
@@ -107,13 +128,10 @@ TRUSTED_PROFILES = {
         check_name=STABLE_TRUSTED_CHECK_NAME,
         allowed_statuses=PR_N_LINK_HARDENING_ALLOWED_STATUSES,
         allowed_modes=PR_N_LINK_HARDENING_ALLOWED_MODES,
-    ),
-    PR_P_REGISTRATION_PROBE_HEAD_REF: BoundaryProfile(
-        name="PR_P_DEFAULT_BRANCH_REGISTRATION_PROBE",
-        head_ref=PR_P_REGISTRATION_PROBE_HEAD_REF,
-        check_name=STABLE_TRUSTED_CHECK_NAME,
-        allowed_statuses=PR_P_REGISTRATION_PROBE_ALLOWED_STATUSES,
-        allowed_modes=PR_P_REGISTRATION_PROBE_ALLOWED_MODES,
+        expected_base_sha=PR_N_EXPECTED_BASE_SHA,
+        expected_head_sha=PR_N_EXPECTED_HEAD_SHA,
+        expected_head_tree=PR_N_EXPECTED_HEAD_TREE,
+        expected_blob_sha=PR_N_EXPECTED_BLOBS,
     ),
 }
 
@@ -229,7 +247,26 @@ def blob_mode(repo: Path, revision: str, path: str) -> str:
     return metadata[0]
 
 
+def commit_tree(repo: Path, revision: str) -> str:
+    tree = git(repo, "rev-parse", f"{revision}^{{tree}}")
+    validate_sha(tree, "tree")
+    return tree
+
+
+def blob_sha(repo: Path, revision: str, path: str) -> str:
+    metadata = git(repo, "ls-tree", revision, "--", path).split(None, 3)
+    require(len(metadata) == 4 and metadata[1] == "blob" and metadata[3] == path, f"unexpected git object for {path}")
+    validate_sha(metadata[2], "blob")
+    return metadata[2]
+
+
 def validate_exact_delta(repo: Path, base: str, head: str, profile: BoundaryProfile) -> None:
+    if profile.expected_base_sha is not None:
+        require(base == profile.expected_base_sha, "trusted profile base content binding drift")
+    if profile.expected_head_sha is not None:
+        require(head == profile.expected_head_sha, "trusted profile head content binding drift")
+    if profile.expected_head_tree is not None:
+        require(commit_tree(repo, head) == profile.expected_head_tree, "trusted profile tree content binding drift")
     actual = changed_statuses(repo, base, head)
     require(actual == dict(profile.allowed_statuses), "candidate path/status delta drift")
     for path, status in profile.allowed_statuses.items():
@@ -237,6 +274,9 @@ def validate_exact_delta(repo: Path, base: str, head: str, profile: BoundaryProf
             continue
         mode = blob_mode(repo, head, path)
         require(mode == profile.allowed_modes[path], f"candidate file mode drift: {path}")
+        expected_blob = (profile.expected_blob_sha or {}).get(path)
+        if expected_blob is not None:
+            require(blob_sha(repo, head, path) == expected_blob, f"trusted profile blob content binding drift: {path}")
 
 
 def load_event(path: Path) -> Mapping[str, Any]:
