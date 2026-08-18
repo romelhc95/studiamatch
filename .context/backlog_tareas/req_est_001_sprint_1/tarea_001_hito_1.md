@@ -350,17 +350,25 @@ aprobaciones separadas; este documento no las concede.
        candidate `04eafe7bc61dc576f4007313dfd890eba34d3e37`, parent
        `0f96b557e6a79dcd331abc7193848aadd387e6cd`, tree
        `7fc586e21c78a351c3773625c1ad4f16b83d106e` y merge protegido
-       `6967efe00113816beba3a3abe2d895e8e54600ca`. El candidate local
-       `f0bd8944d7f1b952c4c327fcfb57c29bbae569d0` / tree
-       `263565b060b4ec044db9a9c8a551ce50f13495ce` queda
-       `LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE`, sin push, sin PR y prohibido
-       para reutilizacion. El proximo gate queda
-       `WP2A_CONTROL_BOOTSTRAP_PREPARATION` mediante el manifest
-       `wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json`, que
-       separa WP2A control bootstrap de tres paths y WP2B trusted content de
-       cuatro paths. E2-E6 siguen `NOT_EXECUTED`; Hito 1 `60%`, F10.9 `38%`,
-       G5 `50%`, readiness `75%`, pares `0` y observacion `NOT_STARTED`
-       permanecen sin cambio.
+       `6967efe00113816beba3a3abe2d895e8e54600ca`. PR #408 queda
+       `MERGED_POST_MERGE_VERIFIED`: candidate
+       `ec57d89b19dc29a98083c0ade87c586242e15fbb`, tree
+       `a2a70d3dce05af9865bbc6c9a127c23b33176d7b`, merge protegido
+       `f7b5eb9c6108df476fdb2d10767c23d5e1bf3578` / tree
+       `a2a70d3dce05af9865bbc6c9a127c23b33176d7b`; Security, Branch
+       Reconciliation, F9.7, focused G5, M3, Credential Scan, Python,
+       TypeScript y ESLint quedaron `PASS`. Los candidates locales
+       `f0bd8944d7f1b952c4c327fcfb57c29bbae569d0` y
+       `03fae3ee8a9393feb08aeab38968c0c4ee5533f6` quedan
+       `LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE`, sin push, sin PR y
+       prohibidos para reutilizacion. El proximo gate queda
+       `WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX` mediante el manifest
+       `wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json`, que
+       prepara un futuro candidate de certificacion de cuatro paths con
+       continuidad de manifest para `pull_request` y push protegido. WP2B sigue
+       fail-closed con `base=REQUIRED_AFTER_WP2A_MERGE`. E2-E6 siguen
+       `NOT_EXECUTED`; Hito 1 `60%`, F10.9 `38%`, G5 `50%`, readiness `75%`,
+       pares `0` y observacion `NOT_STARTED` permanecen sin cambio.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

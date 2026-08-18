@@ -1,0 +1,114 @@
+{
+  "schema": "studiamatch.f10_9.wp2a1_manifest_continuity.v1",
+  "work_package": "WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX",
+  "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+  "self_blob_sha": null,
+  "created_utc": "2026-08-18T00:00:00Z",
+  "authority": {
+    "desarrollo": "f7b5eb9c6108df476fdb2d10767c23d5e1bf3578",
+    "desarrollo_tree": "a2a70d3dce05af9865bbc6c9a127c23b33176d7b",
+    "certificacion": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "certificacion_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+  },
+  "pr408": {
+    "number": 408,
+    "status": "MERGED_POST_MERGE_VERIFIED",
+    "candidate_sha": "ec57d89b19dc29a98083c0ade87c586242e15fbb",
+    "candidate_tree": "a2a70d3dce05af9865bbc6c9a127c23b33176d7b",
+    "merge_sha": "f7b5eb9c6108df476fdb2d10767c23d5e1bf3578",
+    "merge_tree": "a2a70d3dce05af9865bbc6c9a127c23b33176d7b"
+  },
+  "wp2a_v1": {
+    "manifest": ".context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json",
+    "status": "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED",
+    "executable_use": "SUPERSEDED_NOT_EXECUTABLE",
+    "byte_identical_required": true
+  },
+  "local_diagnostic_candidate": {
+    "sha": "03fae3ee8a9393feb08aeab38968c0c4ee5533f6",
+    "status": "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE",
+    "push": "FORBIDDEN",
+    "pull_request": "FORBIDDEN",
+    "reuse_forbidden": true,
+    "derive_from_forbidden": true
+  },
+  "gates": {
+    "next": "WP2A1_CERTIFICATION_CONTROL_BOOTSTRAP_PREPARATION",
+    "e2_e6": "NOT_EXECUTED"
+  },
+  "tracking_preserved": {
+    "hito_1": "60%",
+    "f10_9": "38%",
+    "g5": "50%",
+    "readiness": "75%",
+    "pairs": "0",
+    "observation": "NOT_STARTED"
+  },
+  "forbidden_operations": [
+    "certificacion",
+    "branch_protection",
+    "required_checks",
+    "main",
+    "actions_api",
+    "cloudflare",
+    "github_app",
+    "supabase",
+    "sql",
+    "production",
+    "writers",
+    "schedules",
+    "merge"
+  ],
+  "wp2a1_certification_control_bootstrap": {
+    "profile": "WP2A_1_CERTIFICATION_CONTROL_BOOTSTRAP",
+    "head_ref": "promote/f10-9-wp2a1-certification-control-bootstrap",
+    "base": "4f16f314284324c3b5e9c11c4536eef5ee04c7f3",
+    "base_tree": "cad3f1061cbdc00b2883f7812602a4f80bda0853",
+    "validator_authority": "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE_ON_PR_LOCAL_MERGE_CODE_ON_PUSH",
+    "protected_validator_source": "origin/desarrollo",
+    "protected_manifest_source": "origin/desarrollo",
+    "manifest_integrity": "PRE_MERGE_PROTECTED_BLOB_EQUALITY_POST_MERGE_TREE_CONTINUITY",
+    "statuses": {
+      ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json": "A",
+      ".github/workflows/security-audit.yml": "M",
+      "scripts/security/f109_boundary.py": "M",
+      "tests/test_fase10_9_branch_reconciliation.py": "M"
+    },
+    "modes": {
+      ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json": "100644",
+      ".github/workflows/security-audit.yml": "100755",
+      "scripts/security/f109_boundary.py": "100644",
+      "tests/test_fase10_9_branch_reconciliation.py": "100644"
+    },
+    "files": {
+      ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json": {
+        "mode": "100644",
+        "blob_sha": null,
+        "integrity": "NO_SELF_REFERENCE_PRE_MERGE_BLOB_EQUALITY_POST_MERGE_TREE_CONTINUITY"
+      },
+      ".github/workflows/security-audit.yml": {
+        "mode": "100755",
+        "blob_sha": "86f2eb03dada25b4db949dab9758b1f1621bb201"
+      },
+      "scripts/security/f109_boundary.py": {
+        "mode": "100644",
+        "blob_sha": "c5efc453a82db36c561b34b262695eb5c3f3cf7f"
+      },
+      "tests/test_fase10_9_branch_reconciliation.py": {
+        "mode": "100644",
+        "blob_sha": "2c211b1c12c206240b4180aebb07570ba5a69013"
+      }
+    }
+  },
+  "wp2b_certification_trusted_content": {
+    "profile": "WP2B_CERTIFICATION_TRUSTED_CONTENT",
+    "head_ref": "promote/f10-9-wp2b-certification-trusted-content",
+    "base": "REQUIRED_AFTER_WP2A_MERGE",
+    "base_tree": "REQUIRED_AFTER_WP2A_MERGE",
+    "execution": "FAIL_CLOSED"
+  },
+  "successor_prompt": {
+    "status": "PREPARED_NOT_EXECUTED_AFTER_PR_CREATION",
+    "purpose": "Registrar WP2A.1 en desarrollo tras merge humano protegido, runtime head/tree binding observado y WP2B bloqueado."
+  }
+}
