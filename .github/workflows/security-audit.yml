@@ -1286,12 +1286,11 @@ jobs:
     name: F10.9 Branch Reconciliation
     if: >-
       (github.event_name == 'pull_request' &&
-        ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
-         (github.base_ref == 'desarrollo' &&
-           github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) ||
+        ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2a1-certification-control-bootstrap' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) ||
+         github.base_ref == 'desarrollo')) ||
       (github.event_name == 'push' &&
-        ((github.ref == 'refs/heads/certificacion' && github.event.before == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
-         (github.ref == 'refs/heads/desarrollo' && github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc')))
+        ((github.ref == 'refs/heads/certificacion') ||
+         github.ref == 'refs/heads/desarrollo'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -1302,7 +1301,7 @@ jobs:
       - name: Fetch protected reconciliation refs
         run: |
           set -euo pipefail
-          git fetch --no-tags origin certificacion archive/f10-9-ca2-preserve-desarrollo-20260809
+          git fetch --no-tags origin certificacion desarrollo archive/f10-9-ca2-preserve-desarrollo-20260809
       - name: Validate F10.9 branch reconciliation
         env:
           F109_EVENT: ${{ github.event_name }}
@@ -1315,16 +1314,121 @@ jobs:
         run: |
           set -euo pipefail
           cert_tip="$(git rev-parse origin/certificacion)"
-          python3 scripts/security/f109_boundary.py \
-            --event "$F109_EVENT" \
-            --base-ref "$F109_BASE_REF" \
-            --head-ref "$F109_HEAD_REF" \
-            --base-sha "$F109_BASE_SHA" \
-            --head-sha "$F109_HEAD_SHA" \
-            --base-repo "$F109_BASE_REPO" \
-            --head-repo "$F109_HEAD_REPO" \
-            --cert-tip "$cert_tip"
-          python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
+          p1_base=""
+          p1_base_tree=""
+          p2_base=""
+          p2_base_tree=""
+          g2_base=""
+          g2_base_tree=""
+          p5_base=""
+          p5_base_tree=""
+          f1010_m1_base=""
+          f1010_m1_base_tree=""
+          if [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "fix/f10-9-p1-rebuilt" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            p1_base="$F109_BASE_SHA"
+            p1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-9-p2-readonly-planners" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            p2_base="$F109_BASE_SHA"
+            p2_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-9-p3-p4-runtime-fail-closed" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            g2_base="$F109_BASE_SHA"
+            g2_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-9-p5-metadata-readonly" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            p5_base="$F109_BASE_SHA"
+            p5_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_HEAD_REF" = "feat/f10-10-m1-offline-tooling" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            test "$F109_BASE_SHA" = "$protected_dev_tip"
+            f1010_m1_base="$F109_BASE_SHA"
+            f1010_m1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+          elif [ "$F109_EVENT" = "push" ] && [ "$F109_BASE_REF" = "desarrollo" ]; then
+            p1_base="$F109_BASE_SHA"
+            p1_base_tree="$(git rev-parse "$F109_BASE_SHA^{tree}")"
+            p2_base="$F109_BASE_SHA"
+            p2_base_tree="$p1_base_tree"
+            g2_base="$F109_BASE_SHA"
+            g2_base_tree="$p1_base_tree"
+            p5_base="$F109_BASE_SHA"
+            p5_base_tree="$p1_base_tree"
+            f1010_m1_base="$F109_BASE_SHA"
+            f1010_m1_base_tree="$p1_base_tree"
+          fi
+          boundary_script="scripts/security/f109_boundary.py"
+          boundary_compat_args="full"
+          if [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_BASE_SHA" = "4f16f314284324c3b5e9c11c4536eef5ee04c7f3" ] && [ "$F109_HEAD_REF" = "promote/f10-9-g5-certification-wiring-bootstrap" ]; then
+            git show "$F109_BASE_SHA:scripts/security/f109_boundary.py" > /tmp/f109_boundary_base.py
+            boundary_script="/tmp/f109_boundary_base.py"
+            boundary_compat_args="legacy"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2a-certification-control-bootstrap" ]; then
+            echo "WP2A v1 certification head ref is superseded by WP2A.1" >&2
+            exit 1
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2a1-certification-control-bootstrap" ]; then
+            protected_dev_tip="$(git rev-parse origin/desarrollo)"
+            echo "F10.9 protected validator source: origin/desarrollo@$protected_dev_tip"
+            manifest_path=".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json"
+            candidate_manifest_blob="$(git rev-parse "$F109_HEAD_SHA:$manifest_path")"
+            protected_manifest_blob="$(git rev-parse "origin/desarrollo:$manifest_path")"
+            test "$candidate_manifest_blob" = "$protected_manifest_blob"
+            git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
+            boundary_script="/tmp/f109_boundary_protected_desarrollo.py"
+          elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2b-certification-trusted-content" ]; then
+            git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
+            mkdir -p .context/operaciones
+            git show origin/desarrollo:.context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json > .context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json
+            boundary_script="/tmp/f109_boundary_protected_desarrollo.py"
+          fi
+          boundary_mode_output="$RUNNER_TEMP/f109-boundary-mode.txt"
+          if [ "$boundary_compat_args" = "legacy" ]; then
+            python3 "$boundary_script" \
+              --event "$F109_EVENT" \
+              --base-ref "$F109_BASE_REF" \
+              --head-ref "$F109_HEAD_REF" \
+              --base-sha "$F109_BASE_SHA" \
+              --head-sha "$F109_HEAD_SHA" \
+              --base-repo "$F109_BASE_REPO" \
+              --head-repo "$F109_HEAD_REPO" \
+              --cert-tip "$cert_tip"
+            python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
+          else
+            python3 "$boundary_script" \
+              --event "$F109_EVENT" \
+              --base-ref "$F109_BASE_REF" \
+              --head-ref "$F109_HEAD_REF" \
+              --base-sha "$F109_BASE_SHA" \
+              --head-sha "$F109_HEAD_SHA" \
+              --base-repo "$F109_BASE_REPO" \
+              --head-repo "$F109_HEAD_REPO" \
+              --cert-tip "$cert_tip" \
+              --p1-base "$p1_base" \
+              --p1-base-tree "$p1_base_tree" \
+              --p2-base "$p2_base" \
+              --p2-base-tree "$p2_base_tree" \
+              --g2-base "$g2_base" \
+              --g2-base-tree "$g2_base_tree" \
+              --p5-base "$p5_base" \
+              --p5-base-tree "$p5_base_tree" \
+              --f1010-m1-base "$f1010_m1_base" \
+              --f1010-m1-base-tree "$f1010_m1_base_tree" \
+              --github-output "$boundary_mode_output"
+            boundary_mode="$(sed -n 's/^mode=//p' "$boundary_mode_output" | tail -n 1)"
+            if [ "$boundary_mode" = "wp2a1_certification_control_bootstrap" ]; then
+              python3 -m unittest tests.test_fase10_9_branch_reconciliation \
+                -k wp2a1_certification -v
+              protected_suite_dir="$(mktemp -d "$RUNNER_TEMP/f109-protected-desarrollo.XXXXXX")"
+              git worktree add --detach "$protected_suite_dir" origin/desarrollo
+              (cd "$protected_suite_dir" && python3 -m unittest tests.test_fase10_9_branch_reconciliation -v)
+            else
+              python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
+            fi
+          fi
 
   security-audit:
     name: security-audit
@@ -1348,7 +1452,7 @@ jobs:
           F108_FG1_SOURCE: ${{ needs.f108-fg1-source-slug.result }}
           F108_FG1_MAIN_BOUNDARY: ${{ needs.f108-fg1-main-boundary.result }}
           F109_RECONCILIATION: ${{ needs.f109-branch-reconciliation.result }}
-          F109_REQUIRED: ${{ (github.event_name == 'pull_request' && ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') || (github.base_ref == 'desarrollo' && github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) || (github.event_name == 'push' && ((github.ref == 'refs/heads/certificacion' && github.event.before == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') || (github.ref == 'refs/heads/desarrollo' && github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) }}
+          F109_REQUIRED: ${{ (github.event_name == 'pull_request' && ((github.base_ref == 'certificacion' && (github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8' || github.event.pull_request.base.sha == '4f16f314284324c3b5e9c11c4536eef5ee04c7f3' || github.event.pull_request.head.ref == 'promote/f10-9-wp2a1-certification-control-bootstrap' || github.event.pull_request.head.ref == 'promote/f10-9-wp2b-certification-trusted-content')) || github.base_ref == 'desarrollo')) || (github.event_name == 'push' && (github.ref == 'refs/heads/certificacion' || github.ref == 'refs/heads/desarrollo')) }}
           CERTIFICATION_TRANSITION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion') }}
           MAIN_PROMOTION: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           F99_REQUIRED: ${{ (github.event_name == 'pull_request' && github.base_ref == 'certificacion' && github.event.pull_request.base.sha == 'e4ad815624184b692219ca9490347880af8de6b6') || (github.event_name == 'push' && github.ref == 'refs/heads/certificacion' && github.event.before == 'e4ad815624184b692219ca9490347880af8de6b6') }}

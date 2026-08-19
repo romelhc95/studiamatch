@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import ast
+import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -20,7 +23,271 @@ DEV_BASE = "8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc"
 DEV_ARCHIVE_REF = "refs/remotes/origin/archive/f10-9-ca2-preserve-desarrollo-20260809"
 DEV_ARCHIVE_TREE = "13d3926f21b65abc73d1e8ef6e4305b2d61e0c77"
 DEV_EXTRACTION = "2c83cde5bc6e04f01c595a629e5694bd6de3e286"
+POST_R0_DEV_BASE = "4dcbb3fd792c25b16627f663fde31e40229718ce"
+POST_R0_DEV_TREE = "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+WIRING_HEAD_REF = "ci/f10-9-p1-boundary"
 P1_HEAD_REF = "fix/f10-9-p1-rebuilt"
+POST_P1_DEV_BASE = "53921e3ec845f4a248e586a0ecd667c64f4c070d"
+POST_P1_DEV_TREE = "0344c649772aea18314fe022d5f24898e3dc03d0"
+P2_WIRING_HEAD_REF = "ci/f10-9-p2-boundary"
+P2_HEAD_REF = "feat/f10-9-p2-readonly-planners"
+POST_P2_DEV_BASE = "f3b48a177b1ac17f4cb0ac0c4b7e46acb25e32cf"
+POST_P2_DEV_TREE = "672a810d7ff59e3fd4006953c2b77823529612b5"
+G2_WIRING_HEAD_REF = "ci/f10-9-g2-boundary"
+G2_HEAD_REF = "feat/f10-9-p3-p4-runtime-fail-closed"
+POST_G2_DEV_BASE = "0f3bdafde9adb49749aed6c758c235924b0f0063"
+POST_G2_DEV_TREE = "fae420228a6c5631bddb730f38e6204df1dfcc97"
+P5_WIRING_HEAD_REF = "ci/f10-9-g3-boundary"
+P5_HEAD_REF = "feat/f10-9-p5-metadata-readonly"
+F1010_M2A_BASE = "560af8ad9ce6350fd6c219c853665e1f9c6089f3"
+F1010_M2A_BASE_TREE = "bb2fce144bacac4045b028dd0246815bae209023"
+F1010_M2A_HEAD_REF = "ci/f10-10-m2-boundary"
+F1010_M1_HEAD_REF = "feat/f10-10-m1-offline-tooling"
+F1010_M3_BASE = "ea6ef79a450d691a93195b26bec2ecde1b4dc18d"
+F1010_M3_BASE_TREE = "fe5b8223e56f360bef930bd565cfa6318e37692c"
+F1010_M3_HEAD_REF = "feat/f10-10-m3-readonly-collector-v2"
+F1010_M3_READER_BASE = "1adfc2a8bcabfd4b58ff2bc34f73e47626f1a838"
+F1010_M3_READER_BASE_TREE = "4b2e3245d2a87c7170b4241b87e1a8ae123c1bec"
+F1010_M3_READER_HEAD_REF = "feat/f10-10-m3-reader-rebaseline-v2"
+F1010_M3_READER_POST_MERGE_BASE = "2cf614a4a44ffabc5e06ba08dc20707807db274f"
+F1010_M3_READER_POST_MERGE_BASE_TREE = "7b9e9cfd9d74749416cfab098da116ecbe239c04"
+F1010_M3_READER_POST_MERGE_HEAD_REF = "docs/f10-10-m3-reader-post-merge"
+F1010_M3_READER_POST_MERGE_DOCS_COMMIT = "07953e6e0759bd73cdb4ca7df1f3163fda5b53a0"
+F1010_M3_ROTATION_BASE = "1749d85b52ee2634e4089d578c09b18e7731f655"
+F1010_M3_ROTATION_BASE_TREE = "cdf5b43dde3d4c27503e103e679825e4fb2cb15e"
+F1010_M3_ROTATION_HEAD_REF = "docs/f10-10-m3-rotation-attestation"
+F1010_M3_PASSWORDLESS_BASE = "e9d881e80f9d359d4b190ed136c09f6be217f004"
+F1010_M3_PASSWORDLESS_BASE_TREE = "21418de4b60f3f151eba803e2f163bba1573a040"
+F1010_M3_PASSWORDLESS_HEAD_REF = "fix/f10-10-m3-passwordless-binding"
+F1010_M3_PREFLIGHT_PAYLOAD_BASE = "ea3adaf6fd9847fc5cf98f4d0ed6449a41fae1a1"
+F1010_M3_PREFLIGHT_PAYLOAD_BASE_TREE = "1929c3cc6dd3ab0f5b822a530ee2d08285ff9345"
+F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF = "docs/f10-10-m3-preflight-payload"
+F1010_M3_PREFLIGHT_EVIDENCE_BASE = "47100311a10731ea6297af5c8c1e2e64f5d100b2"
+F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE = "7ebe1b429ae986fbab907814d14eddb680a72dab"
+F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF = "docs/f10-10-m3-preflight-evidence"
+F1010_M3_FINAL_READINESS_BASE = "68cc282f27945891b52fc3b574a14606bcb62e2c"
+F1010_M3_FINAL_READINESS_BASE_TREE = "c580d12ac9c9b6f01a5f026dc59376402504419a"
+F1010_M3_FINAL_READINESS_HEAD_REF = "fix/f10-10-m3-postgres-final-readiness"
+F1010_M3_APPLY_PROJECTION_BASE = "b6fe593ec649d3421aa153e4049f48af3ad0c12d"
+F1010_M3_APPLY_PROJECTION_BASE_TREE = "662f07b2c1fa2d592545de18bd9dfccb2219a82c"
+F1010_M3_APPLY_PROJECTION_HEAD_REF = "feat/f10-10-m3-apply-projection"
+F1010_M3_DDL_PAYLOAD_BASE = "ac9bda0374930339268f9e59af15ea7416fb320f"
+F1010_M3_DDL_PAYLOAD_BASE_TREE = "43337b48bfe460f6305ca703a8e194b1ebd55942"
+F1010_M3_DDL_PAYLOAD_HEAD_REF = "docs/f10-10-m3-ddl-free-payload"
+F1010_M3_DDL_PAYLOAD_REFRESH_BASE = "49d9c0cbdc526854cb1414965ded8c2ca35ab2ad"
+F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE = "ffd726e3881893437bb482773c44e6dfa1b60a05"
+F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF = "docs/f10-10-m3-ddl-free-payload-refresh"
+F1010_M3_NULLABILITY_REMEDIATION_BASE = "16265817e89e1ac00bbce498f3532e05bd0c9a55"
+F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE = "8d89cbc6642e44a5bb380c754df09900266ed416"
+F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF = "fix/f10-10-m3-is-active-nullability"
+F1010_M3_DDL_V2_PAYLOAD_BASE = "bc268f119e04791bc17439aaa096e9e06c8b5e8b"
+F1010_M3_DDL_V2_PAYLOAD_BASE_TREE = "fd08e8cee5cc7cc6d031fd59fbb5ed97e9f9ad68"
+F1010_M3_DDL_V2_PAYLOAD_HEAD_REF = "docs/f10-10-m3-ddl-free-v2-payload"
+F1010_M3_PUBLIC_ACL_REBASELINE_BASE = "d6f2570816b6a69bf5e5aad5e37a6dd004e0e0d2"
+F1010_M3_PUBLIC_ACL_REBASELINE_BASE_TREE = "a54b57e361be3fbed86ccee820128a1d71303498"
+F1010_M3_PUBLIC_ACL_REBASELINE_HEAD_REF = "fix/f10-10-m3-public-db-acl-rebaseline"
+F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE = "d7d1325e74561b0bf8f369475691ee1ea70b2a82"
+F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE_TREE = "a71ad6f4ee64b2b2e7eef82dd8f0835740434b44"
+F1010_M3_PUBLIC_ACL_V2_PAYLOAD_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnostic-v2-payload"
+F1010_M3_PUBLIC_ACL_V3_BASE = "8e6d569dcc2d91479e48172bf18f3024571b95ac"
+F1010_M3_PUBLIC_ACL_V3_BASE_TREE = "09e15518f24f6b120c09962296f3d13763dd7bd7"
+F1010_M3_PUBLIC_ACL_V3_HEAD_REF = "fix/f10-10-m3-public-db-acl-diagnostic-v3"
+F1010_M3_PUBLIC_ACL_V3_BOUND_BASE = "daf3e5babb2f6185304973e4f7607d95d85ab130"
+F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE = "da047276b78cea8c1a2b8bf7048a6f40c0146f2b"
+F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF = "docs/f10-10-m3-public-db-acl-diagnostic-v3-execution-binding"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE = "7034d93059da92b34fb77b06b870ad254f192623"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE = "a86b31d562d3ae094afe1b46da297827eee07020"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF = "feat/f10-10-m3-public-db-acl-private-preflight"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE = "6068f2ac9ef623e06dcc23d9828980641e396c39"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE = "6a7ebe58b0acdc79bafe8362239c797e7256e31f"
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-preflight-post-merge"
+)
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE = "f78713087813bea950e320bc37c55cdd36c95a70"
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE = "65fb4d4a54df4e4bf32955dfce0847bf03b10cc2"
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-private-preflight-v2-payload"
+)
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE = "b2956820295d0476ebb0580e2363fccd3bbbfae8"
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE_TREE = "921e6f23c522ab4d75c816040e6cf15e4c8934bb"
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF = (
+    "fix/f10-10-m3-public-acl-postmerge-harness"
+)
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE = "89cbeda226c6e04c6c1b6e091e6b94fc36273645"
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE_TREE = "da92dfa4baf89cc04bc2a67c97f678f3273e152b"
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF = (
+    "docs/f10-10-m3-public-acl-v2-post-merge-evidence"
+)
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE = "51dac8f4906725aeb9d11172e674eafb5df87b8b"
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE = "0382efc31ea3540ac8efa82046210520cd7da1a4"
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF = (
+    "fix/f10-10-m3-public-acl-final-readiness"
+)
+F1010_H1_CA1_REBASELINE_BASE = "d8859a52254135561be996a706590f9a005fc7da"
+F1010_H1_CA1_REBASELINE_BASE_TREE = "25a05352b0a3f1319328927539a4f32bb9af827f"
+F1010_H1_CA1_REBASELINE_HEAD_REF = "docs/f10-10-h1-ca1-rebaseline"
+G5_PRODUCTION_READONLY_BASE = "2c9d2438c5fc309d3692d1a1de1233e0fcc95afc"
+G5_PRODUCTION_READONLY_BASE_TREE = "161a8df69bf5e527c4ba863891504551ec5f7aa7"
+G5_PRODUCTION_READONLY_HEAD_REF = "feat/f10-9-g5-production-readonly"
+G5_V2_ATTRIBUTION_BASE = "30f77b88778372de112c6a8fb51a1344155db025"
+G5_V2_ATTRIBUTION_BASE_TREE = "b25fca6fc4e37db5b1e2c0e048748ee0ec3d839c"
+G5_V2_ATTRIBUTION_HEAD_REF = "feat/f10-9-g5-v2-attribution"
+G5_V2_POST_MERGE_BASE = "4bb7f6d93a269879a3d73f39a5c71919ac2ea7d5"
+G5_V2_POST_MERGE_BASE_TREE = "1daedcbe9651667201214eb4388e00024fa59bf3"
+G5_V2_POST_MERGE_PREVIOUS_BASE = G5_V2_ATTRIBUTION_BASE
+G5_V2_POST_MERGE_CANDIDATE = "2c211cf58ed0917e3e5e1255c189dcd6ca8ef976"
+G5_V2_POST_MERGE_HEAD_REF = "docs/f10-9-g5-v2-post-merge"
+G5_GET_ONLY_ADAPTER_BASE = "74defb6326d8432bf790cb84b4aa549fefc425be"
+G5_GET_ONLY_ADAPTER_BASE_TREE = "b9b4cc8a6f8279f898b2b8bf2a900c56a741b528"
+G5_GET_ONLY_ADAPTER_PREVIOUS_BASE = "191539de71cbff95552c476463305e8d6f3e4b73"
+# PR #386 is the protected base's second parent. Deployment-ready PR D is one commit.
+G5_GET_ONLY_ADAPTER_CANDIDATE = "d6e4eaae058b52aacf5099c763204a1343a6eebf"
+G5_GET_ONLY_ADAPTER_HEAD_REF = "feat/f10-9-g5-workflow-pr-d"
+G5_GET_ONLY_ADAPTER_STATUS = "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED"
+G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT = (
+    "MERGED_POST_MERGE_VERIFIED"
+)
+G5_OPERATIONAL_RUNBOOK_BASE = "bd0d82864c26755435e551b835d145b864383810"
+G5_OPERATIONAL_RUNBOOK_BASE_TREE = "135af5a95237a1d4d6e1b977e8bb9ab82ac95e16"
+G5_OPERATIONAL_RUNBOOK_HEAD_REF = "feat/f10-9-pr-e-reconcile-g5-runbook"
+G5_OPERATIONAL_RUNBOOK_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_INFRA_RETRY"
+G5_E1_HARDENING_BASE = "71d6640b990b934fa02401518650ec38dca6cae4"
+G5_E1_HARDENING_BASE_TREE = "815a2316c8de67047567d89a9928576869f43c4f"
+G5_E1_HARDENING_HEAD_REF = "feat/f10-9-pr-f-e1-hardening"
+G5_E1_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_E1_READINESS_STATUS = "E1_ACCOUNT_READINESS_GO"
+G5_E1_DEPLOYMENT_STOP = "E1_DEPLOYMENT_STOP_REPOSITORY_HARDENING_REQUIRED"
+G5_E1_WRANGLER_COMPAT_BASE = "4bdc698cd9a8569e4e8290257effa6bc3aa3bb15"
+G5_E1_WRANGLER_COMPAT_BASE_TREE = "874ccffa3db9871189ca351d88cc84e120251e95"
+G5_E1_WRANGLER_COMPAT_HEAD_REF = "feat/f10-9-pr-g-wrangler-compat"
+G5_E1_WRANGLER_COMPAT_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_E1_WRANGLER_STOP = "E1_DEPLOYMENT_STOP_WRANGLER_FLAG_INCOMPATIBLE"
+G5_E1_WRANGLER_VERSION = "4.44.0"
+G5_TRUST_LIVE_REMEDIATION_BASE = "9811b19e1527b39366e43907990c4b77d1394f75"
+G5_TRUST_LIVE_REMEDIATION_BASE_TREE = "edb7c827621fce1089d636b50494405115d348a6"
+G5_TRUST_LIVE_REMEDIATION_HEAD_REF = "feat/f10-9-pr-h-trust-live-remediation"
+G5_TRUST_LIVE_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_E1_DEPLOYMENT_STATUS = "E1_DEPLOYMENT_PASS"
+G5_E1_CREDENTIAL_ATTESTATION = "E1_CREDENTIAL_REVOKED_AND_LOCAL_REMOVED"
+G5_TRUST_RUNTIME_POLICY_NAMES = (
+    "G5_ALLOWED_CANDIDATE_SHA",
+    "G5_ALLOWED_CANDIDATE_TREE",
+    "G5_ALLOWED_WORKFLOW_BLOB_SHA",
+    "G5_GITHUB_APP_INSTALLATION_ID",
+    "G5_TRUST_RUNTIME_ENABLED",
+)
+G5_GITHUB_RUNTIME_SCHEMA_BASE = "5a76abaae8760a9ce6a418511264e6742fa5c74c"
+G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE = "9bd83392ade9e245f3fc4ab85bb85eb4f9031040"
+G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF = "feat/f10-9-pr-i-github-runtime-schema"
+G5_GITHUB_RUNTIME_SCHEMA_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE = "77f475af2e5900bc1338967676ebded71b672642"
+G5_GITHUB_RUNTIME_SCHEMA_E2_STOP = "E2_STOP_GITHUB_RUNTIME_SCHEMA_INCOMPATIBLE"
+G5_SECURITY_REMEDIATION_BASE = "0672156ae5ea13a3ba40ab5f4fd4fd184ec5811e"
+G5_SECURITY_REMEDIATION_BASE_TREE = "7fa8e5c26ddaa67450584b43d5b61c9f7b9edc98"
+G5_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-j-security-remediation"
+G5_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_SECURITY_REMEDIATION_REQUIRED"
+G5_SECURITY_REMEDIATION_PR392_CANDIDATE = "b3f9678e0df76ef8f9dfde8af9147a458a2e033b"
+G5_SECURITY_REMEDIATION_E2_STOP = "E2_STOP_SECURITY_REMEDIATION_REQUIRED"
+G5_RESIDUAL_SECURITY_REMEDIATION_BASE = "51aaac5d289226b1f8f16de1daf69a16a084d585"
+G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE = "7e7be8072cc416d76d2034a126d39393cdbcc968"
+G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-k-security-remediation"
+G5_RESIDUAL_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_RESIDUAL_REMEDIATION_REQUIRED"
+G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE = "4d5d97bb37ffcd5126d467bde9152e705a895c85"
+G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS = (
+    "7861af0cf94b726d6ce5fadad9ffb6c2274fdcaa",
+    "03bab905901f62dba7631a9fe0a87290d70802d9",
+    "82ef6e92c125040cededb4a648d1eedd6d519ecf",
+)
+G5_FOLLOWUP_SECURITY_REMEDIATION_BASE = "25be9caffe5674156c7515735a15ad45c5ad22e2"
+G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE = "9f81f71bdabb2012ab593b1999cf4df92fa712eb"
+G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF = "feat/f10-9-pr-l-security-remediation"
+G5_FOLLOWUP_SECURITY_REMEDIATION_STATUS = "MERGED_POST_MERGE_VERIFIED_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP = "E2_STOP_FOLLOWUP_SECURITY_REMEDIATION_REQUIRED"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE = "d04a174915910f50b8adf3d4d4b1216ffbc90b75"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE = "b30329f66ad8b8ba36e6cbd51303bd8e729036a0"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF = "feat/f10-9-pr-m-trusted-boundary-bootstrap"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE = "444c674cf2ff2143bb4b511e88ff6cd30c1fb589"
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_BOOTSTRAP_REQUIRED"
+G5_TRUSTED_BOUNDARY_CHECK_NAME = "F10.9 Trusted Boundary Bootstrap"
+G5_TRUSTED_BOUNDARY_HARDENING_BASE = "0ec3da6c77b7819a38adcd2f38cd81699adc9283"
+G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE = "ecbe760d50f06d0edce0f36ef84fabacb0a4037c"
+G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF = "feat/f10-9-pr-m2-trusted-boundary-hardening"
+G5_TRUSTED_BOUNDARY_HARDENING_STATUS = "MERGED_POST_MERGE_VERIFIED_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE = "063fb88b3b3dabda78ea641f46da69af09058ab7"
+G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED"
+G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME = "F10.9 Trusted Boundary PR N v1"
+G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME = "F10.9 Trusted Boundary v1"
+G5_LINK_HARDENING_CLOSURE_BASE = "9a5fcf539c69b635a41616e52716c0ee34837df4"
+G5_LINK_HARDENING_CLOSURE_BASE_TREE = "b33228a031312062b165f8f612d27eacee2fea00"
+G5_LINK_HARDENING_CLOSURE_HEAD_REF = "feat/f10-9-pr-n-link-hardening-closure"
+G5_LINK_HARDENING_CLOSURE_STATUS = "CLOSED_BY_PR_N_TRUSTED_BOUNDARY"
+G5_LINK_HARDENING_CLOSURE_E2_STOP = "E2_STOP_TRUSTED_BOUNDARY_REQUIRED_CHECK_APPROVAL_PENDING"
+G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE = "8adede3ed10605f3af36e905d8f11e7489815d8a"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE = "13a44fb7de6e8d754106b744f96e15c959c45685"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE = "b126b5119224010372ea704b87459f98afff2c2a"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF = "feat/f10-9-pr-r-post-merge-reconciliation"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS = "MERGED_POST_MERGE_VERIFIED_WITH_CI_RETRY"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP = "E2_STOP_DEFAULT_BRANCH_TRUSTED_WORKFLOW_REGISTRATION_REQUIRED"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE = "d03ee28ce90abcbf8efd7c4b37de99b72717207e"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE = "2e7422e9f67e91ee6b02b4b44fccc060248c13a3"
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE = "1995120d98562763f3551f13f9af5db15c087c4c"
+G5_CERTIFICATION_WIRING_REPOSITORY_BASE = "3970ab07f5b07095fbd52837e96dfdeae965279e"
+G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE = "2500228097e19e9d25f2def666e854fe754216c3"
+G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF = "feat/f10-9-pr-s-certification-wiring-bootstrap"
+G5_CERTIFICATION_WIRING_BASE = "4f16f314284324c3b5e9c11c4536eef5ee04c7f3"
+G5_CERTIFICATION_WIRING_BASE_TREE = "cad3f1061cbdc00b2883f7812602a4f80bda0853"
+G5_CERTIFICATION_WIRING_HEAD_REF = "promote/f10-9-g5-certification-wiring-bootstrap"
+G5_CERTIFICATION_WIRING_STATUS = "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED"
+G5_CERTIFICATION_WIRING_E2_STOP = "E2_STOP_CERTIFICATION_WIRING_BOOTSTRAP_REQUIRED"
+G5_PR401_CANDIDATE = "6dcb1ce9087797be2fb7131063dbce8f880a23b4"
+G5_PR401_MERGE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+G5_PR401_TREE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
+G5_PR401_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE = "a9bbc6079472879d1c04f2e1fce9b36393b166d6"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE = "0595d1e69c38334ae61ed12fb03cc2701cfb06ec"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF = "feat/f10-9-pr-t-certification-bootstrap-freeze-v2"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS = "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED"
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP = "E2_STOP_CERTIFICATION_CONTROL_PLANE_ENVELOPE_REQUIRED"
+G5_PR402_CANDIDATE = "40db8d47df3b130f03afea627074bc1653b56975"
+G5_PR402_BASE = G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+G5_PR402_MERGE = G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE
+G5_PR402_TREE = G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE
+G5_PR402_STATUS = "MERGED_POST_MERGE_VERIFIED"
+G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE = "40b7e797ebec35fef9ab770240b983ed91944026"
+G5_CERTIFICATION_BOOTSTRAP_SIDECAR = ".context/operaciones/g5_certification_wiring_bootstrap_freeze_2026_08_17.json"
+WP0_TRUSTED_CONTENT_BINDING_BASE = "2066102f50d1934f83c9f9725ce07be586238d4c"
+WP0_TRUSTED_CONTENT_BINDING_BASE_TREE = "b1e5ba503e258d85c32bd403539610d2ef210cbd"
+WP0_TRUSTED_CONTENT_BINDING_HEAD_REF = "feat/f10-9-wp0-trusted-content-binding"
+WP0_TRUSTED_CONTENT_BINDING_CANDIDATE = "a29b7147089816872f66a4d08d879a1ed671e7ea"
+WP0_TRUSTED_CONTENT_BINDING_MERGE = "0a8eaed0546e0eaa3d994dd217b2b081a381ed78"
+WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE = "9a075ac0c549700c9b52706ca0ca2e27089c8dea"
+WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS = "MERGED_WITH_POST_MERGE_FAILURE_PRESERVED"
+WP0_POST_MERGE_BOUNDARY_V2_BASE = WP0_TRUSTED_CONTENT_BINDING_MERGE
+WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE = WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE
+WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF = "fix/f10-9-wp0-post-merge-boundary-v2"
+WP0_1_VERIFIED_HEAD_SHA = "6ba27d0349433ef7681dc49de986fdcad970f397"
+WP0_1_VERIFIED_MERGE_SHA = "0f96b557e6a79dcd331abc7193848aadd387e6cd"
+WP0_1_VERIFIED_MERGE_TREE = "afbab3801d934dd04b1abee626ff8c965df74a93"
+WP0_POST_MERGE_BOUNDARY_V2_STATUS = "COMPLETED_POST_MERGE_VERIFIED"
+WP1_TRUSTED_PROMOTION_REFREEZE_BASE = WP0_1_VERIFIED_MERGE_SHA
+WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE = WP0_1_VERIFIED_MERGE_TREE
+WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF = "feat/f10-9-wp1-trusted-promotion-refreeze-post-wp0-1"
+WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST = ".context/operaciones/wp1_trusted_promotion_refreeze_post_wp0_1_2026_08_18.json"
+WP2A_REBASELINE_BASE = "6967efe00113816beba3a3abe2d895e8e54600ca"
+WP2A_REBASELINE_BASE_TREE = "7fc586e21c78a351c3773625c1ad4f16b83d106e"
+WP2A_REBASELINE_HEAD_REF = "feat/f10-9-wp2a-certification-bootstrap-rebaseline"
+WP2A_REBASELINE_MANIFEST = ".context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json"
+WP2A_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a-certification-control-bootstrap"
+WP2A1_REPOSITORY_FIX_BASE = "f7b5eb9c6108df476fdb2d10767c23d5e1bf3578"
+WP2A1_REPOSITORY_FIX_BASE_TREE = "a2a70d3dce05af9865bbc6c9a127c23b33176d7b"
+WP2A1_REPOSITORY_FIX_HEAD_REF = "feat/f10-9-wp2a1-certification-push-manifest-continuity-fix"
+WP2A1_MANIFEST = ".context/operaciones/wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json"
+WP2A1_CI_FOCUSED_SUITE_BASE = "80674393b0c40cfa10355711170f9f5842e6c2fe"
+WP2A1_CI_FOCUSED_SUITE_BASE_TREE = "ed70baa39bfda9721f9faf20c73f15b0a8b9739e"
+WP2A1_CI_FOCUSED_SUITE_HEAD_REF = "feat/f10-9-wp2a1-certification-ci-focused-suite"
+WP2A1_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a1-certification-control-bootstrap"
+WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF = "promote/f10-9-wp2b-certification-trusted-content"
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -119,6 +386,1101 @@ P1_ALLOWED_STATUSES = {
     "tests/test_fase10_9_p1_safety_contracts.py": "A",
 }
 
+P2_ALLOWED_STATUSES = {
+    "scripts/shared/f10_9_readonly_planner.py": "A",
+    "scripts/maintenance/f10_9_readonly_audit.py": "A",
+    "tests/fixtures/f10_9_p2_synthetic.json": "A",
+    "tests/test_fase10_9_p2_readonly_planners.py": "A",
+}
+
+G2_ALLOWED_STATUSES = {
+    "scripts/core/master_orchestrator.py": "M",
+    "scripts/core/integrity_ping.py": "M",
+    "scripts/shared/f10_9_fg2_preflight.py": "A",
+    "scripts/shared/f10_9_fg3_atomic.py": "A",
+    "tests/test_fase10_9_p3_fg2_preflight.py": "A",
+    "tests/test_fase10_9_p4_fg3_atomicity.py": "A",
+}
+
+G2_ALLOWED_MODES = {path: "100644" for path in G2_ALLOWED_STATUSES}
+
+P5_ALLOWED_STATUSES = {
+    "scripts/shared/f10_9_metadata_planner.py": "A",
+    "tests/test_fase10_9_p5_metadata_readonly.py": "A",
+}
+
+P5_ALLOWED_MODES = {path: "100644" for path in P5_ALLOWED_STATUSES}
+
+WIRING_ALLOWED_STATUSES = {
+    "AGENTS.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g0_r0_reconciliacion_f10_9.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/r0_ci_boundary_manifest_2026_08_09.md": "M",
+    ".context/operaciones/r0_post_merge_evidence_2026_08_09.md": "A",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_main_boundary.py": "M",
+}
+
+WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WIRING_ALLOWED_STATUSES
+}
+
+P2_WIRING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g0_r0_reconciliacion_f10_9.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/r0_ci_boundary_manifest_2026_08_09.md": "M",
+    ".context/operaciones/r0_post_merge_evidence_2026_08_09.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+P2_WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in P2_WIRING_ALLOWED_STATUSES
+}
+
+G2_WIRING_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+G2_WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in G2_WIRING_ALLOWED_STATUSES
+}
+
+P5_WIRING_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+P5_WIRING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in P5_WIRING_ALLOWED_STATUSES
+}
+
+F1010_M2A_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M2A_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in F1010_M2A_ALLOWED_STATUSES
+}
+
+F1010_M1_ALLOWED_STATUSES = {
+    "scripts/shared/f10_10_metadata_remediation.py": "A",
+    "tests/test_fase10_10_m1_offline_tooling.py": "A",
+}
+
+F1010_M1_ALLOWED_MODES = {path: "100644" for path in F1010_M1_ALLOWED_STATUSES}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_bound_result_2026_08_12.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_public_db_acl_preflight.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/f10_10_m3_public_db_acl_preflight_assert.sql": "A",
+    "tests/sql/f10_10_m3_public_db_acl_preflight_fixture.sql": "A",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "A",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES = {
+    path: "100644"
+    for path in F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_post_merge_evidence_2026_08_13.md"
+}
+
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES = {
+    path: "100644"
+    for path in F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
+}
+
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES = {
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "M",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "M",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS = {
+    ".github/workflows/f9-7-contract.yml",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh",
+}
+
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md"
+}
+
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/f10_10_m3_postgres_final_readiness.sh": "A",
+    "tests/sql/run_f10_10_m3_public_db_acl_preflight_postgres17.sh": "M",
+    "tests/test_f10_10_m3_public_db_acl_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES
+}
+F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS = {
+    ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md"
+}
+
+F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/_index.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md": "A",
+    ".context/decisiones/ADR-0010_rebaseline_f10_10_metadata_remediation.md": "M",
+    ".context/decisiones/ADR-0011_rebaseline_superior_hito1_ca1_f10_10_a_h2.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/evidencias_cliente/sprint_1/paquete_hito_001.md": "M",
+    ".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": "M",
+    ".context/hitos/hito_001.md": "M",
+    ".context/hitos/hito_002.md": "A",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".context/operaciones/rebaseline_f10_10_h1_h2_ca2_2026_08_13.md": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_H1_CA1_REBASELINE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES
+}
+
+G5_PRODUCTION_READONLY_ALLOWED_STATUSES = {
+    ".gitignore": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_readonly_collector.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_production_readonly.py": "A",
+}
+G5_PRODUCTION_READONLY_ALLOWED_MODES = {
+    path: "100644" for path in G5_PRODUCTION_READONLY_ALLOWED_STATUSES
+}
+
+G5_V2_ATTRIBUTION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md": "M",
+    ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_production_readonly.py": "M",
+}
+G5_V2_ATTRIBUTION_ALLOWED_MODES = {
+    path: "100644" for path in G5_V2_ATTRIBUTION_ALLOWED_STATUSES
+}
+G5_V2_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_V2_POST_MERGE_ALLOWED_MODES = {
+    path: "100644" for path in G5_V2_POST_MERGE_ALLOWED_STATUSES
+}
+G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0015_g5_deployment_ready_disabled.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/g5-manual-trust-gate.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+    "scripts/shared/f10_9_g5_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+    "tests/test_fase10_9_g5_production_readonly.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_GET_ONLY_ADAPTER_ALLOWED_MODES = {
+    path: "100644" for path in G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES
+}
+
+G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "A",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "A",
+}
+G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES = {
+    path: "100644" for path in G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES
+}
+
+G5_E1_HARDENING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+    ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_e1_hardening.py": "A",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/package-lock.json": "A",
+    "workers/g5-trust-broker/package.json": "A",
+    "workers/g5-trust-broker/wrangler.repository-only.jsonc": "M",
+}
+G5_E1_HARDENING_ALLOWED_MODES = {
+    path: "100644" for path in G5_E1_HARDENING_ALLOWED_STATUSES
+}
+
+G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+    ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_e1_hardening.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/package-lock.json": "M",
+    "workers/g5-trust-broker/package.json": "M",
+    "workers/g5-trust-broker/test/block-egress.mjs": "A",
+}
+G5_E1_WRANGLER_COMPAT_ALLOWED_MODES = {
+    path: "100644" for path in G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES
+}
+
+G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0016_g5_operational_activation_gates.md": "M",
+    ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/g5-manual-trust-gate.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_e1_hardening.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_get_only_adapter_contract.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_get_only_adapter_contract.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES = {
+    path: "100644" for path in G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
+}
+
+G5_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_SECURITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0022_g5_followup_security_remediation.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_MODES = {
+    path: "100644" for path in G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "A",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "A",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+}
+G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES = {
+    path: "100644" for path in G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES
+}
+
+G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json": "A",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+}
+G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES = {
+    path: "100644" for path in G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
+}
+
+G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES = {
+    ".context/00_INDICE.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md": "A",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+    "workers/g5-trust-broker/src/index.mjs": "M",
+    "workers/g5-trust-broker/test/trust-broker.test.mjs": "M",
+}
+G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES = {
+    path: "100644" for path in G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES
+}
+
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+    ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json": "M",
+    ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/shared/f10_9_g5_operational_activation_preflight.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+    "tests/test_fase10_9_g5_operational_activation_preflight.py": "M",
+}
+G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES = {
+    path: "100644" for path in G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES
+}
+
+G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES = {
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+}
+G5_CERTIFICATION_WIRING_ALLOWED_STATUSES = {
+    **G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "A",
+}
+G5_CERTIFICATION_WIRING_ALLOWED_MODES = G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_MODES
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES = {
+    ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": "M",
+    G5_CERTIFICATION_BOOTSTRAP_SIDECAR: "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES = {
+    path: "100644" for path in G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
+}
+WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES = {
+    "scripts/security/f109_boundary.py": "M",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES = {
+    path: "100644" for path in WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
+}
+WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES = {
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES = {
+    path: "100644" for path in WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST: "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES = {
+    path: "100644" for path in WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES
+}
+WP2A_REBASELINE_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP2A_REBASELINE_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A_REBASELINE_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A_REBASELINE_ALLOWED_STATUSES
+}
+WP2A_CERTIFICATION_CONTROL_STATUSES = {
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A_CERTIFICATION_CONTROL_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A_CERTIFICATION_CONTROL_STATUSES
+}
+WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP2A1_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A1_REPOSITORY_FIX_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES
+}
+WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES = {
+    WP2A1_MANIFEST: "M",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+}
+WP2A1_CI_FOCUSED_SUITE_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES
+}
+WP2A1_CERTIFICATION_CONTROL_STATUSES = {
+    WP2A1_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2A1_CERTIFICATION_CONTROL_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2A1_CERTIFICATION_CONTROL_STATUSES
+}
+WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES = {
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "A",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "A",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "A",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "A",
+}
+WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES = {
+    path: "100644" for path in WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES
+}
+WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS = {
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "a1853df0c0e6187352869b26984e74576c564db3",
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+    "scripts/security/f109_trusted_boundary_bootstrap.py": "1dbb583f9d6e8d7bdb3e80a10d172a32bd86f2c1",
+    "tests/test_f109_trusted_boundary_bootstrap.py": "6496efd8f038fb0c425e62ef1824855b621a6fa7",
+}
+WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES = {
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+        "mode": "100644",
+        "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3",
+    },
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+        "mode": "100644",
+        "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+    },
+    ".github/workflows/security-audit.yml": {
+        "mode": "100755",
+        "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045",
+    },
+    "scripts/security/f109_boundary.py": {
+        "mode": "100644",
+        "blob_sha": "3e0b55ec344d9cdce4a9656ed1e82e7dd940f2ad",
+    },
+    "scripts/security/f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "1dbb583f9d6e8d7bdb3e80a10d172a32bd86f2c1",
+    },
+    "tests/test_f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "6496efd8f038fb0c425e62ef1824855b621a6fa7",
+    },
+    "tests/test_fase10_9_branch_reconciliation.py": {
+        "mode": "100644",
+        "blob_sha": "f63ebd2b0cc206b09debf63293b4be2f35c4e3f5",
+    },
+}
+G5_DEFINITIVE_PROMOTION_FILES = {
+    ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {
+        "mode": "100644",
+        "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d",
+    },
+    "scripts/security/f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b",
+    },
+    "tests/test_f109_trusted_boundary_bootstrap.py": {
+        "mode": "100644",
+        "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1",
+    },
+    ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
+        "mode": "100644",
+        "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3",
+    },
+}
+G5_CERTIFICATION_WIRING_FORBIDDEN_MARKERS = (
+    "workflow_dispatch",
+    "id-token: write",
+    "secrets.",
+    "wrangler",
+    "CF_API_TOKEN",
+    "NEXT_SUPABASE_SECRET_KEY",
+)
+
+F1010_M3_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_f10_10_m3_readonly_collector.py": "A",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_ALLOWED_MODES = {path: "100644" for path in F1010_M3_ALLOWED_STATUSES}
+
+F1010_M3_READER_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "A",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    ".github/workflows/db-sync-to-pro.yml": "M",
+    "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql": "A",
+    "db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql": "A",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/20260811_fase10_10_m3_free_reader_test.sql": "A",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "A",
+    "tests/test_f10_10_m3_reader_package.py": "A",
+    "tests/test_f10_10_m3_readonly_collector.py": "M",
+    "tests/test_fase10_8_db_sync.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_READER_ALLOWED_MODES = {
+    path: "100755" if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh" else "100644"
+    for path in F1010_M3_READER_ALLOWED_STATUSES
+}
+
+F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_post_merge_evidence_2026_08_11.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_READER_POST_MERGE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES
+}
+
+F1010_M3_ROTATION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_post_merge_evidence_2026_08_11.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rotation_attestation_2026_08_11.md": "A",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_ROTATION_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_ROTATION_ALLOWED_STATUSES
+}
+
+F1010_M3_PASSWORDLESS_ALLOWED_STATUSES = {
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_f10_10_m3_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PASSWORDLESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PASSWORDLESS_ALLOWED_STATUSES
+}
+
+F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_preflight_payload_2026_08_11.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rotation_attestation_2026_08_11.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES
+}
+
+F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md": "A",
+    ".context/operaciones/m3_reader_f10_10_preflight_result_2026_08_11.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES
+}
+
+F1010_M3_FINAL_READINESS_ALLOWED_STATUSES = {
+    ".context/operaciones/m3_reader_f10_10_preflight_evidence_2026_08_11.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_FINAL_READINESS_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_FINAL_READINESS_ALLOWED_STATUSES
+}
+
+F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".github/workflows/f9-7-contract.yml": "M",
+    "scripts/maintenance/f10_10_m3_apply_projection.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+    "tests/test_f10_10_m3_apply_projection.py": "A",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_APPLY_PROJECTION_ALLOWED_MODES = {
+    path: (
+        "100755"
+        if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+        else "100644"
+    )
+    for path in F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES
+}
+
+F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_DDL_PAYLOAD_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES
+}
+
+F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES
+}
+
+F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_nullability_remediation_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql": "M",
+    "scripts/maintenance/f10_10_m3_readonly_collector.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+    "tests/test_f10_10_m3_apply_projection.py": "M",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_f10_10_m3_readonly_collector.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES = {
+    path: (
+        "100755"
+        if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+        else "100644"
+    )
+    for path in F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES
+}
+
+F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_reader_f10_10_ddl_free_payload_2026_08_12.json": "M",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_payload_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_ddl_free_v2_execution_evidence_2026_08_12.md": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql": "M",
+    "scripts/maintenance/f10_10_m3_public_db_acl_diagnostic.py": "A",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh": "M",
+    "tests/test_f10_10_m3_apply_projection.py": "M",
+    "tests/test_f10_10_m3_public_db_acl_diagnostic.py": "A",
+    "tests/test_f10_10_m3_reader_package.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+
+F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_MODES = {
+    path: (
+        "100755"
+        if path == "tests/sql/run_fase10_10_m3_free_reader_postgres17.sh"
+        else "100644"
+    )
+    for path in F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_V2_PAYLOAD_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v2_payload_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V2_PAYLOAD_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V2_PAYLOAD_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_V3_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_payload_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/maintenance/f10_10_m3_public_db_acl_diagnostic.py": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_f10_10_m3_public_db_acl_diagnostic.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V3_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V3_ALLOWED_STATUSES
+}
+
+F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES = {
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    ".context/estado_del_proyecto.md": "M",
+    ".context/operaciones/flujo_release_minimo.md": "M",
+    ".context/operaciones/m3_f10_10_scope_por_ambiente_target.md": "M",
+    ".context/operaciones/m3_public_db_acl_diagnostic_free_v3_execution_binding_2026_08_12.json": "A",
+    ".context/operaciones/m3_reader_f10_10_rebaseline.md": "M",
+    ".context/operaciones/plan_cierre_hito1_ca1_only.md": "M",
+    ".context/operaciones/plan_remediacion_metadata_f10_10.md": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES = {
+    path: "100644" for path in F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES
+}
+
+CONTEXT_IGNORED_PREFIXES = (
+    ".context/.obsidian/",
+    ".context/artifacts/private/",
+)
+
+LEGACY_ALLOWED_STATUSES = {
+    ".gitattributes": {"M"},
+    ".github/workflows/fg1_inventory.yml": {"M"},
+    ".github/workflows/db-sync-to-pro.yml": {"M"},
+    "db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": {"A"},
+    "db/restore_full_schema.sql": {"M"},
+    "scripts/maintenance/db_migrate.py": {"M"},
+    ".github/workflows/fg3_integrity.yml": {"M"},
+    ".github/workflows/production_pipeline.yml": {"M"},
+    "scripts/core/certification_canary_manifest.py": {"A", "M"},
+    "scripts/core/certification_canary_state.py": {"A", "M"},
+    "scripts/core/production_canary_manifest.py": {"A", "M"},
+    "scripts/core/production_canary_source_preflight.py": {"A", "M"},
+    "scripts/core/production_canary_state.py": {"A", "M"},
+    "scripts/core/cleansing_worker.py": {"M"},
+    "scripts/core/discovery_institutions.py": {"M"},
+    "scripts/core/enrichment_worker.py": {"M"},
+    "scripts/core/integrity_ping.py": {"M"},
+    "scripts/core/master_orchestrator.py": {"M"},
+    "scripts/core/sync_vector_worker.py": {"M"},
+    "scripts/core/universal_harvester.py": {"M"},
+    "scripts/shared/db_client.py": {"M"},
+}
+
+LEGACY_PROTECTED_PATHS = {
+    ".github/workflows/fg1_inventory.yml",
+    ".github/workflows/production_pipeline.yml",
+    ".github/workflows/fg3_integrity.yml",
+    ".github/workflows/db-sync-to-pro.yml",
+    "requirements-fg1.txt",
+    "requirements-pipeline.txt",
+    "requirements-fg3.txt",
+    "requirements-db-migrate.txt",
+    "db/manifests/fase09_7_free_schema_rls_v3.json",
+    "db/migrations/20260724_fase06_g1b_reconciliation.sql",
+    "db/migrations/20260724_fase06_hito1_editorial_contract.sql",
+    "db/migrations/20260725_fase07_g1b_closure.sql",
+    "db/migrations/20260725_fase08_hito1_functional_closure.sql",
+    "db/migrations/20260727_fase09_7_public_access_closure.sql",
+    "db/migrations/20260728_fase09_7_notify_new_lead_retirement_v3.sql",
+    "scripts/maintenance/category_coverage_audit.py",
+    "scripts/maintenance/quality_assurance_audit.py",
+    "scripts/maintenance/taxonomy_roi_audit.py",
+}
+
+F109_CONTROL_PATHS = {
+    ".github/workflows/f9-7-contract.yml",
+    ".github/workflows/security-audit.yml",
+    "scripts/security/f109_boundary.py",
+    "tests/test_fase10_9_branch_reconciliation.py",
+    "tests/test_fase10_main_boundary.py",
+}
+
+LEGACY_PROTECTED_PREFIXES = ("scripts/core/", "scripts/shared/", "config/")
+LEGACY_DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/maintenance/")
+
 
 class BoundaryError(RuntimeError):
     pass
@@ -207,6 +1569,55 @@ def require_exact_delta(
         require((mode, kind, tree_path) == (expected_mode, "blob", path), f"invalid tree entry {path}")
 
 
+def require_exact_delta_blobs(
+    repo: Path,
+    base: str,
+    head: str,
+    expected: dict[str, str],
+    expected_modes: dict[str, str],
+    expected_blobs: dict[str, str],
+) -> None:
+    require_exact_delta(repo, base, head, expected, expected_modes)
+    require(set(expected_blobs) == set(expected), "blob freeze must match exact delta")
+    for path, expected_blob in expected_blobs.items():
+        metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"missing tree metadata for {path}")
+        _mode, _kind, blob_sha, tree_path = metadata
+        require(tree_path == path and blob_sha == expected_blob, f"blob drift for {path}")
+
+
+def validate_non_p1_delta(repo: Path, head: str, actual: dict[str, str]) -> None:
+    failures: list[str] = []
+    for path, status in actual.items():
+        if path.startswith(CONTEXT_IGNORED_PREFIXES):
+            failures.append(f"private-context-tracked:{path}")
+            continue
+        if path in F109_CONTROL_PATHS:
+            failures.append(f"f109-control-drift:{path}")
+            continue
+        allowed_statuses = LEGACY_ALLOWED_STATUSES.get(path)
+        if path.startswith(LEGACY_DENIED_PREFIXES) and allowed_statuses is None:
+            failures.append(f"legacy-denied:{path}")
+            continue
+        if (
+            path in LEGACY_PROTECTED_PATHS or path.startswith(LEGACY_PROTECTED_PREFIXES)
+        ) and allowed_statuses is None:
+            failures.append(f"legacy-protected-drift:{path}")
+            continue
+        if allowed_statuses is not None and status not in allowed_statuses:
+            failures.append(f"legacy-status:{status}:{path}")
+            continue
+        if allowed_statuses is not None and status != "D":
+            metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
+            if len(metadata) != 4 or (metadata[0], metadata[1], metadata[3]) != (
+                "100644",
+                "blob",
+                path,
+            ):
+                failures.append(f"legacy-mode-kind:{path}")
+    require(not failures, f"non-P1 delta violates legacy boundary: {failures!r}")
+
+
 def validate_context_graph(
     root: Path,
     expected_files: int,
@@ -215,7 +1626,15 @@ def validate_context_graph(
     forbidden_paths: set[str] | None = None,
 ) -> None:
     root = root.resolve()
-    markdown_files = sorted((root / ".context").rglob("*.md"))
+    tracked_private = str(
+        git(root, "ls-files", "--", ".context/.obsidian", ".context/artifacts/private")
+    ).split()
+    require(not tracked_private, f"private context paths must remain untracked: {tracked_private!r}")
+    markdown_files = sorted(
+        path
+        for path in (root / ".context").rglob("*.md")
+        if not path.relative_to(root).as_posix().startswith(CONTEXT_IGNORED_PREFIXES)
+    )
     pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
     local_links = 0
     broken: list[tuple[str, str]] = []
@@ -308,30 +1727,5519 @@ def validate_dev(repo: Path, base: str, head: str, event: str, cert_tip: str) ->
     require(not unexpected, f"unexpected commits outside certificacion history: {unexpected!r}")
 
 
-def validate_p1(repo: Path, base: str, head: str, p1_base: str, event: str) -> None:
+def validate_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_R0_DEV_BASE, "unexpected P1 wiring baseline")
+    require_sha(repo, "POST_R0_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_R0_DEV_TREE, "post-R0 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during P1 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during P1 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P1 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "P1 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P1 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "P1 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WIRING_ALLOWED_STATUSES,
+        WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=42,
+        expected_links=341,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_p1(
+    repo: Path,
+    base: str,
+    head: str,
+    p1_base: str,
+    p1_base_tree: str,
+    event: str,
+) -> None:
     require(bool(SHA_RE.fullmatch(p1_base)), "P1 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(p1_base_tree)), "P1 baseline tree is not frozen")
     require(base == p1_base, "P1 must use the protected post-R0 desarrollo baseline")
     require_sha(repo, "base", base)
     require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == p1_base_tree, "P1 protected base tree drift")
     require(is_ancestor(repo, base, head), "P1 base is not an ancestor of head")
-    parents = commit_parents(repo, head)
+    candidate_head = head
     if event == "pull_request":
-        require(parents == [base], "P1 PR head must be one direct commit from protected desarrollo")
+        require(commit_parents(repo, candidate_head) == [base], "P1 PR head must be one direct commit from protected desarrollo")
     else:
-        require(parents and parents[0] == base, "P1 push first parent must be protected desarrollo")
-    require_exact_delta(repo, base, head, P1_ALLOWED_STATUSES)
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P1 push must be a protected merge commit")
+        require(push_parents[0] == base, "P1 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "P1 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P1 push tree differs from PR head")
+    require_exact_delta(repo, base, candidate_head, P1_ALLOWED_STATUSES)
 
 
-def detect_mode(event: str, base_ref: str, head_ref: str, base: str, p1_base: str = "") -> str:
+def validate_p2_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_P1_DEV_BASE, "unexpected P2 wiring baseline")
+    require_sha(repo, "POST_P1_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_P1_DEV_TREE, "post-P1 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during P2 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during P2 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P2 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "P2 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P2 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "P2 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        P2_WIRING_ALLOWED_STATUSES,
+        P2_WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=42,
+        expected_links=341,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_p2(
+    repo: Path,
+    base: str,
+    head: str,
+    p2_base: str,
+    p2_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(p2_base)), "P2 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(p2_base_tree)), "P2 baseline tree is not frozen")
+    require(base == p2_base, "P2 must use the protected post-wiring desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == p2_base_tree, "P2 protected base tree drift")
+    require(is_ancestor(repo, base, head), "P2 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "P2 PR head must be one direct commit from protected desarrollo")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P2 push must be a protected merge commit")
+        require(push_parents[0] == base, "P2 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "P2 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P2 push tree differs from PR head")
+    require_exact_delta(repo, base, candidate_head, P2_ALLOWED_STATUSES)
+
+
+def validate_g2_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_P2_DEV_BASE, "unexpected G2 wiring baseline")
+    require_sha(repo, "POST_P2_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_P2_DEV_TREE, "post-P2 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during G2 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during G2 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "G2 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "G2 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G2 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "G2 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G2_WIRING_ALLOWED_STATUSES,
+        G2_WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=43,
+        expected_links=344,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_g2(
+    repo: Path,
+    base: str,
+    head: str,
+    g2_base: str,
+    g2_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(g2_base)), "G2 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(g2_base_tree)), "G2 baseline tree is not frozen")
+    require(base == g2_base, "G2 must use the protected post-wiring desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == g2_base_tree, "G2 protected base tree drift")
+    require(is_ancestor(repo, base, head), "G2 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "G2 PR head must be one direct commit from protected desarrollo")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "G2 push must be a protected merge commit")
+        require(push_parents[0] == base, "G2 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "G2 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G2 push tree differs from PR head")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G2_ALLOWED_STATUSES,
+        G2_ALLOWED_MODES,
+    )
+
+
+def validate_p5_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == POST_G2_DEV_BASE, "unexpected P5 wiring baseline")
+    require_sha(repo, "POST_G2_DEV_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == POST_G2_DEV_TREE, "post-G2 desarrollo tree drift")
+    archive_commit = str(git(repo, "rev-parse", DEV_ARCHIVE_REF)).strip()
+    require(archive_commit == DEV_BASE, "CA2 archive commit drift during P5 wiring")
+    require(commit_tree(repo, archive_commit) == DEV_ARCHIVE_TREE, "CA2 archive tree drift during P5 wiring")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P5 wiring push must be a protected merge commit")
+        require(push_parents[0] == base, "P5 wiring push first parent drift")
+        candidate_head = push_parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P5 wiring push tree differs from PR head")
+    require(commit_parents(repo, candidate_head) == [base], "P5 wiring PR must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        P5_WIRING_ALLOWED_STATUSES,
+        P5_WIRING_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=44,
+        expected_links=345,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_p5(
+    repo: Path,
+    base: str,
+    head: str,
+    p5_base: str,
+    p5_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(p5_base)), "P5 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(p5_base_tree)), "P5 baseline tree is not frozen")
+    require(base == p5_base, "P5 must use the protected post-wiring desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == p5_base_tree, "P5 protected base tree drift")
+    require(is_ancestor(repo, base, head), "P5 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "P5 PR head must be one direct commit from protected desarrollo")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "P5 push must be a protected merge commit")
+        require(push_parents[0] == base, "P5 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "P5 merged PR must contain one direct commit")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "P5 push tree differs from PR head")
+    require_exact_delta(repo, base, candidate_head, P5_ALLOWED_STATUSES, P5_ALLOWED_MODES)
+
+
+def validate_f1010_m2a_wiring(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M2A_BASE, "unexpected F10.10 M2a wiring baseline")
+    require_sha(repo, "F1010_M2A_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M2A_BASE_TREE, "F10.10 M2a baseline tree drift")
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M2a push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M2a push first parent drift")
+        candidate_head = push_parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M2a push tree differs from PR head",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "F10.10 M2a PR must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M2A_ALLOWED_STATUSES,
+        F1010_M2A_ALLOWED_MODES,
+    )
+    validate_context_graph(
+        repo,
+        expected_files=48,
+        expected_links=345,
+        expected_blobs=CONTEXT_EXPECTED_BLOBS,
+        forbidden_paths=CONTEXT_FORBIDDEN_PATHS,
+    )
+
+
+def validate_f1010_m1(
+    repo: Path,
+    base: str,
+    head: str,
+    f1010_m1_base: str,
+    f1010_m1_base_tree: str,
+    event: str,
+) -> None:
+    require(bool(SHA_RE.fullmatch(f1010_m1_base)), "F10.10 M1 baseline is not frozen")
+    require(bool(SHA_RE.fullmatch(f1010_m1_base_tree)), "F10.10 M1 baseline tree is not frozen")
+    require(base == f1010_m1_base, "F10.10 M1 must use the protected post-M2a desarrollo baseline")
+    require_sha(repo, "base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == f1010_m1_base_tree, "F10.10 M1 protected base tree drift")
+    require(is_ancestor(repo, base, head), "F10.10 M1 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M1 PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M1 push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M1 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M1 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M1 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M1_ALLOWED_STATUSES,
+        F1010_M1_ALLOWED_MODES,
+    )
+
+
+def validate_f1010_m3(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M3_BASE, "unexpected F10.10 M3 protected baseline")
+    require_sha(repo, "F1010_M3_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_BASE_TREE, "F10.10 M3 protected base tree drift")
+    require(is_ancestor(repo, base, head), "F10.10 M3 base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M3 push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M3 push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_ALLOWED_STATUSES,
+        F1010_M3_ALLOWED_MODES,
+    )
+
+
+def validate_f1010_m3_reader(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M3_READER_BASE, "unexpected F10.10 M3 reader protected baseline")
+    require_sha(repo, "F1010_M3_READER_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_READER_BASE_TREE,
+        "F10.10 M3 reader protected base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "F10.10 M3 reader base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 reader PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M3 reader push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M3 reader push first parent must be protected desarrollo")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 reader merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 reader push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_READER_ALLOWED_STATUSES,
+        F1010_M3_READER_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 52, 363)
+
+
+def validate_f1010_m3_reader_post_merge(
+    repo: Path, base: str, head: str, event: str
+) -> None:
+    require(
+        base == F1010_M3_READER_POST_MERGE_BASE,
+        "unexpected F10.10 M3 reader post-merge baseline",
+    )
+    require_sha(repo, "F1010_M3_READER_POST_MERGE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_READER_POST_MERGE_BASE_TREE,
+        "F10.10 M3 reader post-merge base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 reader post-merge base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "push":
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2,
+            "F10.10 M3 reader post-merge push must be a protected merge commit",
+        )
+        require(
+            push_parents[0] == base,
+            "F10.10 M3 reader post-merge push first parent drift",
+        )
+        candidate_head = push_parents[1]
+        require(
+            is_ancestor(repo, base, candidate_head),
+            "F10.10 M3 reader post-merge PR head does not descend from baseline",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 reader post-merge push tree differs from PR head",
+        )
+    first_parent_chain = str(
+        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{candidate_head}")
+    ).split()
+    require(
+        first_parent_chain
+        == [F1010_M3_READER_POST_MERGE_DOCS_COMMIT, candidate_head],
+        "F10.10 M3 reader post-merge candidate must contain the frozen docs commit and one remediation commit",
+    )
+    all_commits = str(git(repo, "rev-list", f"{base}..{candidate_head}")).split()
+    require(
+        set(all_commits) == set(first_parent_chain),
+        "F10.10 M3 reader post-merge candidate cannot contain merge or side history",
+    )
+    require(
+        commit_parents(repo, F1010_M3_READER_POST_MERGE_DOCS_COMMIT) == [base],
+        "F10.10 M3 reader post-merge docs commit parent drift",
+    )
+    require(
+        commit_parents(repo, candidate_head)
+        == [F1010_M3_READER_POST_MERGE_DOCS_COMMIT],
+        "F10.10 M3 reader post-merge remediation must directly follow the docs commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_READER_POST_MERGE_ALLOWED_STATUSES,
+        F1010_M3_READER_POST_MERGE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 53, 362)
+
+
+def validate_f1010_m3_rotation(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == F1010_M3_ROTATION_BASE, "unexpected F10.10 M3 rotation baseline")
+    require_sha(repo, "F1010_M3_ROTATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_ROTATION_BASE_TREE,
+        "F10.10 M3 rotation base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "F10.10 M3 rotation base is not an ancestor of head")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 rotation PR head must be one direct commit from protected desarrollo",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(len(push_parents) == 2, "F10.10 M3 rotation push must be a protected merge commit")
+        require(push_parents[0] == base, "F10.10 M3 rotation push first parent drift")
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 rotation merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 rotation push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_ROTATION_ALLOWED_STATUSES,
+        F1010_M3_ROTATION_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 54, 369)
+
+
+def validate_f1010_m3_passwordless(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PASSWORDLESS_BASE,
+        "unexpected F10.10 M3 passwordless binding baseline",
+    )
+    require_sha(repo, "F1010_M3_PASSWORDLESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PASSWORDLESS_BASE_TREE,
+        "F10.10 M3 passwordless binding base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 passwordless binding base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 passwordless binding PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 passwordless binding push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 passwordless binding merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 passwordless binding push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PASSWORDLESS_ALLOWED_STATUSES,
+        F1010_M3_PASSWORDLESS_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 54, 369)
+
+
+def validate_f1010_m3_preflight_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PREFLIGHT_PAYLOAD_BASE,
+        "unexpected F10.10 M3 preflight payload baseline",
+    )
+    require_sha(repo, "F1010_M3_PREFLIGHT_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PREFLIGHT_PAYLOAD_BASE_TREE,
+        "F10.10 M3 preflight payload base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 preflight payload base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight payload PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 preflight payload push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight payload merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 preflight payload push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 54, 374)
+
+
+def validate_f1010_m3_preflight_evidence(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PREFLIGHT_EVIDENCE_BASE,
+        "unexpected F10.10 M3 preflight evidence baseline",
+    )
+    require_sha(repo, "F1010_M3_PREFLIGHT_EVIDENCE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PREFLIGHT_EVIDENCE_BASE_TREE,
+        "F10.10 M3 preflight evidence base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 preflight evidence base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight evidence PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 preflight evidence push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 preflight evidence merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 preflight evidence push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+        F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
+def validate_f1010_m3_final_readiness(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_FINAL_READINESS_BASE,
+        "unexpected F10.10 M3 final readiness baseline",
+    )
+    require_sha(repo, "F1010_M3_FINAL_READINESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_FINAL_READINESS_BASE_TREE,
+        "F10.10 M3 final readiness base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 final readiness base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 final readiness PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 final readiness push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 final readiness merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 final readiness push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_FINAL_READINESS_ALLOWED_STATUSES,
+        F1010_M3_FINAL_READINESS_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
+def validate_f1010_m3_apply_projection(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_APPLY_PROJECTION_BASE,
+        "unexpected F10.10 M3 apply projection baseline",
+    )
+    require_sha(repo, "F1010_M3_APPLY_PROJECTION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_APPLY_PROJECTION_BASE_TREE,
+        "F10.10 M3 apply projection base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 apply projection base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 apply projection PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 apply projection push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 apply projection merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 apply projection push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_APPLY_PROJECTION_ALLOWED_STATUSES,
+        F1010_M3_APPLY_PROJECTION_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
+def validate_f1010_m3_ddl_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_DDL_PAYLOAD_BASE,
+        "unexpected F10.10 M3 DDL payload baseline",
+    )
+    require_sha(repo, "F1010_M3_DDL_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_DDL_PAYLOAD_BASE_TREE,
+        "F10.10 M3 DDL payload base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 DDL payload base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 DDL payload PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 DDL payload push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 DDL payload merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 DDL payload push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_DDL_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_DDL_PAYLOAD_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 382)
+
+
+def validate_f1010_m3_ddl_payload_refresh(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_DDL_PAYLOAD_REFRESH_BASE,
+        "unexpected F10.10 M3 DDL payload refresh baseline",
+    )
+    require_sha(repo, "F1010_M3_DDL_PAYLOAD_REFRESH_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_DDL_PAYLOAD_REFRESH_BASE_TREE,
+        "F10.10 M3 DDL payload refresh base tree drift",
+    )
+    require(
+        is_ancestor(repo, base, head),
+        "F10.10 M3 DDL payload refresh base is not an ancestor of head",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 DDL payload refresh PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "F10.10 M3 DDL payload refresh push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "F10.10 M3 DDL payload refresh merged PR must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 M3 DDL payload refresh push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_STATUSES,
+        F1010_M3_DDL_PAYLOAD_REFRESH_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 382)
+
+
+def validate_f1010_m3_nullability_remediation(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_NULLABILITY_REMEDIATION_BASE,
+        "unexpected F10.10 M3 nullability remediation baseline",
+    )
+    require_sha(repo, "F1010_M3_NULLABILITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_NULLABILITY_REMEDIATION_BASE_TREE,
+        "F10.10 M3 nullability remediation base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "nullability remediation base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "nullability PR must be one direct commit")
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "nullability push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged nullability PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "nullability push tree drift")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_STATUSES,
+        F1010_M3_NULLABILITY_REMEDIATION_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 379)
+
+
+def validate_f1010_m3_ddl_v2_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_DDL_V2_PAYLOAD_BASE,
+        "unexpected M3 DDL v2 payload baseline",
+    )
+    require_sha(repo, "F1010_M3_DDL_V2_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_DDL_V2_PAYLOAD_BASE_TREE,
+        "M3 DDL v2 payload base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 DDL v2 payload base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "M3 DDL v2 PR must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "M3 DDL v2 push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "merged M3 DDL v2 PR must be direct",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 DDL v2 push tree drift",
+        )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_DDL_V2_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_DDL_V2_PAYLOAD_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 55, 376)
+
+
+def validate_f1010_m3_public_acl_rebaseline(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_REBASELINE_BASE,
+        "unexpected M3 PUBLIC ACL rebaseline baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_REBASELINE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_REBASELINE_BASE_TREE,
+        "M3 PUBLIC ACL rebaseline base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "M3 PUBLIC ACL PR must be one direct commit")
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged M3 PUBLIC ACL PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL push tree drift")
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_REBASELINE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 56, 377)
+
+
+def validate_f1010_m3_public_acl_v2_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE, "unexpected M3 PUBLIC ACL v2 payload baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE_TREE, "M3 PUBLIC ACL v2 payload base tree drift")
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v2 payload base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "M3 PUBLIC ACL v2 payload PR must be one direct commit")
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL v2 payload push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged M3 PUBLIC ACL v2 payload PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL v2 payload push tree drift")
+    require_exact_delta(repo, base, candidate_head, F1010_M3_PUBLIC_ACL_V2_PAYLOAD_ALLOWED_STATUSES, F1010_M3_PUBLIC_ACL_V2_PAYLOAD_ALLOWED_MODES)
+    validate_context_graph(repo, 56, 377)
+
+
+def validate_f1010_m3_public_acl_v3(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V3_BASE, "unexpected M3 PUBLIC ACL v3 baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V3_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V3_BASE_TREE, "M3 PUBLIC ACL v3 base tree drift")
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v3 base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "M3 PUBLIC ACL v3 PR must be one direct commit")
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL v3 push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged M3 PUBLIC ACL v3 PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL v3 push tree drift")
+    require_exact_delta(repo, base, candidate_head, F1010_M3_PUBLIC_ACL_V3_ALLOWED_STATUSES, F1010_M3_PUBLIC_ACL_V3_ALLOWED_MODES)
+    validate_context_graph(repo, 56, 377)
+
+
+def validate_f1010_m3_public_acl_v3_bound(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE, "unexpected M3 PUBLIC ACL v3 bound baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V3_BOUND_BASE", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE_TREE, "M3 PUBLIC ACL v3 bound base tree drift")
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v3 bound base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        require(commit_parents(repo, candidate_head) == [base], "M3 PUBLIC ACL v3 bound PR must be one direct commit")
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL v3 bound push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_parents(repo, candidate_head) == [base], "merged M3 PUBLIC ACL v3 bound PR must be direct")
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL v3 bound push tree drift")
+    require_exact_delta(repo, base, candidate_head, F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES, F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_MODES)
+    validate_context_graph(repo, 56, 377)
+
+
+def validate_f1010_m3_public_acl_preflight(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE, "unexpected M3 PUBLIC ACL preflight baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE_TREE,
+        "M3 PUBLIC ACL preflight base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL preflight base is not ancestor")
+    candidate_head = head
+    if event == "pull_request":
+        pass
+    else:
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "M3 PUBLIC ACL preflight push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "M3 PUBLIC ACL preflight push tree drift")
+    linear_chain = str(
+        git(repo, "rev-list", "--reverse", "--first-parent", f"{base}..{candidate_head}")
+    ).split()
+    require(bool(linear_chain), "M3 PUBLIC ACL preflight candidate is empty")
+    previous = base
+    for commit in linear_chain:
+        require(
+            commit_parents(repo, commit) == [previous],
+            "M3 PUBLIC ACL preflight candidate must be a linear no-merge chain",
+        )
+        previous = commit
+    require(previous == candidate_head, "M3 PUBLIC ACL preflight first-parent chain drift")
+    require(
+        set(str(git(repo, "rev-list", f"{base}..{candidate_head}")).split()) == set(linear_chain),
+        "M3 PUBLIC ACL preflight contains side history",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 57, 377)
+
+
+def validate_f1010_m3_public_acl_preflight_post_merge(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE,
+        "unexpected M3 PUBLIC ACL preflight post-merge baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE_TREE,
+        "M3 PUBLIC ACL preflight post-merge base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL preflight post-merge base is not ancestor")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL preflight post-merge push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL preflight post-merge push tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL preflight post-merge candidate must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 58, 377)
+
+
+def validate_f1010_m3_public_acl_private_preflight_v2_payload(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE,
+        "unexpected M3 PUBLIC ACL private preflight v2 payload baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE,
+        "M3 PUBLIC ACL private preflight v2 payload base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL private preflight v2 payload ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL private preflight v2 payload push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL private preflight v2 payload merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL private preflight v2 payload must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_MODES,
+    )
+    payload_path = (
+        repo
+        / ".context/operaciones/m3_public_db_acl_private_preflight_free_v2_payload_2026_08_13.json"
+    )
+    raw = payload_path.read_bytes()
+    payload = json.loads(raw)
+    require(
+        set(payload) == {
+            "application_rows_allowed", "authority_commit", "authority_head_commit",
+            "authority_parent", "authority_pr", "authority_tree", "automatic_continuation",
+            "automatic_retry", "candidate_merge_commit", "candidate_tree",
+            "collector_result_schema", "collector_sql_digest", "database_classes",
+            "ddl_allowed", "dml_allowed", "expected_rows", "gate",
+            "managed_dependency_attestation_schema", "max_calls",
+            "observed_transport_schema", "password_allowed", "post_merge_checks",
+            "postgres_major_required", "private_artifact_schema",
+            "private_dependency_attestation_path", "private_env_path",
+            "private_result_path", "private_target_binding_path", "pro_allowed",
+            "q0_allowed", "reader_required", "remediation_allowed", "remote_read_scope",
+            "rpc_allowed", "sanitized_manifest_schema", "schema", "status",
+            "target_alias", "target_binding_schema", "transaction",
+        },
+        "M3 PUBLIC ACL private preflight v2 payload shape drift",
+    )
+    require(
+        raw
+        == json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        ).encode("ascii")
+        + b"\n",
+        "M3 PUBLIC ACL private preflight v2 payload is not canonical JSON",
+    )
+    require(
+        payload.get("schema") == "f10.10-m3-public-db-acl-private-preflight-payload-v2"
+        and payload.get("gate")
+        == "APPROVE_F10_10_M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2"
+        and payload.get("authority_commit") == base
+        and payload.get("authority_tree")
+        == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE_TREE
+        and payload.get("authority_pr") == 370
+        and payload.get("authority_head_commit")
+        == "f6e34a7211ac7bd54c7242d65e9ed2d721d544a3"
+        and payload.get("authority_parent")
+        == "6068f2ac9ef623e06dcc23d9828980641e396c39"
+        and payload.get("candidate_merge_commit") is None
+        and payload.get("candidate_tree") is None,
+        "M3 PUBLIC ACL private preflight v2 payload authority drift",
+    )
+    require(
+        payload.get("collector_sql_digest")
+        == "sha256:c109752ce46d3528920527ea034c929ff4e4e6b477576c1fa7514b3fe26f3d35"
+        and payload.get("target_binding_schema") == "f10.10-m3-target-binding-v2"
+        and payload.get("observed_transport_schema")
+        == "f10.10-m3-observed-transport-v2"
+        and payload.get("collector_result_schema")
+        == "f10.10-m3-public-db-acl-private-result-v1"
+        and payload.get("managed_dependency_attestation_schema")
+        == "f10.10-m3-managed-dependency-attestation-v1"
+        and payload.get("private_artifact_schema")
+        == "f10.10-m3-public-db-acl-private-artifact-v1"
+        and payload.get("sanitized_manifest_schema")
+        == "f10.10-m3-public-db-acl-sanitized-manifest-v1"
+        and payload.get("private_env_path") == "local/f10_10/m3/preflight.env"
+        and payload.get("private_target_binding_path")
+        == "local/f10_10/m3/public-db-acl-target-binding-v2.json"
+        and payload.get("private_dependency_attestation_path")
+        == "local/f10_10/m3/public-db-acl-managed-dependency-attestation-v1.json"
+        and payload.get("private_result_path")
+        == "local/f10_10/m3/public-db-acl-private-result-v1.json"
+        and payload.get("transaction") == "REPEATABLE_READ_READ_ONLY"
+        and payload.get("target_alias") == "FREE_DB"
+        and payload.get("max_calls") == 1
+        and payload.get("expected_rows") == 1,
+        "M3 PUBLIC ACL private preflight v2 payload contract drift",
+    )
+    require(
+        payload.get("application_rows_allowed") == 0
+        and payload.get("postgres_major_required") == 17
+        and payload.get("database_classes")
+        == ["TARGET", "OTHER_CONNECTABLE", "NON_CONNECTABLE"]
+        and payload.get("post_merge_checks")
+        == [
+            {"conclusion": "success", "name": "Security Audit Gate", "run_id": 31707738912},
+            {
+                "conclusion": "success",
+                "name": "F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract",
+                "run_id": 31707738896,
+            },
+        ]
+        and payload.get("status")
+        == "PENDING_CANONICAL_TARGET_AND_OBSERVED_TRANSPORT_BINDING_HUMAN_APPROVAL_NOT_EXECUTED",
+        "M3 PUBLIC ACL private preflight v2 payload evidence drift",
+    )
+    for field in (
+        "automatic_continuation", "automatic_retry", "ddl_allowed", "dml_allowed",
+        "password_allowed", "pro_allowed", "q0_allowed", "reader_required",
+        "remediation_allowed", "rpc_allowed",
+    ):
+        require(payload.get(field) is False, f"M3 PUBLIC ACL private preflight v2 enables {field}")
+    validate_context_graph(repo, 58, 377)
+
+
+def validate_f1010_m3_public_acl_post_merge_harness(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE,
+        "unexpected M3 PUBLIC ACL post-merge harness baseline",
+    )
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE_TREE,
+        "M3 PUBLIC ACL post-merge harness base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL post-merge harness ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL post-merge harness push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL post-merge harness merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL post-merge harness must contain one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_MODES,
+    )
+
+
+def validate_f1010_m3_public_acl_v2_evidence(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE, "unexpected M3 PUBLIC ACL v2 evidence baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE_TREE,
+        "M3 PUBLIC ACL v2 evidence base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL v2 evidence ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL v2 evidence push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL v2 evidence merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL v2 evidence must contain one direct commit",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_MODES,
+    )
+    evidence = (
+        repo
+        / ".context/operaciones/m3_public_db_acl_private_preflight_v2_payload_post_merge_evidence_2026_08_13.md"
+    ).read_text(encoding="utf-8")
+    for required in (
+        "M3_PUBLIC_DB_ACL_PRIVATE_PREFLIGHT_FREE_V2_PAYLOAD_POST_MERGE_VERIFIED_CONSUMER_BINDING_REQUIRED",
+        "payload_merge = b2956820295d0476ebb0580e2363fccd3bbbfae8",
+        "payload_post_merge_f9_7 = 31716674957:FAIL_CLOSED",
+        "harness_merge = 89cbeda226c6e04c6c1b6e091e6b94fc36273645",
+        "harness_merge_tree = da92dfa4baf89cc04bc2a67c97f678f3273e152b",
+        "harness_post_merge_security_audit = 31720301586:PASS",
+        "harness_post_merge_f9_7 = 31720301577:PASS",
+        "CONSUMER_BINDING = REQUIRED_NOT_IMPLEMENTED",
+        "PROPOSED_NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "M4_M10 = NOT_AUTHORIZED",
+    ):
+        require(required in evidence, "M3 PUBLIC ACL v2 evidence contract drift")
+    validate_context_graph(repo, 59, 378)
+
+
+def validate_f1010_m3_public_acl_final_readiness(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE, "unexpected M3 PUBLIC ACL final readiness baseline")
+    require_sha(repo, "F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE_TREE,
+        "M3 PUBLIC ACL final readiness base tree drift",
+    )
+    require(is_ancestor(repo, base, head), "M3 PUBLIC ACL final readiness ancestry drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "M3 PUBLIC ACL final readiness push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "M3 PUBLIC ACL final readiness merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "M3 PUBLIC ACL final readiness must contain one direct commit",
+    )
+    require_exact_delta(
+        repo, base, candidate_head,
+        F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
+        F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_MODES,
+    )
+    incident = (
+        repo / ".context/operaciones/m3_public_db_acl_postgres_final_readiness_incident_2026_08_13.md"
+    ).read_text(encoding="utf-8")
+    helper = (repo / "tests/sql/f10_10_m3_postgres_final_readiness.sh").read_text(encoding="utf-8")
+    for required in (
+        "31724004476", "FAIL_CLOSED_LOCAL_POSTGRES_INIT_RACE", "34_PASS",
+        "REQUIRED_NOT_IMPLEMENTED", "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+    ):
+        require(required in incident, "M3 PUBLIC ACL final readiness incident drift")
+    for required in (
+        "PostgreSQL init process complete; ready for start up.",
+        "/var/run/postgresql/.s.PGSQL.5432", "stable_probes=0",
+        "stable_probes=$((stable_probes + 1))", 'if [ "$stable_probes" -eq 3 ]',
+    ):
+        require(required in helper, "M3 PUBLIC ACL final readiness helper drift")
+    validate_context_graph(repo, 60, 378)
+
+
+def validate_f1010_h1_ca1_rebaseline(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == F1010_H1_CA1_REBASELINE_BASE,
+        "unexpected F10.10 Hito 1 CA1 rebaseline base",
+    )
+    require_sha(repo, "F1010_H1_CA1_REBASELINE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == F1010_H1_CA1_REBASELINE_BASE_TREE,
+        "F10.10 Hito 1 CA1 rebaseline base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "F10.10 Hito 1 CA1 rebaseline push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "F10.10 Hito 1 CA1 rebaseline merge tree drift",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "F10.10 Hito 1 CA1 rebaseline base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        F1010_H1_CA1_REBASELINE_ALLOWED_STATUSES,
+        F1010_H1_CA1_REBASELINE_ALLOWED_MODES,
+    )
+    validate_context_graph(repo, 64, 391)
+
+
+def validate_g5_production_readonly(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(
+        base == G5_PRODUCTION_READONLY_BASE,
+        "unexpected G5 Production read-only base",
+    )
+    require_sha(repo, "G5_PRODUCTION_READONLY_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_PRODUCTION_READONLY_BASE_TREE,
+        "G5 Production read-only base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 Production read-only push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 Production read-only merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 Production read-only candidate must be one direct commit",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "G5 Production read-only base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_PRODUCTION_READONLY_ALLOWED_STATUSES,
+        G5_PRODUCTION_READONLY_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_production_readonly_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "f10_9_metadata_planner",
+        "select_all_service",
+        "select_all_pipeline",
+        "patch_exact_one_raise",
+    ):
+        require(forbidden not in collector, "G5 collector capability drift")
+    for required in (
+        "APPROVE_F10_9_G5_PRODUCTION_READONLY_DIAGNOSTIC_V1",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "BLOCKED_BEFORE_NETWORK",
+        "STOP_G5_SNAPSHOT_DRIFT",
+        "31768101859=PASS",
+        "31768101887=PASS",
+    ):
+        require(required in evidence, "G5 repository-only evidence drift")
+    validate_context_graph(repo, 65, 400)
+
+
+def validate_g5_v2_attribution(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_V2_ATTRIBUTION_BASE, "unexpected G5 v2 attribution base")
+    require_sha(repo, "G5_V2_ATTRIBUTION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_V2_ATTRIBUTION_BASE_TREE,
+        "G5 v2 attribution base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 v2 attribution push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 v2 attribution merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 v2 attribution candidate must be one direct commit",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "G5 v2 attribution base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_V2_ATTRIBUTION_ALLOWED_STATUSES,
+        G5_V2_ATTRIBUTION_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "f10_9_metadata_planner",
+        "select_all_service",
+        "select_all_pipeline",
+        "patch_exact_one_raise",
+        "db_client",
+        "safe_http",
+        "import requests",
+        "import httpx",
+        "import socket",
+        "import urllib",
+        "import subprocess",
+        "import supabase",
+        "import importlib",
+        "eval(",
+        "exec(",
+    ):
+        require(forbidden not in collector, "G5 v2 collector capability drift")
+    for required in (
+        "f10.9-g5-production-readonly-projection.v2",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "30f77b88778372de112c6a8fb51a1344155db025",
+        "31771823387=PASS",
+        "31771823386=PASS",
+    ):
+        require(required in evidence, "G5 v2 repository-only evidence drift")
+    validate_context_graph(repo, 66, 403)
+
+
+def validate_g5_v2_post_merge(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_V2_POST_MERGE_BASE, "unexpected G5 v2 post-merge base")
+    require_sha(repo, "G5_V2_POST_MERGE_BASE", base)
+    require_sha(repo, "G5_V2_POST_MERGE_CANDIDATE", G5_V2_POST_MERGE_CANDIDATE)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_V2_POST_MERGE_BASE_TREE,
+        "G5 v2 post-merge base tree drift",
+    )
+    require(
+        commit_parents(repo, base)
+        == [G5_V2_POST_MERGE_PREVIOUS_BASE, G5_V2_POST_MERGE_CANDIDATE],
+        "G5 v2 protected merge parents drift",
+    )
+    require(
+        commit_tree(repo, G5_V2_POST_MERGE_CANDIDATE)
+        == G5_V2_POST_MERGE_BASE_TREE,
+        "G5 v2 candidate and merge tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 v2 post-merge attestation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 v2 post-merge attestation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 v2 post-merge attestation must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_V2_POST_MERGE_ALLOWED_STATUSES,
+        G5_V2_POST_MERGE_ALLOWED_MODES,
+    )
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_v2_repository_only_candidate_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    for required in (
+        "COMPLETED_POST_MERGE_VERIFIED",
+        G5_V2_POST_MERGE_BASE,
+        G5_V2_POST_MERGE_BASE_TREE,
+        G5_V2_POST_MERGE_CANDIDATE,
+        "31820665170=PASS",
+        "31820665257=PASS",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+    ):
+        require(required in evidence, "G5 v2 post-merge evidence drift")
+    require(
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED" in collector
+        or "IMPLEMENTED_DISABLED_NOT_CONFIGURED" in collector,
+        "G5 v2 connected-mode STOP drift",
+    )
+    validate_context_graph(repo, 66, 403)
+
+
+def validate_g5_get_only_adapter(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_GET_ONLY_ADAPTER_BASE, "unexpected G5 adapter contract base")
+    require_sha(repo, "G5_GET_ONLY_ADAPTER_BASE", base)
+    require_sha(repo, "G5_GET_ONLY_ADAPTER_CANDIDATE", G5_GET_ONLY_ADAPTER_CANDIDATE)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_GET_ONLY_ADAPTER_BASE_TREE,
+        "G5 adapter contract base tree drift",
+    )
+    require(
+        commit_parents(repo, base)
+        == [G5_GET_ONLY_ADAPTER_PREVIOUS_BASE, G5_GET_ONLY_ADAPTER_CANDIDATE],
+        "G5 adapter protected source parents drift",
+    )
+    require(
+        commit_tree(repo, G5_GET_ONLY_ADAPTER_CANDIDATE)
+        == G5_GET_ONLY_ADAPTER_BASE_TREE,
+        "G5 adapter source candidate and merge tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 adapter contract push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 adapter contract merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 adapter contract candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_GET_ONLY_ADAPTER_ALLOWED_STATUSES,
+        G5_GET_ONLY_ADAPTER_ALLOWED_MODES,
+    )
+    contract = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    collector = (
+        repo / "scripts/shared/f10_9_g5_readonly_collector.py"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    manual_workflow = (repo / ".github/workflows/g5-manual-trust-gate.yml").read_text(
+        encoding="utf-8"
+    )
+    broker = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(
+        encoding="utf-8"
+    )
+    broker_tests = (
+        repo / "workers/g5-trust-broker/test/trust-broker.test.mjs"
+    ).read_text(encoding="utf-8")
+    broker_config = (
+        repo / "workers/g5-trust-broker/wrangler.repository-only.jsonc"
+    ).read_text(encoding="utf-8")
+    adr = (
+        repo / ".context/decisiones/ADR-0013_trust_broker_durable_object_ledger.md"
+    ).read_text(encoding="utf-8")
+    adr14 = (
+        repo / ".context/decisiones/ADR-0014_g5_manual_workflow_connected_adapter_disabled.md"
+    ).read_text(encoding="utf-8")
+    adr15 = (
+        repo / ".context/decisiones/ADR-0015_g5_deployment_ready_disabled.md"
+    ).read_text(encoding="utf-8")
+    for forbidden in (
+        "import supabase",
+        "import requests",
+        "import httpx",
+        "import urllib",
+        "import socket",
+        "import subprocess",
+        "db_client",
+        "import psycopg",
+        "import sqlalchemy",
+        "os.environ",
+        "getenv(",
+        "create_client(",
+    ):
+        require(forbidden not in contract, "G5 adapter offline capability drift")
+    contract_tree = ast.parse(contract)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(contract_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {
+            "__future__",
+            "hashlib",
+            "ipaddress",
+            "json",
+            "re",
+            "dataclasses",
+            "datetime",
+            "types",
+            "typing",
+            "urllib",
+            "url_identity",
+        },
+        "G5 adapter import allowlist drift",
+    )
+    require(
+        not imported_roots
+        & {
+            "supabase",
+            "requests",
+            "httpx",
+            "socket",
+            "subprocess",
+            "psycopg",
+            "sqlalchemy",
+            "boto3",
+            "importlib",
+            "os",
+        },
+        "G5 adapter forbidden import capability",
+    )
+    require(
+        not called_names
+        & {
+            "__import__",
+            "import_module",
+            "getenv",
+            "open",
+            "urlopen",
+            "connect",
+            "create_client",
+            "Popen",
+            "run",
+            "check_call",
+            "check_output",
+            "eval",
+            "exec",
+        },
+        "G5 adapter forbidden runtime capability",
+    )
+    require(
+        not referenced_names
+        & {
+            "__import__",
+            "import_module",
+            "getattr",
+            "globals",
+            "locals",
+            "open",
+            "compile",
+            "eval",
+            "exec",
+        },
+        "G5 adapter forbidden indirect capability",
+    )
+    for forbidden in (
+        "class GateAttestation",
+        "class CredentialAvailabilityAttestation",
+        "class HistoricalFG3AnchorProvider",
+        "class SourceObservationProvider",
+        "Protocol",
+        "runtime_checkable",
+        "obtain_independent_historical_anchor",
+        "asdict",
+        "row: Mapping",
+        "SourceAttemptTiming",
+    ):
+        require(forbidden not in contract, "G5 adapter v1 trust surface returned")
+    for required in (
+        "f10.9-g5-get-only-adapter-contract.v2.3",
+        "f10.9-g5-get-only-adapter-schema.v2.3",
+        "f10.9-g5-get-only-adapter-v2.3",
+        "ManifestBuilderEvidenceReceipt",
+        "AnchorProviderEvidenceReceipt",
+        "class FrozenRow",
+        "class LifecycleEvidence",
+        "class StaticSourceTarget",
+        "class EffectiveProfileRouting",
+        "class SourceAttemptResult",
+        "class FG3PriorMutationEvidence",
+        "SOURCE_ATTEMPT_BUDGET_NS = 15_000_000_000",
+        "MAX_SOURCES_PER_PROFILE = 64",
+        "MAX_PROFILE_SOURCE_PAIRS = 50_000",
+        "MAX_FG3_HISTORICAL_OBSERVATIONS = 50_000",
+        "SOURCE_ATTEMPT_GRAMMAR",
+        'SOURCE_ROLE_PROBE_TARGET = "PROBE_TARGET"',
+        'SOURCE_ROLE_TEMPLATE = "TEMPLATE"',
+        'SOURCE_ROLE_FILTER = "FILTER"',
+        "from .url_identity import build_url_identity",
+        "import ipaddress",
+        "identity = build_url_identity(value)",
+        "address = ipaddress.ip_address(host)",
+        "address is not None and not address.is_global",
+        "return identity.canonical_url",
+        "def _is_safe_profile_regex",
+        "Deliberately linear subset",
+        'if character in "()|*+?{}":',
+        "len(pattern) > 200",
+        "regex_url_text = lowered[:2000]",
+        "circuit_effective_open",
+        "circuit_auto_closed",
+        "observed_at - parsed_circuit_opened_at < timedelta(hours=24)",
+        'REDIRECT_EVIDENCE_POLICY = "NO_REDIRECT_WITHOUT_DERIVATION_EVIDENCE"',
+        "expected_historical_count = 27 + max(0, len(required_inactive) - 1)",
+        "len(evidence.historical_observations) != expected_historical_count",
+        "any(len(items) != 1 for items in mutations_by_course.values())",
+        "count > MAX_FG3_HISTORICAL_OBSERVATIONS",
+        "len(manifest.category_counts) != 3",
+        "_enforce_fg3_collection_limit(len(evidence.courses))",
+        "_enforce_fg3_collection_limit(len(evidence.prior_mutations))",
+        "len(evidence.historical_observations)",
+        "if len(target_values) > MAX_SOURCES_PER_PROFILE:\n"
+        "        _raise(STOP_TARGET_BINDING_INVALID)",
+        "if type(count) is not int or count < 0 or count > MAX_PROFILE_SOURCE_PAIRS:\n"
+        "        _raise(STOP_TARGET_BINDING_INVALID)",
+        "utc_first = min(first_attempts, key=lambda item: item[1].started_at_utc)",
+        "monotonic_first = min(",
+        "if utc_first[0] != monotonic_first[0]",
+        "routing_observed_at = utc_first[1].started_at_utc",
+        "_require_complete",
+        "historical_observation_fingerprint",
+        "prior_mutation_fingerprint",
+        "profile_source_fingerprints",
+        "validate_source_coverage",
+        "source_terminal_reason",
+        "validate_lifecycle_evidence",
+        "_STALE_AFTER = timedelta(hours=24)",
+        "STOP_G5_SOURCE_BLOCKERS_PRESENT",
+        "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "REPOSITORY_ONLY_TRUST_PLANE_PR_A_STOP",
+        "MERGED_POST_MERGE_VERIFIED",
+        "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
+        "class GateIntent",
+        "class GitHubOidcClaims",
+        "class WorkflowRunEvidence",
+        "class EnvironmentEvidence",
+        "class ApprovalEvidence",
+        "class DeploymentEvidence",
+        "class GateConsumptionReceipt",
+        "STOP_G5_AUTHORITY_INVALID",
+        "STOP_G5_APPROVAL_INVALID",
+        "STOP_G5_BINDING_DRIFT",
+        "STOP_G5_REPLAY_DETECTED",
+        "STOP_G5_GATE_EXPIRED",
+        "STOP_G5_CONSUMPTION_AMBIGUOUS",
+        "STOP_G5_ATOMIC_LEDGER_REQUIRED",
+        "STOP_G5_PROOF_INVALID",
+        "G5_ATOMIC_LEDGER_INTERFACE",
+        "READY",
+        "CONSUMED",
+        "STOP_G5_SNAPSHOT_CONTENT_DRIFT",
+        "CLOCK_DURATION_TOLERANCE_NS = 250_000_000",
+        "MAX_IMMUTABLE_DEPTH = 8",
+        "MAX_IMMUTABLE_NODES = 256",
+        "MAX_IMMUTABLE_STRING_BYTES = 8_192",
+        "MAX_IMMUTABLE_INTEGER_ABS = 2**63 - 1",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        G5_GET_ONLY_ADAPTER_BASE,
+        G5_GET_ONLY_ADAPTER_BASE_TREE,
+    ):
+        require(required in contract, "G5 adapter contract drift")
+    for forbidden in (
+        "account_id",
+        'workers_dev": true',
+        "api.github.com",
+        "token.actions.githubusercontent.com/.well-known",
+        "postgres",
+        "Authorization: Bearer",
+    ):
+        if forbidden in {"api.github.com", "token.actions.githubusercontent.com/.well-known"}:
+            guarded_live = all(
+                marker in broker
+                for marker in (
+                    "RUNTIME_POLICY_BINDING_NAMES",
+                    "G5_TRUST_RUNTIME_ENABLED",
+                    "G5ConnectedGithubAppAdapter",
+                    "LEGACY_POLICY_DENYLIST",
+                )
+            )
+            if guarded_live:
+                continue
+        require(
+            forbidden not in broker and forbidden not in broker_config,
+            "G5 trust broker remote capability drift",
+        )
+    for forbidden in (
+        "wrangler",
+        "curl ",
+        "api.github.com",
+    ):
+        require(forbidden not in manual_workflow, "G5 manual workflow disabled boundary drift")
+    for required in (
+        'const VERSION = "f10.9-g5-trust-broker.v2"',
+        'const CONNECTED_DISABLED = "IMPLEMENTED_DISABLED_NOT_CONFIGURED"',
+        'const TRUST_STOP = "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED"',
+        "const MAX_TOKEN_LIFETIME_SECONDS = 600",
+        "const MAX_LEDGER_RECORDS = 10_000",
+        "const STRICT_TIMEOUT_MS = 15_000",
+        "const MAX_RESPONSE_BYTES = 32_000_000",
+        "export async function verifyGithubOidc",
+        'header.alg !== "RS256"',
+        "export class GithubAppReadOnlyAdapter",
+        "export class G5ConnectedGithubAppAdapter",
+        "export class G5GithubActionsOidcClient",
+        "export class G5TrustBrokerHttpClient",
+        "export class G5ConnectedSupabaseCollector",
+        "export class G5SingleUseReceiptSession",
+        "export async function validateTrustBrokerReceipt",
+        "export function createDisabledConnectedGithubAppAdapter",
+        "export function g5WorkflowGuard",
+        "export class G5AtomicLedgerDurableObject extends DurableObjectBase",
+        "export class G5TrustBroker",
+        'env.G5_ATOMIC_LEDGER.getByName("g5-atomic-ledger-v1")',
+        'state: "READY"',
+        'state: "CONSUMED"',
+        'state: "EXPIRED"',
+        "binding.repositoryId, binding.runId, binding.runAttempt, binding.checkRunId",
+        "binding.environmentId, binding.deploymentId",
+        "authorizationComplete: false",
+        "transportCreated: false",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "NEXT_SUPABASE_PUBLISHABLE_KEY",
+        "apikey: key",
+        "stop(CONNECTED_STOP)",
+    ):
+        require(required in broker, "G5 trust broker contract drift")
+    for required in (
+        "two concurrent consumes serialize and only one succeeds",
+        "nonce and jti replay are rejected even with a different signed JWT",
+        "nonce and jti indexes reject replay independently across gate identities",
+        "timeout or diagnostic failure after CAS preserves CONSUMED and receipt",
+        "expiry is re-evaluated after authoritative queries and before CAS",
+        "expired gate cleanup creates a non-resurrectable tombstone",
+        "cleanup transitions persisted READY to EXPIRED without resurrection",
+        "broker emits no logs or sensitive token material",
+        "Worker handler constructs broker from repository-only bindings",
+        "runtime policy comes from bindings and legacy protected source is rejected",
+        "GitHub-like not-before before issued-at is accepted",
+        "OIDC numeric identity claims require canonical decimal strings",
+        "authoritative evidence must declare a complete result set",
+        "concurrent cross-identity nonce replay permits only one consume",
+        "ledger rejects malformed RPC bindings and non-ABSENT persisted states",
+        "receipt retrieval verifies persisted receipt integrity",
+        "ledger capacity is exact, atomic, and rejects malformed counters",
+        "falsy persisted replay markers still reject consumption",
+        "broker preserves allowlisted reasons reconstructed across Durable Object RPC",
+        "cleanup and receipt reject falsy corrupted gate records",
+        "connected GitHub App adapter remains implemented but disabled by default",
+        "manual workflow policy is deployment-ready but disabled without operational var",
+        "OIDC client fetches a sanitized token with fixed audience",
+        "trust broker HTTP client requires future config and validates one receipt",
+        "trust broker HTTP client rejects unsafe endpoints before transport",
+        "connected Supabase collector is GET-only, publishable-only, paginated, and stable",
+        "connected Supabase collector rejects forged receipts and incomplete counts",
+        "connected Supabase collector derives required source targets from enabled profiles",
+        "connected Supabase collector remains disabled when config is absent or secret",
+        "connected diagnostic CLI reports disabled instead of silently no-op",
+    ):
+        require(required in broker_tests, "G5 trust broker test coverage drift")
+    for required in (
+        '"workers_dev": false',
+        '"G5_ATOMIC_LEDGER"',
+        '"G5AtomicLedgerDurableObject"',
+        '"repository-only-v1"',
+    ):
+        require(required in broker_config, "G5 repository-only config drift")
+    for required in (
+        "Cloudflare Worker + Durable Object",
+        "ABSENT -> READY -> CONSUMED",
+        "Supabase, SQL, DDL, RPC, grants",
+        "todo write prohibido",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+    ):
+        require(required in adr, "ADR-0013 trust broker drift")
+    for required in (
+        "workflow_dispatch",
+        "permissions: {}",
+        "vars.G5_TRUST_RUNTIME_ENABLED == 'true'",
+        "environment: Production",
+        "id-token: write",
+        "G5_TRUST_BROKER_ENDPOINT",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_SUPABASE_PUBLISHABLE_KEY",
+    ):
+        require(required in manual_workflow, "G5 manual workflow disabled marker drift")
+    for required in (
+        "ADR-0014",
+        "REPOSITORY_ONLY_WORKFLOW_CONNECTED_PR_C_LOCAL_CANDIDATE",
+        "NOT_EXECUTED_DISABLED_PLACEHOLDER",
+        "STOP_G5_CONNECTED_MODE_NOT_IMPLEMENTED",
+        "191539de71cbff95552c476463305e8d6f3e4b73",
+        "7fe13bb907053f4dea51ac593b5df0de78cb40d6",
+        "4b3dfb155081f9c3c9b638373b6e5aa2a06cca65",
+    ):
+        require(required in adr14, "ADR-0014 workflow connected drift")
+    for required in (
+        G5_GET_ONLY_ADAPTER_PREVIOUS_RESULT,
+        G5_GET_ONLY_ADAPTER_BASE,
+        G5_GET_ONLY_ADAPTER_BASE_TREE,
+        G5_GET_ONLY_ADAPTER_CANDIDATE,
+        "d6e4eaae058b52aacf5099c763204a1343a6eebf",
+        "31905626274=success",
+        "31905626285=success",
+        "95062812645=F10.9 G5 Workflow PR C Repository-Only success",
+        "95062903177=F9.7 Release Gate Contract success",
+        "ADR-0013",
+        "ADR-0014",
+        "ADR-0015",
+        "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
+        "STOP_G5_ATOMIC_LEDGER_REQUIRED",
+        "STOP_G5_REPLAY_DETECTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_SOURCE_BLOCKERS_PRESENT",
+        "STOP_G5_LIFECYCLE_BLOCKERS_PRESENT",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "ZERO_OPERATIONAL",
+    ):
+        require(required in evidence, "G5 adapter evidence drift")
+    require(
+        "del authorization, facade_factory, observations, binding, page_size"
+        in collector
+        and "raise G5Error(CONNECTED_MODE_STATUS)" in collector,
+        "G5 connected-mode disabled config drift",
+    )
+    for required in (
+        "ADR-0015",
+        "DEPLOYMENT_READY_DISABLED_NOT_CONFIGURED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "G5_TRUST_OPERATIONAL_ENABLED",
+        "G5_TRUST_BROKER_ENDPOINT",
+        "GET-only",
+        "sin workflow ejecutado",
+    ):
+        require(required in adr15, "ADR-0015 deployment-ready disabled drift")
+    for required in (
+        "F10.9 G5 Workflow PR D Deployment-Ready Disabled",
+        "tests/test_fase10_9_g5_get_only_adapter_contract.py",
+        "Run repository-only G5 trust broker and Durable Object contract",
+        "workers/g5-trust-broker/test/trust-broker.test.mjs",
+        ".github/workflows/g5-manual-trust-gate.yml",
+        "needs: [g5-get-only-v2-3, f1010-m3-zero-write]",
+        "Block G5 trust-plane external egress",
+        "--bounding-set=-all",
+        "env -i HOME=/tmp CI=true",
+        "Restore G5 trust-plane external egress",
+    ):
+        require(required in workflow, "G5 v2.3 focused CI drift")
+    require(
+        workflow.index("Run repository-only G5 trust-plane focused contract")
+        < workflow.index("git checkout --detach \"$F97_CANDIDATE_COMMIT\""),
+        "G5 v2.3 focused CI must precede historical F9.7 checkout",
+    )
+    validate_context_graph(repo, 71, 408)
+
+
+def validate_g5_operational_runbook(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(base == G5_OPERATIONAL_RUNBOOK_BASE, "unexpected G5 operational runbook base")
+    require_sha(repo, "G5_OPERATIONAL_RUNBOOK_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+        "G5 operational runbook base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 operational runbook push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 operational runbook merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 operational runbook candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_OPERATIONAL_RUNBOOK_ALLOWED_STATUSES,
+        G5_OPERATIONAL_RUNBOOK_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (
+        repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md"
+    ).read_text(encoding="utf-8")
+    evidence = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (
+        repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md"
+    ).read_text(encoding="utf-8")
+    manifest = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    combined = "\n".join((state, task, plan, evidence, runbook, adr16, manifest))
+    for required in (
+        G5_OPERATIONAL_RUNBOOK_STATUS,
+        "d62c8969e7d229bb8d2a9e1f8c6db6a1c4ef4d1d",
+        G5_OPERATIONAL_RUNBOOK_BASE,
+        G5_OPERATIONAL_RUNBOOK_BASE_TREE,
+        "31912540519=PASS",
+        "95079685172=PASS",
+        "95079685191=PASS",
+        "31912540528",
+        "95079764790=CANCELLED",
+        "CI_INFRA_TIMEOUT_PLAYWRIGHT_APT",
+        "95084155346=PASS",
+        "CI_RETRY_PASS",
+        "run_attempt=2",
+        "run_attempt=1",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "G5 end-to-end = `50%`",
+        "G5 `5/10` dominios end-to-end",
+        "connected collector deployment-ready",
+    ):
+        require(required in combined, "G5 PR E reconciliation evidence drift")
+    for required in ("E1", "E2", "E3", "E4", "E5", "E6"):
+        require(required in runbook, "G5 PR E runbook gate drift")
+    for required in (
+        "STOP",
+        "No se puede combinar",
+        "Un gate PASS no concede el siguiente",
+    ):
+        require(required in runbook or required in adr16, "G5 PR E runbook gate drift")
+    for required in (
+        "G5_GITHUB_APP_PRIVATE_KEY",
+        "G5_GITHUB_APP_ID",
+        "G5_OIDC_AUDIENCE",
+        "G5_TRUST_BROKER_ENDPOINT",
+        "G5_TRUST_RUNTIME_ENABLED",
+        "ABSENT_NOT_CONFIGURED",
+        "REPOSITORY_ONLY_NAME_ONLY_NO_VALUES",
+        "PREPARED_NOT_CONFIGURED",
+        '"actions": "read"',
+        '"checks": "read"',
+        '"contents": "read"',
+        '"deployments": "read"',
+        '"metadata": "read"',
+        '"id-token": "write"',
+    ):
+        require(required in manifest, "G5 PR E manifest drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "installation_id",
+        "project_ref",
+        "account_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest, "G5 PR E manifest contains sensitive value")
+    preflight_tree = ast.parse(preflight)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR E preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR E preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR E preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR E preflight indirect capability",
+    )
+    for required in (
+        "test_pr387_attempts_are_preserved_and_retry_is_ci_only",
+        "test_manifest_contains_no_configuration_values_or_remote_identifiers",
+        "test_preflight_is_completely_offline",
+        "test_gates_e1_to_e6_are_reordered_and_non_executing",
+        "test_permissions_are_exact_and_write_permissions_are_minimal",
+        "test_runbook_and_adr_preserve_operational_run_attempt_one",
+    ):
+        require(required in preflight_tests, "G5 PR E test coverage drift")
+    for required in (
+        "tests/test_fase10_9_g5_operational_activation_preflight.py",
+        ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json",
+        ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md",
+        ".context/decisiones/ADR-0016_g5_operational_activation_gates.md",
+    ):
+        require(required in workflow, "G5 PR E focused CI drift")
+    validate_context_graph(repo, 73, 416)
+
+
+def validate_g5_e1_hardening(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_E1_HARDENING_BASE, "unexpected G5 E1 hardening base")
+    require_sha(repo, "G5_E1_HARDENING_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_E1_HARDENING_BASE_TREE,
+        "G5 E1 hardening base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 E1 hardening push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 E1 hardening merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 E1 hardening candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_E1_HARDENING_ALLOWED_STATUSES,
+        G5_E1_HARDENING_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(
+        encoding="utf-8"
+    )
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md").read_text(
+        encoding="utf-8"
+    )
+    adr17 = (
+        repo / ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    e1_tests = (repo / "tests/test_fase10_9_g5_e1_hardening.py").read_text(
+        encoding="utf-8"
+    )
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    wrangler_config = json.loads(
+        (repo / "workers/g5-trust-broker/wrangler.repository-only.jsonc").read_text(
+            encoding="utf-8"
+        )
+    )
+    package_json = json.loads(
+        (repo / "workers/g5-trust-broker/package.json").read_text(encoding="utf-8")
+    )
+    package_lock = json.loads(
+        (repo / "workers/g5-trust-broker/package-lock.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, plan, runbook, adr16, adr17, manifest_text))
+    for required in (
+        G5_E1_HARDENING_STATUS,
+        G5_E1_HARDENING_BASE,
+        G5_E1_HARDENING_BASE_TREE,
+        "eb052c2755937a2bf239cd778bc814274fbc846f",
+        "31917838025=PASS",
+        "31917838011=PASS",
+        "95092629457=PASS",
+        "95092706912=PASS",
+        "run_attempt=1",
+        G5_E1_READINESS_STATUS,
+        "Workers existentes `0`",
+        "NOT_EXECUTED",
+        G5_E1_DEPLOYMENT_STOP,
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "G5_TRUST_OPERATIONAL_ENABLED` permanece `ABSENT_NOT_CONFIGURED`",
+    ):
+        require(required in combined, "G5 E1 hardening evidence drift")
+    for required in (
+        "preview_urls:false",
+        "workers_dev:false",
+        "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+        "--dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CF_API_TOKEN",
+        "CF_ACCOUNT_ID",
+        "E3A",
+        "DEFINED_NOT_EXECUTED",
+        "E4 queda bloqueado",
+        "Este PR no selecciona ni habilita endpoint",
+    ):
+        require(required in combined, "G5 E1 hardening runbook drift")
+    require(wrangler_config.get("name") == "g5-trust-broker-repository-only", "G5 E1 worker name drift")
+    require(wrangler_config.get("main") == "src/index.mjs", "G5 E1 worker main drift")
+    require(wrangler_config.get("compatibility_date") == "2026-08-15", "G5 E1 compatibility drift")
+    require(wrangler_config.get("workers_dev") is False, "G5 E1 workers_dev drift")
+    require(wrangler_config.get("preview_urls") is False, "G5 E1 preview_urls drift")
+    for forbidden_key in ("route", "routes", "domain", "domains", "custom_domain", "custom_domains", "triggers"):
+        require(forbidden_key not in wrangler_config, "G5 E1 public exposure config drift")
+    require(
+        wrangler_config.get("durable_objects") == {
+            "bindings": [
+                {"name": "G5_ATOMIC_LEDGER", "class_name": "G5AtomicLedgerDurableObject"}
+            ]
+        },
+        "G5 E1 durable binding drift",
+    )
+    require(
+        wrangler_config.get("migrations") == [
+            {"tag": "repository-only-v1", "new_sqlite_classes": ["G5AtomicLedgerDurableObject"]}
+        ],
+        "G5 E1 durable migration drift",
+    )
+    scripts = package_json.get("scripts", {})
+    require(package_json.get("devDependencies") == {"wrangler": "4.30.0"}, "G5 E1 wrangler pin drift")
+    require(package_lock.get("lockfileVersion") == 3, "G5 E1 lockfile drift")
+    require(
+        package_lock.get("packages", {}).get("node_modules/wrangler", {}).get("version") == "4.30.0",
+        "G5 E1 lockfile wrangler drift",
+    )
+    require(
+        list(scripts) == ["e1:dry-run", "e1:deploy"],
+        "G5 E1 script order drift",
+    )
+    require(
+        scripts.get("e1:dry-run")
+        == "wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "G5 E1 dry-run command drift",
+    )
+    require(
+        scripts.get("e1:deploy") == "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+        "G5 E1 deploy command drift",
+    )
+    for command in scripts.values():
+        for forbidden in ("--temporary", "--route", "--routes", "--domain", "--triggers", "--schedule", "--schedules", "--env-file", "--secrets-file", "--keep-vars"):
+            require(forbidden not in command, "G5 E1 forbidden deploy flag drift")
+    require([gate.get("id") for gate in manifest.get("gates", [])] == ["E1", "E2", "E3", "E3A", "E4", "E5", "E6"], "G5 E1 manifest gate drift")
+    for required in (
+        "test_wrangler_version_is_exact_and_lockfile_is_versioned",
+        "test_wrangler_config_is_isolated_and_explicitly_non_public",
+        "test_package_scripts_require_dry_run_before_exact_deploy_command",
+        "test_cloudflare_credential_names_are_standard_for_e1_only",
+        "test_e3a_endpoint_gate_is_separate_and_blocks_e4",
+        "test_e1_hardening_docs_preserve_stops_and_no_sensitive_values",
+    ):
+        require(required in e1_tests, "G5 E1 test coverage drift")
+    require(
+        "test_gates_e1_to_e6_and_e3a_are_separate_and_non_executing" in preflight_tests,
+        "G5 E1 preflight test coverage drift",
+    )
+    for required in (
+        "tests/test_fase10_9_g5_e1_hardening.py",
+        "tests/test_fase10_9_g5_operational_activation_preflight.py",
+    ):
+        require(required in workflow, "G5 E1 focused CI drift")
+    validate_context_graph(repo, 74, 418)
+
+
+def validate_g5_e1_wrangler_compat(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_E1_WRANGLER_COMPAT_BASE, "unexpected G5 E1 Wrangler compat base")
+    require_sha(repo, "G5_E1_WRANGLER_COMPAT_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_E1_WRANGLER_COMPAT_BASE_TREE,
+        "G5 E1 Wrangler compat base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 E1 Wrangler compat push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 E1 Wrangler compat merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 E1 Wrangler compat candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_E1_WRANGLER_COMPAT_ALLOWED_STATUSES,
+        G5_E1_WRANGLER_COMPAT_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(
+        encoding="utf-8"
+    )
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md").read_text(
+        encoding="utf-8"
+    )
+    adr17 = (
+        repo / ".context/decisiones/ADR-0017_g5_e1_cloudflare_deployment_hardening.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_source = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    e1_tests = (repo / "tests/test_fase10_9_g5_e1_hardening.py").read_text(
+        encoding="utf-8"
+    )
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    guard = (repo / "workers/g5-trust-broker/test/block-egress.mjs").read_text(
+        encoding="utf-8"
+    )
+    wrangler_config = json.loads(
+        (repo / "workers/g5-trust-broker/wrangler.repository-only.jsonc").read_text(
+            encoding="utf-8"
+        )
+    )
+    package_json = json.loads(
+        (repo / "workers/g5-trust-broker/package.json").read_text(encoding="utf-8")
+    )
+    package_lock = json.loads(
+        (repo / "workers/g5-trust-broker/package-lock.json").read_text(encoding="utf-8")
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, plan, runbook, adr16, adr17, manifest_text))
+    for required in (
+        G5_E1_WRANGLER_COMPAT_STATUS,
+        G5_E1_WRANGLER_COMPAT_BASE,
+        G5_E1_WRANGLER_COMPAT_BASE_TREE,
+        "f48d0f25154970531744815e1d3769a20731717a",
+        "31921056993=PASS",
+        "31921056963=PASS",
+        "95100885045=PASS",
+        "95100958336=PASS",
+        "run_attempt=1",
+        G5_E1_READINESS_STATUS,
+        G5_E1_DEPLOYMENT_STOP,
+        G5_E1_WRANGLER_STOP,
+        "Wrangler `4.30.0`",
+        f"Wrangler exacto `{G5_E1_WRANGLER_VERSION}`",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "NOT_EXECUTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+    ):
+        require(required in combined, "G5 E1 Wrangler compat evidence drift")
+    for required in (
+        "wrangler deploy --strict --config wrangler.repository-only.jsonc",
+        "--dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "dry-run offline",
+        "E3A",
+        "DEFINED_NOT_EXECUTED",
+        "E4 permanece bloqueado por E3A",
+    ):
+        require(required in combined, "G5 E1 Wrangler compat runbook drift")
+    require(wrangler_config.get("name") == "g5-trust-broker-repository-only", "G5 E1 worker name drift")
+    require(wrangler_config.get("main") == "src/index.mjs", "G5 E1 worker main drift")
+    require(wrangler_config.get("workers_dev") is False, "G5 E1 workers_dev drift")
+    require(wrangler_config.get("preview_urls") is False, "G5 E1 preview_urls drift")
+    for forbidden_key in ("route", "routes", "domain", "domains", "custom_domain", "custom_domains", "triggers"):
+        require(forbidden_key not in wrangler_config, "G5 E1 public exposure config drift")
+    require(
+        wrangler_config.get("durable_objects") == {
+            "bindings": [
+                {"name": "G5_ATOMIC_LEDGER", "class_name": "G5AtomicLedgerDurableObject"}
+            ]
+        },
+        "G5 E1 durable binding drift",
+    )
+    require(
+        wrangler_config.get("migrations") == [
+            {"tag": "repository-only-v1", "new_sqlite_classes": ["G5AtomicLedgerDurableObject"]}
+        ],
+        "G5 E1 durable migration drift",
+    )
+    scripts = package_json.get("scripts", {})
+    require(package_json.get("devDependencies") == {"wrangler": G5_E1_WRANGLER_VERSION}, "G5 E1 Wrangler pin drift")
+    require(package_lock.get("lockfileVersion") == 3, "G5 E1 lockfile drift")
+    require(
+        package_lock.get("packages", {}).get("", {}).get("devDependencies")
+        == {"wrangler": G5_E1_WRANGLER_VERSION},
+        "G5 E1 root lockfile Wrangler drift",
+    )
+    require(
+        package_lock.get("packages", {}).get("node_modules/wrangler", {}).get("version")
+        == G5_E1_WRANGLER_VERSION,
+        "G5 E1 lockfile Wrangler drift",
+    )
+    require(scripts.get("e1:deploy") == "wrangler deploy --strict --config wrangler.repository-only.jsonc", "G5 E1 deploy command drift")
+    require(
+        scripts.get("e1:dry-run")
+        == "wrangler deploy --strict --config wrangler.repository-only.jsonc --dry-run --outdir /tmp/studiamatch-g5-e1-dry-run",
+        "G5 E1 dry-run command drift",
+    )
+    require(manifest.get("frozen_versions", {}).get("wrangler") == G5_E1_WRANGLER_VERSION, "G5 E1 manifest Wrangler drift")
+    require(f'"wrangler": "{G5_E1_WRANGLER_VERSION}"' in preflight_source, "G5 E1 preflight Wrangler drift")
+    for required in (
+        "test_wrangler_cli_version_and_strict_support_are_executable",
+        "test_e1_dry_run_executes_without_cloudflare_credentials_or_external_egress",
+        "NODE_OPTIONS",
+        "NETWORK_EGRESS_BLOCKED",
+        "CLOUDFLARE_API_TOKEN",
+        "CLOUDFLARE_ACCOUNT_ID",
+        "WRANGLER_VERSION = \"4.44.0\"",
+    ):
+        require(required in e1_tests + guard, "G5 E1 Wrangler compat test coverage drift")
+    require("npm ci --ignore-scripts --audit=false --fund=false --prefix workers/g5-trust-broker" in workflow, "G5 E1 CI npm install drift")
+    require("tests/test_fase10_9_g5_e1_hardening.py" in workflow, "G5 E1 focused CI drift")
+    require('"wrangler"] == "4.44.0"' in preflight_tests, "G5 E1 preflight test Wrangler drift")
+    validate_context_graph(repo, 74, 418)
+
+
+def validate_g5_trust_live_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_TRUST_LIVE_REMEDIATION_BASE, "unexpected G5 trust live remediation base")
+    require_sha(repo, "G5_TRUST_LIVE_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+        "G5 trust live remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 trust live remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 trust live remediation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 trust live remediation candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+        G5_TRUST_LIVE_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (
+        repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md"
+    ).read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(
+        encoding="utf-8"
+    )
+    adapter_doc = (
+        repo / ".context/operaciones/g5_get_only_adapter_contract_2026_08_14.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    adr16 = (repo / ".context/decisiones/ADR-0016_g5_operational_activation_gates.md").read_text(
+        encoding="utf-8"
+    )
+    adr18 = (
+        repo / ".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_source = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    get_only_source = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    get_only_tests = (
+        repo / "tests/test_fase10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    g5_workflow = (repo / ".github/workflows/g5-manual-trust-gate.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(
+        encoding="utf-8"
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, plan, adapter_doc, runbook, adr16, adr18, manifest_text))
+    for required in (
+        G5_TRUST_LIVE_REMEDIATION_STATUS,
+        "c36cc9b6efb166f2f840615759793b7917142f38",
+        G5_TRUST_LIVE_REMEDIATION_BASE,
+        G5_TRUST_LIVE_REMEDIATION_BASE_TREE,
+        "31926378062=PASS",
+        "31926378069=PASS",
+        "95114516929=PASS",
+        "95114603279=PASS",
+        "run_attempt=1",
+        G5_E1_DEPLOYMENT_STATUS,
+        G5_E1_CREDENTIAL_ATTESTATION,
+        "f10.9-g5-trust-broker.v2",
+        "G5_ATOMIC_LEDGER",
+        "G5AtomicLedgerDurableObject",
+        "repository-only-v1",
+        "routes/domains/schedules/vars/secrets `0`",
+        "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "IMPLEMENTED_DISABLED_NOT_CONFIGURED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 trust live remediation evidence drift")
+    for required in G5_TRUST_RUNTIME_POLICY_NAMES:
+        require(required in combined, "G5 trust runtime policy name drift")
+    require(manifest.get("superseded_sequence") == "E4_BEFORE_E5_SUPERSEDED_NOT_EXECUTABLE", "G5 trust sequence drift")
+    require(
+        [gate.get("id") for gate in manifest.get("gates", [])]
+        == ["E1", "E2", "E3", "E4", "E4A", "E4B", "E5", "E6"],
+        "G5 trust gate order drift",
+    )
+    require(manifest.get("e1_deployment_reconciliation", {}).get("status") == G5_E1_DEPLOYMENT_STATUS, "G5 E1 status drift")
+    require(
+        manifest.get("e1_deployment_reconciliation", {}).get("credential_state")
+        == G5_E1_CREDENTIAL_ATTESTATION,
+        "G5 E1 credential attestation drift",
+    )
+    require(
+        all(item.get("state") == "ABSENT_NOT_CONFIGURED" for item in manifest.get("required_configuration_names", [])),
+        "G5 trust runtime policy must remain name-only",
+    )
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        "deployment_id",
+        '"value"',
+        '"token"',
+        '"current_value"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR H manifest contains sensitive value")
+    require("vars.G5_TRUST_RUNTIME_ENABLED == 'true'" in g5_workflow, "G5 workflow runtime guard drift")
+    require("G5_TRUST_OPERATIONAL_ENABLED" not in g5_workflow, "G5 workflow legacy guard drift")
+    require(".context/decisiones/ADR-0018_g5_trust_live_remediation_repository_only.md" in f97_workflow, "G5 PR H focused CI path drift")
+    for required in (
+        "RUNTIME_POLICY_BINDING_NAMES",
+        "LEGACY_POLICY_DENYLIST",
+        "_valid_runtime_policy_triplet",
+    ):
+        require(required in get_only_source, "G5 GET-only runtime policy drift")
+    for forbidden in (
+        "PROTECTED_SOURCE_SHA =",
+        "PROTECTED_SOURCE_TREE =",
+        "EXPECTED_WORKFLOW_SHA =",
+        "EXPECTED_WORKFLOW_BLOB_SHA =",
+    ):
+        require(forbidden not in get_only_source, "G5 GET-only hardcoded authority drift")
+    require(
+        "test_legacy_pr_c_sha_tree_blob_are_denylist_not_authority" in get_only_tests,
+        "G5 GET-only denylist test drift",
+    )
+    for required in (
+        "RUNTIME_POLICY_BINDING_NAMES",
+        "G5ConnectedGithubAppAdapter",
+        "G5GithubJwksClient",
+        "createGithubAppJwt",
+        "LEGACY_POLICY_DENYLIST",
+        "G5_GITHUB_APP_INSTALLATION_ID",
+        "G5_TRUST_RUNTIME_ENABLED",
+    ):
+        require(required in worker_source + worker_tests, "G5 broker live remediation drift")
+    require("G5_TRUST_OPERATIONAL_ENABLED" not in worker_source + worker_tests, "G5 broker legacy guard drift")
+    for required in (
+        "test_pr390_and_e1_deployment_are_sanitized_and_reconciled",
+        "test_gates_e1_to_e6_are_reordered_and_non_executing",
+        "G5_TRUST_RUNTIME_ENABLED",
+    ):
+        require(required in preflight_tests, "G5 PR H preflight test coverage drift")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR H preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR H preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR H preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch"},
+        "G5 PR H preflight indirect capability",
+    )
+    validate_context_graph(repo, 75, 426)
+
+
+def validate_g5_github_runtime_schema(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_GITHUB_RUNTIME_SCHEMA_BASE, "unexpected G5 GitHub runtime schema base")
+    require_sha(repo, "G5_GITHUB_RUNTIME_SCHEMA_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+        "G5 GitHub runtime schema base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 GitHub runtime schema push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 GitHub runtime schema merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 GitHub runtime schema candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+        G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr19 = (
+        repo / ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md"
+    ).read_text(encoding="utf-8")
+    runbook = (
+        repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md"
+    ).read_text(encoding="utf-8")
+    manifest_text = (
+        repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"
+    ).read_text(encoding="utf-8")
+    preflight_source = (
+        repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    preflight_tests = (
+        repo / "tests/test_fase10_9_g5_operational_activation_preflight.py"
+    ).read_text(encoding="utf-8")
+    get_only_source = (
+        repo / "scripts/shared/f10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    get_only_tests = (
+        repo / "tests/test_fase10_9_g5_get_only_adapter_contract.py"
+    ).read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(
+        encoding="utf-8"
+    )
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(
+        encoding="utf-8"
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr19, runbook, manifest_text))
+    for required in (
+        G5_GITHUB_RUNTIME_SCHEMA_STATUS,
+        G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+        G5_GITHUB_RUNTIME_SCHEMA_BASE,
+        G5_GITHUB_RUNTIME_SCHEMA_BASE_TREE,
+        "31951803908=PASS",
+        "31951803820=PASS",
+        "95176303149=PASS",
+        "95176398983=PASS",
+        "run_attempt=1",
+        "E1 permanece `COMPLETED`",
+        "E2 queda `NOT_EXECUTED`",
+        G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0019",
+    ):
+        require(required in combined, "G5 PR I reconciliation evidence drift")
+    require(
+        manifest.get("pr_391_reconciliation", {}).get("candidate_sha")
+        == G5_GITHUB_RUNTIME_SCHEMA_PR391_CANDIDATE,
+        "G5 PR I candidate evidence drift",
+    )
+    require(
+        manifest.get("pr_391_reconciliation", {}).get("merge_sha")
+        == G5_GITHUB_RUNTIME_SCHEMA_BASE,
+        "G5 PR I merge evidence drift",
+    )
+    require(
+        manifest.get("e2_stop")
+        in {
+            G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+            G5_SECURITY_REMEDIATION_E2_STOP,
+            G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        },
+        "G5 PR I E2 stop drift",
+    )
+    require(
+        ".context/decisiones/ADR-0019_github_runtime_schema_lifecycle.md" in f97_workflow,
+        "G5 PR I focused CI path drift",
+    )
+    for required in (
+        "BranchEvidence",
+        "def _validate_branch",
+        "run.run_status != \"in_progress\"",
+        "run.run_conclusion is not None",
+        "run.job_status != \"in_progress\"",
+        "run.job_conclusion is not None",
+        "run.check_status != \"in_progress\"",
+        "run.check_conclusion is not None",
+        "deployment.job_id != intent.job_id",
+        "deployment.status_state != \"in_progress\"",
+    ):
+        require(required in get_only_source, "G5 GET-only GitHub runtime contract drift")
+    for forbidden in ("ref_protected", "deployment.environment_id"):
+        require(forbidden not in get_only_source, "G5 GET-only obsolete GitHub field drift")
+    for required in (
+        "test_trust_plane_requires_in_progress_run_job_and_null_conclusions",
+        "test_trust_plane_uses_branch_endpoint_not_run_ref_protected",
+        "test_trust_plane_rejects_missing_or_duplicate_approval_and_deployment",
+        "job_id=deployment.job_id + 1",
+    ):
+        require(required in get_only_tests, "G5 GET-only GitHub runtime test drift")
+    for required in (
+        "`/repos/${REPOSITORY}/branches/${MAIN_BRANCH}`",
+        "branch.name !== MAIN_BRANCH",
+        "branch.protected !== true",
+        "run.status !== \"in_progress\"",
+        "run.conclusion !== null",
+        "check.jobStatus !== \"in_progress\"",
+        "check.jobConclusion !== null",
+        "check.checkStatus !== \"in_progress\"",
+        "check.checkConclusion !== null",
+        "deployment.statuses_url",
+        "githubActionJobUrlBinding",
+        "?per_page=100",
+        "statuses.length >= 100",
+        "currentDeploymentStatus",
+        "current?.state === \"in_progress\"",
+        "status.repository_url !== GITHUB_API_REPOSITORY_URL",
+        "deployment.statusState !== \"in_progress\"",
+        "approval.state",
+        "approval.user?.id",
+        "approval?.environments",
+    ):
+        require(required in worker_source, "G5 broker GitHub runtime schema drift")
+    require("ref_protected" not in worker_source, "G5 broker obsolete ref_protected drift")
+    for required in (
+        "workflow run does not require ref_protected and must be in progress",
+        "branch protection is verified through the branch endpoint",
+        "deployment must be exact-one and bound to candidate SHA",
+        "connected adapter derives deployment from GitHub deployment statuses",
+        "staleHistoricalInProgress",
+        "caller-supplied authority is rejected before JWT verification",
+    ):
+        require(required in worker_tests, "G5 broker GitHub runtime test drift")
+    for required in (
+        "test_pr392_and_e2_security_remediation_stop_are_registered",
+        "test_runtime_shapes_are_exact_and_fail_closed",
+        "github_runtime_shapes",
+        G5_GITHUB_RUNTIME_SCHEMA_E2_STOP,
+        "GET /repos/{owner}/{repo}/branches/main",
+        "status=in_progress",
+    ):
+        require(required in preflight_tests, "G5 PR I preflight test drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR I manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots
+        <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR I preflight import drift",
+    )
+    require(
+        not imported_roots
+        & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR I preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR I preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR I preflight indirect capability",
+    )
+    validate_context_graph(repo, 77, 428)
+
+
+def validate_g5_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_SECURITY_REMEDIATION_BASE, "unexpected G5 security remediation base")
+    require_sha(repo, "G5_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 security remediation merge tree drift",
+        )
+    else:
+        require(
+            commit_parents(repo, head) == [base],
+            "G5 security remediation candidate must be one direct commit",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr20 = (repo / ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr20, runbook, manifest_text))
+    for required in (
+        G5_SECURITY_REMEDIATION_STATUS,
+        G5_SECURITY_REMEDIATION_PR392_CANDIDATE,
+        G5_SECURITY_REMEDIATION_BASE,
+        G5_SECURITY_REMEDIATION_BASE_TREE,
+        "31958015767=PASS",
+        "31958015698=PASS",
+        "95191560687=PASS",
+        "95191665616=PASS",
+        "run_attempt=1",
+        "previous_security_auditor_go",
+        G5_SECURITY_REMEDIATION_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0020",
+    ):
+        require(required in combined, "G5 PR J reconciliation evidence drift")
+    pr392 = manifest.get("pr_392_reconciliation", {})
+    require(pr392.get("candidate_sha") == G5_SECURITY_REMEDIATION_PR392_CANDIDATE, "G5 PR J candidate evidence drift")
+    require(pr392.get("merge_sha") == G5_SECURITY_REMEDIATION_BASE, "G5 PR J merge evidence drift")
+    require(pr392.get("tree_sha") == G5_SECURITY_REMEDIATION_BASE_TREE, "G5 PR J tree evidence drift")
+    require(
+        manifest.get("e2_stop")
+        in {
+            G5_SECURITY_REMEDIATION_E2_STOP,
+            G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        },
+        "G5 PR J E2 stop drift",
+    )
+    require(
+        ".context/decisiones/ADR-0020_g5_runtime_binding_snapshot_cas.md" in f97_workflow,
+        "G5 PR J focused CI path drift",
+    )
+    findings = manifest.get("post_merge_security_findings")
+    require(isinstance(findings, list) and len(findings) == 6, "G5 PR J finding count drift")
+    require(sum(1 for item in findings if item.get("severity") == "HIGH") == 3, "G5 PR J high finding drift")
+    require(sum(1 for item in findings if item.get("severity") == "MEDIUM") == 3, "G5 PR J medium finding drift")
+    require("STOP_EXPLICIT_E2_PREFLIGHT_REQUIRED" in {item.get("status") for item in findings}, "G5 PR J E2 preflight stop drift")
+    for forbidden in (
+        "/commits/${reference.candidateSha}/check-runs",
+        "check_name=${encodeURIComponent(WORKFLOW_NAME)}",
+        "const current = statuses[0]",
+    ):
+        require(forbidden not in worker_source, "G5 PR J obsolete authority drift")
+    for required in (
+        "githubCheckRunPathFromUrl(job.check_run_url)",
+        "GET /repos/{owner}/{repo}/check-runs/{check_run_id}",
+        "checkSuiteId",
+        "deploymentStatusId",
+        "jobId",
+        "currentDeploymentStatus",
+        "updatedAtMs",
+        "stable(bindingA) !== stable(bindingB)",
+        "repository_ids: [repositoryId]",
+        "EXPECTED_GITHUB_APP_PERMISSIONS",
+        "repository_selection",
+        "link_rel_next",
+    ):
+        require(required in worker_source or required in manifest_text or required in preflight_source, "G5 PR J runtime remediation drift")
+    for required in (
+        "connected adapter binds check authority only through job.check_run_url",
+        "installation token is scoped to exactly one repository and exact read permissions",
+        "snapshot B must match snapshot A immediately before CAS",
+        "connected adapter derives deployment from GitHub deployment statuses",
+        "deploymentStatusId",
+        "checkSuiteId",
+        "link ? { headers: { link } }",
+    ):
+        require(required in worker_tests, "G5 PR J worker test drift")
+    for required in (
+        "test_pr392_and_e2_security_remediation_stop_are_registered",
+        "test_pr392_security_findings_and_runtime_binding_contract_are_explicit",
+        "job.check_run_url_only",
+        "unique_temporal_maximum_after_validation",
+    ):
+        require(required in preflight_tests, "G5 PR J preflight test drift")
+    require(
+        any(
+            stop in preflight_tests or stop in preflight_source
+            for stop in (
+                G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+                G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+                G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            )
+        ),
+        "G5 PR J preflight stop drift",
+    )
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR J manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR J preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR J preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR J preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR J preflight indirect capability",
+    )
+    validate_context_graph(repo, 77, 428)
+
+
+def validate_g5_residual_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+        "unexpected G5 residual security remediation base",
+    )
+    require_sha(repo, "G5_RESIDUAL_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 residual security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 residual security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 residual security remediation merge tree drift",
+        )
+    require(
+        candidate_head == G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1],
+        "G5 PR K historical candidate identity drift",
+    )
+    previous = base
+    for commit in G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS:
+        require_sha(repo, "G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMIT", commit)
+        require(
+            commit_parents(repo, commit) == [previous],
+            "G5 PR K historical commit chain drift",
+        )
+        previous = commit
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_RESIDUAL_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr21 = (repo / ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+
+    def tree_text(treeish: str, relative: str) -> str:
+        return str(git(repo, "show", f"{treeish}:{relative}"))
+
+    def validate_residual_security_texts(
+        manifest_text_at: str,
+        preflight_source_at: str,
+        preflight_tests_at: str,
+        f97_workflow_at: str,
+        worker_source_at: str,
+        worker_tests_at: str,
+        label: str,
+    ) -> None:
+        require(
+            ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md" in f97_workflow_at,
+            f"{label} focused CI path drift",
+        )
+        for forbidden in (
+            "const current = statuses[0]",
+            "repositorySelection !== undefined",
+            "app?.slug === EXPECTED_GITHUB_ACTIONS_APP_SLUG",
+        ):
+            require(forbidden not in worker_source_at, f"{label} obsolete authority drift")
+        for required in (
+            "terminalEvidence",
+            "validateTerminalAuthority",
+            "terminalBinding",
+            "GITHUB_ACTIONS_APP_ID",
+            "GITHUB_ACTIONS_APP_OWNER_ID",
+            "repository_selection",
+            "EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS",
+            "tokenPromises.get(repositoryId)",
+            "splitLinkHeader",
+            "total_count",
+        ):
+            require(required in worker_source_at, f"{label} runtime remediation drift")
+        for required in (
+            "terminal confirmation rechecks run job check and deployment immediately before CAS",
+            "installation token promises are segmented by repository id under concurrency",
+            "repository_selection: \"all\"",
+            "token_schema_drift",
+            "total_count",
+            "app: { id: 15369",
+        ):
+            require(required in worker_tests_at, f"{label} worker test drift")
+        for required in (
+            "test_pr393_and_residual_remediation_contract_are_registered",
+            "terminal_confirmation",
+            "github_actions_app_identity",
+            "token_promise_cache",
+            G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+        ):
+            require(required in preflight_tests_at or required in preflight_source_at, f"{label} preflight drift")
+        for forbidden in (
+            "https://",
+            "http://",
+            "sb_secret_",
+            "sb_publishable_",
+            "eyJhbG",
+            "-----BEGIN",
+            "project_ref",
+            "account_id",
+            "worker_id",
+            '"value"',
+            '"token"',
+            '"private_key"',
+        ):
+            require(forbidden not in manifest_text_at, f"{label} manifest contains sensitive or live value")
+        preflight_tree_at = ast.parse(preflight_source_at)
+        imported_roots_at: set[str] = set()
+        called_names_at: set[str] = set()
+        referenced_names_at: set[str] = set()
+        for node in ast.walk(preflight_tree_at):
+            if isinstance(node, ast.Import):
+                imported_roots_at.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported_roots_at.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    called_names_at.add(node.func.id)
+                elif isinstance(node.func, ast.Attribute):
+                    called_names_at.add(node.func.attr)
+            elif isinstance(node, ast.Name):
+                referenced_names_at.add(node.id)
+        require(
+            imported_roots_at <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+            f"{label} preflight import drift",
+        )
+        require(
+            not imported_roots_at & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+            f"{label} preflight remote capability",
+        )
+        require(
+            not called_names_at & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+            f"{label} preflight runtime capability",
+        )
+        require(
+            not referenced_names_at & {"environ", "workflow_dispatch", "wrangler"},
+            f"{label} preflight indirect capability",
+        )
+
+    validate_residual_security_texts(
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "scripts/shared/f10_9_g5_operational_activation_preflight.py"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "tests/test_fase10_9_g5_operational_activation_preflight.py"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], ".github/workflows/f9-7-contract.yml"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "workers/g5-trust-broker/src/index.mjs"),
+        tree_text(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "workers/g5-trust-broker/test/trust-broker.test.mjs"),
+        "G5 PR K historical head",
+    )
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr21, runbook, manifest_text))
+    for required in (
+        G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+        G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE,
+        G5_RESIDUAL_SECURITY_REMEDIATION_BASE,
+        G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE,
+        "31962569422=PASS",
+        "31962569598=PASS",
+        "95202690713=PASS",
+        "95202805508=PASS",
+        "run_attempt=1",
+        "terminal confirmation",
+        "GitHub Actions",
+        "15368",
+        "9919",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0021",
+    ):
+        require(required in combined, "G5 PR K reconciliation evidence drift")
+    pr393 = manifest.get("pr_393_reconciliation", {})
+    require(pr393.get("candidate_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_PR393_CANDIDATE, "G5 PR K candidate evidence drift")
+    require(pr393.get("merge_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_BASE, "G5 PR K merge evidence drift")
+    require(pr393.get("tree_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_BASE_TREE, "G5 PR K tree evidence drift")
+    require(
+        manifest.get("github_actions_app_identity") == {
+            "slug": "github-actions",
+            "name": "GitHub Actions",
+            "id": 15368,
+            "owner_id": 9919,
+        },
+        "G5 PR K GitHub Actions App identity drift",
+    )
+    terminal = manifest.get("terminal_confirmation", {})
+    require(
+        terminal.get("external_request_after_terminal_confirmation") == "FORBIDDEN",
+        "G5 PR K terminal request ordering drift",
+    )
+    require(terminal.get("cas_retry") == "FORBIDDEN", "G5 PR K terminal CAS retry drift")
+    require(
+        ".context/decisiones/ADR-0021_g5_terminal_confirmation_token_scope.md" in f97_workflow,
+        "G5 PR K focused CI path drift",
+    )
+    findings = manifest.get("post_merge_pr393_residual_findings")
+    require(isinstance(findings, list) and len(findings) == 6, "G5 PR K finding count drift")
+    require(sum(1 for item in findings if item.get("severity") == "HIGH") == 1, "G5 PR K high finding drift")
+    require(sum(1 for item in findings if item.get("severity") == "MEDIUM") == 5, "G5 PR K medium finding drift")
+    require(
+        {item.get("status") for item in findings} == {"REMEDIATED_REPOSITORY_ONLY"},
+        "G5 PR K residual finding status drift",
+    )
+    for forbidden in (
+        "const current = statuses[0]",
+        "repositorySelection !== undefined",
+        "app?.slug === EXPECTED_GITHUB_ACTIONS_APP_SLUG",
+    ):
+        require(forbidden not in worker_source, "G5 PR K obsolete authority drift")
+    for required in (
+        "terminalEvidence",
+        "validateTerminalAuthority",
+        "terminalBinding",
+        "GITHUB_ACTIONS_APP_ID",
+        "GITHUB_ACTIONS_APP_OWNER_ID",
+        "repository_selection",
+        "EXPECTED_GITHUB_TOKEN_RESPONSE_KEYS",
+        "tokenPromises.get(repositoryId)",
+        "splitLinkHeader",
+        "total_count",
+    ):
+        require(required in worker_source, "G5 PR K runtime remediation drift")
+    for required in (
+        "terminal confirmation rechecks run job check and deployment immediately before CAS",
+        "installation token promises are segmented by repository id under concurrency",
+        "repository_selection: \"all\"",
+        "token_schema_drift",
+        "total_count",
+        "app: { id: 15369",
+    ):
+        require(required in worker_tests, "G5 PR K worker test drift")
+    for required in (
+        "test_pr393_and_residual_remediation_contract_are_registered",
+        "terminal_confirmation",
+        "github_actions_app_identity",
+        "token_promise_cache",
+        G5_RESIDUAL_SECURITY_REMEDIATION_STATUS,
+    ):
+        require(required in preflight_tests or required in preflight_source, "G5 PR K preflight drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR K manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR K preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR K preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR K preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR K preflight indirect capability",
+    )
+    validate_context_graph(repo, 78, 429)
+
+
+def validate_g5_followup_security_remediation(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE,
+        "unexpected G5 followup security remediation base",
+    )
+    require_sha(repo, "G5_FOLLOWUP_SECURITY_REMEDIATION_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE,
+        "G5 followup security remediation base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 followup security remediation push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 followup security remediation merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 followup security remediation candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr22 = (repo / ".context/decisiones/ADR-0022_g5_followup_security_remediation.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    boundary_source = (repo / "scripts/security/f109_boundary.py").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, index, adr22, runbook, manifest_text, plan))
+    for required in (
+        G5_FOLLOWUP_SECURITY_REMEDIATION_STATUS,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_BASE,
+        G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE,
+        *G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS,
+        "31968991218=PASS",
+        "31968990202=PASS",
+        "95218353795=PASS",
+        "95218447778=PASS",
+        "run_attempt=1",
+        G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "DOCUMENTED_NO_FULL_ATOMICITY_CLAIM",
+        "ADR-0022",
+    ):
+        require(required in combined, "G5 PR L reconciliation evidence drift")
+    pr394 = manifest.get("pr_394_reconciliation", {})
+    require(pr394.get("candidate_commits") == list(G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS), "G5 PR L PR394 commit identity drift")
+    require(pr394.get("head_sha") == G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS[-1], "G5 PR L PR394 head evidence drift")
+    require(pr394.get("merge_sha") == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE, "G5 PR L PR394 merge evidence drift")
+    require(pr394.get("tree_sha") == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE_TREE, "G5 PR L PR394 tree evidence drift")
+    require(
+        manifest.get("e2_stop")
+        in {
+            G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        },
+        "G5 PR L E2 stop drift",
+    )
+    require(
+        manifest.get("followup_security_remediation", {}).get("generic_followup_chain_support") == "REMOVED",
+        "G5 PR L generic chain remediation drift",
+    )
+    require(
+        manifest.get("followup_security_remediation", {}).get("future_candidate_commits") == "EXACT_ONE_DIRECT_COMMIT_REQUIRED",
+        "G5 PR L future single commit contract drift",
+    )
+    require(
+        manifest.get("followup_security_remediation", {}).get("link_headers") == "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+        "G5 PR L Link header policy drift",
+    )
+    require(
+        manifest.get("atomic_authority_backlog", {}).get("included_in_hito_progress") is False
+        and manifest.get("atomic_authority_backlog", {}).get("implementation_authorized") is False,
+        "G5 PR L atomic authority backlog drift",
+    )
+    findings = manifest.get("post_merge_pr394_followup_findings")
+    require(isinstance(findings, list) and len(findings) == 7, "G5 PR L finding count drift")
+    generic_chain_loop = "while " + "current != base"
+    require(generic_chain_loop not in boundary_source, "G5 PR L generic follow-up chain support drift")
+    require("G5_RESIDUAL_SECURITY_REMEDIATION_PR394_COMMITS" in boundary_source, "G5 PR L historical PR394 identity missing")
+    require(
+        ".context/decisiones/ADR-0022_g5_followup_security_remediation.md" in f97_workflow,
+        "G5 PR L focused CI path drift",
+    )
+    for required in (
+        "ALLOWED_LINK_RELATIONS",
+        "seenRelations.has(relation)",
+        "REJECT_MALFORMED_AMBIGUOUS_DUPLICATED_UNEXPECTED",
+    ):
+        require(required in worker_source or required in manifest_text, "G5 PR L Link header hardening drift")
+    for required in (
+        "TOKEN_PERMISSIONS",
+        "terminal confirmation rejects mutations during each terminal evidence call",
+        "installation token is scoped to exactly one repository and exact read permissions",
+        "malformed ambiguous duplicated or unexpected Link headers",
+    ):
+        require(required in worker_tests or required in manifest_text, "G5 PR L worker test drift")
+    for required in (
+        "test_pr394_and_followup_security_remediation_are_registered",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+    ):
+        require(required in preflight_tests or required in preflight_source, "G5 PR L preflight drift")
+    require(
+        any(
+            stop in preflight_tests or stop in preflight_source
+            for stop in (
+                G5_FOLLOWUP_SECURITY_REMEDIATION_E2_STOP,
+                G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+                G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            )
+        ),
+        "G5 PR L preflight stop drift",
+    )
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR L manifest contains sensitive or live value")
+    preflight_tree = ast.parse(preflight_source)
+    imported_roots: set[str] = set()
+    called_names: set[str] = set()
+    referenced_names: set[str] = set()
+    for node in ast.walk(preflight_tree):
+        if isinstance(node, ast.Import):
+            imported_roots.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported_roots.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                called_names.add(node.func.id)
+            elif isinstance(node.func, ast.Attribute):
+                called_names.add(node.func.attr)
+        elif isinstance(node, ast.Name):
+            referenced_names.add(node.id)
+    require(
+        imported_roots <= {"__future__", "argparse", "dataclasses", "json", "pathlib", "re", "types", "typing"},
+        "G5 PR L preflight import drift",
+    )
+    require(
+        not imported_roots & {"os", "socket", "subprocess", "requests", "httpx", "urllib", "supabase"},
+        "G5 PR L preflight remote capability",
+    )
+    require(
+        not called_names & {"getenv", "urlopen", "connect", "request", "run", "check_output"},
+        "G5 PR L preflight runtime capability",
+    )
+    require(
+        not referenced_names & {"environ", "workflow_dispatch", "wrangler"},
+        "G5 PR L preflight indirect capability",
+    )
+    validate_context_graph(repo, 79, 430)
+
+
+def validate_g5_trusted_boundary_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE,
+        "unexpected G5 trusted boundary bootstrap base",
+    )
+    require_sha(repo, "G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE,
+        "G5 trusted boundary bootstrap base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 trusted boundary bootstrap push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 trusted boundary bootstrap merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 trusted boundary bootstrap candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES,
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr23 = (repo / ".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    f97_workflow = (repo / ".github/workflows/f9-7-contract.yml").read_text(encoding="utf-8")
+    trusted_workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    trusted_tests = (repo / "tests/test_f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, index, adr23, runbook, manifest_text, plan, trusted_workflow))
+    for required in (
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS,
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE,
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE,
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE,
+        "31974315708=PASS",
+        "31974315810=PASS",
+        "95231385472=PASS",
+        "95231489296=PASS",
+        "run_attempt=1",
+        G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+        "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED",
+        G5_TRUSTED_BOUNDARY_CHECK_NAME,
+        "pull_request_target",
+        "contents: read",
+        "GIT_OBJECTS_AS_UNTRUSTED_DATA",
+        "NOT_CLOSED_DEFERRED_TO_PR_N",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "STOP_G5_TRUST_VERIFICATION_NOT_IMPLEMENTED",
+        "NOT_CREATED_NOT_APPROVED_NOT_CONSUMED",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+        "ADR-0023",
+    ):
+        require(required in combined, "G5 PR M trusted boundary evidence drift")
+    pr395 = manifest.get("pr_395_reconciliation", {})
+    require(pr395.get("candidate_sha") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_PR395_CANDIDATE, "G5 PR M PR395 candidate drift")
+    require(pr395.get("merge_sha") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE, "G5 PR M PR395 merge drift")
+    require(pr395.get("tree_sha") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE_TREE, "G5 PR M PR395 tree drift")
+    require(pr395.get("status") == G5_TRUSTED_BOUNDARY_BOOTSTRAP_STATUS, "G5 PR M PR395 status drift")
+    require(
+        manifest.get("e2_stop")
+        in {
+            G5_TRUSTED_BOUNDARY_BOOTSTRAP_E2_STOP,
+            G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+            G5_LINK_HARDENING_CLOSURE_E2_STOP,
+            G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        },
+        "G5 PR M E2 stop drift",
+    )
+    bootstrap = manifest.get("trusted_boundary_bootstrap", {})
+    require(bootstrap.get("workflow") == ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml", "G5 PR M workflow evidence drift")
+    require(bootstrap.get("check_name") == G5_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR M check name drift")
+    require(bootstrap.get("status") == "BOOTSTRAP_HUMAN_NOT_SELF_ATTESTED", "G5 PR M bootstrap status drift")
+    require(bootstrap.get("candidate_execution") == "FORBIDDEN", "G5 PR M candidate execution drift")
+    require(bootstrap.get("fork_policy") == "REJECT", "G5 PR M fork policy drift")
+    require(bootstrap.get("does_not_replace_pull_request_tests") is True, "G5 PR M PR test replacement drift")
+    link_closure = manifest.get("link_hardening_closure", {})
+    require(
+        link_closure.get("status") in {"NOT_CLOSED_DEFERRED_TO_PR_N", G5_LINK_HARDENING_CLOSURE_STATUS},
+        "G5 PR M Link closure drift",
+    )
+    require(link_closure.get("trusted_boundary_required_first") is True, "G5 PR M Link boundary prerequisite drift")
+    for required in (
+        "pull_request_target:",
+        "permissions:\n  contents: read",
+        "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "ref: ${{ github.event.pull_request.base.sha }}",
+        "persist-credentials: false",
+        "cat-file -e",
+        "without executing candidate code",
+    ):
+        require(required in trusted_workflow, "G5 PR M trusted workflow contract drift")
+    for forbidden in (
+        "secrets.",
+        "workflow_dispatch",
+        "ref: ${{ github.event.pull_request.head.sha }}",
+        "npm ",
+        "node --test",
+        "pytest",
+        "wrangler",
+        "supabase",
+        "id-token",
+        "deployments:",
+    ):
+        require(forbidden not in trusted_workflow, "G5 PR M trusted workflow forbidden capability")
+    for required in (
+        "PR_N_LINK_HARDENING_ALLOWED_STATUSES",
+        "pull_request_target",
+        "candidate must be exactly one direct commit",
+        "candidate path/status delta drift",
+        "fork candidate rejected",
+        "blob_mode",
+    ):
+        require(required in trusted_script, "G5 PR M trusted script contract drift")
+    for required in (
+        "test_trusted_boundary_accepts_one_direct_exact_same_repo_candidate",
+        "test_trusted_boundary_rejects_forks_and_unexpected_shapes",
+    ):
+        require(required in trusted_tests, "G5 PR M trusted tests drift")
+    for required in (
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+        ".context/decisiones/ADR-0023_g5_trusted_boundary_bootstrap.md",
+    ):
+        require(required in f97_workflow, "G5 PR M focused CI path drift")
+    for required in (
+        "test_pr395_pr396_and_trusted_boundary_hardening_are_registered",
+        "E2_STOP_TRUSTED_BOUNDARY_HARDENING_REQUIRED",
+    ):
+        require(required in preflight_tests or required in preflight_source, "G5 PR M preflight drift")
+    require(
+        "NOT_CLOSED_DEFERRED_TO_PR_N" in preflight_tests + preflight_source
+        or G5_LINK_HARDENING_CLOSURE_STATUS in preflight_tests + preflight_source,
+        "G5 PR M Link closure preflight drift",
+    )
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+        "project_ref",
+        "account_id",
+        "worker_id",
+        '"value"',
+        '"token"',
+        '"private_key"',
+    ):
+        require(forbidden not in manifest_text, "G5 PR M manifest contains sensitive or live value")
+    validate_context_graph(repo, 80, 431)
+
+
+def validate_g5_trusted_boundary_hardening(repo: Path, base: str, head: str, event: str) -> None:
+    require(
+        base == G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+        "unexpected G5 trusted boundary hardening base",
+    )
+    require_sha(repo, "G5_TRUSTED_BOUNDARY_HARDENING_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE,
+        "G5 trusted boundary hardening base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 trusted boundary hardening push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 trusted boundary hardening merge tree drift",
+        )
+    require(
+        is_ancestor(repo, base, candidate_head),
+        "G5 trusted boundary hardening base is not an ancestor of head",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+        G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    payload_text = (repo / ".context/operaciones/g5_trusted_required_check_payload_sanitized_2026_08_16.json").read_text(encoding="utf-8")
+    workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    trusted_tests = (repo / "tests/test_f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    payload = json.loads(payload_text)
+    combined = "\n".join((state, task, runbook, manifest_text, plan, payload_text, workflow, trusted_script, trusted_tests))
+    for required in (
+        G5_TRUSTED_BOUNDARY_HARDENING_STATUS,
+        G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE,
+        G5_TRUSTED_BOUNDARY_HARDENING_BASE,
+        G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE,
+        "31979524771=PASS",
+        "31979524732=PASS",
+        "95243979388=PASS",
+        "95244079936=PASS",
+        "run_attempt=1",
+        G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP,
+        G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
+        "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+        "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_ADDITIONAL_APPROVAL",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR M2 trusted boundary hardening evidence drift")
+    pr396 = manifest.get("pr_396_reconciliation", {})
+    require(pr396.get("candidate_sha") == G5_TRUSTED_BOUNDARY_HARDENING_PR396_CANDIDATE, "G5 PR M2 PR396 candidate drift")
+    require(pr396.get("merge_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE, "G5 PR M2 PR396 merge drift")
+    require(pr396.get("tree_sha") == G5_TRUSTED_BOUNDARY_HARDENING_BASE_TREE, "G5 PR M2 PR396 tree drift")
+    require(pr396.get("status") == G5_TRUSTED_BOUNDARY_HARDENING_STATUS, "G5 PR M2 PR396 status drift")
+    require(
+        manifest.get("e2_stop") in {G5_TRUSTED_BOUNDARY_HARDENING_E2_STOP, G5_LINK_HARDENING_CLOSURE_E2_STOP, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP},
+        "G5 PR M2 E2 stop drift",
+    )
+    hardening = manifest.get("trusted_boundary_hardening", {})
+    require(hardening.get("check_name") == G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "G5 PR M2 check name drift")
+    require(hardening.get("pr_n_workflow_modifications") == "FORBIDDEN", "G5 PR M2 workflow exclusion drift")
+    require(hardening.get("trusted_validator_modifications") == "FORBIDDEN", "G5 PR M2 trusted validator exclusion drift")
+    require(hardening.get("required_check_state") == "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL", "G5 PR M2 required check state drift")
+    require(payload.get("status") == "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL", "G5 PR M2 payload status drift")
+    checks = payload.get("request_body", {}).get("required_status_checks", {}).get("checks", [])
+    require({check.get("context") for check in checks} == {"security-audit", G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME}, "G5 PR M2 payload checks drift")
+    require(all(check.get("app_id") == 15368 for check in checks), "G5 PR M2 payload app id drift")
+    require(payload.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR M2 payload strict drift")
+    require(payload.get("request_body", {}).get("enforce_admins") is True, "G5 PR M2 payload admin drift")
+    require(
+        "name: F10.9 Trusted Boundary PR N v1" in workflow
+        or "name: F10.9 Trusted Boundary PR P v1" in workflow
+        or "name: F10.9 Trusted Boundary v1" in workflow,
+        "G5 PR M2 workflow check name drift",
+    )
+    for required in (
+        "types: [opened, synchronize, reopened, ready_for_review, edited]",
+        "persist-credentials: false",
+        "submodules: false",
+        "--no-recurse-submodules",
+        "core.hooksPath=/dev/null",
+        "GIT_CONFIG_GLOBAL: /dev/null",
+        "PROTECTED_BASE_SHA",
+        "without executing candidate code",
+    ):
+        require(required in workflow, "G5 PR M2 workflow hardening drift")
+    for forbidden in (
+        "- '.github/workflows/f9-7-contract.yml'",
+        "- '.github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml'",
+        "- 'scripts/security/f109_trusted_boundary_bootstrap.py'",
+        "secrets.",
+        "workflow_dispatch",
+        "ref: ${{ github.event.pull_request.head.sha }}",
+        "npm ",
+        "node --test",
+        "pytest",
+        "wrangler",
+        "supabase",
+        "id-token",
+        "deployments:",
+    ):
+        require(forbidden not in workflow, "G5 PR M2 workflow forbidden capability")
+    for required in (
+        "PR_N_TRUSTED_CHECK_NAME",
+        "FORBIDDEN_PR_N_PREFIXES",
+        "FORBIDDEN_PR_N_PATHS",
+        "protected_base_sha",
+        "validate_sha",
+        "GIT_CONFIG_NOSYSTEM",
+        "core.hooksPath=/dev/null",
+        "renames/copies are not allowed",
+    ):
+        require(required in trusted_script, "G5 PR M2 trusted script hardening drift")
+    for required in (
+        "test_trusted_boundary_rejects_stale_protected_base",
+        "test_trusted_boundary_rejects_retargeted_edited_event",
+        "test_trusted_boundary_rejects_duplicate_check_name",
+        "test_trusted_boundary_rejects_invalid_oid_before_git",
+        "test_trusted_boundary_rejects_symlink_or_mode_drift",
+        "test_trusted_boundary_rejects_renames",
+        "test_trusted_boundary_rejects_inconsistent_metadata",
+    ):
+        require(required in trusted_tests, "G5 PR M2 trusted tests drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+    ):
+        require(forbidden not in manifest_text + payload_text, "G5 PR M2 sensitive marker drift")
+    validate_context_graph(repo, 80, 431)
+
+
+def validate_g5_link_hardening_closure(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_LINK_HARDENING_CLOSURE_BASE, "unexpected G5 Link hardening closure base")
+    require_sha(repo, "G5_LINK_HARDENING_CLOSURE_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_LINK_HARDENING_CLOSURE_BASE_TREE,
+        "G5 Link hardening closure base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 Link hardening closure push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 Link hardening closure merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 Link hardening closure candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_LINK_HARDENING_CLOSURE_ALLOWED_STATUSES,
+        G5_LINK_HARDENING_CLOSURE_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    index = (repo / ".context/00_INDICE.md").read_text(encoding="utf-8")
+    adr24 = (repo / ".context/decisiones/ADR-0024_g5_link_header_hardening_closure.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    plan = (repo / ".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    worker_source = (repo / "workers/g5-trust-broker/src/index.mjs").read_text(encoding="utf-8")
+    worker_tests = (repo / "workers/g5-trust-broker/test/trust-broker.test.mjs").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    combined = "\n".join((state, task, index, adr24, runbook, manifest_text, plan, preflight_source, preflight_tests, worker_source, worker_tests))
+    for required in (
+        G5_LINK_HARDENING_CLOSURE_STATUS,
+        G5_LINK_HARDENING_CLOSURE_BASE,
+        G5_LINK_HARDENING_CLOSURE_BASE_TREE,
+        G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE,
+        "9a5fcf539c69b635a41616e52716c0ee34837df4",
+        "b33228a031312062b165f8f612d27eacee2fea00",
+        "31984379751=PASS",
+        "95256753465=PASS",
+        "31984379715=PASS",
+        "95256780481=PASS",
+        "95256691723=PASS",
+        "95256691760=PASS",
+        "run_attempt=1",
+        G5_LINK_HARDENING_CLOSURE_E2_STOP,
+        G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME,
+        "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "evidence_readiness",
+        "75%",
+        "formal_closure",
+        "NOT_READY",
+        "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+        "NOT_REQUIRED_PENDING_SEPARATE_REMOTE_APPROVAL",
+        "PREPARED_NOT_EXECUTED_REQUIRES_EXPLICIT_REMOTE_APPROVAL",
+        "require_last_push_approval",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR N Link hardening closure evidence drift")
+    hito_status = manifest.get("hito1_integral_status", {})
+    require(hito_status.get("ca1_original_technical") == "PASS", "G5 PR N CA1 original drift")
+    require(
+        hito_status.get("integral_state") == "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "G5 PR N Hito 1 integral status drift",
+    )
+    require(hito_status.get("evidence_readiness") == "75%", "G5 PR N evidence readiness drift")
+    require(hito_status.get("formal_closure") == "NOT_READY", "G5 PR N formal closure drift")
+    pr397 = manifest.get("pr_397_reconciliation", {})
+    require(pr397.get("candidate_sha") == G5_LINK_HARDENING_CLOSURE_PR397_CANDIDATE, "G5 PR N PR397 candidate drift")
+    require(pr397.get("merge_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR N PR397 merge drift")
+    require(pr397.get("tree_sha") == G5_LINK_HARDENING_CLOSURE_BASE_TREE, "G5 PR N PR397 tree drift")
+    require(pr397.get("status") == "MERGED_POST_MERGE_VERIFIED", "G5 PR N PR397 status drift")
+    require(pr397.get("security_audit_job_id") == "95256753465", "G5 PR N PR397 security-audit drift")
+    require(pr397.get("run_attempt") == 1, "G5 PR N PR397 attempt drift")
+    link_closure = manifest.get("link_hardening_closure", {})
+    require(link_closure.get("status") == G5_LINK_HARDENING_CLOSURE_STATUS, "G5 PR N Link closure status drift")
+    require(
+        link_closure.get("link_header_contract") == "CANONICAL_REL_ONLY_REJECT_NEXT_AND_UNEXPECTED",
+        "G5 PR N Link contract drift",
+    )
+    require(
+        manifest.get("e2_stop") in {G5_LINK_HARDENING_CLOSURE_E2_STOP, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP},
+        "G5 PR N E2 stop drift",
+    )
+    branch_update = manifest.get("branch_protection_required_check_update", {})
+    expected_container_keys = {
+        "required_status_checks",
+        "required_pull_request_reviews",
+        "enforce_admins",
+        "restrictions",
+        "required_linear_history",
+        "allow_force_pushes",
+        "allow_deletions",
+        "block_creations",
+        "required_conversation_resolution",
+        "lock_branch",
+        "allow_fork_syncing",
+    }
+    expected_status_check_keys = {"strict", "checks"}
+    for container in (branch_update.get("live_state_preserved", {}), branch_update.get("request_body", {})):
+        require(set(container) == expected_container_keys, "G5 PR N branch protection container key drift")
+        require(set(container.get("required_status_checks", {})) == expected_status_check_keys, "G5 PR N status check key drift")
+    checks = branch_update.get("request_body", {}).get("required_status_checks", {}).get("checks", [])
+    require(
+        checks
+        in (
+            [
+                {"context": "security-audit", "app_id": 15368},
+                {"context": G5_TRUSTED_BOUNDARY_PR_N_CHECK_NAME, "app_id": 15368},
+            ],
+            [
+                {"context": "security-audit", "app_id": 15368},
+                {"context": G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "app_id": 15368},
+            ],
+        ),
+        "G5 PR N payload checks drift",
+    )
+    require(branch_update.get("request_body", {}).get("required_status_checks", {}).get("strict") is True, "G5 PR N payload strict drift")
+    require(branch_update.get("request_body", {}).get("enforce_admins") is True, "G5 PR N payload admin drift")
+    require(branch_update.get("request_body", {}).get("restrictions") is None, "G5 PR N restriction drift")
+    expected_reviews = {
+        "dismiss_stale_reviews": True,
+        "require_code_owner_reviews": False,
+        "require_last_push_approval": True,
+        "required_approving_review_count": 1,
+    }
+    for container in (branch_update.get("live_state_preserved", {}), branch_update.get("request_body", {})):
+        require(container.get("required_pull_request_reviews") == expected_reviews, "G5 PR N review policy drift")
+        for flag in (
+            "required_linear_history",
+            "allow_force_pushes",
+            "allow_deletions",
+            "block_creations",
+            "required_conversation_resolution",
+            "lock_branch",
+            "allow_fork_syncing",
+        ):
+            require(container.get(flag) is False, "G5 PR N branch protection flag drift")
+    require("if (name !== \"rel\") stop(REASONS.BINDING);" in worker_source, "G5 PR N Link parser allows unexpected parameters")
+    require('const ALLOWED_LINK_RELATIONS = new Set(["last"]);' in worker_source, "G5 PR N Link allowed relations drift")
+    for forbidden in (
+        "title=\\\"last\\\"; rel=\\\"last\\\" }).listWorkflowJobs(reference)).items.length, 1)",
+        "type=\\\"application/json\\\"; rel=\\\"last\\\" }).listWorkflowJobs(reference)).items.length, 1)",
+    ):
+        require(forbidden not in worker_tests, "G5 PR N Link tests still allow unexpected parameters")
+    for required in (
+        "title=\\\"last\\\"; rel=\\\"last\\\"",
+        "type=\\\"application/json\\\"; rel=\\\"last\\\"",
+        "<https://api.github.com/first>; rel=\\\"first\\\"",
+        "<https://api.github.com/prev>; rel=\\\"prev\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"first\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"prev\\\"",
+        "<https://api.github.com/last>; rel=\\\"last\\\"",
+        "<https://api.github.com/repos/romelhc95/studiamatch/actions/runs/303/jobs?per_page=100&page=1>; rel=\\\"last\\\"",
+    ):
+        require(required in worker_tests, "G5 PR N Link tests drift")
+    for required in (
+        G5_LINK_HARDENING_CLOSURE_STATUS,
+        G5_LINK_HARDENING_CLOSURE_E2_STOP,
+        "_validate_pr397",
+        "_validate_hito1_integral_status",
+    ):
+        require(required in preflight_source, "G5 PR N preflight source drift")
+        require(required in preflight_tests or required in preflight_source, "G5 PR N preflight tests drift")
+    for forbidden in (
+        "https://",
+        "http://",
+        "sb_secret_",
+        "sb_publishable_",
+        "eyJhbG",
+        "-----BEGIN",
+    ):
+        require(forbidden not in manifest_text, "G5 PR N sensitive marker drift")
+    validate_context_graph(repo, 81, 432)
+
+
+def validate_g5_default_branch_trusted_workflow_registration(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "unexpected G5 default-branch trusted workflow base")
+    require_sha(repo, "G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        "G5 default-branch trusted workflow base tree drift",
+    )
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 default-branch trusted workflow push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "G5 default-branch trusted workflow merge tree drift",
+        )
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 default-branch trusted workflow candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_STATUSES,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_ALLOWED_MODES,
+    )
+    state = (repo / ".context/estado_del_proyecto.md").read_text(encoding="utf-8")
+    task = (repo / ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md").read_text(encoding="utf-8")
+    index_path = repo / ".context/00_INDICE.md"
+    index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
+    adr25 = (repo / ".context/decisiones/ADR-0025_g5_default_branch_trusted_workflow_registration.md").read_text(encoding="utf-8")
+    runbook = (repo / ".context/operaciones/g5_operational_activation_runbook_2026_08_15.md").read_text(encoding="utf-8")
+    manifest_text = (repo / ".context/operaciones/g5_operational_activation_manifest_2026_08_15.json").read_text(encoding="utf-8")
+    superseded_promotion_text = (repo / ".context/operaciones/g5_trusted_workflow_default_branch_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    promotion_text = (repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    probe_path = repo / ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md"
+    probe = probe_path.read_text(encoding="utf-8") if probe_path.exists() else ""
+    workflow = (repo / ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml").read_text(encoding="utf-8")
+    trusted_script = (repo / "scripts/security/f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    preflight_source = (repo / "scripts/shared/f10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    trusted_tests = (repo / "tests/test_f109_trusted_boundary_bootstrap.py").read_text(encoding="utf-8")
+    preflight_tests = (repo / "tests/test_fase10_9_g5_operational_activation_preflight.py").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    promotion = json.loads(promotion_text)
+    superseded_promotion = json.loads(superseded_promotion_text)
+    combined = "\n".join((state, task, index, adr25, runbook, manifest_text, promotion_text, superseded_promotion_text, probe, workflow, trusted_script, preflight_source, trusted_tests, preflight_tests))
+    for required in (
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE,
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE,
+        "32025689377",
+        "95374636974",
+        "32025689461",
+        "95374786287",
+        "95380342703",
+        "95374505684",
+        "95374505556",
+        "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "CI_RETRY_PASS",
+        "source_commit=13a44fb7de6e8d754106b744f96e15c959c45685",
+        "source_tree=b126b5119224010372ea704b87459f98afff2c2a",
+        "FAIL_IF_ANY_BLOB_DIFFERS",
+        "default_branch=main",
+        "pull_request_target requires the workflow file on default branch",
+        G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP,
+        G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME,
+        "OUT_OF_SCOPE_SAFE",
+        "SUPERSEDED_NOT_EXECUTABLE",
+        "PREPARED_NOT_EXECUTED",
+        "DO_NOT_EXECUTE_WITHOUT_EXPLICIT_PROMOTION_APPROVAL",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "Hito 1 `60%`",
+        "F10.9 `38%`",
+        "G5 `50%`",
+    ):
+        require(required in combined, "G5 PR R post-merge reconciliation evidence drift")
+    pr398 = manifest.get("pr_398_reconciliation", {})
+    require(pr398.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR398_CANDIDATE, "G5 PR O PR398 candidate drift")
+    require(pr398.get("base_sha") == G5_LINK_HARDENING_CLOSURE_BASE, "G5 PR O PR398 base drift")
+    require(pr398.get("merge_sha") == "85d7f647a37dc784fe16c11da0318956e255b698", "G5 PR O PR398 merge drift")
+    require(pr398.get("tree_sha") == "91706dfcc3766fbf69b4fb8c893318786445a2a9", "G5 PR O PR398 tree drift")
+    require(pr398.get("status") == "MERGED_POST_MERGE_VERIFIED_TRUSTED_ATTESTATION_MISSING_DEFAULT_BRANCH_REGISTRATION_REQUIRED", "G5 PR O PR398 status drift")
+    require(pr398.get("trusted_check") == "NOT_EXECUTED", "G5 PR O trusted check drift")
+    pr399 = manifest.get("pr_399_reconciliation", {})
+    require(pr399.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR399_CANDIDATE, "G5 PR Q PR399 candidate drift")
+    require(pr399.get("base_sha") == "85d7f647a37dc784fe16c11da0318956e255b698", "G5 PR Q PR399 base drift")
+    require(pr399.get("merge_sha") == "ab5b0dffe8fe7d677c083e258e86f590d393b731", "G5 PR Q PR399 merge drift")
+    require(pr399.get("tree_sha") == "fb0b0166b67a58cab14dd0c20e89f034a8adab6e", "G5 PR Q PR399 tree drift")
+    require(pr399.get("status") == "MERGED_POST_MERGE_VERIFIED", "G5 PR Q PR399 status drift")
+    require(pr399.get("security_audit_job_id") == "95294350579", "G5 PR Q PR399 security-audit drift")
+    pr400 = manifest.get("pr_400_reconciliation", {})
+    require(pr400.get("candidate_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_PR400_CANDIDATE, "G5 PR R PR400 candidate drift")
+    require(pr400.get("base_sha") == "ab5b0dffe8fe7d677c083e258e86f590d393b731", "G5 PR R PR400 base drift")
+    require(pr400.get("merge_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR R PR400 merge drift")
+    require(pr400.get("tree_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR R PR400 tree drift")
+    require(pr400.get("status") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_STATUS, "G5 PR R PR400 status drift")
+    require(pr400.get("security_audit_job_id") == "95374636974", "G5 PR R PR400 security-audit drift")
+    require(pr400.get("security_run_id") == "32025689377", "G5 PR R PR400 security run drift")
+    require(pr400.get("security_conclusion") == "PASS", "G5 PR R PR400 security conclusion drift")
+    require(pr400.get("focused_g5_job_id") == "95374505684", "G5 PR R PR400 focused drift")
+    require(pr400.get("focused_g5_conclusion") == "PASS", "G5 PR R PR400 focused conclusion drift")
+    require(pr400.get("m3_job_id") == "95374505556", "G5 PR R PR400 M3 drift")
+    require(pr400.get("m3_conclusion") == "PASS", "G5 PR R PR400 M3 conclusion drift")
+    require(pr400.get("f9_7_run_id") == "32025689461", "G5 PR R PR400 F9.7 run drift")
+    require(pr400.get("operational_g5_run_attempt_required") == 1, "G5 PR R PR400 operational attempt drift")
+    pr400_attempts = pr400.get("attempts", [])
+    require(isinstance(pr400_attempts, list) and len(pr400_attempts) == 2, "G5 PR R PR400 attempts drift")
+    require(pr400_attempts[0].get("attempt") == 1, "G5 PR R PR400 attempt 1 number drift")
+    require(pr400_attempts[0].get("job_id") == "95374786287", "G5 PR R PR400 attempt 1 job drift")
+    require(pr400_attempts[0].get("conclusion") == "CANCELLED", "G5 PR R PR400 attempt 1 drift")
+    require(
+        pr400_attempts[0].get("classification") == "CI_CANCELLED_UNCLASSIFIED_REQUIRES_RERUN",
+        "G5 PR R PR400 attempt 1 classification drift",
+    )
+    require(
+        pr400_attempts[0].get("cancelled_step") == "Run local-only Python and PostgreSQL contracts",
+        "G5 PR R PR400 attempt 1 cancelled step drift",
+    )
+    require(pr400_attempts[0].get("scope") == "CI_ONLY", "G5 PR R PR400 attempt 1 scope drift")
+    require(pr400_attempts[1].get("attempt") == 2, "G5 PR R PR400 attempt 2 number drift")
+    require(pr400_attempts[1].get("job_id") == "95380342703", "G5 PR R PR400 attempt 2 job drift")
+    require(pr400_attempts[1].get("conclusion") == "PASS", "G5 PR R PR400 attempt 2 drift")
+    require(pr400_attempts[1].get("classification") == "CI_RETRY_PASS", "G5 PR R PR400 attempt 2 classification drift")
+    require(pr400_attempts[1].get("scope") == "CI_ONLY", "G5 PR R PR400 attempt 2 scope drift")
+    registration = manifest.get("default_branch_trusted_workflow_registration", {})
+    require(registration.get("default_branch") == "main", "G5 PR O default branch drift")
+    require(registration.get("workflow_exists_in_desarrollo") is True, "G5 PR O desarrollo workflow drift")
+    require(registration.get("workflow_exists_in_main") is False, "G5 PR O main workflow drift")
+    require(registration.get("stop") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_E2_STOP, "G5 PR O stop drift")
+    prp = manifest.get("trusted_boundary_pr_p_profile", {})
+    require(prp.get("check_name") == G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR Q PR P check drift")
+    require(prp.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 PR O PR P commit drift")
+    require(prp.get("allowed_statuses") == {".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": "M"}, "G5 PR O PR P delta drift")
+    hardening = manifest.get("permanent_trusted_check_hardening", {})
+    require(hardening.get("stable_check_name") == G5_STABLE_TRUSTED_BOUNDARY_CHECK_NAME, "G5 PR Q stable check drift")
+    require(hardening.get("path_filters") == "NONE_ALWAYS_REPORT_STATUS", "G5 PR Q path filter drift")
+    require(hardening.get("out_of_scope_classification") == "OUT_OF_SCOPE_SAFE", "G5 PR Q out-of-scope drift")
+    require(hardening.get("github_actions_app_provenance") == {"name": "GitHub Actions", "app_id": 15368}, "G5 PR Q app provenance drift")
+    require(superseded_promotion.get("status") == "SUPERSEDED_NOT_EXECUTABLE", "G5 PR Q superseded promotion drift")
+    require(
+        promotion.get("status") in {"PREPARED_NOT_EXECUTED", "SUPERSEDED_NOT_EXECUTABLE"},
+        "G5 PR O promotion status drift",
+    )
+    require(promotion.get("source_commit") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR R promotion source commit drift")
+    require(promotion.get("source_tree") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR R promotion source tree drift")
+    require(promotion.get("files_to_promote") == [
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml",
+        "scripts/security/f109_trusted_boundary_bootstrap.py",
+        "tests/test_f109_trusted_boundary_bootstrap.py",
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md",
+    ], "G5 PR R promotion path drift")
+    expected_promotion_files = {
+        ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": {"mode": "100644", "blob_sha": "40d979dd0af57f530e0999ac7736d61ec62b986d"},
+        "scripts/security/f109_trusted_boundary_bootstrap.py": {"mode": "100644", "blob_sha": "c814f6124e1d10ad85f455118e22caba6a35ea9b"},
+        "tests/test_f109_trusted_boundary_bootstrap.py": {"mode": "100644", "blob_sha": "5dd2d7e6b30cd3c86a81cb7df56db13ef0821aa1"},
+        ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {"mode": "100644", "blob_sha": "a1853df0c0e6187352869b26984e74576c564db3"},
+    }
+    require(promotion.get("expected_files") == expected_promotion_files, "G5 PR R promotion blob/mode drift")
+    for relative, expected in expected_promotion_files.items():
+        metadata = str(git(repo, "ls-tree", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "--", relative)).strip().split(None, 3)
+        require(len(metadata) == 4, f"G5 PR R promotion missing source tree entry: {relative}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(
+            (mode, kind, blob_sha, tree_path) == (expected["mode"], "blob", expected["blob_sha"], relative),
+            f"G5 PR R promotion source tree blob/mode drift: {relative}",
+        )
+    require(promotion.get("drift_policy") == {
+        "source_commit": "FAIL_IF_NOT_EXACT",
+        "source_tree": "FAIL_IF_NOT_EXACT",
+        "paths": "FAIL_IF_ANY_PATH_DIFFERS",
+        "modes": "FAIL_IF_ANY_MODE_DIFFERS",
+        "blob_shas": "FAIL_IF_ANY_BLOB_DIFFERS",
+    }, "G5 PR R promotion drift policy drift")
+    require(promotion.get("promotion_path") == ["desarrollo", "certificacion", "main"], "G5 PR O promotion path drift")
+    require(promotion.get("branch_protection_change") == "FORBIDDEN", "G5 PR O branch protection drift")
+    for forbidden in ("secrets.", "workflow_dispatch", "id-token", "deployments:", "supabase", "wrangler"):
+        require(forbidden not in workflow, "G5 PR O workflow forbidden capability")
+    validate_context_graph(repo, 83, 433)
+
+
+def validate_g5_definitive_promotion_source(repo: Path) -> None:
+    require_sha(repo, "G5 definitive source", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE)
+    require(
+        commit_tree(repo, G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE)
+        == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE,
+        "G5 definitive source tree drift",
+    )
+    for relative, expected in G5_DEFINITIVE_PROMOTION_FILES.items():
+        metadata = str(git(repo, "ls-tree", G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "--", relative)).strip().split(None, 3)
+        require(len(metadata) == 4, f"G5 definitive source missing tree entry: {relative}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(
+            (mode, kind, blob_sha, tree_path) == (expected["mode"], "blob", expected["blob_sha"], relative),
+            f"G5 definitive source blob/mode drift: {relative}",
+        )
+
+
+def validate_g5_control_plane_exception_payload(payload: dict[str, object]) -> None:
+    require(payload.get("status") == "PREPARED_NOT_EXECUTED", "G5 control-plane exception status drift")
+    require(payload.get("one_time_only") is True, "G5 control-plane exception one-time drift")
+    require(payload.get("reversible") is True, "G5 control-plane exception reversible drift")
+    require(payload.get("target_branch") == "certificacion", "G5 control-plane exception branch drift")
+    require(payload.get("precondition_certification_commit") == G5_CERTIFICATION_WIRING_BASE, "G5 control-plane exception base drift")
+    require(payload.get("precondition_certification_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 control-plane exception tree drift")
+    require(payload.get("precondition_other_mergeable_certification_prs") == 0, "G5 control-plane exception PR drift")
+    require(payload.get("temporarily_removed_required_checks") == ["security-audit"], "G5 control-plane exception required-check drift")
+    require(payload.get("restored_required_check") == {"context": "security-audit", "app_id": 15368}, "G5 control-plane exception restore app drift")
+    require(payload.get("allowed_candidate_head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 control-plane exception head ref drift")
+    require(payload.get("allowed_candidate_delta") == G5_CERTIFICATION_WIRING_ALLOWED_STATUSES, "G5 control-plane exception delta drift")
+    require(payload.get("preserve") == {
+        "strict": True,
+        "reviews": True,
+        "dismiss_stale_reviews": True,
+        "require_last_push_approval": True,
+        "admin_enforcement": True,
+        "allow_force_pushes": False,
+        "allow_deletions": False,
+        "restrictions": "PRESERVE_EXACT",
+    }, "G5 control-plane exception preserve drift")
+    require(payload.get("snapshot_before") == "FULL_BRANCH_PROTECTION_REQUIRED", "G5 control-plane exception before snapshot drift")
+    require(payload.get("snapshot_after") == "MUST_MATCH_SNAPSHOT_BEFORE_EXACTLY", "G5 control-plane exception restore snapshot drift")
+    require(payload.get("post_merge_required_check") == {"context": "security-audit", "conclusion": "PASS"}, "G5 control-plane exception post-merge check drift")
+    require(payload.get("abort_policy") == "ABORT_AND_RESTORE_ON_ANY_DRIFT", "G5 control-plane exception abort drift")
+
+
+def canonical_sha256(value: object) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def validate_g5_bootstrap_freeze_sidecar(sidecar: dict[str, object]) -> None:
+    require(sidecar.get("schema") == "f10.9-g5-certification-wiring-bootstrap-freeze.v1", "G5 sidecar schema drift")
+    require(
+        sidecar.get("status") in {G5_CERTIFICATION_BOOTSTRAP_FREEZE_STATUS, "SUPERSEDED_NOT_EXECUTABLE"},
+        "G5 sidecar status drift",
+    )
+    require(sidecar.get("sidecar_policy") == "EXTERNAL_REPOSITORY_ONLY_NOT_PROMOTED_TO_CERTIFICATION", "G5 sidecar policy drift")
+    require(sidecar.get("source_commit") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, "G5 sidecar source commit drift")
+    require(sidecar.get("source_tree") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE, "G5 sidecar source tree drift")
+    require(sidecar.get("certification_parent") == G5_CERTIFICATION_WIRING_BASE, "G5 sidecar certification parent drift")
+    require(sidecar.get("certification_parent_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 sidecar certification tree drift")
+    require(sidecar.get("head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 sidecar head ref drift")
+    require(sidecar.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 sidecar commit count drift")
+    require(sidecar.get("same_repository") is True, "G5 sidecar same-repository drift")
+    require(sidecar.get("expected_candidate_tree") == G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE, "G5 sidecar candidate tree drift")
+    require(sidecar.get("sidecar_path") == G5_CERTIFICATION_BOOTSTRAP_SIDECAR, "G5 sidecar path drift")
+    require(sidecar.get("sidecar_excluded_from_certification_delta") is True, "G5 sidecar certification exclusion drift")
+    expected_files = {
+        ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json": {
+            "status": "A",
+            "mode": "100644",
+            "blob_sha": "4fa98320015e39a905644f03e89a75af43dc72cc",
+        },
+        ".github/workflows/security-audit.yml": {
+            "status": "M",
+            "mode": "100755",
+            "blob_sha": "27fecf007d441fee028b4a72eea0e864e59bc045",
+        },
+        "scripts/security/f109_boundary.py": {
+            "status": "M",
+            "mode": "100644",
+            "blob_sha": "e36a5de1ab6513e973cc5bc940bdb12a5a1c7335",
+        },
+        "tests/test_fase10_9_branch_reconciliation.py": {
+            "status": "M",
+            "mode": "100644",
+            "blob_sha": "f911e7bc46e9be474ab4b917d9d96d263c1a64e1",
+        },
+    }
+    require(sidecar.get("certification_delta") == expected_files, "G5 sidecar certification delta drift")
+    require(G5_CERTIFICATION_BOOTSTRAP_SIDECAR not in expected_files, "G5 sidecar leaked into certification delta")
+    snapshot = sidecar.get("snapshot_before")
+    temporary = sidecar.get("temporary_state")
+    restore = sidecar.get("restore_state")
+    require(isinstance(snapshot, dict), "G5 sidecar snapshot missing")
+    require(isinstance(temporary, dict), "G5 sidecar temporary state missing")
+    require(isinstance(restore, dict), "G5 sidecar restore state missing")
+    require(restore == snapshot, "G5 sidecar restore must match snapshot exactly")
+    require(sidecar.get("snapshot_canonical_hash") == canonical_sha256(snapshot), "G5 sidecar snapshot hash drift")
+    required_checks = snapshot.get("required_status_checks")
+    temporary_checks = temporary.get("required_status_checks")
+    require(isinstance(required_checks, dict), "G5 sidecar required checks missing")
+    require(isinstance(temporary_checks, dict), "G5 sidecar temporary checks missing")
+    require(required_checks.get("strict") is True, "G5 sidecar strict drift")
+    require(required_checks.get("contexts") == ["security-audit"], "G5 sidecar context drift")
+    require(required_checks.get("checks") == [{"context": "security-audit", "app_id": 15368}], "G5 sidecar app drift")
+    require(temporary_checks.get("strict") is True, "G5 sidecar temporary strict drift")
+    require(temporary_checks.get("contexts") == [], "G5 sidecar temporary context drift")
+    require(temporary_checks.get("checks") == [], "G5 sidecar temporary check drift")
+    changed = [key for key in snapshot if temporary.get(key) != snapshot.get(key)]
+    require(changed == ["required_status_checks"], "G5 sidecar temporary state changes more than security-audit")
+    preconditions = sidecar.get("preconditions")
+    require(isinstance(preconditions, dict), "G5 sidecar preconditions missing")
+    require(preconditions.get("live_snapshot_must_match_hash") == sidecar.get("snapshot_canonical_hash"), "G5 sidecar live hash precondition drift")
+    require(preconditions.get("revalidate_branch_sha") == G5_CERTIFICATION_WIRING_BASE, "G5 sidecar branch SHA precondition drift")
+    require(preconditions.get("revalidate_branch_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 sidecar branch tree precondition drift")
+    require(preconditions.get("other_mergeable_prs_to_certificacion") == 0, "G5 sidecar concurrent PR precondition drift")
+    require(preconditions.get("wiring_pr_head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 sidecar wiring PR precondition drift")
+    require(preconditions.get("wiring_pr_expected_head_sha") == G5_PR402_CANDIDATE, "G5 sidecar candidate SHA precondition drift")
+    require(preconditions.get("wiring_pr_expected_tree") == G5_CERTIFICATION_BOOTSTRAP_EXPECTED_CANDIDATE_TREE, "G5 sidecar expected tree precondition drift")
+    execution = sidecar.get("execution_rules")
+    require(isinstance(execution, dict), "G5 sidecar execution rules missing")
+    require(execution.get("max_window_minutes") == 10, "G5 sidecar max window drift")
+    require(execution.get("merge_only_head_sha") == G5_PR402_CANDIDATE, "G5 sidecar merge SHA drift")
+    require(execution.get("restore_on_any_exit") is True, "G5 sidecar restore-on-exit drift")
+    require(execution.get("restore_security_audit") == {"context": "security-audit", "app_id": 15368}, "G5 sidecar restore app drift")
+    require(execution.get("post_restore_compare") == "EXACT_MATCH_SNAPSHOT_BEFORE", "G5 sidecar post-restore compare drift")
+    require(execution.get("post_merge_required_check") == {"context": "security-audit", "app_id": 15368, "conclusion": "PASS"}, "G5 sidecar post-merge check drift")
+    require(execution.get("abort_on") == ["github_api_503", "snapshot_drift", "unverifiable_field", "candidate_sha_drift", "concurrent_mergeable_certification_pr"], "G5 sidecar abort policy drift")
+    notes = sidecar.get("candidate_controlled_check_policy")
+    require(isinstance(notes, dict), "G5 sidecar candidate-controlled policy missing")
+    require(notes.get("pre_merge_security_audit_authoritative") is False, "G5 sidecar candidate authority drift")
+    require(notes.get("protected_base_failure_expected") is True, "G5 sidecar protected-base failure drift")
+    require(notes.get("candidate_controlled_pass_can_substitute") is False, "G5 sidecar candidate PASS substitution drift")
+    digest_input = sidecar.get("canonical_digest_input")
+    require(isinstance(digest_input, dict), "G5 sidecar canonical digest input missing")
+    require(sidecar.get("canonical_digest") == canonical_sha256(digest_input), "G5 sidecar canonical digest drift")
+
+
+def validate_g5_certification_bootstrap_freeze(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE, "unexpected G5 certification bootstrap freeze base")
+    require_sha(repo, "G5 certification bootstrap freeze base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE_TREE, "G5 certification bootstrap freeze base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "G5 certification bootstrap freeze push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G5 certification bootstrap freeze merge tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "G5 certification bootstrap freeze candidate must be one direct commit")
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_MODES,
+    )
+    manifest_text = (repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json").read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    pr402 = manifest.get("future_probe", {}).get("pr_402_reconciliation", {})
+    require(pr402.get("status") == G5_PR402_STATUS, "G5 PR T PR402 status drift")
+    require(pr402.get("candidate_sha") == G5_PR402_CANDIDATE, "G5 PR T PR402 candidate drift")
+    require(pr402.get("base_sha") == G5_PR402_BASE, "G5 PR T PR402 base drift")
+    require(pr402.get("merge_sha") == G5_PR402_MERGE, "G5 PR T PR402 merge drift")
+    require(pr402.get("tree_sha") == G5_PR402_TREE, "G5 PR T PR402 tree drift")
+    require(pr402.get("security_run_id") == "32041862517", "G5 PR T PR402 security run drift")
+    require(pr402.get("security_attempt") == 1, "G5 PR T PR402 security attempt drift")
+    require(pr402.get("security_audit_job_id") == "95422582708", "G5 PR T PR402 security-audit drift")
+    require(pr402.get("f9_7_run_id") == "32041862512", "G5 PR T PR402 F9.7 run drift")
+    require(pr402.get("f9_7_attempt") == 1, "G5 PR T PR402 F9.7 attempt drift")
+    require(pr402.get("f9_7_job_id") == "95422583531", "G5 PR T PR402 F9.7 job drift")
+    require(pr402.get("focused_g5_job_id") == "95422477740", "G5 PR T PR402 focused drift")
+    require(pr402.get("m3_job_id") == "95422477720", "G5 PR T PR402 M3 drift")
+    tracking = manifest.get("future_probe", {}).get("hito_tracking_preserved", {})
+    require(tracking.get("stop") == G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP, "G5 PR T stop drift")
+    sidecar = json.loads((repo / G5_CERTIFICATION_BOOTSTRAP_SIDECAR).read_text(encoding="utf-8"))
+    validate_g5_bootstrap_freeze_sidecar(sidecar)
+
+
+def validate_wp0_trusted_content_binding(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP0_TRUSTED_CONTENT_BINDING_BASE, "unexpected WP0 trusted content binding base")
+    require_sha(repo, "WP0 trusted content binding base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+        "WP0 trusted content binding source tree drift",
+    )
+    require(
+        commit_parents(repo, head) == [base],
+        "WP0 trusted content binding candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        head,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+    )
+
+
+def validate_wp0_trusted_content_binding_historical_push(
+    repo: Path, base: str, head: str, event: str,
+) -> None:
+    require(event == "push", "WP0 historical recognition is push-only")
+    require(base == WP0_TRUSTED_CONTENT_BINDING_BASE, "unexpected WP0 historical push base")
+    require(head == WP0_TRUSTED_CONTENT_BINDING_MERGE, "unexpected WP0 historical push merge")
+    require_sha(repo, "WP0 historical base", base)
+    require_sha(repo, "WP0 historical candidate", WP0_TRUSTED_CONTENT_BINDING_CANDIDATE)
+    require_sha(repo, "WP0 historical merge", head)
+    require(
+        commit_tree(repo, base) == WP0_TRUSTED_CONTENT_BINDING_BASE_TREE,
+        "WP0 historical push base tree drift",
+    )
+    require(
+        commit_tree(repo, head) == WP0_TRUSTED_CONTENT_BINDING_MERGE_TREE,
+        "WP0 historical push merge tree drift",
+    )
+    require(
+        commit_parents(repo, head) == [base, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE],
+        "WP0 historical push parent drift",
+    )
+    require(
+        commit_parents(repo, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE) == [base],
+        "WP0 historical candidate parent drift",
+    )
+    require(
+        commit_tree(repo, head) == commit_tree(repo, WP0_TRUSTED_CONTENT_BINDING_CANDIDATE),
+        "WP0 historical push tree differs from candidate",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        WP0_TRUSTED_CONTENT_BINDING_CANDIDATE,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+        WP0_TRUSTED_CONTENT_BINDING_ALLOWED_MODES,
+    )
+
+
+def validate_wp0_post_merge_boundary_v2(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP0_POST_MERGE_BOUNDARY_V2_BASE, "unexpected WP0 V2 baseline")
+    require_sha(repo, "WP0 V2 base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP0_POST_MERGE_BOUNDARY_V2_BASE_TREE,
+        "WP0 V2 base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP0 V2 PR head must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "WP0 V2 push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP0 V2 merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP0 V2 push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES,
+        WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_MODES,
+    )
+
+
+def validate_wp1_trusted_promotion_refreeze(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP1_TRUSTED_PROMOTION_REFREEZE_BASE, "unexpected WP1 refreeze baseline")
+    require_sha(repo, "WP1 refreeze base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE,
+        "WP1 refreeze base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP1 refreeze candidate must be one direct commit",
+        )
+    else:
+        push_parents = commit_parents(repo, head)
+        require(
+            len(push_parents) == 2 and push_parents[0] == base,
+            "WP1 refreeze push must be a protected merge",
+        )
+        candidate_head = push_parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP1 refreeze merged PR must contain one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP1 refreeze push tree differs from PR head",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+        WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_MODES,
+    )
+    manifest = json.loads((repo / WP1_TRUSTED_PROMOTION_REFREEZE_MANIFEST).read_text(encoding="utf-8"))
+    require(manifest.get("work_package") == "WP1_TRUSTED_PROMOTION_REFREEZE_POST_WP0_1", "WP1 manifest package drift")
+    require(manifest.get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP1 manifest status drift")
+    source = manifest.get("source_content_freeze", {})
+    require(source.get("source_commit") == WP1_TRUSTED_PROMOTION_REFREEZE_BASE, "WP1 source commit drift")
+    require(source.get("source_tree") == WP1_TRUSTED_PROMOTION_REFREEZE_BASE_TREE, "WP1 source tree drift")
+    require(source.get("digest") == "98e99186e265fe343752fb27e784e9aad643e49a6c661f3e1c711cfb7bfa9e37", "WP1 source digest drift")
+    require(source.get("files") == WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES, "WP1 source file freeze drift")
+    for path, expected_entry in WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES.items():
+        metadata = str(git(repo, "ls-tree", base, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"WP1 missing source tree metadata for {path}")
+        mode, kind, blob_sha, tree_path = metadata
+        require(kind == "blob" and tree_path == path, f"WP1 invalid source tree entry for {path}")
+        require(
+            {"mode": mode, "blob_sha": blob_sha} == expected_entry,
+            f"WP1 source blob drift for {path}",
+        )
+    future = manifest.get("future_certification_candidate", {})
+    require(future.get("candidate_head_sha") == "REQUIRED_AFTER_PR_CREATION", "WP1 future head must not be invented")
+    require(future.get("candidate_tree") == "REQUIRED_AFTER_PR_CREATION", "WP1 future tree must not be invented")
+    wp01 = manifest.get("wp0_1", {})
+    require(wp01.get("status") == WP0_POST_MERGE_BOUNDARY_V2_STATUS, "WP0.1 status drift")
+    require(wp01.get("pr_404_status") == WP0_TRUSTED_CONTENT_BINDING_POST_MERGE_STATUS, "WP0 historical status drift")
+    require(manifest.get("pr_405", {}).get("status") == "CLOSED_NOT_MERGED_SCOPE_DRIFT", "PR405 status drift")
+    require(manifest.get("pr_405", {}).get("incorporate_blobs") is False, "PR405 blobs must remain excluded")
+    require(
+        manifest.get("branch_protection_snapshot", {}).get("digest") == "26b03e2e948ae4d709845af05c3132285b66cbb6c1c0af2eea2347e1fd5b800a",
+        "WP1 branch protection digest drift",
+    )
+    require(
+        manifest.get("security_policy", {}).get("candidate_controlled_security_audit_authoritative") is False,
+        "WP1 candidate-controlled policy drift",
+    )
+
+
+def wp2a_manifest(repo: Path) -> dict:
+    path = repo / WP2A_REBASELINE_MANIFEST
+    require(path.exists(), "WP2A v1 manifest is required")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def wp2a1_manifest(repo: Path) -> dict:
+    path = repo / WP2A1_MANIFEST
+    require(path.exists(), "WP2A.1 manifest is required")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def wp2a_control_blobs(repo: Path) -> dict[str, str]:
+    profile = wp2a_manifest(repo)["wp2a_certification_control_bootstrap"]
+    return {path: entry["blob_sha"] for path, entry in profile["files"].items()}
+
+
+def wp2a1_control_blobs(repo: Path) -> dict[str, str]:
+    profile = wp2a1_manifest(repo)["wp2a1_certification_control_bootstrap"]
+    return {
+        path: entry["blob_sha"]
+        for path, entry in profile["files"].items()
+        if path != WP2A1_MANIFEST
+    }
+
+
+def wp2a1_ci_focused_suite_blobs(repo: Path) -> dict[str, str]:
+    profile = wp2a1_manifest(repo)["wp2a1_certification_control_bootstrap"]
+    return {
+        path: entry["blob_sha"]
+        for path, entry in profile["files"].items()
+        if path in WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES and path != WP2A1_MANIFEST
+    }
+
+
+def require_frozen_blobs(repo: Path, head: str, expected_blobs: dict[str, str]) -> None:
+    for path, expected_blob in expected_blobs.items():
+        metadata = str(git(repo, "ls-tree", head, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"missing tree metadata for {path}")
+        _mode, _kind, blob_sha, tree_path = metadata
+        require(tree_path == path and blob_sha == expected_blob, f"blob drift for {path}")
+
+
+def validate_wp2a1_manifest(repo: Path) -> None:
+    manifest = wp2a1_manifest(repo)
+    require(manifest.get("schema") == "studiamatch.f10_9.wp2a1_manifest_continuity.v1", "WP2A.1 schema drift")
+    require(manifest.get("work_package") == "WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX", "WP2A.1 package drift")
+    require(manifest.get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP2A.1 status drift")
+    require(manifest.get("self_blob_sha") is None, "WP2A.1 manifest must not be self-referential")
+    require(manifest.get("wp2a_v1", {}).get("manifest") == WP2A_REBASELINE_MANIFEST, "WP2A v1 manifest reference drift")
+    require(manifest.get("wp2a_v1", {}).get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP2A v1 status drift")
+    require(manifest.get("wp2a_v1", {}).get("executable_use") == "SUPERSEDED_NOT_EXECUTABLE", "WP2A v1 executable-use drift")
+    pr408 = manifest.get("pr408", {})
+    require(pr408.get("status") == "MERGED_POST_MERGE_VERIFIED", "PR #408 status drift")
+    require(pr408.get("candidate_sha") == "ec57d89b19dc29a98083c0ade87c586242e15fbb", "PR #408 candidate drift")
+    require(pr408.get("candidate_tree") == WP2A1_REPOSITORY_FIX_BASE_TREE, "PR #408 candidate tree drift")
+    require(pr408.get("merge_sha") == WP2A1_REPOSITORY_FIX_BASE, "PR #408 merge drift")
+    require(pr408.get("merge_tree") == WP2A1_REPOSITORY_FIX_BASE_TREE, "PR #408 merge tree drift")
+    diagnostic = manifest.get("local_diagnostic_candidate", {})
+    require(diagnostic.get("sha") == "03fae3ee8a9393feb08aeab38968c0c4ee5533f6", "diagnostic candidate drift")
+    require(diagnostic.get("status") == "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE", "diagnostic candidate status drift")
+    require(diagnostic.get("reuse_forbidden") is True, "diagnostic candidate reuse must be forbidden")
+    gates = manifest.get("gates", {})
+    require(gates.get("e2_e6") == "NOT_EXECUTED", "E2-E6 must remain not executed")
+    require(gates.get("next") == "WP2A1_CERTIFICATION_CONTROL_BOOTSTRAP_PREPARATION", "WP2A.1 next gate drift")
+    tracking = manifest.get("tracking_preserved", {})
+    require(tracking.get("hito_1") == "60%", "Hito tracking drift")
+    require(tracking.get("f10_9") == "38%", "F10.9 tracking drift")
+    require(tracking.get("g5") == "50%", "G5 tracking drift")
+    forbidden = manifest.get("forbidden_operations", [])
+    for operation in ("certificacion", "branch_protection", "required_checks", "main", "actions_api", "cloudflare", "github_app", "supabase", "sql", "production", "writers", "schedules", "merge"):
+        require(operation in forbidden, f"forbidden operation missing: {operation}")
+    wp2a1 = manifest.get("wp2a1_certification_control_bootstrap", {})
+    require(wp2a1.get("profile") == "WP2A_1_CERTIFICATION_CONTROL_BOOTSTRAP", "WP2A.1 profile drift")
+    require(wp2a1.get("head_ref") == WP2A1_CERTIFICATION_CONTROL_HEAD_REF, "WP2A.1 head ref drift")
+    require(wp2a1.get("base") == G5_CERTIFICATION_WIRING_BASE, "WP2A.1 certification base drift")
+    require(wp2a1.get("base_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A.1 certification tree drift")
+    require(wp2a1.get("statuses") == WP2A1_CERTIFICATION_CONTROL_STATUSES, "WP2A.1 statuses drift")
+    require(wp2a1.get("modes") == WP2A1_CERTIFICATION_CONTROL_MODES, "WP2A.1 modes drift")
+    require(wp2a1.get("manifest_integrity") == "PRE_MERGE_PROTECTED_BLOB_EQUALITY_POST_MERGE_TREE_CONTINUITY", "WP2A.1 manifest-integrity drift")
+    require(set(wp2a1.get("files", {})) == set(WP2A1_CERTIFICATION_CONTROL_STATUSES), "WP2A.1 files drift")
+    require(set(wp2a1_control_blobs(repo)) == set(WP2A_CERTIFICATION_CONTROL_STATUSES), "WP2A.1 control blob set drift")
+    wp2b = manifest.get("wp2b_certification_trusted_content", {})
+    require(wp2b.get("base") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B must remain unbound")
+    require(wp2b.get("base_tree") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B tree must remain unbound")
+    require(wp2b.get("execution") == "FAIL_CLOSED", "WP2B must remain fail-closed")
+
+
+def validate_wp2a_rebaseline_manifest(repo: Path) -> None:
+    manifest = wp2a_manifest(repo)
+    require(manifest.get("work_package") == "WP2A_STAGED_CERTIFICATION_BOOTSTRAP_REBASELINE", "WP2A manifest package drift")
+    require(manifest.get("status") == "PREPARED_REPOSITORY_ONLY_NOT_EXECUTED", "WP2A manifest status drift")
+    require(manifest.get("wp1", {}).get("status") == "COMPLETED", "WP1 antecedent drift")
+    require(manifest.get("wp1", {}).get("candidate_sha") == "04eafe7bc61dc576f4007313dfd890eba34d3e37", "WP1 candidate drift")
+    require(manifest.get("wp1", {}).get("merge_sha") == WP2A_REBASELINE_BASE, "WP1 merge drift")
+    require(manifest.get("wp1", {}).get("merge_tree") == WP2A_REBASELINE_BASE_TREE, "WP1 merge tree drift")
+    diagnostic = manifest.get("local_diagnostic_candidate", {})
+    require(diagnostic.get("sha") == "f0bd8944d7f1b952c4c327fcfb57c29bbae569d0", "diagnostic candidate drift")
+    require(diagnostic.get("status") == "LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE", "diagnostic candidate status drift")
+    require(diagnostic.get("reuse_forbidden") is True, "diagnostic candidate reuse must be forbidden")
+    require(manifest.get("gates", {}).get("next") == "WP2A_CONTROL_BOOTSTRAP_PREPARATION", "WP2A next gate drift")
+    require(manifest.get("gates", {}).get("e2_e6") == "NOT_EXECUTED", "E2-E6 must remain not executed")
+    require(manifest.get("tracking_preserved", {}).get("hito_1") == "60%", "Hito tracking drift")
+    require(manifest.get("tracking_preserved", {}).get("f10_9") == "38%", "F10.9 tracking drift")
+    require(manifest.get("tracking_preserved", {}).get("g5") == "50%", "G5 tracking drift")
+    require(manifest.get("legacy_manifests", {}).get("mutated") is False, "legacy manifests must remain unchanged")
+    require(manifest.get("legacy_manifests", {}).get("executable_use") == "SUPERSEDED_NOT_EXECUTABLE", "legacy executable status drift")
+    wp2a = manifest.get("wp2a_certification_control_bootstrap", {})
+    require(wp2a.get("profile") == "WP2A_CERTIFICATION_CONTROL_BOOTSTRAP", "WP2A profile drift")
+    require(wp2a.get("head_ref") == WP2A_CERTIFICATION_CONTROL_HEAD_REF, "WP2A head ref drift")
+    require(wp2a.get("validator_authority") == "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE", "WP2A validator authority drift")
+    require(wp2a.get("protected_validator_source") == "origin/desarrollo", "WP2A validator source drift")
+    require(wp2a.get("protected_manifest_source") == "origin/desarrollo", "WP2A manifest source drift")
+    require(wp2a.get("base") == G5_CERTIFICATION_WIRING_BASE, "WP2A certification base drift")
+    require(wp2a.get("base_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A certification tree drift")
+    require(wp2a.get("statuses") == WP2A_CERTIFICATION_CONTROL_STATUSES, "WP2A statuses drift")
+    require(wp2a.get("modes") == WP2A_CERTIFICATION_CONTROL_MODES, "WP2A modes drift")
+    require(set(wp2a.get("files", {})) == set(WP2A_CERTIFICATION_CONTROL_STATUSES), "WP2A files drift")
+    wp2b = manifest.get("wp2b_certification_trusted_content", {})
+    require(wp2b.get("profile") == "WP2B_CERTIFICATION_TRUSTED_CONTENT", "WP2B profile drift")
+    require(wp2b.get("head_ref") == WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF, "WP2B head ref drift")
+    require(wp2b.get("validator_authority") == "PROTECTED_DESARROLLO_ONLY_NOT_CANDIDATE_CODE", "WP2B validator authority drift")
+    require(wp2b.get("protected_validator_source") == "origin/desarrollo", "WP2B validator source drift")
+    require(wp2b.get("protected_manifest_source") == "origin/desarrollo", "WP2B manifest source drift")
+    require(wp2b.get("runtime_base_binding_required_before_execution") is True, "WP2B runtime binding gate drift")
+    require(wp2b.get("statuses") == WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES, "WP2B statuses drift")
+    require(wp2b.get("modes") == WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES, "WP2B modes drift")
+    require({path: entry["blob_sha"] for path, entry in wp2b.get("files", {}).items()} == WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS, "WP2B blob drift")
+    future = manifest.get("future_runtime_binding", {})
+    require(future.get("wp2a_candidate_head_sha") == "REQUIRED_AFTER_PR_CREATION", "WP2A future head must not be invented")
+    require(future.get("wp2a_candidate_tree") == "REQUIRED_AFTER_PR_CREATION", "WP2A future tree must not be invented")
+    require(future.get("wp2b_candidate_head_sha") == "REQUIRED_AFTER_PR_CREATION", "WP2B future head must not be invented")
+    require(future.get("wp2b_candidate_tree") == "REQUIRED_AFTER_PR_CREATION", "WP2B future tree must not be invented")
+
+
+def validate_wp2a_rebaseline(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP2A_REBASELINE_BASE, "unexpected WP2A rebaseline base")
+    require_sha(repo, "WP2A rebaseline base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == WP2A_REBASELINE_BASE_TREE, "WP2A rebaseline base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A rebaseline push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A rebaseline push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A rebaseline must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2A_REBASELINE_ALLOWED_STATUSES, WP2A_REBASELINE_ALLOWED_MODES)
+    validate_wp2a_rebaseline_manifest(repo)
+
+
+def validate_wp2a1_repository_fix(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP2A1_REPOSITORY_FIX_BASE, "unexpected WP2A.1 repository fix base")
+    require_sha(repo, "WP2A.1 repository fix base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == WP2A1_REPOSITORY_FIX_BASE_TREE, "WP2A.1 repository fix base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A.1 repository fix push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A.1 repository fix push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A.1 repository fix must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES, WP2A1_REPOSITORY_FIX_ALLOWED_MODES)
+    validate_wp2a_rebaseline_manifest(repo)
+    validate_wp2a1_manifest(repo)
+
+
+def validate_wp2a1_ci_focused_suite(repo: Path, base: str, head: str, event: str) -> None:
+    require(event in {"pull_request", "push"}, "WP2A.1 CI focused suite event drift")
+    require(base == WP2A1_CI_FOCUSED_SUITE_BASE, "unexpected WP2A.1 CI focused suite base")
+    require_sha(repo, "WP2A.1 CI focused suite base", base)
+    require_sha(repo, "head", head)
+    require(
+        commit_tree(repo, base) == WP2A1_CI_FOCUSED_SUITE_BASE_TREE,
+        "WP2A.1 CI focused suite base tree drift",
+    )
+    candidate_head = head
+    if event == "pull_request":
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP2A.1 CI focused suite PR must be one direct commit",
+        )
+    else:
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "WP2A.1 CI focused suite push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(
+            commit_parents(repo, candidate_head) == [base],
+            "WP2A.1 CI focused suite push candidate must be one direct commit",
+        )
+        require(
+            commit_tree(repo, head) == commit_tree(repo, candidate_head),
+            "WP2A.1 CI focused suite push tree drift",
+        )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        WP2A1_CI_FOCUSED_SUITE_ALLOWED_STATUSES,
+        WP2A1_CI_FOCUSED_SUITE_ALLOWED_MODES,
+    )
+    validate_wp2a1_manifest(repo)
+    require_frozen_blobs(repo, candidate_head, wp2a1_ci_focused_suite_blobs(repo))
+
+
+def validate_wp2a_certification_control_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected WP2A certification base")
+    require_sha(repo, "WP2A certification base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A certification base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A certification push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A certification push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A certification candidate must be one direct commit")
+    require_exact_delta_blobs(
+        repo,
+        base,
+        candidate_head,
+        WP2A_CERTIFICATION_CONTROL_STATUSES,
+        WP2A_CERTIFICATION_CONTROL_MODES,
+        wp2a_control_blobs(repo),
+    )
+
+
+def validate_wp2a1_certification_control_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected WP2A.1 certification base")
+    require_sha(repo, "WP2A.1 certification base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == G5_CERTIFICATION_WIRING_BASE_TREE, "WP2A.1 certification base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2A.1 certification push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2A.1 certification push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2A.1 certification candidate must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2A1_CERTIFICATION_CONTROL_STATUSES, WP2A1_CERTIFICATION_CONTROL_MODES)
+    validate_wp2a1_manifest(repo)
+    for path, expected_blob in wp2a1_control_blobs(repo).items():
+        metadata = str(git(repo, "ls-tree", candidate_head, "--", path)).strip().split(None, 3)
+        require(len(metadata) == 4, f"missing tree metadata for {path}")
+        _mode, _kind, blob_sha, tree_path = metadata
+        require(tree_path == path and blob_sha == expected_blob, f"blob drift for {path}")
+
+
+def validate_wp2b_certification_trusted_content(repo: Path, base: str, head: str, event: str) -> None:
+    wp2b = wp2a_manifest(repo)["wp2b_certification_trusted_content"]
+    expected_base = wp2b.get("base")
+    expected_tree = wp2b.get("base_tree")
+    require(expected_base != "REQUIRED_AFTER_WP2A_MERGE", "WP2B runtime base binding required")
+    require(expected_tree != "REQUIRED_AFTER_WP2A_MERGE", "WP2B runtime tree binding required")
+    require(base == expected_base, "unexpected WP2B certification base")
+    require_sha(repo, "WP2B certification base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == expected_tree, "WP2B certification base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2B certification push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2B certification push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2B certification candidate must be one direct commit")
+    require_exact_delta_blobs(
+        repo,
+        base,
+        candidate_head,
+        WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES,
+        WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES,
+        WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS,
+    )
+
+
+def validate_g5_certification_wiring_bootstrap(repo: Path, base: str, head: str, event: str) -> None:
+    if base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE:
+        expected_tree = G5_CERTIFICATION_WIRING_REPOSITORY_BASE_TREE
+        expected_statuses = G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+    else:
+        require(base == G5_CERTIFICATION_WIRING_BASE, "unexpected G5 certification wiring base")
+        expected_tree = G5_CERTIFICATION_WIRING_BASE_TREE
+        expected_statuses = G5_CERTIFICATION_WIRING_ALLOWED_STATUSES
+    require_sha(repo, "G5 certification wiring base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == expected_tree, "G5 certification wiring base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(
+            len(parents) == 2 and parents[0] == base,
+            "G5 certification wiring push must be a protected merge",
+        )
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "G5 certification wiring merge tree drift")
+    require(
+        commit_parents(repo, candidate_head) == [base],
+        "G5 certification wiring candidate must be one direct commit",
+    )
+    require_exact_delta(
+        repo,
+        base,
+        candidate_head,
+        expected_statuses,
+        G5_CERTIFICATION_WIRING_ALLOWED_MODES,
+    )
+    manifest_path = repo / ".context/operaciones/g5_trusted_check_definitive_promotion_sanitized_2026_08_17.json"
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    manifest = json.loads(manifest_text)
+    workflow = (repo / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
+    for forbidden in G5_CERTIFICATION_WIRING_FORBIDDEN_MARKERS:
+        require(forbidden not in workflow, "G5 certification wiring workflow forbidden capability")
+    for required in (
+        G5_PR401_STATUS,
+        G5_PR401_CANDIDATE,
+        G5_PR401_MERGE,
+        G5_PR401_TREE,
+        G5_CERTIFICATION_WIRING_STATUS,
+        G5_CERTIFICATION_BOOTSTRAP_FREEZE_E2_STOP,
+        G5_CERTIFICATION_WIRING_BASE,
+        G5_CERTIFICATION_WIRING_BASE_TREE,
+        G5_CERTIFICATION_WIRING_HEAD_REF,
+        "32035019827",
+        "95403467690",
+        "32035020120",
+        "95403550219",
+        "95403297024",
+        "95403296944",
+        "BK-F10.9-G5-ATOMIC-AUTHORITY",
+        "CA_ORIGINAL_PASS_CORRECTIVE_ACCEPTANCE_PENDING",
+        "NOT_READY",
+    ):
+        require(required in manifest_text, "G5 certification wiring manifest evidence drift")
+    extensions = manifest.get("future_probe", {})
+    require(isinstance(extensions, dict), "G5 PR S future_probe extension drift")
+    pr401 = extensions.get("pr_401_reconciliation", {})
+    require(pr401.get("candidate_sha") == G5_PR401_CANDIDATE, "G5 PR S PR401 candidate drift")
+    require(pr401.get("base_sha") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR S PR401 base drift")
+    require(pr401.get("merge_sha") == G5_PR401_MERGE, "G5 PR S PR401 merge drift")
+    require(pr401.get("tree_sha") == G5_PR401_TREE, "G5 PR S PR401 tree drift")
+    require(pr401.get("status") == G5_PR401_STATUS, "G5 PR S PR401 status drift")
+    require(pr401.get("security_run_id") == "32035019827", "G5 PR S PR401 security run drift")
+    require(pr401.get("security_attempt") == 1, "G5 PR S PR401 security attempt drift")
+    require(pr401.get("security_audit_job_id") == "95403467690", "G5 PR S PR401 security-audit drift")
+    require(pr401.get("f9_7_run_id") == "32035020120", "G5 PR S PR401 F9.7 run drift")
+    require(pr401.get("f9_7_attempt") == 1, "G5 PR S PR401 F9.7 attempt drift")
+    require(pr401.get("f9_7_job_id") == "95403550219", "G5 PR S PR401 F9.7 job drift")
+    require(pr401.get("focused_g5_job_id") == "95403297024", "G5 PR S PR401 focused drift")
+    require(pr401.get("m3_job_id") == "95403296944", "G5 PR S PR401 M3 drift")
+    promotion = manifest.get("definitive_promotion", manifest)
+    require(promotion.get("source_commit") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE, "G5 PR S promotion source commit drift")
+    require(promotion.get("source_tree") == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE_TREE, "G5 PR S promotion source tree drift")
+    require(promotion.get("expected_files") == G5_DEFINITIVE_PROMOTION_FILES, "G5 PR S promotion files drift")
+    validate_g5_definitive_promotion_source(repo)
+    wiring = extensions.get("certification_wiring_bootstrap", {})
+    require(wiring.get("status") == G5_CERTIFICATION_WIRING_STATUS, "G5 certification wiring status drift")
+    require(wiring.get("certification_base") == G5_CERTIFICATION_WIRING_BASE, "G5 certification wiring base drift")
+    require(wiring.get("certification_base_tree") == G5_CERTIFICATION_WIRING_BASE_TREE, "G5 certification wiring base tree drift")
+    require(wiring.get("head_ref") == G5_CERTIFICATION_WIRING_HEAD_REF, "G5 certification wiring head ref drift")
+    require(wiring.get("allowed_delta") == G5_CERTIFICATION_WIRING_ALLOWED_STATUSES, "G5 certification wiring delta drift")
+    require(wiring.get("allowed_modes") == G5_CERTIFICATION_WIRING_ALLOWED_MODES, "G5 certification wiring mode drift")
+    require(wiring.get("candidate_commits") == "EXACTLY_ONE_DIRECT_COMMIT", "G5 certification wiring commit drift")
+    require(wiring.get("authority") == "PROTECTED_BASE_ONLY_NOT_CANDIDATE_CODE", "G5 certification wiring authority drift")
+    require(wiring.get("reject") == ["forks", "renames", "paths_extra", "mode_drift", "base_drift", "tree_drift", "multiple_commits", "candidate_code_authority"], "G5 certification wiring rejection drift")
+    validate_g5_control_plane_exception_payload(extensions.get("control_plane_exception", {}))
+
+
+def detect_mode(
+    event: str,
+    base_ref: str,
+    head_ref: str,
+    base: str,
+    p1_base: str = "",
+    p2_base: str = "",
+    g2_base: str = "",
+    p5_base: str = "",
+    f1010_m1_base: str = "",
+) -> str:
     if base_ref == "certificacion" and base == CERT_BASE:
         return "cert"
     if base_ref == "desarrollo" and base == DEV_BASE:
         return "dev"
-    if base_ref == "desarrollo" and p1_base and base == p1_base and (
-        event == "push" or head_ref == P1_HEAD_REF
+    if base_ref == "desarrollo" and base == POST_R0_DEV_BASE and (
+        event == "push" or head_ref == WIRING_HEAD_REF
     ):
+        return "wiring"
+    if base_ref == "desarrollo" and base == POST_P1_DEV_BASE and (
+        event == "push" or head_ref == P2_WIRING_HEAD_REF
+    ):
+        return "p2_wiring"
+    if base_ref == "desarrollo" and base == POST_P2_DEV_BASE and (
+        event == "push" or head_ref == G2_WIRING_HEAD_REF
+    ):
+        return "g2_wiring"
+    if base_ref == "desarrollo" and base == POST_G2_DEV_BASE and (
+        event == "push" or head_ref == P5_WIRING_HEAD_REF
+    ):
+        return "p5_wiring"
+    if base_ref == "desarrollo" and base == F1010_M2A_BASE and (
+        event == "push" or head_ref == F1010_M2A_HEAD_REF
+    ):
+        return "f1010_m2a"
+    if base_ref == "desarrollo" and base == F1010_M3_BASE and (
+        event == "push" or head_ref == F1010_M3_HEAD_REF
+    ):
+        return "f1010_m3"
+    if base_ref == "desarrollo" and base == F1010_M3_READER_BASE and (
+        event == "push" or head_ref == F1010_M3_READER_HEAD_REF
+    ):
+        return "f1010_m3_reader"
+    if base_ref == "desarrollo" and base == F1010_M3_READER_POST_MERGE_BASE and (
+        event == "push" or head_ref == F1010_M3_READER_POST_MERGE_HEAD_REF
+    ):
+        return "f1010_m3_reader_post_merge"
+    if base_ref == "desarrollo" and base == F1010_M3_ROTATION_BASE and (
+        event == "push" or head_ref == F1010_M3_ROTATION_HEAD_REF
+    ):
+        return "f1010_m3_rotation"
+    if base_ref == "desarrollo" and base == F1010_M3_PASSWORDLESS_BASE and (
+        event == "push" or head_ref == F1010_M3_PASSWORDLESS_HEAD_REF
+    ):
+        return "f1010_m3_passwordless"
+    if base_ref == "desarrollo" and base == F1010_M3_PREFLIGHT_PAYLOAD_BASE and (
+        event == "push" or head_ref == F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF
+    ):
+        return "f1010_m3_preflight_payload"
+    if base_ref == "desarrollo" and base == F1010_M3_PREFLIGHT_EVIDENCE_BASE and (
+        event == "push" or head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF
+    ):
+        return "f1010_m3_preflight_evidence"
+    if base_ref == "desarrollo" and base == F1010_M3_FINAL_READINESS_BASE and (
+        event == "push" or head_ref == F1010_M3_FINAL_READINESS_HEAD_REF
+    ):
+        return "f1010_m3_final_readiness"
+    if base_ref == "desarrollo" and base == F1010_M3_APPLY_PROJECTION_BASE and (
+        event == "push" or head_ref == F1010_M3_APPLY_PROJECTION_HEAD_REF
+    ):
+        return "f1010_m3_apply_projection"
+    if base_ref == "desarrollo" and base == F1010_M3_DDL_PAYLOAD_BASE and (
+        event == "push" or head_ref == F1010_M3_DDL_PAYLOAD_HEAD_REF
+    ):
+        return "f1010_m3_ddl_payload"
+    if base_ref == "desarrollo" and base == F1010_M3_DDL_PAYLOAD_REFRESH_BASE and (
+        event == "push" or head_ref == F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF
+    ):
+        return "f1010_m3_ddl_payload_refresh"
+    if base_ref == "desarrollo" and base == F1010_M3_NULLABILITY_REMEDIATION_BASE and (
+        event == "push" or head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF
+    ):
+        return "f1010_m3_nullability_remediation"
+    if base_ref == "desarrollo" and base == F1010_M3_DDL_V2_PAYLOAD_BASE and (
+        event == "push" or head_ref == F1010_M3_DDL_V2_PAYLOAD_HEAD_REF
+    ):
+        return "f1010_m3_ddl_v2_payload"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_REBASELINE_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_REBASELINE_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_rebaseline"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_V2_PAYLOAD_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V2_PAYLOAD_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_v2_payload"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_V3_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V3_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_v3"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_V3_BOUND_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_v3_bound"
+    if base_ref == "desarrollo" and base == F1010_M3_PUBLIC_ACL_PREFLIGHT_BASE and (
+        event == "push" or head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF
+    ):
+        return "f1010_m3_public_acl_preflight"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_preflight_post_merge"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_private_preflight_v2_payload"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE
+        and (
+            event == "push"
+            or head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+        )
+    ):
+        return "f1010_m3_public_acl_post_merge_harness"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_BASE
+        and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF)
+    ):
+        return "f1010_m3_public_acl_v2_evidence"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_H1_CA1_REBASELINE_BASE
+        and (event == "push" or head_ref == F1010_H1_CA1_REBASELINE_HEAD_REF)
+    ):
+        return "f1010_h1_ca1_rebaseline"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_PRODUCTION_READONLY_BASE
+        and (event == "push" or head_ref == G5_PRODUCTION_READONLY_HEAD_REF)
+    ):
+        return "g5_production_readonly"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_V2_ATTRIBUTION_BASE
+        and (event == "push" or head_ref == G5_V2_ATTRIBUTION_HEAD_REF)
+    ):
+        return "g5_v2_attribution"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_V2_POST_MERGE_BASE
+        and (event == "push" or head_ref == G5_V2_POST_MERGE_HEAD_REF)
+    ):
+        return "g5_v2_post_merge"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_GET_ONLY_ADAPTER_BASE
+        and (event == "push" or head_ref == G5_GET_ONLY_ADAPTER_HEAD_REF)
+    ):
+        return "g5_get_only_adapter"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_OPERATIONAL_RUNBOOK_BASE
+        and (event == "push" or head_ref == G5_OPERATIONAL_RUNBOOK_HEAD_REF)
+    ):
+        return "g5_operational_runbook"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_E1_HARDENING_BASE
+        and (event == "push" or head_ref == G5_E1_HARDENING_HEAD_REF)
+    ):
+        return "g5_e1_hardening"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_E1_WRANGLER_COMPAT_BASE
+        and (event == "push" or head_ref == G5_E1_WRANGLER_COMPAT_HEAD_REF)
+    ):
+        return "g5_e1_wrangler_compat"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_TRUST_LIVE_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_trust_live_remediation"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_GITHUB_RUNTIME_SCHEMA_BASE
+        and (event == "push" or head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF)
+    ):
+        return "g5_github_runtime_schema"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_security_remediation"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_RESIDUAL_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_residual_security_remediation"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_FOLLOWUP_SECURITY_REMEDIATION_BASE
+        and (event == "push" or head_ref == G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF)
+    ):
+        return "g5_followup_security_remediation"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_TRUSTED_BOUNDARY_BOOTSTRAP_BASE
+        and (event == "push" or head_ref == G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF)
+    ):
+        return "g5_trusted_boundary_bootstrap"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_TRUSTED_BOUNDARY_HARDENING_BASE
+        and (event == "push" or head_ref == G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF)
+    ):
+        return "g5_trusted_boundary_hardening"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_LINK_HARDENING_CLOSURE_BASE
+        and (event == "push" or head_ref == G5_LINK_HARDENING_CLOSURE_HEAD_REF)
+    ):
+        return "g5_link_hardening_closure"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_BASE
+        and (event == "push" or head_ref == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF)
+    ):
+        return "g5_default_branch_trusted_workflow_registration"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_CERTIFICATION_WIRING_REPOSITORY_BASE
+        and (event == "push" or head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF)
+    ):
+        return "g5_certification_wiring_bootstrap"
+    if (
+        base_ref == "desarrollo"
+        and base == G5_CERTIFICATION_BOOTSTRAP_FREEZE_BASE
+        and (event == "push" or head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF)
+    ):
+        return "g5_certification_bootstrap_freeze"
+    if (
+        base_ref == "desarrollo"
+        and base == WP0_TRUSTED_CONTENT_BINDING_BASE
+        and head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF
+    ):
+        return "wp0_trusted_content_binding"
+    if (
+        base_ref == "desarrollo"
+        and base == WP0_POST_MERGE_BOUNDARY_V2_BASE
+        and (event == "push" or head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF)
+    ):
+        return "wp0_post_merge_boundary_v2"
+    if (
+        base_ref == "desarrollo"
+        and base == WP1_TRUSTED_PROMOTION_REFREEZE_BASE
+        and (event == "push" or head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF)
+    ):
+        return "wp1_trusted_promotion_refreeze"
+    if (
+        base_ref == "desarrollo"
+        and base == WP2A_REBASELINE_BASE
+        and (event == "push" or head_ref == WP2A_REBASELINE_HEAD_REF)
+    ):
+        return "wp2a_rebaseline"
+    if (
+        base_ref == "desarrollo"
+        and base == WP2A1_REPOSITORY_FIX_BASE
+        and (event == "push" or head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF)
+    ):
+        return "wp2a1_repository_fix"
+    if (
+        base_ref == "desarrollo"
+        and base == WP2A1_CI_FOCUSED_SUITE_BASE
+        and (
+            (event == "pull_request" and head_ref == WP2A1_CI_FOCUSED_SUITE_HEAD_REF)
+            or event == "push"
+        )
+    ):
+        return "wp2a1_ci_focused_suite"
+    if (
+        base_ref == "certificacion"
+        and base == G5_CERTIFICATION_WIRING_BASE
+        and event == "pull_request"
+        and head_ref == WP2A1_CERTIFICATION_CONTROL_HEAD_REF
+    ):
+        return "wp2a1_certification_control_bootstrap"
+    if (
+        base_ref == "certificacion"
+        and event == "pull_request"
+        and head_ref == WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF
+    ):
+        return "wp2b_certification_trusted_content"
+    if (
+        base_ref == "certificacion"
+        and base == G5_CERTIFICATION_WIRING_BASE
+        and event == "pull_request"
+        and head_ref == G5_CERTIFICATION_WIRING_HEAD_REF
+    ):
+        return "g5_certification_wiring_bootstrap"
+    if (
+        base_ref == "desarrollo"
+        and base == F1010_M3_PUBLIC_ACL_FINAL_READINESS_BASE
+        and (event == "push" or head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF)
+    ):
+        return "f1010_m3_public_acl_final_readiness"
+    if event == "pull_request" and base_ref == "desarrollo" and p1_base and base == p1_base and head_ref == P1_HEAD_REF:
         return "p1"
+    if event == "pull_request" and base_ref == "desarrollo" and p2_base and base == p2_base and head_ref == P2_HEAD_REF:
+        return "p2"
+    if event == "pull_request" and base_ref == "desarrollo" and g2_base and base == g2_base and head_ref == G2_HEAD_REF:
+        return "g2"
+    if event == "pull_request" and base_ref == "desarrollo" and p5_base and base == p5_base and head_ref == P5_HEAD_REF:
+        return "p5"
+    if (
+        event == "pull_request"
+        and base_ref == "desarrollo"
+        and f1010_m1_base
+        and base == f1010_m1_base
+        and head_ref == F1010_M1_HEAD_REF
+    ):
+        return "f1010_m1"
     return "skip"
+
+
+def emit_mode(mode: str, github_output: str) -> None:
+    print(f"F10.9 boundary passed: mode={mode}")
+    if github_output:
+        with Path(github_output).open("a", encoding="utf-8") as output:
+            output.write(f"mode={mode}\n")
 
 
 def parse_args() -> argparse.Namespace:
@@ -346,6 +7254,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--head-repo", required=True)
     parser.add_argument("--cert-tip", default="")
     parser.add_argument("--p1-base", default="")
+    parser.add_argument("--p1-base-tree", default="")
+    parser.add_argument("--p2-base", default="")
+    parser.add_argument("--p2-base-tree", default="")
+    parser.add_argument("--g2-base", default="")
+    parser.add_argument("--g2-base-tree", default="")
+    parser.add_argument("--p5-base", default="")
+    parser.add_argument("--p5-base-tree", default="")
+    parser.add_argument("--f1010-m1-base", default="")
+    parser.add_argument("--f1010-m1-base-tree", default="")
+    parser.add_argument("--github-output", default="")
     return parser.parse_args()
 
 
@@ -353,16 +7271,891 @@ def main() -> int:
     args = parse_args()
     try:
         require(args.base_repo == args.head_repo, "F10.9 boundary requires the same repository")
-        mode = detect_mode(args.event, args.base_ref, args.head_ref, args.base_sha, args.p1_base)
+        mode = detect_mode(
+            args.event,
+            args.base_ref,
+            args.head_ref,
+            args.base_sha,
+            args.p1_base,
+            args.p2_base,
+            args.g2_base,
+            getattr(args, "p5_base", ""),
+            getattr(args, "f1010_m1_base", ""),
+        )
+        if mode == "skip" and args.base_ref == "certificacion":
+            actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
+            if actual == WP2A1_CERTIFICATION_CONTROL_STATUSES:
+                require(
+                    (args.event == "pull_request" and args.head_ref == WP2A1_CERTIFICATION_CONTROL_HEAD_REF)
+                    or (args.event == "push" and args.head_ref == "certificacion"),
+                    "WP2A.1 certification control requires the canonical head ref or protected certification push",
+                )
+                mode = "wp2a1_certification_control_bootstrap"
+            elif actual == WP2A_CERTIFICATION_CONTROL_STATUSES:
+                require(args.head_ref != WP2A_CERTIFICATION_CONTROL_HEAD_REF, "WP2A v1 certification head ref is superseded")
+                require(
+                    (args.event == "pull_request" and args.head_ref == WP2A_CERTIFICATION_CONTROL_HEAD_REF)
+                    or (args.event == "push" and args.head_ref == "certificacion"),
+                    "WP2A certification control requires the canonical head ref or protected certification push",
+                )
+                mode = "wp2a_certification_control_bootstrap"
+            elif actual == WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES:
+                require(
+                    (args.event == "pull_request" and args.head_ref == WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF)
+                    or (args.event == "push" and args.head_ref == "certificacion"),
+                    "WP2B certification trusted content requires the canonical head ref or protected certification push",
+                )
+                mode = "wp2b_certification_trusted_content"
+            elif actual == G5_CERTIFICATION_WIRING_ALLOWED_STATUSES:
+                mode = "g5_certification_wiring_bootstrap"
+            else:
+                require(False, "certification delta does not match an exact F10.9 profile")
+        if mode == "skip" and args.base_ref == "desarrollo":
+            if args.event == "pull_request" and args.head_ref == WIRING_HEAD_REF:
+                raise BoundaryError("P1 wiring branch requires the frozen post-R0 baseline")
+            if args.event == "pull_request" and args.head_ref == P1_HEAD_REF:
+                raise BoundaryError("P1 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == P2_WIRING_HEAD_REF:
+                raise BoundaryError("P2 wiring branch requires the frozen post-P1 baseline")
+            if args.event == "pull_request" and args.head_ref == P2_HEAD_REF:
+                raise BoundaryError("P2 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == G2_WIRING_HEAD_REF:
+                raise BoundaryError("G2 wiring branch requires the frozen post-P2 baseline")
+            if args.event == "pull_request" and args.head_ref == G2_HEAD_REF:
+                raise BoundaryError("G2 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == P5_WIRING_HEAD_REF:
+                raise BoundaryError("P5 wiring branch requires the frozen post-G2 baseline")
+            if args.event == "pull_request" and args.head_ref == P5_HEAD_REF:
+                raise BoundaryError("P5 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M2A_HEAD_REF:
+                raise BoundaryError("F10.10 M2a wiring branch requires its frozen baseline")
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_H1_CA1_REBASELINE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 Hito 1 CA1 rebaseline branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_PRODUCTION_READONLY_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 Production read-only branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_V2_ATTRIBUTION_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 v2 attribution branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_V2_POST_MERGE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 v2 post-merge branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_GET_ONLY_ADAPTER_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 GET-only adapter contract branch requires its frozen baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == G5_OPERATIONAL_RUNBOOK_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "G5 PR E runbook branch requires the frozen PR #387 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_E1_HARDENING_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR F E1 hardening branch requires the frozen PR #388 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_E1_WRANGLER_COMPAT_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR G Wrangler compat branch requires the frozen PR #389 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR H trust live remediation branch requires the frozen PR #390 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR I GitHub runtime schema branch requires the frozen PR #391 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR J security remediation branch requires the frozen PR #392 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_RESIDUAL_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR K residual security remediation branch requires the frozen PR #393 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_FOLLOWUP_SECURITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR L followup security remediation branch requires the frozen PR #394 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR M trusted boundary bootstrap branch requires the frozen PR #395 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_LINK_HARDENING_CLOSURE_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR N Link hardening closure branch requires the frozen PR #397 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_DEFAULT_BRANCH_TRUSTED_WORKFLOW_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR O default-branch trusted workflow branch requires the frozen PR #398 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR S certification wiring branch requires the frozen PR #401 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF:
+                raise BoundaryError(
+                    "G5 PR T certification bootstrap freeze branch requires the frozen PR #402 merge baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF:
+                raise BoundaryError(
+                    "WP0 trusted content binding branch requires the frozen source baseline"
+                )
+            if args.event == "pull_request" and args.head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF:
+                raise BoundaryError("WP0 V2 branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF:
+                raise BoundaryError("WP1 trusted promotion refreeze branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF:
+                raise BoundaryError("WP2A.1 repository fix branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
+                raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
+                raise BoundaryError("F10.10 M3 branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_READER_HEAD_REF:
+                raise BoundaryError("F10.10 M3 reader branch requires the frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_READER_POST_MERGE_HEAD_REF:
+                raise BoundaryError("F10.10 M3 reader post-merge branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_ROTATION_HEAD_REF:
+                raise BoundaryError("F10.10 M3 rotation branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PASSWORDLESS_HEAD_REF:
+                raise BoundaryError("F10.10 M3 passwordless binding branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF:
+                raise BoundaryError("F10.10 M3 preflight payload branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF:
+                raise BoundaryError("F10.10 M3 preflight evidence branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_FINAL_READINESS_HEAD_REF:
+                raise BoundaryError("F10.10 M3 final readiness branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_APPLY_PROJECTION_HEAD_REF:
+                raise BoundaryError("F10.10 M3 apply projection branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_DDL_PAYLOAD_HEAD_REF:
+                raise BoundaryError("F10.10 M3 DDL payload branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_DDL_PAYLOAD_REFRESH_HEAD_REF:
+                raise BoundaryError("F10.10 M3 DDL payload refresh branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_NULLABILITY_REMEDIATION_HEAD_REF:
+                raise BoundaryError("F10.10 M3 nullability remediation branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF:
+                raise BoundaryError("F10.10 M3 PUBLIC ACL v3 bound branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF:
+                raise BoundaryError("F10.10 M3 PUBLIC ACL preflight branch requires its frozen protected desarrollo baseline")
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL preflight post-merge branch requires its frozen protected desarrollo baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL private preflight v2 payload branch requires its frozen protected desarrollo baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL post-merge harness branch requires its frozen protected desarrollo baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL v2 evidence branch requires its frozen protected desarrollo baseline"
+                )
+            if (
+                args.event == "pull_request"
+                and args.head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF
+            ):
+                raise BoundaryError(
+                    "F10.10 M3 PUBLIC ACL final readiness branch requires its frozen protected desarrollo baseline"
+                )
+            actual = changed_statuses(args.repo, args.base_sha, args.head_sha)
+            if (
+                args.event == "push"
+                and args.base_ref == "desarrollo"
+                and args.base_sha == WP0_TRUSTED_CONTENT_BINDING_BASE
+                and args.head_sha == WP0_TRUSTED_CONTENT_BINDING_MERGE
+            ):
+                validate_wp0_trusted_content_binding_historical_push(
+                    args.repo, args.base_sha, args.head_sha, args.event,
+                )
+                emit_mode("wp0_trusted_content_binding_historical_push", args.github_output)
+                return 0
+            if (
+                args.base_ref == "desarrollo"
+                and args.base_sha == WP0_POST_MERGE_BOUNDARY_V2_BASE
+                and actual == WP0_POST_MERGE_BOUNDARY_V2_ALLOWED_STATUSES
+                and (args.event == "push" or args.head_ref == WP0_POST_MERGE_BOUNDARY_V2_HEAD_REF)
+            ):
+                validate_wp0_post_merge_boundary_v2(
+                    args.repo, args.base_sha, args.head_sha, args.event,
+                )
+                emit_mode("wp0_post_merge_boundary_v2", args.github_output)
+                return 0
+            touched_p1 = set(actual).intersection(P1_ALLOWED_STATUSES)
+            touched_p2 = set(actual).intersection(P2_ALLOWED_STATUSES)
+            touched_g2 = set(actual).intersection(G2_ALLOWED_STATUSES)
+            touched_p5 = set(actual).intersection(P5_ALLOWED_STATUSES)
+            touched_f1010_m1 = set(actual).intersection(F1010_M1_ALLOWED_STATUSES)
+            touched_f1010_m3 = set(actual).intersection(F1010_M3_ALLOWED_STATUSES)
+            touched_f1010_m3_reader = set(actual).intersection(F1010_M3_READER_ALLOWED_STATUSES)
+            touched_f1010_m3_rotation = set(actual).intersection(F1010_M3_ROTATION_ALLOWED_STATUSES)
+            touched_f1010_m3_preflight_payload = set(actual).intersection(
+                F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES
+            )
+            touched_f1010_m3_preflight_evidence = set(actual).intersection(
+                F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES
+            )
+            touched_f1010_m3_public_acl_v3_bound = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES
+            )
+            touched_f1010_m3_public_acl_preflight = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES
+            )
+            touched_f1010_m3_public_acl_preflight_post_merge = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_TRIGGER_PATHS
+            )
+            touched_f1010_m3_public_acl_private_preflight_v2_payload = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_TRIGGER_PATHS
+            )
+            touched_f1010_m3_public_acl_post_merge_harness = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_TRIGGER_PATHS
+            )
+            touched_f1010_m3_public_acl_v2_evidence = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_V2_EVIDENCE_TRIGGER_PATHS
+            )
+            touched_f1010_m3_public_acl_final_readiness = set(actual).intersection(
+                F1010_M3_PUBLIC_ACL_FINAL_READINESS_TRIGGER_PATHS
+            )
+            touched_g5_trust_live_remediation = set(actual).intersection(
+                G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES
+            )
+            touched_g5_github_runtime_schema = set(actual).intersection(
+                G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES
+            )
+            touched_g5_security_remediation = set(actual).intersection(
+                G5_SECURITY_REMEDIATION_ALLOWED_STATUSES
+            )
+            touched_g5_trusted_boundary_bootstrap = set(actual).intersection(
+                G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES
+            )
+            touched_g5_trusted_boundary_hardening = set(actual).intersection(
+                G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES
+            )
+            touched_g5_certification_wiring = set(actual).intersection(
+                G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES
+            )
+            touched_g5_certification_bootstrap_freeze = set(actual).intersection(
+                G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES
+            )
+            touched_wp0_trusted_content_binding = set(actual).intersection(
+                WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES
+            )
+            touched_wp1_trusted_promotion_refreeze = set(actual).intersection(
+                WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES
+            )
+            touched_wp2a_rebaseline = set(actual).intersection(
+                WP2A_REBASELINE_ALLOWED_STATUSES
+            )
+            if touched_wp2a_rebaseline:
+                touched_g5_certification_wiring = set()
+                touched_wp1_trusted_promotion_refreeze = set()
+            if touched_wp1_trusted_promotion_refreeze:
+                touched_g5_certification_wiring = set()
+                touched_g5_certification_bootstrap_freeze = set()
+                touched_wp0_trusted_content_binding = set()
+            if touched_wp0_trusted_content_binding:
+                touched_g5_trusted_boundary_hardening = set()
+            if touched_g5_certification_bootstrap_freeze:
+                touched_g5_certification_wiring = set()
+            if touched_f1010_m3_public_acl_final_readiness:
+                touched_f1010_m3_public_acl_preflight = set()
+            if touched_f1010_m3_public_acl_v2_evidence:
+                touched_f1010_m3_public_acl_preflight = set()
+            if (
+                touched_f1010_m3_public_acl_post_merge_harness
+                and args.base_sha == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_BASE
+            ):
+                touched_f1010_m3_public_acl_preflight = set()
+            else:
+                touched_f1010_m3_public_acl_post_merge_harness = set()
+            if touched_f1010_m3_public_acl_private_preflight_v2_payload:
+                touched_f1010_m3_public_acl_preflight = set()
+                touched_f1010_m3_public_acl_preflight_post_merge = set()
+            if touched_f1010_m3_public_acl_preflight_post_merge:
+                touched_f1010_m3_public_acl_preflight = set()
+            require(
+                sum(
+                    bool(surface)
+                    for surface in (
+                        touched_p1,
+                        touched_p2,
+                        touched_g2,
+                        touched_p5,
+                        touched_f1010_m1,
+                        touched_f1010_m3,
+                        touched_f1010_m3_reader,
+                        touched_f1010_m3_rotation,
+                        touched_f1010_m3_preflight_payload,
+                        touched_f1010_m3_preflight_evidence,
+                        touched_f1010_m3_public_acl_v3_bound,
+                        touched_f1010_m3_public_acl_preflight,
+                        touched_f1010_m3_public_acl_preflight_post_merge,
+                        touched_f1010_m3_public_acl_private_preflight_v2_payload,
+                        touched_f1010_m3_public_acl_post_merge_harness,
+                        touched_f1010_m3_public_acl_v2_evidence,
+                        touched_f1010_m3_public_acl_final_readiness,
+                        touched_g5_trust_live_remediation,
+                        touched_g5_github_runtime_schema,
+                        touched_g5_security_remediation,
+                        touched_g5_trusted_boundary_bootstrap,
+                        touched_g5_trusted_boundary_hardening,
+                        touched_g5_certification_wiring,
+                        touched_g5_certification_bootstrap_freeze,
+                        touched_wp0_trusted_content_binding,
+                        touched_wp1_trusted_promotion_refreeze,
+                        touched_wp2a_rebaseline,
+                    )
+                )
+                <= 1,
+                "F10.9 and F10.10 protected surfaces cannot share a candidate",
+            )
+            if touched_p1:
+                require(args.head_ref == P1_HEAD_REF or args.event == "push", "P1 paths require the protected P1 branch")
+                require(actual == P1_ALLOWED_STATUSES, "partial or expanded P1 delta is forbidden")
+                mode = "p1"
+            elif touched_p2:
+                require(args.head_ref == P2_HEAD_REF or args.event == "push", "P2 paths require the protected P2 branch")
+                require(actual == P2_ALLOWED_STATUSES, "partial or expanded P2 delta is forbidden")
+                mode = "p2"
+            elif touched_g2:
+                require(args.head_ref == G2_HEAD_REF or args.event == "push", "G2 paths require the protected G2 branch")
+                require(actual == G2_ALLOWED_STATUSES, "partial or expanded G2 delta is forbidden")
+                mode = "g2"
+            elif touched_p5:
+                require(args.head_ref == P5_HEAD_REF or args.event == "push", "P5 paths require the protected P5 branch")
+                require(actual == P5_ALLOWED_STATUSES, "partial or expanded P5 delta is forbidden")
+                mode = "p5"
+            elif touched_f1010_m1:
+                require(
+                    args.head_ref == F1010_M1_HEAD_REF or args.event == "push",
+                    "F10.10 M1 paths require the protected M1 branch",
+                )
+                require(
+                    actual == F1010_M1_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M1 delta is forbidden",
+                )
+                mode = "f1010_m1"
+            elif touched_f1010_m3_rotation:
+                require(
+                    args.head_ref == F1010_M3_ROTATION_HEAD_REF or args.event == "push",
+                    "F10.10 M3 rotation paths require the protected rotation branch",
+                )
+                require(
+                    actual == F1010_M3_ROTATION_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 rotation delta is forbidden",
+                )
+                mode = "f1010_m3_rotation"
+            elif touched_f1010_m3_preflight_payload:
+                require(
+                    args.head_ref == F1010_M3_PREFLIGHT_PAYLOAD_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 preflight payload paths require the protected payload branch",
+                )
+                require(
+                    actual == F1010_M3_PREFLIGHT_PAYLOAD_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 preflight payload delta is forbidden",
+                )
+                mode = "f1010_m3_preflight_payload"
+            elif touched_f1010_m3_preflight_evidence:
+                require(
+                    args.head_ref == F1010_M3_PREFLIGHT_EVIDENCE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 preflight evidence paths require the protected evidence branch",
+                )
+                require(
+                    actual == F1010_M3_PREFLIGHT_EVIDENCE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 preflight evidence delta is forbidden",
+                )
+                mode = "f1010_m3_preflight_evidence"
+            elif touched_f1010_m3_public_acl_v3_bound:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_V3_BOUND_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL v3 bound paths require the protected binding branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_V3_BOUND_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL v3 bound delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_v3_bound"
+            elif touched_f1010_m3_public_acl_preflight:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL preflight paths require the protected preflight branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_PREFLIGHT_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL preflight delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_preflight"
+            elif touched_f1010_m3_public_acl_preflight_post_merge:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL preflight post-merge paths require the protected post-merge branch",
+                )
+                require(
+                    actual
+                    == F1010_M3_PUBLIC_ACL_PREFLIGHT_POST_MERGE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL preflight post-merge delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_preflight_post_merge"
+            elif touched_f1010_m3_public_acl_private_preflight_v2_payload:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL private preflight v2 payload paths require the protected payload branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_PRIVATE_PREFLIGHT_V2_PAYLOAD_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL private preflight v2 payload delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_private_preflight_v2_payload"
+            elif touched_f1010_m3_public_acl_post_merge_harness:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL post-merge harness paths require the protected harness branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_POST_MERGE_HARNESS_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL post-merge harness delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_post_merge_harness"
+            elif touched_f1010_m3_public_acl_v2_evidence:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL v2 evidence paths require the protected evidence branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_V2_EVIDENCE_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL v2 evidence delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_v2_evidence"
+            elif touched_f1010_m3_public_acl_final_readiness:
+                require(
+                    args.head_ref == F1010_M3_PUBLIC_ACL_FINAL_READINESS_HEAD_REF
+                    or args.event == "push",
+                    "F10.10 M3 PUBLIC ACL final readiness paths require the protected readiness branch",
+                )
+                require(
+                    actual == F1010_M3_PUBLIC_ACL_FINAL_READINESS_ALLOWED_STATUSES,
+                    "partial or expanded F10.10 M3 PUBLIC ACL final readiness delta is forbidden",
+                )
+                mode = "f1010_m3_public_acl_final_readiness"
+            elif touched_g5_trust_live_remediation:
+                require(
+                    args.head_ref == G5_TRUST_LIVE_REMEDIATION_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR H paths require the protected trust live remediation branch",
+                )
+                require(
+                    actual == G5_TRUST_LIVE_REMEDIATION_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR H delta is forbidden",
+                )
+                mode = "g5_trust_live_remediation"
+            elif touched_g5_github_runtime_schema:
+                require(
+                    args.head_ref == G5_GITHUB_RUNTIME_SCHEMA_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR I paths require the protected GitHub runtime schema branch",
+                )
+                require(
+                    actual == G5_GITHUB_RUNTIME_SCHEMA_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR I delta is forbidden",
+                )
+                mode = "g5_github_runtime_schema"
+            elif touched_g5_security_remediation:
+                require(
+                    args.head_ref == G5_SECURITY_REMEDIATION_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR J paths require the protected security remediation branch",
+                )
+                require(
+                    actual == G5_SECURITY_REMEDIATION_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR J delta is forbidden",
+                )
+                mode = "g5_security_remediation"
+            elif touched_g5_trusted_boundary_bootstrap:
+                require(
+                    args.head_ref == G5_TRUSTED_BOUNDARY_BOOTSTRAP_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR M paths require the protected trusted boundary bootstrap branch",
+                )
+                require(
+                    actual == G5_TRUSTED_BOUNDARY_BOOTSTRAP_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR M delta is forbidden",
+                )
+                mode = "g5_trusted_boundary_bootstrap"
+            elif touched_g5_trusted_boundary_hardening:
+                require(
+                    args.head_ref == G5_TRUSTED_BOUNDARY_HARDENING_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR M2 paths require the protected trusted boundary hardening branch",
+                )
+                require(
+                    actual == G5_TRUSTED_BOUNDARY_HARDENING_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR M2 delta is forbidden",
+                )
+                mode = "g5_trusted_boundary_hardening"
+            elif touched_g5_certification_wiring:
+                require(
+                    args.head_ref == G5_CERTIFICATION_WIRING_REPOSITORY_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR S paths require the protected certification wiring branch",
+                )
+                require(
+                    actual == G5_CERTIFICATION_WIRING_REPOSITORY_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR S delta is forbidden",
+                )
+                mode = "g5_certification_wiring_bootstrap"
+            elif touched_g5_certification_bootstrap_freeze:
+                require(
+                    args.head_ref == G5_CERTIFICATION_BOOTSTRAP_FREEZE_HEAD_REF
+                    or args.event == "push",
+                    "G5 PR T paths require the protected certification bootstrap freeze branch",
+                )
+                require(
+                    actual == G5_CERTIFICATION_BOOTSTRAP_FREEZE_ALLOWED_STATUSES,
+                    "partial or expanded G5 PR T delta is forbidden",
+                )
+                mode = "g5_certification_bootstrap_freeze"
+            elif touched_wp0_trusted_content_binding:
+                require(
+                    args.head_ref == WP0_TRUSTED_CONTENT_BINDING_HEAD_REF,
+                    "WP0 paths require the protected trusted content binding branch",
+                )
+                require(
+                    actual == WP0_TRUSTED_CONTENT_BINDING_ALLOWED_STATUSES,
+                    "partial or expanded WP0 trusted content binding delta is forbidden",
+                )
+                mode = "wp0_trusted_content_binding"
+            elif touched_wp1_trusted_promotion_refreeze:
+                require(
+                    args.head_ref == WP1_TRUSTED_PROMOTION_REFREEZE_HEAD_REF
+                    or args.event == "push",
+                    "WP1 paths require the protected trusted promotion refreeze branch",
+                )
+                require(
+                    actual == WP1_TRUSTED_PROMOTION_REFREEZE_ALLOWED_STATUSES,
+                    "partial or expanded WP1 trusted promotion refreeze delta is forbidden",
+                )
+                mode = "wp1_trusted_promotion_refreeze"
+            elif touched_wp2a_rebaseline:
+                require(
+                    args.head_ref == WP2A_REBASELINE_HEAD_REF
+                    or args.event == "push",
+                    "WP2A paths require the protected certification bootstrap rebaseline branch",
+                )
+                require(
+                    actual == WP2A_REBASELINE_ALLOWED_STATUSES,
+                    "partial or expanded WP2A certification bootstrap rebaseline delta is forbidden",
+                )
+                mode = "wp2a_rebaseline"
+            else:
+                validate_non_p1_delta(args.repo, args.head_sha, actual)
+                emit_mode("skip_non_p1", args.github_output)
+                return 0
         require(mode != "skip", "event does not match an exact F10.9 boundary mode")
         if mode == "cert":
             validate_cert(args.repo, args.base_sha, args.head_sha, args.event)
         elif mode == "dev":
             require(bool(args.cert_tip), "cert_tip is required for desarrollo reconciliation")
             validate_dev(args.repo, args.base_sha, args.head_sha, args.event, args.cert_tip)
+        elif mode == "wiring":
+            validate_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "p1":
+            validate_p1(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                args.p1_base,
+                args.p1_base_tree,
+                args.event,
+            )
+        elif mode == "p2_wiring":
+            validate_p2_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "p2":
+            validate_p2(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                args.p2_base,
+                args.p2_base_tree,
+                args.event,
+            )
+        elif mode == "g2_wiring":
+            validate_g2_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "p5_wiring":
+            validate_p5_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m2a":
+            validate_f1010_m2a_wiring(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "p5":
+            validate_p5(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                getattr(args, "p5_base", ""),
+                getattr(args, "p5_base_tree", ""),
+                args.event,
+            )
+        elif mode == "f1010_m1":
+            validate_f1010_m1(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                getattr(args, "f1010_m1_base", ""),
+                getattr(args, "f1010_m1_base_tree", ""),
+                args.event,
+            )
+        elif mode == "f1010_m3":
+            validate_f1010_m3(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m3_reader":
+            validate_f1010_m3_reader(args.repo, args.base_sha, args.head_sha, args.event)
+        elif mode == "f1010_m3_reader_post_merge":
+            validate_f1010_m3_reader_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_rotation":
+            validate_f1010_m3_rotation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_passwordless":
+            validate_f1010_m3_passwordless(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_preflight_payload":
+            validate_f1010_m3_preflight_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_preflight_evidence":
+            validate_f1010_m3_preflight_evidence(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_final_readiness":
+            validate_f1010_m3_final_readiness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_apply_projection":
+            validate_f1010_m3_apply_projection(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_ddl_payload":
+            validate_f1010_m3_ddl_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_ddl_payload_refresh":
+            validate_f1010_m3_ddl_payload_refresh(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_nullability_remediation":
+            validate_f1010_m3_nullability_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_ddl_v2_payload":
+            validate_f1010_m3_ddl_v2_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_rebaseline":
+            validate_f1010_m3_public_acl_rebaseline(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v2_payload":
+            validate_f1010_m3_public_acl_v2_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v3":
+            validate_f1010_m3_public_acl_v3(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v3_bound":
+            validate_f1010_m3_public_acl_v3_bound(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_preflight":
+            validate_f1010_m3_public_acl_preflight(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_preflight_post_merge":
+            validate_f1010_m3_public_acl_preflight_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_private_preflight_v2_payload":
+            validate_f1010_m3_public_acl_private_preflight_v2_payload(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_post_merge_harness":
+            validate_f1010_m3_public_acl_post_merge_harness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_v2_evidence":
+            validate_f1010_m3_public_acl_v2_evidence(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_m3_public_acl_final_readiness":
+            validate_f1010_m3_public_acl_final_readiness(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "f1010_h1_ca1_rebaseline":
+            validate_f1010_h1_ca1_rebaseline(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_production_readonly":
+            validate_g5_production_readonly(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_v2_attribution":
+            validate_g5_v2_attribution(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_v2_post_merge":
+            validate_g5_v2_post_merge(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_get_only_adapter":
+            validate_g5_get_only_adapter(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_operational_runbook":
+            validate_g5_operational_runbook(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_e1_hardening":
+            validate_g5_e1_hardening(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_e1_wrangler_compat":
+            validate_g5_e1_wrangler_compat(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_trust_live_remediation":
+            validate_g5_trust_live_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_github_runtime_schema":
+            validate_g5_github_runtime_schema(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_security_remediation":
+            validate_g5_security_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_residual_security_remediation":
+            validate_g5_residual_security_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_followup_security_remediation":
+            validate_g5_followup_security_remediation(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_trusted_boundary_bootstrap":
+            validate_g5_trusted_boundary_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_trusted_boundary_hardening":
+            validate_g5_trusted_boundary_hardening(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_link_hardening_closure":
+            validate_g5_link_hardening_closure(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_default_branch_trusted_workflow_registration":
+            validate_g5_default_branch_trusted_workflow_registration(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_certification_wiring_bootstrap":
+            validate_g5_certification_wiring_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "g5_certification_bootstrap_freeze":
+            validate_g5_certification_bootstrap_freeze(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp0_trusted_content_binding":
+            validate_wp0_trusted_content_binding(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp0_post_merge_boundary_v2":
+            validate_wp0_post_merge_boundary_v2(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp1_trusted_promotion_refreeze":
+            validate_wp1_trusted_promotion_refreeze(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a_rebaseline":
+            validate_wp2a_rebaseline(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a1_repository_fix":
+            validate_wp2a1_repository_fix(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a1_ci_focused_suite":
+            validate_wp2a1_ci_focused_suite(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a_certification_control_bootstrap":
+            validate_wp2a_certification_control_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2a1_certification_control_bootstrap":
+            validate_wp2a1_certification_control_bootstrap(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2b_certification_trusted_content":
+            validate_wp2b_certification_trusted_content(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
         else:
-            validate_p1(args.repo, args.base_sha, args.head_sha, args.p1_base, args.event)
-        print(f"F10.9 boundary passed: mode={mode}")
+            validate_g2(
+                args.repo,
+                args.base_sha,
+                args.head_sha,
+                args.g2_base,
+                args.g2_base_tree,
+                args.event,
+            )
+        emit_mode(mode, args.github_output)
         return 0
     except (BoundaryError, subprocess.CalledProcessError) as exc:
         print(f"F10.9 boundary failed: {exc}", file=sys.stderr)
