@@ -362,13 +362,24 @@ aprobaciones separadas; este documento no las concede.
        `03fae3ee8a9393feb08aeab38968c0c4ee5533f6` quedan
        `LOCAL_DIAGNOSTIC_CANDIDATE_NOT_PROMOTABLE`, sin push, sin PR y
        prohibidos para reutilizacion. El proximo gate queda
-       `WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX` mediante el manifest
-       `wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json`, que
-       prepara un futuro candidate de certificacion de cuatro paths con
-       continuidad de manifest para `pull_request` y push protegido. WP2B sigue
-       fail-closed con `base=REQUIRED_AFTER_WP2A_MERGE`. E2-E6 siguen
-       `NOT_EXECUTED`; Hito 1 `60%`, F10.9 `38%`, G5 `50%`, readiness `75%`,
-       pares `0` y observacion `NOT_STARTED` permanecen sin cambio.
+        `WP2A_1_CERTIFICATION_PUSH_MANIFEST_CONTINUITY_FIX` mediante el manifest
+        `wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json`, que
+        prepara un futuro candidate de certificacion de cuatro paths con
+        continuidad de manifest para `pull_request` y push protegido. WP2B sigue
+        fail-closed con `base=REQUIRED_AFTER_WP2A_MERGE`. E2-E6 siguen
+        `NOT_EXECUTED`; Hito 1 `60%`, F10.9 `38%`, G5 `50%`, readiness `75%`,
+        pares `0` y observacion `NOT_STARTED` permanecen sin cambio.
+        PR #411, PR #412 y PR #410 quedan `MERGED_POST_MERGE_VERIFIED`; WP2A.1
+        queda `COMPLETED`. WP2B queda `PREPARED_NOT_EXECUTED` por el manifest
+        sucesor `wp2b_runtime_binding_repository_only_2026_08_19.json`, que
+        congela `certificacion@33b1c9ec3c49117c2020860d5850d9d67988f836` / tree
+        `ce6e5d1a227ce5242200c4e5aa2974d8c1bb76a8`, source protegido
+        `desarrollo@9f163c2c5f8dc54b4986ce75ef1d5c69a740bedf` y solo los cuatro
+        paths WP2B con blobs exactos. Future candidate head/tree permanecen
+        `REQUIRED_AFTER_PR_CREATION`; E2-E6 y G5 live siguen `NOT_EXECUTED`, WP2B
+        no autoriza `main`, pares `0`, observacion `NOT_STARTED`, Hito 1 `60%`,
+        F10.9 `38%`, G5 `50%`, readiness `75%` y metadata/F10.10
+        `TRANSFERRED_NON_BLOCKING_H2_CA2` permanecen sin cambio.
 7. `G6`: gates separados para deduplicacion/repoint/archive, lifecycle,
    perfiles/fuentes y revalidacion/restauracion FG3.
 8. `G7`: integracion P7 en `desarrollo`.

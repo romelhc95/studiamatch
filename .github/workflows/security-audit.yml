@@ -1380,9 +1380,14 @@ jobs:
             git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
             boundary_script="/tmp/f109_boundary_protected_desarrollo.py"
           elif [ "$F109_EVENT" = "pull_request" ] && [ "$F109_BASE_REF" = "certificacion" ] && [ "$F109_HEAD_REF" = "promote/f10-9-wp2b-certification-trusted-content" ]; then
+            protected_validator_blob="$(git rev-parse origin/desarrollo:scripts/security/f109_boundary.py)"
+            protected_manifest_blob="$(git rev-parse origin/desarrollo:.context/operaciones/wp2b_runtime_binding_repository_only_2026_08_19.json)"
+            test "$protected_validator_blob" = "a15627514e77f2f8419d52053c4299484a6965b4"
+            test "$protected_manifest_blob" = "d3fd62b1dd853f3535c9fa502ec311e67a6bb398"
             git show origin/desarrollo:scripts/security/f109_boundary.py > /tmp/f109_boundary_protected_desarrollo.py
             mkdir -p .context/operaciones
             git show origin/desarrollo:.context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json > .context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json
+            git show origin/desarrollo:.context/operaciones/wp2b_runtime_binding_repository_only_2026_08_19.json > .context/operaciones/wp2b_runtime_binding_repository_only_2026_08_19.json
             boundary_script="/tmp/f109_boundary_protected_desarrollo.py"
           fi
           boundary_mode_output="$RUNNER_TEMP/f109-boundary-mode.txt"

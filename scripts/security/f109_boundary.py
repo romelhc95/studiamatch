@@ -287,7 +287,29 @@ WP2A1_CI_FOCUSED_SUITE_BASE = "80674393b0c40cfa10355711170f9f5842e6c2fe"
 WP2A1_CI_FOCUSED_SUITE_BASE_TREE = "ed70baa39bfda9721f9faf20c73f15b0a8b9739e"
 WP2A1_CI_FOCUSED_SUITE_HEAD_REF = "feat/f10-9-wp2a1-certification-ci-focused-suite"
 WP2A1_CERTIFICATION_CONTROL_HEAD_REF = "promote/f10-9-wp2a1-certification-control-bootstrap"
+WP2B_RUNTIME_BINDING_BASE = "9f163c2c5f8dc54b4986ce75ef1d5c69a740bedf"
+WP2B_RUNTIME_BINDING_BASE_TREE = "5afbfd7b6aa0998c73571817a94708ac716bdada"
+WP2B_RUNTIME_BINDING_HEAD_REF = "feat/f10-9-wp2b-runtime-binding"
+WP2B_RUNTIME_BINDING_MANIFEST = ".context/operaciones/wp2b_runtime_binding_repository_only_2026_08_19.json"
+WP2B_CERTIFICATION_BASE = "33b1c9ec3c49117c2020860d5850d9d67988f836"
+WP2B_CERTIFICATION_BASE_TREE = "ce6e5d1a227ce5242200c4e5aa2974d8c1bb76a8"
 WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF = "promote/f10-9-wp2b-certification-trusted-content"
+WP2B_RUNTIME_BINDING_FORBIDDEN_OPERATIONS = (
+    "certificacion",
+    "main",
+    "branch_protection",
+    "required_checks",
+    "actions_api",
+    "github_app",
+    "cloudflare",
+    "supabase",
+    "sql",
+    "production",
+    "writers",
+    "schedules",
+    "workflow_dispatch",
+    "merge",
+)
 
 CONTEXT_EXPECTED_BLOBS = {
     ".context/00_INDICE.md": "0f05d40caa1b78f62f236c6200c04b178c3fb177",
@@ -1050,6 +1072,18 @@ WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS = {
     ".github/workflows/f10-9-g5-trusted-boundary-bootstrap.yml": "40d979dd0af57f530e0999ac7736d61ec62b986d",
     "scripts/security/f109_trusted_boundary_bootstrap.py": "1dbb583f9d6e8d7bdb3e80a10d172a32bd86f2c1",
     "tests/test_f109_trusted_boundary_bootstrap.py": "6496efd8f038fb0c425e62ef1824855b621a6fa7",
+}
+WP2B_RUNTIME_BINDING_ALLOWED_STATUSES = {
+    ".context/estado_del_proyecto.md": "M",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md": "M",
+    WP2B_RUNTIME_BINDING_MANIFEST: "A",
+    ".github/workflows/security-audit.yml": "M",
+    "scripts/security/f109_boundary.py": "M",
+    "tests/test_fase10_9_branch_reconciliation.py": "M",
+}
+WP2B_RUNTIME_BINDING_ALLOWED_MODES = {
+    path: "100755" if path == ".github/workflows/security-audit.yml" else "100644"
+    for path in WP2B_RUNTIME_BINDING_ALLOWED_STATUSES
 }
 WP1_TRUSTED_PROMOTION_REFREEZE_SOURCE_FILES = {
     ".context/operaciones/g5_trusted_boundary_pr_p_probe_2026_08_17.md": {
@@ -6538,6 +6572,12 @@ def wp2a1_manifest(repo: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def wp2b_runtime_binding_manifest(repo: Path) -> dict:
+    path = repo / WP2B_RUNTIME_BINDING_MANIFEST
+    require(path.exists(), "WP2B runtime binding manifest is required")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def wp2a_control_blobs(repo: Path) -> dict[str, str]:
     profile = wp2a_manifest(repo)["wp2a_certification_control_bootstrap"]
     return {path: entry["blob_sha"] for path, entry in profile["files"].items()}
@@ -6612,6 +6652,123 @@ def validate_wp2a1_manifest(repo: Path) -> None:
     require(wp2b.get("base") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B must remain unbound")
     require(wp2b.get("base_tree") == "REQUIRED_AFTER_WP2A_MERGE", "WP2B tree must remain unbound")
     require(wp2b.get("execution") == "FAIL_CLOSED", "WP2B must remain fail-closed")
+
+
+def validate_wp2b_runtime_binding_manifest(repo: Path) -> None:
+    manifest = wp2b_runtime_binding_manifest(repo)
+    require(
+        set(manifest)
+        == {
+            "schema",
+            "work_package",
+            "status",
+            "authority",
+            "verified_prs",
+            "wp2a1",
+            "wp2b_certification_trusted_content",
+            "future_candidate",
+            "tracking_preserved",
+            "preserve_byte_identical",
+            "forbidden_operations",
+            "successor_prompt",
+        },
+        "WP2B runtime manifest unexpected keys",
+    )
+    require(manifest.get("schema") == "studiamatch.f10_9.wp2b_runtime_binding_repository_only.v1", "WP2B runtime schema drift")
+    require(manifest.get("work_package") == "WP2B_RUNTIME_BINDING_REPOSITORY_ONLY", "WP2B runtime package drift")
+    require(manifest.get("status") == "PREPARED_NOT_EXECUTED", "WP2B runtime status drift")
+    authority = manifest.get("authority", {})
+    require(set(authority) == {"desarrollo", "desarrollo_tree", "certificacion", "certificacion_tree"}, "WP2B runtime authority keys drift")
+    require(authority.get("desarrollo") == WP2B_RUNTIME_BINDING_BASE, "WP2B runtime desarrollo drift")
+    require(authority.get("desarrollo_tree") == WP2B_RUNTIME_BINDING_BASE_TREE, "WP2B runtime desarrollo tree drift")
+    require(authority.get("certificacion") == WP2B_CERTIFICATION_BASE, "WP2B runtime certification base drift")
+    require(authority.get("certificacion_tree") == WP2B_CERTIFICATION_BASE_TREE, "WP2B runtime certification tree drift")
+    verified = manifest.get("verified_prs", {})
+    require(set(verified) == {"410", "411", "412"}, "WP2B verified PR keys drift")
+    require(verified.get("411", {}).get("status") == "MERGED_POST_MERGE_VERIFIED", "PR #411 status drift")
+    require(verified.get("412", {}).get("status") == "MERGED_POST_MERGE_VERIFIED", "PR #412 status drift")
+    require(verified.get("412", {}).get("candidate_sha") == "13cb17da948c03e8462cf8b2aacd879eee176127", "PR #412 candidate drift")
+    require(verified.get("410", {}).get("status") == "MERGED_POST_MERGE_VERIFIED", "PR #410 status drift")
+    require(verified.get("410", {}).get("candidate_sha") == "44e406936945bd05961435943e7f062ee729291f", "PR #410 candidate drift")
+    require(verified.get("410", {}).get("merge_sha") == WP2B_CERTIFICATION_BASE, "PR #410 merge drift")
+    require(manifest.get("wp2a1", {}).get("status") == "COMPLETED", "WP2A.1 completion drift")
+    wp2b = manifest.get("wp2b_certification_trusted_content", {})
+    require(
+        set(wp2b)
+        == {
+            "profile",
+            "head_ref",
+            "base",
+            "base_tree",
+            "candidate_commits",
+            "statuses",
+            "modes",
+            "files",
+            "validator_authority",
+            "protected_validator_source",
+            "protected_manifest_source",
+        },
+        "WP2B runtime profile unexpected keys",
+    )
+    require(wp2b.get("profile") == "WP2B_CERTIFICATION_TRUSTED_CONTENT", "WP2B runtime profile drift")
+    require(wp2b.get("head_ref") == WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF, "WP2B runtime head-ref drift")
+    require(wp2b.get("base") == WP2B_CERTIFICATION_BASE, "WP2B runtime base drift")
+    require(wp2b.get("base_tree") == WP2B_CERTIFICATION_BASE_TREE, "WP2B runtime tree drift")
+    require(wp2b.get("statuses") == WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES, "WP2B runtime statuses drift")
+    require(wp2b.get("modes") == WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES, "WP2B runtime modes drift")
+    require(set(wp2b.get("files", {})) == set(WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS), "WP2B runtime file keys drift")
+    require({path: entry["blob_sha"] for path, entry in wp2b.get("files", {}).items()} == WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS, "WP2B runtime blob drift")
+    future = manifest.get("future_candidate", {})
+    require(set(future) == {"head_sha", "tree"}, "WP2B future candidate keys drift")
+    require(future.get("head_sha") == "REQUIRED_AFTER_PR_CREATION", "WP2B future head must not be invented")
+    require(future.get("tree") == "REQUIRED_AFTER_PR_CREATION", "WP2B future tree must not be invented")
+    tracking = manifest.get("tracking_preserved", {})
+    require(
+        set(tracking)
+        == {
+            "e2_e6",
+            "g5_live",
+            "wp2b_authorizes_main",
+            "pairs",
+            "observation",
+            "hito_1",
+            "f10_9",
+            "g5",
+            "readiness",
+            "metadata_f10_10",
+        },
+        "WP2B tracking keys drift",
+    )
+    require(tracking.get("e2_e6") == "NOT_EXECUTED", "E2-E6 drift")
+    require(tracking.get("g5_live") == "NOT_EXECUTED", "G5 live drift")
+    require(tracking.get("wp2b_authorizes_main") is False, "WP2B main authorization drift")
+    require(tracking.get("pairs") == 0, "pairs drift")
+    require(tracking.get("observation") == "NOT_STARTED", "observation drift")
+    require(tracking.get("hito_1") == "60%", "Hito tracking drift")
+    require(tracking.get("f10_9") == "38%", "F10.9 tracking drift")
+    require(tracking.get("g5") == "50%", "G5 tracking drift")
+    require(tracking.get("readiness") == "75%", "readiness drift")
+    require(tracking.get("metadata_f10_10") == "TRANSFERRED_NON_BLOCKING_H2_CA2", "metadata transfer drift")
+    forbidden = manifest.get("forbidden_operations", [])
+    require(forbidden == list(WP2B_RUNTIME_BINDING_FORBIDDEN_OPERATIONS), "WP2B forbidden operations drift")
+
+
+def validate_wp2b_runtime_binding(repo: Path, base: str, head: str, event: str) -> None:
+    require(base == WP2B_RUNTIME_BINDING_BASE, "unexpected WP2B runtime binding base")
+    require_sha(repo, "WP2B runtime binding base", base)
+    require_sha(repo, "head", head)
+    require(commit_tree(repo, base) == WP2B_RUNTIME_BINDING_BASE_TREE, "WP2B runtime binding base tree drift")
+    candidate_head = head
+    if event == "push":
+        parents = commit_parents(repo, head)
+        require(len(parents) == 2 and parents[0] == base, "WP2B runtime binding push must be a protected merge")
+        candidate_head = parents[1]
+        require(commit_tree(repo, head) == commit_tree(repo, candidate_head), "WP2B runtime binding push tree drift")
+    require(commit_parents(repo, candidate_head) == [base], "WP2B runtime binding must be one direct commit")
+    require_exact_delta(repo, base, candidate_head, WP2B_RUNTIME_BINDING_ALLOWED_STATUSES, WP2B_RUNTIME_BINDING_ALLOWED_MODES)
+    validate_wp2a_rebaseline_manifest(repo)
+    validate_wp2a1_manifest(repo)
+    validate_wp2b_runtime_binding_manifest(repo)
 
 
 def validate_wp2a_rebaseline_manifest(repo: Path) -> None:
@@ -6779,7 +6936,12 @@ def validate_wp2a1_certification_control_bootstrap(repo: Path, base: str, head: 
 
 
 def validate_wp2b_certification_trusted_content(repo: Path, base: str, head: str, event: str) -> None:
-    wp2b = wp2a_manifest(repo)["wp2b_certification_trusted_content"]
+    runtime_path = repo / WP2B_RUNTIME_BINDING_MANIFEST
+    wp2b = (
+        wp2b_runtime_binding_manifest(repo)["wp2b_certification_trusted_content"]
+        if runtime_path.exists()
+        else wp2a_manifest(repo)["wp2b_certification_trusted_content"]
+    )
     expected_base = wp2b.get("base")
     expected_tree = wp2b.get("base_tree")
     require(expected_base != "REQUIRED_AFTER_WP2A_MERGE", "WP2B runtime base binding required")
@@ -7183,6 +7345,12 @@ def detect_mode(
         return "wp2a1_repository_fix"
     if (
         base_ref == "desarrollo"
+        and base == WP2B_RUNTIME_BINDING_BASE
+        and (event == "push" or head_ref == WP2B_RUNTIME_BINDING_HEAD_REF)
+    ):
+        return "wp2b_runtime_binding"
+    if (
+        base_ref == "desarrollo"
         and base == WP2A1_CI_FOCUSED_SUITE_BASE
         and (
             (event == "pull_request" and head_ref == WP2A1_CI_FOCUSED_SUITE_HEAD_REF)
@@ -7429,6 +7597,8 @@ def main() -> int:
                 raise BoundaryError("WP1 trusted promotion refreeze branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == WP2A1_REPOSITORY_FIX_HEAD_REF:
                 raise BoundaryError("WP2A.1 repository fix branch requires its frozen protected desarrollo baseline")
+            if args.event == "pull_request" and args.head_ref == WP2B_RUNTIME_BINDING_HEAD_REF:
+                raise BoundaryError("WP2B runtime binding branch requires its frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M1_HEAD_REF:
                 raise BoundaryError("F10.10 M1 branch requires the frozen protected desarrollo baseline")
             if args.event == "pull_request" and args.head_ref == F1010_M3_HEAD_REF:
@@ -7582,6 +7752,13 @@ def main() -> int:
             touched_wp2a_rebaseline = set(actual).intersection(
                 WP2A_REBASELINE_ALLOWED_STATUSES
             )
+            touched_wp2b_runtime_binding = set(actual).intersection(
+                WP2B_RUNTIME_BINDING_ALLOWED_STATUSES
+            )
+            if touched_wp2b_runtime_binding:
+                touched_g5_certification_wiring = set()
+                touched_wp2a_rebaseline = set()
+                touched_wp1_trusted_promotion_refreeze = set()
             if touched_wp2a_rebaseline:
                 touched_g5_certification_wiring = set()
                 touched_wp1_trusted_promotion_refreeze = set()
@@ -7640,6 +7817,7 @@ def main() -> int:
                         touched_wp0_trusted_content_binding,
                         touched_wp1_trusted_promotion_refreeze,
                         touched_wp2a_rebaseline,
+                        touched_wp2b_runtime_binding,
                     )
                 )
                 <= 1,
@@ -7890,6 +8068,17 @@ def main() -> int:
                     "partial or expanded WP2A certification bootstrap rebaseline delta is forbidden",
                 )
                 mode = "wp2a_rebaseline"
+            elif touched_wp2b_runtime_binding:
+                require(
+                    args.head_ref == WP2B_RUNTIME_BINDING_HEAD_REF
+                    or args.event == "push",
+                    "WP2B runtime binding paths require the protected runtime binding branch",
+                )
+                require(
+                    actual == WP2B_RUNTIME_BINDING_ALLOWED_STATUSES,
+                    "partial or expanded WP2B runtime binding delta is forbidden",
+                )
+                mode = "wp2b_runtime_binding"
             else:
                 validate_non_p1_delta(args.repo, args.head_sha, actual)
                 emit_mode("skip_non_p1", args.github_output)
@@ -8132,6 +8321,10 @@ def main() -> int:
             )
         elif mode == "wp2a1_ci_focused_suite":
             validate_wp2a1_ci_focused_suite(
+                args.repo, args.base_sha, args.head_sha, args.event
+            )
+        elif mode == "wp2b_runtime_binding":
+            validate_wp2b_runtime_binding(
                 args.repo, args.base_sha, args.head_sha, args.event
             )
         elif mode == "wp2a_certification_control_bootstrap":

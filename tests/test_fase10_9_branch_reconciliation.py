@@ -310,6 +310,8 @@ from scripts.security.f109_boundary import (
     WP2A1_REPOSITORY_FIX_BASE,
     WP2A1_REPOSITORY_FIX_BASE_TREE,
     WP2A1_REPOSITORY_FIX_HEAD_REF,
+    WP2B_CERTIFICATION_BASE,
+    WP2B_CERTIFICATION_BASE_TREE,
     WP2A_REBASELINE_ALLOWED_MODES,
     WP2A_REBASELINE_ALLOWED_STATUSES,
     WP2A_REBASELINE_BASE,
@@ -320,6 +322,12 @@ from scripts.security.f109_boundary import (
     WP2B_CERTIFICATION_TRUSTED_CONTENT_HEAD_REF,
     WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES,
     WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES,
+    WP2B_RUNTIME_BINDING_ALLOWED_MODES,
+    WP2B_RUNTIME_BINDING_ALLOWED_STATUSES,
+    WP2B_RUNTIME_BINDING_BASE,
+    WP2B_RUNTIME_BINDING_BASE_TREE,
+    WP2B_RUNTIME_BINDING_HEAD_REF,
+    WP2B_RUNTIME_BINDING_MANIFEST,
     G5_DEFINITIVE_PROMOTION_FILES,
     G5_PR401_CANDIDATE,
     G5_PR401_MERGE,
@@ -425,6 +433,8 @@ from scripts.security.f109_boundary import (
     validate_wp2a_certification_control_bootstrap,
     validate_wp2a_rebaseline,
     validate_wp2b_certification_trusted_content,
+    validate_wp2b_runtime_binding,
+    validate_wp2b_runtime_binding_manifest,
     validate_wp0_trusted_content_binding,
     validate_wp0_trusted_content_binding_historical_push,
     validate_g5_control_plane_exception_payload,
@@ -6548,6 +6558,21 @@ class F109BoundaryTest(unittest.TestCase):
             validate_wp2b_certification_trusted_content(root, base, head, "pull_request")
         exact_blobs_mock.assert_not_called()
 
+    def test_wp2b_runtime_binding_manifest_materializes_successor_no_mocks(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        validate_wp2b_runtime_binding_manifest(root)
+        manifest = json.loads((root / WP2B_RUNTIME_BINDING_MANIFEST).read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["verified_prs"]["411"]["status"], "MERGED_POST_MERGE_VERIFIED")
+        self.assertEqual(manifest["verified_prs"]["412"]["merge_sha"], WP2B_RUNTIME_BINDING_BASE)
+        self.assertEqual(manifest["verified_prs"]["410"]["merge_sha"], WP2B_CERTIFICATION_BASE)
+        self.assertEqual(manifest["wp2a1"]["status"], "COMPLETED")
+        self.assertEqual(manifest["wp2b_certification_trusted_content"]["base"], WP2B_CERTIFICATION_BASE)
+        self.assertEqual(manifest["wp2b_certification_trusted_content"]["base_tree"], WP2B_CERTIFICATION_BASE_TREE)
+        self.assertEqual(manifest["wp2b_certification_trusted_content"]["statuses"], WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES)
+        self.assertEqual(manifest["future_candidate"]["head_sha"], "REQUIRED_AFTER_PR_CREATION")
+        self.assertFalse(manifest["tracking_preserved"]["wp2b_authorizes_main"])
+
     def test_wp2a_detect_mode_and_wrong_ref_rejection(self) -> None:
         self.assertEqual(
             detect_mode("pull_request", "desarrollo", WP2A_REBASELINE_HEAD_REF, WP2A_REBASELINE_BASE),
@@ -6556,6 +6581,10 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertEqual(
             detect_mode("pull_request", "desarrollo", WP2A1_REPOSITORY_FIX_HEAD_REF, WP2A1_REPOSITORY_FIX_BASE),
             "wp2a1_repository_fix",
+        )
+        self.assertEqual(
+            detect_mode("pull_request", "desarrollo", WP2B_RUNTIME_BINDING_HEAD_REF, WP2B_RUNTIME_BINDING_BASE),
+            "wp2b_runtime_binding",
         )
         self.assertEqual(
             detect_mode("pull_request", "certificacion", WP2A1_CERTIFICATION_CONTROL_HEAD_REF, G5_CERTIFICATION_WIRING_BASE),
@@ -6600,6 +6629,68 @@ class F109BoundaryTest(unittest.TestCase):
             head,
             WP2A1_REPOSITORY_FIX_ALLOWED_STATUSES,
             WP2A1_REPOSITORY_FIX_ALLOWED_MODES,
+        )
+
+    @mock.patch("scripts.security.f109_boundary.validate_wp2b_runtime_binding_manifest")
+    @mock.patch("scripts.security.f109_boundary.validate_wp2a1_manifest")
+    @mock.patch("scripts.security.f109_boundary.validate_wp2a_rebaseline_manifest")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta")
+    @mock.patch("scripts.security.f109_boundary.commit_parents")
+    @mock.patch("scripts.security.f109_boundary.commit_tree")
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp2b_runtime_binding_validates_pr_and_protected_push(
+        self,
+        require_sha_mock,
+        commit_tree_mock,
+        commit_parents_mock,
+        exact_delta_mock,
+        wp2a_mock,
+        wp2a1_mock,
+        manifest_mock,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        candidate = "a" * 40
+        merge_head = "b" * 40
+        commit_tree_mock.side_effect = lambda _repo, commit: (
+            WP2B_RUNTIME_BINDING_BASE_TREE if commit == WP2B_RUNTIME_BINDING_BASE else "c" * 40
+        )
+        commit_parents_mock.side_effect = [
+            [WP2B_RUNTIME_BINDING_BASE],
+            [WP2B_RUNTIME_BINDING_BASE, candidate],
+            [WP2B_RUNTIME_BINDING_BASE],
+        ]
+
+        validate_wp2b_runtime_binding(root, WP2B_RUNTIME_BINDING_BASE, candidate, "pull_request")
+        validate_wp2b_runtime_binding(root, WP2B_RUNTIME_BINDING_BASE, merge_head, "push")
+
+        self.assertEqual(exact_delta_mock.call_count, 2)
+        self.assertEqual(exact_delta_mock.call_args_list[0].args[1:4], (WP2B_RUNTIME_BINDING_BASE, candidate, WP2B_RUNTIME_BINDING_ALLOWED_STATUSES))
+        self.assertEqual(exact_delta_mock.call_args_list[1].args[1:4], (WP2B_RUNTIME_BINDING_BASE, candidate, WP2B_RUNTIME_BINDING_ALLOWED_STATUSES))
+        self.assertEqual(wp2a_mock.call_count, 2)
+        self.assertEqual(wp2a1_mock.call_count, 2)
+        self.assertEqual(manifest_mock.call_count, 2)
+
+    @mock.patch("scripts.security.f109_boundary.wp2b_runtime_binding_manifest")
+    @mock.patch("scripts.security.f109_boundary.require_exact_delta_blobs")
+    @mock.patch("scripts.security.f109_boundary.commit_parents", return_value=[WP2B_CERTIFICATION_BASE])
+    @mock.patch("scripts.security.f109_boundary.commit_tree", return_value=WP2B_CERTIFICATION_BASE_TREE)
+    @mock.patch("scripts.security.f109_boundary.require_sha")
+    def test_wp2b_certification_content_uses_successor_runtime_binding(
+        self, require_sha_mock, commit_tree_mock, commit_parents_mock, exact_blobs_mock, manifest_mock,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        head = "e" * 40
+        manifest_mock.return_value = json.loads((root / WP2B_RUNTIME_BINDING_MANIFEST).read_text(encoding="utf-8"))
+
+        validate_wp2b_certification_trusted_content(root, WP2B_CERTIFICATION_BASE, head, "pull_request")
+
+        exact_blobs_mock.assert_called_once_with(
+            root,
+            WP2B_CERTIFICATION_BASE,
+            head,
+            WP2B_CERTIFICATION_TRUSTED_CONTENT_STATUSES,
+            WP2B_CERTIFICATION_TRUSTED_CONTENT_MODES,
+            WP2B_CERTIFICATION_TRUSTED_CONTENT_BLOBS,
         )
 
     @mock.patch("scripts.security.f109_boundary.git")
@@ -6768,6 +6859,10 @@ class F109BoundaryTest(unittest.TestCase):
         self.assertIn('git show "$F109_BASE_SHA:scripts/security/f109_boundary.py"', workflow)
         self.assertIn('git show origin/desarrollo:scripts/security/f109_boundary.py', workflow)
         self.assertIn('git show origin/desarrollo:.context/operaciones/wp2a_staged_certification_bootstrap_rebaseline_2026_08_18.json', workflow)
+        self.assertIn('git show origin/desarrollo:.context/operaciones/wp2b_runtime_binding_repository_only_2026_08_19.json', workflow)
+        self.assertIn('protected_validator_blob="$(git rev-parse origin/desarrollo:scripts/security/f109_boundary.py)"', workflow)
+        self.assertIn('test "$protected_validator_blob" = "a15627514e77f2f8419d52053c4299484a6965b4"', workflow)
+        self.assertIn('test "$protected_manifest_blob" = "d3fd62b1dd853f3535c9fa502ec311e67a6bb398"', workflow)
         self.assertIn('wp2a1_certification_push_manifest_continuity_fix_2026_08_18.json', workflow)
         self.assertIn('candidate_manifest_blob="$(git rev-parse "$F109_HEAD_SHA:$manifest_path")"', workflow)
         self.assertIn('protected_manifest_blob="$(git rev-parse "origin/desarrollo:$manifest_path")"', workflow)
