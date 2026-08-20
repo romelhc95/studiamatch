@@ -1,0 +1,9 @@
+{
+  "id": "WP-H5-001",
+  "status": "PROPOSED",
+  "hito": "HITO-005",
+  "risk_level": "R1_R2_PUBLIC_UI",
+  "allowed_paths": ["web/**", "tests/**", ".context/**"],
+  "denied_without_jit": ["production", "lead_capture", "roi_public", "ddl", "dml", "writers"],
+  "exit_criteria": ["results page", "filters URL synced", "pagination", "loading empty error states"]
+}

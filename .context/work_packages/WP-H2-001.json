@@ -1,0 +1,9 @@
+{
+  "id": "WP-H2-001",
+  "status": "PROPOSED",
+  "hito": "HITO-002",
+  "risk_level": "R3_REQUIRED_FOR_DDL_DML",
+  "allowed_paths": ["db/**", "scripts/core/**", "scripts/maintenance/**", "tests/**", ".context/**"],
+  "denied_without_jit": ["production", "supabase-pro", "workflow_dispatch", "writers", "schedules"],
+  "exit_criteria": ["CA2 accepted", "CA3 accepted", "RLS PASS", "backfill idempotent", "manual values preserved"]
+}

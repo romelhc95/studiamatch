@@ -1,72 +1,26 @@
-# HITO-001 - Orquestacion Y Candidate CA1-Only
+# HITO-001 - Cierre Contractual CA1
 
-`HITO-001` agrupa el alcance vigente de Hito 1 para `REQ-EST-001` despues de la
-adenda aprobada. Esta nota documenta alcance y
-trazabilidad; no mantiene estado vivo.
+`HITO-001` queda cerrado contractualmente por decision humana O0-B con waivers.
+Esta nota no autoriza ejecucion tecnica.
 
-## Alcance
+## Resultado
 
-- `H1-CA1`: orquestacion automatica FG2/FG3, schedules y gates aplicables.
-- FG1: soporte operativo de inventario, sin crear criterio adicional.
+| Campo | Valor |
+|---|---|
+| Estado | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` |
+| Criterio activo cerrado | `H1-CA1` |
+| Cutoff contractual | PR #291 / `64e4ed895d43121c5683e26a355993f18e528a5c` |
+| Baseline tecnico posterior | PR #327 / `main@ad89e8ab9575b37476502d6062e22c044ad6447b` |
+| Waivers | `EVID-H1-011`, `EVID-H1-012`, `EVID-H1-013`, `EVID-H1-016` |
 
-## Antecedentes Historicos Preservados
+## Transferencias
 
-[ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
-cierra Hito 1 exclusivamente con `H1-CA1` en produccion. `H1-CA2P` pasa a
-`H2-CA2` y `H1-CA7P` a `H4-CA7`; ambos se preservan solo como antecedentes y no
-acreditan cierre de Hito 1.
-
-El candidate CA1-only no puede incluir cambios de schema/RLS/RPC, frontend,
-leads/email, backfill ni artifacts terminales CA2. Ver
-[PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md).
-
-## Alineacion Contractual Cerrada En F9.5
-
-F6-F8 son la base funcional contractual de Hito 1. Los artifacts tecnicos de F9.5 de PR #245 y PR #247 son `HISTORICAL_NON_PROMOTABLE`: se preservan para trazabilidad, pero no son parte del package contractual ni una ruta de aplicacion.
-
-- `H1-CA1` cubre los workflows y gates implementados; la compatibilidad backend y una ejecucion efectiva por ambiente permanecen como evidencia de certificacion.
-- `H1-CA2P` acepta `missing_fields` JSONB, `field_sources` JSONB, `manual_updated_at` y `start_date` como equivalencias historicas del alcance editorial. La aplicacion, backfill y pruebas por rol pasan a Hito 2 y requieren evidencia nueva.
-- `H1-CA7P` conserva su alcance documental historico; Hito 4 debe producir documentacion y evidencia nueva para `H4-CA7`.
-- `H-00` fue un P0 Free-only de la ruta sustituida; no es prerrequisito del Hito 1 CA1-only ni de F9.8.
-- [ADR-0005](../decisiones/ADR-0005_corte_seguridad_funcionalidad_estabilidad_hito1.md) fija que leads/email no pertenecen al perfil funcional habilitado de Hito 1; su arquitectura integral queda diferida sin crear criterios nuevos.
-
-Los estados vivos, dependencias y pendientes se consultan exclusivamente en [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-
-## Nota De Cierre Tecnico F10.8
-
-La remediacion cleansing provenance F10.8 quedo promovida a `main@1885806f0d9f189600d410d353fcf13fb8dd4676` por PR #320. La DDL Pro `20260808_fase10_8_atomic_cleansing_provenance` fue aplicada una sola vez por DB Sync `31263024890` bajo autorizacion consumida, y DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS sobre `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`. PR #325 promovio la remediacion de paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68` / tree `ba7f6e74e88b2153aef1f4582bb3faa999c01a98`; Production Canary `31272290614=PASS` completo FG1/FG2/FG3, restore exacto, segundo restore NOOP, after-cleanup y artifact sanitizado `9026139906` con digest `sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`; por tanto `EVID-H1-010=VERIFIED`. Esta nota no declara `COMPLETED_PRODUCTION`: observacion de schedules y conformidad cliente siguen pendientes segun el estado vivo.
-
-## Hallazgo Tardio F10.9
-
-La primera observacion global de schedules quedo fail-closed y descubrio blockers
-operativos FG2/FG3 no cubiertos por la cohorte acotada F10.8. El incidente se
-preserva en
-[INC-F10.9-001](../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md), la
-remediacion propuesta en
-[PLAN-REM-F10.9-001](../operaciones/plan_remediacion_f10_9_fg2_fg3.md) y el
-ledger append-only en
-[EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md).
-
-El hallazgo no reabre F10.8 ni cambia `H1-CA1`. Hito 1 permanece tecnicamente
-entregado y formalmente pendiente; cero pares FG2 -> FG3 fueron aceptados. Los
-estados vivos se consultan exclusivamente en TASK y Estado del Proyecto.
+- `H1-CA2P` pasa a `H2-CA2` y requiere evidencia nueva.
+- `H1-CA7P` pasa a `H4-CA7` y requiere evidencia nueva.
+- F10.9/WP2B y F10.10/M3 son historia no promocionable.
 
 ## Trazabilidad
 
-- Complejidad y estimacion tecnica original: [EST-001](../estimaciones/est_001.md)
-- Backlog: [REQ-EST-001 Sprint 1](../backlog_tareas/req_est_001_sprint_1/_index.md)
-- Tarea principal: [TASK-H1-001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md)
-- Estado vigente: [Estado del proyecto](../estado_del_proyecto.md)
-- Arquitectura: [Pipeline](../arquitectura_pipeline.md)
-- Datos: [Sistema DB](../sistema_db_supabase.md) y [Matriz DB](../operaciones/matriz_adopcion_db.md)
-- Release: [Flujo de release minimo](../operaciones/flujo_release_minimo.md)
-- Corte seguridad/funcionalidad/estabilidad: [PLAN-H1-CORTE-SFE-001](../operaciones/plan_corte_seguridad_funcionalidad_estabilidad_hito1.md)
-- Adenda vigente: [ADENDA-REQ-EST-001-001](../backlog_tareas/req_est_001_sprint_1/adenda_cliente_001_sanitizada.md)
-- Plan CA1-only: [PLAN-H1-CA1-ONLY-001](../operaciones/plan_cierre_hito1_ca1_only.md)
-- Evidencia cliente: [EVID-PACK-H1-001](../evidencias_cliente/sprint_1/paquete_hito_001.md)
-- Registro Production Canary F10.8: [EVID-H1-CANARY-F10.8-001](../evidencias_cliente/sprint_1/registro_canary_production_f10_8_2026-08-07.md)
-- Incidente F10.9: [INC-F10.9-001](../operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md)
-- Plan remediacion F10.9: [PLAN-REM-F10.9-001](../operaciones/plan_remediacion_f10_9_fg2_fg3.md)
-- Registro observacion F10.9: [EVID-H1-OBS-F10.9-001](../evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md)
-- Autorizacion DDL F10.8: [DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO](../operaciones/ddl_authorizations/DDL-F10_8_ATOMIC_CLEANSING_PROVENANCE_PRO.md)
-- Matriz de evidencias: [Evidencia de salida](../operaciones/plan_cierre_hito1_ca1_only.md#evidencia-de-salida)
+- [Acta de cierre contractual](../evidencias_cliente/sprint_1/acta_cierre_contractual_hito_001.md)
+- [ADR-0026](../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md)
+- [Plan Maestro H2-H5](../operaciones/plan_maestro_sprint1_h2_h5.md)
