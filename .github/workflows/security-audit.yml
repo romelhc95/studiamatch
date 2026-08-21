@@ -167,13 +167,16 @@ jobs:
 
           base = resolve_base()
           allowed = (
-               ".context/**",
+              ".context/**",
               "AGENTS.md",
               ".github/pull_request_template.md",
-               ".github/workflows/security-audit.yml",
+              ".github/workflows/f9-7-contract.yml",
+              ".github/workflows/f9_9_certification_canary.yml",
+              ".github/workflows/security-audit.yml",
+              ".gitignore",
               "scripts/security/**",
-               "tests/test_work_package_manifest.py",
-           )
+              "tests/test_work_package_manifest.py",
+          )
           denied = (
               "web/**",
               "db/**",
