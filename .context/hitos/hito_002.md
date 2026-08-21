@@ -2,18 +2,18 @@
 
 | Campo | Valor |
 |---|---|
-| Lifecycle stage | `APPROVED_NOT_ACTIVE` |
+| Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
 | Implementation status | `PLANNED_NOT_ACTIVE` |
 | Acceptance status | `NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
-| Gate | `WP-H2-001` aprobado hasta R1; pendiente activacion separada. |
+| Gate | `WP-H2-001` activo hasta R1; pendiente revision Plan y subfase decimal de implementacion. |
 
 ## Alcance
 
-Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. No hay ejecucion activa en F10.11.
+Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. `WP-H2-001` esta activo solo hasta R1; no hay implementacion iniciada en esta activacion.
 
 ## Contrato Editorial
 
@@ -67,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia hasta activar `WP-H2-001` mediante autorizacion posterior exacta. La aprobacion vigente solo autoriza R1 no activo; R2 y cualquier R3 requieren aprobaciones posteriores separadas.
+No inicia implementacion hasta definir una subfase decimal activa mediante revision Plan y autorizacion posterior exacta. La activacion vigente solo autoriza R1 local; R2 y cualquier R3 requieren aprobaciones posteriores separadas.

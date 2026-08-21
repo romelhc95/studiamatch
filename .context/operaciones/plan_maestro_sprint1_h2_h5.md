@@ -12,9 +12,9 @@ O3 = COMPLETED
 O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = NOT_AUTHORIZED
-active_work_package = NONE
-next_gate = ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION
-lifecycle_stage = APPROVED_NOT_ACTIVE
+active_work_package = WP-H2-001
+next_gate = PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE
+lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = PLANNED_NOT_ACTIVE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
@@ -75,7 +75,8 @@ D0-D10 paquete correctivo local
 -> O5 certificacion -> desarrollo
 -> tracker final y checkout limpio
 -> aprobacion digest WP-H2-001 completada hasta R1 no activo
--> activacion separada WP-H2-001 R1
+-> activacion separada WP-H2-001 R1 completada
+-> revision Plan para subfase decimal de implementacion local H2 R1
 -> H2
 -> H3
 -> H4
@@ -145,7 +146,7 @@ H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no h
 | T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
-| T6 | H2 | Pendiente de activacion humana separada de `WP-H2-001` hasta R1. |
+| T6 | H2 | `WP-H2-001` activo hasta R1; pendiente revision Plan y subfase decimal de implementacion local. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -280,4 +281,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta completada y homologada. `WP-H2-001` esta aprobado hasta R1 y no activo. El unico siguiente gate posible es activacion humana exacta de `WP-H2-001` hasta R1. H2 no inicia sin esa activacion y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.
+F10.11 esta completada y homologada. `WP-H2-001` esta activo hasta R1, sin implementacion iniciada. El unico siguiente gate posible es revision Plan independiente para definir una subfase decimal de implementacion local H2 R1. H2 no inicia trabajo funcional sin esa autorizacion posterior y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.

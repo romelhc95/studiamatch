@@ -47,21 +47,21 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11`, `COMPLETED_HOMOLOGATED`, `active_work_package = NONE` o equivalente, `WP-H2-001=APPROVED_NOT_ACTIVE` y `ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION`.
-- El Plan Maestro debe mantener `H2-H5 = NOT_AUTHORIZED`, O0-O5 completados, `WP-H2-001` aprobado-no-activo y el proximo gate de activacion R1 separada.
+- `estado_del_proyecto.md` debe declarar `F10.11`, `COMPLETED_HOMOLOGATED`, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE`.
+- El Plan Maestro debe mantener `H2-H5 = NOT_AUTHORIZED`, O0-O5 completados, `WP-H2-001` activo hasta R1 y el proximo gate de revision Plan para subfase decimal.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3 y work packages H2-H5.
-- Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `APPROVED_NOT_ACTIVE` hasta activacion separada.
-- Ninguna evidencia o tracker puede marcar H2 activo antes de activacion humana separada y cualquier R3 JIT requerido.
+- Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1 mientras no exista subfase decimal de implementacion.
+- Ninguna evidencia o tracker puede marcar H2 implementado, aceptado o completado antes de autorizacion de subfase decimal y cualquier R3 JIT requerido.
 
-## Taxonomia De Lifecycle H2 Aprobado No Activo
+## Taxonomia De Lifecycle H2 Activo R1 Sin Implementacion
 
 | Campo | Valor preaprobacion H2 | Regla |
 |---|---|---|
-| `lifecycle_stage` | `APPROVED_NOT_ACTIVE` | La aprobacion R1 fue registrada; el siguiente gate es activacion separada. |
-| `gate_status` | `APPROVED_R1` | O5, checkout limpio y aprobacion digest+commit estan completos. |
+| `lifecycle_stage` | `ACTIVE` | La activacion R1 fue registrada; el siguiente gate es revision Plan de implementacion. |
+| `gate_status` | `APPROVED_R1` | O5, checkout limpio, aprobacion digest+commit y activacion R1 estan completos. |
 | `implementation_status` | `PLANNED_NOT_ACTIVE` | No hay cambios funcionales H2 ejecutados. |
-| `work_package_status` | `APPROVED` | Tiene metadata de aprobacion; no tiene `activated_at`. |
+| `work_package_status` | `ACTIVE` | Tiene metadata de aprobacion y activacion; no hay implementacion iniciada. |
 | `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
 | `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
 | `approval_target_lifecycle_stage` | `APPROVED_NOT_ACTIVE` | Resultado permitido por aprobacion futura; no es estado actual. |
@@ -73,8 +73,8 @@ estado mutable actual (`status`, `lifecycle_stage`, `gate_status`, progreso,
 metadata de aprobacion y activacion) queda fuera de esa proyeccion para que una
 aprobacion futura pueda registrar evidencia humana sin cambiar el digest firmado.
 Un `PROPOSED` con estado actual `APPROVED_NOT_ACTIVE` o `APPROVED_R1` es una
-pseudo-aprobacion y debe fallar. Un `APPROVED` con `activated_at` o
-`active_work_package` distinto de `NONE` es una activacion prematura y debe fallar.
+pseudo-aprobacion y debe fallar. Un `ACTIVE` sin `activated_at` o sin
+`active_work_package = WP-H2-001` es una activacion incompleta y debe fallar.
 
 ## Transiciones WP Permitidas
 

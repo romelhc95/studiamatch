@@ -66,6 +66,7 @@ DIGEST_EXCLUDED_FIELDS = {
 }
 H2_DIGEST_SCHEMA = "h2-approval-target-v1"
 H2_APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
+H2_ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 H2_SIGNED_FIELDS = {
     "digest_schema",
     "id",
@@ -149,6 +150,28 @@ GOVERNANCE_DENY = ABSOLUTE_DENY + (
     "db/**",
     "scripts/core/**",
     "scripts/maintenance/**",
+    "workers/**",
+)
+H2_ACTIVATION_TRANSITION_ALLOWLIST = (
+    ".context/estado_del_proyecto.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/hitos/hito_002.md",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md",
+    ".context/matrices/matriz_hito_002.md",
+    ".context/work_packages/WP-H2-001.json",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
+    "tests/test_work_package_manifest.py",
+    "tests/test_context_graph_semantics.py",
+)
+H2_ACTIVATION_TRANSITION_DENY = ABSOLUTE_DENY + (
+    "web/**",
+    "db/**",
+    "scripts/core/**",
+    "scripts/maintenance/**",
+    "supabase/**",
     "workers/**",
 )
 SOURCE_NAMES = {"Studiamatch_MVP_Requerimientos_v5.docx", "studiamatch_home.html", "studiamatch_resultados.html"}
@@ -428,12 +451,15 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
     return paths
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE") -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if active:
+    if activation_transition:
+        allowed = H2_ACTIVATION_TRANSITION_ALLOWLIST
+        denied = H2_ACTIVATION_TRANSITION_DENY
+    elif active:
         allowed = tuple(str(item) for item in active[0].get("allowed_paths", []))
         denied = ABSOLUTE_DENY
     else:
@@ -469,7 +495,12 @@ def main(argv: list[str] | None = None) -> int:
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     if args.changed_from:
-        errors.extend(validate_changed_paths(git_changed_paths(args.changed_from), load_manifests(), active_work_package=active_work_package_from_state()))
+        errors.extend(validate_changed_paths(
+            git_changed_paths(args.changed_from),
+            load_manifests(),
+            active_work_package=active_work_package_from_state(),
+            activation_transition=args.changed_from == H2_ACTIVATION_BASE_COMMIT,
+        ))
     if errors:
         for error in errors:
             print(error)

@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual y homologacion canonica Sprint 1 | `COMPLETED_HOMOLOGATED` | O0-O5 completados; checkout objetivo limpio; `WP-H2-001` aprobado hasta R1 y no activo. |
+| `F10.11` | Cierre contractual y homologacion canonica Sprint 1 | `COMPLETED_HOMOLOGATED` | O0-O5 completados; checkout objetivo limpio; `WP-H2-001` activo hasta R1, sin implementacion iniciada. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 
 ## Subfases F10
@@ -52,23 +52,23 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Hito: [HITO-002](hitos/hito_002.md).
 - Tarea: [TASK-H2-001](backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md).
 - Subfase tecnica activa: `F10.11`.
-- Work package activo: `NONE`.
-- Work package aprobado: `WP-H2-001=APPROVED_NOT_ACTIVE`.
+- Work package activo: `WP-H2-001`.
+- Work package aprobado: `WP-H2-001=ACTIVE_R1`.
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
-- Lifecycle stage: `APPROVED_NOT_ACTIVE`.
+- Lifecycle stage: `ACTIVE`.
 - Gate status: `APPROVED_R1`.
 - Implementation status: `PLANNED_NOT_ACTIVE`.
 - Criteria status: `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED`.
 - Acceptance status: `NOT_STARTED`.
-- Proximo gate unico: `ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION`.
+- Proximo gate unico: `PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | `TASK-H1-001` |
-| `HITO-002` | `APPROVED_NOT_ACTIVE` | `TASK-H2-001` |
+| `HITO-002` | `ACTIVE_R1_PLANNED_NOT_ACTIVE` | `TASK-H2-001` |
 | `HITO-003` | `PENDING` | `TASK-H3-001` |
 | `HITO-004` | `PENDING` | `TASK-H4-001` |
 | `HITO-005` | `PENDING` | `TASK-H5-001` |
@@ -89,10 +89,10 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 La homologacion canonica F10.11 esta completada. `main`, `certificacion` y
 `desarrollo` comparten el tree `fcb59095e48441bb4486ccc196aee61e2e1e0fe3`.
 El checkout objetivo esta limpio en `desarrollo@974f9d4bde6d79230afde5c5a86ba7a3894233c6`.
-Hito 2 no esta activo; `WP-H2-001` quedo aprobado hasta R1 por digest y commit candidate, pendiente de activacion separada.
+Hito 2 tiene `WP-H2-001` activo hasta R1, sin implementacion iniciada y pendiente de revision Plan para definir subfase decimal de implementacion local.
 
 ## Siguiente Gate
 
-El unico siguiente gate es activacion explicita de `WP-H2-001` hasta R1. Esa
-activacion no autoriza DDL/DML, Supabase, backfill, RLS/grants, writers,
-schedules, produccion ni ningun R3.
+El unico siguiente gate es revision Plan independiente para definir una subfase
+decimal de implementacion local H2 R1. La activacion vigente no autoriza DDL/DML,
+Supabase, backfill, RLS/grants, writers, schedules, produccion ni ningun R3.

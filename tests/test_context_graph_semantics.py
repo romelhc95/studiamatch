@@ -55,33 +55,42 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text("\n".join(lines) + "\n", encoding="utf-8")
             self.assertTrue(any(error.startswith("LIFECYCLE_MISMATCH:state missing Lifecycle stage") for error in validator.validate(root)))
 
-    def test_active_wp_status_fails_before_activation_gate(self):
-        validator = load_validator()
-        with tempfile.TemporaryDirectory() as tmp:
-            root = copy_repo_context(Path(tmp))
-            path = root / ".context" / "work_packages" / "WP-H2-001.json"
-            data = json.loads(path.read_text(encoding="utf-8"))
-            data["status"] = "ACTIVE"
-            path.write_text(json.dumps(data), encoding="utf-8")
-            self.assertTrue(any(error.startswith("UNAPPROVED_ACTIVE_WP") for error in validator.validate(root)))
-
-    def test_approved_with_activation_metadata_fails(self):
-        validator = load_validator()
-        with tempfile.TemporaryDirectory() as tmp:
-            root = copy_repo_context(Path(tmp))
-            path = root / ".context" / "work_packages" / "WP-H2-001.json"
-            data = json.loads(path.read_text(encoding="utf-8"))
-            data["activated_at"] = "2026-08-21T12:05:00Z"
-            path.write_text(json.dumps(data), encoding="utf-8")
-            self.assertTrue(any(error.startswith("ACTIVATION_PREMATURE") for error in validator.validate(root)))
-
-    def test_approved_with_active_work_package_fails(self):
+    def test_active_wp_requires_matching_active_work_package(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("Work package activo: `NONE`", "Work package activo: `WP-H2-001`")
+            text = path.read_text(encoding="utf-8").replace("Work package activo: `WP-H2-001`", "Work package activo: `NONE`")
             path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("UNAPPROVED_ACTIVE_WP") for error in validator.validate(root)))
+
+    def test_plan_active_work_package_drift_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"
+            text = path.read_text(encoding="utf-8").replace("active_work_package = WP-H2-001", "active_work_package = NONE")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("UNAPPROVED_ACTIVE_WP") for error in validator.validate(root)))
+
+    def test_active_wp_requires_activation_metadata(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "work_packages" / "WP-H2-001.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.pop("activated_at", None)
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.assertTrue(any(error.startswith("ACTIVATION_METADATA_REQUIRED") for error in validator.validate(root)))
+
+    def test_inactive_wp_status_fails_after_activation(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "work_packages" / "WP-H2-001.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["status"] = "APPROVED"
+            path.write_text(json.dumps(data), encoding="utf-8")
             self.assertTrue(any(error.startswith("UNAPPROVED_ACTIVE_WP") for error in validator.validate(root)))
 
     def test_task_or_matrix_active_fails(self):
@@ -115,7 +124,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("activar solo R1 aprobado", "activar solo R1/R2 permitido")
+            text = path.read_text(encoding="utf-8").replace("activo solo R1", "activo R1/R2")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
