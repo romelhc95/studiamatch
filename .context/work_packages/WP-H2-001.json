@@ -3,7 +3,23 @@
   "status": "PROPOSED",
   "hito": "HITO-002",
   "risk_level": "R3_REQUIRED_FOR_DDL_DML",
-  "allowed_paths": ["db/**", "scripts/core/**", "scripts/maintenance/**", "tests/**", ".context/**"],
-  "denied_without_jit": ["production", "supabase-pro", "workflow_dispatch", "writers", "schedules"],
-  "exit_criteria": ["CA2 accepted", "CA3 accepted", "RLS PASS", "backfill idempotent", "manual values preserved"]
+  "baseline": {
+    "main_commit": "ad89e8ab9575b37476502d6062e22c044ad6447b",
+    "main_tree": "54098b3ff581cc7728979afc8e6d47c9535141b5",
+    "desarrollo_commit": "a2c97ec17aabc790b656d6db1b16bdc95f0af1b2",
+    "desarrollo_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c",
+    "certificacion_commit": "4e7e41a9fac08e657308849701b4b1f70b994e3b",
+    "certificacion_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c"
+  },
+  "environment_scope": ["local", "development", "certification"],
+  "allowed_paths": ["db/migrations/*", "scripts/core/*", "scripts/maintenance/*", "scripts/security/*", "tests/*", ".context/*"],
+  "denied_without_jit": ["production", "supabase-pro", "workflow_dispatch", "writers", "schedules", "lead_capture", "egress"],
+  "dependencies": ["O5 homologation completed", "clean checkout", "REQ-EST-001 source hashes unchanged", "human approval by digest"],
+  "r3_operations": ["ddl", "dml", "backfill", "rls_grants", "supabase-free", "supabase-pro-promotion"],
+  "expires_at": "2026-09-30",
+  "candidate_digest": "8e0b971e2d116e5bc1b4f523003d91f97e106d0ad576b8b9a9de4ae9984380b9",
+  "approval_digest_source": "Human approver must copy this candidate_digest into approval_digest before status can change to APPROVED or ACTIVE.",
+  "approver_required": "human",
+  "invalidated_by": ["baseline drift", "source hash drift", "path scope drift", "new DDL/DML not documented", "lead egress introduced", "schedule activation"],
+  "exit_criteria": ["CA2 accepted", "CA3 accepted", "RLS PASS", "grants PASS", "backfill idempotent", "second run NOOP", "manual values preserved", "pipeline cannot publish"]
 }

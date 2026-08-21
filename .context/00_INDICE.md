@@ -32,13 +32,17 @@
 
 - [ADR-0026](decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md)
 - [ADR-0027](decisiones/ADR-0027_work_packages_y_convergencia.md)
+- [ADR-0028](decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md)
 
 ## Operaciones
 
 - [Plan Maestro Sprint 1 H2-H5](operaciones/plan_maestro_sprint1_h2_h5.md)
+- [Context Graph Semantico](operaciones/context_graph_semantico.md)
 - [Baseline, preservacion y homologacion](operaciones/baseline_preservacion_homologacion_sprint1.md)
 - [Flujo release minimo](operaciones/flujo_release_minimo.md)
 - [Seguimiento Sprint 1 H2-H5](seguimiento/seguimiento_sprint_1_h2_h5.md)
+- [Plantilla Tracker Reutilizable](seguimiento/plantilla_tracker_reutilizable.md)
+- [Retrospectiva Hito 1](seguimiento/retrospectiva_hito_001.md)
 
 ## Work Packages
 
