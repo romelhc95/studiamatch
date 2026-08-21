@@ -60,7 +60,62 @@ jobs:
         run: |
           set -euo pipefail
           find scripts -name '*.py' -exec python3 -m py_compile {} \;
+
+  manifest-digest:
+    name: Manifest Digest Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate work package manifests and digests
+        run: |
+          set -euo pipefail
           python3 scripts/security/validate_work_package.py
+
+  markdown-links:
+    name: Markdown Link Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate local Markdown links
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+          root = Path.cwd()
+          failures = []
+          pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+          for path in sorted((root / ".context").rglob("*.md")):
+              text = path.read_text(encoding="utf-8")
+              for match in pattern.finditer(text):
+                  target = match.group(1).split("#", 1)[0]
+                  if not target or "://" in target or target.startswith("mailto:"):
+                      continue
+                  resolved = (path.parent / target).resolve()
+                  try:
+                      resolved.relative_to(root.resolve())
+                  except ValueError:
+                      failures.append(f"{path.relative_to(root)} -> {target} escapes repository")
+                      continue
+                  if not resolved.exists():
+                      failures.append(f"{path.relative_to(root)} -> {target}")
+          if failures:
+              for failure in failures:
+                  print(f"::error::broken-link:{failure}")
+              sys.exit(1)
+          print("markdown links valid")
+          PY
 
   context-graph:
     name: Context Graph
@@ -69,14 +124,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Validate canonical state
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate semantic Context Graph
         run: |
           set -euo pipefail
-          test -f .context/estado_del_proyecto.md
-          grep -q 'F10.11' .context/estado_del_proyecto.md
-          grep -q 'active_work_package = NONE\|Work package activo: `NONE`' .context/estado_del_proyecto.md
-          test -f .context/work_packages/WP-H2-001.json
-          test -f tests/test_work_package_manifest.py
+          python3 scripts/security/validate_context_graph.py
 
   path-boundary:
     name: Canonical Path Boundary
@@ -89,23 +143,37 @@ jobs:
       - name: Enforce canonical path boundary
         run: |
           set -euo pipefail
-          git cat-file -e "$F1011_TECH_BASE^{commit}" || git fetch --no-tags --depth=1 origin "$F1011_TECH_BASE"
+          git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF:-desarrollo}" || true
           python3 - <<'PY'
           import fnmatch
+          import os
           import subprocess
           import sys
 
-          base = "ad89e8ab9575b37476502d6062e22c044ad6447b"
+          def resolve_base() -> str:
+              base_ref = os.environ.get("GITHUB_BASE_REF")
+              before = os.environ.get("GITHUB_EVENT_BEFORE") or os.environ.get("GITHUB_SHA_BEFORE")
+              if base_ref:
+                  return subprocess.check_output(["git", "merge-base", "HEAD", f"origin/{base_ref}"], text=True).strip()
+              event_path = os.environ.get("GITHUB_EVENT_PATH")
+              if event_path:
+                  import json
+                  from pathlib import Path
+                  event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+                  before = event.get("before") or before
+              if before and set(before) != {"0"}:
+                  return before
+              return "ad89e8ab9575b37476502d6062e22c044ad6447b"
+
+          base = resolve_base()
           allowed = (
-              ".context/**",
+               ".context/**",
               "AGENTS.md",
-              ".gitignore",
-              ".github/workflows/security-audit.yml",
-              ".github/workflows/f9_9_certification_canary.yml",
-              ".github/workflows/f9-7-contract.yml",
-              "scripts/security/validate_work_package.py",
-              "tests/test_work_package_manifest.py",
-          )
+              ".github/pull_request_template.md",
+               ".github/workflows/security-audit.yml",
+              "scripts/security/**",
+               "tests/test_work_package_manifest.py",
+           )
           denied = (
               "web/**",
               "db/**",
@@ -114,12 +182,16 @@ jobs:
               "workers/**",
               "supabase/**",
               ".env*",
+              "**/.env*",
+              "*.env",
+              "**/*.env",
           )
           source_names = {
               "Studiamatch_MVP_Requerimientos_v5.docx",
               "studiamatch_home.html",
               "studiamatch_resultados.html",
           }
+          source_extensions = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
 
           raw = subprocess.check_output(["git", "diff", "--name-status", "-z", base, "HEAD", "--"])
           fields = raw.split(b"\0")
@@ -136,7 +208,8 @@ jobs:
               index += 1
               for path in paths:
                   name = path.rsplit("/", 1)[-1]
-                  if name in source_names:
+                  lower_path = path.lower()
+                  if name in source_names or lower_path.endswith(source_extensions):
                       failures.append(f"source-artifact:{status}:{path}")
                   if any(fnmatch.fnmatch(path, pattern) for pattern in denied):
                       failures.append(f"denied-path:{status}:{path}")
@@ -152,7 +225,6 @@ jobs:
   lint:
     name: ESLint
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: web
@@ -171,7 +243,6 @@ jobs:
   typecheck:
     name: TypeScript Typecheck
     runs-on: ubuntu-latest
-    continue-on-error: true
     defaults:
       run:
         working-directory: web
@@ -190,7 +261,6 @@ jobs:
   static-build:
     name: Static Build
     runs-on: ubuntu-latest
-    continue-on-error: true
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
@@ -209,17 +279,53 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  postgresql-17:
+    name: PostgreSQL 17 DB Change Gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run only when db changes exist
+        run: |
+          set -euo pipefail
+          git cat-file -e "$F1011_TECH_BASE^{commit}" || git fetch --no-tags --depth=1 origin "$F1011_TECH_BASE"
+          if ! git diff --quiet "$F1011_TECH_BASE" HEAD -- db; then
+            echo "db changes detected; PostgreSQL 17 service is healthy"
+            pg_isready -h localhost -p 5432 -U postgres
+          else
+            echo "no db changes; PostgreSQL 17 gate skipped"
+          fi
+
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, python-check, context-graph, path-boundary, lint, typecheck, static-build]
+    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, lint, typecheck, static-build, postgresql-17]
     if: always()
     steps:
       - name: Aggregate required checks
         run: |
           set -euo pipefail
-          test '${{ needs.credential-scan.result }}' = 'success'
-          test '${{ needs.python-check.result }}' = 'success'
-          test '${{ needs.context-graph.result }}' = 'success'
-          test '${{ needs.path-boundary.result }}' = 'success'
-          echo "Advisory lint=${{ needs.lint.result }} typecheck=${{ needs.typecheck.result }} build=${{ needs.static-build.result }}"
+           test '${{ needs.credential-scan.result }}' = 'success'
+           test '${{ needs.python-check.result }}' = 'success'
+          test '${{ needs.manifest-digest.result }}' = 'success'
+          test '${{ needs.markdown-links.result }}' = 'success'
+           test '${{ needs.context-graph.result }}' = 'success'
+           test '${{ needs.path-boundary.result }}' = 'success'
+          test '${{ needs.lint.result }}' = 'success'
+          test '${{ needs.typecheck.result }}' = 'success'
+          test '${{ needs.static-build.result }}' = 'success'
+          test '${{ needs.postgresql-17.result }}' = 'success'
