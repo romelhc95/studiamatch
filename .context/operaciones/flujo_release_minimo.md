@@ -98,3 +98,32 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 Los respaldos preservados se conservan fuera del repositorio, sin mover, editar o compactar hasta desplegar Hito 1 y completar observacion. Sus rutas locales no se versionan.
 
 Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
+# Flujo Release Minimo - F10.11
+
+> Esta nota no crea alcance ni autoriza ejecucion por si sola. La autoridad viva
+> esta en `estado_del_proyecto.md`.
+
+## Flujo Vigente Sprint 1
+
+```text
+feature/candidate local
+-> PR protegido a desarrollo
+-> PR protegido desarrollo a certificacion
+-> PR protegido certificacion a main
+-> PR protegido main a certificacion
+-> PR protegido certificacion a desarrollo
+```
+
+## Reglas
+
+- `security-audit` permanece como required check.
+- Cada PR requiere review humano.
+- `web/**` y `db/**` permanecen byte-identicos a `TECH_BASE` durante homologacion.
+- `DB Sync to Production` en main debe terminar `SUCCESS_NO_DB_CHANGES_SKIPPED`.
+- Cloudflare Pages automatico se acepta solo como efecto observado, sin cambios web.
+- H2-H5 requieren work package aprobado por digest.
+
+## R3
+
+Certification/Main, DB, deploys, schedules, writers, secrets o acciones
+destructivas requieren aprobacion JIT separada.

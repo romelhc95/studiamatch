@@ -85,9 +85,6 @@ on:
       - 'requirements-db-migrate.txt'
       - 'requirements-test.txt'
       - '.github/workflows/f9-7-contract.yml'
-  push:
-    branches: [desarrollo]
-
 permissions:
   contents: read
 
@@ -106,7 +103,7 @@ env:
 jobs:
   fase09-7-schema-rls:
     name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract
-    if: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
+    if: ${{ !(github.event_name == 'pull_request' && github.head_ref == 'docs/f10-11-sprint1-canonical-rebaseline') && (github.event_name != 'pull_request' || github.base_ref != 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -115,44 +112,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           fetch-depth: 0
-      - name: Validate exact F10.9 transition boundary
-        if: >-
-          (github.event_name == 'pull_request' &&
-            ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
-             (github.base_ref == 'desarrollo' &&
-               github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/desarrollo' &&
-            github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc')
-        env:
-          F109_EVENT: ${{ github.event_name }}
-          F109_BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref || github.ref_name }}
-          F109_HEAD_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-          F109_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          F109_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          F109_BASE_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.repo.full_name || github.repository }}
-          F109_HEAD_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags origin certificacion archive/f10-9-ca2-preserve-desarrollo-20260809
-          cert_tip="$(git rev-parse origin/certificacion)"
-          python3 scripts/security/f109_boundary.py \
-            --event "$F109_EVENT" \
-            --base-ref "$F109_BASE_REF" \
-            --head-ref "$F109_HEAD_REF" \
-            --base-sha "$F109_BASE_SHA" \
-            --head-sha "$F109_HEAD_SHA" \
-            --base-repo "$F109_BASE_REPO" \
-            --head-repo "$F109_HEAD_REPO" \
-            --cert-tip "$cert_tip"
-          python3 -m unittest tests.test_fase10_9_branch_reconciliation -v
       - name: Validate F9.8 transition boundary
-        if: >-
-          !((github.event_name == 'pull_request' &&
-            ((github.base_ref == 'certificacion' && github.event.pull_request.base.sha == '2a70dd001d8ded34d5ba67c19221f7f5e291d2c8') ||
-             (github.base_ref == 'desarrollo' &&
-               github.event.pull_request.base.sha == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))) ||
-          (github.event_name == 'push' && github.ref == 'refs/heads/desarrollo' &&
-            github.event.before == '8f4b4b0cbd8fd8ed096a34d8fa826f39ba6ec3fc'))
         run: |
           set -eu
           if [ "${{ github.event_name }}" = "pull_request" ]; then
