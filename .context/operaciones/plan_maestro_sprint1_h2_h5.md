@@ -13,9 +13,9 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = NOT_AUTHORIZED
 active_work_package = NONE
-next_gate = HUMAN_APPROVAL_WP_H2_001_BY_DIGEST_AND_COMMIT
-lifecycle_stage = AWAITING_DIGEST
-gate_status = READY_FOR_DIGEST_APPROVAL
+next_gate = ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION
+lifecycle_stage = APPROVED_NOT_ACTIVE
+gate_status = APPROVED_R1
 implementation_status = PLANNED_NOT_ACTIVE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
@@ -74,7 +74,8 @@ D0-D10 paquete correctivo local
 -> O4 main -> certificacion
 -> O5 certificacion -> desarrollo
 -> tracker final y checkout limpio
--> aprobacion digest WP-H2-001
+-> aprobacion digest WP-H2-001 completada hasta R1 no activo
+-> activacion separada WP-H2-001 R1
 -> H2
 -> H3
 -> H4
@@ -144,7 +145,7 @@ H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no h
 | T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
-| T6 | H2 | Pendiente de aprobacion humana por digest `WP-H2-001`. |
+| T6 | H2 | Pendiente de activacion humana separada de `WP-H2-001` hasta R1. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -171,7 +172,7 @@ Contrato obligatorio:
 9. Migracion forward-only versionada.
 10. Backfill separado, reanudable e idempotente.
 11. Matriz de pruebas con segundo run `NOOP`.
-12. Manifest aprobado por digest.
+12. Manifest aprobado por digest hasta R1 no activo.
 13. Evidencia usable por ambiente.
 
 Restricciones H2:
@@ -279,4 +280,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta completada y homologada. El unico siguiente gate posible es aprobacion humana exacta de `WP-H2-001` por digest y commit candidate. H2 no inicia sin esa aprobacion y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.
+F10.11 esta completada y homologada. `WP-H2-001` esta aprobado hasta R1 y no activo. El unico siguiente gate posible es activacion humana exacta de `WP-H2-001` hasta R1. H2 no inicia sin esa activacion y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.

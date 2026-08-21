@@ -2,18 +2,18 @@
 
 | Campo | Valor |
 |---|---|
-| Lifecycle stage | `AWAITING_DIGEST` |
-| Gate status | `READY_FOR_DIGEST_APPROVAL` |
+| Lifecycle stage | `APPROVED_NOT_ACTIVE` |
+| Gate status | `APPROVED_R1` |
 | Implementation status | `PLANNED_NOT_ACTIVE` |
 | Acceptance status | `NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
-| Gate | O5, checkout limpio y aprobacion digest+commit de `WP-H2-001` |
+| Gate | `WP-H2-001` aprobado hasta R1; pendiente activacion separada. |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. No hay ejecucion activa en F10.11.
+Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. No hay ejecucion activa en F10.11.
 
 ## Contrato Editorial
 
@@ -67,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia hasta completar O5, tener checkout limpio homologado y aprobar `WP-H2-001` por digest y commit candidate verificables. La primera aprobacion solo puede autorizar R1; R2 y cualquier R3 requieren aprobaciones posteriores separadas.
+No inicia hasta activar `WP-H2-001` mediante autorizacion posterior exacta. La aprobacion vigente solo autoriza R1 no activo; R2 y cualquier R3 requieren aprobaciones posteriores separadas.

@@ -65,6 +65,7 @@ DIGEST_EXCLUDED_FIELDS = {
     "activated_at",
 }
 H2_DIGEST_SCHEMA = "h2-approval-target-v1"
+H2_APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
 H2_SIGNED_FIELDS = {
     "digest_schema",
     "id",
@@ -314,8 +315,12 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         if data.get("id") == "WP-H2-001":
             if not HEX40.match(str(data.get("approved_candidate_commit"))):
                 errors.append(f"APPROVAL_CANDIDATE_COMMIT_INVALID:{path.name}")
+            elif data.get("approved_candidate_commit") != H2_APPROVED_CANDIDATE_COMMIT:
+                errors.append(f"APPROVAL_CANDIDATE_COMMIT_MISMATCH:{path.name}")
             if not HEX64.match(str(data.get("approval_evidence_sha256"))):
                 errors.append(f"APPROVAL_EVIDENCE_INVALID:{path.name}")
+            if status == "APPROVED" and "activated_at" in data:
+                errors.append(f"ACTIVATION_PREMATURE:{path.name}:approved work package must not include activated_at")
     if status == "ACTIVE":
         if not data.get("activated_at") or parse_utc(data.get("activated_at")) is None:
             errors.append(f"ACTIVATION_METADATA_REQUIRED:{path.name}")
@@ -353,6 +358,8 @@ def is_active_r1_manifest(manifest: dict[str, Any], *, active_work_package: str 
         return False
     if manifest.get("approval_digest") != manifest.get("candidate_digest"):
         return False
+    if manifest.get("approved_candidate_commit") != H2_APPROVED_CANDIDATE_COMMIT:
+        return False
     if not all(manifest.get(key) for key in APPROVAL_KEYS):
         return False
     if not HEX40.match(str(manifest.get("approved_candidate_commit"))):
@@ -369,8 +376,7 @@ def is_active_r1_manifest(manifest: dict[str, Any], *, active_work_package: str 
     return compute_digest(manifest) == manifest.get("candidate_digest")
 
 
-def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
-    raw = subprocess.check_output(["git", "diff", "--name-status", "-z", base, "HEAD", "--"], cwd=root)
+def parse_name_status(raw: bytes) -> list[tuple[str, str]]:
     fields = raw.split(b"\0")
     index = 0
     paths: list[tuple[str, str]] = []
@@ -382,6 +388,43 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
             index += 1
         paths.append((status, fields[index].decode("utf-8", "surrogateescape")))
         index += 1
+    return paths
+
+
+def git_status_paths(root: Path = ROOT) -> list[tuple[str, str]]:
+    raw = subprocess.check_output(["git", "status", "--porcelain=v1", "-z"], cwd=root)
+    fields = [field for field in raw.split(b"\0") if field]
+    paths: list[tuple[str, str]] = []
+    index = 0
+    while index < len(fields):
+        entry = fields[index].decode("utf-8", "surrogateescape")
+        status = entry[:2].strip() or "M"
+        path = entry[3:]
+        if status.startswith(("R", "C")):
+            index += 1
+            if index < len(fields):
+                paths.append((status, fields[index].decode("utf-8", "surrogateescape")))
+        paths.append((status, path))
+        index += 1
+    return paths
+
+
+def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
+    for command in (
+        ["git", "diff", "--name-status", "-z", base, "--"],
+        ["git", "diff", "--name-status", "-z", base, "HEAD", "--"],
+    ):
+        try:
+            return parse_name_status(subprocess.check_output(command, cwd=root, stderr=subprocess.DEVNULL))
+        except subprocess.CalledProcessError:
+            continue
+    paths = git_status_paths(root)
+    try:
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+        if head != base:
+            paths.extend(parse_name_status(subprocess.check_output(["git", "show", "--name-status", "--format=", "-z", "HEAD"], cwd=root, stderr=subprocess.DEVNULL)))
+    except subprocess.CalledProcessError:
+        pass
     return paths
 
 

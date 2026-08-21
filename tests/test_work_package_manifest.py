@@ -23,6 +23,14 @@ def load_h2():
     return json.loads((MANIFEST_DIR / "WP-H2-001.json").read_text(encoding="utf-8"))
 
 
+def proposed_h2():
+    data = load_h2()
+    data.update({"status": "PROPOSED", "lifecycle_stage": "AWAITING_DIGEST", "gate_status": "READY_FOR_DIGEST_APPROVAL"})
+    for key in ("approval_digest", "approved_by", "approved_at", "approval_reference", "approved_level", "approved_candidate_commit", "approval_evidence_sha256", "activated_at"):
+        data.pop(key, None)
+    return data
+
+
 class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
@@ -35,8 +43,13 @@ class WorkPackageManifestTests(unittest.TestCase):
         data = load_h2()
         self.assertEqual(data["task_id"], "TASK-H2-001")
         self.assertEqual(data["phase_trace"], "F10.11")
-        self.assertEqual(data["lifecycle_stage"], "AWAITING_DIGEST")
-        self.assertEqual(data["gate_status"], "READY_FOR_DIGEST_APPROVAL")
+        self.assertEqual(data["status"], "APPROVED")
+        self.assertEqual(data["lifecycle_stage"], "APPROVED_NOT_ACTIVE")
+        self.assertEqual(data["gate_status"], "APPROVED_R1")
+        self.assertEqual(data["approval_digest"], data["candidate_digest"])
+        self.assertEqual(data["approved_level"], "R1")
+        self.assertEqual(data["approved_candidate_commit"], "c8e4596b153c10721ed335369863a07154eb2b43")
+        self.assertNotIn("activated_at", data)
         self.assertEqual(data["approval_target_lifecycle_stage"], "APPROVED_NOT_ACTIVE")
         self.assertEqual(data["approval_target_gate_status"], "APPROVED_R1")
         self.assertEqual(data["approval_target_level"], "R1")
@@ -49,7 +62,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_proposed_manifest_cannot_include_approval_fields(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         data["approval_digest"] = data["candidate_digest"]
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "WP-H2-001.json"
@@ -59,7 +72,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_proposed_manifest_cannot_include_approved_level(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         data["approved_level"] = "R1"
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "WP-H2-001.json"
@@ -88,7 +101,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                 path.write_text(json.dumps(data), encoding="utf-8")
                 errors = validator.validate_manifest(path, root=ROOT)
             self.assertTrue(any(error.startswith("WP_SIGNED_FIELDS_MISSING") or error.startswith("APPROVAL_TARGET_INVALID") for error in errors), field)
-        data = load_h2()
+        data = proposed_h2()
         data["approval_target_level"] = "R2"
         data["candidate_digest"] = validator.compute_digest(data)
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,7 +112,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_unknown_top_level_field_fails_for_h2_schema(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         data["unexpected"] = "value"
         data["candidate_digest"] = validator.compute_digest(data)
         with tempfile.TemporaryDirectory() as tmp:
@@ -110,7 +123,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_approved_requires_metadata_and_matching_digest(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         data["status"] = "APPROVED"
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "WP-H2-001.json"
@@ -125,7 +138,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                 "approved_at": "2026-08-21T12:00:00Z",
                 "approval_reference": "manual-session",
                 "approved_level": "R1",
-                "approved_candidate_commit": "fef4596dd731d50e16f6752e6390516c6d49f87e",
+                "approved_candidate_commit": "c8e4596b153c10721ed335369863a07154eb2b43",
                 "approval_evidence_sha256": "a" * 64,
             })
             path.write_text(json.dumps(data), encoding="utf-8")
@@ -144,7 +157,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "approved_at": "2026-08-21T12:00:00Z",
             "approval_reference": "manual-session",
             "approved_level": "R1",
-            "approved_candidate_commit": "fef4596dd731d50e16f6752e6390516c6d49f87e",
+            "approved_candidate_commit": "c8e4596b153c10721ed335369863a07154eb2b43",
             "approval_evidence_sha256": "a" * 64,
         })
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,17 +188,17 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_target_changes_affect_digest_but_runtime_does_not(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         original = data["candidate_digest"]
         data["approval_target_gate_status"] = "APPROVED_R2"
         self.assertNotEqual(validator.compute_digest(data), original)
-        data = load_h2()
+        data = proposed_h2()
         data["metrics"]["last_validation_at"] = "2026-08-21T12:00:00Z"
         self.assertEqual(validator.compute_digest(data), original)
 
     def test_approval_envelope_preserves_canonical_payload(self):
         validator = load_validator()
-        data = load_h2()
+        data = proposed_h2()
         before = validator.canonical_payload(data)
         data.update({
             "status": "APPROVED",
@@ -196,11 +209,37 @@ class WorkPackageManifestTests(unittest.TestCase):
             "approved_at": "2026-08-21T12:00:00Z",
             "approval_reference": "manual-session",
             "approved_level": "R1",
-            "approved_candidate_commit": "fef4596dd731d50e16f6752e6390516c6d49f87e",
+            "approved_candidate_commit": "c8e4596b153c10721ed335369863a07154eb2b43",
             "approval_evidence_sha256": "a" * 64,
         })
         self.assertEqual(validator.canonical_payload(data), before)
         self.assertEqual(validator.compute_digest(data), data["candidate_digest"])
+
+    def test_approved_manifest_rejects_invalid_candidate_commit_or_evidence(self):
+        validator = load_validator()
+        cases = (
+            ("approved_candidate_commit", "0" * 40, "APPROVAL_CANDIDATE_COMMIT_MISMATCH"),
+            ("approved_candidate_commit", "not-a-commit", "APPROVAL_CANDIDATE_COMMIT_INVALID"),
+            ("approval_evidence_sha256", "not-a-sha", "APPROVAL_EVIDENCE_INVALID"),
+        )
+        for field, value, prefix in cases:
+            data = load_h2()
+            data[field] = value
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "WP-H2-001.json"
+                path.write_text(json.dumps(data), encoding="utf-8")
+                errors = validator.validate_manifest(path, now=datetime(2026, 8, 21, tzinfo=UTC), root=ROOT)
+            self.assertTrue(any(error.startswith(prefix) for error in errors), field)
+
+    def test_approved_manifest_rejects_activation_metadata(self):
+        validator = load_validator()
+        data = load_h2()
+        data["activated_at"] = "2026-08-21T12:05:00Z"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "WP-H2-001.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            errors = validator.validate_manifest(path, now=datetime(2026, 8, 21, tzinfo=UTC), root=ROOT)
+        self.assertTrue(any(error.startswith("ACTIVATION_PREMATURE") for error in errors))
 
     def test_unsafe_allowlist_patterns_fail(self):
         validator = load_validator()
@@ -233,7 +272,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         data["approved_at"] = "2026-08-21T12:00:00Z"
         data["approval_reference"] = "manual-session"
         data["approved_level"] = "R1"
-        data["approved_candidate_commit"] = "fef4596dd731d50e16f6752e6390516c6d49f87e"
+        data["approved_candidate_commit"] = "c8e4596b153c10721ed335369863a07154eb2b43"
         data["approval_evidence_sha256"] = "a" * 64
         data["activated_at"] = "2026-08-21T12:05:00Z"
         errors = validator.validate_changed_paths([("M", "db/migrations/20260821_h2.sql")], [data], active_work_package="WP-H2-001")
@@ -254,7 +293,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         data["approved_at"] = "2026-08-21T12:00:00Z"
         data["approval_reference"] = "manual-session"
         data["approved_level"] = "R1"
-        data["approved_candidate_commit"] = "fef4596dd731d50e16f6752e6390516c6d49f87e"
+        data["approved_candidate_commit"] = "c8e4596b153c10721ed335369863a07154eb2b43"
         data["approval_evidence_sha256"] = "a" * 64
         errors = validator.validate_changed_paths([("M", "db/migrations/20260821_h2.sql")], [data])
         self.assertTrue(any(error.startswith("DENIED_PATH") for error in errors))
@@ -270,7 +309,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         data["approved_at"] = "2026-08-21T12:00:00Z"
         data["approval_reference"] = "manual-session"
         data["approved_level"] = "R2"
-        data["approved_candidate_commit"] = "fef4596dd731d50e16f6752e6390516c6d49f87e"
+        data["approved_candidate_commit"] = "c8e4596b153c10721ed335369863a07154eb2b43"
         data["approval_evidence_sha256"] = "a" * 64
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "WP-H2-001.json"

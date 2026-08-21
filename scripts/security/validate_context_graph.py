@@ -51,6 +51,10 @@ EXPECTED_BASELINE = {
     "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
     "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
 }
+APPROVED_DIGEST = "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a933"
+APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 def read(root: Path, relative: str) -> str:
@@ -96,14 +100,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
     if linked_id(bullet_value(state, "Tarea")) != "TASK-H2-001":
         errors.append("GRAPH_ID_MISMATCH:state active task must be TASK-H2-001")
-    if "WP-H2-001=PROPOSED" not in state:
-        errors.append("GRAPH_ID_MISMATCH:state must reference WP-H2-001 as proposed")
+    if "WP-H2-001=APPROVED_NOT_ACTIVE" not in state:
+        errors.append("GRAPH_ID_MISMATCH:state must reference WP-H2-001 as approved not active")
     if wp.get("id") != "WP-H2-001" or wp.get("task_id") != "TASK-H2-001" or wp.get("hito") != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:WP-H2-001 IDs")
 
     expected = {
-        "Lifecycle stage": "AWAITING_DIGEST",
-        "Gate status": "READY_FOR_DIGEST_APPROVAL",
+        "Lifecycle stage": "APPROVED_NOT_ACTIVE",
+        "Gate status": "APPROVED_R1",
         "Implementation status": "PLANNED_NOT_ACTIVE",
         "Acceptance status": "NOT_STARTED",
     }
@@ -119,9 +123,11 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"LIFECYCLE_MISMATCH:state:{field}")
         if value not in tracker:
             errors.append(f"LIFECYCLE_MISMATCH:tracker missing {value}")
-    if wp.get("lifecycle_stage") != "AWAITING_DIGEST" or wp.get("implementation_status") != "PLANNED_NOT_ACTIVE":
+        if value not in plan:
+            errors.append(f"LIFECYCLE_MISMATCH:plan missing {value}")
+    if wp.get("lifecycle_stage") != "APPROVED_NOT_ACTIVE" or wp.get("implementation_status") != "PLANNED_NOT_ACTIVE":
         errors.append("LIFECYCLE_MISMATCH:wp")
-    if wp.get("gate_status") != "READY_FOR_DIGEST_APPROVAL" or wp.get("acceptance_status") != "NOT_STARTED":
+    if wp.get("gate_status") != "APPROVED_R1" or wp.get("acceptance_status") != "NOT_STARTED":
         errors.append("LIFECYCLE_MISMATCH:wp gate/acceptance")
     if wp.get("approval_target_lifecycle_stage") != "APPROVED_NOT_ACTIVE":
         errors.append("APPROVAL_TARGET_INVALID:wp lifecycle")
@@ -133,20 +139,43 @@ def validate(root: Path = ROOT) -> list[str]:
         for line in text.splitlines():
             if re.search(r"H2-CA[23]|Implementation status|Criteria status", line) and re.search(r"`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", line):
                 errors.append(f"LIFECYCLE_MISMATCH:{name}:premature active status")
-    if wp.get("status") != "PROPOSED":
-        errors.append("UNAPPROVED_ACTIVE_WP:WP-H2-001 must remain PROPOSED preapproval")
+    if wp.get("status") != "APPROVED":
+        errors.append("UNAPPROVED_ACTIVE_WP:WP-H2-001 must remain APPROVED_NOT_ACTIVE")
     if "Work package activo: `NONE`" not in state:
         errors.append("UNAPPROVED_ACTIVE_WP:active work package must be NONE")
-    if "HUMAN_APPROVAL_WP_H2_001_BY_DIGEST_AND_COMMIT" not in state or "HUMAN_APPROVAL_WP_H2_001_BY_DIGEST_AND_COMMIT" not in plan:
-        errors.append("NEXT_GATE_MISMATCH:approval gate must bind digest and commit")
+    required_metadata = {
+        "approval_digest": APPROVED_DIGEST,
+        "approved_candidate_commit": APPROVED_CANDIDATE_COMMIT,
+        "approved_level": "R1",
+    }
+    for field, value in required_metadata.items():
+        if wp.get(field) != value:
+            errors.append(f"APPROVAL_METADATA_MISMATCH:wp:{field}")
+    for field in ("approved_by", "approved_at", "approval_reference", "approval_evidence_sha256"):
+        if not wp.get(field):
+            errors.append(f"APPROVAL_METADATA_REQUIRED:wp:{field}")
+    if wp.get("approved_at") and not UTC_TS.match(str(wp.get("approved_at"))):
+        errors.append("APPROVAL_TIMESTAMP_INVALID:wp")
+    if wp.get("approval_evidence_sha256") and not HEX64.match(str(wp.get("approval_evidence_sha256"))):
+        errors.append("APPROVAL_EVIDENCE_INVALID:wp")
+    if "activated_at" in wp:
+        errors.append("ACTIVATION_PREMATURE:wp")
+    if "ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION" not in state or "ACTIVATION_WP_H2_001_R1_BY_EXPLICIT_AUTHORIZATION" not in plan:
+        errors.append("NEXT_GATE_MISMATCH:activation gate must be explicit R1")
+    if "Pendiente de aprobacion humana por digest" in plan:
+        errors.append("NEXT_GATE_MISMATCH:plan still points to digest approval")
+    if "proximo gate de aprobacion humana por digest" in adr + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:stale digest approval gate text")
+    if "WP-H2-001` es la excepcion vigente" not in read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:approved H2 exception must be documented")
     prompt_match = re.search(r"## Proximo Prompt Cavernicola\s+```text\n([\s\S]*?)\n```", tracker)
     prompt = prompt_match.group(1) if prompt_match else ""
     if "R2" in prompt:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must not mention or grant R2")
     if "Supabase Free" not in prompt or "Supabase Pro" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
-    if not re.search(r"Apruebo WP-H2-001[\s\S]*candidate commit:<candidate_commit>[\s\S]*hasta R1", prompt):
-        errors.append("NEXT_GATE_MISMATCH:first H2 approval prompt must bind commit and R1")
+    if not re.search(r"Activa WP-H2-001[\s\S]*approval_digest:" + APPROVED_DIGEST + r"[\s\S]*candidate commit:" + APPROVED_CANDIDATE_COMMIT + r"[\s\S]*solo hasta R1", prompt):
+        errors.append("NEXT_GATE_MISMATCH:H2 activation prompt must bind approved digest, commit and R1")
 
     for name, text in (("hito", hito), ("task", task), ("matrix", matrix), ("plan", plan), ("tracker", tracker)):
         if not H2_CRITERIA <= criteria_from_text(text):
