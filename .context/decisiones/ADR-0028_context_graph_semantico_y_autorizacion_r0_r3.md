@@ -42,6 +42,10 @@ Durante la transicion F10.11 sigue vigente la frase decimal exacta exigida por `
 - La primera aprobacion de `WP-H2-001` solo puede ser hasta R1.
 - La aprobacion por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, writers, schedules, workflow_dispatch, Certification, Main ni produccion.
 - `APPROVED` y `ACTIVE` requieren `approval_digest`, `approved_by`, `approved_at`, `approval_reference` y vigencia verificable.
+- El manifest candidato puede firmar `approval_target_lifecycle_stage`, `approval_target_gate_status` y `approval_target_level`; esos campos describen el resultado permitido por la aprobacion futura y no cambian el estado actual.
+- `status`, lifecycle actual, progreso, metadata de aprobacion y activacion son mutables controlados por transiciones, no por el digest candidate.
+- `PROPOSED` con lifecycle actual aprobado o activo es una pseudo-aprobacion y debe fallar.
+- `APPROVED` no desbloquea paths funcionales; `ACTIVE` requiere activacion explicita, aprobacion R1 vigente y un unico WP activo.
 
 ## Enforcement
 

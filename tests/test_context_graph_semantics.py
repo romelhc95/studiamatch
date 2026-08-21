@@ -119,6 +119,16 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(json.dumps(data), encoding="utf-8")
             self.assertTrue(any(error.startswith("BASELINE_DOCUMENT_DRIFT") for error in validator.validate(root)))
 
+    def test_approval_target_drift_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "work_packages" / "WP-H2-001.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["approval_target_gate_status"] = "APPROVED_R2"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            self.assertTrue(any(error.startswith("APPROVAL_TARGET_INVALID") for error in validator.validate(root)))
+
 
 if __name__ == "__main__":
     unittest.main()

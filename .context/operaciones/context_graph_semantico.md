@@ -64,6 +64,16 @@
 | `work_package_status` | `PROPOSED` | No tiene metadatos de aprobacion. |
 | `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
 | `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
+| `approval_target_lifecycle_stage` | `APPROVED_NOT_ACTIVE` | Resultado permitido por aprobacion futura; no es estado actual. |
+| `approval_target_gate_status` | `APPROVED_R1` | Techo autorizado por la primera aprobacion; no concede activacion. |
+| `approval_target_level` | `R1` | La primera aprobacion de H2 no puede conceder R2 ni R3. |
+
+Los campos `approval_target_*` forman parte del payload firmado del manifest. El
+estado mutable actual (`status`, `lifecycle_stage`, `gate_status`, progreso,
+metadata de aprobacion y activacion) queda fuera de esa proyeccion para que una
+aprobacion futura pueda registrar evidencia humana sin cambiar el digest firmado.
+Un `PROPOSED` con estado actual `APPROVED_NOT_ACTIVE` o `APPROVED_R1` es una
+pseudo-aprobacion y debe fallar.
 
 ## Transiciones WP Permitidas
 
@@ -77,6 +87,9 @@ PROPOSED/APPROVED/ACTIVE -> EXPIRED
 `approval_reference` ni `activated_at`. `APPROVED` requiere digest coincidente,
 aprobador humano, referencia de aprobacion, timestamp UTC y vigencia. `ACTIVE`
 requiere ademas `activated_at` y que `active_work_package` coincida con el WP.
+`APPROVED` no desbloquea paths funcionales. Solo un `ACTIVE` estructuralmente
+valido y vigente puede usar `allowed_paths`, y aun asi no autoriza R2/R3 ni
+operaciones remotas.
 
 ## Semantica De Paths
 

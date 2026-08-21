@@ -123,6 +123,12 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("LIFECYCLE_MISMATCH:wp")
     if wp.get("gate_status") != "READY_FOR_DIGEST_APPROVAL" or wp.get("acceptance_status") != "NOT_STARTED":
         errors.append("LIFECYCLE_MISMATCH:wp gate/acceptance")
+    if wp.get("approval_target_lifecycle_stage") != "APPROVED_NOT_ACTIVE":
+        errors.append("APPROVAL_TARGET_INVALID:wp lifecycle")
+    if wp.get("approval_target_gate_status") != "APPROVED_R1":
+        errors.append("APPROVAL_TARGET_INVALID:wp gate")
+    if wp.get("approval_target_level") != "R1":
+        errors.append("APPROVAL_TARGET_INVALID:wp level")
     for name, text in (("task", task), ("matrix", matrix), ("hito", hito), ("tracker", tracker)):
         for line in text.splitlines():
             if re.search(r"H2-CA[23]|Implementation status|Criteria status", line) and re.search(r"`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", line):

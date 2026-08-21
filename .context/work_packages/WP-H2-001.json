@@ -1,16 +1,21 @@
 {
   "id": "WP-H2-001",
+  "digest_schema": "h2-approval-target-v1",
   "task_id": "TASK-H2-001",
   "status": "PROPOSED",
   "phase_trace": "F10.11",
   "lifecycle_stage": "AWAITING_DIGEST",
   "gate_status": "READY_FOR_DIGEST_APPROVAL",
+  "approval_target_lifecycle_stage": "APPROVED_NOT_ACTIVE",
+  "approval_target_gate_status": "APPROVED_R1",
+  "approval_target_level": "R1",
   "implementation_status": "PLANNED_NOT_ACTIVE",
   "criteria_status": {
     "H2-CA2": "NOT_STARTED",
     "H2-CA3": "NOT_STARTED"
   },
   "acceptance_status": "NOT_STARTED",
+  "criteria_contract": ["H2-CA2", "H2-CA3"],
   "hito": "HITO-002",
   "risk_level": "R3_REQUIRED_FOR_DDL_DML",
   "baseline": {
@@ -73,7 +78,7 @@
   },
   "expires_at": "2026-08-28T23:59:59Z",
   "supersedes_digest": "7a62121f8389192f8c0bab3a06b54b554ddd5a1e8fc05822e7429d96a1229066",
-  "candidate_digest": "a0667ab468a354a89ba72fe52438fba56cc31b37f4d0b99917de4958fafe8901",
+  "candidate_digest": "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a933",
   "approval_digest_source": "Human approver must copy this candidate_digest into approval_digest before status can change to APPROVED or ACTIVE.",
   "approver_required": "human",
   "invalidated_by": ["baseline drift", "source hash drift", "path scope drift", "new DDL/DML not documented", "lead egress introduced", "schedule activation"],

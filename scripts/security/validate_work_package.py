@@ -36,8 +36,8 @@ REQUIRED = {
     "invalidated_by",
     "exit_criteria",
 }
-FORBIDDEN_PROPOSED_KEYS = {"approved_by", "approved_at", "approval_digest", "activated_at", "approval_reference", "approved_level"}
-APPROVAL_KEYS = {"approval_digest", "approved_by", "approved_at", "approval_reference", "approved_level"}
+FORBIDDEN_PROPOSED_KEYS = {"approved_by", "approved_at", "approval_digest", "activated_at", "approval_reference", "approved_level", "approved_candidate_commit", "approval_evidence_sha256"}
+APPROVAL_KEYS = {"approval_digest", "approved_by", "approved_at", "approval_reference", "approved_level", "approved_candidate_commit", "approval_evidence_sha256"}
 ACTIVE_KEYS = APPROVAL_KEYS | {"activated_at"}
 REQUIRED_DENY_TERMS = {"production", "writers", "schedules", "lead_capture", "egress"}
 H2_REQUIRED_DENY_TERMS = REQUIRED_DENY_TERMS | {
@@ -64,6 +64,54 @@ DIGEST_EXCLUDED_FIELDS = {
     "approved_level",
     "activated_at",
 }
+H2_DIGEST_SCHEMA = "h2-approval-target-v1"
+H2_SIGNED_FIELDS = {
+    "digest_schema",
+    "id",
+    "task_id",
+    "hito",
+    "phase_trace",
+    "risk_level",
+    "baseline",
+    "environment_scope",
+    "allowed_paths",
+    "allowed_actions",
+    "denied_operations",
+    "denied_without_jit",
+    "dependencies",
+    "r3_operations",
+    "approval_contract",
+    "approval_target_lifecycle_stage",
+    "approval_target_gate_status",
+    "approval_target_level",
+    "criteria_contract",
+    "source_artifacts",
+    "expires_at",
+    "supersedes_digest",
+    "approval_digest_source",
+    "approver_required",
+    "invalidated_by",
+    "exit_criteria",
+}
+H2_MUTABLE_FIELDS = {
+    "candidate_digest",
+    "status",
+    "lifecycle_stage",
+    "gate_status",
+    "implementation_status",
+    "criteria_status",
+    "acceptance_status",
+    "metrics",
+    "approval_digest",
+    "approved_by",
+    "approved_at",
+    "approval_reference",
+    "approved_level",
+    "approved_candidate_commit",
+    "approval_evidence_sha256",
+    "activated_at",
+}
+H2_ALLOWED_FIELDS = H2_SIGNED_FIELDS | H2_MUTABLE_FIELDS
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -107,7 +155,10 @@ SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
 
 
 def canonical_payload(data: dict[str, Any]) -> bytes:
-    payload = {key: value for key, value in data.items() if key not in DIGEST_EXCLUDED_FIELDS}
+    if data.get("digest_schema") == H2_DIGEST_SCHEMA:
+        payload = {key: data[key] for key in sorted(H2_SIGNED_FIELDS) if key in data}
+    else:
+        payload = {key: value for key, value in data.items() if key not in DIGEST_EXCLUDED_FIELDS}
     return json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
@@ -154,6 +205,13 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         errors.append(f"WP_ID_MISMATCH:{path.name}")
     if data.get("approver_required") != "human":
         errors.append(f"WP_HUMAN_APPROVER_REQUIRED:{path.name}")
+    if data.get("digest_schema") == H2_DIGEST_SCHEMA:
+        unknown = set(data) - H2_ALLOWED_FIELDS
+        if unknown:
+            errors.append(f"WP_UNKNOWN_FIELDS:{path.name}:{sorted(unknown)}")
+        missing_signed = H2_SIGNED_FIELDS - set(data)
+        if missing_signed:
+            errors.append(f"WP_SIGNED_FIELDS_MISSING:{path.name}:{sorted(missing_signed)}")
 
     for key in ("allowed_paths", "denied_without_jit", "dependencies", "r3_operations", "invalidated_by", "exit_criteria"):
         if not isinstance(data.get(key), list) or not data.get(key):
@@ -210,10 +268,22 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         required_denies = H2_REQUIRED_DENY_TERMS
         if data.get("task_id") != "TASK-H2-001" or data.get("hito") != "HITO-002":
             errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
-        if data.get("lifecycle_stage") != "AWAITING_DIGEST":
-            errors.append(f"LIFECYCLE_MISMATCH:{path.name}:expected AWAITING_DIGEST")
-        if data.get("gate_status") != "READY_FOR_DIGEST_APPROVAL":
+        if data.get("digest_schema") != H2_DIGEST_SCHEMA:
+            errors.append(f"WP_DIGEST_SCHEMA_INVALID:{path.name}")
+        expected_lifecycle = {"PROPOSED": "AWAITING_DIGEST", "APPROVED": "APPROVED_NOT_ACTIVE", "ACTIVE": "ACTIVE"}.get(status)
+        expected_gate = "READY_FOR_DIGEST_APPROVAL" if status == "PROPOSED" else "APPROVED_R1"
+        if expected_lifecycle and data.get("lifecycle_stage") != expected_lifecycle:
+            errors.append(f"LIFECYCLE_MISMATCH:{path.name}:expected {expected_lifecycle}")
+        if expected_gate and data.get("gate_status") != expected_gate:
             errors.append(f"LIFECYCLE_MISMATCH:{path.name}:gate")
+        if data.get("approval_target_lifecycle_stage") != "APPROVED_NOT_ACTIVE":
+            errors.append(f"APPROVAL_TARGET_INVALID:{path.name}:lifecycle")
+        if data.get("approval_target_gate_status") != "APPROVED_R1":
+            errors.append(f"APPROVAL_TARGET_INVALID:{path.name}:gate")
+        if data.get("approval_target_level") != "R1":
+            errors.append(f"APPROVAL_TARGET_INVALID:{path.name}:level")
+        if data.get("criteria_contract") != ["H2-CA2", "H2-CA3"]:
+            errors.append(f"CRITERIA_SET_MISMATCH:{path.name}:contract")
         if data.get("implementation_status") != "PLANNED_NOT_ACTIVE":
             errors.append(f"LIFECYCLE_MISMATCH:{path.name}:implementation")
         if data.get("acceptance_status") != "NOT_STARTED":
@@ -241,11 +311,62 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"APPROVAL_TIMESTAMP_INVALID:{path.name}")
         if data.get("id") == "WP-H2-001" and data.get("approved_level") != "R1":
             errors.append(f"APPROVAL_LEVEL_INVALID:{path.name}:first H2 approval must be R1")
+        if data.get("id") == "WP-H2-001":
+            if not HEX40.match(str(data.get("approved_candidate_commit"))):
+                errors.append(f"APPROVAL_CANDIDATE_COMMIT_INVALID:{path.name}")
+            if not HEX64.match(str(data.get("approval_evidence_sha256"))):
+                errors.append(f"APPROVAL_EVIDENCE_INVALID:{path.name}")
     if status == "ACTIVE":
         if not data.get("activated_at") or parse_utc(data.get("activated_at")) is None:
             errors.append(f"ACTIVATION_METADATA_REQUIRED:{path.name}")
+        approved_at = parse_utc(data.get("approved_at"))
+        activated_at = parse_utc(data.get("activated_at"))
+        if approved_at and activated_at and activated_at < approved_at:
+            errors.append(f"ACTIVATION_TIMESTAMP_INVALID:{path.name}")
 
     return errors
+
+
+def active_work_package_from_state(root: Path = ROOT) -> str:
+    try:
+        state = (root / ".context" / "estado_del_proyecto.md").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return "NONE"
+    match = re.search(r"^- Work package activo:\s*`([^`]+)`", state, re.MULTILINE)
+    return match.group(1) if match else "NONE"
+
+
+def is_active_r1_manifest(manifest: dict[str, Any], *, active_work_package: str = "NONE") -> bool:
+    if active_work_package != "WP-H2-001":
+        return False
+    if manifest.get("status") != "ACTIVE":
+        return False
+    if manifest.get("id") != "WP-H2-001":
+        return False
+    required = {
+        "lifecycle_stage": "ACTIVE",
+        "gate_status": "APPROVED_R1",
+        "approval_target_level": "R1",
+        "approved_level": "R1",
+    }
+    if any(manifest.get(key) != value for key, value in required.items()):
+        return False
+    if manifest.get("approval_digest") != manifest.get("candidate_digest"):
+        return False
+    if not all(manifest.get(key) for key in APPROVAL_KEYS):
+        return False
+    if not HEX40.match(str(manifest.get("approved_candidate_commit"))):
+        return False
+    if not HEX64.match(str(manifest.get("approval_evidence_sha256"))):
+        return False
+    if parse_utc(manifest.get("approved_at")) is None or parse_utc(manifest.get("activated_at")) is None:
+        return False
+    if parse_utc(manifest["activated_at"]) < parse_utc(manifest["approved_at"]):
+        return False
+    expiry = parse_utc(manifest.get("expires_at"))
+    if expiry is None or datetime.now(UTC) >= expiry:
+        return False
+    return compute_digest(manifest) == manifest.get("candidate_digest")
 
 
 def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
@@ -264,9 +385,11 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
     return paths
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]]) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE") -> list[str]:
     errors: list[str] = []
-    active = [manifest for manifest in manifests if manifest.get("status") == "ACTIVE"]
+    active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
+    if len(active) > 1:
+        errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
     if active:
         allowed = tuple(str(item) for item in active[0].get("allowed_paths", []))
         denied = ABSOLUTE_DENY
@@ -303,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     if args.changed_from:
-        errors.extend(validate_changed_paths(git_changed_paths(args.changed_from), load_manifests()))
+        errors.extend(validate_changed_paths(git_changed_paths(args.changed_from), load_manifests(), active_work_package=active_work_package_from_state()))
     if errors:
         for error in errors:
             print(error)
