@@ -47,9 +47,9 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11`, `active_work_package = NONE` o equivalente, y `D0-D10` mientras O3 este bloqueado.
-- El Plan Maestro debe mantener `H2-H5 = NOT_AUTHORIZED` y `O3 = BLOCKED`.
+- `estado_del_proyecto.md` debe declarar `F10.11`, `COMPLETED_HOMOLOGATED`, `active_work_package = NONE` o equivalente, y `HUMAN_APPROVAL_WP_H2_001_BY_DIGEST`.
+- El Plan Maestro debe mantener `H2-H5 = NOT_AUTHORIZED`, O0-O5 completados y el proximo gate de aprobacion humana por digest.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3 y work packages H2-H5.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest.
-- Ninguna evidencia o tracker puede marcar H2 activo antes de O5 y checkout limpio.
+- Ninguna evidencia o tracker puede marcar H2 activo antes de aprobacion humana del digest y cualquier R3 JIT requerido.

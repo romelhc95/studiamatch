@@ -1,23 +1,50 @@
 {
   "id": "WP-H2-001",
+  "task_id": "TASK-H2-001",
   "status": "PROPOSED",
+  "phase_trace": "F10.11",
   "hito": "HITO-002",
   "risk_level": "R3_REQUIRED_FOR_DDL_DML",
   "baseline": {
-    "main_commit": "ad89e8ab9575b37476502d6062e22c044ad6447b",
-    "main_tree": "54098b3ff581cc7728979afc8e6d47c9535141b5",
-    "desarrollo_commit": "a2c97ec17aabc790b656d6db1b16bdc95f0af1b2",
-    "desarrollo_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c",
-    "certificacion_commit": "4e7e41a9fac08e657308849701b4b1f70b994e3b",
-    "certificacion_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c"
+    "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
+    "main_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "certificacion_commit": "fe7b27abf18c096f674948b4f30f815aea4aef08",
+    "certificacion_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
+    "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3"
   },
   "environment_scope": ["local", "development", "certification"],
   "allowed_paths": ["db/migrations/*", "scripts/core/*", "scripts/maintenance/*", "scripts/security/*", "tests/*", ".context/*"],
   "denied_without_jit": ["production", "supabase-pro", "workflow_dispatch", "writers", "schedules", "lead_capture", "egress"],
-  "dependencies": ["O5 homologation completed", "clean checkout", "REQ-EST-001 source hashes unchanged", "human approval by digest"],
+  "dependencies": ["O5 homologation completed", "clean checkout verified", "F10.10 preservation verified", "REQ-EST-001 source hashes unchanged", "human approval by digest"],
   "r3_operations": ["ddl", "dml", "backfill", "rls_grants", "supabase-free", "supabase-pro-promotion"],
-  "expires_at": "2026-09-30",
-  "candidate_digest": "8e0b971e2d116e5bc1b4f523003d91f97e106d0ad576b8b9a9de4ae9984380b9",
+  "source_artifacts": {
+    "SRC-REQ-001": {
+      "name": "Studiamatch_MVP_Requerimientos_v5.docx",
+      "sha256": "3537820f93f3a6880bba22109c020cedb4334f1afd905acea70e809c9748b107",
+      "size": 2568653
+    },
+    "SRC-UI-HOME-001": {
+      "name": "studiamatch_home.html",
+      "sha256": "3e84696c000a9f9875853145c8c2cf227e606a5b5f8527184328629c3b1a135d",
+      "size": 23459
+    },
+    "SRC-UI-RESULTS-001": {
+      "name": "studiamatch_resultados.html",
+      "sha256": "9c2ca7660b412a63b22b355f5345f4c28afc73477c1dc6e9d04f770aecd1c32c",
+      "size": 25172
+    }
+  },
+  "metrics": {
+    "h2_ca2_points": 0,
+    "h2_ca3_points": 0,
+    "implementation_state": "NOT_STARTED",
+    "last_validation_at": null,
+    "last_backfill_run_id": null,
+    "last_noop_run_id": null
+  },
+  "expires_at": "2026-08-28",
+  "candidate_digest": "7a62121f8389192f8c0bab3a06b54b554ddd5a1e8fc05822e7429d96a1229066",
   "approval_digest_source": "Human approver must copy this candidate_digest into approval_digest before status can change to APPROVED or ACTIVE.",
   "approver_required": "human",
   "invalidated_by": ["baseline drift", "source hash drift", "path scope drift", "new DDL/DML not documented", "lead egress introduced", "schedule activation"],

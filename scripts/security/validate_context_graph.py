@@ -61,13 +61,24 @@ def main() -> int:
     index = read("00_INDICE.md")
     adr = read("decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md")
 
-    for needle in ("F10.11", "D0-D10", "Work package activo: `NONE`", "O3 `certificacion -> main` | `BLOCKED`"):
+    for needle in ("F10.11", "COMPLETED_HOMOLOGATED", "Work package activo: `NONE`", "HUMAN_APPROVAL_WP_H2_001_BY_DIGEST"):
         if needle not in state:
             fail(f"estado_del_proyecto.md missing semantic marker: {needle}", errors)
+    for pattern in (
+        r"\| O3 `certificacion -> main` \| `COMPLETED` \|",
+        r"\| O4 `main -> certificacion` \| `COMPLETED` \|",
+        r"\| O5 `certificacion -> desarrollo` \| `COMPLETED` \|",
+    ):
+        if not re.search(pattern, state):
+            fail(f"estado_del_proyecto.md missing completed homologation row: {pattern}", errors)
 
-    for needle in ("H2-H5 = NOT_AUTHORIZED", "O3 = BLOCKED", "D0-D10", "WP-H2-001"):
+    for needle in ("H2-H5 = NOT_AUTHORIZED", "O3 = COMPLETED", "O4 = COMPLETED", "O5 = COMPLETED", "WP-H2-001"):
         if needle not in plan:
             fail(f"plan_maestro_sprint1_h2_h5.md missing semantic marker: {needle}", errors)
+
+    for forbidden in ("O3 | `BLOCKED`", "O4 | `PENDING`", "O5 | `PENDING`", "COMPLETED_LOCAL_VERIFIED"):
+        if forbidden in plan:
+            fail(f"plan_maestro_sprint1_h2_h5.md retains stale marker: {forbidden}", errors)
 
     for section in TRACKER_SECTIONS:
         if section not in tracker:
@@ -90,6 +101,11 @@ def main() -> int:
             fail(f"{manifest_path.name} must remain PROPOSED before human digest approval", errors)
         if "approval_digest" in data:
             fail(f"{manifest_path.name} must not contain approval_digest while PROPOSED", errors)
+
+    if re.search(r"\| O[345][^\n]*\| `(BLOCKED|PENDING)[^`]*` \|", state):
+        fail("estado_del_proyecto.md retains stale O3/O4/O5 blocked or pending status", errors)
+    if re.search(r"\| O[345][^\n]*\| `(BLOCKED|PENDING)[^`]*` \|", plan):
+        fail("plan_maestro_sprint1_h2_h5.md retains stale O3/O4/O5 blocked or pending status", errors)
 
     forbidden_status = re.compile(r"H[2-5].*`(ACTIVE|IMPLEMENTED|ACCEPTED|ACCEPTED_WITH_WAIVER|CERTIFIED|VERIFIED_DEVELOPMENT)`")
     if forbidden_status.search(tracker):

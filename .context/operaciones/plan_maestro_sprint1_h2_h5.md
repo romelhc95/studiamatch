@@ -3,15 +3,17 @@
 ## Estado
 
 ```text
-ESTADO = DOC_GOVERNANCE_CONFORMANCE_COMPLETED_LOCAL
+ESTADO = F10_11_COMPLETED_HOMOLOGATED
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
 O2 = COMPLETED
-O3 = BLOCKED_BY_SOURCE_CONFORMANCE
+O3 = COMPLETED
+O4 = COMPLETED
+O5 = COMPLETED
 H2-H5 = NOT_AUTHORIZED
 active_work_package = NONE
-next_gate = R2_PUSH_PR_DESARROLLO_REQUIRES_SEPARATE_AUTHORIZATION
+next_gate = HUMAN_APPROVAL_WP_H2_001_BY_DIGEST
 ```
 
 Este plan no crea alcance ni autoriza ejecucion. Es el contrato documental para corregir la conformidad de `REQ-EST-001` antes de O3 y para dejar trazable la ejecucion futura H2-H5.
@@ -20,9 +22,9 @@ Este plan no crea alcance ni autoriza ejecucion. Es el contrato documental para 
 
 | Rama | Commit | Tree | Estado |
 |---|---|---|---|
-| `main` | `ad89e8ab9575b37476502d6062e22c044ad6447b` | `54098b3ff581cc7728979afc8e6d47c9535141b5` | Baseline tecnico PR #327 |
-| `desarrollo` | `a2c97ec17aabc790b656d6db1b16bdc95f0af1b2` | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` | O1/O1.5 completado |
-| `certificacion` | `4e7e41a9fac08e657308849701b4b1f70b994e3b` | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` | O2 completado |
+| `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
+| `certificacion` | `fe7b27abf18c096f674948b4f30f815aea4aef08` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O4 completado |
+| `desarrollo` | `974f9d4bde6d79230afde5c5a86ba7a3894233c6` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O5 completado; checkout limpio |
 
 ## Fuentes Y Hashes
 
@@ -86,10 +88,10 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O1 | `COMPLETED` | PR #414 a `desarrollo`. |
 | O1.5 | `COMPLETED` | PR #415 reconciliacion post-O1. |
 | O2 | `COMPLETED` | PR #416 a `certificacion`; tree homologado. |
-| D0-D10 | `COMPLETED_LOCAL_VERIFIED` | Conformidad documental, gobierno reutilizable, links, manifests, evidencias y CI verificados localmente. |
-| O3 | `BLOCKED` | Requiere D0-D10 mergeado en `certificacion` y nuevo prompt. |
-| O4 | `PENDING` | Requiere O3 mergeado. |
-| O5 | `PENDING` | Requiere O4 mergeado y tracker final. |
+| D0-D10 | `COMPLETED` | Conformidad documental, gobierno reutilizable, links, manifests, evidencias y CI homologados. |
+| O3 | `COMPLETED` | PR #421 mergeado a `main`. |
+| O4 | `COMPLETED` | PR #422 mergeado a `certificacion`. |
+| O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
 
 ## D0-D10 Correctivo
 
@@ -132,13 +134,13 @@ H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no h
 
 | Secuencia | Trabajo | Dependencias |
 |---|---|---|
-| T0 | D0-D10 local | `COMPLETED_LOCAL_VERIFIED`. |
-| T1 | PR correctivo a `desarrollo` | Requiere autorizacion R2 separada. |
-| T2 | re-O2 a `certificacion` | Correctivo en `desarrollo`. |
-| T3 | O3 a `main` | Correctivo en `certificacion`; nuevo prompt. |
-| T4 | O4 main -> certificacion | O3 mergeado; nuevo prompt. |
-| T5 | O5 certificacion -> desarrollo | O4 mergeado; nuevo prompt. |
-| T6 | H2 | O5, checkout limpio, digest `WP-H2-001` aprobado. |
+| T0 | D0-D10 local | `COMPLETED`. |
+| T1 | PR correctivo a `desarrollo` | `COMPLETED` mediante PR #417. |
+| T2 | re-O2 a `certificacion` | `COMPLETED` mediante PR #418 y PR #420. |
+| T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
+| T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
+| T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
+| T6 | H2 | Pendiente de aprobacion humana por digest `WP-H2-001`. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -273,4 +275,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-El paquete local D0-D10 esta completado y verificado. El unico siguiente gate posible es autorizacion R2 separada para push y PR correctivo a `desarrollo`. O3 y H2 siguen bloqueados.
+F10.11 esta completada y homologada. El unico siguiente gate posible es aprobacion humana exacta de `WP-H2-001` por digest. H2 no inicia sin esa aprobacion y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.
