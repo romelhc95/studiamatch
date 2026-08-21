@@ -1,0 +1,25 @@
+{
+  "id": "WP-H5-001",
+  "status": "PROPOSED",
+  "hito": "HITO-005",
+  "risk_level": "R1_R2_PUBLIC_UI",
+  "baseline": {
+    "main_commit": "ad89e8ab9575b37476502d6062e22c044ad6447b",
+    "main_tree": "54098b3ff581cc7728979afc8e6d47c9535141b5",
+    "desarrollo_commit": "a2c97ec17aabc790b656d6db1b16bdc95f0af1b2",
+    "desarrollo_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c",
+    "certificacion_commit": "4e7e41a9fac08e657308849701b4b1f70b994e3b",
+    "certificacion_tree": "a03681d271475e8ccbf6061ce63bc4ee5990cd5c"
+  },
+  "environment_scope": ["local", "development", "certification"],
+  "allowed_paths": ["web/*", "tests/*", ".context/*"],
+  "denied_without_jit": ["production", "lead_capture", "egress", "roi_public", "ddl", "dml", "writers", "schedules"],
+  "dependencies": ["source hash SRC-UI-RESULTS-001 unchanged", "WP-H5-001 human approval by digest", "route /programas/[slug] contract accepted"],
+  "r3_operations": ["production promotion", "lead capture", "egress", "writers", "schedule activation"],
+  "expires_at": "2026-10-31",
+  "candidate_digest": "36918945286bbe285dc4a91c9b77c7f2bdd1fc77387dddec974da18bc637e5c8",
+  "approval_digest_source": "Human approver must copy this candidate_digest into approval_digest before status can change to APPROVED or ACTIVE.",
+  "approver_required": "human",
+  "invalidated_by": ["results source hash drift", "lead capture introduced", "ROI public", "path scope drift", "unapproved exchange-rate API"],
+  "exit_criteria": ["results page", "six filters", "filters URL synced", "back-forward", "mobile drawer", "pagination", "four card states", "loading empty error states", "route /programas/[slug]"]
+}

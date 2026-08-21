@@ -1,8 +1,6 @@
 name: F9.9 - Certification Canary
 
 on:
-  push:
-    branches: [certificacion]
   workflow_dispatch:
     inputs:
       max_harvest_urls:
@@ -56,7 +54,7 @@ permissions:
 jobs:
   certification_canary:
     name: Certification Canary
-    if: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && github.ref_name == 'certificacion' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'certificacion' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     environment:

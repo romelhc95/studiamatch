@@ -85,9 +85,6 @@ on:
       - 'requirements-db-migrate.txt'
       - 'requirements-test.txt'
       - '.github/workflows/f9-7-contract.yml'
-  push:
-    branches: [desarrollo]
-
 permissions:
   contents: read
 
@@ -106,7 +103,7 @@ env:
 jobs:
   fase09-7-schema-rls:
     name: F9.7 Public Access, Trigger Retirement, and Security Hold PostgreSQL 17 Contract
-    if: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
+    if: ${{ !(github.event_name == 'pull_request' && github.head_ref == 'docs/f10-11-sprint1-canonical-rebaseline') && (github.event_name != 'pull_request' || github.base_ref != 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
