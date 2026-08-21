@@ -1,9 +1,9 @@
 # Matriz Hito 002
 
-| Unidad | Estado | Evidencia requerida |
-|---|---|---|
-| `H2-CA2` | `PLANNED_NOT_ACTIVE` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
-| `H2-CA3` | `PLANNED_NOT_ACTIVE` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
+| Unidad | Gate status | Implementation status | Criteria status | Evidencia requerida |
+|---|---|---|---|---|
+| `H2-CA2` | `READY_FOR_DIGEST_APPROVAL` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
+| `H2-CA3` | `READY_FOR_DIGEST_APPROVAL` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
 
 ## Validaciones Minimas Futuras
 

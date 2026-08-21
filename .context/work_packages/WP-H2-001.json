@@ -3,6 +3,14 @@
   "task_id": "TASK-H2-001",
   "status": "PROPOSED",
   "phase_trace": "F10.11",
+  "lifecycle_stage": "AWAITING_DIGEST",
+  "gate_status": "READY_FOR_DIGEST_APPROVAL",
+  "implementation_status": "PLANNED_NOT_ACTIVE",
+  "criteria_status": {
+    "H2-CA2": "NOT_STARTED",
+    "H2-CA3": "NOT_STARTED"
+  },
+  "acceptance_status": "NOT_STARTED",
   "hito": "HITO-002",
   "risk_level": "R3_REQUIRED_FOR_DDL_DML",
   "baseline": {
@@ -13,11 +21,31 @@
     "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
     "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3"
   },
-  "environment_scope": ["local", "development", "certification"],
-  "allowed_paths": ["db/migrations/*", "scripts/core/*", "scripts/maintenance/*", "scripts/security/*", "tests/*", ".context/*"],
-  "denied_without_jit": ["production", "supabase-pro", "workflow_dispatch", "writers", "schedules", "lead_capture", "egress"],
+  "environment_scope": ["local", "development"],
+  "allowed_paths": [
+    "db/migrations/*.sql",
+    "scripts/core/cleansing_worker.py",
+    "scripts/core/enrichment_worker.py",
+    "scripts/core/sync_vector_worker.py",
+    "scripts/maintenance/h2_*.py",
+    "tests/**",
+    ".context/hitos/hito_002.md",
+    ".context/backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md",
+    ".context/matrices/matriz_hito_002.md",
+    ".context/evidencias_cliente/req_est_001_sprint_1/**"
+  ],
+  "allowed_actions": ["local_edit", "local_tests", "prepare_sql_artifacts", "prepare_backfill_artifacts"],
+  "denied_operations": ["remote_sql_execution", "remote_backfill_execution", "writer_execution", "schedule_activation", "deploy", "lead_capture", "egress"],
+  "denied_without_jit": ["certification", "main", "production", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "writers", "schedules", "lead_capture", "egress", "deploys", "secrets"],
   "dependencies": ["O5 homologation completed", "clean checkout verified", "F10.10 preservation verified", "REQ-EST-001 source hashes unchanged", "human approval by digest"],
-  "r3_operations": ["ddl", "dml", "backfill", "rls_grants", "supabase-free", "supabase-pro-promotion"],
+  "r3_operations": ["ddl-execution", "dml-execution", "backfill-execution", "rls-grants-remote", "supabase-free", "supabase-pro-promotion", "certification-promotion", "main-promotion", "writer-execution", "schedule-activation", "workflow_dispatch"],
+  "approval_contract": {
+    "requires_candidate_commit": true,
+    "first_approval_max_level": "R1",
+    "r2_requires_plan_review": true,
+    "r3_requires_jit_single_use": true,
+    "approval_phrase": "Apruebo WP-H2-001 de TASK-H2-001 segun manifest sha256:<digest> contenido en candidate commit:<commit>, hasta R1 y hasta <expiry_utc>."
+  },
   "source_artifacts": {
     "SRC-REQ-001": {
       "name": "Studiamatch_MVP_Requerimientos_v5.docx",
@@ -43,8 +71,9 @@
     "last_backfill_run_id": null,
     "last_noop_run_id": null
   },
-  "expires_at": "2026-08-28",
-  "candidate_digest": "7a62121f8389192f8c0bab3a06b54b554ddd5a1e8fc05822e7429d96a1229066",
+  "expires_at": "2026-08-28T23:59:59Z",
+  "supersedes_digest": "7a62121f8389192f8c0bab3a06b54b554ddd5a1e8fc05822e7429d96a1229066",
+  "candidate_digest": "a0667ab468a354a89ba72fe52438fba56cc31b37f4d0b99917de4958fafe8901",
   "approval_digest_source": "Human approver must copy this candidate_digest into approval_digest before status can change to APPROVED or ACTIVE.",
   "approver_required": "human",
   "invalidated_by": ["baseline drift", "source hash drift", "path scope drift", "new DDL/DML not documented", "lead egress introduced", "schedule activation"],

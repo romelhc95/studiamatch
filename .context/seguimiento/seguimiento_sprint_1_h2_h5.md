@@ -30,7 +30,12 @@
 | Checkout limpio H2 | `VERIFIED` |
 | Preservacion F10.10 | `VERIFIED` manifest `e15e89d0b5abb10980cba41bf3afe6ce6d530ce00a8544d2fc3318ec4b81a689` |
 | Work package activo | `NONE` |
-| Proximo gate unico | `HUMAN_APPROVAL_WP_H2_001_BY_DIGEST` |
+| Lifecycle stage | `AWAITING_DIGEST` |
+| Gate status | `READY_FOR_DIGEST_APPROVAL` |
+| Implementation status | `PLANNED_NOT_ACTIVE` |
+| Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
+| Acceptance status | `NOT_STARTED` |
+| Proximo gate unico | `HUMAN_APPROVAL_WP_H2_001_BY_DIGEST_AND_COMMIT` |
 
 ## Porcentaje De Avance
 
@@ -38,8 +43,8 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `READY_FOR_DIGEST_APPROVAL` | 0 |
-| `H2-CA3` | `READY_FOR_DIGEST_APPROVAL` | 0 |
+| `H2-CA2` | `NOT_STARTED` | 0 |
+| `H2-CA3` | `NOT_STARTED` | 0 |
 | `H3-CA4` | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA5` | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA6` | `PLANNED_NOT_ACTIVE` | 0 |
@@ -66,7 +71,7 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: `READY_FOR_DIGEST_APPROVAL`; no ejecutable hasta aprobacion humana exacta de `WP-H2-001`.
+- Hito 2: gate `READY_FOR_DIGEST_APPROVAL`, implementacion `PLANNED_NOT_ACTIVE`; no ejecutable hasta aprobacion humana exacta de `WP-H2-001` por digest y commit.
 - Hitos 3-5: `PENDING`.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE`.
@@ -116,16 +121,16 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 ## Proximo Prompt Cavernicola
 
 ```text
-Apruebo WP-H2-001 de TASK-H2-001 segun manifest sha256:<candidate_digest>, hasta R2 y hasta 2026-08-28.
+Apruebo WP-H2-001 de TASK-H2-001 segun manifest sha256:<candidate_digest> contenido en candidate commit:<candidate_commit>, hasta R1 y hasta <expiry_utc>.
 Alcance exclusivo: preparar H2 bajo el manifest aprobado; no ejecutar R3 sin autorizacion JIT separada.
 Baselines homologados: main@9b486146962bd2a092acfd649fdcf716e922de89, certificacion@fe7b27abf18c096f674948b4f30f815aea4aef08, desarrollo@974f9d4bde6d79230afde5c5a86ba7a3894233c6, tree fcb59095e48441bb4486ccc196aee61e2e1e0fe3.
 Sources/hashes: SRC-REQ-001 sha256:3537820f93f3a6880bba22109c020cedb4334f1afd905acea70e809c9748b107; SRC-UI-HOME-001 sha256:3e84696c000a9f9875853145c8c2cf227e606a5b5f8527184328629c3b1a135d; SRC-UI-RESULTS-001 sha256:9c2ca7660b412a63b22b355f5345f4c28afc73477c1dc6e9d04f770aecd1c32c.
 Precedencia: O0-B, adenda sanitizada, Plan Maestro, Sprint 1 DOCX, resto DOCX backlog, HTML referencia visual, codigo actual compatibilidad.
-Orden obligatorio: verificar status limpio, verificar commit/tree, verificar digest aprobado, ejecutar solo R1/R2 permitido, detenerse antes de cualquier R3.
+Orden obligatorio: verificar status limpio, verificar commit/tree, verificar digest aprobado, ejecutar solo R1 aprobado y detenerse ante cualquier gate superior.
 Allowlist: la definida por `WP-H2-001`.
-Denylist: produccion, Supabase Pro, workflow_dispatch, writers, schedules, lead_capture, egress, DDL/DML/backfill/RLS/grants sin R3 JIT, fuentes privadas, .env*, secretos.
+Denylist: produccion, Supabase Free, Supabase Pro, workflow_dispatch, writers, schedules, lead_capture, egress, DDL/DML/backfill/RLS/grants sin R3 JIT, fuentes privadas, .env*, secretos.
 Validaciones: credential scan, Python compile, manifest digest, markdown links, Context Graph semantico, source artifact guard, path boundary, lint, typecheck, static build.
 Stop conditions: status sucio inesperado, source hash drift, digest no coincide, CI fail, path fuera de allowlist, secreto/PII, requerimiento R3 no autorizado.
-Salida esperada: preparacion H2 dentro de R1/R2 permitido por WP, sin R3 automatico.
-Proximo gate unico: R3 JIT separado solo cuando sea necesario y aprobado explicitamente.
+Salida esperada: preparacion H2 dentro de R1 aprobado por WP, sin gate superior automatico.
+Proximo gate unico: revision Plan independiente antes de solicitar cualquier gate superior separado.
 ```

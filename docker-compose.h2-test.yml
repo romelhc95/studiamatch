@@ -1,0 +1,18 @@
+services:
+  h2-r1-tests:
+    image: studiamatch-f4-local:3e2b672
+    working_dir: /app
+    network_mode: none
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPYCACHEPREFIX: "/tmp/studiamatch-h2-pycache"
+      NEXT_SUPABASE_SECRET_KEY: ""
+      NEXT_SUPABASE_PUBLISHABLE_KEY: ""
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ""
+      NEXT_PUBLIC_SUPABASE_URL: ""
+      SUPABASE_URL: ""
+      CF_API_TOKEN: ""
+      CF_ACCOUNT_ID: ""
+    volumes:
+      - .:/app:ro
+    command: ["bash", "scripts/security/run_h2_r1_tests.sh"]

@@ -17,10 +17,10 @@ El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles 
 Formato operativo posterior a F10.11:
 
 ```text
-Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest>, hasta R2 y hasta <expiry>.
+Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest> contenido en candidate commit:<commit>, hasta <nivel> y hasta <expiry_utc>.
 ```
 
-La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, produccion ni ningun R3. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
+La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, workflow_dispatch, Certification, Main, produccion ni ningun R3. La primera aprobacion de `WP-H2-001` solo puede ser R1; R2 requiere revision Plan posterior y autorizacion separada. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 

@@ -3,6 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Estado | `READY_FOR_DIGEST_APPROVAL` |
+| Lifecycle stage | `AWAITING_DIGEST` |
+| Implementation status | `PLANNED_NOT_ACTIVE` |
+| Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Bloqueo | Aprobacion digest; R3 JIT separado para DDL/DML, Supabase, backfill y RLS/grants |
@@ -23,4 +26,4 @@
 - Leads se limitan a schema/flags y CTA visual; cero captura, almacenamiento o egress.
 - Schedules y writers continuan pausados hasta JIT R3 posterior a H2.
 
-No hay ejecucion activa en F10.11. H2 no inicia hasta aprobacion humana exacta del digest de `WP-H2-001`.
+No hay ejecucion activa en F10.11. H2 no inicia hasta aprobacion humana exacta del digest y commit candidate de `WP-H2-001`. La primera aprobacion solo puede autorizar R1.

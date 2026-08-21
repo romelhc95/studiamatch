@@ -53,3 +53,42 @@
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3 y work packages H2-H5.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest.
 - Ninguna evidencia o tracker puede marcar H2 activo antes de aprobacion humana del digest y cualquier R3 JIT requerido.
+
+## Taxonomia De Lifecycle H2
+
+| Campo | Valor preaprobacion H2 | Regla |
+|---|---|---|
+| `lifecycle_stage` | `AWAITING_DIGEST` | El siguiente gate es aprobacion humana por digest y commit candidate. |
+| `gate_status` | `READY_FOR_DIGEST_APPROVAL` | O5 y checkout limpio estan completos. |
+| `implementation_status` | `PLANNED_NOT_ACTIVE` | No hay cambios funcionales H2 ejecutados. |
+| `work_package_status` | `PROPOSED` | No tiene metadatos de aprobacion. |
+| `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
+| `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
+
+## Transiciones WP Permitidas
+
+```text
+PROPOSED -> APPROVED -> ACTIVE -> COMPLETED
+PROPOSED/APPROVED/ACTIVE -> REVOKED
+PROPOSED/APPROVED/ACTIVE -> EXPIRED
+```
+
+`PROPOSED` no puede contener `approval_digest`, `approved_by`, `approved_at`,
+`approval_reference` ni `activated_at`. `APPROVED` requiere digest coincidente,
+aprobador humano, referencia de aprobacion, timestamp UTC y vigencia. `ACTIVE`
+requiere ademas `activated_at` y que `active_work_package` coincida con el WP.
+
+## Semantica De Paths
+
+Los patrones de `allowed_paths` son POSIX relativos al root del repositorio. Se
+rechazan paths absolutos, backslashes, `..`, segmentos `.`, patrones vacios,
+wildcards globales y solapamientos allow/deny. Renames y copias validan origen y
+destino.
+
+## Binding De Aprobacion
+
+La aprobacion humana posterior a F10.11 debe vincular externamente el digest del
+manifest y el commit candidate que lo contiene. No se introduce el SHA del mismo
+commit dentro del manifest para evitar dependencia circular. La primera
+aprobacion de `WP-H2-001` solo puede autorizar R1; R2 y R3 requieren gates
+posteriores separados.

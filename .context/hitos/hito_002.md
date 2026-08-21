@@ -2,10 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PLANNED_NOT_ACTIVE` |
+| Lifecycle stage | `AWAITING_DIGEST` |
+| Gate status | `READY_FOR_DIGEST_APPROVAL` |
+| Implementation status | `PLANNED_NOT_ACTIVE` |
+| Acceptance status | `NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | O5, checkout limpio y aprobacion digest `WP-H2-001` |
+| Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
+| Gate | O5, checkout limpio y aprobacion digest+commit de `WP-H2-001` |
 
 ## Alcance
 
@@ -63,4 +67,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia hasta completar O5, tener checkout limpio homologado y aprobar `WP-H2-001` por digest verificable.
+No inicia hasta completar O5, tener checkout limpio homologado y aprobar `WP-H2-001` por digest y commit candidate verificables. La primera aprobacion solo puede autorizar R1; R2 y cualquier R3 requieren aprobaciones posteriores separadas.

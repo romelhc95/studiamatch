@@ -49,14 +49,19 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
-- Hito: [HITO-001](hitos/hito_001.md).
+- Hito: [HITO-002](hitos/hito_002.md).
 - Tarea: [TASK-H2-001](backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md).
 - Subfase tecnica activa: `F10.11`.
 - Work package activo: `NONE`.
 - Work package propuesto: `WP-H2-001=PROPOSED`.
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
-- Proximo gate unico: `HUMAN_APPROVAL_WP_H2_001_BY_DIGEST`.
+- Lifecycle stage: `AWAITING_DIGEST`.
+- Gate status: `READY_FOR_DIGEST_APPROVAL`.
+- Implementation status: `PLANNED_NOT_ACTIVE`.
+- Criteria status: `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED`.
+- Acceptance status: `NOT_STARTED`.
+- Proximo gate unico: `HUMAN_APPROVAL_WP_H2_001_BY_DIGEST_AND_COMMIT`.
 
 ## Estado De Hitos Sprint 1
 
@@ -88,6 +93,6 @@ Hito 2 no esta activo; solo queda pendiente aprobacion humana de `WP-H2-001` por
 
 ## Siguiente Gate
 
-El unico siguiente gate es aprobacion humana exacta de `WP-H2-001` por digest.
+El unico siguiente gate es aprobacion humana exacta de `WP-H2-001` por digest y commit candidate.
 Esa aprobacion no autoriza DDL/DML, Supabase, backfill, RLS/grants, writers,
 schedules, produccion ni ningun R3.
