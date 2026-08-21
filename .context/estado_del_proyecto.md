@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-20-F10.11-CANONICAL-REBASELINE`.
+Snapshot: `SNAPSHOT-2026-08-21-F10.11-O1-DESARROLLO-MERGED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual y homologacion canonica Sprint 1 | `ACTIVE_CANONICAL_REBASELINE` | Etapa 1 documental/canonica en ejecucion local sobre `TECH_BASE`. |
+| `F10.11` | Cierre contractual y homologacion canonica Sprint 1 | `ACTIVE_O2_PENDING` | O1 desarrollo completado; pendiente homologacion a certificacion. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 
 ## Subfases F10
@@ -23,7 +23,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `ACTIVE_CANONICAL_REBASELINE` | Work package `WP-O0-A` completado read-only; prepara `T_CANONICO`. |
+| `F10.11` | `ACTIVE_O2_PENDING` | O1 desarrollo completado; prepara PR protegido hacia certificacion. |
 
 ## Bases Vinculantes
 
@@ -37,6 +37,8 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | Certificacion preservada | `certificacion@33b1c9ec3c49117c2020860d5850d9d67988f836` |
 | PR #413 | `CLOSED_NOT_MERGED_EXCLUDED`, head `4461f13c79ac893cb428074a729d75140056557b` |
 | Archives Etapa 1 | `archive/post-h1-desarrollo-20260820-9f163c2`, `archive/post-h1-certificacion-20260820-33b1c9e` |
+| Desarrollo canonico O1 | `desarrollo@864caa29524e2f37ab6951677b3799b1515cf969` |
+| Tree canonico O1 | `ac9551128e443d5aa8a9c3401ff5f79b45d9da94` |
 
 ## Tarea Activa
 
@@ -57,14 +59,23 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `HITO-004` | `PENDING` | `TASK-H4-001` |
 | `HITO-005` | `PENDING` | `TASK-H5-001` |
 
+## Homologacion
+
+| Etapa | Estado | Evidencia |
+|---|---|---|
+| O1 `candidate -> desarrollo` | `COMPLETED` | PR #414 mergeado con commit `864caa29524e2f37ab6951677b3799b1515cf969` |
+| O2 `desarrollo -> certificacion` | `PENDING` | Requiere prompt y PR protegido separado |
+| O3 `certificacion -> main` | `PENDING` | Requiere prompt y PR protegido separado |
+| O4 `main -> certificacion` | `PENDING` | Requiere prompt y PR protegido separado |
+| O5 `certificacion -> desarrollo` | `PENDING` | Requiere prompt y PR protegido separado |
+
 ## Alcance Inmediato
 
-La unica ejecucion autorizada en `F10.11` es la Etapa 1 documental y canonica:
-crear `T_CANONICO = TECH_BASE + PATCH_CANONICO`, sin activar Hito 2, sin PR, sin
-push del candidate y sin cambios en `web/**` ni `db/**`.
+La unica ejecucion autorizable siguiente en `F10.11` es preparar O2 mediante PR
+protegido hacia `certificacion`, manteniendo `web/**` y `db/**` sin cambios de
+producto y sin activar Hito 2.
 
 ## Siguiente Gate
 
-Despues de la Etapa 1 local se requiere decision humana separada para crear PR de
-homologacion hacia `desarrollo`. Hito 2 solo inicia tras homologacion y aprobacion
-explicita de `WP-H2-001` por digest.
+Antes de O2 se requiere decision humana separada. Hito 2 solo inicia tras O5,
+checkout limpio homologado y aprobacion explicita de `WP-H2-001` por digest.
