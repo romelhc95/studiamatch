@@ -62,6 +62,7 @@ Cada PR de homologacion debe validar ejecutablemente:
 
 `PATCH_CANONICO` incluye explicitamente `.github/workflows/security-audit.yml`,
 `.github/workflows/f9_9_certification_canary.yml`,
+`.github/workflows/f9-7-contract.yml`,
 `scripts/security/validate_work_package.py` y `tests/test_work_package_manifest.py`.
 
 ## Invalidacion De Aprobacion
