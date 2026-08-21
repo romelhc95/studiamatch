@@ -28,7 +28,7 @@ se conserva solo como antecedente CA2 de Hito 2.
 5. F9.9 demuestra equivalencia y cero cambios `db/**`, `supabase/**`, `web/**`, leads/email, Edge, backfill y superficies CA2.
 6. F9.9 abre PR a `certificacion`, ejecuta canary, define/cierra QA independiente e implementa controles pre-main de repositorio.
 7. F9.10 registro PR #283/#284 en `desarrollo`, reconstruyo target-aware sobre `certificacion` mediante PR #285 y congelo el boundary final por path/status/mode/blob/digest.
-8. F9.10 realizo certificacion final: `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `30865604732=PASS`, run `30865604729` cancelado con cero pasos, boundary 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5` y `USER_PERSONAL_UAT=PASS`; [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) preserva esta evidencia como historica pero superseded para autoridad de promocion F10.7.
+8. F9.10 realizo certificacion final: `certificacion@5cd27c6f6c35808865b7084673a83f9f690d3760` / tree `419b25f69e4eef4d7277a7439ca45efc1eaac242`, CI post-merge `30865604732=PASS`, run `30865604729` cancelado con cero pasos, boundary 32 objetos digest `34f3789d597bf4012378d6e509a03ee6e9ef37edaee95713023421538cab1aa5` y `USER_PERSONAL_UAT=PASS`; la referencia historica `ADR-0008` queda superseded por [ADR-0026](../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md) para F10.11.
 9. F9.10 declara readiness para F10 con candidate commit/tree inmutable, CI, review humano y sin blockers pendientes para F10.6.
 10. F10.6 ejecuto control-plane: environments programados, variables fail-closed, runs antiguos resueltos/cancelados con autorizacion y branch policy verificada.
 11. F10.6 cierra documentalmente y activa F10.7 antes de cualquier PR a `main`.
@@ -48,13 +48,13 @@ se conserva solo como antecedente CA2 de Hito 2.
 - Artifact F9.5 de PR #245 o PR #247 tratado como candidate, package contractual o insumo de aplicacion.
 - Mutacion no acotada, environment ambiguo o writer/schedule activo fuera del canary aprobado.
 - Fallo de test, Context Graph, canary o smoke.
-- Diferencia no explicada entre [Matriz DB](matriz_adopcion_db.md), frontera CA1-only y ambiente real.
+- Diferencia no explicada entre la matriz DB canonica vigente, frontera CA1-only y ambiente real.
 - Reutilizar el freeze F9.10 de 32 objetos como autoridad F10.7 sin nuevo digest, variables aprobadas y UAT nuevo.
 - Tener un deployment Cloudflare Pages de `main` no observado, no documentado o usado como sustituto de canary Production.
 
 ## Schedules
 
-FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que toda ejecucion automatica respete gates, circuit breakers, controles de ambiente y las stop conditions de este flujo. Ver [Pipeline](../arquitectura_pipeline.md).
+FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que toda ejecucion automatica respete gates, circuit breakers, controles de ambiente y las stop conditions de este flujo. En F10.11 los schedules permanecen fail-closed hasta JIT R3 posterior a H2.
 
 ## Separacion Dentro De La Macrofase F9
 
@@ -67,7 +67,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.8 implementa y valida localmente el candidate CA1-only.
 - F9.9 ejecuta candidate selectivo, Certification, canary, QA y controles pre-main de repositorio; F9.10 inicia solo cuando el Context Graph lo declare activo y requiere autorizacion decimal propia.
 - F9.10 realizo correccion repository-only post PR #283, reconstruccion selectiva autorizada, certificacion final, controles `main`, rollback, `USER_PERSONAL_UAT` y readiness para F10.
-- La macrofase F10 Produccion inicio en F10.6; F10.7 queda registrada como entrega tecnica post-main segun [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md) y [ADR-0009](../decisiones/ADR-0009_reconciliacion_entrega_tecnica_post_main_f10_7.md); F10.8 queda completada como `COMPLETED_PRODUCTION_CANARY_VERIFIED` con Pro DDL aplicada una sola vez, DB Sync verify `31268229878=PASS`, PR #325 en `main@859d2f7d83f83950d10858fe27bd035febba7f68`, Production Canary `31272290614=PASS`, artifact `9026139906` y `EVID-H1-010=VERIFIED`; F10.9 permanece bloqueada hasta autorizacion decimal exacta.
+- La macrofase F10 Produccion inicio en F10.6; F10.7 y F10.8 quedan como historia tecnica preservada. Para F10.11, [ADR-0026](../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md) y [ADR-0027](../decisiones/ADR-0027_work_packages_y_convergencia.md) sustituyen referencias legacy como autoridad operativa.
 
 ## Subfases F10 CA1-Only
 
@@ -90,7 +90,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 - F9.6 cerro P0 H-00 sin DML. F9.7 cierra por rebaseline documental; F9.8-F9.10 reemplazan la ruta schema/backfill/free_certified para Hito 1.
 - `USER_PERSONAL_UAT` es hold operativo F9.10, no attestation de la maquina ni transicion nueva; se ubica despues de canary, validaciones tecnicas Certification y QA, y antes de readiness F10.
 - La definicion F9.7 de identidad backend, hold y executor privado queda como historia `SUPERSEDED_FOR_HITO_1`; no habilita una ruta remota ni backfill en CA1-only.
-- F10 conserva el significado de produccion de [ADR-0003](../decisiones/ADR-0003_taxonomia_macrofases_subfases.md); para CA1-only se limita a PR a `main`, Pro DDL acotado cuando exista autorizacion separada, canary Production, schedules y observacion, sin backfill ni cambios CA2.
+- F10 conserva el significado de produccion definido por la taxonomia vigente; para F10.11 se limita a homologacion documental y no autoriza PR a `main`, Pro DDL, canary Production, schedules ni observacion sin prompt separado.
 - Forward-fix o restauracion requieren un incidente documentado y una autorizacion de emergencia exacta separada; esta regla no autoriza ninguna de esas operaciones.
 
 ## Politica De Resguardo
@@ -98,3 +98,32 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 Los respaldos preservados se conservan fuera del repositorio, sin mover, editar o compactar hasta desplegar Hito 1 y completar observacion. Sus rutas locales no se versionan.
 
 Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
+# Flujo Release Minimo - F10.11
+
+> Esta nota no crea alcance ni autoriza ejecucion por si sola. La autoridad viva
+> esta en `estado_del_proyecto.md`.
+
+## Flujo Vigente Sprint 1
+
+```text
+feature/candidate local
+-> PR protegido a desarrollo
+-> PR protegido desarrollo a certificacion
+-> PR protegido certificacion a main
+-> PR protegido main a certificacion
+-> PR protegido certificacion a desarrollo
+```
+
+## Reglas
+
+- `security-audit` permanece como required check.
+- Cada PR requiere review humano.
+- `web/**` y `db/**` permanecen byte-identicos a `TECH_BASE` durante homologacion.
+- `DB Sync to Production` en main debe terminar `SUCCESS_NO_DB_CHANGES_SKIPPED`.
+- Cloudflare Pages automatico se acepta solo como efecto observado, sin cambios web.
+- H2-H5 requieren work package aprobado por digest.
+
+## R3
+
+Certification/Main, DB, deploys, schedules, writers, secrets o acciones
+destructivas requieren aprobacion JIT separada.
