@@ -57,3 +57,8 @@ scripts/maintenance/export_50k_final.py
 scripts/maintenance/export_50k_prod.py
 scripts/maintenance/test_select.py
 
+# REQ-EST-001 local source files; keep content out of Git, version hashes only.
+.context/backlog_tareas/req_est_001_sprint_1/Studiamatch_MVP_Requerimientos_v5.docx
+.context/backlog_tareas/req_est_001_sprint_1/studiamatch_home.html
+.context/backlog_tareas/req_est_001_sprint_1/studiamatch_resultados.html
+

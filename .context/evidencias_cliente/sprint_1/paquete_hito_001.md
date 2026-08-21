@@ -150,7 +150,7 @@ frontend, leads/email, Edge, backfill, admin, Home o Resultados CA2+.
 
 ## Riesgos Residuales
 
-Se enlaza el anexo CA2/RLS. Ningun riesgo
+Se enlaza el [anexo CA2/RLS](./anexo_h1_ca2_seguridad_rls.md). Ningun riesgo
 puede presentarse como mitigado sin evidencia.
 
 ## Aprobaciones

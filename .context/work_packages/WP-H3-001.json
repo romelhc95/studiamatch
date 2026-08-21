@@ -1,0 +1,9 @@
+{
+  "id": "WP-H3-001",
+  "status": "PROPOSED",
+  "hito": "HITO-003",
+  "risk_level": "R1_R2_PLUS_AUTH_TESTS",
+  "allowed_paths": ["web/**", "tests/**", ".context/**"],
+  "denied_without_jit": ["production", "ddl", "dml", "writers", "schedules"],
+  "exit_criteria": ["admin protected", "negative access tests", "audit trail", "static export"]
+}
