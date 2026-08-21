@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `PLAN-H1-CA1-ONLY-001` |
-| Estado | `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` |
+| Estado | `F10_9_INCIDENT_REMEDIATION_PLANNED` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | `HITO-001` |
 | Criterio | `H1-CA1` |
@@ -34,8 +34,7 @@ autorizaciones separadas.
 
 Cerrar Hito 1 en produccion con CA1 exclusivamente: schedules y operacion
 segura del pipeline sin omitir gates, circuit breakers ni controles de
-ambiente, con tres pares naturales FG2 -> FG3 durante al menos 72 horas. Los
-avances CA2 se documentan y permanecen fuera del candidate.
+ambiente. Los avances CA2 se documentan y permanecen fuera del candidate.
 
 ## Criterio Contractual Sanitizado
 
@@ -73,7 +72,7 @@ interna necesaria para reactivar el schedule, no como criterio cliente nuevo.
 
 - `db/**`, `supabase/**` y `web/**`.
 - Schema, migrations, RLS, RPC, grants y backfill CA2.
-- Campos editoriales, calidad, faltantes, fuentes y metadata H2-CA2.
+- Campos editoriales, calidad, faltantes, fuentes, sponsorship o leads.
 - Leads/email, Edge y artifacts terminales F9.7.
 - Admin, Home, Resultados, cards, filtros y campos CA2.
 - Tooling capaz de aplicar packages DB.
@@ -91,9 +90,7 @@ usa una frontera por patch:
 6. F9.10 realiza certificacion final, `USER_PERSONAL_UAT` y readiness para F10.
 7. F10.7 ejecuta PR a `main` y registra entrega tecnica post-merge.
 8. F10.8 ejecuta canary Production con schedules apagados.
-9. ADR-0011 transfiere metadata y F10.10/M3-M9 a H2-CA2.
-10. F10.9 queda reabierta solo para remediacion operacional FG2/FG3, promociones,
-    `GO_SCHEDULES` y observacion natural.
+9. F10.9 habilita schedules gradualmente y observa la operacion.
 
 Nunca se mezcla `desarrollo` dentro del candidate. Un conflicto que requiera
 copiar CA2 invalida el candidate y obliga a reconstruirlo.
@@ -604,9 +601,9 @@ acredita `EVID-H1-011/012`, los pares aceptados vuelven a `0` y la ventana de 72
 queda `NOT_STARTED`.
 
 [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) organiza la
-remediacion sin autorizarla. Los `104/224` incompletos quedan
-`TRANSFERRED_NON_BLOCKING_H2_CA2`; F10.8 y `EVID-H1-010=VERIFIED` permanecen
-inmutables.
+remediacion sin autorizarla. La decision humana vigente exige cero cursos activos
+sin syllabus/objectives para cerrar Hito 1. F10.8 y
+`EVID-H1-010=VERIFIED` permanecen inmutables.
 
 ## Work Packages Internos
 
@@ -798,9 +795,9 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 | `EVID-H1-008` | Canary Certification | Fail-closed documentado, no PASS | `DEVIATION_ACCEPTED_FAIL_CLOSED` |
 | `EVID-H1-009` | PR main | Approved/Merged; incluye PR #307 de remediacion DB Sync | `VERIFIED` |
 | `EVID-H1-010` | Canary Production | PASS | `VERIFIED` |
-| `EVID-H1-011` | FG2 automatico | Tres runs naturales completos en pares consecutivos; ventana minima 72h | `PENDING` |
-| `EVID-H1-012` | FG3 automatico | Tres runs naturales completos posteriores a FG2; ventana minima 72h | `PENDING` |
-| `EVID-H1-013` | Soporte operacional | Pares FG2/FG3 aceptados, FG1 Production PASS y cron activo | `PENDING` |
+| `EVID-H1-011` | FG2 automatico | SUCCESS/NOOP completo | `PENDING` |
+| `EVID-H1-012` | FG3 automatico | SUCCESS/NOOP completo | `PENDING` |
+| `EVID-H1-013` | FG1 soporte | Canary PASS y cron activo | `PENDING` |
 | `EVID-H1-014` | Cero cambios CA2 | Object/digest closure PASS; remediacion DB Sync limitada a workflows | `VERIFIED_POST_MERGE_BOUNDARY` |
 | `EVID-H1-015` | QA independiente | PASS | `VERIFIED` |
 | `EVID-H1-016` | Conformidad cliente | APPROVED | `CLIENT_CONFORMITY_PENDING` |
@@ -808,9 +805,6 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 La primera observacion F10.9 registra `0` pares aceptados. Los intentos
 documentados en `EVID-H1-OBS-F10.9-001` son evidencia fail-closed y no cambian los
 estados `PENDING` de `EVID-H1-011..013`.
-
-ADR-0011 transfiere F10.10/M3-M9 a H2-CA2. Sus gates y evidencias historicas
-permanecen inmutables y no reutilizables.
 
 ## Stop Conditions
 
@@ -888,16 +882,18 @@ Cycle 2 excluyo `db/**`, `supabase/**`, `web/**`, `scripts/maintenance/**`, requ
 | `F10.6` | `COMPLETED_CONTROL_PLANE` | Control-plane: environments programados, variables `AUTOMATION_ENABLED=false`, `PRODUCTION_WRITERS_PAUSED=true`, cancelacion/resolucion de runs antiguos y verificacion de branch policy. |
 | `F10.7` | `COMPLETED_TECHNICAL_DELIVERY` | PR #291 aprobado/fusionado a `main`, boundary 32 objetos, Security Audit PASS, Cloudflare Pages `SUCCESS` y DB Sync cancelado cero-pasos. |
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Pro DDL fue aplicada una vez por `31263024890`; PR #323/#324 promovieron verify-only hasta `main@675ade43f41a2f5d04f05a40f9837b514a8705ce`; DB Sync verify `31268229878=PASS` confirmo pending `0`, apply skipped, target schema PASS y FG2 deferred PASS. PR #325 promovio paginacion no-cohorte a `main@859d2f7d83f83950d10858fe27bd035febba7f68`; Production Canary `31272290614=PASS` subio artifact sanitizado `9026139906` (`sha256:1a1a0fe3df7bbd03b74217be188fd58014257a5b2a5045ce63863260b73ec6ce`, expira `2026-09-07T18:49:37Z`); `EVID-H1-010=VERIFIED`. |
-| `F10.9` | `REBASELINED_FG2_FG3_OPERATIONAL_REMEDIATION` | G4=`PASS_CA1_FG2_FG3_ONLY_METADATA_TRANSFERRED_TO_H2`; G5-G13 reabiertos bajo gates y aprobaciones separadas. |
-| `F10.10` | `SUPERSEDED_FOR_HITO_1_TRANSFERRED_TO_H2_CA2` | M4-M9=`NOT_EXECUTED_TRANSFERRED_TO_H2`; historia M3 inmutable y no reutilizable. |
+| `F10.9` | `IN_PROGRESS_BLOCKED_BY_INCIDENT` | [INC-F10.9-001](./incidente_f10_9_fg2_fg3_2026-08-09.md) registra cero pares aceptados; [PLAN-REM-F10.9-001](./plan_remediacion_f10_9_fg2_fg3.md) queda documentado y no ejecutable hasta aprobaciones separadas. |
 | `F11.1` | `PENDING` | Cierre documental final de Hito 1 CA1-only y conformidad cliente. |
 
 ## Criterio De Salida
 
-`H1-CA1=COMPLETED_PRODUCTION` y `HITO-001=COMPLETED_PRODUCTION_CA1_ONLY` solo
-despues de `EVID-H1-011/012/013=VERIFIED`, tres pares naturales consecutivos
-durante al menos 72 horas y `EVID-H1-016=VERIFIED` posterior. Dispatches/reruns
-no cuentan. Metadata permanece visible en H2-CA2 y no bloquea Hito 1.
+`H1-CA1=COMPLETED_PRODUCTION` y `HITO-001=COMPLETED_PRODUCTION_CA1_ONLY`
+solo despues de que `EVID-H1-008` conserve su desviacion aceptada,
+`EVID-H1-009` y `EVID-H1-014` conserven la entrega tecnica verificada y
+`EVID-H1-011..013/016` queden verificadas segun sus umbrales futuros. CA2 queda
+`DEFERRED_TO_HITO_2` sin cambio funcional productivo. La remediacion DB Sync
+F10.8 elimina el blocker tecnico de falso rojo, pero no sustituye el canary
+Production, la observacion de schedules ni la conformidad cliente.
 
 ## Allowlist De Remediacion DB Sync F10.8
 

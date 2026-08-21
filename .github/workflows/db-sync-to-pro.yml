@@ -98,15 +98,12 @@ jobs:
           git cat-file -e "$BEFORE_SHA^{commit}"
           git merge-base --is-ancestor "$BEFORE_SHA" "$CANDIDATE_SHA"
           set +e
-          git diff --quiet "$BEFORE_SHA" "$CANDIDATE_SHA" -- \
-            db/ \
-            ':(exclude)db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql' \
-            ':(exclude)db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql'
+          git diff --quiet "$BEFORE_SHA" "$CANDIDATE_SHA" -- db/
           diff_status="$?"
           set -e
           if [ "$diff_status" -eq 0 ]; then
             echo "db_changed=false" >> "$GITHUB_OUTPUT"
-            echo "No Pro-relevant db/** changes detected; DB Sync report/apply/verify remain skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "No db/** changes detected; DB Sync report/apply/verify remain skipped." >> "$GITHUB_STEP_SUMMARY"
           elif [ "$diff_status" -eq 1 ]; then
             echo "db_changed=true" >> "$GITHUB_OUTPUT"
             echo "db/** changes detected; DB Sync dry-run report remains required." >> "$GITHUB_STEP_SUMMARY"

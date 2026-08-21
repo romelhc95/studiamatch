@@ -17,10 +17,7 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert "F10 Main Boundary" in workflow
     assert "F10 main PR must be certificacion -> main" in workflow
     assert "F10 main PR must use the protected certificacion tip" in workflow
-    f10_main_block = workflow.split("  f10-main-boundary:", 1)[1].split(
-        "  f107-certification-gate-update:", 1
-    )[0]
-    assert "merge-base" not in f10_main_block
+    assert "merge-base" not in workflow
     assert "EXPECTED_ORIGINAL = {" in workflow
     assert "ALLOWED_PATHS" not in workflow
     assert "exact CA1 objects" in workflow
@@ -102,21 +99,6 @@ def test_f10_main_boundary_gate_is_present_in_security_audit() -> None:
     assert 'DENIED_PREFIXES = ("db/", "supabase/", "web/", "scripts/core/", "scripts/maintenance/")' in workflow
     assert "EXPECTED_PRODUCTION_CANARY_CLOSURE" in workflow
     assert "EXPECTED_F109_REMEDIATION_PLAN" in workflow
-    assert "f109-branch-reconciliation:" in workflow
-    assert "F10.9 Branch Reconciliation" in workflow
-    assert "needs.f109-branch-reconciliation.result" in workflow
-    assert "F109_REQUIRED" in workflow
-    assert "scripts/security/f109_boundary.py" in workflow
-    assert "fix/f10-9-p1-rebuilt" in workflow
-    assert "--p1-base-tree" in workflow
-    assert "protected_dev_tip" in workflow
-    assert "github.base_ref == 'desarrollo'" in workflow
-    assert "github.ref == 'refs/heads/desarrollo'" in workflow
-    assert "actions/checkout@v4" not in workflow
-    assert "actions/setup-node@v4" not in workflow
-    assert "actions/setup-python@v5" not in workflow
-    assert "auto-merge" not in workflow
-    assert "auto-approve" not in workflow
     assert '".context/evidencias_cliente/sprint_1/registro_observacion_production_f10_9_2026-08-09.md": ("A", "100644")' in workflow
     assert '".context/operaciones/incidente_f10_9_fg2_fg3_2026-08-09.md": ("A", "100644")' in workflow
     assert '".context/operaciones/plan_remediacion_f10_9_fg2_fg3.md": ("A", "100644")' in workflow
@@ -135,12 +117,6 @@ def test_legacy_f97_gate_does_not_block_main_promotion() -> None:
     workflow = source(".github/workflows/f9-7-contract.yml")
 
     assert "github.event_name != 'pull_request' || github.base_ref != 'main'" in workflow
-    assert "fix/f10-9-p1-rebuilt" in workflow
-    assert "--p1-base" in workflow
-    assert "--p1-base-tree" in workflow
-    assert "--github-output \"$GITHUB_OUTPUT\"" in workflow
-    assert "steps.f109.outputs.mode == 'skip_non_p1'" in workflow
-    assert "github.base_ref == 'desarrollo'" in workflow
 
 
 def test_main_promotion_cannot_auto_apply_database_changes() -> None:

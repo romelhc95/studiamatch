@@ -37,16 +37,7 @@ def test_push_main_without_db_changes_skips_production_jobs() -> None:
 
     assert "github.event.before" in detect
     assert "github.sha" in detect
-    assert 'git diff --quiet "$BEFORE_SHA" "$CANDIDATE_SHA" -- \\' in detect
-    assert "db/ \\" in detect
-    assert (
-        "':(exclude)db/free_only_migrations/20260811_fase10_10_m3_free_reader.sql'"
-        in detect
-    )
-    assert (
-        "':(exclude)db/rollbacks/20260811_fase10_10_m3_free_reader_compensating.sql'"
-        in detect
-    )
+    assert 'git diff --quiet "$BEFORE_SHA" "$CANDIDATE_SHA" -- db/' in detect
     assert "db_changed=false" in detect
     assert "db_changed=true" in detect
     assert "0000000000000000000000000000000000000000" in detect

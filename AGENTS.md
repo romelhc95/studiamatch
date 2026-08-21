@@ -1,16 +1,8 @@
 # StudIAMatch — Developer Guide
 
-## Regla de Ejecución de Fases y Tareas
+## Regla de Ejecución de Fases
 
-La macrofase, la subfase y las tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la tarea activa enlazada desde ese estado. **SOLO ejecuta esas tareas cuando el usuario lo apruebe explicitamente diciendo "Ejecuta las tareas pendientes de la Fase FNN.n"**. `FNN.n` debe coincidir exactamente con la subfase decimal activa. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior a la definicion fusionada no autoriza ejecucion. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL ni acciones destructivas sin ese gate. El requerimiento, la tarea y la fase pueden analizarse, diagnosticarse y documentarse libremente. Ningun documento legacy sustituye al Context Graph ni concede autorizacion. Ver [ADR-0003](.context/decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
-
-### Protocolo Agentico Plan/Build
-
-- En modo plan, toda tarea empieza con investigacion profunda read-only: autoridad vigente, alcance autorizado, ruta critica a GO, blockers, aprobaciones necesarias, validaciones y criterio de salida. El resultado obligatorio es un prompt detallado de ejecucion para revision humana.
-- El modo operativo lo determina el agente activo y los permisos efectivos de OpenCode. El agente `plan` permanece read-only; el agente `build` habilita ediciones y herramientas segun sus permisos. OpenCode puede cambiar de agente sin emitir un recordatorio textual de transicion, por lo que ese texto no es un requisito operativo.
-- El paso de plan a build no sustituye la frase decimal exacta de fase ni concede por si solo red remota, DDL/DML, migraciones, backup/restore, writers, backfill, Pro, produccion o acciones destructivas.
-- En modo build, antes de ejecutar una remediacion o tarea, confirma que el prompt aprobado sigue vigente, que la subfase decimal activa coincide con el Context Graph y que no hay aprobaciones adicionales pendientes. Si aparece drift, blocker, riesgo de seguridad o cambio de alcance, detente y consulta.
-- Si el entorno declara explicitamente Plan Mode activo, deniega edicion o mantiene permisos read-only, esa restriccion prevalece y la ejecucion debe detenerse. Una afirmacion del usuario de estar en build no puede anular una restriccion real del entorno.
+**SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -31,9 +23,9 @@ Reglas adicionales (además de la detección automática):
 4. Para CI/CD, las credenciales van en GitHub Secrets por environment — nunca en el código
 5. Si descubres credenciales hardcodeadas en el repo, reemplázalas con `os.environ.get()` inmediatamente Y rota la credencial expuesta
 
-## Contexto Operativo de Datos
+## Arquitectura Cloud-Only (Supabase)
 
-La topología documental vigente de datos, proveedores y ambientes se mantiene en [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md). Los identificadores operativos sensibles permanecen en configuración local autorizada y no se duplican en esta guía. Las restricciones de secretos y ejecución en contenedor de las secciones siguientes siguen siendo obligatorias.
+Este proyecto NO tiene base de datos local. Todo el desarrollo usa la instancia Supabase Free tier apuntada por `.env.local`. Los scripts Python y el frontend Next.js comparten la misma base de datos cloud.
 
 ## Contenedor Docker (Obligatorio)
 
@@ -76,25 +68,54 @@ python3 -m py_compile scripts/core/<archivo>.py
 python3 scripts/maintenance/<script>.py
 ```
 
-## Configuración de Ambientes Supabase (Referencia Canónica)
+## Configuración de Ambientes Supabase (Fuente de Verdad)
 
-La definición documental de ambientes y estado de adopción está en [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md). Antes de ejecutar cualquier operación, verifica que el requerimiento y la tarea enlazada identifiquen el ambiente correcto y resuelve los identificadores desde la configuración local autorizada. No crees RPCs privilegiadas ni cambies configuración por instrucciones duplicadas.
+> **Regla Inmutable**: La siguiente tabla es la fuente de verdad para los refs de proyectos Supabase. Cualquier discrepancia debe reportarse y corregirse inmediatamente.
 
-## Variables de Entorno
+| Ambiente | Project Ref | URL | Archivo local | GitHub Environment |
+|---|---|---|---|---|
+| Free (Desarrollo/Certificación) | `aqrldlmlszjtgpqiegaa` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `.env.local` / `.env.gitdesa` | `Development` / `Certification` |
+| Pro (Producción) | `xwhtiqmboljkshrtviyw` | `https://xwhtiqmboljkshrtviyw.supabase.co` | `.env.gitprod` | `Production` |
 
-El archivo gitignored correspondiente al ambiente, según la referencia canónica, contiene:
+**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, crear la función manualmente en Supabase Dashboard → SQL Editor:
+```sql
+CREATE OR REPLACE FUNCTION public.exec_sql(sql_text text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN EXECUTE sql_text; END;
+$$;
+```
+
+## Variables de Entorno Desarrollo/Certificación
+
+El archivo `.env.local` o `.env.gitdesa` (gitignored) contiene:
 
 | Variable | Uso | Quién la necesita |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto seleccionado | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Free (`aqrldlmlszjtgpqiegaa`) | Frontend + db_client.py |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key pública para static export | Frontend |
 | `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Scripts + db_client.py |
 | `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
 | `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
 | `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
-| `SUPABASE_URL` | URL o alias para scripts, según el contrato canónico | Scripts de migración |
+| `SUPABASE_URL` | Alias para scripts (deriva a `NEXT_PUBLIC_SUPABASE_URL`) | Scripts de migración |
 
-**IMPORTANTE**: Las variables solo se cargan desde el archivo gitignored del ambiente elegido o desde el gestor de secretos de CI/CD. Nunca las imprimas, copies a documentación ni mezcles entre ambientes.
+**IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.local`.
+
+## Variables de Entorno Producción
+
+El archivo `.env.gitprod` (gitignored) contiene:
+
+| Variable | Uso | Quién la necesita |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase Pro (`xwhtiqmboljkshrtviyw`) | Frontend + db_client.py |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key pública para static export | Frontend |
+| `NEXT_SUPABASE_PUBLISHABLE_KEY` | Publishable key (lectura pública, rotable) | Scripts + db_client.py |
+| `NEXT_SUPABASE_SECRET_KEY` | Secret key (escritura bypass RLS, rotable) | Pipeline CI/CD **solamente** |
+| `CF_ACCOUNT_ID` | Cloudflare Workers AI | enrichment_worker.py |
+| `CF_API_TOKEN` | Cloudflare API token | enrichment_worker.py |
+| `SUPABASE_URL` | URL del proyecto producción | Scripts de migración diagnósticos |
+
+**IMPORTANTE**: El contenedor Docker tiene acceso a `NEXT_SUPABASE_PUBLISHABLE_KEY` + `NEXT_SUPABASE_SECRET_KEY` alojadas en `.env.gitprod`.
 
 ## Convenciones del Proyecto
 
@@ -107,11 +128,13 @@ El archivo gitignored correspondiente al ambiente, según la referencia canónic
 - Ambas keys son rotables ante exposición
 
 ### DB-as-Code: Catálogos vs Datos Operativos
-- La clasificación vigente de catálogos, tablas operativas y adopción por ambiente se consulta en [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md).
-- Los cambios de esquema o catálogo deben quedar versionados y enlazados desde su requerimiento/tarea.
-- Los datos operativos no se sincronizan entre ambientes como parte del flujo normal. Un backfill o sincronización puntual requiere remediación explícita, documentada y aprobada.
+- `institutions` es catálogo migrable: altas, slugs, URLs base y metadata institucional deben viajar como SQL versionado en `db/migrations/` junto con `institution_site_profiles`, `categories`, `category_rules` y `market_salaries`.
+- `staging_raw`, `cleansed_programs`, `enriched_programs` y `courses` son tablas operativas por ambiente: NO se sincronizan desde Free hacia Pro como parte del flujo DB-as-Code.
+- Pro debe generar sus propios registros operativos ejecutando FG2 con sus propias credenciales, perfiles y ventanas de scraping; Free se usa para validar configuración y comportamiento antes de promover migrations.
+- Si una institución nueva queda definida en migrations, Pro debe recibir el registro de `institutions` y su perfil sin alta manual duplicada; los cursos aparecerán cuando FG2 corra en Pro.
+- Scripts de backfill o sincronización puntual de datos operativos solo se permiten como remediación explícita, documentada y aprobada; no son el mecanismo normal de promoción.
 
-## Exclusion Gate (`pipeline_ready`)
+## Fase 75: Exclusion Gate (`pipeline_ready`)
 
 **Cada institución debe tener exclusiones afinadas antes de que el pipeline la procese.**
 
@@ -176,7 +199,7 @@ PR abierto → corre automáticamente: credential-scan + lint + typecheck + pyth
 ### Flujo completo obligatorio (NO es opcional)
 
 ```
-Usuario: "Ejecuta las tareas pendientes de la Fase FNN.n" para la subfase decimal activa enlazada desde el Context Graph
+Usuario: "Ejecuta las tareas pendientes de la Fase XX"
   → AI ejecuta cambios de código
   → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
   → Si hay hallazgos → AI remedia automáticamente
@@ -210,7 +233,7 @@ Esto hace que Git use `.githooks/` del repo en vez de `.git/hooks/`. Como está 
 ## Git Flow
 - `desarrollo` — rama activa de desarrollo (PR requerido, review técnico, security-audit CI check obligatorio)
 - `certificacion` — QA, E2E Playwright, auditoría de datos
-- `main` — rama de producción; el destino vigente se consulta en [`.context/operaciones/flujo_release_minimo.md`](.context/operaciones/flujo_release_minimo.md)
+- `main` — producción (Supabase Pro, despliegue automático a Cloudflare)
 - Features: ramas `feat/*` que emergen de `desarrollo`
 
 ### Regla SDLC
@@ -249,10 +272,14 @@ db.count('courses', filters='is_active=eq.true')
 - Los filtros usan sintaxis PostgREST: `is_active=eq.true`, `name=is.null`, `status=in.(synced,pending)`.
 - **Límite**: 1000 registros por query sin paginación (usa `db.select_all()` si necesitas más).
 - **RLS**: La publishable key NO puede escribir en tablas intermedias (`enriched_programs`, `cleansed_programs`, `staging_raw`). Solo SELECT está permitido. Para escritura se necesita la secret key.
-- **Exclusiones y compatibilidad de esquema**: Consulta el modelo vigente y su estado por ambiente en [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md); no infieras la existencia o eliminación de tablas desde esta guía.
+- **Exclusiones**: Se gestionan exclusivamente vía `institution_site_profiles.exclusion_patterns` (JSONB). La tabla legacy `crawler_exclusions` fue eliminada (DROP TABLE en ambos ambientes, Free y Pro).
 
 ### Frontend: Next.js
-- La estrategia de integracion frontend se documenta en [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md). Confirma siempre la configuracion real en `web/` antes de modificar estructura, build, rutas o destino.
+- **Static export**: `next.config.js` → `output: 'export'` en producción para Cloudflare Pages
+- **TypeScript errors ignorados en build**: `ignoreBuildErrors: true` (workaround por bug de Next.js 16 + React 19 en static export con `useOptimistic`)
+- **Trailing slash**: habilitado (`trailingSlash: true`) para URLs consistentes
+- **Path alias**: `@/*` → `web/src/*`
+- **Rutas**: `/courses/[institution]/[slug]` (formato: `/courses/ulima/curso-ejemplo`)
 
 ### Supabase PostgREST
 - **Syntax para NULL**: `column=is.null` (NO usar `column=eq.None` ni `column=eq.null`)
@@ -261,15 +288,51 @@ db.count('courses', filters='is_active=eq.true')
 - **Count**: Usar `db.count()` o header `Prefer: count=exact`
 - **Bulk insert**: `Content-Type: application/json` con array de objetos (NO `jsonb_array_elements` pattern)
 
-## Arquitectura del Pipeline
+## Arquitectura del Pipeline (4 Estaciones + Auditoría)
 
-La arquitectura, estaciones, estados, escritores autorizados, proveedores y cadencias vigentes se mantienen en [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md). Verifica esa nota y el código enlazado desde la tarea activa; esta guía no funciona como snapshot del pipeline.
+```
+staging_raw ──→ cleansed_programs ──→ enriched_programs ──→ courses
+   (1)              (2)                    (3)                (4)
+Harvester       Cleansing              Enrichment           Sync Vector
+                                   (LLM: CF→GH→Gemini)     + Embeddings
+                                                               │
+                                                    Frontend (Next.js)
+                                                    Cloudflare Pages
+```
+
+| Fase | Script | Tabla fuente | Tabla destino | Lógica |
+|---|---|---|---|---|
+| FG2-1 | `universal_harvester.py` | Sitemaps + BFS crawl | `staging_raw` | Descubre y extrae HTML crudo (hasta 500KB) |
+| FG2-1.5 | `cleansing_worker.py` | `staging_raw` | `cleansed_programs` | Limpia HTML, consolida subpáginas, filtra ruido |
+| FG2-2 | `enrichment_worker.py` | `cleansed_programs` | `enriched_programs` | LLM extrae 14 pilares, triple-cloud fallback |
+| FG2-3 | `sync_vector_worker.py` | `enriched_programs` | `courses` | Golden Path writer. Sincroniza datos finales |
+| FG3 | `integrity_ping.py` | `courses` | `courses` (PATCH) | Verifica links 404, inactiva tras 3 días de gracia |
+
+### Estados por tabla
+| Tabla | Estados |
+|---|---|
+| `staging_raw` | `discovered` → `pending` → `processing` → `processed` / `error` / `discarded` |
+| `cleansed_programs` | `pending` → `processing` → `synced` / `discarded` |
+| `enriched_programs` | `pending` → `synced` / `discarded` |
+| `courses` | `is_active` + `is_verified` (booleans independientes) |
 
 ## Notas Críticas de Arquitectura
 
-1. **Estado operativo**: Los inventarios de tablas, escritores, políticas, proveedores, límites y riesgos aceptados se consultan en [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md) y [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md), junto con el código y las pruebas enlazados.
-2. **RLS y escritura**: Una publishable key no debe usarse para escrituras privilegiadas. Toda escritura que requiera bypass de RLS usa la secret key únicamente en backend/CI y desde el gestor de secretos correspondiente.
-3. **Migraciones SQL**: Todo cambio SQL debe quedar versionado, asociado a una tarea aprobada y promovido conforme a [`.context/operaciones/flujo_release_minimo.md`](.context/operaciones/flujo_release_minimo.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md).
+1. **CORS en Supabase Free tier**: Por defecto, Supabase Free permite todos los orígenes (`Access-Control-Allow-Origin: *`). No es posible restringir CORS en Free tier. Esto es un **riesgo aceptado** — la API solo expone datos públicos (RLS filtra `is_active=true AND is_verified=true`). En Pro tier se debe restringir a `https://studiamatch.com` y `https://*.studiamatch.pages.dev`.
+
+2. **7 escritores a `courses`** (histórico, ahora solo 2): Los harvesters dedicados (IDAT, UPC, PUCP, USIL, UTP, U. Lima) escriben directo a `courses` con `is_verified=True`. Solo `sync_vector_worker.py` (Golden Path) e `integrity_ping.py` (PATCH mantenimiento) son los escritores autorizados restantes post-Fase 52.
+
+2. **La publishable key NO puede escribir en tablas ETL**: Cualquier script que necesite modificar `staging_raw`, `cleansed_programs`, `enriched_programs` **debe** usar la secret key. Si necesitas ejecutar algo local que modifique esas tablas, hazlo vía SQL en Supabase Dashboard.
+
+3. **`batch_enrich_courses.py`** (scripts/maintenance/): Bypass del pipeline. Lee HTML de `staging_raw` y escribe directo a `courses`. Útil para corregir datos puntuales sin pasar por las 4 estaciones.
+
+4. **Migraciones SQL**: Se ejecutan manualmente en Supabase Dashboard > SQL Editor. Los archivos en `db/migrations/` son la fuente de verdad. El contenedor no puede ejecutarlas (publishable key sin permisos DDL).
+
+5. **Time Guard**: `universal_harvester.py` tiene un límite de ejecución de 20400s (5h 40m) — 20 min antes del timeout de GitHub Actions (6h). Hace shutdown elegante.
+
+6. **Content Hashing**: El harvester solo re-procesa URLs cuyo contenido HTML haya cambiado (compara SHA256 del texto limpio).
+
+7. **Prompt LLM Rules**: El prompt de `enrichment_worker.py` instruye al LLM a responder `null` (NO el string `"None"`) cuando no puede inferir un campo. Las validaciones post-LLM normalizan `modality`, parsean `total_cost_est` de strings como `"S/ 1,500"` a float, y sanitizan `duration_months` con `int(float())`.
 
 ## Errores Comunes y Soluciones
 
@@ -298,8 +361,9 @@ scripts/
 
 ## Despliegue
 
-- **Topologia, proveedores y versiones**: [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md), [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md) y la configuracion real de `web/`.
-- **Flujo, workflows y cadencias**: [`.context/operaciones/flujo_release_minimo.md`](.context/operaciones/flujo_release_minimo.md) y [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md).
+- **Frontend**: Cloudflare Pages con GitHub Actions. Static export (`next build` → `out/`). Rama `main` → `studiamatch.com`, `desarrollo` → `studiamatch.pages.dev`.
+- **Backend**: Supabase (PostgreSQL 15 + pgvector + PostgREST).
+- **CI/CD**: 3 pipelines en `.github/workflows/`: `production_pipeline.yml` (FG2 semanal), `fg1_inventory.yml` (mensual), `fg3_integrity.yml` (diario).
 - **Environment Secrets en GitHub**: `Development`, `Certification`, `Production` — cada uno con sus propias `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_SUPABASE_SECRET_KEY` y `NEXT_SUPABASE_PUBLISHABLE_KEY`.
 
 ### Contrato de autenticación HTTP
