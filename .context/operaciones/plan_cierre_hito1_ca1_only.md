@@ -97,8 +97,7 @@ copiar CA2 invalida el candidate y obliga a reconstruirlo.
 
 ## Desviacion Certification F9.9 Aceptada
 
-La decision [ADR-0007](../decisiones/ADR-0007_desviacion_canary_certification_f9_9.md)
-registra `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`. Esta desviacion acepta la
+La decision historica `ADR-0007` registra `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED` y queda superseded por [ADR-0026](../decisiones/ADR-0026_cutoff_h1_y_baseline_sprint1.md) para F10.11. Esta desviacion acepta la
 evidencia de comportamiento fail-closed ante HTTP 403 observado desde egress
 compartido de GitHub-hosted runners, pero prohibe declarar un resultado positivo de Certification.
 
@@ -120,7 +119,7 @@ Condiciones de la desviacion:
 - La validacion positiva se desplaza a F10: canary Production acotado y observacion programada posterior, ambos sujetos a controles pre-main.
 - La desviacion expira al completar la observacion Production en F10 o ante el primer fallo que demuestre que el problema no era exclusivo del egress observado en Certification.
 
-La definicion QA obligatoria para `EVID-H1-015` vive en [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md). Su resultado sanitizado [QA-F9.9-DEVIATION-001-RESULT](./qa_desviacion_f9_9_resultado.md) queda en `PASS`; no declara Certification PASS ni autoriza Production, schedules, F9.10/F10, Supabase, Cloudflare o DDL/DML.
+La definicion QA obligatoria para `EVID-H1-015` vive como referencia historica `QA-F9.9-DEVIATION-001`. Su resultado sanitizado `QA-F9.9-DEVIATION-001-RESULT` queda en `PASS`; no declara Certification PASS ni autoriza Production, schedules, F9.10/F10, Supabase, Cloudflare o DDL/DML.
 
 ## Controles Pre-Main F9.9
 
@@ -150,7 +149,7 @@ Supabase ni Cloudflare en este paquete.
 
 - PR #280 aprobado/fusionado en `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954` / tree `695f5a358979a81c380641e8f800ca3ab62c9f6a`.
 - CI post-merge sobre `desarrollo@ac7d46e7a09213a10616297323e2d411b8d10954`: `Security Audit Gate` run `30813990225` PASS y `F9.7 Local Contract` run `30813989772` PASS.
-- QA independiente de la desviacion: [resultado sanitizado](./qa_desviacion_f9_9_resultado.md) `PASS`; `EVID-H1-015=VERIFIED`.
+- QA independiente de la desviacion: resultado sanitizado historico `PASS`; `EVID-H1-015=VERIFIED`.
 - `certificacion@920ac9c7514f2e5f2e0315bf4cccb95940f3de17` aun no contiene los controles pre-main de PR #280; F9.10 debe reconstruirlos selectivamente antes de cualquier readiness F10.
 
 ### Readiness F9.10 En Ejecucion - 2026-08-03
@@ -283,7 +282,7 @@ La investigacion read-only de F10.7 verifico que el estado final de
 El PR directo `certificacion -> main` queda bloqueado porque el gate main/F10
 documentado en F9.10 no estaria presente en la rama candidata.
 
-La decision [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md)
+La decision historica `ADR-0008`
 reclasifica el freeze de 32 objetos y `USER_PERSONAL_UAT=PASS` como
 `SUPERSEDED_FOR_F10_7_PROMOTION`. Siguen siendo evidencia historica de F9.10,
 pero F10.7 Cycle 2 debe producir una nueva autoridad de promocion.
@@ -723,7 +722,7 @@ Todo comando de desarrollo corre dentro de `studiamatch-dev`:
 - Cero paths CA2.
 - `EVID-H1-006/007=VERIFIED` por PR #277 y CI; `EVID-H1-008=DEVIATION_ACCEPTED_FAIL_CLOSED`, nunca `PASS`.
 - QA independiente debe revisar la desviacion antes de readiness.
-- La revision QA debe seguir [QA-F9.9-DEVIATION-001](./qa_desviacion_f9_9.md) y puede terminar `PASS`, `FAIL` o `BLOCKED`.
+- La revision QA debe seguir la referencia historica `QA-F9.9-DEVIATION-001` y puede terminar `PASS`, `FAIL` o `BLOCKED`.
 - Evidencia de target sin exponer identificadores.
 - `USER_PERSONAL_UAT` despues de canary, validaciones tecnicas Certification y QA.
 
@@ -863,7 +862,7 @@ Paths y acciones excluidos para este paquete: `db/**`, `supabase/**`, `web/**`, 
 
 ## Allowlist Historica De Rebaseline F10.7
 
-Cycle 1 quedo limitado a `.context/**` y solo documento [ADR-0008](../decisiones/ADR-0008_rebaseline_f10_7_gate_reconstruction.md), el bloqueo de promocion directa, la invalidez del freeze F9.10 como autoridad F10.7 y los requisitos de Cycle 2.
+Cycle 1 quedo limitado a `.context/**` y solo documento la referencia historica `ADR-0008`, el bloqueo de promocion directa, la invalidez del freeze F9.10 como autoridad F10.7 y los requisitos de Cycle 2.
 
 Cycle 2, tras repetir la frase decimal exacta `Ejecuta las tareas pendientes de la Fase F10.7`, permitio un paquete de controles con alcance maximo:
 

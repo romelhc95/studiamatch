@@ -1,8 +1,26 @@
 # StudIAMatch — Developer Guide
 
-## Regla de Ejecución de Fases
+## Regla De Ejecucion De Fases Y Work Packages
 
-**SOLO ejecuta las tareas de una fase del IMPLEMENTATION_PLAN.md cuando el usuario lo apruebe explícitamente diciendo "Ejecuta las tareas pendientes de la Fase XX"**. No ejecutes cambios de código, eliminaciones de archivos, migraciones SQL, ni ninguna acción destructiva sin autorización explícita. Las fases del plan pueden ser analizadas, diagnosticadas y documentadas libremente, pero la ejecución requiere aprobación.
+La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. Durante la transicion F10.11, **solo ejecuta tareas cuando el usuario lo apruebe explicitamente diciendo `Ejecuta las tareas pendientes de la Fase FNN.n`** y `FNN.n` coincida exactamente con la subfase decimal activa. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion.
+
+El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles R0-R3:
+
+| Nivel | Operacion | Autorizacion |
+|---|---|---|
+| `R0` | Lectura y planificacion local | Ninguna |
+| `R1` | Edicion local y tests Docker | Grant persistente WP/digest |
+| `R2` | Push, PR y merge a `desarrollo` | WP/digest, CI y review |
+| `R3` | Certification/Main, DB, deploys, schedules, writers, secrets | JIT single-use |
+| `R3+` | Destruccion o recuperacion productiva | JIT y doble aprobacion |
+
+Formato objetivo:
+
+```text
+Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest>, hasta R2 y hasta <expiry>.
+```
+
+No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no sustituye la frase decimal exacta ni concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -199,11 +217,11 @@ PR abierto → corre automáticamente: credential-scan + lint + typecheck + pyth
 ### Flujo completo obligatorio (NO es opcional)
 
 ```
-Usuario: "Ejecuta las tareas pendientes de la Fase XX"
+Usuario: "Ejecuta las tareas pendientes de la Fase FNN.n" para la subfase decimal activa o aprobacion WP/digest vigente segun R0-R3
   → AI ejecuta cambios de código
   → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
   → Si hay hallazgos → AI remedia automáticamente
-  → Si limpio → commit + push a rama feat/*
+  → Si limpio → commit local; push/PR solo con autorizacion R2 o prompt separado
       → pre-commit hook escanea (bloquea si detecta credencial)
       → pre-push hook escanea (bloquea si detecta credencial)
   → AI crea PR a desarrollo
