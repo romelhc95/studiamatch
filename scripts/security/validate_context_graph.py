@@ -23,6 +23,9 @@ REQUIRED_INDEX_LINKS = (
     "decisiones/ADR-0003_taxonomia_macrofases_subfases.md",
     "operaciones/plan_maestro_sprint1_h2_h5.md",
     "operaciones/context_graph_semantico.md",
+    "arquitectura_pipeline.md",
+    "sistema_db_supabase.md",
+    "operaciones/matriz_adopcion_db.md",
     "seguimiento/seguimiento_sprint_1_h2_h5.md",
     "seguimiento/plantilla_tracker_reutilizable.md",
     "seguimiento/retrospectiva_hito_001.md",
@@ -30,6 +33,7 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-H2-001.json",
     "work_packages/WP-GOV-OBS-001.json",
     "work_packages/WP-GOV-INFRA-001.json",
+    "work_packages/WP-GOV-ARCH-001.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -37,6 +41,7 @@ REQUIRED_INDEX_LINKS = (
     "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md",
     "backlog_tareas/governance/TASK-GOV-OBS-001.md",
     "backlog_tareas/governance/TASK-GOV-INFRA-001.md",
+    "backlog_tareas/governance/TASK-GOV-ARCH-001.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -64,12 +69,23 @@ ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 GOV_OBS_DIGEST = "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060"
 GOV_INFRA_DIGEST = "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
+GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 def read(root: Path, relative: str) -> str:
-    return (root / ".context" / relative).read_text(encoding="utf-8")
+    try:
+        return (root / ".context" / relative).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ""
+
+
+def read_repo(root: Path, relative: str) -> str:
+    try:
+        return (root / relative).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ""
 
 
 def table_value(text: str, field: str) -> str | None:
@@ -111,9 +127,14 @@ def validate(root: Path = ROOT) -> list[str]:
     legacy_evidence = read(root, "evidencias_cliente/sprint_1/evidencia_hito_002.md")
     gov_task = read(root, "backlog_tareas/governance/TASK-GOV-OBS-001.md")
     gov_infra_task = read(root, "backlog_tareas/governance/TASK-GOV-INFRA-001.md")
+    gov_arch_task = read(root, "backlog_tareas/governance/TASK-GOV-ARCH-001.md")
+    architecture = read(root, "arquitectura_pipeline.md")
+    db_system = read(root, "sistema_db_supabase.md")
+    db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
     wp = json.loads((root / ".context" / "work_packages" / "WP-H2-001.json").read_text(encoding="utf-8"))
     gov_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-OBS-001.json").read_text(encoding="utf-8"))
     gov_infra_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-INFRA-001.json").read_text(encoding="utf-8"))
+    gov_arch_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-ARCH-001.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -185,8 +206,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in state or "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in plan:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS R2 approval gate must be next")
+    if "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in state or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH R2 approval gate must be next")
+    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV OBS/INFRA R2 gate")
     if "PREPARE_WP_GOV_OBS_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
         errors.append("NEXT_GATE_MISMATCH:stale OBS-only R2 gate")
     if "WP-GOV-INFRA-001" not in state or "WP-GOV-INFRA-001" not in plan:
@@ -207,12 +230,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if f"Apruebo WP-GOV-OBS-001 de TASK-GOV-OBS-001 segun manifest sha256:{GOV_OBS_DIGEST}" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS approval prompt missing digest")
-    if f"WP-GOV-INFRA-001 de TASK-GOV-INFRA-001 segun manifest sha256:{GOV_INFRA_DIGEST}" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV INFRA approval prompt missing digest")
+    if f"Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001 segun manifest sha256:{gov_arch_wp.get('candidate_digest')}" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH approval prompt missing digest")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS prompt must be R2 only")
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH prompt must be R2 only")
 
     if "LOCAL_CANDIDATE_PENDING_MAIN" not in state + plan + tracker + evidence:
         errors.append("OBSIDIAN_STAGE_MISMATCH:pending-main status missing")
@@ -242,6 +263,32 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_INFRA_WP_INVALID:allowlist")
     if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_infra_task:
         errors.append("GOV_INFRA_TASK_INVALID:status")
+    if gov_arch_wp.get("id") != "WP-GOV-ARCH-001" or gov_arch_wp.get("task_id") != "TASK-GOV-ARCH-001" or gov_arch_wp.get("status") != "PROPOSED":
+        errors.append("GOV_ARCH_WP_INVALID:identity/status")
+    if gov_arch_wp.get("target_level") != "R2":
+        errors.append("GOV_ARCH_WP_INVALID:target")
+    if gov_arch_wp.get("baseline", {}).get("candidate_commit") != GOV_ARCH_BASE_COMMIT:
+        errors.append("GOV_ARCH_WP_INVALID:baseline")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_arch_task:
+        errors.append("GOV_ARCH_TASK_INVALID:status")
+    if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
+        errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
+    canonical_docs = (
+        ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
+        ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),
+        ("ARCHITECTURE_CANONICAL_MISSING:matriz_adopcion_db", db_matrix),
+    )
+    for prefix, text in canonical_docs:
+        if "Fuente canonica" not in text or "Snapshot de investigacion" not in text:
+            errors.append(prefix)
+    if "staging_raw" not in architecture + db_system or "cleansed_programs" not in architecture + db_system or "enriched_programs" not in architecture + db_system or "courses" not in architecture + db_system:
+        errors.append("ARCHITECTURE_CANONICAL_MISSING:pipeline lineage")
+    production_arch = read_repo(root, "docs/orquestador-sdlc/PRODUCTION_ARCHITECTURE.md")
+    workflow_arch = read_repo(root, "docs/architecture/Documento_Detallado_workflow.md")
+    if production_arch and "SUPERSEDED_HISTORY" not in production_arch:
+        errors.append("ARCHITECTURE_LEGACY_SOURCE_DRIFT:production architecture")
+    if workflow_arch and "SUPERSEDED_HISTORY" not in workflow_arch:
+        errors.append("ARCHITECTURE_LEGACY_SOURCE_DRIFT:workflow document")
 
     for name, text in (("hito", hito), ("task", task), ("matrix", matrix), ("plan", plan), ("tracker", tracker)):
         if not H2_CRITERIA <= criteria_from_text(text):

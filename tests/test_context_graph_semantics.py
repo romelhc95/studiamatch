@@ -133,7 +133,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-OBS-001", "Apruebo WP-H2-001", 1)
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-ARCH-001", "Apruebo WP-H2-001", 1)
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -146,12 +146,12 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
-    def test_next_gate_must_prepare_gov_obs_r2(self):
+    def test_next_gate_must_prepare_gov_arch_r2(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
-                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
+                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_ARCH_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
                 path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -169,18 +169,25 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-OBS-001", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-OBS-001")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-ARCH-001", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-ARCH-001")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT") for error in validator.validate(root)))
 
-    def test_gov_infra_prompt_digest_required(self):
+    def test_gov_arch_prompt_digest_required(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58", "0" * 64)
+            text = path.read_text(encoding="utf-8").replace("df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1", "0" * 64)
             path.write_text(text, encoding="utf-8")
-            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV INFRA") for error in validator.validate(root)))
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV ARCH") for error in validator.validate(root)))
+
+    def test_canonical_architecture_docs_missing_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            (root / ".context" / "arquitectura_pipeline.md").unlink()
+            self.assertTrue(any(error.startswith("ARCHITECTURE_CANONICAL_MISSING") for error in validator.validate(root)))
 
     def test_obsidian_completed_before_main_fails(self):
         validator = load_validator()

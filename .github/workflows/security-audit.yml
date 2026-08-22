@@ -3,11 +3,15 @@ name: Security Audit Gate
 on:
   pull_request:
     branches: [desarrollo, certificacion, main]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
   push:
     branches: [desarrollo, certificacion, main]
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   F1011_TECH_BASE: ad89e8ab9575b37476502d6062e22c044ad6447b
@@ -157,6 +161,41 @@ jobs:
           fi
           python3 scripts/security/validate_work_package.py --changed-from "$base"
 
+  governance-preflight:
+    name: Governance Preflight
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'pull_request' ||
+       github.event_name == 'pull_request_review') &&
+      github.event.pull_request.base.ref == 'desarrollo'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate PR governance attestation and co-change policy
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.head_ref || github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "$BASE_SHA^{commit}" || git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          python3 scripts/security/validate_change_governance.py \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --base-ref "$BASE_REF" \
+            --head-ref "$HEAD_REF" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --changed-from "$BASE_SHA" \
+            --require-approved-review
+
   governance-tests:
     name: Governance Regression Tests
     runs-on: ubuntu-latest
@@ -171,7 +210,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install 'pytest==8.3.5'
-          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py
+          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py
 
   lint:
     name: ESLint
@@ -266,18 +305,33 @@ jobs:
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, governance-tests, lint, typecheck, static-build, postgresql-17]
+    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, governance-preflight, governance-tests, lint, typecheck, static-build, postgresql-17]
     if: always()
     steps:
       - name: Aggregate required checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
         run: |
           set -euo pipefail
-           test '${{ needs.credential-scan.result }}' = 'success'
-           test '${{ needs.python-check.result }}' = 'success'
+          test '${{ needs.credential-scan.result }}' = 'success'
+          test '${{ needs.python-check.result }}' = 'success'
           test '${{ needs.manifest-digest.result }}' = 'success'
           test '${{ needs.markdown-links.result }}' = 'success'
-           test '${{ needs.context-graph.result }}' = 'success'
-           test '${{ needs.path-boundary.result }}' = 'success'
+          test '${{ needs.context-graph.result }}' = 'success'
+          test '${{ needs.path-boundary.result }}' = 'success'
+          case "$EVENT_NAME:$PR_BASE_REF" in
+            pull_request:desarrollo|pull_request_review:desarrollo)
+              test '${{ needs.governance-preflight.result }}' = 'success'
+              ;;
+            pull_request:certificacion|pull_request:main|pull_request_review:certificacion|pull_request_review:main|push:)
+              test '${{ needs.governance-preflight.result }}' = 'skipped'
+              ;;
+            *)
+              echo "::error::unsupported governance event: $EVENT_NAME/$PR_BASE_REF"
+              exit 1
+              ;;
+          esac
           test '${{ needs.governance-tests.result }}' = 'success'
           test '${{ needs.lint.result }}' = 'success'
           test '${{ needs.typecheck.result }}' = 'success'

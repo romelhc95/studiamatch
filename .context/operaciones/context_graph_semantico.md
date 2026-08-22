@@ -17,6 +17,10 @@
 │   └── ADR-<NNNN>_<decision>.md
 ├── operaciones/
 │   └── plan_maestro_<requerimiento>.md
+├── arquitectura_pipeline.md
+├── sistema_db_supabase.md
+├── operaciones/
+│   └── matriz_adopcion_db.md
 ├── matrices/
 │   └── matriz_hito_<NNN>.md
 ├── work_packages/
@@ -40,6 +44,9 @@
 | TASK | Trabajo autorizable. |
 | ADR | Decision irreversible o relevante. |
 | Manifest | Alcance mecanizable e inmutable. |
+| Arquitectura Pipeline | Topologia aplicativa, runtime, workflows, writers y despliegue. |
+| Sistema DB Supabase | Modelo de datos, RLS, RPC, lectores, escritores y contrato de credenciales. |
+| Matriz Adopcion DB | Estado esperado por ambiente, promocion DB-as-code y drift. |
 | Matriz | Criterio, prueba, ambiente y evidencia. |
 | Evidencia | Resultado observado. |
 | Tracker | Dashboard operativo. |
@@ -47,11 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1 y el proximo gate de aprobacion R2 compuesta para `WP-GOV-OBS-001` y `WP-GOV-INFRA-001`.
+- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1, PR #424 como R2 OBS/INFRA ya publicado en `desarrollo` y el proximo gate unico `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
-- El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` mientras Etapa 1 Obsidian este pendiente de main.
+- El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
+- El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` mientras la remediacion documental de arquitectura este propuesta; el siguiente gate unico es `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 

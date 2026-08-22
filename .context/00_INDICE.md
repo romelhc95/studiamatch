@@ -39,6 +39,9 @@
 
 - [Plan Maestro Sprint 1 H2-H5](operaciones/plan_maestro_sprint1_h2_h5.md)
 - [Context Graph Semantico](operaciones/context_graph_semantico.md)
+- [Arquitectura Pipeline](arquitectura_pipeline.md)
+- [Sistema DB Supabase](sistema_db_supabase.md)
+- [Matriz Adopcion DB](operaciones/matriz_adopcion_db.md)
 - [Baseline, preservacion y homologacion](operaciones/baseline_preservacion_homologacion_sprint1.md)
 - [Flujo release minimo](operaciones/flujo_release_minimo.md)
 - [Seguimiento Sprint 1 H2-H5](seguimiento/seguimiento_sprint_1_h2_h5.md)
@@ -50,6 +53,7 @@
 - [WP-H2-001](work_packages/WP-H2-001.json)
 - [WP-GOV-OBS-001](work_packages/WP-GOV-OBS-001.json)
 - [WP-GOV-INFRA-001](work_packages/WP-GOV-INFRA-001.json)
+- [WP-GOV-ARCH-001](work_packages/WP-GOV-ARCH-001.json)
 - [WP-H3-001](work_packages/WP-H3-001.json)
 - [WP-H4-001](work_packages/WP-H4-001.json)
 - [WP-H5-001](work_packages/WP-H5-001.json)
@@ -68,6 +72,7 @@
 
 - [TASK-GOV-OBS-001](backlog_tareas/governance/TASK-GOV-OBS-001.md)
 - [TASK-GOV-INFRA-001](backlog_tareas/governance/TASK-GOV-INFRA-001.md)
+- [TASK-GOV-ARCH-001](backlog_tareas/governance/TASK-GOV-ARCH-001.md)
 
 ## MOC Canonico
 

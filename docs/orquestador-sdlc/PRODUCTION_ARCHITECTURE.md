@@ -1,5 +1,7 @@
 # Manual de Operación y Arquitectura: StudIAMatch 📘
 
+> Estado: `SUPERSEDED_HISTORY`. Este documento queda preservado como antecedente historico. La fuente canonica vigente es [Arquitectura Pipeline](../../.context/arquitectura_pipeline.md), [Sistema DB Supabase](../../.context/sistema_db_supabase.md) y [Matriz Adopcion DB](../../.context/operaciones/matriz_adopcion_db.md).
+
 Este manual describe el funcionamiento autónomo del sistema en producción. StudIAMatch opera bajo una arquitectura de **4 Niveles de Mantenimiento**, garantizando que el catálogo sea siempre veraz, amplio, enriquecido y funcional a través de una automatización total en GitHub Actions.
 
 ---
