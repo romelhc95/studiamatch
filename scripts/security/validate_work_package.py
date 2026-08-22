@@ -73,6 +73,7 @@ PR424_BASE_COMMIT = "974f9d4bde6d79230afde5c5a86ba7a3894233c6"
 GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 GOV_HOM_BASE_COMMIT = "4cce43a743de5860c4da86eecf1782efab91d26b"
 GOV_CI_BASE_COMMIT = "fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1"
+GOV_CI2_BASE_COMMIT = "b878c5764e55cb2646b60c4777e363489fe48e8b"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -286,6 +287,26 @@ GOV_CI_TRANSITION_ALLOWLIST = (
     ".context/work_packages/WP-GOV-CI-001.json",
     ".context/decisiones/ADR-0030_separacion_ci_y_review_gate.md",
 )
+GOV_CI2_TRANSITION_ALLOWLIST = (
+    ".github/workflows/security-audit.yml",
+    ".github/pull_request_template.md",
+    "scripts/security/validate_work_package.py",
+    "scripts/security/validate_context_graph.py",
+    "tests/test_change_governance.py",
+    "tests/test_work_package_manifest.py",
+    "tests/test_context_graph_semantics.py",
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/backlog_tareas/governance/TASK-GOV-CI-002.md",
+    ".context/work_packages/WP-GOV-CI-002.json",
+    ".context/decisiones/ADR-0031_boundary_homologacion_estructural.md",
+)
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
     "db/**",
@@ -297,6 +318,18 @@ GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
 GOV_OBS_TRANSITION_DENY = GOV_RELEASE_TRANSITION_DENY
 SOURCE_NAMES = {"Studiamatch_MVP_Requerimientos_v5.docx", "studiamatch_home.html", "studiamatch_resultados.html"}
 SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
+PROMOTION_PAIRS = {
+    "O2 desarrollo -> certificacion": ("certificacion", "desarrollo"),
+    "O3 certificacion -> main": ("main", "certificacion"),
+    "O4 main -> certificacion": ("certificacion", "main"),
+    "O5 certificacion -> desarrollo": ("desarrollo", "certificacion"),
+}
+PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-SHA", "Candidate-SHA", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
+PROMOTION_FINAL_WP = "WP-GOV-CI-002"
+PROMOTION_ALLOWED_ACTION = "opened"
+PROMOTION_BLOCKED_PR_NUMBERS = {428}
+PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
+PROMOTION_GRANT_ID_PATTERN = re.compile(r"^R3-GOV-HOM-\d{3}-O[2-5]-[A-Za-z0-9][A-Za-z0-9_.-]{3,}$")
 
 
 def canonical_payload(data: dict[str, Any]) -> bytes:
@@ -309,6 +342,18 @@ def canonical_payload(data: dict[str, Any]) -> bytes:
 
 def compute_digest(data: dict[str, Any]) -> str:
     return hashlib.sha256(canonical_payload(data)).hexdigest()
+
+
+def parse_attestation_fields(body: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    for line in body.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        if key in PROMOTION_FIELDS:
+            fields[key] = value.strip()
+    return fields
 
 
 def parse_utc(value: Any) -> datetime | None:
@@ -551,6 +596,28 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"GOV_CI_DECOUPLING_INVALID:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_CI_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-CI-002":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-CI-002" or data.get("hito") != "GOV-CI":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_CI2_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_CI2_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        if data.get("allowed_paths") != list(GOV_CI2_TRANSITION_ALLOWLIST):
+            errors.append(f"GOV_CI2_ALLOWLIST_INVALID:{path.name}")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_CI2_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_CI2_BASE_COMMIT:
+            errors.append(f"GOV_CI2_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
+        if baseline.get("candidate_tree") != "174c18efd840fff6ce27fce9fe1dc4edcd65abe8" or baseline.get("desarrollo_tree") != "174c18efd840fff6ce27fce9fe1dc4edcd65abe8":
+            errors.append(f"GOV_CI2_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
+        promotion = data.get("promotion_boundary")
+        if not isinstance(promotion, dict) or promotion.get("structural_pairs") != sorted(PROMOTION_PAIRS) or promotion.get("incremental_boundary_preserved") is not True:
+            errors.append(f"GOV_CI2_PROMOTION_BOUNDARY_INVALID:{path.name}")
+        elif promotion.get("blocked_pr_numbers") != sorted(PROMOTION_BLOCKED_PR_NUMBERS) or promotion.get("consumed_grants_blocked") != sorted(PROMOTION_CONSUMED_GRANTS) or promotion.get("accepted_event_action") != PROMOTION_ALLOWED_ACTION or promotion.get("accepted_run_attempt") != 1:
+            errors.append(f"GOV_CI2_PROMOTION_REPLAY_GUARDS_INVALID:{path.name}")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_CI2_R3_DENY_MISSING:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -690,22 +757,196 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
     return paths
 
 
+def git_sha(args: list[str], root: Path = ROOT) -> str:
+    return subprocess.check_output(["git", *args], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+
+
+def git_is_ancestor(base: str, head: str, root: Path = ROOT) -> bool | None:
+    result = subprocess.run(["git", "merge-base", "--is-ancestor", base, head], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def load_manifest_by_id(wp_id: str, root: Path = ROOT) -> dict[str, Any] | None:
+    path = root / ".context" / "work_packages" / f"{wp_id}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_promotion_grant(grant_id: str, root: Path = ROOT) -> dict[str, Any] | None:
+    path = root / ".context" / "r3_grants" / f"{grant_id}.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_promotion_event(event_path: str, *, event_name: str = "", run_attempt: str = "", now: datetime | None = None, root: Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    now = now or datetime.now(UTC)
+    try:
+        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ["PROMOTION_EVENT_INVALID"]
+
+    pr = event.get("pull_request") or {}
+    if event_name and event_name != "pull_request":
+        errors.append("PROMOTION_EVENT_INVALID")
+    if not pr:
+        errors.append("PROMOTION_EVENT_INVALID")
+        return errors
+    if event.get("action") != PROMOTION_ALLOWED_ACTION:
+        errors.append("PROMOTION_ACTION_INVALID")
+    try:
+        attempt = int(run_attempt)
+    except (TypeError, ValueError):
+        attempt = 0
+    if attempt != 1:
+        errors.append("PROMOTION_RUN_ATTEMPT_INVALID")
+    try:
+        pr_number = int(pr.get("number") or event.get("number") or 0)
+    except (TypeError, ValueError):
+        pr_number = 0
+    if pr_number in PROMOTION_BLOCKED_PR_NUMBERS:
+        errors.append("PROMOTION_PR_BLOCKED:428")
+
+    fields = parse_attestation_fields(pr.get("body") or "")
+    operation = fields.get("Operation", "")
+    expected_pair = PROMOTION_PAIRS.get(operation)
+    if expected_pair is None:
+        errors.append("PROMOTION_OPERATION_MISMATCH")
+
+    base = pr.get("base") or {}
+    head = pr.get("head") or {}
+    repo = event.get("repository") or {}
+    base_repo = base.get("repo") or {}
+    head_repo = head.get("repo") or {}
+    repo_name = str(repo.get("full_name") or "")
+    if not repo_name or str(base_repo.get("full_name") or "") != repo_name or str(head_repo.get("full_name") or "") != repo_name:
+        errors.append("PROMOTION_REPOSITORY_INVALID")
+    base_ref = str(base.get("ref") or "")
+    head_ref = str(head.get("ref") or "")
+    base_sha = str(base.get("sha") or "")
+    head_sha = str(head.get("sha") or "")
+    if expected_pair and (base_ref, head_ref) != expected_pair:
+        errors.append("PROMOTION_PAIR_INVALID")
+    grant_id = fields.get("Grant-ID", "")
+    operation_code = operation.split(" ", 1)[0] if operation else ""
+    if not PROMOTION_GRANT_ID_PATTERN.match(grant_id):
+        errors.append("PROMOTION_GRANT_ID_INVALID")
+    if grant_id in PROMOTION_CONSUMED_GRANTS:
+        errors.append("PROMOTION_GRANT_CONSUMED")
+    if not grant_id or not operation_code or f"-{operation_code}-" not in grant_id:
+        errors.append("PROMOTION_GRANT_ID_MISMATCH")
+    grant = load_promotion_grant(grant_id, root=root) if grant_id else None
+    if grant is None:
+        errors.append("PROMOTION_GRANT_NOT_FOUND")
+
+    attested_base = fields.get("Base-SHA", "")
+    if not HEX40.match(base_sha) or not HEX40.match(attested_base):
+        errors.append("PROMOTION_BASE_SHA_INVALID")
+    elif base_sha != attested_base:
+        errors.append("PROMOTION_BASE_SHA_MISMATCH")
+
+    attested_head = fields.get("Candidate-SHA", "")
+    if not HEX40.match(head_sha) or not HEX40.match(attested_head):
+        errors.append("PROMOTION_CANDIDATE_SHA_INVALID")
+    elif head_sha != attested_head:
+        errors.append("PROMOTION_CANDIDATE_SHA_MISMATCH")
+
+    final_wp_id = fields.get("Final-WP", "")
+    if final_wp_id != PROMOTION_FINAL_WP:
+        errors.append("PROMOTION_FINAL_WP_INVALID")
+    final_wp = load_manifest_by_id(final_wp_id, root=root)
+    if final_wp is None:
+        errors.append("PROMOTION_FINAL_WP_NOT_FOUND")
+
+    d_final = fields.get("D_FINAL", "")
+    if not HEX64.match(d_final):
+        errors.append("PROMOTION_FINAL_DIGEST_INVALID")
+    elif final_wp is not None and (final_wp.get("candidate_digest") != d_final or compute_digest(final_wp) != d_final):
+        errors.append("PROMOTION_FINAL_DIGEST_MISMATCH")
+
+    t_final = fields.get("T_FINAL", "")
+    if not HEX40.match(t_final):
+        errors.append("PROMOTION_FINAL_TREE_INVALID")
+    elif HEX40.match(head_sha):
+        try:
+            if git_sha(["rev-parse", f"{head_sha}^{{tree}}"], root=root) != t_final:
+                errors.append("PROMOTION_FINAL_TREE_MISMATCH")
+        except subprocess.CalledProcessError:
+            errors.append("PROMOTION_FINAL_TREE_MISMATCH")
+
+    if HEX40.match(base_sha) and HEX40.match(head_sha) and git_is_ancestor(base_sha, head_sha, root=root) is not True:
+        errors.append("PROMOTION_ANCESTRY_INVALID")
+
+    if HEX40.match(head_sha):
+        try:
+            if git_sha(["rev-parse", "HEAD^{tree}"], root=root) != git_sha(["rev-parse", f"{head_sha}^{{tree}}"], root=root):
+                errors.append("PROMOTION_SYNTHETIC_TREE_MISMATCH")
+        except subprocess.CalledProcessError:
+            errors.append("PROMOTION_SYNTHETIC_TREE_MISMATCH")
+
+    if fields.get("Approval-Level") != "R3 JIT single-use":
+        errors.append("PROMOTION_OPERATION_MISMATCH")
+    approval_ref = fields.get("Approval-Reference", "")
+    if not approval_ref or approval_ref in {"TODO", "N/A", "none", "<approval-reference>"}:
+        errors.append("PROMOTION_APPROVAL_REFERENCE_REQUIRED")
+    expiry = parse_utc(fields.get("Approval-Expiry", ""))
+    if expiry is None or now >= expiry:
+        errors.append("PROMOTION_APPROVAL_EXPIRED")
+
+    if grant is not None:
+        expected_grant = {
+            "id": grant_id,
+            "status": "APPROVED_JIT_SINGLE_USE",
+            "operation": operation,
+            "repository": repo_name,
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "base_sha": base_sha,
+            "candidate_sha": head_sha,
+            "final_wp": final_wp_id,
+            "d_final": d_final,
+            "t_final": t_final,
+            "approval_level": "R3 JIT single-use",
+            "approval_reference": approval_ref,
+            "approval_expiry": fields.get("Approval-Expiry", ""),
+            "event_action": PROMOTION_ALLOWED_ACTION,
+            "run_attempt": 1,
+            "consumed": False,
+        }
+        for key, expected_value in expected_grant.items():
+            if grant.get(key) != expected_value:
+                errors.append(f"PROMOTION_GRANT_MISMATCH:{key}")
+        if grant.get("single_use") is not True:
+            errors.append("PROMOTION_GRANT_MISMATCH:single_use")
+
+    return errors
+
+
 def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if gov_ci_transition:
+    if gov_ci2_transition:
+        allowed = GOV_CI2_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_ci_transition:
         allowed = GOV_CI_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif gov_obs_transition:
@@ -746,7 +987,7 @@ def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[
 
 def load_manifests(root: Path = ROOT) -> list[dict[str, Any]]:
     manifests = []
-    for manifest_path in sorted((root / ".context" / "work_packages").glob("WP-*-001.json")):
+    for manifest_path in sorted((root / ".context" / "work_packages").glob("WP-*.json")):
         manifests.append(json.loads(manifest_path.read_text(encoding="utf-8")))
     return manifests
 
@@ -754,14 +995,19 @@ def load_manifests(root: Path = ROOT) -> list[dict[str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--changed-from", help="Validate changed paths from this git ref to HEAD")
+    parser.add_argument("--promotion-event", help="Validate a protected branch promotion event")
+    parser.add_argument("--event-name", default="")
+    parser.add_argument("--run-attempt", default="", help="GitHub Actions run attempt for promotion replay protection")
     args = parser.parse_args(argv)
-    manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
+    manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
     errors: list[str] = []
-    if len(manifests) != 9:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI manifests")
+    if len(manifests) != 10:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2 manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
-    if args.changed_from:
+    if args.promotion_event:
+        errors.extend(validate_promotion_event(args.promotion_event, event_name=args.event_name, run_attempt=args.run_attempt, root=ROOT))
+    elif args.changed_from:
         changed_from = resolve_git_ref(args.changed_from)
         errors.extend(validate_changed_paths(
             git_changed_paths(args.changed_from),
@@ -773,6 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
             gov_arch_transition=changed_from == GOV_ARCH_BASE_COMMIT,
             gov_hom_transition=changed_from == GOV_HOM_BASE_COMMIT,
             gov_ci_transition=changed_from == GOV_CI_BASE_COMMIT,
+            gov_ci2_transition=changed_from == GOV_CI2_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

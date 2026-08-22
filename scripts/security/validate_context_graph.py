@@ -36,6 +36,7 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-GOV-ARCH-001.json",
     "work_packages/WP-GOV-HOM-001.json",
     "work_packages/WP-GOV-CI-001.json",
+    "work_packages/WP-GOV-CI-002.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -46,8 +47,10 @@ REQUIRED_INDEX_LINKS = (
     "backlog_tareas/governance/TASK-GOV-ARCH-001.md",
     "backlog_tareas/governance/TASK-GOV-HOM-001.md",
     "backlog_tareas/governance/TASK-GOV-CI-001.md",
+    "backlog_tareas/governance/TASK-GOV-CI-002.md",
     "decisiones/ADR-0029_homologacion_no_recursiva.md",
     "decisiones/ADR-0030_separacion_ci_y_review_gate.md",
+    "decisiones/ADR-0031_boundary_homologacion_estructural.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -80,6 +83,8 @@ GOV_HOM_BASE_COMMIT = "4cce43a743de5860c4da86eecf1782efab91d26b"
 GOV_HOM_BASE_TREE = "ac16b545b74a03b149aac538062def20101187fb"
 GOV_CI_BASE_COMMIT = "fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1"
 GOV_CI_BASE_TREE = "5e7d087ac45457264ea29dfc1aa7373efd909290"
+GOV_CI2_BASE_COMMIT = "b878c5764e55cb2646b60c4777e363489fe48e8b"
+GOV_CI2_BASE_TREE = "174c18efd840fff6ce27fce9fe1dc4edcd65abe8"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -140,6 +145,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_arch_task = read(root, "backlog_tareas/governance/TASK-GOV-ARCH-001.md")
     gov_hom_task = read(root, "backlog_tareas/governance/TASK-GOV-HOM-001.md")
     gov_ci_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-001.md")
+    gov_ci2_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-002.md")
     architecture = read(root, "arquitectura_pipeline.md")
     db_system = read(root, "sistema_db_supabase.md")
     db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
@@ -149,6 +155,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_arch_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-ARCH-001.json").read_text(encoding="utf-8"))
     gov_hom_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
     gov_ci_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-001.json").read_text(encoding="utf-8"))
+    gov_ci2_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-002.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -223,8 +230,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_CI_001_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_001_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_001_R2_APPROVAL" not in tracker:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI2 R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_001_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV CI1 R2 gate")
     if "PREPARE_WP_GOV_HOM_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV HOM R2 gate")
     if "PREPARE_WP_GOV_ARCH_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
@@ -251,8 +260,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if "Apruebo WP-GOV-CI-001 de TASK-GOV-CI-001 segun manifest sha256:<D_CI>" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI approval prompt missing digest placeholder")
+    if "Apruebo WP-GOV-CI-002 de TASK-GOV-CI-002 segun manifest sha256:<D_CI2>" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI2 approval prompt missing digest placeholder")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV HOM prompt must be R2 only")
 
@@ -316,12 +325,27 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI_DECOUPLING_INVALID")
     if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_ci_task:
         errors.append("GOV_CI_TASK_INVALID:status")
+    if gov_ci2_wp.get("id") != "WP-GOV-CI-002" or gov_ci2_wp.get("task_id") != "TASK-GOV-CI-002" or gov_ci2_wp.get("status") != "PROPOSED":
+        errors.append("GOV_CI2_WP_INVALID:identity/status")
+    if gov_ci2_wp.get("target_level") != "R2":
+        errors.append("GOV_CI2_WP_INVALID:target")
+    if gov_ci2_wp.get("baseline", {}).get("candidate_commit") != GOV_CI2_BASE_COMMIT or gov_ci2_wp.get("baseline", {}).get("candidate_tree") != GOV_CI2_BASE_TREE:
+        errors.append("GOV_CI2_WP_INVALID:baseline")
+    promotion_boundary = gov_ci2_wp.get("promotion_boundary", {})
+    if promotion_boundary.get("incremental_boundary_preserved") is not True or len(promotion_boundary.get("structural_pairs", [])) != 4:
+        errors.append("GOV_CI2_PROMOTION_BOUNDARY_INVALID")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_ci2_task:
+        errors.append("GOV_CI2_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
     if "PR #425" not in state or GOV_HOM_BASE_COMMIT not in state + tracker + plan or GOV_HOM_BASE_TREE not in state + tracker + plan:
         errors.append("GOV_HOM_R2_HISTORY_MISSING:PR425")
     if "PR #426" not in state or GOV_CI_BASE_COMMIT not in state + tracker + plan or GOV_CI_BASE_TREE not in state + tracker + plan:
         errors.append("GOV_CI_R2_HISTORY_MISSING:PR426")
+    if "PR #427" not in state or GOV_CI2_BASE_COMMIT not in state + tracker + plan or GOV_CI2_BASE_TREE not in state + tracker + plan:
+        errors.append("GOV_CI2_R2_HISTORY_MISSING:PR427")
+    if "PR #428" not in state + tracker + plan or "O2_CONSUMED_BY_FAILURE" not in state + tracker + plan:
+        errors.append("GOV_CI2_FAILURE_HISTORY_MISSING:PR428")
     canonical_docs = (
         ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
         ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),

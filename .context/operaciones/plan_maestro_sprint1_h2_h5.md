@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_GOV_CI_REVIEW_GATE_DECOUPLING_PENDING_R2
+ESTADO = F10_11_GOV_CI2_PROMOTION_BOUNDARY_PENDING_R2
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
@@ -13,15 +13,15 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001
-next_gate = PREPARE_WP_GOV_CI_001_R2_APPROVAL
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002
+next_gate = PREPARE_WP_GOV_CI_002_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #426 publico GOV-HOM a `desarrollo`; ahora F10.11 requiere GOV-CI para desacoplar `security-audit` del gate nativo de review antes de cualquier promocion R3. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
+Este plan no crea alcance ni autoriza R2/R3. PR #427 publico GOV-CI a `desarrollo`; PR #428 fallo O2 por `Canonical Path Boundary` y dejo `O2_CONSUMED_BY_FAILURE`. Ahora F10.11 requiere `WP-GOV-CI-002` para separar boundary incremental y boundary estructural antes de cualquier nuevo O2 R3 JIT. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
@@ -29,7 +29,7 @@ Este plan no crea alcance ni autoriza R2/R3. PR #426 publico GOV-HOM a `desarrol
 |---|---|---|---|
 | `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
 | `certificacion` | `fe7b27abf18c096f674948b4f30f815aea4aef08` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O4 completado |
-| `desarrollo` | `fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1` | `5e7d087ac45457264ea29dfc1aa7373efd909290` | PR #426 completado; requiere `WP-GOV-CI-001` antes de R3 |
+| `desarrollo` | `b878c5764e55cb2646b60c4777e363489fe48e8b` | `174c18efd840fff6ce27fce9fe1dc4edcd65abe8` | PR #427 completado; PR #428 fallo O2, requiere `WP-GOV-CI-002` antes de nuevo R3 |
 
 ## Fuentes Y Hashes
 
@@ -88,6 +88,10 @@ D0-D10 paquete correctivo local
 -> candidate WP-GOV-CI-001 desacopla security-audit/review
 -> aprobacion WP-GOV-CI-001 hasta R2
 -> PR/merge a desarrollo de GOV-CI
+-> PR #428 O2 falla Canonical Path Boundary y consume O2
+-> candidate WP-GOV-CI-002 boundary estructural de promocion
+-> aprobacion WP-GOV-CI-002 hasta R2
+-> PR/merge a desarrollo de GOV-CI-002
 -> R3 JIT certificacion
 -> R3 JIT main
 -> homologacion main -> certificacion -> desarrollo
@@ -118,7 +122,8 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
 | R2 GOV ARCH | `COMPLETED` | PR #425 a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`; tree `ac16b545b74a03b149aac538062def20101187fb`; digest `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1`. |
 | R2 GOV HOM | `COMPLETED` | PR #426 a `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`; tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; digest `aa9d19408c2750925f5824cdfcc3793e7aca1f38f8d95b8f9c57426139989e7e`. |
-| GOV CI | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | Candidate local `WP-GOV-CI-001`; separa validacion tecnica de review nativa y elimina rerun manual por review. |
+| GOV CI/review | `COMPLETED` | PR #427 a `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`; tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; desacopla validacion tecnica de review nativa. |
+| GOV CI2 boundary promocion | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | PR #428 fallo O2 con `O2_CONSUMED_BY_FAILURE`; candidate local `WP-GOV-CI-002` separa boundary incremental y estructural. |
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -170,8 +175,9 @@ H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada 
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
 | T6 | Gobierno Obsidian | `WP-GOV-OBS-001` + `WP-GOV-INFRA-001` candidates; requieren aprobacion R2 compuesta para desarrollo. |
 | T7 | Reconciliacion GOV-HOM | `COMPLETED` mediante PR #426. |
-| T8 | Desacople GOV-CI | `WP-GOV-CI-001` prepara `security-audit` independiente de review y requiere R2 separado a `desarrollo`. |
-| T9 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
+| T8 | Desacople GOV-CI | `COMPLETED` mediante PR #427. |
+| T9 | Boundary GOV-CI2 | `WP-GOV-CI-002` prepara boundary estructural de promociones y requiere R2 separado a `desarrollo`. |
+| T10 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
 | T10 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 y WP H2 rebasado/validado. |
 | T11 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 
@@ -290,7 +296,7 @@ Contrato de interaccion:
 - Path boundary acumulado contra baseline.
 - PostgreSQL 17 solo cuando cambie `db/**`.
 
-`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual.
+`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual. El `Canonical Path Boundary` conserva el modo incremental para PR normales y usa boundary estructural para promociones O2-O5, validando `Promotion Attestation` en lugar del diff historico acumulado.
 
 Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
@@ -311,7 +317,7 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta publicada parcialmente en `desarrollo`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI sea publicado a `desarrollo` por R2 y luego homologado por cuatro grants R3 JIT separados. PR #426 quedo `MERGED_TO_DESARROLLO` en `fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1` con tree `5e7d087ac45457264ea29dfc1aa7373efd909290`, CI verde y review humano. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-CI-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta publicada parcialmente en `desarrollo`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI2 sea publicado a `desarrollo` por R2 y luego homologado por grants R3 JIT separados. PR #427 quedo `MERGED_TO_DESARROLLO` en `b878c5764e55cb2646b60c4777e363489fe48e8b` con tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`, CI verde y review humano. PR #428 quedo `FAILED_NOT_MERGED` con `O2_CONSUMED_BY_FAILURE`. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-CI-002` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
 
 ## Predicado Externo De Cierre F10.11
 
