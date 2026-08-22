@@ -140,12 +140,27 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Enforce canonical path boundary
         run: |
           set -euo pipefail
           if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            base_ref="${{ github.event.pull_request.base.ref }}"
+            head_ref="${{ github.event.pull_request.head.ref }}"
+            same_repo="${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+            if [ "$same_repo" = "true" ] && \
+               { { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "desarrollo" ]; } || \
+                 { [ "$base_ref" = "main" ] && [ "$head_ref" = "certificacion" ]; } || \
+                 { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "main" ]; } || \
+                 { [ "$base_ref" = "desarrollo" ] && [ "$head_ref" = "certificacion" ]; }; }; then
+              python3 scripts/security/validate_work_package.py \
+                --promotion-event "$GITHUB_EVENT_PATH" \
+                --event-name "$GITHUB_EVENT_NAME" \
+                --run-attempt "${GITHUB_RUN_ATTEMPT:-0}"
+              exit 0
+            fi
             git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
             base="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
           else

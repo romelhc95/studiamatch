@@ -5,6 +5,7 @@
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
 Reconciliacion post-PR425: arquitectura publicada en `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`, tree `ac16b545b74a03b149aac538062def20101187fb`.
 Reconciliacion post-PR426: GOV-HOM publicado en `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; GOV-CI prepara la separacion entre `security-audit` y branch protection review.
+Reconciliacion post-PR427: GOV-CI publicado en `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`, tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; PR #428 fallo O2 por `Canonical Path Boundary` y requiere GOV-CI2 antes de nuevo O2.
 
 ## Principios Vigentes
 
@@ -14,6 +15,7 @@ Reconciliacion post-PR426: GOV-HOM publicado en `desarrollo@fddb9cea6ac44a1f7f7b
 - Supabase/PostgreSQL es el plano de datos y expone PostgREST/RPC/RLS.
 - Las escrituras privilegiadas usan `NEXT_SUPABASE_SECRET_KEY` solo en CI/backend autorizado.
 - Los datos operativos no se promueven Free -> Pro como flujo normal; cada ambiente produce sus propias filas operativas.
+- `security-audit` usa boundary incremental para PR normales y boundary estructural para promociones O2-O5 entre ramas protegidas; GOV-CI2 no autoriza deploys, writers ni DB.
 
 ## Diagrama De Contexto
 

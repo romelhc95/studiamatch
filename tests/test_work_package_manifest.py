@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,8 +42,8 @@ def approved_h2():
 class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
-        manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-CI-002", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -316,6 +317,36 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertIn("certification", data["denied_without_jit"])
         self.assertIn("main", data["denied_without_jit"])
 
+    def test_gov_ci2_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-CI-002.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertEqual(data["baseline"]["candidate_commit"], "b878c5764e55cb2646b60c4777e363489fe48e8b")
+        self.assertEqual(data["baseline"]["candidate_tree"], "174c18efd840fff6ce27fce9fe1dc4edcd65abe8")
+        self.assertEqual(data["candidate_digest"], "30bc9a2e7b201438e7398a46f42e6a719e0e5bb41d46c95c71b02234c9091d04")
+        self.assertTrue(data["promotion_boundary"]["incremental_boundary_preserved"])
+        self.assertEqual(len(data["promotion_boundary"]["structural_pairs"]), 4)
+        self.assertEqual(data["promotion_boundary"]["blocked_pr_numbers"], [428])
+        self.assertEqual(data["promotion_boundary"]["accepted_event_action"], "opened")
+        self.assertEqual(data["promotion_boundary"]["accepted_run_attempt"], 1)
+        self.assertIn("R3-GOV-HOM-001-O2", data["promotion_boundary"]["consumed_grants_blocked"])
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
+
+    def test_gov_ci2_manifest_replay_guards_are_fixed(self):
+        validator = load_validator()
+        data = json.loads((MANIFEST_DIR / "WP-GOV-CI-002.json").read_text(encoding="utf-8"))
+        data["promotion_boundary"]["accepted_run_attempt"] = 2
+        data["candidate_digest"] = validator.compute_digest(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "WP-GOV-CI-002.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            errors = validator.validate_manifest(path, root=ROOT)
+        self.assertIn("GOV_CI2_PROMOTION_REPLAY_GUARDS_INVALID:WP-GOV-CI-002.json", errors)
+
     def test_gov_hom_rejects_grouped_grants(self):
         validator = load_validator()
         data = json.loads((MANIFEST_DIR / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
@@ -459,6 +490,130 @@ class WorkPackageManifestTests(unittest.TestCase):
         for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", ".context/work_packages/WP-GOV-ARCH-001.json", ".context/work_packages/WP-GOV-HOM-001.json"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def test_gov_ci2_transition_allows_exact_scope_and_rejects_consumed_manifests(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([
+            ("M", ".github/workflows/security-audit.yml"),
+            ("M", "scripts/security/validate_work_package.py"),
+            ("A", ".context/work_packages/WP-GOV-CI-002.json"),
+        ], [data], active_work_package="WP-H2-001", gov_ci2_transition=True)
+        self.assertEqual(allowed, [])
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", ".context/work_packages/WP-GOV-ARCH-001.json", ".context/work_packages/WP-GOV-HOM-001.json", ".context/work_packages/WP-GOV-CI-001.json"):
+            errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci2_transition=True)
+            self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-002-O2-20260822A", action="opened", number=429, base_ref="certificacion", head_ref="desarrollo", consumed=False):
+        digest = "a" * 64
+        tree = "b" * 40
+        base_sha = "c" * 40
+        head_sha = "d" * 40
+        repo = "romelhc95/studiamatch"
+        event = {
+            "action": action,
+            "number": number,
+            "pull_request": {
+                "number": number,
+                "body": "\n".join([
+                    f"Operation: {operation}",
+                    f"Grant-ID: {grant_id}",
+                    f"Base-SHA: {base_sha}",
+                    f"Candidate-SHA: {head_sha}",
+                    "Final-WP: WP-GOV-CI-002",
+                    f"D_FINAL: {digest}",
+                    f"T_FINAL: {tree}",
+                    "Approval-Level: R3 JIT single-use",
+                    "Approval-Reference: human-jit-o2-20260822",
+                    "Approval-Expiry: 2026-08-23T00:00:00Z",
+                ]),
+                "base": {"ref": base_ref, "sha": base_sha, "repo": {"full_name": repo}},
+                "head": {"ref": head_ref, "sha": head_sha, "repo": {"full_name": repo}},
+            },
+            "repository": {"full_name": repo},
+        }
+        grant = {
+            "id": grant_id,
+            "status": "APPROVED_JIT_SINGLE_USE",
+            "operation": operation,
+            "repository": repo,
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "base_sha": base_sha,
+            "candidate_sha": head_sha,
+            "final_wp": "WP-GOV-CI-002",
+            "d_final": digest,
+            "t_final": tree,
+            "approval_level": "R3 JIT single-use",
+            "approval_reference": "human-jit-o2-20260822",
+            "approval_expiry": "2026-08-23T00:00:00Z",
+            "event_action": "opened",
+            "run_attempt": 1,
+            "single_use": True,
+            "consumed": consumed,
+        }
+        return event, grant, digest, tree
+
+    def run_promotion_validation(self, event, grant, *, run_attempt="1"):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "event.json"
+            grant_dir = Path(tmp) / ".context" / "r3_grants"
+            grant_dir.mkdir(parents=True)
+            (grant_dir / f"{grant['id']}.json").write_text(json.dumps(grant), encoding="utf-8")
+            path.write_text(json.dumps(event), encoding="utf-8")
+            with mock.patch.object(validator, "load_manifest_by_id", return_value={"candidate_digest": grant["d_final"]}), \
+                 mock.patch.object(validator, "compute_digest", return_value=grant["d_final"]), \
+                 mock.patch.object(validator, "git_sha", return_value=grant["t_final"]), \
+                 mock.patch.object(validator, "git_is_ancestor", return_value=True):
+                return validator.validate_promotion_event(str(path), event_name="pull_request", run_attempt=run_attempt, now=datetime(2026, 8, 22, tzinfo=UTC), root=Path(tmp))
+
+    def test_promotion_event_validates_structural_attestation(self):
+        event, grant, _, _ = self.promotion_event_fixture()
+        self.assertEqual(self.run_promotion_validation(event, grant), [])
+
+    def test_promotion_event_rejects_pr_428_even_with_valid_grant(self):
+        event, grant, _, _ = self.promotion_event_fixture(number=428)
+        self.assertIn("PROMOTION_PR_BLOCKED:428", self.run_promotion_validation(event, grant))
+
+    def test_promotion_event_rejects_replay_actions(self):
+        for action in ("reopened", "edited", "synchronize", "ready_for_review"):
+            event, grant, _, _ = self.promotion_event_fixture(action=action)
+            self.assertIn("PROMOTION_ACTION_INVALID", self.run_promotion_validation(event, grant), action)
+
+    def test_promotion_event_rejects_rerun_attempts(self):
+        event, grant, _, _ = self.promotion_event_fixture()
+        self.assertIn("PROMOTION_RUN_ATTEMPT_INVALID", self.run_promotion_validation(event, grant, run_attempt="2"))
+
+    def test_promotion_event_rejects_consumed_grant(self):
+        event, grant, _, _ = self.promotion_event_fixture(consumed=True)
+        self.assertIn("PROMOTION_GRANT_MISMATCH:consumed", self.run_promotion_validation(event, grant))
+
+    def test_promotion_event_rejects_consumed_o2_grant_id(self):
+        event, grant, _, _ = self.promotion_event_fixture(grant_id="R3-GOV-HOM-001-O2")
+        grant["id"] = "R3-GOV-HOM-001-O2"
+        self.assertIn("PROMOTION_GRANT_CONSUMED", self.run_promotion_validation(event, grant))
+
+    def test_promotion_event_rejects_repository_mismatch(self):
+        event, grant, _, _ = self.promotion_event_fixture()
+        grant["repository"] = "romelhc95/other"
+        self.assertIn("PROMOTION_GRANT_MISMATCH:repository", self.run_promotion_validation(event, grant))
+
+    def test_promotion_event_covers_o2_o5_pairs(self):
+        cases = [
+            ("O2 desarrollo -> certificacion", "R3-GOV-HOM-002-O2-20260822A", "certificacion", "desarrollo"),
+            ("O3 certificacion -> main", "R3-GOV-HOM-002-O3-20260822A", "main", "certificacion"),
+            ("O4 main -> certificacion", "R3-GOV-HOM-002-O4-20260822A", "certificacion", "main"),
+            ("O5 certificacion -> desarrollo", "R3-GOV-HOM-002-O5-20260822A", "desarrollo", "certificacion"),
+        ]
+        for operation, grant_id, base_ref, head_ref in cases:
+            event, grant, _, _ = self.promotion_event_fixture(operation=operation, grant_id=grant_id, base_ref=base_ref, head_ref=head_ref)
+            self.assertEqual(self.run_promotion_validation(event, grant), [], operation)
+
+    def test_promotion_event_rejects_wrong_pair(self):
+        event, grant, _, _ = self.promotion_event_fixture(base_ref="main")
+        errors = self.run_promotion_validation(event, grant)
+        self.assertIn("PROMOTION_PAIR_INVALID", errors)
 
     def test_resolve_git_ref_normalizes_abbreviated_sha(self):
         validator = load_validator()

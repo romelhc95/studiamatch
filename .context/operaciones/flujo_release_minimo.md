@@ -114,6 +114,7 @@ Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_
 F10.11 GOV-HOM candidate produce T_HOM
 -> R2 separado para push/PR/merge a desarrollo
 -> GOV-CI separa security-audit de review nativa
+-> GOV-CI2 separa boundary incremental y boundary estructural de promociones
 -> R3 O2 JIT desarrollo -> certificacion
 -> R3 O3 JIT certificacion -> main
 -> R3 O4 JIT main -> certificacion
@@ -132,12 +133,15 @@ F12.1 local H2-CA2 bajo WP/digest R1
 
 - `security-audit` permanece como required check.
 - `security-audit` valida attestation, manifest, digest, `Base-SHA`, `Candidate-SHA`, paths y co-change.
+- Para PR normales, `Canonical Path Boundary` sigue usando el diff incremental y el WP vigente.
+- Para promociones O2-O5, `Canonical Path Boundary` usa `Promotion Attestation` y valida same-repo, operacion, `Grant-ID`, par, ancestry, tree, `D_FINAL`, `T_FINAL`, `Final-WP`, nivel R3 JIT, referencia de aprobacion y expiry.
 - Cada PR requiere review humano por branch protection; la review no dispara CI y no necesita rerun manual.
 - Push y PR requieren R2 separado.
 - H2-H5 requieren work package aprobado por digest.
 - H2-CA3 no inicia antes de cerrar H2-CA2 local.
 - F10.11 no cierra por prosa: requiere trees iguales a `T_HOM`, ancestry `main -> certificacion -> desarrollo`, DB Sync sin cambios y checkout ordinario actualizado.
 - Los grants `O2`, `O3`, `O4` y `O5` no se pueden agrupar; cada retry requiere grant nuevo.
+- PR #428 fallo O2 y dejo `O2_CONSUMED_BY_FAILURE`; no autoriza retry ni nuevo O2 sin grant JIT separado posterior.
 - Cualquier DB, Supabase, RLS/grants, backfill, writer, schedule, deploy,
   Certification, Main o produccion requiere R3 JIT separado.
 

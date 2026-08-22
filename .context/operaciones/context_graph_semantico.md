@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425 y PR #426 publicados en `desarrollo`, y el proximo gate unico `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI2`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_002_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426 y PR #427 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, y el proximo gate unico `PREPARE_WP_GOV_CI_002_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, y `WP-GOV-CI-001`/`TASK-GOV-CI-001` como candidate de separacion CI/review; el siguiente gate unico es `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, y `WP-GOV-CI-002`/`TASK-GOV-CI-002` como candidate de boundary estructural; el siguiente gate unico es `PREPARE_WP_GOV_CI_002_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -132,6 +132,20 @@ real, ancestry, paths y co-change solo en PR hacia `desarrollo`. La review
 humana obligatoria queda en GitHub branch protection; no dispara CI, no consulta
 Reviews API y no requiere rerun manual. `certificacion`, `main` y cualquier R3
 siguen requiriendo grants JIT separados.
+
+## Boundary Estructural De Promocion GOV-CI2
+
+`WP-GOV-CI-002` corrige el fallo de PR #428, donde O2 fue evaluado como diff
+incremental y quedo `O2_CONSUMED_BY_FAILURE`. Las promociones O2-O5 entre ramas
+protegidas usan boundary estructural: validan repositorio same-repo, `Operation`,
+`Grant-ID`, par base/head, `Base-SHA`, `Candidate-SHA`, ancestry, tree sintetico,
+`Final-WP`, `D_FINAL`, `T_FINAL`, `Approval-Level=R3 JIT single-use`,
+`Approval-Reference` y expiry. PR #428 y `R3-GOV-HOM-001-O2` quedan bloqueados
+como consumidos. El modo estructural solo acepta accion `opened` con
+`GITHUB_RUN_ATTEMPT=1`; ediciones, synchronize, reopen, ready-for-review y reruns
+fallan cerrados. Los PR normales siguen usando boundary incremental por WP y
+allowlist/denylist. Sin ledger persistente, CI valida precondiciones stateless y
+el consumo definitivo del grant se registra externamente bajo el gate posterior.
 
 ## Semantica De Paths
 

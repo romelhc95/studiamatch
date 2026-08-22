@@ -19,6 +19,19 @@ Data-Impact: updated|none
 Data-Impact-Reason:
 Security-Auditor: clean|findings-remediated
 
+## Promotion Attestation
+
+Operation:
+Grant-ID: nuevo-unico-no-consumido
+Base-SHA:
+Candidate-SHA:
+Final-WP:
+D_FINAL:
+T_FINAL:
+Approval-Level:
+Approval-Reference:
+Approval-Expiry:
+
 ## Checklist - Obligatorio antes de mergear
 
 ### Context Graph Y Autorizacion
@@ -29,6 +42,7 @@ Security-Auditor: clean|findings-remediated
 - [ ] La review humana obligatoria queda a cargo de GitHub branch protection; no necesita repetir el digest en el texto de review.
 - [ ] `active_work_package` esta coherente entre Estado, Plan Maestro, Tracker y manifest.
 - [ ] Si hay R3, existe aprobacion JIT single-use separada y vigente.
+- [ ] Si es promocion O2-O5, el PR no es #428, fue abierto una sola vez y no usa un Grant-ID consumido.
 - [ ] No se ejecutan H2 funcional, DDL/DML, schedules, writers, deploys ni secrets sin gate separado.
 
 ### Arquitectura Y Datos
