@@ -55,6 +55,15 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text("\n".join(lines) + "\n", encoding="utf-8")
             self.assertTrue(any(error.startswith("LIFECYCLE_MISMATCH:state missing Lifecycle stage") for error in validator.validate(root)))
 
+    def test_missing_f12_active_phase_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "estado_del_proyecto.md"
+            text = path.read_text(encoding="utf-8").replace("Subfase tecnica activa: `F12.1`", "Subfase tecnica activa: `F10.11`")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("EXECUTION_PHASE_MISMATCH") for error in validator.validate(root)))
+
     def test_active_wp_requires_matching_active_work_package(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,7 +107,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             task = root / ".context" / "backlog_tareas" / "req_est_001_sprint_1" / "tarea_002_hito_2.md"
-            task.write_text(task.read_text(encoding="utf-8").replace("PLANNED_NOT_ACTIVE", "ACTIVE"), encoding="utf-8")
+            task.write_text(task.read_text(encoding="utf-8").replace("READY_NOT_STARTED", "ACTIVE"), encoding="utf-8")
             self.assertTrue(any(error.startswith("LIFECYCLE_MISMATCH") for error in validator.validate(root)))
 
     def test_homologation_stale_status_fails(self):
@@ -136,6 +145,33 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8").replace("Supabase Free, ", "")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
+
+    def test_next_gate_must_be_f12_1(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
+                text = path.read_text(encoding="utf-8").replace("EXECUTE_F12_1_LOCAL_CA2_R1", "PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE")
+                path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
+
+    def test_canonical_evidence_missing_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "evidencias_cliente" / "req_est_001_sprint_1" / "evidencia_hito_002.md"
+            text = path.read_text(encoding="utf-8").replace("Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.", "Estado: `PASS`")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("EVIDENCE_STATUS_MISMATCH") for error in validator.validate(root)))
+
+    def test_legacy_release_flow_as_authority_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "operaciones" / "flujo_release_minimo.md"
+            text = path.read_text(encoding="utf-8").replace("SUPERSEDED_HISTORY", "ACTIVE")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("LEGACY_RELEASE_FLOW_AUTHORITY_DRIFT") for error in validator.validate(root)))
 
     def test_baseline_document_drift_fails(self):
         validator = load_validator()

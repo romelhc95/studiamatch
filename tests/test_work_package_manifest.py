@@ -25,7 +25,7 @@ def load_h2():
 
 def proposed_h2():
     data = load_h2()
-    data.update({"status": "PROPOSED", "lifecycle_stage": "AWAITING_DIGEST", "gate_status": "READY_FOR_DIGEST_APPROVAL"})
+    data.update({"status": "PROPOSED", "lifecycle_stage": "AWAITING_DIGEST", "gate_status": "READY_FOR_DIGEST_APPROVAL", "implementation_status": "PLANNED_NOT_ACTIVE"})
     for key in ("approval_digest", "approved_by", "approved_at", "approval_reference", "approved_level", "approved_candidate_commit", "approval_evidence_sha256", "activated_at"):
         data.pop(key, None)
     return data
@@ -33,7 +33,7 @@ def proposed_h2():
 
 def approved_h2():
     data = load_h2()
-    data.update({"status": "APPROVED", "lifecycle_stage": "APPROVED_NOT_ACTIVE", "gate_status": "APPROVED_R1"})
+    data.update({"status": "APPROVED", "lifecycle_stage": "APPROVED_NOT_ACTIVE", "gate_status": "APPROVED_R1", "implementation_status": "PLANNED_NOT_ACTIVE"})
     data.pop("activated_at", None)
     return data
 
@@ -61,7 +61,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(data["approval_target_gate_status"], "APPROVED_R1")
         self.assertEqual(data["approval_target_level"], "R1")
         self.assertEqual(data["criteria_contract"], ["H2-CA2", "H2-CA3"])
-        self.assertEqual(data["implementation_status"], "PLANNED_NOT_ACTIVE")
+        self.assertEqual(data["implementation_status"], "READY_NOT_STARTED")
         self.assertEqual(data["criteria_status"], {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"})
         self.assertEqual(data["environment_scope"], ["local", "development"])
         self.assertIn("supabase-free", data["denied_without_jit"])
@@ -243,7 +243,12 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(data["approval_digest"], data["candidate_digest"])
         self.assertEqual(data["approved_candidate_commit"], "c8e4596b153c10721ed335369863a07154eb2b43")
         self.assertEqual(data["approved_level"], "R1")
-        self.assertEqual(data["implementation_status"], "PLANNED_NOT_ACTIVE")
+        self.assertEqual(data["implementation_status"], "READY_NOT_STARTED")
+
+    def test_active_manifest_runtime_status_does_not_change_digest(self):
+        validator = load_validator()
+        data = load_h2()
+        self.assertEqual(validator.compute_digest(data), "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a933")
         self.assertEqual(data["criteria_status"], {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"})
         self.assertEqual(data["acceptance_status"], "NOT_STARTED")
 
@@ -301,6 +306,15 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(allowed, [])
         for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/cleansing_worker.py", "scripts/maintenance/h2_backfill.py"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", activation_transition=True)
+            self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def test_obsidian_transition_rejects_functional_paths(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([("M", ".context/estado_del_proyecto.md"), ("M", "AGENTS.md")], [data], active_work_package="WP-H2-001", obsidian_transition=True)
+        self.assertEqual(allowed, [])
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/security-audit.yml"):
+            errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", obsidian_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
     def test_multiple_active_work_packages_fail(self):

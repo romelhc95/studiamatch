@@ -4,16 +4,25 @@
 |---|---|
 | Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
-| Implementation status | `PLANNED_NOT_ACTIVE` |
+| Implementation status | `READY_NOT_STARTED` |
 | Acceptance status | `NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
-| Gate | `WP-H2-001` activo hasta R1; pendiente revision Plan y subfase decimal de implementacion. |
+| Gate | `WP-H2-001` activo hasta R1; `F12.1` listo para H2-CA2 local. |
+
+## Enlaces Canonicos
+
+- Estado vivo: [Estado Del Proyecto](../estado_del_proyecto.md)
+- Plan Maestro: [Plan Maestro Sprint 1 H2-H5](../operaciones/plan_maestro_sprint1_h2_h5.md)
+- TASK: [TASK-H2-001](../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
+- Matriz: [Matriz Hito 002](../matrices/matriz_hito_002.md)
+- Evidencia: [Evidencia Hito 002](../evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md)
+- Work package: [WP-H2-001](../work_packages/WP-H2-001.json)
 
 ## Alcance
 
-Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. `WP-H2-001` esta activo solo hasta R1; no hay implementacion iniciada en esta activacion.
+Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. `WP-H2-001` esta activo solo hasta R1; `F12.1` puede iniciar H2-CA2 local, pero H2-CA3 sigue `NOT_STARTED` hasta cerrar CA2.
 
 ## Contrato Editorial
 
@@ -67,4 +76,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia implementacion hasta definir una subfase decimal activa mediante revision Plan y autorizacion posterior exacta. La activacion vigente solo autoriza R1 local; R2 y cualquier R3 requieren aprobaciones posteriores separadas.
+`F12.1` queda como traza de implementacion local H2-CA2 R1. No inicia H2-CA3 hasta cerrar CA2 local. R2 y cualquier R3 requieren aprobaciones posteriores separadas.

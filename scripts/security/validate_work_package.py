@@ -67,6 +67,7 @@ DIGEST_EXCLUDED_FIELDS = {
 H2_DIGEST_SCHEMA = "h2-approval-target-v1"
 H2_APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
 H2_ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
+H2_OBSIDIAN_BASE_COMMIT = "56c517140ede7bce6a0580035a456016da8571a5"
 H2_SIGNED_FIELDS = {
     "digest_schema",
     "id",
@@ -173,6 +174,23 @@ H2_ACTIVATION_TRANSITION_DENY = ABSOLUTE_DENY + (
     "scripts/maintenance/**",
     "supabase/**",
     "workers/**",
+)
+H2_OBSIDIAN_TRANSITION_ALLOWLIST = (
+    "AGENTS.md",
+    ".context/**",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_work_package_manifest.py",
+)
+H2_OBSIDIAN_TRANSITION_DENY = ABSOLUTE_DENY + (
+    "web/**",
+    "db/**",
+    "supabase/**",
+    "scripts/core/**",
+    "scripts/maintenance/**",
+    "workers/**",
+    ".github/workflows/**",
 )
 SOURCE_NAMES = {"Studiamatch_MVP_Requerimientos_v5.docx", "studiamatch_home.html", "studiamatch_resultados.html"}
 SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
@@ -308,7 +326,8 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"APPROVAL_TARGET_INVALID:{path.name}:level")
         if data.get("criteria_contract") != ["H2-CA2", "H2-CA3"]:
             errors.append(f"CRITERIA_SET_MISMATCH:{path.name}:contract")
-        if data.get("implementation_status") != "PLANNED_NOT_ACTIVE":
+        expected_implementation = "READY_NOT_STARTED" if status == "ACTIVE" else "PLANNED_NOT_ACTIVE"
+        if data.get("implementation_status") != expected_implementation:
             errors.append(f"LIFECYCLE_MISMATCH:{path.name}:implementation")
         if data.get("acceptance_status") != "NOT_STARTED":
             errors.append(f"LIFECYCLE_MISMATCH:{path.name}:acceptance")
@@ -451,12 +470,15 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
     return paths
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if activation_transition:
+    if obsidian_transition:
+        allowed = H2_OBSIDIAN_TRANSITION_ALLOWLIST
+        denied = H2_OBSIDIAN_TRANSITION_DENY
+    elif activation_transition:
         allowed = H2_ACTIVATION_TRANSITION_ALLOWLIST
         denied = H2_ACTIVATION_TRANSITION_DENY
     elif active:
@@ -500,6 +522,7 @@ def main(argv: list[str] | None = None) -> int:
             load_manifests(),
             active_work_package=active_work_package_from_state(),
             activation_transition=args.changed_from == H2_ACTIVATION_BASE_COMMIT,
+            obsidian_transition=args.changed_from == H2_OBSIDIAN_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

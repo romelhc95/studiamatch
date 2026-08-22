@@ -22,7 +22,7 @@
 ├── work_packages/
 │   └── WP-<HITO>-<NNN>.json
 ├── evidencias_cliente/
-│   └── <requerimiento>/
+│   └── req_est_001_sprint_1/
 │       └── evidencia_hito_<NNN>.md
 └── seguimiento/
     ├── seguimiento_<requerimiento>.md
@@ -47,20 +47,20 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11`, `COMPLETED_HOMOLOGATED`, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE`.
-- El Plan Maestro debe mantener `H2-H5 = NOT_AUTHORIZED`, O0-O5 completados, `WP-H2-001` activo hasta R1 y el proximo gate de revision Plan para subfase decimal.
+- `estado_del_proyecto.md` debe declarar `F10.11` completada, `F12.1` como subfase tecnica activa, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `EXECUTE_F12_1_LOCAL_CA2_R1`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian completada, `WP-H2-001` activo hasta R1 y el proximo gate de ejecucion local H2-CA2.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
-- El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3 y work packages H2-H5.
-- Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1 mientras no exista subfase decimal de implementacion.
-- Ninguna evidencia o tracker puede marcar H2 implementado, aceptado o completado antes de autorizacion de subfase decimal y cualquier R3 JIT requerido.
+- El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
+- Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
+- Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
-## Taxonomia De Lifecycle H2 Activo R1 Sin Implementacion
+## Taxonomia De Lifecycle H2 F12.1 Ready Sin Implementacion
 
 | Campo | Valor preaprobacion H2 | Regla |
 |---|---|---|
 | `lifecycle_stage` | `ACTIVE` | La activacion R1 fue registrada; el siguiente gate es revision Plan de implementacion. |
 | `gate_status` | `APPROVED_R1` | O5, checkout limpio, aprobacion digest+commit y activacion R1 estan completos. |
-| `implementation_status` | `PLANNED_NOT_ACTIVE` | No hay cambios funcionales H2 ejecutados. |
+| `implementation_status` | `READY_NOT_STARTED` | F12.1 puede iniciar H2-CA2 local; no hay cambios funcionales H2 ejecutados todavia. |
 | `work_package_status` | `ACTIVE` | Tiene metadata de aprobacion y activacion; no hay implementacion iniciada. |
 | `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
 | `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
@@ -91,6 +91,15 @@ requiere ademas `activated_at` y que `active_work_package` coincida con el WP.
 `APPROVED` no desbloquea paths funcionales. Solo un `ACTIVE` estructuralmente
 valido y vigente puede usar `allowed_paths`, y aun asi no autoriza R2/R3 ni
 operaciones remotas.
+
+## Taxonomia De Fases Posteriores A F10.11
+
+F10.11 queda como cierre contractual, homologacion y documentacion Obsidian. F12
+es la macrofase de implementacion local Sprint 1 posterior a ese cierre. `F12.1`
+corresponde a H2-CA2 local R1 y `F12.2` queda bloqueada para H2-CA3 hasta que
+CA2 tenga evidencia local. La fase decimal selecciona tareas y trazabilidad; la
+autorizacion R1 se deriva del WP/digest vigente. R2 y R3 siempre requieren gates
+separados.
 
 ## Semantica De Paths
 

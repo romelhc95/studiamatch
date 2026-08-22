@@ -20,6 +20,7 @@ PRIVATE_SOURCE_NAMES = {
 PRIVATE_SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
 REQUIRED_INDEX_LINKS = (
     "estado_del_proyecto.md",
+    "decisiones/ADR-0003_taxonomia_macrofases_subfases.md",
     "operaciones/plan_maestro_sprint1_h2_h5.md",
     "operaciones/context_graph_semantico.md",
     "seguimiento/seguimiento_sprint_1_h2_h5.md",
@@ -30,6 +31,8 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
+    "matrices/matriz_hito_002.md",
+    "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -89,12 +92,16 @@ def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     state = read(root, "estado_del_proyecto.md")
     plan = read(root, "operaciones/plan_maestro_sprint1_h2_h5.md")
+    release_flow = read(root, "operaciones/flujo_release_minimo.md")
     tracker = read(root, "seguimiento/seguimiento_sprint_1_h2_h5.md")
     hito = read(root, "hitos/hito_002.md")
     task = read(root, "backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md")
     matrix = read(root, "matrices/matriz_hito_002.md")
     index = read(root, "00_INDICE.md")
     adr = read(root, "decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md")
+    adr0003 = read(root, "decisiones/ADR-0003_taxonomia_macrofases_subfases.md")
+    evidence = read(root, "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
+    legacy_evidence = read(root, "evidencias_cliente/sprint_1/evidencia_hito_002.md")
     wp = json.loads((root / ".context" / "work_packages" / "WP-H2-001.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
@@ -103,13 +110,17 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GRAPH_ID_MISMATCH:state active task must be TASK-H2-001")
     if "WP-H2-001=ACTIVE_R1" not in state:
         errors.append("GRAPH_ID_MISMATCH:state must reference WP-H2-001 as active R1")
+    if "Subfase tecnica activa: `F12.1`" not in state:
+        errors.append("EXECUTION_PHASE_MISMATCH:state must activate F12.1")
+    if "`F12.1` | `READY_NOT_STARTED`" not in state or "`F12.2` | `BLOCKED_BY_F12_1_CA2`" not in state:
+        errors.append("EXECUTION_PHASE_MISMATCH:F12 taxonomy missing")
     if wp.get("id") != "WP-H2-001" or wp.get("task_id") != "TASK-H2-001" or wp.get("hito") != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:WP-H2-001 IDs")
 
     expected = {
         "Lifecycle stage": "ACTIVE",
         "Gate status": "APPROVED_R1",
-        "Implementation status": "PLANNED_NOT_ACTIVE",
+        "Implementation status": "READY_NOT_STARTED",
         "Acceptance status": "NOT_STARTED",
     }
     for field, value in expected.items():
@@ -126,7 +137,7 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"LIFECYCLE_MISMATCH:tracker missing {value}")
         if value not in plan:
             errors.append(f"LIFECYCLE_MISMATCH:plan missing {value}")
-    if wp.get("lifecycle_stage") != "ACTIVE" or wp.get("implementation_status") != "PLANNED_NOT_ACTIVE":
+    if wp.get("lifecycle_stage") != "ACTIVE" or wp.get("implementation_status") != "READY_NOT_STARTED":
         errors.append("LIFECYCLE_MISMATCH:wp")
     if wp.get("gate_status") != "APPROVED_R1" or wp.get("acceptance_status") != "NOT_STARTED":
         errors.append("LIFECYCLE_MISMATCH:wp gate/acceptance")
@@ -138,7 +149,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_TARGET_INVALID:wp level")
     for name, text in (("task", task), ("matrix", matrix), ("hito", hito), ("tracker", tracker)):
         for line in text.splitlines():
-            if re.search(r"H2-CA[23]|Implementation status|Criteria status", line) and re.search(r"`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", line):
+            if re.search(r"H2-CA[23]|Implementation status|Criteria status", line) and re.search(r"`(IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", line):
                 errors.append(f"LIFECYCLE_MISMATCH:{name}:premature active status")
     if wp.get("status") != "ACTIVE":
         errors.append("UNAPPROVED_ACTIVE_WP:WP-H2-001 must remain ACTIVE")
@@ -163,8 +174,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE" not in state or "PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE" not in plan:
-        errors.append("NEXT_GATE_MISMATCH:plan review gate must be next")
+    if "EXECUTE_F12_1_LOCAL_CA2_R1" not in state or "EXECUTE_F12_1_LOCAL_CA2_R1" not in plan:
+        errors.append("NEXT_GATE_MISMATCH:F12.1 local CA2 gate must be next")
     if "Pendiente de aprobacion humana por digest" in plan:
         errors.append("NEXT_GATE_MISMATCH:plan still points to digest approval")
     if "proximo gate de aprobacion humana por digest" in adr + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
@@ -173,19 +184,32 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:approved H2 exception must be documented")
     prompt_match = re.search(r"## Proximo Prompt Cavernicola\s+```text\n([\s\S]*?)\n```", tracker)
     prompt = prompt_match.group(1) if prompt_match else ""
-    if "R2" in prompt:
-        errors.append("NEXT_GATE_MISMATCH:first H2 prompt must not mention or grant R2")
+    if re.search(r"(R1/R2|hasta R2|grant R2|concede R2)", prompt):
+        errors.append("NEXT_GATE_MISMATCH:first H2 prompt must not grant R2")
     if "Supabase Free" not in prompt or "Supabase Pro" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
-    if "Prepara revision Plan" not in prompt or "subfase decimal" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:H2 next prompt must be plan review for decimal subphase")
+    if "Ejecuta las tareas pendientes de la Fase F12.1" not in prompt or "H2-CA2 local R1" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:H2 next prompt must execute F12.1 local CA2")
+    if "H2-CA3" not in prompt or "no R3" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:H2 next prompt must deny CA3 and R3")
+
+    if "COMPLETED_OBSIDIAN_CONTEXT_GRAPH" not in state + plan + tracker + evidence:
+        errors.append("OBSIDIAN_STAGE_MISMATCH:closure missing")
+    if "SUPERSEDED_TOMBSTONE" not in adr0003:
+        errors.append("TAXONOMY_TOMBSTONE_MISSING:ADR-0003")
+    if "SUPERSEDED_HISTORY" not in release_flow or "F10.9, F11.1, schedules" not in release_flow:
+        errors.append("LEGACY_RELEASE_FLOW_AUTHORITY_DRIFT")
+    if "SUPERSEDED_TOMBSTONE" not in legacy_evidence or "req_est_001_sprint_1/evidencia_hito_002.md" not in legacy_evidence:
+        errors.append("EVIDENCE_NAMESPACE_MISMATCH:legacy tombstone")
+    if "Estado: `TEMPLATE_ONLY`. No acredita PASS funcional." not in evidence:
+        errors.append("EVIDENCE_STATUS_MISMATCH:H2 evidence must remain template only")
 
     for name, text in (("hito", hito), ("task", task), ("matrix", matrix), ("plan", plan), ("tracker", tracker)):
         if not H2_CRITERIA <= criteria_from_text(text):
             errors.append(f"CRITERIA_SET_MISMATCH:{name}")
     if wp.get("criteria_status") != {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"}:
         errors.append("CRITERIA_SET_MISMATCH:wp")
-    if re.search(r"H2-CA[23].*`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", tracker + matrix, re.IGNORECASE):
+    if re.search(r"H2-CA[23].*`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", tracker + matrix + evidence, re.IGNORECASE):
         errors.append("PREMATURE_ACCEPTANCE:H2 criteria marked accepted before approval")
 
     for branch, ref in (("Main homologado O3", EXPECTED_BASELINE["main_commit"]), ("Certificacion homologada O4", EXPECTED_BASELINE["certificacion_commit"]), ("Desarrollo homologado O5", EXPECTED_BASELINE["desarrollo_commit"])):

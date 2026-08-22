@@ -2,7 +2,7 @@
 
 ## Regla De Ejecucion De Fases Y Work Packages
 
-La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. La transicion F10.11 termino como homologacion canonica; la fase decimal permanece como trazabilidad y no reemplaza el modelo WP/digest para trabajo posterior. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion.
+La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. La transicion F10.11 termino como homologacion canonica y cierre Obsidian; desde F12.1 la fase decimal permanece como trazabilidad/seleccion de tareas y no reemplaza el modelo WP/digest para trabajo posterior. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion. La taxonomia legacy `ADR-0003` queda superseded por [ADR-0027](.context/decisiones/ADR-0027_work_packages_y_convergencia.md), [ADR-0028](.context/decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md) y su tombstone [ADR-0003](.context/decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
 
 El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles R0-R3:
 

@@ -2,8 +2,17 @@
 
 | Unidad | Gate status | Implementation status | Criteria status | Evidencia requerida |
 |---|---|---|---|---|
-| `H2-CA2` | `APPROVED_R1` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
+| `H2-CA2` | `APPROVED_R1` | `READY_NOT_STARTED` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
 | `H2-CA3` | `APPROVED_R1` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
+
+## Enlaces Canonicos
+
+- Estado vivo: [Estado Del Proyecto](../estado_del_proyecto.md)
+- Plan Maestro: [Plan Maestro Sprint 1 H2-H5](../operaciones/plan_maestro_sprint1_h2_h5.md)
+- Hito: [HITO-002](../hitos/hito_002.md)
+- TASK: [TASK-H2-001](../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
+- Evidencia: [Evidencia Hito 002](../evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md)
+- Work package: [WP-H2-001](../work_packages/WP-H2-001.json)
 
 ## Validaciones Minimas Futuras
 

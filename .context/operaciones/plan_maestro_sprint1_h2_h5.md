@@ -3,24 +3,24 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_COMPLETED_HOMOLOGATED
-FASE = F10.11
+ESTADO = F10_11_COMPLETED_HOMOLOGATED_AND_DOCUMENTED
+FASE = F12.1
 O0 = COMPLETED
 O1 = COMPLETED
 O2 = COMPLETED
 O3 = COMPLETED
 O4 = COMPLETED
 O5 = COMPLETED
-H2-H5 = NOT_AUTHORIZED
+H2-H5 = H2_CA2_READY_R1_ONLY
 active_work_package = WP-H2-001
-next_gate = PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE
+next_gate = EXECUTE_F12_1_LOCAL_CA2_R1
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
-implementation_status = PLANNED_NOT_ACTIVE
+implementation_status = READY_NOT_STARTED
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza ejecucion. Sirvio para corregir la conformidad de `REQ-EST-001` durante F10.11 y ahora deja trazable la ejecucion futura H2-H5.
+Este plan no crea alcance ni autoriza R2/R3. Sirvio para corregir la conformidad de `REQ-EST-001` durante F10.11, cierra la Etapa 1 Obsidian y deja trazable `F12.1` como la siguiente ejecucion local H2-CA2 R1 bajo `WP-H2-001`.
 
 ## Bases Inmutables
 
@@ -76,8 +76,9 @@ D0-D10 paquete correctivo local
 -> tracker final y checkout limpio
 -> aprobacion digest WP-H2-001 completada hasta R1 no activo
 -> activacion separada WP-H2-001 R1 completada
--> revision Plan para subfase decimal de implementacion local H2 R1
--> H2
+-> cierre Obsidian y activacion de traza F12.1
+-> H2-CA2 local R1
+-> H2-CA3 local R1 posterior
 -> H3
 -> H4
 -> H5
@@ -98,6 +99,7 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O3 | `COMPLETED` | PR #421 mergeado a `main`. |
 | O4 | `COMPLETED` | PR #422 mergeado a `certificacion`. |
 | O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
+| Etapa 1 Obsidian | `COMPLETED_OBSIDIAN_CONTEXT_GRAPH` | Vault, enlaces canonicos, evidencia H2, taxonomia y siguiente gate reconciliados. |
 
 ## D0-D10 Correctivo
 
@@ -117,11 +119,11 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 
 ## Scoring H2-H5
 
-H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no hay implementacion autorizada.
+H2-H5 usan 12 unidades de 100 puntos. En F12.1 solo H2-CA2 queda listo para iniciar localmente; todos los criterios siguen `0/100` hasta evidencia funcional.
 
-| Unidad | Hito | Estado F10.11 | Puntos |
+| Unidad | Hito | Estado F12.1 | Puntos |
 |---|---|---|---:|
-| `H2-CA2` | H2 | `NOT_STARTED` | 0 |
+| `H2-CA2` | H2 | `READY_NOT_STARTED` | 0 |
 | `H2-CA3` | H2 | `NOT_STARTED` | 0 |
 | `H3-CA4` | H3 | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA5` | H4 | `PLANNED_NOT_ACTIVE` | 0 |
@@ -146,7 +148,8 @@ H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no h
 | T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
-| T6 | H2 | `WP-H2-001` activo hasta R1; pendiente revision Plan y subfase decimal de implementacion local. |
+| T6 | H2-CA2 | `F12.1` listo para ejecucion local R1 bajo `WP-H2-001`. |
+| T7 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -191,6 +194,7 @@ Restricciones H2:
 11. Paginacion para mas de 1000 filas.
 12. Backfill reanudable.
 13. Segundo run `NOOP` obligatorio.
+14. H2-CA2 debe cerrarse localmente antes de iniciar H2-CA3.
 
 ## H3 - Admin Editorial
 
@@ -281,4 +285,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta completada y homologada. `WP-H2-001` esta activo hasta R1, sin implementacion iniciada. El unico siguiente gate posible es revision Plan independiente para definir una subfase decimal de implementacion local H2 R1. H2 no inicia trabajo funcional sin esa autorizacion posterior y cualquier DDL/DML, Supabase, backfill, RLS/grants, writers, schedules o produccion requiere R3 JIT separado.
+F10.11 esta completada, homologada y documentada como Etapa 1 Obsidian. `WP-H2-001` esta activo hasta R1 y conserva su digest aprobado. `F12.1` es la traza activa para iniciar H2-CA2 local R1. H2-CA3, push, PR, DDL/DML, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.

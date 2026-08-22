@@ -9,7 +9,7 @@
   "approval_target_lifecycle_stage": "APPROVED_NOT_ACTIVE",
   "approval_target_gate_status": "APPROVED_R1",
   "approval_target_level": "R1",
-  "implementation_status": "PLANNED_NOT_ACTIVE",
+  "implementation_status": "READY_NOT_STARTED",
   "criteria_status": {
     "H2-CA2": "NOT_STARTED",
     "H2-CA3": "NOT_STARTED"
