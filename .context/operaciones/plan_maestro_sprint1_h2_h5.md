@@ -13,8 +13,8 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_OBSIDIAN_MAIN
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001
-next_gate = PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001
+next_gate = PREPARE_WP_GOV_ARCH_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_OBSIDIAN_MAIN
@@ -296,4 +296,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-OBS-001` y `WP-GOV-INFRA-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. PR #424 quedo `MERGED_TO_DESARROLLO` en `96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9` con CI verde y review humano para `WP-GOV-OBS-001` y `WP-GOV-INFRA-001`. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-ARCH-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.

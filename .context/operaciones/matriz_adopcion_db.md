@@ -64,6 +64,7 @@ flowchart LR
 | Apply a Pro | Report pending, backup/PITR confirmado, `ddl_authorization_id`, apply manual, verify schema |
 | Cambio RLS/RPC | Tests de contrato, policy/grant diff, evidencia de no exposicion anon indebida |
 | Cambio writer | Arquitectura actualizada, matriz de escritor, gate de produccion, prueba de no secreto |
+| Cambio workflow/gate CI | Arquitectura actualizada, matriz revisada, PR a `desarrollo`, review humana con digest exacto y `security-audit` verde |
 | Backfill/sync | Runbook JIT, ambiente origen/destino, mapeo UUID por slug/nombre, rollback |
 
 ## Drift Conocido

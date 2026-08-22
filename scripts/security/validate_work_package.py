@@ -223,18 +223,25 @@ GOV_RELEASE_TRANSITION_ALLOWLIST = tuple(sorted(set(GOV_OBS_TRANSITION_ALLOWLIST
 GOV_ARCH_TRANSITION_ALLOWLIST = (
     "AGENTS.md",
     "README.md",
+    ".github/pull_request_template.md",
+    ".github/workflows/security-audit.yml",
     ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
     ".context/arquitectura_pipeline.md",
     ".context/sistema_db_supabase.md",
     ".context/operaciones/context_graph_semantico.md",
     ".context/operaciones/matriz_adopcion_db.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
     ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
     ".context/work_packages/WP-GOV-ARCH-001.json",
     "docs/architecture/Documento_Detallado_workflow.md",
     "docs/architecture/core_data_flow.md",
     "docs/orquestador-sdlc/PRODUCTION_ARCHITECTURE.md",
+    "scripts/security/validate_change_governance.py",
     "scripts/security/validate_context_graph.py",
     "scripts/security/validate_work_package.py",
+    "tests/test_change_governance.py",
     "tests/test_context_graph_semantics.py",
     "tests/test_work_package_manifest.py",
 )
@@ -448,6 +455,9 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         }
         if data.get("allowed_paths") != list(GOV_ARCH_TRANSITION_ALLOWLIST) or not required_paths <= set(data.get("allowed_paths", [])):
             errors.append(f"GOV_ARCH_ALLOWLIST_INVALID:{path.name}")
+        control_paths = {".github/workflows/security-audit.yml", "scripts/security/validate_change_governance.py", "scripts/security/validate_context_graph.py", "scripts/security/validate_work_package.py"}
+        if control_paths & set(data.get("allowed_paths", [])) and not data.get("governance_controls_scope"):
+            errors.append(f"GOV_ARCH_CONTROLS_SCOPE_REQUIRED:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_ARCH_R3_DENY_MISSING:{path.name}")
     else:

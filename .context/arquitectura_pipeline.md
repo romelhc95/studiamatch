@@ -129,6 +129,8 @@ flowchart LR
 | `f9-7-contract.yml` | PR con paths sensibles | N/A | contrato PostgreSQL 17 y secretos |
 | `opencode.yml` | comentarios `/oc` | GitHub | integra OpenCode |
 
+`security-audit.yml` incluye un Governance Preflight R2 aplicable solo a PR/review cuyo destino sea `desarrollo`. Ese job valida el `head.sha` real del PR, no el merge ref sintetico `refs/pull/*/merge`; para `certificacion`, `main` y `push`, el preflight debe quedar skipped y cualquier promocion superior requiere R3/JIT separado.
+
 ## Controles De Produccion
 
 - `.github/scripts/production_control_preflight.sh` centraliza writers permitidos.

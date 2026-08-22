@@ -22,6 +22,23 @@ Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest> contenido en candida
 
 La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, workflow_dispatch, Certification, Main, produccion ni ningun R3. La primera aprobacion de `WP-H2-001` solo puede ser R1; R2 requiere revision Plan posterior y autorizacion separada. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
 
+## Preflight Obligatorio Antes De Todo Cambio
+
+Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:
+
+1. Leer `AGENTS.md`.
+2. Leer [`.context/00_INDICE.md`](.context/00_INDICE.md).
+3. Leer [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md).
+4. Resolver requerimiento, hito, TASK y WP vigente.
+5. Verificar digest, nivel `R0-R3`, expiry, `allowed_paths` y operaciones denegadas.
+6. Leer [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md) para cambios en `web/**`, pipeline, workflows, runtime, infraestructura o deploy.
+7. Leer [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) para cambios DB, Supabase, tablas, RLS, RPC, grants, lectores o escritores.
+8. Leer [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md) para cambios de schema, migraciones, ambientes, promocion o drift.
+9. Confirmar que la rama nace del HEAD vigente de `desarrollo`.
+10. Detenerse ante drift, documentacion ausente, WP incorrecto o autorizacion insuficiente.
+
+Leer un enlace no concede autorizacion. La disponibilidad tecnica de `workflow_dispatch`, writers o Supabase no concede permiso. Toda entrega inicial `R2` va por PR a `desarrollo`. `Certification`, `Main`, DB, deploys, writers y schedules requieren `R3` JIT separado.
+
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
 **NUNCA** expongas credenciales (API keys, Publishable and secret API keys, management tokens, passwords, secret tokens) en el repositorio, ni público ni privado. La detección ahora es **automática** vía:

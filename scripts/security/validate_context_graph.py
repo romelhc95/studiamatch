@@ -69,6 +69,7 @@ ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 GOV_OBS_DIGEST = "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060"
 GOV_INFRA_DIGEST = "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
+GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -205,8 +206,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in state or "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in plan:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS R2 approval gate must be next")
+    if "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in state or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH R2 approval gate must be next")
+    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV OBS/INFRA R2 gate")
     if "PREPARE_WP_GOV_OBS_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
         errors.append("NEXT_GATE_MISMATCH:stale OBS-only R2 gate")
     if "WP-GOV-INFRA-001" not in state or "WP-GOV-INFRA-001" not in plan:
@@ -227,12 +230,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if f"Apruebo WP-GOV-OBS-001 de TASK-GOV-OBS-001 segun manifest sha256:{GOV_OBS_DIGEST}" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS approval prompt missing digest")
-    if f"WP-GOV-INFRA-001 de TASK-GOV-INFRA-001 segun manifest sha256:{GOV_INFRA_DIGEST}" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV INFRA approval prompt missing digest")
+    if f"Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001 segun manifest sha256:{gov_arch_wp.get('candidate_digest')}" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH approval prompt missing digest")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV OBS prompt must be R2 only")
+        errors.append("NEXT_GATE_MISMATCH:GOV ARCH prompt must be R2 only")
 
     if "LOCAL_CANDIDATE_PENDING_MAIN" not in state + plan + tracker + evidence:
         errors.append("OBSIDIAN_STAGE_MISMATCH:pending-main status missing")
@@ -266,8 +267,12 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_ARCH_WP_INVALID:identity/status")
     if gov_arch_wp.get("target_level") != "R2":
         errors.append("GOV_ARCH_WP_INVALID:target")
+    if gov_arch_wp.get("baseline", {}).get("candidate_commit") != GOV_ARCH_BASE_COMMIT:
+        errors.append("GOV_ARCH_WP_INVALID:baseline")
     if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_arch_task:
         errors.append("GOV_ARCH_TASK_INVALID:status")
+    if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
+        errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
     canonical_docs = (
         ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
         ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),

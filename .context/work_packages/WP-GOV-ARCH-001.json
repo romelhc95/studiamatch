@@ -3,7 +3,7 @@
   "status": "PROPOSED",
   "task_id": "TASK-GOV-ARCH-001",
   "hito": "GOV-ARCH",
-  "risk_level": "GOVERNANCE_ARCHITECTURE_DOCUMENTATION",
+  "risk_level": "GOVERNANCE_ARCHITECTURE_AND_PREFLIGHT_CONTROLS",
   "target_level": "R2",
   "baseline": {
     "candidate_commit": "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9",
@@ -19,18 +19,25 @@
   "allowed_paths": [
     "AGENTS.md",
     "README.md",
+    ".github/pull_request_template.md",
+    ".github/workflows/security-audit.yml",
     ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
     ".context/arquitectura_pipeline.md",
     ".context/sistema_db_supabase.md",
     ".context/operaciones/context_graph_semantico.md",
     ".context/operaciones/matriz_adopcion_db.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
     ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
     ".context/work_packages/WP-GOV-ARCH-001.json",
     "docs/architecture/Documento_Detallado_workflow.md",
     "docs/architecture/core_data_flow.md",
     "docs/orquestador-sdlc/PRODUCTION_ARCHITECTURE.md",
+    "scripts/security/validate_change_governance.py",
     "scripts/security/validate_context_graph.py",
     "scripts/security/validate_work_package.py",
+    "tests/test_change_governance.py",
     "tests/test_context_graph_semantics.py",
     "tests/test_work_package_manifest.py"
   ],
@@ -58,6 +65,13 @@
     "Architecture investigation completed read-only against desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9",
     "Human approval by digest required before R2 push/PR/merge"
   ],
+  "governance_controls_scope": [
+    "PR template attestation",
+    "security-audit governance-preflight job",
+    "path-boundary validator for this WP",
+    "Context Graph semantic validator",
+    "governance regression tests"
+  ],
   "r3_operations": [
     "certification promotion",
     "main promotion",
@@ -72,7 +86,7 @@
     "production"
   ],
   "expires_at": "2026-08-28T23:59:59Z",
-  "candidate_digest": "47a19254b378da976d4fd8c727db6f70e86d03899258aad62854a9a3b85132e0",
+  "candidate_digest": "df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1",
   "approval_digest_source": "Human approver must approve this candidate_digest with target R2 before publishing architecture remediation.",
   "approver_required": "human",
   "invalidated_by": [
