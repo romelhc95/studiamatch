@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1, PR #424 como R2 OBS/INFRA ya publicado en `desarrollo` y el proximo gate unico `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en reconciliacion `GOV-HOM`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424 y PR #425 publicados en `desarrollo`, y el proximo gate unico `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` mientras la remediacion documental de arquitectura este propuesta; el siguiente gate unico es `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, y `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como candidate de reconciliacion; el siguiente gate unico es `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -70,7 +70,7 @@
 |---|---|---|
 | `lifecycle_stage` | `ACTIVE` | La activacion R1 fue registrada; el siguiente gate es revision Plan de implementacion. |
 | `gate_status` | `APPROVED_R1` | O5, checkout limpio, aprobacion digest+commit y activacion R1 estan completos. |
-| `implementation_status` | `BLOCKED_PENDING_OBSIDIAN_MAIN` | F12.1 es traza futura; H2-CA2 no inicia hasta que Etapa 1 exista en main y el checkout ordinario la consuma. |
+| `implementation_status` | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | F12.1 es traza futura; H2-CA2 no inicia hasta que Etapa 1 cierre por predicado externo y `WP-H2-001` sea rebasado. |
 | `work_package_status` | `ACTIVE` | Tiene metadata de aprobacion y activacion; no hay implementacion iniciada. |
 | `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
 | `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
@@ -105,13 +105,24 @@ operaciones remotas.
 ## Taxonomia De Fases Posteriores A F10.11
 
 F10.11 queda como cierre contractual y homologacion local. La documentacion
-Obsidian solo cierra cuando el bundle canonico esta en `main`, homologado hacia
-`certificacion`/`desarrollo` y consumido por el checkout ordinario. F12 es la
-macrofase futura posterior a ese cierre. `F12.1` corresponde a H2-CA2 local R1,
-pero permanece `BLOCKED_BY_OBSIDIAN_MAIN`; `F12.2` queda bloqueada para H2-CA3
+Obsidian solo cierra cuando el bundle canonico este convergido como `T_HOM` en
+`main`, `certificacion` y `desarrollo`, con ancestry validada y consumido por el
+checkout ordinario. F12 es la macrofase futura posterior a ese cierre. `F12.1`
+corresponde a H2-CA2 local R1, pero permanece
+`BLOCKED_PENDING_HOMOLOGATION_AND_REBASE`; `F12.2` queda bloqueada para H2-CA3
 hasta que CA2 tenga evidencia local. La fase decimal selecciona tareas y
 trazabilidad; la autorizacion se deriva del WP/digest vigente. R2 y R3 siempre
 requieren gates separados.
+
+## Homologacion No Recursiva GOV-HOM
+
+`WP-GOV-HOM-001` define el candidate `T_HOM` posterior a PR #425. El cierre de
+F10.11 es un predicado externo: trees iguales a `T_HOM`, ancestry `main ->
+certificacion -> desarrollo`, grants R3 `O2`/`O3`/`O4`/`O5` consumidos por
+separado, DB Sync sin cambios, ningun writer/schedule/DDL/DML/Supabase y checkout
+ordinario actualizado. El grafo debe fallar si reaparece el gate literal de
+arquitectura ya consumido, si se agrupan grants o si H2 inicia antes de ese
+predicado.
 
 ## Semantica De Paths
 

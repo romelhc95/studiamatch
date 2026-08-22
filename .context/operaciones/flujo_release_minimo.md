@@ -111,6 +111,14 @@ Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_
 ## Flujo Vigente Sprint 1
 
 ```text
+F10.11 GOV-HOM candidate produce T_HOM
+-> R2 separado para push/PR/merge a desarrollo
+-> R3 O2 JIT desarrollo -> certificacion
+-> R3 O3 JIT certificacion -> main
+-> R3 O4 JIT main -> certificacion
+-> R3 O5 JIT certificacion -> desarrollo
+-> predicado externo de cierre F10.11
+-> rebaseline WP-H2-001
 F12.1 local H2-CA2 bajo WP/digest R1
 -> R2 separado para push/PR a desarrollo
 -> R3 JIT separado para Supabase Free, DDL/DML, RLS/grants y backfill
@@ -126,6 +134,8 @@ F12.1 local H2-CA2 bajo WP/digest R1
 - Push y PR requieren R2 separado.
 - H2-H5 requieren work package aprobado por digest.
 - H2-CA3 no inicia antes de cerrar H2-CA2 local.
+- F10.11 no cierra por prosa: requiere trees iguales a `T_HOM`, ancestry `main -> certificacion -> desarrollo`, DB Sync sin cambios y checkout ordinario actualizado.
+- Los grants `O2`, `O3`, `O4` y `O5` no se pueden agrupar; cada retry requiere grant nuevo.
 - Cualquier DB, Supabase, RLS/grants, backfill, writer, schedule, deploy,
   Certification, Main o produccion requiere R3 JIT separado.
 

@@ -42,7 +42,7 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
         manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -288,6 +288,52 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertIn("certification", data["denied_without_jit"])
         self.assertIn("main", data["denied_without_jit"])
 
+    def test_gov_hom_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-HOM-001.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertEqual(data["baseline"]["candidate_commit"], "4cce43a743de5860c4da86eecf1782efab91d26b")
+        self.assertEqual(data["baseline"]["candidate_tree"], "ac16b545b74a03b149aac538062def20101187fb")
+        self.assertEqual(len(data["homologation_grants"]), 4)
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
+
+    def test_gov_hom_rejects_grouped_grants(self):
+        validator = load_validator()
+        data = json.loads((MANIFEST_DIR / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
+        data["homologation_grants"] = [{"id": "R3-GOV-HOM-001-O2-O5", "status": "TEMPLATE_ONLY_NOT_GRANTED", "single_use": True}]
+        data["candidate_digest"] = validator.compute_digest(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "WP-GOV-HOM-001.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            errors = validator.validate_manifest(path, root=ROOT)
+        self.assertTrue(any(error.startswith("GOV_HOM_GRANTS_INVALID") for error in errors))
+
+    def test_gov_hom_rejects_missing_closure_predicate(self):
+        validator = load_validator()
+        data = json.loads((MANIFEST_DIR / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
+        data["closure_predicate"] = ["manual close"]
+        data["candidate_digest"] = validator.compute_digest(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "WP-GOV-HOM-001.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            errors = validator.validate_manifest(path, root=ROOT)
+        self.assertTrue(any(error.startswith("GOV_HOM_CLOSURE_PREDICATE_REQUIRED") for error in errors))
+
+    def test_gov_hom_rejects_wrong_baseline_tree(self):
+        validator = load_validator()
+        data = json.loads((MANIFEST_DIR / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
+        data["baseline"]["candidate_tree"] = "0000000000000000000000000000000000000000"
+        data["candidate_digest"] = validator.compute_digest(data)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "WP-GOV-HOM-001.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            errors = validator.validate_manifest(path, root=ROOT)
+        self.assertTrue(any(error.startswith("GOV_HOM_BASELINE_INVALID") for error in errors))
+
     def test_active_manifest_rejects_bad_activation_timestamp(self):
         validator = load_validator()
         for activated_at, prefix in (("not-a-date", "ACTIVATION_METADATA_REQUIRED"), ("2026-08-21T22:00:00Z", "ACTIVATION_TIMESTAMP_INVALID")):
@@ -373,6 +419,18 @@ class WorkPackageManifestTests(unittest.TestCase):
             ("A", "scripts/security/run_h2_r1_tests.sh"),
         ]
         self.assertEqual(validator.validate_changed_paths(changed, [data], active_work_package="WP-H2-001", gov_obs_transition=True), [])
+
+    def test_gov_hom_transition_rejects_functional_paths_and_arch_mutation(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([
+            ("M", ".context/estado_del_proyecto.md"),
+            ("A", ".context/work_packages/WP-GOV-HOM-001.json"),
+        ], [data], active_work_package="WP-H2-001", gov_hom_transition=True)
+        self.assertEqual(allowed, [])
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", ".context/work_packages/WP-GOV-ARCH-001.json"):
+            errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_hom_transition=True)
+            self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
     def test_resolve_git_ref_normalizes_abbreviated_sha(self):
         validator = load_validator()

@@ -71,6 +71,7 @@ H2_OBSIDIAN_BASE_COMMIT = "56c517140ede7bce6a0580035a456016da8571a5"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
 PR424_BASE_COMMIT = "974f9d4bde6d79230afde5c5a86ba7a3894233c6"
 GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
+GOV_HOM_BASE_COMMIT = "4cce43a743de5860c4da86eecf1782efab91d26b"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -242,6 +243,24 @@ GOV_ARCH_TRANSITION_ALLOWLIST = (
     "scripts/security/validate_context_graph.py",
     "scripts/security/validate_work_package.py",
     "tests/test_change_governance.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_work_package_manifest.py",
+)
+GOV_HOM_TRANSITION_ALLOWLIST = (
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md",
+    ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
+    ".context/backlog_tareas/governance/TASK-GOV-HOM-001.md",
+    ".context/work_packages/WP-GOV-HOM-001.json",
+    ".context/decisiones/ADR-0029_homologacion_no_recursiva.md",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
     "tests/test_context_graph_semantics.py",
     "tests/test_work_package_manifest.py",
 )
@@ -460,6 +479,36 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"GOV_ARCH_CONTROLS_SCOPE_REQUIRED:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_ARCH_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-HOM-001":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-HOM-001" or data.get("hito") != "GOV-HOM":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_HOM_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_HOM_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        if data.get("allowed_paths") != list(GOV_HOM_TRANSITION_ALLOWLIST):
+            errors.append(f"GOV_HOM_ALLOWLIST_INVALID:{path.name}")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_HOM_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_HOM_BASE_COMMIT:
+            errors.append(f"GOV_HOM_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
+        if baseline.get("candidate_tree") != "ac16b545b74a03b149aac538062def20101187fb" or baseline.get("desarrollo_tree") != "ac16b545b74a03b149aac538062def20101187fb":
+            errors.append(f"GOV_HOM_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
+        grants = data.get("homologation_grants")
+        if not isinstance(grants, list) or len(grants) != 4:
+            errors.append(f"GOV_HOM_GRANTS_INVALID:{path.name}:expected four separate templates")
+        else:
+            expected_ids = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-001-O3", "R3-GOV-HOM-001-O4", "R3-GOV-HOM-001-O5"}
+            actual_ids = {str(grant.get("id")) for grant in grants if isinstance(grant, dict)}
+            if actual_ids != expected_ids or any(grant.get("single_use") is not True for grant in grants if isinstance(grant, dict)):
+                errors.append(f"GOV_HOM_GRANTS_INVALID:{path.name}:ids/single_use")
+            if any(str(grant.get("status")) != "TEMPLATE_ONLY_NOT_GRANTED" for grant in grants if isinstance(grant, dict)):
+                errors.append(f"GOV_HOM_GRANTS_INVALID:{path.name}:must not grant R3")
+        predicate = data.get("closure_predicate")
+        if not isinstance(predicate, list) or not any("tree(main) == tree(certificacion) == tree(desarrollo) == T_HOM" in str(item) for item in predicate):
+            errors.append(f"GOV_HOM_CLOSURE_PREDICATE_REQUIRED:{path.name}")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_HOM_R3_DENY_MISSING:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -603,19 +652,22 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
     if gov_obs_transition:
         allowed = GOV_RELEASE_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_hom_transition:
+        allowed = GOV_HOM_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif gov_arch_transition:
         allowed = GOV_ARCH_TRANSITION_ALLOWLIST
@@ -660,8 +712,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
     errors: list[str] = []
-    if len(manifests) != 7:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH manifests")
+    if len(manifests) != 8:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     if args.changed_from:
@@ -674,6 +726,7 @@ def main(argv: list[str] | None = None) -> int:
             obsidian_transition=changed_from == H2_OBSIDIAN_BASE_COMMIT,
             gov_obs_transition=changed_from in {GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT},
             gov_arch_transition=changed_from == GOV_ARCH_BASE_COMMIT,
+            gov_hom_transition=changed_from == GOV_HOM_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

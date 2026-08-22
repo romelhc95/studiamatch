@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-22-GOV-ARCH-R2-PENDING`.
+Snapshot: `SNAPSHOT-2026-08-22-GOV-HOM-R2-PENDING`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -12,9 +12,9 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `HOMOLOGATED_OBSIDIAN_PENDING_MAIN` | O0-O5 y D0-D10 completados; documentacion Obsidian existe como candidate local pendiente de main. |
+| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `HOMOLOGATION_RECONCILIATION_PENDING_R2` | O0-O5, D0-D10, PR #424 y PR #425 estan publicados en `desarrollo`; falta homologar el tree final hacia `certificacion` y `main` mediante R3 JIT separados. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
-| `F12` | Implementacion local Sprint 1 posterior a F10 | `BLOCKED_BY_OBSIDIAN_MAIN` | Macrofase futura H2-H5 gobernada por WP/digest; no ejecutable hasta cierre efectivo en main. |
+| `F12` | Implementacion local Sprint 1 posterior a F10 | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | Macrofase futura H2-H5 gobernada por WP/digest; no ejecutable hasta cierre efectivo F10.11 y rebaseline de `WP-H2-001`. |
 
 ## Subfases F10
 
@@ -24,13 +24,13 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `HOMOLOGATED_OBSIDIAN_PENDING_MAIN` | O0-O5 completados; paquete correctivo D0-D10 homologado; cierre Obsidian pendiente de main. |
+| `F10.11` | `HOMOLOGATION_RECONCILIATION_PENDING_R2` | PR #425 quedo mergeado a `desarrollo`; falta candidate `WP-GOV-HOM-001`, R2 a `desarrollo` y cuatro grants R3 JIT para convergencia final. |
 
 ## Subfases F12
 
 | ID | Estado | Identidad vigente |
 |---|---|---|
-| `F12.1` | `BLOCKED_BY_OBSIDIAN_MAIN` | Hito 2 CA2 - contrato editorial y calidad; bloqueado hasta documentacion Obsidian en main y checkout ordinario actualizado. |
+| `F12.1` | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | Hito 2 CA2 - contrato editorial y calidad; bloqueado hasta cierre F10.11, convergencia de trees y rebaseline de `WP-H2-001`. |
 | `F12.2` | `BLOCKED_BY_F12_1_CA2` | Hito 2 CA3 - integracion de registros incompletos, bloqueada hasta cierre local de CA2. |
 
 ## Bases Vinculantes
@@ -54,6 +54,11 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | Tree homologado O5 | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` |
 | PR #424 gobierno OBS/INFRA | `MERGED_TO_DESARROLLO@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9` |
 | Tree PR #424 | `530b0a95dda9f81f408ebcb8c177a1ed73afe3e3` |
+| PR #425 gobierno ARCH | `MERGED_TO_DESARROLLO@4cce43a743de5860c4da86eecf1782efab91d26b` |
+| Tree PR #425 | `ac16b545b74a03b149aac538062def20101187fb` |
+| Digest WP-GOV-ARCH-001 consumido | `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1` |
+| Certificacion pendiente GOV-HOM | `certificacion@fe7b27abf18c096f674948b4f30f815aea4aef08` |
+| Main pendiente GOV-HOM | `main@9b486146962bd2a092acfd649fdcf716e922de89` |
 | Preservacion F10.10 | `VERIFIED`, manifest `e15e89d0b5abb10980cba41bf3afe6ce6d530ce00a8544d2fc3318ec4b81a689` |
 
 ## Tarea Activa
@@ -65,23 +70,24 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Work package activo: `WP-H2-001`.
 - Work package aprobado: `WP-H2-001=ACTIVE_R1`.
 - Work packages de gobierno ejecutados R2: [WP-GOV-OBS-001](work_packages/WP-GOV-OBS-001.json), [WP-GOV-INFRA-001](work_packages/WP-GOV-INFRA-001.json).
-- Work package de arquitectura candidato: [WP-GOV-ARCH-001](work_packages/WP-GOV-ARCH-001.json).
+- Work package de arquitectura consumido externamente: [WP-GOV-ARCH-001](work_packages/WP-GOV-ARCH-001.json), digest `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1`, PR #425.
+- Work package de homologacion candidato: [WP-GOV-HOM-001](work_packages/WP-GOV-HOM-001.json).
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
 - Lifecycle stage: `ACTIVE`.
 - Gate status: `APPROVED_R1`.
-- Implementation status: `BLOCKED_PENDING_OBSIDIAN_MAIN`.
+- Implementation status: `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE`.
 - Criteria status: `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED`.
 - Acceptance status: `NOT_STARTED`.
-- Etapa 1 Obsidian: `LOCAL_CANDIDATE_PENDING_MAIN`.
-- Proximo gate unico: `PREPARE_WP_GOV_ARCH_R2_APPROVAL`.
+- Etapa 1 Obsidian: `DESARROLLO_MERGED_PENDING_HOMOLOGATION`.
+- Proximo gate unico: `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | `TASK-H1-001` |
-| `HITO-002` | `ACTIVE_R1_BLOCKED_PENDING_OBSIDIAN_MAIN` | `TASK-H2-001` |
+| `HITO-002` | `ACTIVE_R1_BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | `TASK-H2-001` |
 | `HITO-003` | `PENDING` | `TASK-H3-001` |
 | `HITO-004` | `PENDING` | `TASK-H4-001` |
 | `HITO-005` | `PENDING` | `TASK-H5-001` |
@@ -97,12 +103,26 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | O4 `main -> certificacion` | `COMPLETED` | PR #422 mergeado a `certificacion` |
 | O5 `certificacion -> desarrollo` | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado |
 | R2 GOV OBS/INFRA | `MERGED_TO_DESARROLLO` | PR #424 mergeado a `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`; CI verde y review humano |
-| Etapa 1 Obsidian | `LOCAL_CANDIDATE_PENDING_MAIN` | Indice, evidencias, taxonomia y Context Graph existen localmente; cierre efectivo requiere main, homologacion y checkout ordinario actualizado |
+| R2 GOV ARCH | `MERGED_TO_DESARROLLO` | PR #425 mergeado a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`; tree `ac16b545b74a03b149aac538062def20101187fb`, Governance Preflight PASS, security-audit PASS y review humano por digest |
+| Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | El bundle documental existe en `desarrollo`; cierre efectivo requiere candidate `WP-GOV-HOM-001`, R2 a `desarrollo`, cuatro grants R3 JIT, convergencia de trees y checkout ordinario actualizado |
 
 ## Alcance Inmediato
 
-La homologacion canonica F10.11 esta completada. PR #424 publico la documentacion Obsidian y guardrails de gobierno a `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9` con CI verde y review humano. Etapa 1 Obsidian sigue `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle exista en `main`, se homologue hacia `certificacion`/`desarrollo` y el checkout ordinario StudIAMatch consuma ese estado. Hito 2 tiene `WP-H2-001` activo hasta R1, sin implementacion iniciada.
+PR #425 publico arquitectura canonica y Governance Preflight en `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b` con tree `ac16b545b74a03b149aac538062def20101187fb`. `WP-GOV-ARCH-001` queda consumido externamente; no debe mutarse como artifact firmado. Etapa 1 Obsidian sigue bloqueada hasta que `WP-GOV-HOM-001` produzca `T_HOM`, se promueva por R2 a `desarrollo`, y luego se homologue con cuatro grants R3 JIT separados. Hito 2 conserva `WP-H2-001` activo hasta R1, sin implementacion iniciada.
 
 ## Siguiente Gate
 
-El unico siguiente gate es `PREPARE_WP_GOV_ARCH_R2_APPROVAL`. Ese gate debe emitir una aprobacion humana por digest para `WP-GOV-ARCH-001` hasta R2, limitada a push, PR y merge a `desarrollo`. Certification, Main, DDL/DML remoto, Supabase, backfill remoto, RLS/grants remotos, writers, schedules, produccion y cualquier R3 requieren grants JIT separados.
+El unico siguiente gate es `PREPARE_WP_GOV_HOM_R2_APPROVAL`. Ese gate debe emitir una aprobacion humana por digest para `WP-GOV-HOM-001` hasta R2, limitada a push, PR y merge a `desarrollo` del candidate de reconciliacion. Certification, Main, DDL/DML remoto, Supabase, backfill remoto, RLS/grants remotos, writers, schedules, produccion y cualquier R3 requieren grants JIT single-use separados.
+
+## Predicado Externo De Cierre F10.11
+
+F10.11 queda cerrada solo cuando todos estos predicados sean verdaderos:
+
+1. `WP-GOV-HOM-001` fue aprobado y consumido hasta R2 en `desarrollo`.
+2. Los grants R3 `O2`, `O3`, `O4` y `O5` fueron emitidos JIT, consumidos una sola vez y registrados.
+3. `tree(main) == tree(certificacion) == tree(desarrollo) == T_HOM`.
+4. `main` es ancestro de `certificacion`.
+5. `certificacion` es ancestro de `desarrollo`.
+6. DB Sync reporto cero cambios y cero apply.
+7. No hubo writers, schedules, DDL/DML, Supabase, backfill, RLS/grants ni deploy manual no autorizado.
+8. El checkout ordinario consumio el `desarrollo` final homologado.
