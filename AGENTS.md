@@ -45,6 +45,8 @@ Reglas adicionales (además de la detección automática):
 
 Este proyecto NO tiene base de datos local. Todo el desarrollo usa la instancia Supabase Free tier apuntada por `.env.local`. Los scripts Python y el frontend Next.js comparten la misma base de datos cloud.
 
+La topologia canonica de aplicacion, pipeline, Supabase y adopcion por ambiente se mantiene en [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md), [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md). Esta guia no sustituye esos documentos.
+
 ## Contenedor Docker (Obligatorio)
 
 **NUNCA** ejecutes comandos de desarrollo (npm, python, pip) en el host Windows. Todo debe correr dentro del contenedor `studiamatch-dev` (Debian Linux) para garantizar paridad con los servidores de despliegue (Cloudflare/Linux).

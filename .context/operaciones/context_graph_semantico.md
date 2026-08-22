@@ -17,6 +17,10 @@
 │   └── ADR-<NNNN>_<decision>.md
 ├── operaciones/
 │   └── plan_maestro_<requerimiento>.md
+├── arquitectura_pipeline.md
+├── sistema_db_supabase.md
+├── operaciones/
+│   └── matriz_adopcion_db.md
 ├── matrices/
 │   └── matriz_hito_<NNN>.md
 ├── work_packages/
@@ -40,6 +44,9 @@
 | TASK | Trabajo autorizable. |
 | ADR | Decision irreversible o relevante. |
 | Manifest | Alcance mecanizable e inmutable. |
+| Arquitectura Pipeline | Topologia aplicativa, runtime, workflows, writers y despliegue. |
+| Sistema DB Supabase | Modelo de datos, RLS, RPC, lectores, escritores y contrato de credenciales. |
+| Matriz Adopcion DB | Estado esperado por ambiente, promocion DB-as-code y drift. |
 | Matriz | Criterio, prueba, ambiente y evidencia. |
 | Evidencia | Resultado observado. |
 | Tracker | Dashboard operativo. |
@@ -52,6 +59,8 @@
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` mientras Etapa 1 Obsidian este pendiente de main.
+- El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` mientras la remediacion documental de arquitectura este propuesta.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 

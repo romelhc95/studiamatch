@@ -70,6 +70,7 @@ H2_ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 H2_OBSIDIAN_BASE_COMMIT = "56c517140ede7bce6a0580035a456016da8571a5"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
 PR424_BASE_COMMIT = "974f9d4bde6d79230afde5c5a86ba7a3894233c6"
+GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -141,6 +142,16 @@ GOVERNANCE_ALLOWLIST = (
     "tests/test_work_package_manifest.py",
     "tests/test_context_graph_semantics.py",
     "docker-compose.h2-test.yml",
+    "README.md",
+    ".context/00_INDICE.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/sistema_db_supabase.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
+    ".context/work_packages/WP-GOV-ARCH-001.json",
+    "docs/architecture/Documento_Detallado_workflow.md",
+    "docs/architecture/core_data_flow.md",
+    "docs/orquestador-sdlc/PRODUCTION_ARCHITECTURE.md",
 )
 ABSOLUTE_DENY = (
     ".env*",
@@ -209,6 +220,24 @@ GOV_INFRA_TRANSITION_ALLOWLIST = (
     "scripts/security/run_h2_r1_tests.sh",
 )
 GOV_RELEASE_TRANSITION_ALLOWLIST = tuple(sorted(set(GOV_OBS_TRANSITION_ALLOWLIST + GOV_INFRA_TRANSITION_ALLOWLIST)))
+GOV_ARCH_TRANSITION_ALLOWLIST = (
+    "AGENTS.md",
+    "README.md",
+    ".context/00_INDICE.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/sistema_db_supabase.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
+    ".context/work_packages/WP-GOV-ARCH-001.json",
+    "docs/architecture/Documento_Detallado_workflow.md",
+    "docs/architecture/core_data_flow.md",
+    "docs/orquestador-sdlc/PRODUCTION_ARCHITECTURE.md",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_work_package_manifest.py",
+)
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
     "db/**",
@@ -397,6 +426,30 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"GOV_INFRA_BASELINE_INVALID:{path.name}:candidate_tree")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_INFRA_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-ARCH-001":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-ARCH-001" or data.get("hito") != "GOV-ARCH":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_ARCH_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_ARCH_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_ARCH_BASE_COMMIT:
+            errors.append(f"GOV_ARCH_BASELINE_INVALID:{path.name}:candidate_commit")
+        if baseline.get("candidate_tree") != "530b0a95dda9f81f408ebcb8c177a1ed73afe3e3":
+            errors.append(f"GOV_ARCH_BASELINE_INVALID:{path.name}:candidate_tree")
+        required_paths = {
+            ".context/arquitectura_pipeline.md",
+            ".context/sistema_db_supabase.md",
+            ".context/operaciones/matriz_adopcion_db.md",
+            ".context/backlog_tareas/governance/TASK-GOV-ARCH-001.md",
+            ".context/work_packages/WP-GOV-ARCH-001.json",
+        }
+        if data.get("allowed_paths") != list(GOV_ARCH_TRANSITION_ALLOWLIST) or not required_paths <= set(data.get("allowed_paths", [])):
+            errors.append(f"GOV_ARCH_ALLOWLIST_INVALID:{path.name}")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_ARCH_R3_DENY_MISSING:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -540,19 +593,22 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
     if gov_obs_transition:
         allowed = GOV_RELEASE_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_arch_transition:
+        allowed = GOV_ARCH_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif obsidian_transition:
         allowed = H2_OBSIDIAN_TRANSITION_ALLOWLIST
@@ -594,8 +650,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
     errors: list[str] = []
-    if len(manifests) != 6:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA manifests")
+    if len(manifests) != 7:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     if args.changed_from:
@@ -607,6 +663,7 @@ def main(argv: list[str] | None = None) -> int:
             activation_transition=changed_from == H2_ACTIVATION_BASE_COMMIT,
             obsidian_transition=changed_from == H2_OBSIDIAN_BASE_COMMIT,
             gov_obs_transition=changed_from in {GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT},
+            gov_arch_transition=changed_from == GOV_ARCH_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

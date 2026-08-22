@@ -15,6 +15,12 @@ A diferencia de los buscadores de cursos tradicionales, StudIAMatch audita cada 
 ## 🛠️ Arquitectura y "Golden Pipeline"
 El sistema opera mediante un flujo de datos atómico y resiliente, diseñado para la escalabilidad nacional y la evasión de bloqueos (Stealth):
 
+La fuente canonica de arquitectura, datos e infraestructura esta en:
+
+- [Arquitectura Pipeline](.context/arquitectura_pipeline.md)
+- [Sistema DB Supabase](.context/sistema_db_supabase.md)
+- [Matriz Adopcion DB](.context/operaciones/matriz_adopcion_db.md)
+
 1.  **FG1: Mapeo Institucional (Mensual)**: Descubrimiento y registro de nuevas semillas académicas licenciadas por MINEDU.
 2.  **FG2: Cosecha Masiva y Saneamiento (Semanal)**: Extracción exhaustiva usando **TLS Impersonation (curl_cffi)** y limpieza de alta fidelidad para alimentar el cerebro de IA.
 3.  **FG3: Integridad Diaria (Diario)**: Verificación automática de enlaces (404) con lógica de periodo de gracia de 3 días.

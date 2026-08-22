@@ -42,7 +42,7 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
         manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -271,6 +271,19 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(data["target_level"], "R2")
         self.assertEqual(data["candidate_digest"], "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58")
         self.assertEqual(data["allowed_paths"], [".github/workflows/security-audit.yml", "docker-compose.h2-test.yml", "scripts/security/run_h2_r1_tests.sh"])
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
+
+    def test_gov_arch_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-ARCH-001.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertIn(".context/arquitectura_pipeline.md", data["allowed_paths"])
+        self.assertIn(".context/sistema_db_supabase.md", data["allowed_paths"])
+        self.assertIn(".context/operaciones/matriz_adopcion_db.md", data["allowed_paths"])
         self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
         self.assertIn("certification", data["denied_without_jit"])
         self.assertIn("main", data["denied_without_jit"])

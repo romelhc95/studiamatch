@@ -182,6 +182,13 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV INFRA") for error in validator.validate(root)))
 
+    def test_canonical_architecture_docs_missing_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            (root / ".context" / "arquitectura_pipeline.md").unlink()
+            self.assertTrue(any(error.startswith("ARCHITECTURE_CANONICAL_MISSING") for error in validator.validate(root)))
+
     def test_obsidian_completed_before_main_fails(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:

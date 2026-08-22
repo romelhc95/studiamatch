@@ -1,0 +1,78 @@
+# Matriz Adopcion DB
+
+> Fuente canonica para documentar adopcion de schema/configuracion por ambiente. No autoriza migraciones, DDL/DML ni operaciones remotas.
+
+Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
+
+## Ambientes
+
+| Rama | GitHub Environment | Supabase | Uso | Writers |
+|---|---|---|---|---|
+| `desarrollo` | `Development` | Free | desarrollo y validacion inicial | Manual/CI segun gates |
+| `certificacion` | `Certification` | Free | QA, canary y auditoria | Manual/CI segun gates |
+| `main` | `Production` | Pro | produccion | Solo gates productivos |
+| `main` schedule | `Production-Scheduled-FG1/FG2/FG3` | Pro | automatizacion programada | Requiere `AUTOMATION_ENABLED=true` y writers no pausados |
+
+## Estado De Adopcion Documental
+
+| Dominio | Development | Certification | Production | Evidencia Local |
+|---|---|---|---|---|
+| Restore schema base | Esperado por repo | Esperado por repo | Esperado por repo | `db/restore_full_schema.sql` |
+| Migraciones versionadas | Esperadas por rama | Promovidas por PR | Aplicadas por DB sync autorizado | `db/migrations/*.sql`, `db-sync-to-pro.yml` |
+| Catalogos/config | Promotable | Promotable | Promotable | migraciones y `check_db_parity.py` |
+| Operativas FG2 | Locales al ambiente | Locales al ambiente | Locales al ambiente | `staging_raw`, `cleansed_programs`, `enriched_programs`, `courses` |
+| RLS/RPC/grants | Deben validarse por migracion | Deben validarse por QA | Requieren R3/JIT para cambios | migrations F100-F116 y F10.8 |
+| Frontend public contract | Publishable key | Publishable key | Publishable key | `web/src/lib/supabase.ts` |
+
+## Promocion DB-As-Code
+
+```mermaid
+flowchart LR
+    Dev[desarrollo\nDevelopment/Free] --> PR[PR + security-audit]
+    PR --> Cert[certificacion\nCertification/Free]
+    Cert --> Main[main\nProduction code]
+    Main --> Report[db-sync-to-pro report]
+    Report --> Apply[manual apply con R3/JIT\nbackup + DDL auth]
+    Apply --> Verify[verify target schema]
+    Verify --> Pro[Production/Pro]
+```
+
+## Reglas De Adopcion
+
+- Schema, RLS, RPC, grants y catalogos/configuracion viajan como migraciones versionadas.
+- Tablas operativas no se sincronizan entre ambientes como flujo normal.
+- Backfill, sync Free/Pro, restore, DDL/DML remoto y RLS/grants remotos requieren autorizacion R3/JIT separada.
+- La paridad DB no debe fallar por conteos distintos en tablas operativas.
+- La paridad si debe fallar por drift de schema/configuracion promotable.
+
+## Writers Por Ambiente
+
+| Writer | Development | Certification | Production | Gate |
+|---|---|---|---|---|
+| FG1 inventario | Disponible solo con gate vigente | Disponible solo con gate vigente | Solo Production controls + gate vigente | `fg1_inventory.yml` |
+| FG2 ETL | Disponible solo con gate vigente | Disponible solo con gate vigente | Solo Production controls + gate vigente | `production_pipeline.yml` |
+| FG3 integridad | Disponible solo con gate vigente | Disponible solo con gate vigente | Solo Production controls + gate vigente | `fg3_integrity.yml` |
+| DB sync Pro | No aplica | No aplica | Manual y acotado | `db-sync-to-pro.yml` |
+| Production canary | No aplica | No aplica | Manual, writers pausados | `production_canary.yml` |
+| Maintenance/backfill | Remediacion explicita | Remediacion explicita | R3/JIT separado | scripts maintenance |
+
+## Evidencia Requerida Para Cambiar Estado
+
+| Cambio | Evidencia minima |
+|---|---|
+| Nueva migracion | PR con `security-audit`, PostgreSQL gate, review humano y manifest/gate aplicable |
+| Apply a Pro | Report pending, backup/PITR confirmado, `ddl_authorization_id`, apply manual, verify schema |
+| Cambio RLS/RPC | Tests de contrato, policy/grant diff, evidencia de no exposicion anon indebida |
+| Cambio writer | Arquitectura actualizada, matriz de escritor, gate de produccion, prueba de no secreto |
+| Backfill/sync | Runbook JIT, ambiente origen/destino, mapeo UUID por slug/nombre, rollback |
+
+## Drift Conocido
+
+- No se consulto ledger remoto de Supabase en esta remediacion documental.
+- `restore_full_schema.sql` debe complementarse con migraciones posteriores para describir el estado esperado.
+- Documentos legacy anteriores a esta matriz pueden mencionar service-role names o schedules antiguos; quedan historicos.
+
+## Mecanismo De Actualizacion
+
+- Actualizar esta matriz en el mismo PR que cambie `db/migrations/**`, workflows DB, production controls o adoption evidence.
+- Mantenerla sincronizada con [Sistema DB Supabase](../sistema_db_supabase.md) y [Arquitectura Pipeline](../arquitectura_pipeline.md).
