@@ -47,11 +47,11 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_OBS_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1 y el proximo gate de aprobacion R2 para `WP-GOV-OBS-001`.
+- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1 y el proximo gate de aprobacion R2 compuesta para `WP-GOV-OBS-001` y `WP-GOV-INFRA-001`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
-- El indice debe enlazar `WP-GOV-OBS-001` y `TASK-GOV-OBS-001` mientras Etapa 1 Obsidian este pendiente de main.
+- El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` mientras Etapa 1 Obsidian este pendiente de main.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 

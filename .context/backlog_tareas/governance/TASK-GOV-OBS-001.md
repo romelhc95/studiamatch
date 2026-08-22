@@ -11,7 +11,7 @@
 
 ## Alcance
 
-1. Preparar aprobacion por digest de `WP-GOV-OBS-001` hasta R2.
+1. Preparar aprobacion por digest de `WP-GOV-OBS-001` hasta R2, emparejada con `WP-GOV-INFRA-001` para cubrir el diff completo del PR #424.
 2. Autorizar posteriormente solo push, PR y merge a `desarrollo` del bundle documental.
 3. Mantener Certification/Main, DB, Supabase, deploys, writers, schedules y produccion como R3 JIT separados.
 4. Mantener H2-CA2 y H2-CA3 en `NOT_STARTED`.

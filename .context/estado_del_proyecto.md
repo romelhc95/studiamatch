@@ -62,7 +62,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Subfase tecnica activa: `F10.11`.
 - Work package activo: `WP-H2-001`.
 - Work package aprobado: `WP-H2-001=ACTIVE_R1`.
-- Work package de gobierno candidato: [WP-GOV-OBS-001](work_packages/WP-GOV-OBS-001.json).
+- Work packages de gobierno candidatos: [WP-GOV-OBS-001](work_packages/WP-GOV-OBS-001.json), [WP-GOV-INFRA-001](work_packages/WP-GOV-INFRA-001.json).
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
 - Lifecycle stage: `ACTIVE`.
@@ -71,7 +71,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Criteria status: `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED`.
 - Acceptance status: `NOT_STARTED`.
 - Etapa 1 Obsidian: `LOCAL_CANDIDATE_PENDING_MAIN`.
-- Proximo gate unico: `PREPARE_WP_GOV_OBS_R2_APPROVAL`.
+- Proximo gate unico: `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL`.
 
 ## Estado De Hitos Sprint 1
 
@@ -104,8 +104,8 @@ Hito 2 tiene `WP-H2-001` activo hasta R1, sin implementacion iniciada. La traza 
 
 ## Siguiente Gate
 
-El unico siguiente gate es `PREPARE_WP_GOV_OBS_R2_APPROVAL`. Ese gate debe emitir
-una aprobacion humana por digest para `WP-GOV-OBS-001` hasta R2, limitada a push,
+El unico siguiente gate es `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL`. Ese gate debe emitir
+una aprobacion humana por digest para `WP-GOV-OBS-001` y `WP-GOV-INFRA-001` hasta R2, limitada a push,
 PR y merge a `desarrollo`. Certification, Main, DDL/DML remoto, Supabase,
 backfill remoto, RLS/grants remotos, writers, schedules, produccion y cualquier
 R3 requieren grants JIT separados.

@@ -41,8 +41,8 @@ def approved_h2():
 class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
-        manifests = sorted(MANIFEST_DIR.glob("WP-H*-001.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -263,6 +263,18 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertIn("certification", data["denied_without_jit"])
         self.assertIn("main", data["denied_without_jit"])
 
+    def test_gov_infra_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-INFRA-001.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertEqual(data["candidate_digest"], "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58")
+        self.assertEqual(data["allowed_paths"], [".github/workflows/security-audit.yml", "docker-compose.h2-test.yml", "scripts/security/run_h2_r1_tests.sh"])
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
+
     def test_active_manifest_rejects_bad_activation_timestamp(self):
         validator = load_validator()
         for activated_at, prefix in (("not-a-date", "ACTIVATION_METADATA_REQUIRED"), ("2026-08-21T22:00:00Z", "ACTIVATION_TIMESTAMP_INVALID")):
@@ -324,7 +336,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         data = load_h2()
         allowed = validator.validate_changed_paths([("M", ".context/estado_del_proyecto.md"), ("M", "AGENTS.md")], [data], active_work_package="WP-H2-001", obsidian_transition=True)
         self.assertEqual(allowed, [])
-        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/security-audit.yml"):
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/unapproved.yml"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", obsidian_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
@@ -333,9 +345,25 @@ class WorkPackageManifestTests(unittest.TestCase):
         data = load_h2()
         allowed = validator.validate_changed_paths([("M", ".context/estado_del_proyecto.md"), ("M", "AGENTS.md")], [data], active_work_package="WP-H2-001", gov_obs_transition=True)
         self.assertEqual(allowed, [])
-        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/security-audit.yml"):
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/unapproved.yml"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_obs_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def test_gov_obs_transition_allows_explicit_infra_guardrails(self):
+        validator = load_validator()
+        data = load_h2()
+        changed = [
+            ("M", ".context/estado_del_proyecto.md"),
+            ("M", "AGENTS.md"),
+            ("M", ".github/workflows/security-audit.yml"),
+            ("A", "docker-compose.h2-test.yml"),
+            ("A", "scripts/security/run_h2_r1_tests.sh"),
+        ]
+        self.assertEqual(validator.validate_changed_paths(changed, [data], active_work_package="WP-H2-001", gov_obs_transition=True), [])
+
+    def test_resolve_git_ref_normalizes_abbreviated_sha(self):
+        validator = load_validator()
+        self.assertEqual(validator.resolve_git_ref("974f9d4", root=ROOT), "974f9d4bde6d79230afde5c5a86ba7a3894233c6")
 
     def test_multiple_active_work_packages_fail(self):
         validator = load_validator()

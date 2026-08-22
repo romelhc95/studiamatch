@@ -31,7 +31,7 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.
 | Etapa 1 Obsidian | `LOCAL_CANDIDATE_PENDING_MAIN` |
 | F10.11 | `HOMOLOGATED_OBSIDIAN_PENDING_MAIN` |
 | Execution phase siguiente | `F12.1_BLOCKED_BY_OBSIDIAN_MAIN` |
-| Proximo gate | `PREPARE_WP_GOV_OBS_R2_APPROVAL` |
+| Proximo gate | `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL` |
 
 ## Evidencia Funcional Futura
 

@@ -13,8 +13,8 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_OBSIDIAN_MAIN
 active_work_package = WP-H2-001
-governance_work_package = WP-GOV-OBS-001
-next_gate = PREPARE_WP_GOV_OBS_R2_APPROVAL
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001
+next_gate = PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_OBSIDIAN_MAIN
@@ -78,7 +78,7 @@ D0-D10 paquete correctivo local
 -> aprobacion digest WP-H2-001 completada hasta R1 no activo
 -> activacion separada WP-H2-001 R1 completada
 -> candidate local Obsidian pendiente de main
--> aprobacion WP-GOV-OBS-001 hasta R2
+-> aprobacion WP-GOV-OBS-001 + WP-GOV-INFRA-001 hasta R2
 -> PR/merge a desarrollo
 -> R3 JIT certificacion
 -> R3 JIT main
@@ -157,7 +157,7 @@ H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada 
 | T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
-| T6 | Gobierno Obsidian | `WP-GOV-OBS-001` candidate; requiere aprobacion R2 para desarrollo. |
+| T6 | Gobierno Obsidian | `WP-GOV-OBS-001` + `WP-GOV-INFRA-001` candidates; requieren aprobacion R2 compuesta para desarrollo. |
 | T7 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
 | T8 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 en main y WP H2 rebasado/validado. |
 | T9 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
@@ -296,4 +296,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-OBS-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-OBS-001` y `WP-GOV-INFRA-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.

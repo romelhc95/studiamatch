@@ -29,12 +29,14 @@ REQUIRED_INDEX_LINKS = (
     "decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md",
     "work_packages/WP-H2-001.json",
     "work_packages/WP-GOV-OBS-001.json",
+    "work_packages/WP-GOV-INFRA-001.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
     "matrices/matriz_hito_002.md",
     "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md",
     "backlog_tareas/governance/TASK-GOV-OBS-001.md",
+    "backlog_tareas/governance/TASK-GOV-INFRA-001.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -60,6 +62,7 @@ APPROVED_DIGEST = "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a
 APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
 ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 GOV_OBS_DIGEST = "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060"
+GOV_INFRA_DIGEST = "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -107,8 +110,10 @@ def validate(root: Path = ROOT) -> list[str]:
     evidence = read(root, "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
     legacy_evidence = read(root, "evidencias_cliente/sprint_1/evidencia_hito_002.md")
     gov_task = read(root, "backlog_tareas/governance/TASK-GOV-OBS-001.md")
+    gov_infra_task = read(root, "backlog_tareas/governance/TASK-GOV-INFRA-001.md")
     wp = json.loads((root / ".context" / "work_packages" / "WP-H2-001.json").read_text(encoding="utf-8"))
     gov_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-OBS-001.json").read_text(encoding="utf-8"))
+    gov_infra_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-INFRA-001.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -180,8 +185,12 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_OBS_R2_APPROVAL" not in state or "PREPARE_WP_GOV_OBS_R2_APPROVAL" not in plan:
+    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in state or "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in plan:
         errors.append("NEXT_GATE_MISMATCH:GOV OBS R2 approval gate must be next")
+    if "PREPARE_WP_GOV_OBS_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:stale OBS-only R2 gate")
+    if "WP-GOV-INFRA-001" not in state or "WP-GOV-INFRA-001" not in plan:
+        errors.append("GOV_INFRA_WP_INVALID:missing from canonical authority")
     if "EXECUTE_F12_1_LOCAL_CA2_R1" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
     if "Pendiente de aprobacion humana por digest" in plan:
@@ -200,6 +209,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
     if f"Apruebo WP-GOV-OBS-001 de TASK-GOV-OBS-001 segun manifest sha256:{GOV_OBS_DIGEST}" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV OBS approval prompt missing digest")
+    if f"WP-GOV-INFRA-001 de TASK-GOV-INFRA-001 segun manifest sha256:{GOV_INFRA_DIGEST}" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV INFRA approval prompt missing digest")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV OBS prompt must be R2 only")
 
@@ -223,6 +234,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_OBS_WP_INVALID:baseline")
     if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_task:
         errors.append("GOV_OBS_TASK_INVALID:status")
+    if gov_infra_wp.get("id") != "WP-GOV-INFRA-001" or gov_infra_wp.get("task_id") != "TASK-GOV-INFRA-001" or gov_infra_wp.get("status") != "PROPOSED":
+        errors.append("GOV_INFRA_WP_INVALID:identity/status")
+    if gov_infra_wp.get("candidate_digest") != GOV_INFRA_DIGEST or gov_infra_wp.get("target_level") != "R2":
+        errors.append("GOV_INFRA_WP_INVALID:digest/target")
+    if gov_infra_wp.get("allowed_paths") != [".github/workflows/security-audit.yml", "docker-compose.h2-test.yml", "scripts/security/run_h2_r1_tests.sh"]:
+        errors.append("GOV_INFRA_WP_INVALID:allowlist")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_infra_task:
+        errors.append("GOV_INFRA_TASK_INVALID:status")
 
     for name, text in (("hito", hito), ("task", task), ("matrix", matrix), ("plan", plan), ("tracker", tracker)):
         if not H2_CRITERIA <= criteria_from_text(text):
