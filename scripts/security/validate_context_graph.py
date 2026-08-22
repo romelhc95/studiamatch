@@ -37,6 +37,7 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-GOV-HOM-001.json",
     "work_packages/WP-GOV-CI-001.json",
     "work_packages/WP-GOV-CI-002.json",
+    "work_packages/WP-GOV-CI-003.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -48,9 +49,11 @@ REQUIRED_INDEX_LINKS = (
     "backlog_tareas/governance/TASK-GOV-HOM-001.md",
     "backlog_tareas/governance/TASK-GOV-CI-001.md",
     "backlog_tareas/governance/TASK-GOV-CI-002.md",
+    "backlog_tareas/governance/TASK-GOV-CI-003.md",
     "decisiones/ADR-0029_homologacion_no_recursiva.md",
     "decisiones/ADR-0030_separacion_ci_y_review_gate.md",
     "decisiones/ADR-0031_boundary_homologacion_estructural.md",
+    "decisiones/ADR-0032_grant_bootstrap_no_autorreferencial.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -85,6 +88,8 @@ GOV_CI_BASE_COMMIT = "fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1"
 GOV_CI_BASE_TREE = "5e7d087ac45457264ea29dfc1aa7373efd909290"
 GOV_CI2_BASE_COMMIT = "b878c5764e55cb2646b60c4777e363489fe48e8b"
 GOV_CI2_BASE_TREE = "174c18efd840fff6ce27fce9fe1dc4edcd65abe8"
+GOV_CI3_BASE_COMMIT = "1ac74f78fec6290e214444e9d2f18619ae3fd3b6"
+GOV_CI3_BASE_TREE = "8191790192580f2e9fb1ddb48d85ab28714720f9"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -146,6 +151,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_hom_task = read(root, "backlog_tareas/governance/TASK-GOV-HOM-001.md")
     gov_ci_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-001.md")
     gov_ci2_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-002.md")
+    gov_ci3_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-003.md")
     architecture = read(root, "arquitectura_pipeline.md")
     db_system = read(root, "sistema_db_supabase.md")
     db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
@@ -156,6 +162,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_hom_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
     gov_ci_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-001.json").read_text(encoding="utf-8"))
     gov_ci2_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-002.json").read_text(encoding="utf-8"))
+    gov_ci3_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-003.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -230,8 +237,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_002_R2_APPROVAL" not in tracker:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI2 R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_003_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_003_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_003_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI3 R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_002_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV CI2 R2 gate")
     if "PREPARE_WP_GOV_CI_001_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV CI1 R2 gate")
     if "PREPARE_WP_GOV_HOM_R2_APPROVAL" in state + plan + tracker:
@@ -244,6 +253,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:stale OBS-only R2 gate")
     if "WP-GOV-INFRA-001" not in state or "WP-GOV-INFRA-001" not in plan:
         errors.append("GOV_INFRA_WP_INVALID:missing from canonical authority")
+    if "WP-GOV-CI-003" not in state or "WP-GOV-CI-003" not in plan or "TASK-GOV-CI-003" not in gov_ci3_task:
+        errors.append("GOV_CI3_WP_INVALID:missing from canonical authority")
     if "EXECUTE_F12_1_LOCAL_CA2_R1" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
     if "Pendiente de aprobacion humana por digest" in plan:
@@ -260,8 +271,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if "Apruebo WP-GOV-CI-002 de TASK-GOV-CI-002 segun manifest sha256:<D_CI2>" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI2 approval prompt missing digest placeholder")
+    if "Apruebo WP-GOV-CI-003 de TASK-GOV-CI-003 segun manifest sha256:<D_CI3>" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI3 approval prompt missing digest placeholder")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV HOM prompt must be R2 only")
 
@@ -336,6 +347,17 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI2_PROMOTION_BOUNDARY_INVALID")
     if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_ci2_task:
         errors.append("GOV_CI2_TASK_INVALID:status")
+    if gov_ci3_wp.get("id") != "WP-GOV-CI-003" or gov_ci3_wp.get("task_id") != "TASK-GOV-CI-003" or gov_ci3_wp.get("status") != "PROPOSED":
+        errors.append("GOV_CI3_WP_INVALID:identity/status")
+    if gov_ci3_wp.get("target_level") != "R2":
+        errors.append("GOV_CI3_WP_INVALID:target")
+    if gov_ci3_wp.get("baseline", {}).get("candidate_commit") != GOV_CI3_BASE_COMMIT or gov_ci3_wp.get("baseline", {}).get("candidate_tree") != GOV_CI3_BASE_TREE:
+        errors.append("GOV_CI3_WP_INVALID:baseline")
+    bootstrap = gov_ci3_wp.get("promotion_request_bootstrap", {})
+    if bootstrap.get("static_request_status") != "REQUESTED_JIT_SINGLE_USE" or bootstrap.get("final_wp") != "WP-GOV-CI-003" or len(bootstrap.get("grant_request_ids", [])) != 4:
+        errors.append("GOV_CI3_BOOTSTRAP_INVALID")
+    if "CANDIDATE_R1_LOCAL" not in gov_ci3_task:
+        errors.append("GOV_CI3_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
     if "PR #425" not in state or GOV_HOM_BASE_COMMIT not in state + tracker + plan or GOV_HOM_BASE_TREE not in state + tracker + plan:
@@ -344,6 +366,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI_R2_HISTORY_MISSING:PR426")
     if "PR #427" not in state or GOV_CI2_BASE_COMMIT not in state + tracker + plan or GOV_CI2_BASE_TREE not in state + tracker + plan:
         errors.append("GOV_CI2_R2_HISTORY_MISSING:PR427")
+    if "PR #429" not in state or GOV_CI3_BASE_COMMIT not in state + tracker + plan or GOV_CI3_BASE_TREE not in state + tracker + plan:
+        errors.append("GOV_CI3_R2_HISTORY_MISSING:PR429")
     if "PR #428" not in state + tracker + plan or "O2_CONSUMED_BY_FAILURE" not in state + tracker + plan:
         errors.append("GOV_CI2_FAILURE_HISTORY_MISSING:PR428")
     canonical_docs = (

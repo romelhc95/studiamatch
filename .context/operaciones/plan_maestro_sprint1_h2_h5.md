@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_GOV_CI2_PROMOTION_BOUNDARY_PENDING_R2
+ESTADO = F10_11_GOV_CI3_GRANT_BOOTSTRAP_PENDING_R2
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
@@ -13,15 +13,15 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002
-next_gate = PREPARE_WP_GOV_CI_002_R2_APPROVAL
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002,WP-GOV-CI-003
+next_gate = PREPARE_WP_GOV_CI_003_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #427 publico GOV-CI a `desarrollo`; PR #428 fallo O2 por `Canonical Path Boundary` y dejo `O2_CONSUMED_BY_FAILURE`. Ahora F10.11 requiere `WP-GOV-CI-002` para separar boundary incremental y boundary estructural antes de cualquier nuevo O2 R3 JIT. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
+Este plan no crea alcance ni autoriza R2/R3. PR #429 publico GOV-CI2 a `desarrollo`; PR #428 fallo O2 por `Canonical Path Boundary` y dejo `O2_CONSUMED_BY_FAILURE`. Ahora F10.11 requiere `WP-GOV-CI-003` para eliminar bootstrap autorreferencial de grants antes de cualquier nuevo O2 R3 JIT. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
@@ -29,7 +29,7 @@ Este plan no crea alcance ni autoriza R2/R3. PR #427 publico GOV-CI a `desarroll
 |---|---|---|---|
 | `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
 | `certificacion` | `fe7b27abf18c096f674948b4f30f815aea4aef08` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O4 completado |
-| `desarrollo` | `b878c5764e55cb2646b60c4777e363489fe48e8b` | `174c18efd840fff6ce27fce9fe1dc4edcd65abe8` | PR #427 completado; PR #428 fallo O2, requiere `WP-GOV-CI-002` antes de nuevo R3 |
+| `desarrollo` | `1ac74f78fec6290e214444e9d2f18619ae3fd3b6` | `8191790192580f2e9fb1ddb48d85ab28714720f9` | PR #429 completado; PR #428 fallo O2, requiere `WP-GOV-CI-003` antes de nuevo R3 |
 
 ## Fuentes Y Hashes
 
@@ -92,6 +92,10 @@ D0-D10 paquete correctivo local
 -> candidate WP-GOV-CI-002 boundary estructural de promocion
 -> aprobacion WP-GOV-CI-002 hasta R2
 -> PR/merge a desarrollo de GOV-CI-002
+-> candidate WP-GOV-CI-003 bootstrap no autorreferencial de grants
+-> aprobacion WP-GOV-CI-003 hasta R2
+-> cierre administrativo de PR #428 sin merge
+-> PR/merge a desarrollo de GOV-CI-003
 -> R3 JIT certificacion
 -> R3 JIT main
 -> homologacion main -> certificacion -> desarrollo
@@ -123,7 +127,8 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | R2 GOV ARCH | `COMPLETED` | PR #425 a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`; tree `ac16b545b74a03b149aac538062def20101187fb`; digest `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1`. |
 | R2 GOV HOM | `COMPLETED` | PR #426 a `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`; tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; digest `aa9d19408c2750925f5824cdfcc3793e7aca1f38f8d95b8f9c57426139989e7e`. |
 | GOV CI/review | `COMPLETED` | PR #427 a `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`; tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; desacopla validacion tecnica de review nativa. |
-| GOV CI2 boundary promocion | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | PR #428 fallo O2 con `O2_CONSUMED_BY_FAILURE`; candidate local `WP-GOV-CI-002` separa boundary incremental y estructural. |
+| GOV CI2 boundary promocion | `COMPLETED` | PR #429 a `desarrollo@1ac74f78fec6290e214444e9d2f18619ae3fd3b6`; tree `8191790192580f2e9fb1ddb48d85ab28714720f9`; digest `30bc9a2e7b201438e7398a46f42e6a719e0e5bb41d46c95c71b02234c9091d04`. |
+| GOV CI3 grant bootstrap | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | Candidate local `WP-GOV-CI-003` elimina autorreferencia de solicitudes R3 y deja PR #428 pendiente de cierre administrativo futuro. |
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -176,8 +181,9 @@ H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada 
 | T6 | Gobierno Obsidian | `WP-GOV-OBS-001` + `WP-GOV-INFRA-001` candidates; requieren aprobacion R2 compuesta para desarrollo. |
 | T7 | Reconciliacion GOV-HOM | `COMPLETED` mediante PR #426. |
 | T8 | Desacople GOV-CI | `COMPLETED` mediante PR #427. |
-| T9 | Boundary GOV-CI2 | `WP-GOV-CI-002` prepara boundary estructural de promociones y requiere R2 separado a `desarrollo`. |
-| T10 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
+| T9 | Boundary GOV-CI2 | `COMPLETED` mediante PR #429. |
+| T9.5 | Bootstrap GOV-CI3 | `WP-GOV-CI-003` corrige solicitudes R3 no autorreferenciales y requiere R2 separado a `desarrollo`. |
+| T10 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final, posterior a CI-003. |
 | T10 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 y WP H2 rebasado/validado. |
 | T11 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 

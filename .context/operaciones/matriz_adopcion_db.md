@@ -5,6 +5,7 @@
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
 Snapshot GOV-CI: `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e7d087ac45457264ea29dfc1aa7373efd909290`.
 Snapshot GOV-CI2: `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`, tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; sin cambios DB.
+Snapshot GOV-CI3: `desarrollo@1ac74f78fec6290e214444e9d2f18619ae3fd3b6`, tree `8191790192580f2e9fb1ddb48d85ab28714720f9`; sin cambios DB.
 
 ## Ambientes
 
@@ -47,6 +48,7 @@ flowchart LR
 - La paridad DB no debe fallar por conteos distintos en tablas operativas.
 - La paridad si debe fallar por drift de schema/configuracion promotable.
 - GOV-CI2 solo cambia controles de promocion en CI; no cambia schema, migraciones, ambientes, writers, RLS, grants ni adoption state.
+- GOV-CI3 solo corrige bootstrap de solicitudes R3 versionadas para promociones; no cambia schema, migraciones, ambientes, writers, RLS, grants ni adoption state.
 
 ## Writers Por Ambiente
 
