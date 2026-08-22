@@ -37,6 +37,7 @@
 - [ADR-0029](decisiones/ADR-0029_homologacion_no_recursiva.md)
 - [ADR-0030](decisiones/ADR-0030_separacion_ci_y_review_gate.md)
 - [ADR-0031](decisiones/ADR-0031_boundary_homologacion_estructural.md)
+- [ADR-0032](decisiones/ADR-0032_grant_bootstrap_no_autorreferencial.md)
 
 ## Operaciones
 
@@ -60,6 +61,7 @@
 - [WP-GOV-HOM-001](work_packages/WP-GOV-HOM-001.json)
 - [WP-GOV-CI-001](work_packages/WP-GOV-CI-001.json)
 - [WP-GOV-CI-002](work_packages/WP-GOV-CI-002.json)
+- [WP-GOV-CI-003](work_packages/WP-GOV-CI-003.json)
 - [WP-H3-001](work_packages/WP-H3-001.json)
 - [WP-H4-001](work_packages/WP-H4-001.json)
 - [WP-H5-001](work_packages/WP-H5-001.json)
@@ -82,6 +84,7 @@
 - [TASK-GOV-HOM-001](backlog_tareas/governance/TASK-GOV-HOM-001.md)
 - [TASK-GOV-CI-001](backlog_tareas/governance/TASK-GOV-CI-001.md)
 - [TASK-GOV-CI-002](backlog_tareas/governance/TASK-GOV-CI-002.md)
+- [TASK-GOV-CI-003](backlog_tareas/governance/TASK-GOV-CI-003.md)
 
 ## MOC Canonico
 
