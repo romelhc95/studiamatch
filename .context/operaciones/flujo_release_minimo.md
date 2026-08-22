@@ -113,6 +113,7 @@ Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_
 ```text
 F10.11 GOV-HOM candidate produce T_HOM
 -> R2 separado para push/PR/merge a desarrollo
+-> GOV-CI separa security-audit de review nativa
 -> R3 O2 JIT desarrollo -> certificacion
 -> R3 O3 JIT certificacion -> main
 -> R3 O4 JIT main -> certificacion
@@ -130,7 +131,8 @@ F12.1 local H2-CA2 bajo WP/digest R1
 ## Reglas
 
 - `security-audit` permanece como required check.
-- Cada PR requiere review humano.
+- `security-audit` valida attestation, manifest, digest, `Base-SHA`, `Candidate-SHA`, paths y co-change.
+- Cada PR requiere review humano por branch protection; la review no dispara CI y no necesita rerun manual.
 - Push y PR requieren R2 separado.
 - H2-H5 requieren work package aprobado por digest.
 - H2-CA3 no inicia antes de cerrar H2-CA2 local.

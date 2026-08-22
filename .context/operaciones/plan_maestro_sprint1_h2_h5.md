@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_GOV_HOM_RECONCILIATION_PENDING_R2
+ESTADO = F10_11_GOV_CI_REVIEW_GATE_DECOUPLING_PENDING_R2
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
@@ -13,15 +13,15 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001
-next_gate = PREPARE_WP_GOV_HOM_R2_APPROVAL
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001
+next_gate = PREPARE_WP_GOV_CI_001_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #425 publico la arquitectura canonica y Governance Preflight a `desarrollo`; ahora F10.11 requiere una reconciliacion no recursiva para producir `T_HOM` antes de cualquier promocion R3. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
+Este plan no crea alcance ni autoriza R2/R3. PR #426 publico GOV-HOM a `desarrollo`; ahora F10.11 requiere GOV-CI para desacoplar `security-audit` del gate nativo de review antes de cualquier promocion R3. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
@@ -29,7 +29,7 @@ Este plan no crea alcance ni autoriza R2/R3. PR #425 publico la arquitectura can
 |---|---|---|---|
 | `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
 | `certificacion` | `fe7b27abf18c096f674948b4f30f815aea4aef08` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O4 completado |
-| `desarrollo` | `4cce43a743de5860c4da86eecf1782efab91d26b` | `ac16b545b74a03b149aac538062def20101187fb` | PR #425 completado; requiere `WP-GOV-HOM-001` antes de R3 |
+| `desarrollo` | `fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1` | `5e7d087ac45457264ea29dfc1aa7373efd909290` | PR #426 completado; requiere `WP-GOV-CI-001` antes de R3 |
 
 ## Fuentes Y Hashes
 
@@ -85,6 +85,9 @@ D0-D10 paquete correctivo local
 -> candidate WP-GOV-HOM-001 produce T_HOM
 -> aprobacion WP-GOV-HOM-001 hasta R2
 -> PR/merge a desarrollo de T_HOM
+-> candidate WP-GOV-CI-001 desacopla security-audit/review
+-> aprobacion WP-GOV-CI-001 hasta R2
+-> PR/merge a desarrollo de GOV-CI
 -> R3 JIT certificacion
 -> R3 JIT main
 -> homologacion main -> certificacion -> desarrollo
@@ -114,7 +117,8 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O4 | `COMPLETED` | PR #422 mergeado a `certificacion`. |
 | O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
 | R2 GOV ARCH | `COMPLETED` | PR #425 a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`; tree `ac16b545b74a03b149aac538062def20101187fb`; digest `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1`. |
-| GOV HOM | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | Candidate local `WP-GOV-HOM-001`; cierre efectivo por predicado externo, no por prosa. |
+| R2 GOV HOM | `COMPLETED` | PR #426 a `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`; tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; digest `aa9d19408c2750925f5824cdfcc3793e7aca1f38f8d95b8f9c57426139989e7e`. |
+| GOV CI | `PROPOSED_R2_PENDING_DIGEST_APPROVAL` | Candidate local `WP-GOV-CI-001`; separa validacion tecnica de review nativa y elimina rerun manual por review. |
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -165,10 +169,11 @@ H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada 
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
 | T6 | Gobierno Obsidian | `WP-GOV-OBS-001` + `WP-GOV-INFRA-001` candidates; requieren aprobacion R2 compuesta para desarrollo. |
-| T7 | Reconciliacion GOV-HOM | `WP-GOV-HOM-001` produce `T_HOM` y requiere R2 separado a `desarrollo`. |
-| T8 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
-| T9 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 y WP H2 rebasado/validado. |
-| T10 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
+| T7 | Reconciliacion GOV-HOM | `COMPLETED` mediante PR #426. |
+| T8 | Desacople GOV-CI | `WP-GOV-CI-001` prepara `security-audit` independiente de review y requiere R2 separado a `desarrollo`. |
+| T9 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
+| T10 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 y WP H2 rebasado/validado. |
+| T11 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -285,6 +290,8 @@ Contrato de interaccion:
 - Path boundary acumulado contra baseline.
 - PostgreSQL 17 solo cuando cambie `db/**`.
 
+`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual.
+
 Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Stop Conditions Globales
@@ -304,7 +311,7 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta publicada parcialmente en `desarrollo`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que `WP-GOV-HOM-001` produzca `T_HOM`, ese tree sea publicado a `desarrollo` por R2 y luego homologado por cuatro grants R3 JIT separados. PR #425 quedo `MERGED_TO_DESARROLLO` en `4cce43a743de5860c4da86eecf1782efab91d26b` con tree `ac16b545b74a03b149aac538062def20101187fb`, CI verde y review humano. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-HOM-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta publicada parcialmente en `desarrollo`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI sea publicado a `desarrollo` por R2 y luego homologado por cuatro grants R3 JIT separados. PR #426 quedo `MERGED_TO_DESARROLLO` en `fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1` con tree `5e7d087ac45457264ea29dfc1aa7373efd909290`, CI verde y review humano. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-CI-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
 
 ## Predicado Externo De Cierre F10.11
 

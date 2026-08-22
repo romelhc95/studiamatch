@@ -42,7 +42,7 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
         manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -301,6 +301,21 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertIn("certification", data["denied_without_jit"])
         self.assertIn("main", data["denied_without_jit"])
 
+    def test_gov_ci_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-CI-001.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertEqual(data["baseline"]["candidate_commit"], "fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1")
+        self.assertEqual(data["baseline"]["candidate_tree"], "5e7d087ac45457264ea29dfc1aa7373efd909290")
+        self.assertFalse(data["ci_review_decoupling"]["reviews_trigger_ci"])
+        self.assertFalse(data["ci_review_decoupling"]["reviews_api_used"])
+        self.assertFalse(data["ci_review_decoupling"]["manual_rerun_required_for_review"])
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
+
     def test_gov_hom_rejects_grouped_grants(self):
         validator = load_validator()
         data = json.loads((MANIFEST_DIR / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
@@ -430,6 +445,19 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(allowed, [])
         for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", ".context/work_packages/WP-GOV-ARCH-001.json"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_hom_transition=True)
+            self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def test_gov_ci_transition_allows_exact_scope_and_rejects_consumed_manifests(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([
+            ("M", ".github/workflows/security-audit.yml"),
+            ("M", "scripts/security/validate_change_governance.py"),
+            ("A", ".context/work_packages/WP-GOV-CI-001.json"),
+        ], [data], active_work_package="WP-H2-001", gov_ci_transition=True)
+        self.assertEqual(allowed, [])
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", ".context/work_packages/WP-GOV-ARCH-001.json", ".context/work_packages/WP-GOV-HOM-001.json"):
+            errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
     def test_resolve_git_ref_normalizes_abbreviated_sha(self):
