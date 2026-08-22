@@ -2,7 +2,7 @@
 
 ## Regla De Ejecucion De Fases Y Work Packages
 
-La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. Durante la transicion F10.11, **solo ejecuta tareas cuando el usuario lo apruebe explicitamente diciendo `Ejecuta las tareas pendientes de la Fase FNN.n`** y `FNN.n` coincida exactamente con la subfase decimal activa. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion.
+La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. La transicion F10.11 permanece como homologacion canonica con documentacion Obsidian candidate pendiente de main; desde F12.1 la fase decimal queda solo como trazabilidad/seleccion de tareas y no reemplaza el modelo WP/digest para trabajo posterior. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion. La frase legacy `Ejecuta las tareas pendientes de la Fase FNN.n` deja de ser microautorizacion operativa posterior a F10.11; la autorizacion vigente usa WP/digest y niveles R0-R3. La taxonomia legacy `ADR-0003` queda superseded por [ADR-0027](.context/decisiones/ADR-0027_work_packages_y_convergencia.md), [ADR-0028](.context/decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md) y su tombstone [ADR-0003](.context/decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
 
 El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles R0-R3:
 
@@ -14,13 +14,13 @@ El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles 
 | `R3` | Certification/Main, DB, deploys, schedules, writers, secrets | JIT single-use |
 | `R3+` | Destruccion o recuperacion productiva | JIT y doble aprobacion |
 
-Formato objetivo:
+Formato operativo posterior a F10.11:
 
 ```text
-Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest>, hasta R2 y hasta <expiry>.
+Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest> contenido en candidate commit:<commit>, hasta <nivel> y hasta <expiry_utc>.
 ```
 
-No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no sustituye la frase decimal exacta ni concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
+La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, workflow_dispatch, Certification, Main, produccion ni ningun R3. La primera aprobacion de `WP-H2-001` solo puede ser R1; R2 requiere revision Plan posterior y autorizacion separada. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 

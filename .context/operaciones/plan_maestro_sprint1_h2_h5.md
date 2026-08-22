@@ -3,26 +3,33 @@
 ## Estado
 
 ```text
-ESTADO = DOC_GOVERNANCE_CONFORMANCE_COMPLETED_LOCAL
+ESTADO = F10_11_HOMOLOGATED_OBSIDIAN_PENDING_MAIN
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
 O2 = COMPLETED
-O3 = BLOCKED_BY_SOURCE_CONFORMANCE
-H2-H5 = NOT_AUTHORIZED
-active_work_package = NONE
-next_gate = R2_PUSH_PR_DESARROLLO_REQUIRES_SEPARATE_AUTHORIZATION
+O3 = COMPLETED
+O4 = COMPLETED
+O5 = COMPLETED
+H2-H5 = BLOCKED_PENDING_OBSIDIAN_MAIN
+active_work_package = WP-H2-001
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001
+next_gate = PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL
+lifecycle_stage = ACTIVE
+gate_status = APPROVED_R1
+implementation_status = BLOCKED_PENDING_OBSIDIAN_MAIN
+criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza ejecucion. Es el contrato documental para corregir la conformidad de `REQ-EST-001` antes de O3 y para dejar trazable la ejecucion futura H2-H5.
+Este plan no crea alcance ni autoriza R2/R3. Sirvio para corregir la conformidad de `REQ-EST-001` durante F10.11 y contiene un candidate local de documentacion Obsidian. Etapa 1 solo queda cerrada cuando esa documentacion exista en `main`, haya sido homologada hacia `certificacion` y `desarrollo`, y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
 | Rama | Commit | Tree | Estado |
 |---|---|---|---|
-| `main` | `ad89e8ab9575b37476502d6062e22c044ad6447b` | `54098b3ff581cc7728979afc8e6d47c9535141b5` | Baseline tecnico PR #327 |
-| `desarrollo` | `a2c97ec17aabc790b656d6db1b16bdc95f0af1b2` | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` | O1/O1.5 completado |
-| `certificacion` | `4e7e41a9fac08e657308849701b4b1f70b994e3b` | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` | O2 completado |
+| `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
+| `certificacion` | `fe7b27abf18c096f674948b4f30f815aea4aef08` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O4 completado |
+| `desarrollo` | `974f9d4bde6d79230afde5c5a86ba7a3894233c6` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O5 completado; checkout limpio |
 
 ## Fuentes Y Hashes
 
@@ -68,8 +75,19 @@ D0-D10 paquete correctivo local
 -> O4 main -> certificacion
 -> O5 certificacion -> desarrollo
 -> tracker final y checkout limpio
--> aprobacion digest WP-H2-001
--> H2
+-> aprobacion digest WP-H2-001 completada hasta R1 no activo
+-> activacion separada WP-H2-001 R1 completada
+-> candidate local Obsidian pendiente de main
+-> aprobacion WP-GOV-OBS-001 + WP-GOV-INFRA-001 hasta R2
+-> PR/merge a desarrollo
+-> R3 JIT certificacion
+-> R3 JIT main
+-> homologacion main -> certificacion -> desarrollo
+-> checkout ordinario actualizado
+-> cierre Etapa 1 Obsidian
+-> nuevo/rebasado WP Hito 2
+-> H2-CA2 local R1
+-> H2-CA3 local R1 posterior
 -> H3
 -> H4
 -> H5
@@ -86,10 +104,11 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O1 | `COMPLETED` | PR #414 a `desarrollo`. |
 | O1.5 | `COMPLETED` | PR #415 reconciliacion post-O1. |
 | O2 | `COMPLETED` | PR #416 a `certificacion`; tree homologado. |
-| D0-D10 | `COMPLETED_LOCAL_VERIFIED` | Conformidad documental, gobierno reutilizable, links, manifests, evidencias y CI verificados localmente. |
-| O3 | `BLOCKED` | Requiere D0-D10 mergeado en `certificacion` y nuevo prompt. |
-| O4 | `PENDING` | Requiere O3 mergeado. |
-| O5 | `PENDING` | Requiere O4 mergeado y tracker final. |
+| D0-D10 | `COMPLETED` | Conformidad documental, gobierno reutilizable, links, manifests, evidencias y CI homologados. |
+| O3 | `COMPLETED` | PR #421 mergeado a `main`. |
+| O4 | `COMPLETED` | PR #422 mergeado a `certificacion`. |
+| O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
+| Etapa 1 Obsidian | `LOCAL_CANDIDATE_PENDING_MAIN` | Vault, enlaces canonicos, evidencia H2, taxonomia y siguiente gate reconciliados localmente; cierre efectivo pendiente de main. |
 
 ## D0-D10 Correctivo
 
@@ -109,12 +128,12 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 
 ## Scoring H2-H5
 
-H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no hay implementacion autorizada.
+H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada en main, H2-CA2 y H2-CA3 siguen bloqueados y todos los criterios permanecen `0/100`.
 
-| Unidad | Hito | Estado F10.11 | Puntos |
+| Unidad | Hito | Estado pre-main | Puntos |
 |---|---|---|---:|
-| `H2-CA2` | H2 | `PLANNED_NOT_ACTIVE` | 0 |
-| `H2-CA3` | H2 | `PLANNED_NOT_ACTIVE` | 0 |
+| `H2-CA2` | H2 | `BLOCKED_PENDING_OBSIDIAN_MAIN` | 0 |
+| `H2-CA3` | H2 | `NOT_STARTED` | 0 |
 | `H3-CA4` | H3 | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA5` | H4 | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA6` | H4 | `PLANNED_NOT_ACTIVE` | 0 |
@@ -132,13 +151,16 @@ H2-H5 usan 12 unidades de 100 puntos. En F10.11 todas quedan `0/100` porque no h
 
 | Secuencia | Trabajo | Dependencias |
 |---|---|---|
-| T0 | D0-D10 local | `COMPLETED_LOCAL_VERIFIED`. |
-| T1 | PR correctivo a `desarrollo` | Requiere autorizacion R2 separada. |
-| T2 | re-O2 a `certificacion` | Correctivo en `desarrollo`. |
-| T3 | O3 a `main` | Correctivo en `certificacion`; nuevo prompt. |
-| T4 | O4 main -> certificacion | O3 mergeado; nuevo prompt. |
-| T5 | O5 certificacion -> desarrollo | O4 mergeado; nuevo prompt. |
-| T6 | H2 | O5, checkout limpio, digest `WP-H2-001` aprobado. |
+| T0 | D0-D10 local | `COMPLETED`. |
+| T1 | PR correctivo a `desarrollo` | `COMPLETED` mediante PR #417. |
+| T2 | re-O2 a `certificacion` | `COMPLETED` mediante PR #418 y PR #420. |
+| T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
+| T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
+| T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
+| T6 | Gobierno Obsidian | `WP-GOV-OBS-001` + `WP-GOV-INFRA-001` candidates; requieren aprobacion R2 compuesta para desarrollo. |
+| T7 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
+| T8 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 en main y WP H2 rebasado/validado. |
+| T9 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -148,7 +170,7 @@ Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se exp
 - No squash ni rebase en homologacion.
 - No combinar O3/O4/O5 en un mismo prompt.
 - No push ni PR hasta autorizacion R2 separada.
-- La rama correctiva permitida es `docs/f10-11-source-conformance`.
+- Las ramas correctivas F10.11 son historicas. H2 requiere WP/digest, aprobacion por commit candidate y ramas nuevas segun el WP aprobado.
 
 ## H2 - Modelo Editorial Y Calidad
 
@@ -165,7 +187,7 @@ Contrato obligatorio:
 9. Migracion forward-only versionada.
 10. Backfill separado, reanudable e idempotente.
 11. Matriz de pruebas con segundo run `NOOP`.
-12. Manifest aprobado por digest.
+12. Manifest aprobado por digest hasta R1 no activo.
 13. Evidencia usable por ambiente.
 
 Restricciones H2:
@@ -183,6 +205,7 @@ Restricciones H2:
 11. Paginacion para mas de 1000 filas.
 12. Backfill reanudable.
 13. Segundo run `NOOP` obligatorio.
+14. H2-CA2 debe cerrarse localmente antes de iniciar H2-CA3.
 
 ## H3 - Admin Editorial
 
@@ -273,4 +296,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-El paquete local D0-D10 esta completado y verificado. El unico siguiente gate posible es autorizacion R2 separada para push y PR correctivo a `desarrollo`. O3 y H2 siguen bloqueados.
+F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-OBS-001` y `WP-GOV-INFRA-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.

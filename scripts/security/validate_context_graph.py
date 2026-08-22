@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the minimum semantic contract of the StudIAMatch Context Graph."""
+"""Validate the semantic contract of the StudIAMatch Context Graph."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -21,6 +20,7 @@ PRIVATE_SOURCE_NAMES = {
 PRIVATE_SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
 REQUIRED_INDEX_LINKS = (
     "estado_del_proyecto.md",
+    "decisiones/ADR-0003_taxonomia_macrofases_subfases.md",
     "operaciones/plan_maestro_sprint1_h2_h5.md",
     "operaciones/context_graph_semantico.md",
     "seguimiento/seguimiento_sprint_1_h2_h5.md",
@@ -28,9 +28,15 @@ REQUIRED_INDEX_LINKS = (
     "seguimiento/retrospectiva_hito_001.md",
     "decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md",
     "work_packages/WP-H2-001.json",
+    "work_packages/WP-GOV-OBS-001.json",
+    "work_packages/WP-GOV-INFRA-001.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
+    "matrices/matriz_hito_002.md",
+    "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md",
+    "backlog_tareas/governance/TASK-GOV-OBS-001.md",
+    "backlog_tareas/governance/TASK-GOV-INFRA-001.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -43,84 +49,260 @@ TRACKER_SECTIONS = (
     "## Fecha",
     "## Proximo Prompt Cavernicola",
 )
+H2_CRITERIA = {"H2-CA2", "H2-CA3"}
+EXPECTED_BASELINE = {
+    "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
+    "main_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "certificacion_commit": "fe7b27abf18c096f674948b4f30f815aea4aef08",
+    "certificacion_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
+    "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+}
+APPROVED_DIGEST = "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a933"
+APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
+ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
+GOV_OBS_DIGEST = "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060"
+GOV_INFRA_DIGEST = "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58"
+GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
-def read(relative: str) -> str:
-    return (CONTEXT / relative).read_text(encoding="utf-8")
+def read(root: Path, relative: str) -> str:
+    return (root / ".context" / relative).read_text(encoding="utf-8")
 
 
-def fail(message: str, errors: list[str]) -> None:
-    errors.append(message)
+def table_value(text: str, field: str) -> str | None:
+    pattern = rf"^\|\s*{re.escape(field)}\s*\|\s*`?([^`|]+)`?\s*\|"
+    match = re.search(pattern, text, re.MULTILINE)
+    return match.group(1).strip() if match else None
 
 
-def main() -> int:
+def bullet_value(text: str, field: str) -> str | None:
+    pattern = rf"^-\s*{re.escape(field)}:\s*(.+)$"
+    match = re.search(pattern, text, re.MULTILINE)
+    return match.group(1).strip() if match else None
+
+
+def linked_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    match = re.search(r"\[([^\]]+)\]", value)
+    return match.group(1) if match else value.strip("`")
+
+
+def criteria_from_text(text: str) -> set[str]:
+    return set(re.findall(r"H2-CA[23]", text))
+
+
+def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    state = read("estado_del_proyecto.md")
-    plan = read("operaciones/plan_maestro_sprint1_h2_h5.md")
-    tracker = read("seguimiento/seguimiento_sprint_1_h2_h5.md")
-    index = read("00_INDICE.md")
-    adr = read("decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md")
+    state = read(root, "estado_del_proyecto.md")
+    plan = read(root, "operaciones/plan_maestro_sprint1_h2_h5.md")
+    release_flow = read(root, "operaciones/flujo_release_minimo.md")
+    tracker = read(root, "seguimiento/seguimiento_sprint_1_h2_h5.md")
+    hito = read(root, "hitos/hito_002.md")
+    task = read(root, "backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md")
+    matrix = read(root, "matrices/matriz_hito_002.md")
+    index = read(root, "00_INDICE.md")
+    adr = read(root, "decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md")
+    adr0003 = read(root, "decisiones/ADR-0003_taxonomia_macrofases_subfases.md")
+    evidence = read(root, "evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
+    legacy_evidence = read(root, "evidencias_cliente/sprint_1/evidencia_hito_002.md")
+    gov_task = read(root, "backlog_tareas/governance/TASK-GOV-OBS-001.md")
+    gov_infra_task = read(root, "backlog_tareas/governance/TASK-GOV-INFRA-001.md")
+    wp = json.loads((root / ".context" / "work_packages" / "WP-H2-001.json").read_text(encoding="utf-8"))
+    gov_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-OBS-001.json").read_text(encoding="utf-8"))
+    gov_infra_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-INFRA-001.json").read_text(encoding="utf-8"))
 
-    for needle in ("F10.11", "D0-D10", "Work package activo: `NONE`", "O3 `certificacion -> main` | `BLOCKED`"):
-        if needle not in state:
-            fail(f"estado_del_proyecto.md missing semantic marker: {needle}", errors)
+    if linked_id(bullet_value(state, "Hito")) != "HITO-002":
+        errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
+    if linked_id(bullet_value(state, "Tarea")) != "TASK-H2-001":
+        errors.append("GRAPH_ID_MISMATCH:state active task must be TASK-H2-001")
+    if "WP-H2-001=ACTIVE_R1" not in state:
+        errors.append("GRAPH_ID_MISMATCH:state must reference WP-H2-001 as active R1")
+    if "Subfase tecnica activa: `F10.11`" not in state:
+        errors.append("EXECUTION_PHASE_MISMATCH:state must remain F10.11 until Obsidian reaches main")
+    if "`F12.1` | `BLOCKED_BY_OBSIDIAN_MAIN`" not in state or "`F12.2` | `BLOCKED_BY_F12_1_CA2`" not in state:
+        errors.append("EXECUTION_PHASE_MISMATCH:F12 taxonomy missing")
+    if wp.get("id") != "WP-H2-001" or wp.get("task_id") != "TASK-H2-001" or wp.get("hito") != "HITO-002":
+        errors.append("GRAPH_ID_MISMATCH:WP-H2-001 IDs")
 
-    for needle in ("H2-H5 = NOT_AUTHORIZED", "O3 = BLOCKED", "D0-D10", "WP-H2-001"):
-        if needle not in plan:
-            fail(f"plan_maestro_sprint1_h2_h5.md missing semantic marker: {needle}", errors)
+    expected = {
+        "Lifecycle stage": "ACTIVE",
+        "Gate status": "APPROVED_R1",
+        "Implementation status": "BLOCKED_PENDING_OBSIDIAN_MAIN",
+        "Acceptance status": "NOT_STARTED",
+    }
+    for field, value in expected.items():
+        if table_value(hito, field) != value:
+            errors.append(f"LIFECYCLE_MISMATCH:hito:{field}")
+        if field in {"Lifecycle stage", "Implementation status"} and table_value(task, field) != value:
+            errors.append(f"LIFECYCLE_MISMATCH:task:{field}")
+        state_value = bullet_value(state, field)
+        if state_value is None:
+            errors.append(f"LIFECYCLE_MISMATCH:state missing {field}")
+        elif value not in state_value:
+            errors.append(f"LIFECYCLE_MISMATCH:state:{field}")
+        if value not in tracker:
+            errors.append(f"LIFECYCLE_MISMATCH:tracker missing {value}")
+        if value not in plan:
+            errors.append(f"LIFECYCLE_MISMATCH:plan missing {value}")
+    if wp.get("lifecycle_stage") != "ACTIVE" or wp.get("implementation_status") != "BLOCKED_PENDING_OBSIDIAN_MAIN":
+        errors.append("LIFECYCLE_MISMATCH:wp")
+    if wp.get("gate_status") != "APPROVED_R1" or wp.get("acceptance_status") != "NOT_STARTED":
+        errors.append("LIFECYCLE_MISMATCH:wp gate/acceptance")
+    if wp.get("approval_target_lifecycle_stage") != "APPROVED_NOT_ACTIVE":
+        errors.append("APPROVAL_TARGET_INVALID:wp lifecycle")
+    if wp.get("approval_target_gate_status") != "APPROVED_R1":
+        errors.append("APPROVAL_TARGET_INVALID:wp gate")
+    if wp.get("approval_target_level") != "R1":
+        errors.append("APPROVAL_TARGET_INVALID:wp level")
+    for name, text in (("task", task), ("matrix", matrix), ("hito", hito), ("tracker", tracker)):
+        for line in text.splitlines():
+            if re.search(r"H2-CA[23]|Implementation status|Criteria status", line) and re.search(r"`(IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", line):
+                errors.append(f"LIFECYCLE_MISMATCH:{name}:premature active status")
+    if wp.get("status") != "ACTIVE":
+        errors.append("UNAPPROVED_ACTIVE_WP:WP-H2-001 must remain ACTIVE")
+    if "Work package activo: `WP-H2-001`" not in state:
+        errors.append("UNAPPROVED_ACTIVE_WP:active work package must be WP-H2-001")
+    if "active_work_package = WP-H2-001" not in plan:
+        errors.append("UNAPPROVED_ACTIVE_WP:plan active work package must be WP-H2-001")
+    required_metadata = {
+        "approval_digest": APPROVED_DIGEST,
+        "approved_candidate_commit": APPROVED_CANDIDATE_COMMIT,
+        "approved_level": "R1",
+    }
+    for field, value in required_metadata.items():
+        if wp.get(field) != value:
+            errors.append(f"APPROVAL_METADATA_MISMATCH:wp:{field}")
+    for field in ("approved_by", "approved_at", "approval_reference", "approval_evidence_sha256"):
+        if not wp.get(field):
+            errors.append(f"APPROVAL_METADATA_REQUIRED:wp:{field}")
+    if wp.get("approved_at") and not UTC_TS.match(str(wp.get("approved_at"))):
+        errors.append("APPROVAL_TIMESTAMP_INVALID:wp")
+    if wp.get("approval_evidence_sha256") and not HEX64.match(str(wp.get("approval_evidence_sha256"))):
+        errors.append("APPROVAL_EVIDENCE_INVALID:wp")
+    if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
+        errors.append("ACTIVATION_METADATA_REQUIRED:wp")
+    if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in state or "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" not in plan:
+        errors.append("NEXT_GATE_MISMATCH:GOV OBS R2 approval gate must be next")
+    if "PREPARE_WP_GOV_OBS_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:stale OBS-only R2 gate")
+    if "WP-GOV-INFRA-001" not in state or "WP-GOV-INFRA-001" not in plan:
+        errors.append("GOV_INFRA_WP_INVALID:missing from canonical authority")
+    if "EXECUTE_F12_1_LOCAL_CA2_R1" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
+    if "Pendiente de aprobacion humana por digest" in plan:
+        errors.append("NEXT_GATE_MISMATCH:plan still points to digest approval")
+    if "proximo gate de aprobacion humana por digest" in adr + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:stale digest approval gate text")
+    if "WP-H2-001` es la excepcion vigente" not in read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:approved H2 exception must be documented")
+    prompt_match = re.search(r"## Proximo Prompt Cavernicola\s+```text\n([\s\S]*?)\n```", tracker)
+    prompt = prompt_match.group(1) if prompt_match else ""
+    if re.search(r"WP-H2-001[\s\S]{0,160}(R1/R2|hasta R2|grant R2|concede R2)", prompt):
+        errors.append("NEXT_GATE_MISMATCH:H2 prompt must not grant R2")
+    if "Supabase Free" not in prompt or "Supabase Pro" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
+    if "Ejecuta las tareas pendientes de la Fase" in prompt:
+        errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
+    if f"Apruebo WP-GOV-OBS-001 de TASK-GOV-OBS-001 segun manifest sha256:{GOV_OBS_DIGEST}" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV OBS approval prompt missing digest")
+    if f"WP-GOV-INFRA-001 de TASK-GOV-INFRA-001 segun manifest sha256:{GOV_INFRA_DIGEST}" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV INFRA approval prompt missing digest")
+    if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV OBS prompt must be R2 only")
+
+    if "LOCAL_CANDIDATE_PENDING_MAIN" not in state + plan + tracker + evidence:
+        errors.append("OBSIDIAN_STAGE_MISMATCH:pending-main status missing")
+    if "COMPLETED_OBSIDIAN_CONTEXT_GRAPH" in state + plan + tracker + evidence and "MAIN_HOMOLOGATED_CONSUMED" not in state + plan + tracker + evidence:
+        errors.append("OBSIDIAN_STAGE_MISMATCH:cannot complete before main homologation consumption")
+    if "SUPERSEDED_TOMBSTONE" not in adr0003:
+        errors.append("TAXONOMY_TOMBSTONE_MISSING:ADR-0003")
+    if "SUPERSEDED_HISTORY" not in release_flow or "F10.9, F11.1, schedules" not in release_flow:
+        errors.append("LEGACY_RELEASE_FLOW_AUTHORITY_DRIFT")
+    if "SUPERSEDED_TOMBSTONE" not in legacy_evidence or "req_est_001_sprint_1/evidencia_hito_002.md" not in legacy_evidence:
+        errors.append("EVIDENCE_NAMESPACE_MISMATCH:legacy tombstone")
+    if "Estado: `TEMPLATE_ONLY`. No acredita PASS funcional." not in evidence:
+        errors.append("EVIDENCE_STATUS_MISMATCH:H2 evidence must remain template only")
+    if gov_wp.get("id") != "WP-GOV-OBS-001" or gov_wp.get("task_id") != "TASK-GOV-OBS-001" or gov_wp.get("status") != "PROPOSED":
+        errors.append("GOV_OBS_WP_INVALID:identity/status")
+    if gov_wp.get("candidate_digest") != GOV_OBS_DIGEST or gov_wp.get("target_level") != "R2":
+        errors.append("GOV_OBS_WP_INVALID:digest/target")
+    if gov_wp.get("baseline", {}).get("candidate_commit") != GOV_OBS_BASE_COMMIT:
+        errors.append("GOV_OBS_WP_INVALID:baseline")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_task:
+        errors.append("GOV_OBS_TASK_INVALID:status")
+    if gov_infra_wp.get("id") != "WP-GOV-INFRA-001" or gov_infra_wp.get("task_id") != "TASK-GOV-INFRA-001" or gov_infra_wp.get("status") != "PROPOSED":
+        errors.append("GOV_INFRA_WP_INVALID:identity/status")
+    if gov_infra_wp.get("candidate_digest") != GOV_INFRA_DIGEST or gov_infra_wp.get("target_level") != "R2":
+        errors.append("GOV_INFRA_WP_INVALID:digest/target")
+    if gov_infra_wp.get("allowed_paths") != [".github/workflows/security-audit.yml", "docker-compose.h2-test.yml", "scripts/security/run_h2_r1_tests.sh"]:
+        errors.append("GOV_INFRA_WP_INVALID:allowlist")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_infra_task:
+        errors.append("GOV_INFRA_TASK_INVALID:status")
+
+    for name, text in (("hito", hito), ("task", task), ("matrix", matrix), ("plan", plan), ("tracker", tracker)):
+        if not H2_CRITERIA <= criteria_from_text(text):
+            errors.append(f"CRITERIA_SET_MISMATCH:{name}")
+    if wp.get("criteria_status") != {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"}:
+        errors.append("CRITERIA_SET_MISMATCH:wp")
+    if re.search(r"H2-CA[23].*`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", tracker + matrix + evidence, re.IGNORECASE):
+        errors.append("PREMATURE_ACCEPTANCE:H2 criteria marked accepted before approval")
+
+    for branch, ref in (("Main homologado O3", EXPECTED_BASELINE["main_commit"]), ("Certificacion homologada O4", EXPECTED_BASELINE["certificacion_commit"]), ("Desarrollo homologado O5", EXPECTED_BASELINE["desarrollo_commit"])):
+        if ref not in state:
+            errors.append(f"BASELINE_DOCUMENT_DRIFT:state missing {branch}")
+    if wp.get("baseline") != EXPECTED_BASELINE:
+        errors.append("BASELINE_DOCUMENT_DRIFT:wp baseline")
+    if "O3 = COMPLETED" not in plan or "O4 = COMPLETED" not in plan or "O5 = COMPLETED" not in plan:
+        errors.append("HOMOLOGATION_GATE_STALE:plan")
+    for token in ("O0 = COMPLETED", "O1 = COMPLETED", "O2 = COMPLETED"):
+        if token not in plan:
+            errors.append(f"HOMOLOGATION_GATE_STALE:plan missing {token}")
+    for token in ("O0-A preflight | `COMPLETED_READ_ONLY`", "O0-B decision humana | `APPROVED`", "O1 desarrollo | `COMPLETED`", "O2 certificacion | `COMPLETED`"):
+        if token not in tracker:
+            errors.append(f"HOMOLOGATION_GATE_STALE:tracker missing {token}")
+    if re.search(r"\| O[345][^\n]*\| `(BLOCKED|PENDING)[^`]*` \|", state + plan):
+        errors.append("HOMOLOGATION_GATE_STALE:O3/O4/O5 stale")
+    if "O4 = COMPLETED" not in plan and "READY_FOR_DIGEST_APPROVAL" in state:
+        errors.append("GATE_PREREQUISITE_VIOLATION:O4 before H2 gate")
 
     for section in TRACKER_SECTIONS:
         if section not in tracker:
-            fail(f"seguimiento_sprint_1_h2_h5.md missing section: {section}", errors)
-    for needle in ("Alcance exclusivo", "Allowlist", "Denylist", "Stop conditions", "Proximo gate unico"):
-        if needle not in tracker:
-            fail(f"tracker prompt missing field: {needle}", errors)
-
+            errors.append(f"TRACKER_SECTION_MISSING:{section}")
     for link in REQUIRED_INDEX_LINKS:
         if link not in index:
-            fail(f"00_INDICE.md missing canonical link: {link}", errors)
-
+            errors.append(f"INDEX_LINK_MISSING:{link}")
     for level in ("`R0`", "`R1`", "`R2`", "`R3`", "`R3+`"):
         if level not in adr:
-            fail(f"ADR-0028 missing authorization level: {level}", errors)
-
-    for manifest_path in sorted((CONTEXT / "work_packages").glob("WP-H*-001.json")):
-        data = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if data.get("status") != "PROPOSED":
-            fail(f"{manifest_path.name} must remain PROPOSED before human digest approval", errors)
-        if "approval_digest" in data:
-            fail(f"{manifest_path.name} must not contain approval_digest while PROPOSED", errors)
-
-    forbidden_status = re.compile(r"H[2-5].*`(ACTIVE|IMPLEMENTED|ACCEPTED|ACCEPTED_WITH_WAIVER|CERTIFIED|VERIFIED_DEVELOPMENT)`")
-    if forbidden_status.search(tracker):
-        fail("tracker appears to activate or accept H2-H5 before authorization", errors)
+            errors.append(f"ADR_AUTH_LEVEL_MISSING:{level}")
+    if "contenido en candidate commit" not in adr:
+        errors.append("APPROVAL_BINDING_MISSING:ADR-0028")
+    if "fase decimal queda como trazabilidad" not in adr:
+        errors.append("APPROVAL_BINDING_MISSING:ADR-0028 decimal trace rule")
 
     try:
-        tracked = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).splitlines()
+        tracked = subprocess.check_output(["git", "ls-files"], cwd=root, text=True, stderr=subprocess.DEVNULL).splitlines()
     except subprocess.CalledProcessError:
         tracked = []
         ignored_dirs = {".git", "node_modules", ".next", "out", ".pytest_cache", "test-results"}
-        for dirpath, dirnames, filenames in os.walk(ROOT):
+        for dirpath, dirnames, filenames in os.walk(root):
             dirnames[:] = [dirname for dirname in dirnames if dirname not in ignored_dirs]
             for filename in filenames:
-                tracked.append(str((Path(dirpath) / filename).relative_to(ROOT)).replace("\\", "/"))
-    allowed_env_templates = {".env.example"}
-    tracked_env = [
-        path
-        for path in tracked
-        if (Path(path).name.startswith(".env") or path.endswith(".env")) and Path(path).name not in allowed_env_templates
-    ]
+                tracked.append(str((Path(dirpath) / filename).relative_to(root)).replace("\\", "/"))
+    tracked_env = [path for path in tracked if (Path(path).name.startswith(".env") or path.endswith(".env")) and Path(path).name != ".env.example"]
     if tracked_env:
-        fail(f"env-like file present in repository tree: {tracked_env}", errors)
-
-    tracked_sources = [
-        path
-        for path in tracked
-        if Path(path).name in PRIVATE_SOURCE_NAMES or path.lower().endswith(PRIVATE_SOURCE_EXTENSIONS)
-    ]
+        errors.append(f"ENV_FILE_TRACKED:{tracked_env}")
+    tracked_sources = [path for path in tracked if Path(path).name in PRIVATE_SOURCE_NAMES or path.lower().endswith(PRIVATE_SOURCE_EXTENSIONS)]
     if tracked_sources:
-        fail(f"private source artifact present in repository tree: {tracked_sources}", errors)
+        errors.append(f"SOURCE_ARTIFACT_TRACKED:{tracked_sources}")
+    return errors
 
+
+def main() -> int:
+    errors = validate(ROOT)
     if errors:
         for error in errors:
             print(error)

@@ -1,0 +1,83 @@
+{
+  "id": "WP-GOV-OBS-001",
+  "status": "PROPOSED",
+  "task_id": "TASK-GOV-OBS-001",
+  "hito": "GOV-OBS",
+  "risk_level": "GOVERNANCE_RELEASE",
+  "target_level": "R2",
+  "baseline": {
+    "candidate_commit": "486bf420cb0d8ad250bc7b3cceb21545184b4dd5",
+    "candidate_tree": "bc521d7b030095fb1ef928923e333cb4721cda94",
+    "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
+    "main_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
+    "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "certificacion_commit": "fe7b27abf18c096f674948b4f30f815aea4aef08",
+    "certificacion_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3"
+  },
+  "environment_scope": ["local", "development"],
+  "allowed_paths": [
+    "AGENTS.md",
+    ".context/**",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_work_package_manifest.py"
+  ],
+  "denied_without_jit": [
+    "production",
+    "certification",
+    "main",
+    "supabase-free",
+    "supabase-pro",
+    "ddl-execution",
+    "dml-execution",
+    "backfill-execution",
+    "rls-grants-remote",
+    "writers",
+    "schedules",
+    "workflow_dispatch",
+    "deploys",
+    "secrets",
+    "lead_capture",
+    "egress"
+  ],
+  "dependencies": [
+    "Etapa 1 Obsidian candidate local exists at 486bf420cb0d8ad250bc7b3cceb21545184b4dd5",
+    "WP-H2-001 remains ACTIVE_R1 with H2-CA2/H2-CA3 NOT_STARTED",
+    "Human approval by digest for R2"
+  ],
+  "r3_operations": [
+    "certification promotion",
+    "main promotion",
+    "main -> certification homologation",
+    "certification -> desarrollo homologation",
+    "db operations",
+    "Supabase operations",
+    "deploys",
+    "writers",
+    "schedules",
+    "production"
+  ],
+  "expires_at": "2026-08-28T23:59:59Z",
+  "candidate_digest": "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060",
+  "approval_digest_source": "Human approver must approve this candidate_digest with target R2 before push, PR or merge to desarrollo.",
+  "approver_required": "human",
+  "invalidated_by": [
+    "scope drift",
+    "path drift",
+    "baseline drift",
+    "source hash drift",
+    "CI failure",
+    "review rejection",
+    "expiry",
+    "R3 operation request"
+  ],
+  "exit_criteria": [
+    "documentation bundle PR merged to desarrollo with CI and review",
+    "no db/web/scripts/core/scripts/maintenance/workflow changes",
+    "WP-H2-001 digest preserved",
+    "H2-CA2 and H2-CA3 remain NOT_STARTED",
+    "next gate is R3 JIT for certification"
+  ]
+}
