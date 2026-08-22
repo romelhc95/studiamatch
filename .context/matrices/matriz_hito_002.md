@@ -2,7 +2,7 @@
 
 | Unidad | Gate status | Implementation status | Criteria status | Evidencia requerida |
 |---|---|---|---|---|
-| `H2-CA2` | `APPROVED_R1` | `READY_NOT_STARTED` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
+| `H2-CA2` | `APPROVED_R1` | `BLOCKED_PENDING_OBSIDIAN_MAIN` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
 | `H2-CA3` | `APPROVED_R1` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
 
 ## Enlaces Canonicos

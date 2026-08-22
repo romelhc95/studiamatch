@@ -68,6 +68,8 @@ H2_DIGEST_SCHEMA = "h2-approval-target-v1"
 H2_APPROVED_CANDIDATE_COMMIT = "c8e4596b153c10721ed335369863a07154eb2b43"
 H2_ACTIVATION_BASE_COMMIT = "6ad2690239db361bf913fc9f14c22146d11e69a6"
 H2_OBSIDIAN_BASE_COMMIT = "56c517140ede7bce6a0580035a456016da8571a5"
+GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
+GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
     "id",
@@ -192,6 +194,15 @@ H2_OBSIDIAN_TRANSITION_DENY = ABSOLUTE_DENY + (
     "workers/**",
     ".github/workflows/**",
 )
+GOV_OBS_TRANSITION_ALLOWLIST = (
+    "AGENTS.md",
+    ".context/**",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_work_package.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_work_package_manifest.py",
+)
+GOV_OBS_TRANSITION_DENY = H2_OBSIDIAN_TRANSITION_DENY
 SOURCE_NAMES = {"Studiamatch_MVP_Requerimientos_v5.docx", "studiamatch_home.html", "studiamatch_resultados.html"}
 SOURCE_EXTENSIONS = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
 
@@ -326,7 +337,7 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"APPROVAL_TARGET_INVALID:{path.name}:level")
         if data.get("criteria_contract") != ["H2-CA2", "H2-CA3"]:
             errors.append(f"CRITERIA_SET_MISMATCH:{path.name}:contract")
-        expected_implementation = "READY_NOT_STARTED" if status == "ACTIVE" else "PLANNED_NOT_ACTIVE"
+        expected_implementation = "BLOCKED_PENDING_OBSIDIAN_MAIN" if status == "ACTIVE" else "PLANNED_NOT_ACTIVE"
         if data.get("implementation_status") != expected_implementation:
             errors.append(f"LIFECYCLE_MISMATCH:{path.name}:implementation")
         if data.get("acceptance_status") != "NOT_STARTED":
@@ -337,6 +348,23 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"WP_ENV_SCOPE_INVALID:{path.name}")
         if data.get("supersedes_digest") != "7a62121f8389192f8c0bab3a06b54b554ddd5a1e8fc05822e7429d96a1229066":
             errors.append(f"WP_REJECTED_DIGEST_TRACE_REQUIRED:{path.name}")
+    elif data.get("id") == "WP-GOV-OBS-001":
+        required_denies = H2_REQUIRED_DENY_TERMS
+        if data.get("task_id") != "TASK-GOV-OBS-001" or data.get("hito") != "GOV-OBS":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_OBS_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_OBS_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_OBS_BASE_COMMIT:
+            errors.append(f"GOV_OBS_BASELINE_INVALID:{path.name}:candidate_commit")
+        if baseline.get("candidate_tree") != "bc521d7b030095fb1ef928923e333cb4721cda94":
+            errors.append(f"GOV_OBS_BASELINE_INVALID:{path.name}:candidate_tree")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_OBS_R3_DENY_MISSING:{path.name}")
+        if not any("certification" in str(item).lower() for item in data.get("r3_operations", [])) or not any("main" in str(item).lower() for item in data.get("r3_operations", [])):
+            errors.append(f"GOV_OBS_R3_OPERATIONS_REQUIRED:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -452,15 +480,21 @@ def git_status_paths(root: Path = ROOT) -> list[tuple[str, str]]:
 
 
 def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
+    status_paths = git_status_paths(root)
     for command in (
         ["git", "diff", "--name-status", "-z", base, "--"],
         ["git", "diff", "--name-status", "-z", base, "HEAD", "--"],
     ):
         try:
-            return parse_name_status(subprocess.check_output(command, cwd=root, stderr=subprocess.DEVNULL))
+            paths = parse_name_status(subprocess.check_output(command, cwd=root, stderr=subprocess.DEVNULL))
+            seen = {(status, path) for status, path in paths}
+            for item in status_paths:
+                if item not in seen:
+                    paths.append(item)
+            return paths
         except subprocess.CalledProcessError:
             continue
-    paths = git_status_paths(root)
+    paths = status_paths
     try:
         head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
         if head != base:
@@ -470,14 +504,20 @@ def git_changed_paths(base: str, root: Path = ROOT) -> list[tuple[str, str]]:
     return paths
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if obsidian_transition:
+    if gov_obs_transition:
+        allowed = GOV_OBS_TRANSITION_ALLOWLIST
+        denied = GOV_OBS_TRANSITION_DENY
+    elif obsidian_transition:
         allowed = H2_OBSIDIAN_TRANSITION_ALLOWLIST
         denied = H2_OBSIDIAN_TRANSITION_DENY
+    elif active_work_package == "WP-GOV-OBS-001":
+        allowed = GOV_OBS_TRANSITION_ALLOWLIST
+        denied = GOV_OBS_TRANSITION_DENY
     elif activation_transition:
         allowed = H2_ACTIVATION_TRANSITION_ALLOWLIST
         denied = H2_ACTIVATION_TRANSITION_DENY
@@ -501,7 +541,7 @@ def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[
 
 def load_manifests(root: Path = ROOT) -> list[dict[str, Any]]:
     manifests = []
-    for manifest_path in sorted((root / ".context" / "work_packages").glob("WP-H*-001.json")):
+    for manifest_path in sorted((root / ".context" / "work_packages").glob("WP-*-001.json")):
         manifests.append(json.loads(manifest_path.read_text(encoding="utf-8")))
     return manifests
 
@@ -510,10 +550,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--changed-from", help="Validate changed paths from this git ref to HEAD")
     args = parser.parse_args(argv)
-    manifests = sorted(MANIFEST_DIR.glob("WP-H*-001.json"))
+    manifests = sorted(MANIFEST_DIR.glob("WP-*-001.json"))
     errors: list[str] = []
-    if len(manifests) != 4:
-        errors.append("WP_MANIFEST_COUNT:expected exactly four Sprint 1 manifests")
+    if len(manifests) != 5:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus WP-GOV-OBS-001")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     if args.changed_from:
@@ -523,6 +563,7 @@ def main(argv: list[str] | None = None) -> int:
             active_work_package=active_work_package_from_state(),
             activation_transition=args.changed_from == H2_ACTIVATION_BASE_COMMIT,
             obsidian_transition=args.changed_from == H2_OBSIDIAN_BASE_COMMIT,
+            gov_obs_transition=args.changed_from == GOV_OBS_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

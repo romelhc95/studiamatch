@@ -55,12 +55,12 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text("\n".join(lines) + "\n", encoding="utf-8")
             self.assertTrue(any(error.startswith("LIFECYCLE_MISMATCH:state missing Lifecycle stage") for error in validator.validate(root)))
 
-    def test_missing_f12_active_phase_fails(self):
+    def test_f12_cannot_be_active_before_main_fails(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("Subfase tecnica activa: `F12.1`", "Subfase tecnica activa: `F10.11`")
+            text = path.read_text(encoding="utf-8").replace("Subfase tecnica activa: `F10.11`", "Subfase tecnica activa: `F12.1`")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("EXECUTION_PHASE_MISMATCH") for error in validator.validate(root)))
 
@@ -107,7 +107,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             task = root / ".context" / "backlog_tareas" / "req_est_001_sprint_1" / "tarea_002_hito_2.md"
-            task.write_text(task.read_text(encoding="utf-8").replace("READY_NOT_STARTED", "ACTIVE"), encoding="utf-8")
+            task.write_text(task.read_text(encoding="utf-8").replace("BLOCKED_PENDING_OBSIDIAN_MAIN", "ACTIVE"), encoding="utf-8")
             self.assertTrue(any(error.startswith("LIFECYCLE_MISMATCH") for error in validator.validate(root)))
 
     def test_homologation_stale_status_fails(self):
@@ -133,7 +133,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("activo solo R1", "activo R1/R2")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-OBS-001", "Apruebo WP-H2-001", 1)
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -146,14 +146,32 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
-    def test_next_gate_must_be_f12_1(self):
+    def test_next_gate_must_prepare_gov_obs_r2(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
-                text = path.read_text(encoding="utf-8").replace("EXECUTE_F12_1_LOCAL_CA2_R1", "PLAN_REVIEW_H2_R1_IMPLEMENTATION_SUBPHASE")
+                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_OBS_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
                 path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
+
+    def test_legacy_phase_prompt_as_authority_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-OBS-001", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-OBS-001")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT") for error in validator.validate(root)))
+
+    def test_obsidian_completed_before_main_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "estado_del_proyecto.md"
+            text = path.read_text(encoding="utf-8").replace("LOCAL_CANDIDATE_PENDING_MAIN", "COMPLETED_OBSIDIAN_CONTEXT_GRAPH")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("OBSIDIAN_STAGE_MISMATCH") for error in validator.validate(root)))
 
     def test_canonical_evidence_missing_fails(self):
         validator = load_validator()

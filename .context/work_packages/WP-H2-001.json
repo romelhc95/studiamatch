@@ -9,7 +9,7 @@
   "approval_target_lifecycle_stage": "APPROVED_NOT_ACTIVE",
   "approval_target_gate_status": "APPROVED_R1",
   "approval_target_level": "R1",
-  "implementation_status": "READY_NOT_STARTED",
+  "implementation_status": "BLOCKED_PENDING_OBSIDIAN_MAIN",
   "criteria_status": {
     "H2-CA2": "NOT_STARTED",
     "H2-CA3": "NOT_STARTED"

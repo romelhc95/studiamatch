@@ -61,7 +61,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(data["approval_target_gate_status"], "APPROVED_R1")
         self.assertEqual(data["approval_target_level"], "R1")
         self.assertEqual(data["criteria_contract"], ["H2-CA2", "H2-CA3"])
-        self.assertEqual(data["implementation_status"], "READY_NOT_STARTED")
+        self.assertEqual(data["implementation_status"], "BLOCKED_PENDING_OBSIDIAN_MAIN")
         self.assertEqual(data["criteria_status"], {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"})
         self.assertEqual(data["environment_scope"], ["local", "development"])
         self.assertIn("supabase-free", data["denied_without_jit"])
@@ -243,14 +243,25 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(data["approval_digest"], data["candidate_digest"])
         self.assertEqual(data["approved_candidate_commit"], "c8e4596b153c10721ed335369863a07154eb2b43")
         self.assertEqual(data["approved_level"], "R1")
-        self.assertEqual(data["implementation_status"], "READY_NOT_STARTED")
+        self.assertEqual(data["implementation_status"], "BLOCKED_PENDING_OBSIDIAN_MAIN")
+        self.assertEqual(data["criteria_status"], {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"})
+        self.assertEqual(data["acceptance_status"], "NOT_STARTED")
 
     def test_active_manifest_runtime_status_does_not_change_digest(self):
         validator = load_validator()
         data = load_h2()
         self.assertEqual(validator.compute_digest(data), "2dc7f7864ffb766282f33b52dd5f0dc54e45c3b52a18d91f528ef1a44901a933")
-        self.assertEqual(data["criteria_status"], {"H2-CA2": "NOT_STARTED", "H2-CA3": "NOT_STARTED"})
-        self.assertEqual(data["acceptance_status"], "NOT_STARTED")
+
+    def test_gov_obs_manifest_is_r2_only_candidate(self):
+        validator = load_validator()
+        path = MANIFEST_DIR / "WP-GOV-OBS-001.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["status"], "PROPOSED")
+        self.assertEqual(data["target_level"], "R2")
+        self.assertEqual(data["candidate_digest"], "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c5060")
+        self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
+        self.assertIn("certification", data["denied_without_jit"])
+        self.assertIn("main", data["denied_without_jit"])
 
     def test_active_manifest_rejects_bad_activation_timestamp(self):
         validator = load_validator()
@@ -315,6 +326,15 @@ class WorkPackageManifestTests(unittest.TestCase):
         self.assertEqual(allowed, [])
         for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/security-audit.yml"):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", obsidian_transition=True)
+            self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
+
+    def test_gov_obs_transition_rejects_functional_paths(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([("M", ".context/estado_del_proyecto.md"), ("M", "AGENTS.md")], [data], active_work_package="WP-H2-001", gov_obs_transition=True)
+        self.assertEqual(allowed, [])
+        for path in ("db/migrations/20260821_h2.sql", "web/app/page.tsx", "scripts/core/sync_vector_worker.py", "scripts/maintenance/h2_backfill.py", ".github/workflows/security-audit.yml"):
+            errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_obs_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
     def test_multiple_active_work_packages_fail(self):

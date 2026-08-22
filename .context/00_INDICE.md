@@ -48,6 +48,7 @@
 ## Work Packages
 
 - [WP-H2-001](work_packages/WP-H2-001.json)
+- [WP-GOV-OBS-001](work_packages/WP-GOV-OBS-001.json)
 - [WP-H3-001](work_packages/WP-H3-001.json)
 - [WP-H4-001](work_packages/WP-H4-001.json)
 - [WP-H5-001](work_packages/WP-H5-001.json)
@@ -61,6 +62,10 @@
 - [Evidencia Hito 001](evidencias_cliente/sprint_1/paquete_hito_001.md)
 - [Evidencia Hito 002 canonica](evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md)
 - [Tombstone evidencia Hito 002 legacy](evidencias_cliente/sprint_1/evidencia_hito_002.md)
+
+## Gobierno
+
+- [TASK-GOV-OBS-001](backlog_tareas/governance/TASK-GOV-OBS-001.md)
 
 ## MOC Canonico
 

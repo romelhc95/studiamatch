@@ -4,12 +4,12 @@
 |---|---|
 | Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
-| Implementation status | `READY_NOT_STARTED` |
+| Implementation status | `BLOCKED_PENDING_OBSIDIAN_MAIN` |
 | Acceptance status | `NOT_STARTED` |
 | Work package | `WP-H2-001` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Criteria status | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` |
-| Gate | `WP-H2-001` activo hasta R1; `F12.1` listo para H2-CA2 local. |
+| Gate | `WP-H2-001` activo hasta R1; `F12.1` bloqueado hasta cierre Obsidian efectivo en main. |
 
 ## Enlaces Canonicos
 
@@ -22,7 +22,7 @@
 
 ## Alcance
 
-Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. `WP-H2-001` esta activo solo hasta R1; `F12.1` puede iniciar H2-CA2 local, pero H2-CA3 sigue `NOT_STARTED` hasta cerrar CA2.
+Hito 2 implementara CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. `WP-H2-001` esta activo solo hasta R1; `F12.1` queda bloqueada hasta que la documentacion Obsidian canonica exista en main, se homologue y el checkout ordinario la consuma.
 
 ## Contrato Editorial
 
@@ -76,4 +76,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-`F12.1` queda como traza de implementacion local H2-CA2 R1. No inicia H2-CA3 hasta cerrar CA2 local. R2 y cualquier R3 requieren aprobaciones posteriores separadas.
+`F12.1` queda como traza futura de implementacion local H2-CA2 R1. No inicia H2-CA2 ni H2-CA3 hasta cierre efectivo de Etapa 1 en main y nueva/rebasada aprobacion WP. R2 y cualquier R3 requieren aprobaciones posteriores separadas.

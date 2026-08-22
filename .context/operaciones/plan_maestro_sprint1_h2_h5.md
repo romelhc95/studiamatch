@@ -3,24 +3,25 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_COMPLETED_HOMOLOGATED_AND_DOCUMENTED
-FASE = F12.1
+ESTADO = F10_11_HOMOLOGATED_OBSIDIAN_PENDING_MAIN
+FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
 O2 = COMPLETED
 O3 = COMPLETED
 O4 = COMPLETED
 O5 = COMPLETED
-H2-H5 = H2_CA2_READY_R1_ONLY
+H2-H5 = BLOCKED_PENDING_OBSIDIAN_MAIN
 active_work_package = WP-H2-001
-next_gate = EXECUTE_F12_1_LOCAL_CA2_R1
+governance_work_package = WP-GOV-OBS-001
+next_gate = PREPARE_WP_GOV_OBS_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
-implementation_status = READY_NOT_STARTED
+implementation_status = BLOCKED_PENDING_OBSIDIAN_MAIN
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. Sirvio para corregir la conformidad de `REQ-EST-001` durante F10.11, cierra la Etapa 1 Obsidian y deja trazable `F12.1` como la siguiente ejecucion local H2-CA2 R1 bajo `WP-H2-001`.
+Este plan no crea alcance ni autoriza R2/R3. Sirvio para corregir la conformidad de `REQ-EST-001` durante F10.11 y contiene un candidate local de documentacion Obsidian. Etapa 1 solo queda cerrada cuando esa documentacion exista en `main`, haya sido homologada hacia `certificacion` y `desarrollo`, y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
@@ -76,7 +77,15 @@ D0-D10 paquete correctivo local
 -> tracker final y checkout limpio
 -> aprobacion digest WP-H2-001 completada hasta R1 no activo
 -> activacion separada WP-H2-001 R1 completada
--> cierre Obsidian y activacion de traza F12.1
+-> candidate local Obsidian pendiente de main
+-> aprobacion WP-GOV-OBS-001 hasta R2
+-> PR/merge a desarrollo
+-> R3 JIT certificacion
+-> R3 JIT main
+-> homologacion main -> certificacion -> desarrollo
+-> checkout ordinario actualizado
+-> cierre Etapa 1 Obsidian
+-> nuevo/rebasado WP Hito 2
 -> H2-CA2 local R1
 -> H2-CA3 local R1 posterior
 -> H3
@@ -99,7 +108,7 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | O3 | `COMPLETED` | PR #421 mergeado a `main`. |
 | O4 | `COMPLETED` | PR #422 mergeado a `certificacion`. |
 | O5 | `COMPLETED` | PR #423 mergeado a `desarrollo`; checkout limpio verificado. |
-| Etapa 1 Obsidian | `COMPLETED_OBSIDIAN_CONTEXT_GRAPH` | Vault, enlaces canonicos, evidencia H2, taxonomia y siguiente gate reconciliados. |
+| Etapa 1 Obsidian | `LOCAL_CANDIDATE_PENDING_MAIN` | Vault, enlaces canonicos, evidencia H2, taxonomia y siguiente gate reconciliados localmente; cierre efectivo pendiente de main. |
 
 ## D0-D10 Correctivo
 
@@ -119,11 +128,11 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 
 ## Scoring H2-H5
 
-H2-H5 usan 12 unidades de 100 puntos. En F12.1 solo H2-CA2 queda listo para iniciar localmente; todos los criterios siguen `0/100` hasta evidencia funcional.
+H2-H5 usan 12 unidades de 100 puntos. Mientras Etapa 1 Obsidian no este cerrada en main, H2-CA2 y H2-CA3 siguen bloqueados y todos los criterios permanecen `0/100`.
 
-| Unidad | Hito | Estado F12.1 | Puntos |
+| Unidad | Hito | Estado pre-main | Puntos |
 |---|---|---|---:|
-| `H2-CA2` | H2 | `READY_NOT_STARTED` | 0 |
+| `H2-CA2` | H2 | `BLOCKED_PENDING_OBSIDIAN_MAIN` | 0 |
 | `H2-CA3` | H2 | `NOT_STARTED` | 0 |
 | `H3-CA4` | H3 | `PLANNED_NOT_ACTIVE` | 0 |
 | `H4-CA5` | H4 | `PLANNED_NOT_ACTIVE` | 0 |
@@ -148,8 +157,10 @@ H2-H5 usan 12 unidades de 100 puntos. En F12.1 solo H2-CA2 queda listo para inic
 | T3 | O3 a `main` | `COMPLETED` mediante PR #421. |
 | T4 | O4 main -> certificacion | `COMPLETED` mediante PR #422. |
 | T5 | O5 certificacion -> desarrollo | `COMPLETED` mediante PR #423. |
-| T6 | H2-CA2 | `F12.1` listo para ejecucion local R1 bajo `WP-H2-001`. |
-| T7 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
+| T6 | Gobierno Obsidian | `WP-GOV-OBS-001` candidate; requiere aprobacion R2 para desarrollo. |
+| T7 | Homologacion Obsidian | R3 JIT separados para certificacion/main y convergencia final. |
+| T8 | H2-CA2 | Bloqueado hasta cierre efectivo de Etapa 1 en main y WP H2 rebasado/validado. |
+| T9 | H2-CA3 | Bloqueado hasta cierre local de H2-CA2. |
 
 Fechas absolutas comerciales quedan fuera de Git. El calendario operativo se expresa por dependencias para evitar falsa autorizacion.
 
@@ -285,4 +296,4 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta completada, homologada y documentada como Etapa 1 Obsidian. `WP-H2-001` esta activo hasta R1 y conserva su digest aprobado. `F12.1` es la traza activa para iniciar H2-CA2 local R1. H2-CA3, push, PR, DDL/DML, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta homologada, pero Etapa 1 Obsidian sigue como `LOCAL_CANDIDATE_PENDING_MAIN` hasta que el bundle documental exista en `main`, se homologue hacia `certificacion` y `desarrollo`, y el checkout ordinario lo consuma. El siguiente gate es preparar la aprobacion por digest de `WP-GOV-OBS-001` hasta R2. Hito 2, H2-CA2, H2-CA3, Certification, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.

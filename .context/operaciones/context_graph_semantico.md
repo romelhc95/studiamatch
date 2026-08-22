@@ -47,20 +47,21 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` completada, `F12.1` como subfase tecnica activa, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `EXECUTE_F12_1_LOCAL_CA2_R1`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian completada, `WP-H2-001` activo hasta R1 y el proximo gate de ejecucion local H2-CA2.
+- `estado_del_proyecto.md` debe declarar `F10.11` homologada con Obsidian pendiente de main, `F12.1` bloqueada por main, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_OBS_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como candidate local pendiente de main, `WP-H2-001` activo hasta R1 y el proximo gate de aprobacion R2 para `WP-GOV-OBS-001`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
+- El indice debe enlazar `WP-GOV-OBS-001` y `TASK-GOV-OBS-001` mientras Etapa 1 Obsidian este pendiente de main.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
-## Taxonomia De Lifecycle H2 F12.1 Ready Sin Implementacion
+## Taxonomia De Lifecycle H2 Bloqueado Por Obsidian Main
 
 | Campo | Valor preaprobacion H2 | Regla |
 |---|---|---|
 | `lifecycle_stage` | `ACTIVE` | La activacion R1 fue registrada; el siguiente gate es revision Plan de implementacion. |
 | `gate_status` | `APPROVED_R1` | O5, checkout limpio, aprobacion digest+commit y activacion R1 estan completos. |
-| `implementation_status` | `READY_NOT_STARTED` | F12.1 puede iniciar H2-CA2 local; no hay cambios funcionales H2 ejecutados todavia. |
+| `implementation_status` | `BLOCKED_PENDING_OBSIDIAN_MAIN` | F12.1 es traza futura; H2-CA2 no inicia hasta que Etapa 1 exista en main y el checkout ordinario la consuma. |
 | `work_package_status` | `ACTIVE` | Tiene metadata de aprobacion y activacion; no hay implementacion iniciada. |
 | `criteria_status` | `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED` | Ningun criterio puede estar PASS/ACCEPTED antes de implementacion. |
 | `acceptance_status` | `NOT_STARTED` | No existe evidencia de aceptacion H2. |
@@ -94,12 +95,14 @@ operaciones remotas.
 
 ## Taxonomia De Fases Posteriores A F10.11
 
-F10.11 queda como cierre contractual, homologacion y documentacion Obsidian. F12
-es la macrofase de implementacion local Sprint 1 posterior a ese cierre. `F12.1`
-corresponde a H2-CA2 local R1 y `F12.2` queda bloqueada para H2-CA3 hasta que
-CA2 tenga evidencia local. La fase decimal selecciona tareas y trazabilidad; la
-autorizacion R1 se deriva del WP/digest vigente. R2 y R3 siempre requieren gates
-separados.
+F10.11 queda como cierre contractual y homologacion local. La documentacion
+Obsidian solo cierra cuando el bundle canonico esta en `main`, homologado hacia
+`certificacion`/`desarrollo` y consumido por el checkout ordinario. F12 es la
+macrofase futura posterior a ese cierre. `F12.1` corresponde a H2-CA2 local R1,
+pero permanece `BLOCKED_BY_OBSIDIAN_MAIN`; `F12.2` queda bloqueada para H2-CA3
+hasta que CA2 tenga evidencia local. La fase decimal selecciona tareas y
+trazabilidad; la autorizacion se deriva del WP/digest vigente. R2 y R3 siempre
+requieren gates separados.
 
 ## Semantica De Paths
 
