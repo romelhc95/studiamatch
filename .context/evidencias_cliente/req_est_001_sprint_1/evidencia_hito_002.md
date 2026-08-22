@@ -28,10 +28,12 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.
 
 | Campo | Valor |
 |---|---|
-| Etapa 1 Obsidian | `LOCAL_CANDIDATE_PENDING_MAIN` |
-| F10.11 | `HOMOLOGATED_OBSIDIAN_PENDING_MAIN` |
-| Execution phase siguiente | `F12.1_BLOCKED_BY_OBSIDIAN_MAIN` |
-| Proximo gate | `PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL` |
+| Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` |
+| F10.11 | `GOV_HOM_RECONCILIATION_PENDING_R2` |
+| Execution phase siguiente | `F12.1_BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` |
+| Proximo gate | `PREPARE_WP_GOV_HOM_R2_APPROVAL` |
+| PR #425 | `MERGED_TO_DESARROLLO@4cce43a743de5860c4da86eecf1782efab91d26b`, tree `ac16b545b74a03b149aac538062def20101187fb` |
+| WP-GOV-ARCH-001 | `CONSUMED_EXTERNALLY_BY_PR_425`, digest `df48d75129cfe2ba8971f55573a597ca47fb0e3c20e11a3a6a63377349be44e1` |
 
 ## Evidencia Funcional Futura
 
@@ -51,3 +53,5 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.
 - No marcar `PASS`, `ACCEPTED`, `IMPLEMENTED` ni `COMPLETED` para H2-CA2/H2-CA3 sin evidencia funcional.
 - No ejecutar Supabase, DDL/DML, backfill remoto, RLS/grants remotos, writers,
   schedules, deploys, push ni PR desde esta evidencia.
+- No iniciar H2 antes de que F10.11 cierre por predicado externo, convergencia de
+  `T_HOM` y rebaseline de `WP-H2-001`.

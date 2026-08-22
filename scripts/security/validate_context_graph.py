@@ -34,6 +34,7 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-GOV-OBS-001.json",
     "work_packages/WP-GOV-INFRA-001.json",
     "work_packages/WP-GOV-ARCH-001.json",
+    "work_packages/WP-GOV-HOM-001.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -42,6 +43,8 @@ REQUIRED_INDEX_LINKS = (
     "backlog_tareas/governance/TASK-GOV-OBS-001.md",
     "backlog_tareas/governance/TASK-GOV-INFRA-001.md",
     "backlog_tareas/governance/TASK-GOV-ARCH-001.md",
+    "backlog_tareas/governance/TASK-GOV-HOM-001.md",
+    "decisiones/ADR-0029_homologacion_no_recursiva.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -70,6 +73,8 @@ GOV_OBS_DIGEST = "6a2adee53c4aba66ca9f344f67319b72e624ce17408f73928947b9cc404c50
 GOV_INFRA_DIGEST = "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58"
 GOV_OBS_BASE_COMMIT = "486bf420cb0d8ad250bc7b3cceb21545184b4dd5"
 GOV_ARCH_BASE_COMMIT = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
+GOV_HOM_BASE_COMMIT = "4cce43a743de5860c4da86eecf1782efab91d26b"
+GOV_HOM_BASE_TREE = "ac16b545b74a03b149aac538062def20101187fb"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -128,6 +133,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_task = read(root, "backlog_tareas/governance/TASK-GOV-OBS-001.md")
     gov_infra_task = read(root, "backlog_tareas/governance/TASK-GOV-INFRA-001.md")
     gov_arch_task = read(root, "backlog_tareas/governance/TASK-GOV-ARCH-001.md")
+    gov_hom_task = read(root, "backlog_tareas/governance/TASK-GOV-HOM-001.md")
     architecture = read(root, "arquitectura_pipeline.md")
     db_system = read(root, "sistema_db_supabase.md")
     db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
@@ -135,6 +141,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-OBS-001.json").read_text(encoding="utf-8"))
     gov_infra_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-INFRA-001.json").read_text(encoding="utf-8"))
     gov_arch_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-ARCH-001.json").read_text(encoding="utf-8"))
+    gov_hom_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-HOM-001.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -144,7 +151,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GRAPH_ID_MISMATCH:state must reference WP-H2-001 as active R1")
     if "Subfase tecnica activa: `F10.11`" not in state:
         errors.append("EXECUTION_PHASE_MISMATCH:state must remain F10.11 until Obsidian reaches main")
-    if "`F12.1` | `BLOCKED_BY_OBSIDIAN_MAIN`" not in state or "`F12.2` | `BLOCKED_BY_F12_1_CA2`" not in state:
+    if "`F12.1` | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE`" not in state or "`F12.2` | `BLOCKED_BY_F12_1_CA2`" not in state:
         errors.append("EXECUTION_PHASE_MISMATCH:F12 taxonomy missing")
     if wp.get("id") != "WP-H2-001" or wp.get("task_id") != "TASK-H2-001" or wp.get("hito") != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:WP-H2-001 IDs")
@@ -152,7 +159,6 @@ def validate(root: Path = ROOT) -> list[str]:
     expected = {
         "Lifecycle stage": "ACTIVE",
         "Gate status": "APPROVED_R1",
-        "Implementation status": "BLOCKED_PENDING_OBSIDIAN_MAIN",
         "Acceptance status": "NOT_STARTED",
     }
     for field, value in expected.items():
@@ -169,6 +175,10 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"LIFECYCLE_MISMATCH:tracker missing {value}")
         if value not in plan:
             errors.append(f"LIFECYCLE_MISMATCH:plan missing {value}")
+    if "BLOCKED_PENDING_HOMOLOGATION_AND_REBASE" not in state + plan + tracker + evidence:
+        errors.append("LIFECYCLE_MISMATCH:homologation/rebase blocker missing")
+    if table_value(hito, "Implementation status") != "BLOCKED_PENDING_OBSIDIAN_MAIN" or table_value(task, "Implementation status") != "BLOCKED_PENDING_OBSIDIAN_MAIN":
+        errors.append("LIFECYCLE_MISMATCH:hito/task implementation status must remain not-started pre-rebase")
     if wp.get("lifecycle_stage") != "ACTIVE" or wp.get("implementation_status") != "BLOCKED_PENDING_OBSIDIAN_MAIN":
         errors.append("LIFECYCLE_MISMATCH:wp")
     if wp.get("gate_status") != "APPROVED_R1" or wp.get("acceptance_status") != "NOT_STARTED":
@@ -206,8 +216,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in state or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_ARCH_R2_APPROVAL" not in tracker:
-        errors.append("NEXT_GATE_MISMATCH:GOV ARCH R2 approval gate must be next")
+    if "PREPARE_WP_GOV_HOM_R2_APPROVAL" not in state or "PREPARE_WP_GOV_HOM_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_HOM_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV HOM R2 approval gate must be next")
+    if "PREPARE_WP_GOV_ARCH_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
+        errors.append("NEXT_GATE_MISMATCH:stale GOV ARCH R2 gate")
     if "PREPARE_WP_GOV_OBS_INFRA_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV OBS/INFRA R2 gate")
     if "PREPARE_WP_GOV_OBS_R2_APPROVAL" in state + plan + tracker + evidence + read(root, "operaciones/context_graph_semantico.md"):
@@ -230,13 +242,13 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if f"Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001 segun manifest sha256:{gov_arch_wp.get('candidate_digest')}" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV ARCH approval prompt missing digest")
+    if "Apruebo WP-GOV-HOM-001 de TASK-GOV-HOM-001 segun manifest sha256:<D_HOM>" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV HOM approval prompt missing digest placeholder")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV ARCH prompt must be R2 only")
+        errors.append("NEXT_GATE_MISMATCH:GOV HOM prompt must be R2 only")
 
-    if "LOCAL_CANDIDATE_PENDING_MAIN" not in state + plan + tracker + evidence:
-        errors.append("OBSIDIAN_STAGE_MISMATCH:pending-main status missing")
+    if "DESARROLLO_MERGED_PENDING_HOMOLOGATION" not in state + plan + tracker + evidence:
+        errors.append("OBSIDIAN_STAGE_MISMATCH:pending homologation status missing")
     if "COMPLETED_OBSIDIAN_CONTEXT_GRAPH" in state + plan + tracker + evidence and "MAIN_HOMOLOGATED_CONSUMED" not in state + plan + tracker + evidence:
         errors.append("OBSIDIAN_STAGE_MISMATCH:cannot complete before main homologation consumption")
     if "SUPERSEDED_TOMBSTONE" not in adr0003:
@@ -269,10 +281,25 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_ARCH_WP_INVALID:target")
     if gov_arch_wp.get("baseline", {}).get("candidate_commit") != GOV_ARCH_BASE_COMMIT:
         errors.append("GOV_ARCH_WP_INVALID:baseline")
-    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_arch_task:
+    if "COMPLETED_EXTERNALLY_BY_PR_425" not in gov_arch_task:
         errors.append("GOV_ARCH_TASK_INVALID:status")
+    if gov_hom_wp.get("id") != "WP-GOV-HOM-001" or gov_hom_wp.get("task_id") != "TASK-GOV-HOM-001" or gov_hom_wp.get("status") != "PROPOSED":
+        errors.append("GOV_HOM_WP_INVALID:identity/status")
+    if gov_hom_wp.get("target_level") != "R2":
+        errors.append("GOV_HOM_WP_INVALID:target")
+    if gov_hom_wp.get("baseline", {}).get("candidate_commit") != GOV_HOM_BASE_COMMIT or gov_hom_wp.get("baseline", {}).get("candidate_tree") != GOV_HOM_BASE_TREE:
+        errors.append("GOV_HOM_WP_INVALID:baseline")
+    grants = gov_hom_wp.get("homologation_grants", [])
+    if not isinstance(grants, list) or len(grants) != 4 or any(grant.get("status") != "TEMPLATE_ONLY_NOT_GRANTED" for grant in grants if isinstance(grant, dict)):
+        errors.append("GOV_HOM_GRANTS_INVALID:templates")
+    if "tree(main) == tree(certificacion) == tree(desarrollo) == T_HOM" not in "\n".join(str(item) for item in gov_hom_wp.get("closure_predicate", [])):
+        errors.append("GOV_HOM_CLOSURE_PREDICATE_REQUIRED")
+    if "PROPOSED_R2_PENDING_DIGEST_APPROVAL" not in gov_hom_task:
+        errors.append("GOV_HOM_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
+    if "PR #425" not in state or GOV_HOM_BASE_COMMIT not in state + tracker + plan or GOV_HOM_BASE_TREE not in state + tracker + plan:
+        errors.append("GOV_HOM_R2_HISTORY_MISSING:PR425")
     canonical_docs = (
         ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
         ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),
@@ -297,6 +324,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("CRITERIA_SET_MISMATCH:wp")
     if re.search(r"H2-CA[23].*`(ACTIVE|IMPLEMENTED|PASS|ACCEPTED|CERTIFIED|COMPLETED)`", tracker + matrix + evidence, re.IGNORECASE):
         errors.append("PREMATURE_ACCEPTANCE:H2 criteria marked accepted before approval")
+    if "H2-CA2 | `ACTIVE`" in tracker + plan or "H2-CA2 | `IMPLEMENTED`" in tracker + plan:
+        errors.append("PREMATURE_ACCEPTANCE:H2 started before homologation/rebase")
 
     for branch, ref in (("Main homologado O3", EXPECTED_BASELINE["main_commit"]), ("Certificacion homologada O4", EXPECTED_BASELINE["certificacion_commit"]), ("Desarrollo homologado O5", EXPECTED_BASELINE["desarrollo_commit"])):
         if ref not in state:

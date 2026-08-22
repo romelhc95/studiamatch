@@ -3,6 +3,7 @@
 > Fuente canonica de arquitectura aplicativa, pipeline, runtime e infraestructura. No crea alcance ni autoriza ejecucion; los gates viven en [Estado Del Proyecto](estado_del_proyecto.md) y en los work packages vigentes.
 
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
+Reconciliacion post-PR425: arquitectura publicada en `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`, tree `ac16b545b74a03b149aac538062def20101187fb`.
 
 ## Principios Vigentes
 
@@ -130,6 +131,8 @@ flowchart LR
 | `opencode.yml` | comentarios `/oc` | GitHub | integra OpenCode |
 
 `security-audit.yml` incluye un Governance Preflight R2 aplicable solo a PR/review cuyo destino sea `desarrollo`. Ese job valida el `head.sha` real del PR, no el merge ref sintetico `refs/pull/*/merge`; para `certificacion`, `main` y `push`, el preflight debe quedar skipped y cualquier promocion superior requiere R3/JIT separado.
+
+El despliegue automatico de Cloudflare Pages asociado a ramas/PR de `desarrollo` se clasifica como `AUTOMATIC_NON_PRODUCTION_PREVIEW_SIDE_EFFECT` cuando no modifica dominio productivo, environment Production, secrets, triggers manuales ni writers. No sustituye canary, no autoriza produccion y no es evidencia de aceptacion productiva. Si apunta a Production, dispara/reintenta manualmente, cambia configuracion/secrets o ejecuta writers/egress, la promocion debe detenerse y requerir R3 JIT explicito.
 
 ## Controles De Produccion
 
