@@ -3,6 +3,7 @@
 > Fuente canonica para documentar adopcion de schema/configuracion por ambiente. No autoriza migraciones, DDL/DML ni operaciones remotas.
 
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
+Snapshot GOV-CI: `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e7d087ac45457264ea29dfc1aa7373efd909290`.
 
 ## Ambientes
 
@@ -64,7 +65,7 @@ flowchart LR
 | Apply a Pro | Report pending, backup/PITR confirmado, `ddl_authorization_id`, apply manual, verify schema |
 | Cambio RLS/RPC | Tests de contrato, policy/grant diff, evidencia de no exposicion anon indebida |
 | Cambio writer | Arquitectura actualizada, matriz de escritor, gate de produccion, prueba de no secreto |
-| Cambio workflow/gate CI | Arquitectura actualizada, matriz revisada, PR a `desarrollo`, review humana con digest exacto y `security-audit` verde |
+| Cambio workflow/gate CI | Arquitectura actualizada, matriz revisada, PR a `desarrollo`, attestation con `Base-SHA`/`Candidate-SHA`/digest validada por `security-audit`, y review humana validada exclusivamente por branch protection |
 | Backfill/sync | Runbook JIT, ambiente origen/destino, mapeo UUID por slug/nombre, rollback |
 
 ## Drift Conocido
@@ -77,3 +78,4 @@ flowchart LR
 
 - Actualizar esta matriz en el mismo PR que cambie `db/migrations/**`, workflows DB, production controls o adoption evidence.
 - Mantenerla sincronizada con [Sistema DB Supabase](../sistema_db_supabase.md) y [Arquitectura Pipeline](../arquitectura_pipeline.md).
+- `security-audit` valida candidate/digest y co-change; la review humana no dispara CI, no requiere rerun manual y queda gobernada por branch protection. `certificacion` y `main` siguen requiriendo R3 JIT separado.

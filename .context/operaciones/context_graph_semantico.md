@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en reconciliacion `GOV-HOM`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424 y PR #425 publicados en `desarrollo`, y el proximo gate unico `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425 y PR #426 publicados en `desarrollo`, y el proximo gate unico `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, y `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como candidate de reconciliacion; el siguiente gate unico es `PREPARE_WP_GOV_HOM_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, y `WP-GOV-CI-001`/`TASK-GOV-CI-001` como candidate de separacion CI/review; el siguiente gate unico es `PREPARE_WP_GOV_CI_001_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -123,6 +123,15 @@ separado, DB Sync sin cambios, ningun writer/schedule/DDL/DML/Supabase y checkou
 ordinario actualizado. El grafo debe fallar si reaparece el gate literal de
 arquitectura ya consumido, si se agrupan grants o si H2 inicia antes de ese
 predicado.
+
+## Separacion CI Y Review GOV-CI
+
+`WP-GOV-CI-001` desacopla `security-audit` del gate nativo de review. El
+workflow valida attestation, manifest, digest, `Base-SHA`, `Candidate-SHA`, head
+real, ancestry, paths y co-change solo en PR hacia `desarrollo`. La review
+humana obligatoria queda en GitHub branch protection; no dispara CI, no consulta
+Reviews API y no requiere rerun manual. `certificacion`, `main` y cualquier R3
+siguen requiriendo grants JIT separados.
 
 ## Semantica De Paths
 

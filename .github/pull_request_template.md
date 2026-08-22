@@ -1,6 +1,7 @@
 ## Governance Attestation
 
 Base-SHA:
+Candidate-SHA:
 Estado-Snapshot:
 Requerimiento:
 Hito:
@@ -24,7 +25,8 @@ Security-Auditor: clean|findings-remediated
 - [ ] Lei `AGENTS.md`, `.context/00_INDICE.md` y `.context/estado_del_proyecto.md` antes de implementar.
 - [ ] El PR enlaza requerimiento, hito, TASK y WP aplicable.
 - [ ] La autorizacion coincide con `AGENTS.md` y usa WP/digest vigente.
-- [ ] La review humana aprobatoria incluye el digest exacto aprobado y corresponde al HEAD actual.
+- [ ] La attestation tecnica incluye Base-SHA, Candidate-SHA, WP-Digest y manifest vigente; `security-audit` valida digest, head real, paths y co-change.
+- [ ] La review humana obligatoria queda a cargo de GitHub branch protection; no necesita repetir el digest en el texto de review.
 - [ ] `active_work_package` esta coherente entre Estado, Plan Maestro, Tracker y manifest.
 - [ ] Si hay R3, existe aprobacion JIT single-use separada y vigente.
 - [ ] No se ejecutan H2 funcional, DDL/DML, schedules, writers, deploys ni secrets sin gate separado.

@@ -9,8 +9,6 @@ import os
 import re
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -20,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 LEVELS = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R3+": 4}
 REQUIRED_FIELDS = (
     "Base-SHA",
+    "Candidate-SHA",
     "Estado-Snapshot",
     "Requerimiento",
     "Hito",
@@ -87,44 +86,6 @@ def git_is_ancestor(base: str, head: str, root: Path = ROOT) -> bool | None:
     return None
 
 
-def latest_human_approval(event_path: str, *, digest: str, head_sha: str) -> str | None:
-    token = os.getenv("GITHUB_TOKEN")
-    repository = os.getenv("GITHUB_REPOSITORY")
-    if not token or not repository or not event_path:
-        return None
-    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    pull_request = event.get("pull_request") or {}
-    number = pull_request.get("number")
-    author = (pull_request.get("user") or {}).get("login", "")
-    if not number:
-        return None
-    url = f"https://api.github.com/repos/{repository}/pulls/{number}/reviews"
-    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            reviews = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        return None
-    for review in reversed(reviews):
-        if review_is_valid(review, author=author, digest=digest, head_sha=head_sha):
-            return (review.get("user") or {}).get("login", "")
-    return None
-
-
-def review_is_valid(review: dict[str, Any], *, author: str, digest: str, head_sha: str) -> bool:
-    user = (review.get("user") or {}).get("login", "")
-    body = review.get("body") or ""
-    return bool(
-        review.get("state") == "APPROVED"
-        and review.get("commit_id") == head_sha
-        and digest
-        and digest in body
-        and user
-        and user != author
-        and not user.endswith("[bot]")
-    )
-
-
 def git_sha(args: list[str], root: Path = ROOT) -> str:
     return subprocess.check_output(["git", *args], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
 
@@ -159,7 +120,6 @@ def validate(
     root: Path = ROOT,
     now: datetime | None = None,
     event_path: str = "",
-    require_approved_review: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     fields = parse_attestation(body)
@@ -214,6 +174,11 @@ def validate(
 
     if not HEX40.match(fields.get("Base-SHA", "")) or fields.get("Base-SHA") != base_sha:
         errors.append("GOVERNANCE_BASE_SHA_MISMATCH")
+    candidate_sha = fields.get("Candidate-SHA", "")
+    if not HEX40.match(candidate_sha):
+        errors.append("GOVERNANCE_CANDIDATE_SHA_INVALID")
+    elif candidate_sha != pr_head_sha:
+        errors.append("GOVERNANCE_CANDIDATE_SHA_MISMATCH")
 
     if fields.get("Architecture-Impact") not in {"updated", "none"}:
         errors.append("GOVERNANCE_ARCHITECTURE_IMPACT_INVALID")
@@ -247,9 +212,6 @@ def validate(
         errors.append("GOVERNANCE_SECURITY_AUDITOR_INVALID")
     if fields.get("Approval-Level") in {"R3", "R3+"}:
         errors.append("GOVERNANCE_R3_JIT_NOT_SUPPORTED_BY_PREFLIGHT")
-    review_head_sha = pr_head_sha or head_sha
-    if require_approved_review and latest_human_approval(event_path, digest=fields.get("WP-Digest", ""), head_sha=review_head_sha) is None:
-        errors.append("GOVERNANCE_HUMAN_APPROVAL_REVIEW_REQUIRED")
     print(f"governance-preflight base_ref={base_ref} head_ref={head_ref} base_sha={base_sha} head_sha={head_sha} pr_head_sha={pr_head_sha} wp={wp_id}")
     return errors
 
@@ -263,7 +225,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--head-sha", default="")
     parser.add_argument("--changed-from")
     parser.add_argument("--body-file")
-    parser.add_argument("--require-approved-review", action="store_true")
     args = parser.parse_args(argv)
 
     body = ""
@@ -289,7 +250,6 @@ def main(argv: list[str] | None = None) -> int:
         pr_head_sha=args.head_sha,
         base_for_diff=base_for_diff,
         event_path=args.event_path,
-        require_approved_review=args.require_approved_review,
     )
     if errors:
         for error in errors:

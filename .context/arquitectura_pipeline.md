@@ -4,6 +4,7 @@
 
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
 Reconciliacion post-PR425: arquitectura publicada en `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b`, tree `ac16b545b74a03b149aac538062def20101187fb`.
+Reconciliacion post-PR426: GOV-HOM publicado en `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; GOV-CI prepara la separacion entre `security-audit` y branch protection review.
 
 ## Principios Vigentes
 
@@ -130,7 +131,7 @@ flowchart LR
 | `f9-7-contract.yml` | PR con paths sensibles | N/A | contrato PostgreSQL 17 y secretos |
 | `opencode.yml` | comentarios `/oc` | GitHub | integra OpenCode |
 
-`security-audit.yml` incluye un Governance Preflight R2 aplicable solo a PR/review cuyo destino sea `desarrollo`. Ese job valida el `head.sha` real del PR, no el merge ref sintetico `refs/pull/*/merge`; para `certificacion`, `main` y `push`, el preflight debe quedar skipped y cualquier promocion superior requiere R3/JIT separado.
+`security-audit.yml` incluye un Governance Preflight R2 aplicable solo a `pull_request` cuyo destino sea `desarrollo`. Ese job valida `Base-SHA`, `Candidate-SHA`, `WP-Digest`, manifest, el `head.sha` real del PR, ancestry, paths y co-change; no consulta reviews ni se dispara por `pull_request_review`. Para `certificacion`, `main` y `push`, el preflight debe quedar skipped y cualquier promocion superior requiere R3/JIT separado. GitHub branch protection es la unica autoridad mecanica de review humana, por lo que no se necesita rerun manual cuando llega la review.
 
 El despliegue automatico de Cloudflare Pages asociado a ramas/PR de `desarrollo` se clasifica como `AUTOMATIC_NON_PRODUCTION_PREVIEW_SIDE_EFFECT` cuando no modifica dominio productivo, environment Production, secrets, triggers manuales ni writers. No sustituye canary, no autoriza produccion y no es evidencia de aceptacion productiva. Si apunta a Production, dispara/reintenta manualmente, cambia configuracion/secrets o ejecuta writers/egress, la promocion debe detenerse y requerir R3 JIT explicito.
 

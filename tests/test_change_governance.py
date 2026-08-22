@@ -10,6 +10,7 @@ BASE_SHA = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 HEAD_SHA = "2eb8fcdda1224146c8013d6a050f56edf4e63194"
 SYNTHETIC_MERGE_SHA = "3" * 40
 VALID_BODY = """Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194
 Estado-Snapshot: SNAPSHOT-2026-08-22-GOV-ARCH-R2-PENDING
 Requerimiento: REQ-EST-001
 Hito: GOV-ARCH
@@ -140,35 +141,32 @@ class ChangeGovernanceTests(unittest.TestCase):
         errors = self.run_validate(ancestry=None)
         self.assertTrue(any(error.startswith("GOVERNANCE_GIT_VALIDATION_FAILED") for error in errors))
 
-    def test_required_human_review_fails_without_review(self):
-        validator = load_validator()
-        manifest = validator.load_manifest("WP-GOV-ARCH-001")
-        body = VALID_BODY.replace("0" * 64, manifest["candidate_digest"])
-        with patch.object(validator, "changed_paths", return_value=[".context/arquitectura_pipeline.md"]), patch.object(validator, "git_sha", return_value=HEAD_SHA), patch.object(validator, "git_is_ancestor", return_value=True), patch.object(validator, "latest_human_approval", return_value=None):
-            errors = validator.validate(body=body, base_ref="desarrollo", head_ref="governance/gov-arch-001", base_sha=BASE_SHA, base_for_diff=BASE_SHA, pr_head_sha=HEAD_SHA, now=datetime(2026, 8, 22, tzinfo=UTC), event_path="event.json", require_approved_review=True)
-        self.assertTrue(any(error.startswith("GOVERNANCE_HUMAN_APPROVAL_REVIEW_REQUIRED") for error in errors))
+    def test_valid_attestation_passes_without_review_lookup(self):
+        self.assertEqual(self.run_validate(), [])
 
-    def test_review_must_match_digest_head_and_actor(self):
-        validator = load_validator()
-        digest = validator.load_manifest("WP-GOV-ARCH-001")["candidate_digest"]
-        valid = {"state": "APPROVED", "commit_id": HEAD_SHA, "body": f"approved {digest}", "user": {"login": "reviewer"}}
-        self.assertTrue(validator.review_is_valid(valid, author="author", digest=digest, head_sha=HEAD_SHA))
-        invalid_cases = [
-            {**valid, "state": "DISMISSED"},
-            {**valid, "commit_id": "a" * 40},
-            {**valid, "body": "approved wrong digest"},
-            {**valid, "user": {"login": "author"}},
-            {**valid, "user": {"login": "bot[bot]"}},
-        ]
-        for review in invalid_cases:
-            self.assertFalse(validator.review_is_valid(review, author="author", digest=digest, head_sha=HEAD_SHA))
+    def test_candidate_sha_missing_fails(self):
+        body = VALID_BODY.replace("Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194\n", "")
+        self.assertTrue(any(error.startswith("GOVERNANCE_PREFLIGHT_FIELD_REQUIRED:Candidate-SHA") or error.startswith("GOVERNANCE_CANDIDATE_SHA_INVALID") for error in self.run_validate(body=body)))
+
+    def test_candidate_sha_invalid_fails(self):
+        body = VALID_BODY.replace("Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194", "Candidate-SHA: ABC")
+        self.assertTrue(any(error.startswith("GOVERNANCE_CANDIDATE_SHA_INVALID") for error in self.run_validate(body=body)))
+
+    def test_candidate_sha_mismatch_fails(self):
+        body = VALID_BODY.replace("Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194", "Candidate-SHA: " + "a" * 40)
+        self.assertTrue(any(error.startswith("GOVERNANCE_CANDIDATE_SHA_MISMATCH") for error in self.run_validate(body=body)))
 
     def test_workflow_scopes_preflight_to_desarrollo(self):
         workflow = (ROOT / ".github" / "workflows" / "security-audit.yml").read_text(encoding="utf-8")
         self.assertIn("github.event.pull_request.base.ref == 'desarrollo'", workflow)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha }}", workflow)
-        self.assertIn("pull_request:desarrollo|pull_request_review:desarrollo", workflow)
-        self.assertIn("pull_request:certificacion|pull_request:main|pull_request_review:certificacion|pull_request_review:main|push:", workflow)
+        self.assertIn("pull_request:desarrollo", workflow)
+        self.assertIn("needs.governance-preflight.result }}' = 'success'", workflow)
+        self.assertIn("pull_request:certificacion|pull_request:main|push:", workflow)
+        self.assertIn("needs.governance-preflight.result }}' = 'skipped'", workflow)
+        self.assertIn("unsupported governance event", workflow)
+        self.assertNotIn("pull_request_review", workflow)
+        self.assertNotIn("--require-approved-review", workflow)
 
     def test_r3_level_requires_separate_jit(self):
         body = VALID_BODY.replace("Approval-Level: R2", "Approval-Level: R3")
@@ -180,27 +178,11 @@ class ChangeGovernanceTests(unittest.TestCase):
         errors = self.run_validate(body=body)
         self.assertTrue(any(error.startswith("GOVERNANCE_APPROVAL_LEVEL_MISMATCH") for error in errors))
 
-    def test_latest_human_approval_returns_reviewer_login(self):
-        validator = load_validator()
-        digest = validator.load_manifest("WP-GOV-ARCH-001")["candidate_digest"]
-        event_path = ROOT / "tests" / "tmp_event.json"
-        event_path.write_text('{"pull_request":{"number":1,"user":{"login":"author"}}}', encoding="utf-8")
-
-        class Response:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, exc_type, exc, tb):
-                return False
-
-            def read(self):
-                return ('[{"state":"APPROVED","commit_id":"' + HEAD_SHA + '","body":"' + digest + '","user":{"login":"reviewer"}}]').encode("utf-8")
-
-        try:
-            with patch.dict("os.environ", {"GITHUB_TOKEN": "token", "GITHUB_REPOSITORY": "owner/repo"}), patch.object(validator.urllib.request, "urlopen", return_value=Response()):
-                self.assertEqual(validator.latest_human_approval(str(event_path), digest=digest, head_sha=HEAD_SHA), "reviewer")
-        finally:
-            event_path.unlink(missing_ok=True)
+    def test_validator_does_not_import_reviews_api_client(self):
+        source = (ROOT / "scripts" / "security" / "validate_change_governance.py").read_text(encoding="utf-8")
+        self.assertNotIn("urllib", source)
+        self.assertNotIn("latest_human_approval", source)
+        self.assertNotIn("review_is_valid", source)
 
     def test_legacy_phase_prompt_fails(self):
         body = VALID_BODY + "\nEjecuta las tareas pendientes de la Fase F12.1\n"

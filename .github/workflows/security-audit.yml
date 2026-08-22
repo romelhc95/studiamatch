@@ -4,8 +4,6 @@ on:
   pull_request:
     branches: [desarrollo, certificacion, main]
     types: [opened, reopened, synchronize, edited, ready_for_review]
-  pull_request_review:
-    types: [submitted, edited, dismissed]
   push:
     branches: [desarrollo, certificacion, main]
 
@@ -165,8 +163,7 @@ jobs:
     name: Governance Preflight
     runs-on: ubuntu-latest
     if: >-
-      (github.event_name == 'pull_request' ||
-       github.event_name == 'pull_request_review') &&
+      github.event_name == 'pull_request' &&
       github.event.pull_request.base.ref == 'desarrollo'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -183,7 +180,6 @@ jobs:
           HEAD_REF: ${{ github.head_ref || github.event.pull_request.head.ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git cat-file -e "$BASE_SHA^{commit}" || git fetch --no-tags --depth=1 origin "$BASE_SHA"
@@ -193,8 +189,7 @@ jobs:
             --head-ref "$HEAD_REF" \
             --base-sha "$BASE_SHA" \
             --head-sha "$HEAD_SHA" \
-            --changed-from "$BASE_SHA" \
-            --require-approved-review
+            --changed-from "$BASE_SHA"
 
   governance-tests:
     name: Governance Regression Tests
@@ -321,10 +316,10 @@ jobs:
           test '${{ needs.context-graph.result }}' = 'success'
           test '${{ needs.path-boundary.result }}' = 'success'
           case "$EVENT_NAME:$PR_BASE_REF" in
-            pull_request:desarrollo|pull_request_review:desarrollo)
+            pull_request:desarrollo)
               test '${{ needs.governance-preflight.result }}' = 'success'
               ;;
-            pull_request:certificacion|pull_request:main|pull_request_review:certificacion|pull_request_review:main|push:)
+            pull_request:certificacion|pull_request:main|push:)
               test '${{ needs.governance-preflight.result }}' = 'skipped'
               ;;
             *)
