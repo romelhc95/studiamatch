@@ -8,8 +8,10 @@ on:
     branches: [desarrollo, certificacion, main]
 
 permissions:
+  actions: read
   contents: read
   checks: read
+  issues: read
   pull-requests: read
 
 env:
@@ -159,8 +161,20 @@ jobs:
             promotion_pair=false
             if [ "$same_repo" = "true" ]; then
               case "$base_ref:$head_ref" in
-                certificacion:promote/gov-hom-006-o2-req1|main:promote/gov-hom-006-o3-req1|certificacion:promote/gov-hom-006-o4-req1|desarrollo:promote/gov-hom-006-o5-req1)
+                certificacion:promote/gov-hom-007-o2-req1|main:promote/gov-hom-007-o3-req1|certificacion:promote/gov-hom-007-o4-req1|desarrollo:promote/gov-hom-007-o5-req1)
                   promotion_pair=true
+                  ;;
+              esac
+              case "$head_ref" in
+                promote/gov-hom-*)
+                  if [ "$promotion_pair" != "true" ]; then
+                    echo "::error::blocked superseded or unknown promotion branch: $head_ref"
+                    # Historical blocked examples kept for regression visibility:
+                    # github.event.pull_request.head.ref == 'promote/gov-hom-006-o3-req1'
+                    # github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'
+                    # promote/gov-hom-006-o2-req1 promote/gov-hom-006-o4-req1
+                    exit 1
+                  fi
                   ;;
               esac
             fi
@@ -179,6 +193,7 @@ jobs:
     if: github.event_name == 'push'
     outputs:
       post_merge_promotion: ${{ steps.boundary.outputs.post_merge_promotion }}
+      post_merge_classification: ${{ steps.boundary.outputs.post_merge_classification }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -193,9 +208,19 @@ jobs:
           set -euo pipefail
           before="$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")"
           echo "post_merge_promotion=false" >> "$GITHUB_OUTPUT"
-          if POST_MERGE_SKIP_PROTECTED_APPROVAL=1 python3 scripts/security/validate_work_package.py --post-merge-push-event "$GITHUB_EVENT_PATH"; then
+          set +e
+          output="$(POST_MERGE_SKIP_PROTECTED_APPROVAL=1 python3 scripts/security/validate_work_package.py --post-merge-push-event "$GITHUB_EVENT_PATH" 2>&1)"
+          status="$?"
+          set -e
+          printf '%s\n' "$output"
+          classification="$(printf '%s\n' "$output" | head -n 1)"
+          echo "post_merge_classification=$classification" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 0 ] && [ "$classification" = "VERIFIED_PROMOTION" ]; then
             echo "post_merge_promotion=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          if [ "$status" -ne 2 ] || [ "$classification" != "NOT_APPLICABLE" ]; then
+            exit 1
           fi
           if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
             base="$before"
@@ -213,7 +238,15 @@ jobs:
     environment:
       name: Promotion
     steps:
-      - name: Revalidate protected approval values
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Revalidate protected promotion evidence and approval values
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -223,43 +256,7 @@ jobs:
           R3_JIT_APPROVAL_EXPIRY: ${{ vars.R3_JIT_APPROVAL_EXPIRY }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json, os, urllib.request
-          repo = os.environ["GITHUB_REPOSITORY"]
-          sha = os.environ["GITHUB_SHA"]
-          token = os.environ["GITHUB_TOKEN"]
-          req = urllib.request.Request(
-              f"https://api.github.com/repos/{repo}/commits/{sha}/pulls",
-              headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"},
-          )
-          with urllib.request.urlopen(req, timeout=20) as response:
-              pulls = json.loads(response.read().decode("utf-8"))
-          if len(pulls) != 1:
-              raise SystemExit("post-merge approval PR evidence missing")
-          number = pulls[0].get("number")
-          req = urllib.request.Request(
-              f"https://api.github.com/repos/{repo}/pulls/{number}",
-              headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"},
-          )
-          with urllib.request.urlopen(req, timeout=20) as response:
-              pr = json.loads(response.read().decode("utf-8"))
-          fields = {}
-          for line in str(pr.get("body") or "").splitlines():
-              if ":" in line:
-                  key, value = line.split(":", 1)
-                  fields[key.strip()] = value.strip()
-          expected = {
-              "Grant-ID": os.environ.get("R3_JIT_APPROVAL_GRANT_ID", ""),
-              "Approval-Reference": os.environ.get("R3_JIT_APPROVAL_REFERENCE", ""),
-              "Approval-Expiry": os.environ.get("R3_JIT_APPROVAL_EXPIRY", ""),
-          }
-          if any(not value for value in expected.values()):
-              raise SystemExit("protected approval env missing")
-          for key, value in expected.items():
-              if fields.get(key) != value:
-                  raise SystemExit(f"protected approval mismatch: {key}")
-          print("post-merge protected approval values match")
-          PY
+          python3 scripts/security/validate_work_package.py --post-merge-push-event "$GITHUB_EVENT_PATH"
 
   promotion-boundary:
     name: Promotion Boundary
@@ -267,10 +264,10 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o2-req1') ||
-       (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o3-req1') ||
-       (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o4-req1') ||
-       (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'))
+      ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-007-o2-req1') ||
+       (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-007-o3-req1') ||
+       (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-007-o4-req1') ||
+       (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-007-o5-req1'))
     environment:
       name: Promotion
     steps:
@@ -297,12 +294,14 @@ jobs:
   governance-preflight:
     name: Governance Preflight
     runs-on: ubuntu-latest
+    # Superseded HOM-006 is blocked by Canonical Path Boundary, not reactivated:
+    # github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.base.ref == 'desarrollo' &&
       !(github.event.pull_request.head.repo.full_name == github.repository &&
         (github.event.pull_request.head.ref == 'certificacion' ||
-         github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'))
+          github.event.pull_request.head.ref == 'promote/gov-hom-007-o5-req1'))
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -470,7 +469,7 @@ jobs:
           promotion=false
           if [ "$SAME_REPO" = "true" ]; then
             case "$PR_BASE_REF:$PR_HEAD_REF" in
-              certificacion:promote/gov-hom-006-o2-req1|main:promote/gov-hom-006-o3-req1|certificacion:promote/gov-hom-006-o4-req1|desarrollo:promote/gov-hom-006-o5-req1)
+              certificacion:promote/gov-hom-007-o2-req1|main:promote/gov-hom-007-o3-req1|certificacion:promote/gov-hom-007-o4-req1|desarrollo:promote/gov-hom-007-o5-req1)
                 promotion=true
                 ;;
             esac

@@ -10,6 +10,7 @@ Reconciliacion post-PR429: GOV-CI2 publicado en `desarrollo@1ac74f78fec6290e2144
 Reconciliacion post-PR430: GOV-CI3 publicado en `desarrollo@235c2329eb5fd8903c31785640a63466b23f0dd8`, tree `cc774746d21cb6649f7018da3049fc811a3f294b`; PR #431 fallo antes de runner porque `Promotion Boundary` usaba Environment `Certification` y el ref `refs/pull/431/merge` no cumple su branch policy. GOV-CI4 cambia el gate a Environment `Promotion` dedicado.
 Reconciliacion post-PR433: O2 completo en `certificacion@3682d0af8c16ed0476663e6727b14f03ec14ed78`, tree `acabd0965d4aa716904917caab691b3867aa5798`; el push post-merge `32615044699` fallo `Canonical Path Boundary` por evaluar el delta de promocion como WP incremental. GOV-CI5 agrega validacion estructural post-merge antes de O3.
 Reconciliacion post-PR435: GOV-CI5 publicado en `desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845`, tree `fc9ff315d20648e87d049d5fb244a09ea214bfb8`; PR #435 fallo O2 antes de merge por F9.7 legacy automatico. GOV-CI6 retira F9.7 de triggers automaticos y exige promociones target-aware `promote/gov-hom-006-oN`.
+Reconciliacion post-PR437: GOV-CI6 publicado en `desarrollo@26a44af87e4e610d905763b6a5b8c14b64607954`, tree `3b956049f3535263b2fdbe3177dc7118005b7af1`; PR #437 fue mergeado a `certificacion` pero fallo post-merge run `32650341464` por checks con `pull_requests: []` y `merged_by=romelhc95-approver`. GOV-CI7 implementa evidencia post-merge fail-closed y reemplaza HOM-006 por HOM-007.
 
 ## Principios Vigentes
 
@@ -22,8 +23,8 @@ Reconciliacion post-PR435: GOV-CI5 publicado en `desarrollo@9f265e41eb4724727e5b
 - `security-audit` usa boundary incremental para PR normales y boundary estructural para promociones O2-O5 entre ramas protegidas; GOV-CI2 no autoriza deploys, writers ni DB.
 - Las solicitudes versionadas en `.context/r3_grants/` son `REQUESTED_JIT_SINGLE_USE` con bindings simbolicos; no son approvals R3 ni contienen SHA/tree autorreferenciales.
 - `Promotion Boundary` para O2-O5 usa el Environment `Promotion`; no usa `Certification`, `Production` ni `Development` para evitar branch policies incompatibles con refs sinteticos de PR.
-- Los pushes post-merge de promociones O2-O5 se validan como estructura de merge protegida si existe evidencia read-only de PR asociado, checks pre-merge verdes, attestation, merger `romelhc95` y review `romelhc95-approver`; si falta evidencia vuelven al boundary incremental.
-- Las promociones GOV-CI6 son target-aware: el candidate merge commit usa como primer padre el target SHA exacto, segundo padre el source SHA exacto, y `tree(candidate)=tree(source)=T_FINAL`. El workflow F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers `pull_request`/`push`.
+- Los pushes post-merge de promociones O2-O5 se clasifican como `VERIFIED_PROMOTION`, `NOT_APPLICABLE` o `BLOCKED`; solo `NOT_APPLICABLE` usa boundary incremental. Falta de evidencia, evidencia ambigua o identidad invalida falla cerrado.
+- Las promociones GOV-CI7 son target-aware: el candidate merge commit usa como primer padre el target SHA exacto, segundo padre el source SHA exacto, y `tree(candidate)=tree(source)=T_FINAL`. El workflow F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers `pull_request`/`push`.
 
 ## Diagrama De Contexto
 

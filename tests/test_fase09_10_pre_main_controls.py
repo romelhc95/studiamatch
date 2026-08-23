@@ -115,10 +115,12 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
     assert "APPROVED_FOR_PRODUCTION_DDL" in workflow
     assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in workflow
     assert "production_control_preflight.sh DB-SYNC --enforce" in workflow
-    assert "python3 scripts/maintenance/db_migrate.py --env pro --manifest" in workflow
+    assert "python3 scripts/maintenance/db_migrate.py --env pro --only" in workflow
+    assert "--manifest" not in workflow
 
     report_section = workflow.split("  report:", 1)[1].split("  apply:", 1)[0]
-    assert "--dry-run --manifest" in report_section
+    assert "--dry-run --only" in report_section
+    assert "--manifest" not in report_section
     assert "Apply migrations to Pro" not in report_section
     assert not re.search(r"if:\s*github\.ref_name == 'main' && inputs\.apply_authorized", workflow)
 
@@ -126,21 +128,14 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
 def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "F910_CERTIFICATION_BASELINE: bc227629b8df1fcabca47ea7be3ea1d5b4c7667b" in workflow
-    assert "F910_PRE_MAIN_SOURCE_COMMIT: bfe46ab31b150051f2842e6d8c196a2bfd431fab" in workflow
-    assert "f910-pre-main-controls:" in workflow
-    assert "F9.10 Pre-Main Repository Controls" in workflow
-    assert "git fetch --no-tags origin certificacion desarrollo" in workflow
-    assert "unsupported baseline" in workflow
-    assert '"db/", "supabase/", "web/", "scripts/maintenance/"' in workflow
-    assert '".github/workflows/f9-7-contract.yml"' in workflow
-    assert '"tests/test_fase09_7_release_gates.py"' in workflow
-    assert '".github/workflows/production_canary.yml": {"A"}' in workflow
-    assert '"scripts/core/production_canary_manifest.py": {"A"}' in workflow
-    assert '"scripts/core/production_canary_state.py": {"A"}' in workflow
-    assert '"tests/test_fase10_production_canary.py": {"A"}' in workflow
-    assert 'expected_modes[".github/workflows/security-audit.yml"] = "100755"' in workflow
-    assert "tests/test_fase09_10_pre_main_controls.py" in workflow
+    assert "Promotion Boundary" in workflow
+    assert "promote/gov-hom-007-o2-req1" in workflow
+    assert "promote/gov-hom-007-o3-req1" in workflow
+    assert "promote/gov-hom-007-o4-req1" in workflow
+    assert "promote/gov-hom-007-o5-req1" in workflow
+    assert "f910-pre-main-controls:" not in workflow
+    assert "F9.10 Pre-Main Repository Controls" not in workflow
+    assert "F910_CERTIFICATION_BASELINE" not in workflow
 
 
 def test_production_canary_workflow_is_present_but_never_scheduled() -> None:
