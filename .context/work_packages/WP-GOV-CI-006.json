@@ -1,0 +1,205 @@
+{
+  "id": "WP-GOV-CI-006",
+  "status": "PROPOSED",
+  "task_id": "TASK-GOV-CI-006",
+  "hito": "GOV-CI",
+  "phase_trace": "F10.11",
+  "risk_level": "GOVERNANCE_TARGET_AWARE_PROMOTION_RECOVERY",
+  "target_level": "R2",
+  "baseline": {
+    "candidate_commit": "9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845",
+    "candidate_tree": "fc9ff315d20648e87d049d5fb244a09ea214bfb8",
+    "desarrollo_commit": "9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845",
+    "desarrollo_tree": "fc9ff315d20648e87d049d5fb244a09ea214bfb8",
+    "certificacion_commit": "3682d0af8c16ed0476663e6727b14f03ec14ed78",
+    "certificacion_tree": "acabd0965d4aa716904917caab691b3867aa5798",
+    "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
+    "main_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3"
+  },
+  "environment_scope": ["local", "development"],
+  "allowed_paths": [
+    "AGENTS.md",
+    ".github/workflows/security-audit.yml",
+    ".github/workflows/f9-7-contract.yml",
+    ".github/pull_request_template.md",
+    "scripts/security/validate_work_package.py",
+    "scripts/security/validate_context_graph.py",
+    "tests/test_work_package_manifest.py",
+    "tests/test_change_governance.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_release_workflow_matrix.py",
+    "tests/test_fase09_9_certification_canary.py",
+    "tests/test_fase09_10_pre_main_controls.py",
+    "tests/test_fase10_main_boundary.py",
+    "tests/test_fase10_8_db_sync.py",
+    "tests/test_fase10_production_canary.py",
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/sistema_db_supabase.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/backlog_tareas/governance/TASK-GOV-CI-006.md",
+    ".context/work_packages/WP-GOV-CI-006.json",
+    ".context/decisiones/ADR-0035_target_aware_promotions_y_retiro_gates_legacy.md",
+    ".context/r3_grants/R3-GOV-HOM-006-O2-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-006-O3-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-006-O4-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-006-O5-REQ1.json"
+  ],
+  "denied_without_jit": [
+    "production",
+    "certification",
+    "main",
+    "supabase-free",
+    "supabase-pro",
+    "ddl-execution",
+    "dml-execution",
+    "migration-execution",
+    "backfill-execution",
+    "rls-grants-remote",
+    "writers",
+    "schedules",
+    "workflow_dispatch",
+    "deploys",
+    "secrets",
+    "lead_capture",
+    "egress"
+  ],
+  "dependencies": [
+    "PR #434 merged GOV-CI5 to desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845 with tree fc9ff315d20648e87d049d5fb244a09ea214bfb8",
+    "PR #435 O2 HOM-005 failed before merge in run 32619372008 and consumed R3-GOV-HOM-005-O2-REQ1",
+    "F9.7 legacy workflow still triggers on modern promotions unless frozen manual-only",
+    "certificacion/main/desarrollo history divergence requires target-aware synthetic candidate branches"
+  ],
+  "r3_operations": [
+    "certification promotion",
+    "main promotion",
+    "Cloudflare Pages Production rebuild",
+    "DB sync detect-only",
+    "db operations",
+    "Supabase operations",
+    "DDL/DML execution",
+    "migration execution",
+    "backfill execution",
+    "deploys",
+    "writers",
+    "schedules",
+    "production"
+  ],
+  "supersedes_digest": "3912d0b7798068c700facfb054360c531b768f251644fef0dbe456ce4b0567cf",
+  "target_aware_promotion_model": {
+    "final_wp": "WP-GOV-CI-006",
+    "static_request_status": "REQUESTED_JIT_SINGLE_USE",
+    "candidate_parent_1": "target branch SHA",
+    "candidate_parent_2": "source branch SHA",
+    "candidate_tree": "tree(source SHA)",
+    "branches": {
+      "O2 desarrollo -> certificacion": "promote/gov-hom-006-o2-req1",
+      "O3 certificacion -> main": "promote/gov-hom-006-o3-req1",
+      "O4 main -> certificacion": "promote/gov-hom-006-o4-req1",
+      "O5 certificacion -> desarrollo": "promote/gov-hom-006-o5-req1"
+    },
+    "symbolic_bindings": {
+      "base_sha_binding": "pull_request.base.sha",
+      "source_sha_binding": "promotion_attestation.Source-SHA",
+      "candidate_sha_binding": "pull_request.head.sha",
+      "candidate_tree_binding": "tree(pull_request.head.sha)",
+      "t_final_binding": "tree(promotion_attestation.Source-SHA)",
+      "d_final_binding": "manifest.candidate_digest"
+    },
+    "grant_request_ids": [
+      "R3-GOV-HOM-006-O2-REQ1",
+      "R3-GOV-HOM-006-O3-REQ1",
+      "R3-GOV-HOM-006-O4-REQ1",
+      "R3-GOV-HOM-006-O5-REQ1"
+    ],
+    "external_consumption_required": true,
+    "no_internal_ledger": true,
+    "o3_requires_no_db_changes": true
+  },
+  "legacy_gate_retirement": {
+    "workflow": ".github/workflows/f9-7-contract.yml",
+    "mode": "MANUAL_FROZEN_ONLY",
+    "frozen_commit": "258ef3a98c7c1010efe58522bb1eca892e26390e",
+    "frozen_tree": "2cb182ab9ece141bd8e84d7bbf9c91d771f603de",
+    "forbidden_automatic_triggers": ["pull_request", "push"]
+  },
+  "target_aware_promotion_contract": {
+    "candidate_parent_1_binding": "pull_request.base.sha",
+    "candidate_parent_2_binding": "promotion_attestation.Source-SHA",
+    "candidate_tree_binding": "tree(promotion_attestation.Source-SHA)",
+    "required_branches": [
+      "promote/gov-hom-006-o2-req1",
+      "promote/gov-hom-006-o3-req1",
+      "promote/gov-hom-006-o4-req1",
+      "promote/gov-hom-006-o5-req1"
+    ]
+  },
+  "promotion_request_bootstrap": {
+    "final_wp": "WP-GOV-CI-006",
+    "static_request_status": "REQUESTED_JIT_SINGLE_USE",
+    "symbolic_bindings": {
+      "base_sha_binding": "pull_request.base.sha",
+      "source_sha_binding": "promotion_attestation.Source-SHA",
+      "candidate_sha_binding": "pull_request.head.sha",
+      "candidate_tree_binding": "tree(pull_request.head.sha)",
+      "t_final_binding": "tree(promotion_attestation.Source-SHA)",
+      "d_final_binding": "manifest.candidate_digest"
+    },
+    "grant_request_ids": [
+      "R3-GOV-HOM-006-O2-REQ1",
+      "R3-GOV-HOM-006-O3-REQ1",
+      "R3-GOV-HOM-006-O4-REQ1",
+      "R3-GOV-HOM-006-O5-REQ1"
+    ],
+    "external_consumption_required": true,
+    "no_internal_ledger": true
+  },
+  "main_preflight": {
+    "required_result": "NO_DB_CHANGES",
+    "apply_allowed": false,
+    "production_writer_allowed": false,
+    "cloudflare_pages_production_rebuild": "automatic_on_main_merge_requires_r3_ack"
+  },
+  "non_recursive_closure": {
+    "next_h2_manifest": "WP-H2-002",
+    "wp_h2_001_mutation_forbidden": true
+  },
+  "expires_at": "2026-08-29T23:59:59Z",
+  "candidate_digest": "a026ef6728ff2ffb87d15434ce18792c093241ff56950dc4085fa816029c6124",
+  "approval_digest_source": "Human approver must approve this candidate_digest with target R2 before publishing GOV-CI-006 to desarrollo.",
+  "approver_required": "human",
+  "invalidated_by": [
+    "scope drift",
+    "path drift",
+    "baseline drift",
+    "tree drift",
+    "editing PR #435",
+    "rerun of 32619372008",
+    "mutating consumed HOM-005 grants",
+    "changing branch protection",
+    "new O2/O3/O4/O5 execution before CI6 publication",
+    "CI failure",
+    "expiry",
+    "R3 operation request",
+    "mutating WP-GOV-CI-001",
+    "mutating WP-GOV-CI-002",
+    "mutating WP-GOV-CI-003",
+    "mutating WP-GOV-CI-004",
+    "mutating WP-GOV-CI-005"
+  ],
+  "exit_criteria": [
+    "F9.7 legacy contract is workflow_dispatch only and documented as MANUAL_FROZEN_ONLY",
+    "promotion PRs O2-O5 use target-aware promote/gov-hom-006-oN branches",
+    "candidate parent 1 equals target SHA and parent 2 equals source SHA",
+    "candidate tree, source tree and T_FINAL match",
+    "post-merge validation rejects ambiguous PR associations and stale checks/reviews",
+    "O3 request documents Cloudflare Pages Production rebuild and DB sync detect-only with NO_DB_CHANGES",
+    "no functional, DB, deployment, writer, schedule or remote operation changes",
+    "Context Graph and work package validations pass"
+  ]
+}
