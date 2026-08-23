@@ -24,6 +24,8 @@ La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, bac
 
 Regla vigente GOV-CI6: despues del fallo no mergeado PR #435, F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers automaticos `pull_request`/`push`. Las promociones O2-O5 posteriores usan ramas `promote/gov-hom-006-oN`; el candidate debe tener parent 1 igual al target SHA, parent 2 igual al source SHA y `tree(candidate)=tree(source)=T_FINAL`. PR #435 y `R3-GOV-HOM-005-O2-REQ1` no se editan, reintentan ni consumen de nuevo. O3 requiere R3 JIT que autorice explicitamente push/merge a `main`, rebuild automatico de Cloudflare Pages Production y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`; apply, DDL/DML y writers siguen prohibidos sin R3 separado.
 
+Regla vigente GOV-CI9: despues del fallo post-merge PR #440, el reviewer `romelhc95-approver` conserva su rol de aprobador pero no debe actualizar ni mergear `desarrollo`, `certificacion` ni `main`. El desired state es un ruleset permanente `owner-only-protected-branch-updates` con `Restrict updates` para esas tres ramas y bypass exclusivo del usuario `romelhc95` (`actor_id=18040405`); `romelhc95-approver` (`actor_id=306979205`) queda excluido del bypass. HOM-006, HOM-007 y HOM-008 quedan superseded; promociones futuras usan HOM-009 con `required_reviewer=romelhc95-approver`, `required_merger=romelhc95` y `merger_reviewer_distinct=true`.
+
 ## Preflight Obligatorio Antes De Todo Cambio
 
 Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:

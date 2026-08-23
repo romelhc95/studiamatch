@@ -129,10 +129,10 @@ def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> No
     workflow = source(".github/workflows/security-audit.yml")
 
     assert "Promotion Boundary" in workflow
-    assert "promote/gov-hom-008-o2-req1" in workflow
-    assert "promote/gov-hom-008-o3-req1" in workflow
-    assert "promote/gov-hom-008-o4-req1" in workflow
-    assert "promote/gov-hom-008-o5-req1" in workflow
+    assert "promote/gov-hom-009-o2-req1" in workflow
+    assert "promote/gov-hom-009-o3-req1" in workflow
+    assert "promote/gov-hom-009-o4-req1" in workflow
+    assert "promote/gov-hom-009-o5-req1" in workflow
     assert "f910-pre-main-controls:" not in workflow
     assert "F9.10 Pre-Main Repository Controls" not in workflow
     assert "F910_CERTIFICATION_BASELINE" not in workflow

@@ -12,6 +12,7 @@ Reconciliacion post-PR433: O2 completo en `certificacion@3682d0af8c16ed0476663e6
 Reconciliacion post-PR435: GOV-CI5 publicado en `desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845`, tree `fc9ff315d20648e87d049d5fb244a09ea214bfb8`; PR #435 fallo O2 antes de merge por F9.7 legacy automatico. GOV-CI6 retira F9.7 de triggers automaticos y exige promociones target-aware `promote/gov-hom-006-oN`.
 Reconciliacion post-PR437: GOV-CI6 publicado en `desarrollo@26a44af87e4e610d905763b6a5b8c14b64607954`, tree `3b956049f3535263b2fdbe3177dc7118005b7af1`; PR #437 fue mergeado a `certificacion` pero fallo post-merge run `32650341464` por checks con `pull_requests: []` y `merged_by=romelhc95-approver`. GOV-CI7 implementa evidencia post-merge fail-closed y reemplaza HOM-006 por HOM-007.
 Reconciliacion post-PR438: GOV-CI7 publicado en `desarrollo@16045d45811cbe12299ce2ba66f6afd75a93d1ee`, tree `29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df`; el push post-merge run `32655520324` fallo porque un PR ordinario a `desarrollo` fue clasificado como promocion invalida. GOV-CI8 separa `NOT_APPLICABLE`, `BLOCKED` y `VERIFIED_PROMOTION`, y reemplaza HOM-007 por HOM-008.
+Reconciliacion post-PR440: GOV-CI8 publicado en `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`, tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`; PR #440 completo O2 a `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076` pero el push post-merge run `32662084712` fallo por `POST_MERGE_MERGER_INVALID`. GOV-CI9 define owner-only branch updates para evitar que `romelhc95-approver` revise y mergee la misma promocion.
 
 ## Principios Vigentes
 
@@ -25,7 +26,8 @@ Reconciliacion post-PR438: GOV-CI7 publicado en `desarrollo@16045d45811cbe12299c
 - Las solicitudes versionadas en `.context/r3_grants/` son `REQUESTED_JIT_SINGLE_USE` con bindings simbolicos; no son approvals R3 ni contienen SHA/tree autorreferenciales.
 - `Promotion Boundary` para O2-O5 usa el Environment `Promotion`; no usa `Certification`, `Production` ni `Development` para evitar branch policies incompatibles con refs sinteticos de PR.
 - Los pushes post-merge se clasifican como `VERIFIED_PROMOTION`, `NOT_APPLICABLE` o `BLOCKED`; solo un PR ordinario unico a `desarrollo` puede ser `NOT_APPLICABLE` y usar boundary incremental. Falta de evidencia, evidencia ambigua, identidad invalida o ruta superior no promocional falla cerrado.
-- Las promociones GOV-CI8 son target-aware: el candidate merge commit usa como primer padre el target SHA exacto, segundo padre el source SHA exacto, y `tree(candidate)=tree(source)=T_FINAL`. El workflow F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers `pull_request`/`push`.
+- Las promociones GOV-CI9 son target-aware: el candidate merge commit usa como primer padre el target SHA exacto, segundo padre el source SHA exacto, y `tree(candidate)=tree(source)=T_FINAL`. El workflow F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers `pull_request`/`push`.
+- Desired state GOV-CI9: `romelhc95-approver` revisa/aprueba, pero no actualiza `desarrollo`, `certificacion` ni `main`; un ruleset permanente `owner-only-protected-branch-updates` con `Restrict updates` y bypass exclusivo para `romelhc95` debe aplicarse mediante R3 JIT separado antes del siguiente O2.
 
 ## Diagrama De Contexto
 
