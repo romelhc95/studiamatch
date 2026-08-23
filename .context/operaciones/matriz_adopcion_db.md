@@ -10,6 +10,7 @@ Snapshot GOV-CI4: `desarrollo@235c2329eb5fd8903c31785640a63466b23f0dd8`, tree `c
 Snapshot GOV-CI5: `desarrollo@32dc50c2a26f0d8cf34c5a39a4f10a821bf821aa`, tree `acabd0965d4aa716904917caab691b3867aa5798`; sin cambios DB.
 Snapshot GOV-CI6: `desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845`, tree `fc9ff315d20648e87d049d5fb244a09ea214bfb8`; sin cambios DB.
 Snapshot GOV-CI7: `desarrollo@26a44af87e4e610d905763b6a5b8c14b64607954`, tree `3b956049f3535263b2fdbe3177dc7118005b7af1`; sin cambios DB.
+Snapshot GOV-CI8: `desarrollo@16045d45811cbe12299ce2ba66f6afd75a93d1ee`, tree `29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df`; sin cambios DB.
 
 ## Ambientes
 
@@ -57,6 +58,7 @@ flowchart LR
 - GOV-CI5 solo corrige la validacion CI post-merge de promociones; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state.
 - GOV-CI6 solo corrige promociones target-aware y retira F9.7 automatico; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
 - GOV-CI7 solo corrige evidencia post-merge fail-closed y solicitudes HOM-007; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
+- GOV-CI8 solo corrige clasificacion post-merge fail-closed y solicitudes HOM-008; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
 
 ## Writers Por Ambiente
 

@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI7`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_007_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434 y PR #436 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, PR #437 como O2 mergeado con run post-merge `32650341464` fallido, y el proximo gate unico `PREPARE_WP_GOV_CI_007_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI8`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION`.
+- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436 y PR #438 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, PR #437 como O2 mergeado con run post-merge `32650341464` fallido, PR #438 como run post-merge `32655520324` fallido, y el proximo gate unico `COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, `WP-GOV-CI-005`/`TASK-GOV-CI-005` como artifact consumido por PR #434, `WP-GOV-CI-006`/`TASK-GOV-CI-006` como artifact consumido por PR #436, y `WP-GOV-CI-007`/`TASK-GOV-CI-007` como candidate fail-closed; el siguiente gate unico es `PREPARE_WP_GOV_CI_007_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, `WP-GOV-CI-005`/`TASK-GOV-CI-005` como artifact consumido por PR #434, `WP-GOV-CI-006`/`TASK-GOV-CI-006` como artifact consumido por PR #436, `WP-GOV-CI-007`/`TASK-GOV-CI-007` como artifact publicado por PR #438 con fallo post-merge, y `WP-GOV-CI-008`/`TASK-GOV-CI-008` como candidate route classification; el siguiente gate unico es `COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -183,6 +183,13 @@ confiable falla cerrada. Check-runs con `pull_requests: []` son aceptables solo
 si la asociacion merge -> PR es unica y valida. PR #437 y
 `R3-GOV-HOM-006-O2-REQ1` quedan consumidos; HOM-006 O3-O5 quedan superseded y
 HOM-007 reemplaza la familia.
+
+GOV-CI8 corrige el fallo post-merge de PR #438: un PR ordinario y unico hacia
+`desarrollo` se clasifica como `NOT_APPLICABLE`, sin aplicar reglas de par de
+promocion; direct pushes, evidencia ausente, ramas superiores no promocionales y
+familias HOM-006/HOM-007 quedan `BLOCKED`; solo rutas exactas HOM-008 pueden ser
+`VERIFIED_PROMOTION`. PR #438 queda como fallo post-merge consumido y HOM-008
+reemplaza la familia runtime futura.
 
 ## Semantica De Paths
 
