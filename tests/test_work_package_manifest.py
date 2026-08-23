@@ -43,7 +43,7 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
         manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-CI-002", "WP-GOV-CI-003", "WP-GOV-CI-004", "WP-GOV-CI-005", "WP-GOV-CI-006", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-CI-002", "WP-GOV-CI-003", "WP-GOV-CI-004", "WP-GOV-CI-005", "WP-GOV-CI-006", "WP-GOV-CI-007", "WP-GOV-CI-008", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -388,11 +388,15 @@ class WorkPackageManifestTests(unittest.TestCase):
                 self.assertNotIn(forbidden, data)
             self.assertEqual(data["status"], "REQUESTED_JIT_SINGLE_USE")
             self.assertEqual(data["candidate_sha_binding"], "pull_request.head.sha")
-            if data["id"].startswith("R3-GOV-HOM-006-"):
+            if data["id"].startswith(("R3-GOV-HOM-006-", "R3-GOV-HOM-007-", "R3-GOV-HOM-008-")):
                 self.assertEqual(data["t_final_binding"], "tree(promotion_attestation.Source-SHA)")
                 self.assertEqual(data["candidate_tree_binding"], "tree(pull_request.head.sha)")
             else:
                 self.assertEqual(data["t_final_binding"], "tree(pull_request.head.sha)")
+            if data["id"].startswith(("R3-GOV-HOM-007-", "R3-GOV-HOM-008-")):
+                self.assertEqual(data["required_merger"], "romelhc95")
+                self.assertEqual(data["required_reviewer"], "romelhc95-approver")
+                self.assertIs(data["merger_reviewer_distinct"], True)
 
     def test_static_promotion_request_rejects_bad_binding(self):
         validator = load_validator()
@@ -655,7 +659,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci6_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
-    def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-006-O2-REQ1", action="opened", number=500, base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-006-o2-req1", consumed=False):
+    def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-008-O2-REQ1", action="opened", number=500, base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-008-o2-req1", consumed=False):
         digest = "a" * 64
         tree = "b" * 40
         base_sha = "c" * 40
@@ -676,7 +680,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                     f"Source-SHA: {source_sha}",
                     f"Candidate-SHA: {head_sha}",
                     f"Candidate-Tree: {tree}",
-                    "Final-WP: WP-GOV-CI-006",
+                    "Final-WP: WP-GOV-CI-008",
                     f"D_FINAL: {digest}",
                     f"T_FINAL: {tree}",
                     "Approval-Level: R3 JIT single-use",
@@ -697,7 +701,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "head_ref": head_ref,
             "source_ref": source_ref,
             "candidate_branch": head_ref,
-            "final_wp": "WP-GOV-CI-006",
+            "final_wp": "WP-GOV-CI-008",
             "base_sha_binding": "pull_request.base.sha",
             "source_sha_binding": "promotion_attestation.Source-SHA",
             "candidate_sha_binding": "pull_request.head.sha",
@@ -708,6 +712,9 @@ class WorkPackageManifestTests(unittest.TestCase):
             "run_attempt": 1,
             "single_use": True,
             "external_consumption_required": True,
+            "required_merger": "romelhc95",
+            "required_reviewer": "romelhc95-approver",
+            "merger_reviewer_distinct": True,
         }
         if consumed:
             grant["consumed"] = True
@@ -814,10 +821,10 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_promotion_event_covers_o2_o5_pairs(self):
         cases = [
-            ("O2 desarrollo -> certificacion", "R3-GOV-HOM-006-O2-REQ1", "certificacion", "desarrollo", "promote/gov-hom-006-o2-req1"),
-            ("O3 certificacion -> main", "R3-GOV-HOM-006-O3-REQ1", "main", "certificacion", "promote/gov-hom-006-o3-req1"),
-            ("O4 main -> certificacion", "R3-GOV-HOM-006-O4-REQ1", "certificacion", "main", "promote/gov-hom-006-o4-req1"),
-            ("O5 certificacion -> desarrollo", "R3-GOV-HOM-006-O5-REQ1", "desarrollo", "certificacion", "promote/gov-hom-006-o5-req1"),
+            ("O2 desarrollo -> certificacion", "R3-GOV-HOM-008-O2-REQ1", "certificacion", "desarrollo", "promote/gov-hom-008-o2-req1"),
+            ("O3 certificacion -> main", "R3-GOV-HOM-008-O3-REQ1", "main", "certificacion", "promote/gov-hom-008-o3-req1"),
+            ("O4 main -> certificacion", "R3-GOV-HOM-008-O4-REQ1", "certificacion", "main", "promote/gov-hom-008-o4-req1"),
+            ("O5 certificacion -> desarrollo", "R3-GOV-HOM-008-O5-REQ1", "desarrollo", "certificacion", "promote/gov-hom-008-o5-req1"),
         ]
         for operation, grant_id, base_ref, source_ref, head_ref in cases:
             event, grant, _, _ = self.promotion_event_fixture(operation=operation, grant_id=grant_id, base_ref=base_ref, source_ref=source_ref, head_ref=head_ref)
@@ -828,7 +835,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         errors = self.run_promotion_validation(event, grant)
         self.assertIn("PROMOTION_PAIR_INVALID", errors)
 
-    def post_merge_fixture(self, *, operation="O2 desarrollo -> certificacion", base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-006-o2-req1", fork=False, pair_override=None, parents=None, candidate_parents=None, checks=True, reviewer="romelhc95-approver", merger="romelhc95", final_wp="WP-GOV-CI-006", pr_updated_at="2026-08-23T01:00:00Z", check_completed_at="2026-08-23T01:05:00Z", grant_id="R3-GOV-HOM-006-O2-REQ1", approval_expiry="2026-08-29T23:59:59Z"):
+    def post_merge_fixture(self, *, operation="O2 desarrollo -> certificacion", base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-008-o2-req1", fork=False, pair_override=None, parents=None, candidate_parents=None, checks=True, reviewer="romelhc95-approver", review_state="APPROVED", merger="romelhc95", final_wp="WP-GOV-CI-008", pr_created_at="2026-08-23T01:00:00Z", pr_merged_at="2026-08-23T01:20:00Z", check_completed_at="2026-08-23T01:05:00Z", grant_id="R3-GOV-HOM-008-O2-REQ1", approval_expiry="2026-08-29T23:59:59Z", pull_requests=None):
         before = "a" * 40
         after = "b" * 40
         head_sha = "c" * 40
@@ -858,18 +865,23 @@ class WorkPackageManifestTests(unittest.TestCase):
             "merged": True,
             "merge_commit_sha": after,
             "body": body,
-            "updated_at": pr_updated_at,
+            "created_at": pr_created_at,
+            "merged_at": pr_merged_at,
+            "updated_at": pr_merged_at,
             "merged_by": {"login": merger},
-            "base": {"ref": actual_base, "repo": {"full_name": repo}},
+            "base": {"ref": actual_base, "sha": before, "repo": {"full_name": repo}},
             "head": {"ref": actual_head, "sha": head_sha, "repo": {"full_name": "other/repo" if fork else repo}},
         }
+        associated_prs = [{"number": 500}] if pull_requests is None else pull_requests
         evidence = {
             "pull_request": pr,
             "checks": [
-                {"id": 1, "name": "Promotion Boundary", "status": "completed", "conclusion": "success" if checks else "failure", "head_sha": head_sha, "completed_at": check_completed_at, "pull_requests": [{"number": 500}], "app": {"id": 15368}},
-                {"id": 2, "name": "security-audit", "status": "completed", "conclusion": "success" if checks else "failure", "head_sha": head_sha, "completed_at": check_completed_at, "pull_requests": [{"number": 500}], "app": {"id": 15368}},
+                {"id": 1, "name": "Promotion Boundary", "status": "completed", "conclusion": "success" if checks else "failure", "head_sha": head_sha, "started_at": "2026-08-23T01:04:00Z", "completed_at": check_completed_at, "updated_at": check_completed_at, "pull_requests": associated_prs, "app": {"id": 15368}, "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/1000/job/1"},
+                {"id": 2, "name": "security-audit", "status": "completed", "conclusion": "success" if checks else "failure", "head_sha": head_sha, "started_at": "2026-08-23T01:04:00Z", "completed_at": check_completed_at, "updated_at": check_completed_at, "pull_requests": associated_prs, "app": {"id": 15368}, "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/1000/job/2"},
             ],
-            "reviews": [{"user": {"login": reviewer}, "state": "APPROVED", "commit_id": head_sha}],
+            "workflow_runs": {"1000": {"id": 1000, "repository": {"full_name": repo}, "event": "pull_request", "head_sha": head_sha, "head_branch": actual_head, "run_attempt": 1, "path": ".github/workflows/security-audit.yml", "status": "completed", "conclusion": "success", "created_at": "2026-08-23T01:03:00Z", "updated_at": "2026-08-23T01:06:00Z"}},
+            "reviews": [{"id": 1, "submitted_at": "2026-08-23T01:07:00Z", "user": {"login": reviewer}, "state": review_state, "commit_id": head_sha}],
+            "timeline": [],
             "protected_approval": {"grant_id": grant_id, "reference": "human-jit-o2", "expiry": approval_expiry},
         }
         return event, evidence, parents or [before, head_sha], candidate_parents or [before, source_sha], tree
@@ -882,7 +894,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             pr = evidence.get("pull_request") or {}
             fields = validator.parse_attestation_fields(str(pr.get("body") or ""))
             grant = {
-                "id": fields.get("Grant-ID", "R3-GOV-HOM-006-O2-REQ1"),
+                "id": fields.get("Grant-ID", "R3-GOV-HOM-008-O2-REQ1"),
                 "status": "REQUESTED_JIT_SINGLE_USE",
                 "operation": fields.get("Operation", "O2 desarrollo -> certificacion"),
                 "repository": "romelhc95/studiamatch",
@@ -890,7 +902,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                 "head_ref": (pr.get("head") or {}).get("ref", "desarrollo"),
                 "source_ref": fields.get("Source-Ref", "desarrollo"),
                 "candidate_branch": (pr.get("head") or {}).get("ref", "promote/gov-hom-006-o2-req1"),
-                "final_wp": fields.get("Final-WP", "WP-GOV-CI-006"),
+                "final_wp": fields.get("Final-WP", "WP-GOV-CI-008"),
                 "base_sha_binding": "pull_request.base.sha",
                 "source_sha_binding": "promotion_attestation.Source-SHA",
                 "candidate_sha_binding": "pull_request.head.sha",
@@ -901,6 +913,9 @@ class WorkPackageManifestTests(unittest.TestCase):
                 "run_attempt": 1,
                 "single_use": True,
                 "external_consumption_required": True,
+                "required_merger": "romelhc95",
+                "required_reviewer": "romelhc95-approver",
+                "merger_reviewer_distinct": True,
             }
             def fake_git_sha(args, root=ROOT):
                 if args[:3] == ["show", "-s", "--format=%P"]:
@@ -924,10 +939,10 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_post_merge_promotion_push_accepts_o2_o5_pairs(self):
         cases = [
-            ("O2 desarrollo -> certificacion", "certificacion", "desarrollo", "promote/gov-hom-006-o2-req1"),
-            ("O3 certificacion -> main", "main", "certificacion", "promote/gov-hom-006-o3-req1"),
-            ("O4 main -> certificacion", "certificacion", "main", "promote/gov-hom-006-o4-req1"),
-            ("O5 certificacion -> desarrollo", "desarrollo", "certificacion", "promote/gov-hom-006-o5-req1"),
+            ("O2 desarrollo -> certificacion", "certificacion", "desarrollo", "promote/gov-hom-008-o2-req1"),
+            ("O3 certificacion -> main", "main", "certificacion", "promote/gov-hom-008-o3-req1"),
+            ("O4 main -> certificacion", "certificacion", "main", "promote/gov-hom-008-o4-req1"),
+            ("O5 certificacion -> desarrollo", "desarrollo", "certificacion", "promote/gov-hom-008-o5-req1"),
         ]
         for operation, base_ref, source_ref, head_ref in cases:
             event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(operation=operation, base_ref=base_ref, source_ref=source_ref, head_ref=head_ref)
@@ -939,12 +954,12 @@ class WorkPackageManifestTests(unittest.TestCase):
             ({"parents": ["0" * 40, "c" * 40]}, "POST_MERGE_FIRST_PARENT_MISMATCH"),
             ({"parents": ["a" * 40, "0" * 40]}, "POST_MERGE_SECOND_PARENT_MISMATCH"),
             ({"fork": True}, "POST_MERGE_REPOSITORY_INVALID"),
-            ({"pair_override": ("main", "desarrollo", "promote/gov-hom-006-o2-req1")}, "POST_MERGE_PAIR_INVALID"),
+            ({"pair_override": ("main", "desarrollo", "promote/gov-hom-006-o2-req1")}, "POST_MERGE_PROMOTION_BRANCH_SUPERSEDED"),
             ({"checks": False}, "POST_MERGE_REQUIRED_CHECK_MISSING"),
             ({"merger": "romelhc95-approver"}, "POST_MERGE_MERGER_INVALID"),
             ({"reviewer": "romelhc95"}, "POST_MERGE_REVIEW_MISSING"),
-            ({"final_wp": "WP-GOV-CI-005"}, "POST_MERGE_ATTESTATION_MISMATCH"),
-            ({"grant_id": "R3-GOV-HOM-004-O2-REQ1"}, "POST_MERGE_GRANT_CONSUMED"),
+            ({"final_wp": "WP-GOV-CI-006"}, "POST_MERGE_ATTESTATION_MISMATCH"),
+            ({"grant_id": "R3-GOV-HOM-006-O2-REQ1"}, "POST_MERGE_GRANT_CONSUMED"),
             ({"approval_expiry": "2020-01-01T00:00:00Z"}, "POST_MERGE_APPROVAL_EXPIRED"),
         ]
         for kwargs, expected in cases:
@@ -965,12 +980,102 @@ class WorkPackageManifestTests(unittest.TestCase):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
         for check in evidence["checks"]:
             check["pull_requests"] = []
-        self.assertIn("POST_MERGE_REQUIRED_CHECK_MISSING", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+        self.assertEqual(self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree), [])
 
     def test_post_merge_promotion_push_requires_latest_associated_check_success(self):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
-        evidence["checks"].append({"id": 3, "name": "Promotion Boundary", "status": "completed", "conclusion": "failure", "head_sha": "c" * 40, "completed_at": "2026-08-23T01:10:00Z", "pull_requests": [{"number": 500}]})
+        evidence["checks"].append({"id": 3, "name": "Promotion Boundary", "status": "completed", "conclusion": "failure", "head_sha": "c" * 40, "started_at": "2026-08-23T01:09:00Z", "completed_at": "2026-08-23T01:10:00Z", "updated_at": "2026-08-23T01:10:00Z", "pull_requests": [{"number": 500}], "app": {"id": 15368}, "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/1000/job/3"})
         self.assertIn("POST_MERGE_REQUIRED_CHECK_MISSING", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+
+    def test_post_merge_pr437_merger_failure_is_explicit(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95-approver", pull_requests=[])
+        evidence["pull_request"]["number"] = 437
+        self.assertIn("POST_MERGE_MERGER_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+
+    def test_post_merge_corrected_pr437_shape_validates(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95", pull_requests=[])
+        self.assertEqual(self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree), [])
+
+    def test_post_merge_pr438_ordinary_desarrollo_merge_is_not_applicable(self):
+        validator = load_validator()
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(base_ref="desarrollo", head_ref="governance/gov-ci-007")
+        evidence["pull_request"]["body"] = """## Governance Attestation
+Base-SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Candidate-SHA: cccccccccccccccccccccccccccccccccccccccc
+Approval-Level: R2
+Approval-Expiry: 2026-08-25T23:59:59Z
+"""
+        event["ref"] = "refs/heads/desarrollo"
+        with tempfile.TemporaryDirectory() as tmp:
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(json.dumps(event), encoding="utf-8")
+            with mock.patch.object(validator, "load_post_merge_evidence", return_value=evidence), \
+                 mock.patch.object(validator, "git_sha", return_value=" ".join(parents)):
+                state, errors = validator.classify_post_merge_promotion_push(str(event_path), root=ROOT)
+        self.assertEqual(state, "NOT_APPLICABLE")
+        self.assertEqual(errors, ["POST_MERGE_NORMAL_PR_NOT_PROMOTION"])
+
+    def test_post_merge_direct_push_is_blocked_even_with_one_parent(self):
+        validator = load_validator()
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
+        event["ref"] = "refs/heads/desarrollo"
+        parents = ["a" * 40]
+        with tempfile.TemporaryDirectory() as tmp:
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(json.dumps(event), encoding="utf-8")
+            with mock.patch.object(validator, "load_post_merge_evidence", return_value={}), \
+                 mock.patch.object(validator, "git_sha", return_value=" ".join(parents)):
+                state, errors = validator.classify_post_merge_promotion_push(str(event_path), root=ROOT)
+        self.assertEqual(state, "BLOCKED")
+        self.assertEqual(errors, ["POST_MERGE_PR_MISMATCH"])
+
+    def test_post_merge_ordinary_upper_branch_pr_is_blocked(self):
+        validator = load_validator()
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(base_ref="main", head_ref="governance/gov-ci-007")
+        evidence["pull_request"]["body"] = "ordinary governance PR"
+        event["ref"] = "refs/heads/main"
+        with tempfile.TemporaryDirectory() as tmp:
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(json.dumps(event), encoding="utf-8")
+            with mock.patch.object(validator, "load_post_merge_evidence", return_value=evidence), \
+                 mock.patch.object(validator, "git_sha", return_value=" ".join(parents)):
+                state, errors = validator.classify_post_merge_promotion_push(str(event_path), root=ROOT)
+        self.assertEqual(state, "BLOCKED")
+        self.assertEqual(errors, ["POST_MERGE_PROTECTED_BRANCH_NON_PROMOTION"])
+
+    def test_post_merge_superseded_hom007_branch_is_blocked(self):
+        validator = load_validator()
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(head_ref="promote/gov-hom-007-o2-req1")
+        with tempfile.TemporaryDirectory() as tmp:
+            event_path = Path(tmp) / "event.json"
+            event_path.write_text(json.dumps(event), encoding="utf-8")
+            with mock.patch.object(validator, "load_post_merge_evidence", return_value=evidence), \
+                 mock.patch.object(validator, "git_sha", return_value=" ".join(parents)):
+                state, errors = validator.classify_post_merge_promotion_push(str(event_path), root=ROOT)
+        self.assertEqual(state, "BLOCKED")
+        self.assertEqual(errors, ["POST_MERGE_PROMOTION_BRANCH_SUPERSEDED"])
+
+    def test_post_merge_blocks_wrong_app_id_and_pr_association(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
+        evidence["checks"][0]["app"] = {"id": 1}
+        self.assertIn("POST_MERGE_REQUIRED_CHECK_MISSING", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(pull_requests=[{"number": 501}])
+        self.assertIn("POST_MERGE_CHECK_PR_ASSOCIATION_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+
+    def test_post_merge_rejects_workflow_run_mismatch_and_freshness(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
+        evidence["workflow_runs"]["1000"]["event"] = "push"
+        self.assertIn("POST_MERGE_WORKFLOW_EVENT_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
+        evidence["timeline"] = [{"event": "edited", "created_at": "2026-08-23T01:10:00Z", "changes": {"body": {"from": "old"}}}]
+        self.assertIn("POST_MERGE_ATTESTATION_STALE", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+
+    def test_post_merge_rejects_latest_review_state(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(review_state="CHANGES_REQUESTED")
+        self.assertIn("POST_MERGE_REVIEW_STATE_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
+        evidence["reviews"][0].pop("commit_id")
+        self.assertIn("POST_MERGE_REVIEW_COMMIT_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
 
     def test_post_merge_promotion_push_rejects_missing_associated_pr(self):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
@@ -980,15 +1085,17 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_post_merge_evidence_loads_full_pull_request(self):
         validator = load_validator()
         calls = []
-        def fake_api(path):
+        def fake_api(path, **kwargs):
             calls.append(path)
-            if path.startswith("commits/") and path.endswith("/pulls"):
+            if path.startswith("commits/") and "pulls" in path:
                 return [{"number": 500, "head": {"sha": "summary"}}]
             if path == "pulls/500":
                 return {"number": 500, "merged": True, "head": {"sha": "c" * 40}}
             if path.startswith("commits/") and "check-runs" in path:
-                return {"check_runs": []}
+                return [{"name": "Promotion Boundary"}]
             if path == "pulls/500/reviews?per_page=100":
+                return []
+            if path == "issues/500/timeline?per_page=100":
                 return []
             raise AssertionError(path)
         with mock.patch.object(validator, "github_api_json", side_effect=fake_api):
