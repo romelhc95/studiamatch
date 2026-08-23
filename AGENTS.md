@@ -26,6 +26,8 @@ Regla vigente GOV-CI6: despues del fallo no mergeado PR #435, F9.7 queda `MANUAL
 
 Regla vigente GOV-CI9: despues del fallo post-merge PR #440, el reviewer `romelhc95-approver` conserva su rol de aprobador pero no debe actualizar ni mergear `desarrollo`, `certificacion` ni `main`. El desired state es un ruleset permanente `owner-only-protected-branch-updates` con `Restrict updates` para esas tres ramas y bypass exclusivo del usuario `romelhc95` (`actor_id=18040405`); `romelhc95-approver` (`actor_id=306979205`) queda excluido del bypass. HOM-006, HOM-007 y HOM-008 quedan superseded; promociones futuras usan HOM-009 con `required_reviewer=romelhc95-approver`, `required_merger=romelhc95` y `merger_reviewer_distinct=true`.
 
+Regla vigente GOV-CI10: despues del fallo post-merge PR #441 en `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, run `32666126533`, `POST_MERGE_ATTESTATION_DUPLICATE`, no se edita ni rerunea PR #441. El parser de attestations debe ser section-aware, sin fallback al body completo: PR ordinarios usan solo `## Governance Attestation`; promociones O2-O5 usan solo `## Promotion Attestation`. HOM-009 queda superseded; promociones futuras usan HOM-010 despues de publicar CI10 con post-merge verde y aplicar cualquier R3 JIT separado requerido.
+
 ## Preflight Obligatorio Antes De Todo Cambio
 
 Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:

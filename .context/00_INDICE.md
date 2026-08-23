@@ -44,6 +44,7 @@
 - [ADR-0036](decisiones/ADR-0036_post_merge_evidence_fail_closed.md)
 - [ADR-0037](decisiones/ADR-0037_post_merge_route_classification_fail_closed.md)
 - [ADR-0038](decisiones/ADR-0038_owner_only_protected_branch_updates.md)
+- [ADR-0039](decisiones/ADR-0039_attestation_section_aware_fail_closed.md)
 
 ## Operaciones
 
@@ -74,6 +75,7 @@
 - [WP-GOV-CI-007](work_packages/WP-GOV-CI-007.json)
 - [WP-GOV-CI-008](work_packages/WP-GOV-CI-008.json)
 - [WP-GOV-CI-009](work_packages/WP-GOV-CI-009.json)
+- [WP-GOV-CI-010](work_packages/WP-GOV-CI-010.json)
 - [WP-H3-001](work_packages/WP-H3-001.json)
 - [WP-H4-001](work_packages/WP-H4-001.json)
 - [WP-H5-001](work_packages/WP-H5-001.json)
@@ -103,6 +105,7 @@
 - [TASK-GOV-CI-007](backlog_tareas/governance/TASK-GOV-CI-007.md)
 - [TASK-GOV-CI-008](backlog_tareas/governance/TASK-GOV-CI-008.md)
 - [TASK-GOV-CI-009](backlog_tareas/governance/TASK-GOV-CI-009.md)
+- [TASK-GOV-CI-010](backlog_tareas/governance/TASK-GOV-CI-010.md)
 
 ## MOC Canonico
 

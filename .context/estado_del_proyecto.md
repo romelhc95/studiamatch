@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-23-GOV-CI9-R1-CANDIDATE`.
+Snapshot: `SNAPSHOT-2026-08-23-GOV-CI10-R1-CANDIDATE`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `GOV_CI9_OWNER_ONLY_BRANCH_UPDATES_PENDING_R1` | PR #439 publico GOV-CI8 en `desarrollo`; PR #440 completo O2 a `certificacion` pero fallo post-merge porque `romelhc95-approver` reviso y mergeo. Falta completar `WP-GOV-CI-009` local R1 antes de cualquier HOM-009. |
+| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `GOV_CI10_ATTESTATION_SECTION_AWARE_PENDING_R1` | PR #441 publico GOV-CI9 en `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667` pero fallo post-merge run `32666126533` con `POST_MERGE_ATTESTATION_DUPLICATE`. Falta completar `WP-GOV-CI-010` local R1 antes de cualquier HOM-010. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 | `F12` | Implementacion local Sprint 1 posterior a F10 | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | Macrofase futura H2-H5 gobernada por WP/digest; no ejecutable hasta cierre efectivo F10.11 y rebaseline de `WP-H2-001`. |
 
@@ -24,7 +24,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `GOV_CI9_OWNER_ONLY_BRANCH_UPDATES_PENDING_R1` | PR #440 mergeo O2 HOM-008 a `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076`, pero fallo post-merge run `32662084712` con `POST_MERGE_MERGER_INVALID`. Falta candidate `WP-GOV-CI-009`, R2 a `desarrollo`, ruleset owner-only R3 JIT y luego nuevo O2 HOM-009 R3 JIT separado antes de O3. |
+| `F10.11` | `GOV_CI10_ATTESTATION_SECTION_AWARE_PENDING_R1` | PR #441 mergeo GOV-CI9 a `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, pero fallo post-merge run `32666126533` con `POST_MERGE_ATTESTATION_DUPLICATE`. Falta candidate `WP-GOV-CI-010`, R2 a `desarrollo`, post-merge verde, ruleset owner-only R3 JIT y luego nuevo O2 HOM-010 R3 JIT separado antes de O3. |
 
 ## Subfases F12
 
@@ -82,6 +82,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | PR #438 gobierno CI7 evidence fail-closed | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE@16045d45811cbe12299ce2ba66f6afd75a93d1ee`, tree `29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df`, digest `0800d1c01bc174b228d746fa508386d4b8425fb4173ee7f477c516f978a32f41`, run `32655520324`, primary `POST_MERGE_PAIR_INVALID` |
 | PR #439 gobierno CI8 route classification | `MERGED_TO_DESARROLLO@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`, tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`, digest `8acfacaebd45177241e1d3636430de7cd26530bf9c5fb65b7c6fb8581e50052f`, post-merge run `32659464257` verde con `NOT_APPLICABLE` |
 | PR #440 O2 GOV-HOM CI8 | `MERGED_TO_CERTIFICACION_WITH_POST_MERGE_FAILURE@df2cde3626c75fa4733bf1624fb105d8ee08c076`, tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`, candidate `d7417423b1918a84c1aba86a7dd4bda63853be60`, run `32662084712`, primary `POST_MERGE_MERGER_INVALID`, `R3-GOV-HOM-008-O2-REQ1_CONSUMED_BY_POST_MERGE_FAILURE` |
+| PR #441 gobierno CI9 owner-only | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`, digest `6f9d309d50b90c18a2703cd6b9170af9af9048f7d80ef749a22a95e8dd8a32ef`, run `32666126533`, primary `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 superseded antes de O2 |
 | Certificacion pendiente GOV-HOM CI7 | `certificacion@2134ebfc1af2097b7e17a31b5376bc6942cf020b`, tree `3b956049f3535263b2fdbe3177dc7118005b7af1` |
 | Certificacion pendiente GOV-HOM | `certificacion@fe7b27abf18c096f674948b4f30f815aea4aef08` |
 | Main pendiente GOV-HOM | `main@9b486146962bd2a092acfd649fdcf716e922de89` |
@@ -106,8 +107,9 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Work package target-aware consumido externamente por R2: [WP-GOV-CI-006](work_packages/WP-GOV-CI-006.json), digest `8b5ac7981acd9d4fada938fe8363e4abfa43acd95cddbe35ab8a5235604a2b2d`, PR #436.
 - Work package post-merge evidence consumido externamente con fallo post-merge: [WP-GOV-CI-007](work_packages/WP-GOV-CI-007.json), PR #438.
 - Work package route classification consumido externamente: [WP-GOV-CI-008](work_packages/WP-GOV-CI-008.json), PR #439; O2 HOM-008 fallo en PR #440.
-- Work package owner-only branch updates candidate: [WP-GOV-CI-009](work_packages/WP-GOV-CI-009.json).
-- HOM-006/HOM-007/HOM-008 O2-O5: `SUPERSEDED_NOT_USABLE`; O3 bloqueado.
+- Work package owner-only branch updates publicado con fallo post-merge: [WP-GOV-CI-009](work_packages/WP-GOV-CI-009.json), digest `6f9d309d50b90c18a2703cd6b9170af9af9048f7d80ef749a22a95e8dd8a32ef`, PR #441.
+- Work package section-aware attestation candidate: [WP-GOV-CI-010](work_packages/WP-GOV-CI-010.json).
+- HOM-006/HOM-007/HOM-008/HOM-009 O2-O5: `SUPERSEDED_NOT_USABLE`; O3 bloqueado.
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
 - Lifecycle stage: `ACTIVE`.
@@ -116,7 +118,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Criteria status: `H2-CA2=NOT_STARTED`, `H2-CA3=NOT_STARTED`.
 - Acceptance status: `NOT_STARTED`.
 - Etapa 1 Obsidian: `DESARROLLO_MERGED_PENDING_HOMOLOGATION`.
-- Proximo gate unico: `COMPLETE_WP_GOV_CI_009_R1_LOCAL_VALIDATION`.
+- Proximo gate unico: `COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION`.
 
 ## Estado De Hitos Sprint 1
 
@@ -155,21 +157,22 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | R2 GOV CI7 evidence fail-closed | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` | PR #438 mergeado a `desarrollo@16045d45811cbe12299ce2ba66f6afd75a93d1ee`; tree `29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df`; run `32655520324` fallo `POST_MERGE_PAIR_INVALID` |
 | R2 GOV CI8 route classification | `MERGED_TO_DESARROLLO` | PR #439 mergeado a `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`; tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`; post-merge run `32659464257` verde con `NOT_APPLICABLE` |
 | O2 GOV-HOM CI8 | `MERGED_TO_CERTIFICACION_WITH_POST_MERGE_FAILURE` | PR #440 mergeado a `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076`; run `32662084712`; root cause `merged_by=romelhc95-approver`; `R3-GOV-HOM-008-O2-REQ1_CONSUMED_BY_POST_MERGE_FAILURE` |
+| R2 GOV CI9 owner-only | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` | PR #441 mergeado a `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`; tree `e0029083e24016b97fc8896be3be2d4285414117`; run `32666126533`; root cause `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 superseded |
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | El bundle documental existe en `desarrollo` y `certificacion`; cierre efectivo requiere candidate `WP-GOV-CI-009`, R2 a `desarrollo`, ruleset owner-only R3 JIT, nuevo O2 target-aware R3 JIT y luego O3/O4/O5 separados |
 
 ## Alcance Inmediato
 
-PR #440 completo O2 HOM-008 en `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076` con tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`, pero el push post-merge fallo run `32662084712` porque `romelhc95-approver` aprobo y tambien mergeo, violando `required_merger=romelhc95`. Promotion Environment permanece limpio: 0 variables, 0 secrets, required reviewer `romelhc95-approver`, `prevent_self_review=true`. HOM-006/HOM-007/HOM-008 quedan superseded y no utilizables. Antes de cualquier nuevo O2/O3, `WP-GOV-CI-009` debe publicar el desired state `owner-only-protected-branch-updates` para `desarrollo`, `certificacion` y `main`, con bypass exclusivo de `romelhc95` (`actor_id=18040405`) y exclusion de `romelhc95-approver` (`actor_id=306979205`), y preparar HOM-009. Hito 2 conserva `WP-H2-001` activo hasta R1, sin implementacion iniciada.
+PR #441 publico GOV-CI9 en `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667` con tree `e0029083e24016b97fc8896be3be2d4285414117`, pero el push post-merge fallo run `32666126533` con `POST_MERGE_ATTESTATION_DUPLICATE` porque el parser post-merge escaneo el body completo y confundio campos compartidos entre Governance y Promotion. PR #441 no se edita ni se rerunea. HOM-006/HOM-007/HOM-008/HOM-009 quedan superseded y no utilizables. Antes de cualquier nuevo O2/O3, `WP-GOV-CI-010` debe publicar parsing section-aware, mantener el desired state `owner-only-protected-branch-updates`, preparar HOM-010 y pasar post-merge verde en `desarrollo`. Hito 2 conserva `WP-H2-001` activo hasta R1, sin implementacion iniciada.
 
 ## Siguiente Gate
 
-El unico siguiente gate es `COMPLETE_WP_GOV_CI_009_R1_LOCAL_VALIDATION`. El R1 vigente solo autoriza edicion local, tests Docker y candidate digest de `WP-GOV-CI-009`; cualquier push, PR o merge a `desarrollo` requiere aprobacion R2 posterior por digest. Rulesets remotos, branch protection, Certification, Main, DDL/DML remoto, Supabase, backfill remoto, RLS/grants remotos, writers, schedules, produccion y cualquier R3 requieren grants JIT single-use separados.
+El unico siguiente gate es `COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION`. El R1 vigente solo autoriza edicion local, tests Docker y candidate digest de `WP-GOV-CI-010`; cualquier push, PR o merge a `desarrollo` requiere aprobacion R2 posterior por digest. Rulesets remotos, branch protection, Certification, Main, DDL/DML remoto, Supabase, backfill remoto, RLS/grants remotos, writers, schedules, produccion y cualquier R3 requieren grants JIT single-use separados.
 
 ## Predicado Externo De Cierre F10.11
 
 F10.11 queda cerrada solo cuando todos estos predicados sean verdaderos:
 
-1. `WP-GOV-HOM-001`, `WP-GOV-CI-001`, `WP-GOV-CI-002`, `WP-GOV-CI-003`, `WP-GOV-CI-004`, `WP-GOV-CI-005`, `WP-GOV-CI-006`, `WP-GOV-CI-007`, `WP-GOV-CI-008` y `WP-GOV-CI-009` fueron aprobados y consumidos hasta R2 en `desarrollo`.
+1. `WP-GOV-HOM-001`, `WP-GOV-CI-001`, `WP-GOV-CI-002`, `WP-GOV-CI-003`, `WP-GOV-CI-004`, `WP-GOV-CI-005`, `WP-GOV-CI-006`, `WP-GOV-CI-007`, `WP-GOV-CI-008`, `WP-GOV-CI-009` y `WP-GOV-CI-010` fueron aprobados y consumidos hasta R2 en `desarrollo`, con post-merge verde final en CI10.
 2. Los grants R3 `O2`, `O3`, `O4` y `O5` fueron emitidos JIT, consumidos una sola vez y registrados.
 3. `tree(main) == tree(certificacion) == tree(desarrollo) == T_HOM`.
 4. `main` es ancestro de `certificacion`.

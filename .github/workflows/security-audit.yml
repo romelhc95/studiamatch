@@ -161,7 +161,7 @@ jobs:
             promotion_pair=false
             if [ "$same_repo" = "true" ]; then
               case "$base_ref:$head_ref" in
-                certificacion:promote/gov-hom-009-o2-req1|main:promote/gov-hom-009-o3-req1|certificacion:promote/gov-hom-009-o4-req1|desarrollo:promote/gov-hom-009-o5-req1)
+                certificacion:promote/gov-hom-010-o2-req1|main:promote/gov-hom-010-o3-req1|certificacion:promote/gov-hom-010-o4-req1|desarrollo:promote/gov-hom-010-o5-req1)
                   promotion_pair=true
                   ;;
               esac
@@ -183,7 +183,7 @@ jobs:
               exit 0
             fi
             if [ "$base_ref" = "certificacion" ] || [ "$base_ref" = "main" ]; then
-              echo "::error::protected branch PR requires exact HOM-009 promotion route: $base_ref <- $head_ref"
+              echo "::error::protected branch PR requires exact HOM-010 promotion route: $base_ref <- $head_ref"
               exit 1
             fi
             git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
@@ -268,10 +268,10 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-        ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-009-o2-req1') ||
-         (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-009-o3-req1') ||
-         (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-009-o4-req1') ||
-         (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-009-o5-req1'))
+        ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-010-o2-req1') ||
+         (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-010-o3-req1') ||
+         (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-010-o4-req1') ||
+         (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-010-o5-req1'))
     environment:
       name: Promotion
     steps:
@@ -305,7 +305,7 @@ jobs:
       github.event.pull_request.base.ref == 'desarrollo' &&
       !(github.event.pull_request.head.repo.full_name == github.repository &&
         (github.event.pull_request.head.ref == 'certificacion' ||
-          github.event.pull_request.head.ref == 'promote/gov-hom-009-o5-req1'))
+          github.event.pull_request.head.ref == 'promote/gov-hom-010-o5-req1'))
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -346,7 +346,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install 'pytest==8.3.5'
-          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py
+          python3 -m pytest -q tests/test_attestation_parser.py tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py
 
   lint:
     name: ESLint
@@ -473,7 +473,7 @@ jobs:
           promotion=false
           if [ "$SAME_REPO" = "true" ]; then
             case "$PR_BASE_REF:$PR_HEAD_REF" in
-              certificacion:promote/gov-hom-009-o2-req1|main:promote/gov-hom-009-o3-req1|certificacion:promote/gov-hom-009-o4-req1|desarrollo:promote/gov-hom-009-o5-req1)
+              certificacion:promote/gov-hom-010-o2-req1|main:promote/gov-hom-010-o3-req1|certificacion:promote/gov-hom-010-o4-req1|desarrollo:promote/gov-hom-010-o5-req1)
                 promotion=true
                 ;;
             esac

@@ -1,6 +1,6 @@
 ## Governance Attestation
 
-Completar solo para PR R1/R2 normales hacia `desarrollo`. En PR O2-O5, dejar esta seccion sin valores o removerla; `security-audit` solo valida una seccion por tipo de PR.
+Completar solo para PR R1/R2 normales hacia `desarrollo`. En PR O2-O5, remover esta seccion o dejar todos sus campos vacios; cualquier valor en la seccion inactiva bloquea el PR.
 
 Base-SHA:
 Candidate-SHA:
@@ -15,18 +15,18 @@ Approval-Expiry:
 Architecture-Snapshot:
 Data-Architecture-Snapshot:
 Adoption-Matrix-Snapshot:
-Architecture-Impact: updated|none
+Architecture-Impact:
 Architecture-Impact-Reason:
-Data-Impact: updated|none
+Data-Impact:
 Data-Impact-Reason:
-Security-Auditor: clean|findings-remediated
+Security-Auditor:
 
 ## Promotion Attestation
 
-Completar solo para promociones O2-O5 con ramas runtime `promote/gov-hom-009-oN`. En PR R1/R2 normales, dejar esta seccion sin valores o removerla; sus campos no deben contaminar la Governance Attestation.
+Completar solo para promociones O2-O5 con ramas runtime `promote/gov-hom-010-oN`. En PR R1/R2 normales, remover esta seccion o dejar todos sus campos vacios; cualquier valor en la seccion inactiva bloquea el PR.
 
 Operation:
-Grant-ID: nuevo-unico-no-consumido
+Grant-ID:
 Base-Ref:
 Base-SHA:
 Source-Ref:
@@ -50,7 +50,7 @@ Approval-Expiry:
 - [ ] La review humana obligatoria queda a cargo de GitHub branch protection; no necesita repetir el digest en el texto de review.
 - [ ] `active_work_package` esta coherente entre Estado, Plan Maestro, Tracker y manifest.
 - [ ] Si hay R3, existe aprobacion JIT single-use separada y vigente.
-- [ ] Si es promocion O2-O5, usa rama target-aware `promote/gov-hom-009-oN`, el PR no es #428/#431/#433/#435/#437/#440, fue abierto una sola vez y no usa un Grant-ID consumido o superseded.
+- [ ] Si es promocion O2-O5, usa rama target-aware `promote/gov-hom-010-oN`, el PR no es #428/#431/#433/#435/#437/#440/#441, fue abierto una sola vez y no usa un Grant-ID consumido o superseded.
 - [ ] Si el PR apunta a `desarrollo`, `certificacion` o `main`, `romelhc95-approver` revisa/aprueba y `romelhc95` ejecuta el merge; el reviewer no actualiza ramas protegidas.
 - [ ] No se ejecutan H2 funcional, DDL/DML, schedules, writers, deploys ni secrets sin gate separado.
 

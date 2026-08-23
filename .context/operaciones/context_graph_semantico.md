@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI9`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `COMPLETE_WP_GOV_CI_009_R1_LOCAL_VALIDATION`.
-- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436, PR #438 y PR #439 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, PR #437 como O2 mergeado con run post-merge `32650341464` fallido, PR #438 como run post-merge `32655520324` fallido, PR #440 como O2 mergeado con run post-merge `32662084712` fallido, y el proximo gate unico `COMPLETE_WP_GOV_CI_009_R1_LOCAL_VALIDATION`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI10`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION`.
+- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436, PR #438, PR #439 y PR #441 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, PR #437 como O2 mergeado con run post-merge `32650341464` fallido, PR #438 como run post-merge `32655520324` fallido, PR #440 como O2 mergeado con run post-merge `32662084712` fallido, PR #441 como run post-merge `32666126533` fallido con `POST_MERGE_ATTESTATION_DUPLICATE`, y el proximo gate unico `COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, `WP-GOV-CI-005`/`TASK-GOV-CI-005` como artifact consumido por PR #434, `WP-GOV-CI-006`/`TASK-GOV-CI-006` como artifact consumido por PR #436, `WP-GOV-CI-007`/`TASK-GOV-CI-007` como artifact publicado por PR #438 con fallo post-merge, `WP-GOV-CI-008`/`TASK-GOV-CI-008` como artifact publicado por PR #439 con O2 #440 fallido, y `WP-GOV-CI-009`/`TASK-GOV-CI-009` como candidate owner-only; el siguiente gate unico es `COMPLETE_WP_GOV_CI_009_R1_LOCAL_VALIDATION`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, `WP-GOV-CI-005`/`TASK-GOV-CI-005` como artifact consumido por PR #434, `WP-GOV-CI-006`/`TASK-GOV-CI-006` como artifact consumido por PR #436, `WP-GOV-CI-007`/`TASK-GOV-CI-007` como artifact publicado por PR #438 con fallo post-merge, `WP-GOV-CI-008`/`TASK-GOV-CI-008` como artifact publicado por PR #439 con O2 #440 fallido, `WP-GOV-CI-009`/`TASK-GOV-CI-009` como artifact publicado por PR #441 con fallo post-merge, y `WP-GOV-CI-010`/`TASK-GOV-CI-010` como candidate section-aware; el siguiente gate unico es `COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -198,6 +198,12 @@ su rol de reviewer/aprobador, pero no debe actualizar ni mergear `desarrollo`,
 `romelhc95` (`actor_id=18040405`) y exclusion de `romelhc95-approver`
 (`actor_id=306979205`). HOM-008 queda superseded y HOM-009 reemplaza la familia
 runtime futura.
+
+GOV-CI10 corrige el fallo post-merge de PR #441: las attestations se parsean por
+seccion exacta y no por body completo. PR ordinarios hacia `desarrollo` usan solo
+`## Governance Attestation`; promociones O2-O5 usan solo
+`## Promotion Attestation`. PR #441 y run `32666126533` no se editan ni se
+rerunean. HOM-009 queda superseded y HOM-010 reemplaza la familia runtime futura.
 
 ## Semantica De Paths
 
