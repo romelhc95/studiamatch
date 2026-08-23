@@ -84,6 +84,7 @@ GOV_CI4_BASE_COMMIT = "235c2329eb5fd8903c31785640a63466b23f0dd8"
 GOV_CI5_BASE_COMMIT = "32dc50c2a26f0d8cf34c5a39a4f10a821bf821aa"
 GOV_CI6_BASE_COMMIT = "9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845"
 GOV_CI7_BASE_COMMIT = "26a44af87e4e610d905763b6a5b8c14b64607954"
+GOV_CI8_BASE_COMMIT = "16045d45811cbe12299ce2ba66f6afd75a93d1ee"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -447,6 +448,32 @@ GOV_CI7_TRANSITION_ALLOWLIST = (
     ".context/r3_grants/R3-GOV-HOM-007-O4-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-007-O5-REQ1.json",
 )
+GOV_CI8_TRANSITION_ALLOWLIST = (
+    "AGENTS.md",
+    ".github/workflows/security-audit.yml",
+    "scripts/security/validate_work_package.py",
+    "scripts/security/validate_context_graph.py",
+    "tests/test_work_package_manifest.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_release_workflow_matrix.py",
+    "tests/test_fase09_10_pre_main_controls.py",
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/sistema_db_supabase.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/backlog_tareas/governance/TASK-GOV-CI-008.md",
+    ".context/work_packages/WP-GOV-CI-008.json",
+    ".context/decisiones/ADR-0037_post_merge_route_classification_fail_closed.md",
+    ".context/r3_grants/R3-GOV-HOM-008-O2-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-008-O3-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-008-O4-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-008-O5-REQ1.json",
+)
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
     "db/**",
@@ -465,20 +492,22 @@ PROMOTION_PAIRS = {
     "O5 certificacion -> desarrollo": ("desarrollo", "certificacion"),
 }
 PROMOTION_CANDIDATE_BRANCHES = {
-    "O2 desarrollo -> certificacion": "promote/gov-hom-007-o2-req1",
-    "O3 certificacion -> main": "promote/gov-hom-007-o3-req1",
-    "O4 main -> certificacion": "promote/gov-hom-007-o4-req1",
-    "O5 certificacion -> desarrollo": "promote/gov-hom-007-o5-req1",
+    "O2 desarrollo -> certificacion": "promote/gov-hom-008-o2-req1",
+    "O3 certificacion -> main": "promote/gov-hom-008-o3-req1",
+    "O4 main -> certificacion": "promote/gov-hom-008-o4-req1",
+    "O5 certificacion -> desarrollo": "promote/gov-hom-008-o5-req1",
 }
 SUPERSEDED_PROMOTION_PREFIX = "promote/gov-hom-"
 PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-Ref", "Base-SHA", "Source-Ref", "Source-SHA", "Candidate-SHA", "Candidate-Tree", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
-PROMOTION_FINAL_WP = "WP-GOV-CI-007"
+PROMOTION_SHAPED_FIELDS = {"Operation", "Grant-ID", "Source-Ref", "Source-SHA", "Final-WP", "D_FINAL", "T_FINAL", "Candidate-Tree"}
+PROTECTED_BRANCHES = {"desarrollo", "certificacion", "main"}
+PROMOTION_FINAL_WP = "WP-GOV-CI-008"
 GOV_CI2_PROMOTION_BLOCKED_PR_NUMBERS = {428}
 GOV_CI2_PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
 PROMOTION_ALLOWED_ACTION = "opened"
 PROMOTION_BLOCKED_PR_NUMBERS = {428, 431, 433, 435, 437}
 PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1"}
-PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1"}
+PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1", "R3-GOV-HOM-007-O2-REQ1", "R3-GOV-HOM-007-O3-REQ1", "R3-GOV-HOM-007-O4-REQ1", "R3-GOV-HOM-007-O5-REQ1"}
 PROMOTION_GRANT_ID_PATTERN = re.compile(r"^R3-GOV-HOM-\d{3}-O[2-5]-[A-Za-z0-9][A-Za-z0-9_.-]{3,}$")
 PROMOTION_REQUEST_STATUS = "REQUESTED_JIT_SINGLE_USE"
 LEGACY_PROMOTION_BINDINGS = {
@@ -541,6 +570,8 @@ def parse_attestation_fields(body: str) -> dict[str, str]:
         key, value = line.split(":", 1)
         key = key.strip()
         if key in PROMOTION_FIELDS:
+            if key in fields:
+                fields["__DUPLICATE__"] = key
             fields[key] = value.strip()
     return fields
 
@@ -969,12 +1000,49 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             "R3-GOV-HOM-007-O4-REQ1",
             "R3-GOV-HOM-007-O5-REQ1",
         ]
-        if not isinstance(promotion, dict) or promotion.get("final_wp") != PROMOTION_FINAL_WP or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
+        if not isinstance(promotion, dict) or promotion.get("final_wp") != "WP-GOV-CI-007" or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
             errors.append(f"GOV_CI7_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
         if data.get("bootstrap_authorization", {}).get("id") != "R1-BOOTSTRAP-GOV-CI-007-REQ2":
             errors.append(f"GOV_CI7_BOOTSTRAP_AUTH_INVALID:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_CI7_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-CI-008":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-CI-008" or data.get("hito") != "GOV-CI":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_CI8_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_CI8_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        if data.get("allowed_paths") != list(GOV_CI8_TRANSITION_ALLOWLIST):
+            errors.append(f"GOV_CI8_ALLOWLIST_INVALID:{path.name}")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_CI8_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_CI8_BASE_COMMIT:
+            errors.append(f"GOV_CI8_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
+        if baseline.get("candidate_tree") != "29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df" or baseline.get("desarrollo_tree") != "29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df":
+            errors.append(f"GOV_CI8_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
+        if baseline.get("certificacion_commit") != "2134ebfc1af2097b7e17a31b5376bc6942cf020b" or baseline.get("certificacion_tree") != "3b956049f3535263b2fdbe3177dc7118005b7af1" or baseline.get("main_commit") != "9b486146962bd2a092acfd649fdcf716e922de89" or baseline.get("main_tree") != "fcb59095e48441bb4486ccc196aee61e2e1e0fe3":
+            errors.append(f"GOV_CI8_BASELINE_INVALID:{path.name}:branch_commits")
+        if data.get("supersedes_digest") != "0800d1c01bc174b228d746fa508386d4b8425fb4173ee7f477c516f978a32f41":
+            errors.append(f"GOV_CI8_SUPERSEDES_INVALID:{path.name}")
+        remediation = data.get("route_classification_fail_closed", {})
+        if remediation.get("failed_pr") != 438 or remediation.get("failed_run") != 32655520324 or remediation.get("primary_failure") != "POST_MERGE_PAIR_INVALID":
+            errors.append(f"GOV_CI8_FAILURE_TRACE_INVALID:{path.name}")
+        if remediation.get("not_applicable_only_for") != "unique ordinary PR to desarrollo" or remediation.get("direct_pushes_blocked") is not True:
+            errors.append(f"GOV_CI8_CLASSIFIER_INVALID:{path.name}")
+        promotion = data.get("promotion_request_bootstrap")
+        expected_grants = [
+            "R3-GOV-HOM-008-O2-REQ1",
+            "R3-GOV-HOM-008-O3-REQ1",
+            "R3-GOV-HOM-008-O4-REQ1",
+            "R3-GOV-HOM-008-O5-REQ1",
+        ]
+        if not isinstance(promotion, dict) or promotion.get("final_wp") != PROMOTION_FINAL_WP or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
+            errors.append(f"GOV_CI8_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
+        if data.get("bootstrap_authorization", {}).get("id") != "R1-BOOTSTRAP-GOV-CI-008-REQ1":
+            errors.append(f"GOV_CI8_BOOTSTRAP_AUTH_INVALID:{path.name}")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_CI8_R3_DENY_MISSING:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -1215,7 +1283,7 @@ def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
             ("O5 certificacion -> desarrollo", "O5", "desarrollo", "certificacion"),
         ):
             expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, source_ref, final_wp, source_ref, False)
-    for family in ("006", "007"):
+    for family in ("006", "007", "008"):
         final_wp = f"WP-GOV-CI-{family}"
         for op, code, base_ref, source_ref in (
             ("O2 desarrollo -> certificacion", "O2", "certificacion", "desarrollo"),
@@ -1223,7 +1291,7 @@ def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
             ("O4 main -> certificacion", "O4", "certificacion", "main"),
             ("O5 certificacion -> desarrollo", "O5", "desarrollo", "certificacion"),
         ):
-            expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req1", final_wp, source_ref, family == "007")
+            expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req1", final_wp, source_ref, family in {"007", "008"})
     for grant_id, (operation, base_ref, candidate_branch, final_wp_id, source_ref, require_identity) in expected.items():
         wp = load_manifest_by_id(final_wp_id, root=root)
         d_final = str(wp.get("candidate_digest") if isinstance(wp, dict) else "")
@@ -1277,6 +1345,8 @@ def validate_promotion_event(event_path: str, *, event_name: str = "", run_attem
         errors.append(f"PROMOTION_PR_BLOCKED:{pr_number}")
 
     fields = parse_attestation_fields(pr.get("body") or "")
+    if "__DUPLICATE__" in fields:
+        errors.append("PROMOTION_ATTESTATION_DUPLICATE")
     operation = fields.get("Operation", "")
     expected_pair = PROMOTION_PAIRS.get(operation)
     expected_candidate_branch = PROMOTION_CANDIDATE_BRANCHES.get(operation)
@@ -1307,6 +1377,8 @@ def validate_promotion_event(event_path: str, *, event_name: str = "", run_attem
         errors.append("PROMOTION_GRANT_ID_INVALID")
     if grant_id in PROMOTION_CONSUMED_GRANTS:
         errors.append("PROMOTION_GRANT_CONSUMED")
+    if grant_id in PROMOTION_SUPERSEDED_GRANTS:
+        errors.append("PROMOTION_GRANT_SUPERSEDED")
     if not grant_id or not operation_code or f"-{operation_code}-" not in grant_id:
         errors.append("PROMOTION_GRANT_ID_MISMATCH")
     grant = load_promotion_grant(grant_id, root=root) if grant_id else None
@@ -1335,7 +1407,7 @@ def validate_promotion_event(event_path: str, *, event_name: str = "", run_attem
             if remote_source != source_sha:
                 errors.append("PROMOTION_SOURCE_SHA_MISMATCH")
         except subprocess.CalledProcessError:
-            pass
+            errors.append("PROMOTION_SOURCE_SHA_UNRESOLVED")
 
     final_wp_id = fields.get("Final-WP", "")
     if final_wp_id != PROMOTION_FINAL_WP:
@@ -1524,20 +1596,40 @@ def github_api_json(path: str, *, paginate: bool = False, max_pages: int = 10, d
     return flattened
 
 
+def github_api_json_until(path: str, predicate, *, paginate: bool = False, deadline: float | None = None) -> Any:
+    deadline = deadline or (time.monotonic() + 30.0)
+    attempt = 0
+    while True:
+        data = github_api_json(path, paginate=paginate, deadline=deadline)
+        if predicate(data):
+            return data
+        delay = min(0.25 * (2 ** attempt), 2.0)
+        attempt += 1
+        if time.monotonic() + delay > deadline:
+            raise GitHubEvidenceError("github api evidence remained incomplete")
+        time.sleep(delay)
+
+
 def load_post_merge_evidence(after_sha: str) -> dict[str, Any]:
     evidence_path = os.environ.get("PROMOTION_POST_MERGE_EVIDENCE_PATH", "")
     if evidence_path:
-        return json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+        data = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise GitHubSchemaError("post-merge evidence root must be object")
+        return data
     deadline = time.monotonic() + 30.0
-    pulls = github_api_json(f"commits/{after_sha}/pulls?per_page=100", paginate=True, deadline=deadline)
-    if not isinstance(pulls, list) or not pulls:
-        return {}
+    pulls = github_api_json_until(f"commits/{after_sha}/pulls?per_page=100", lambda value: isinstance(value, list) and bool(value), paginate=True, deadline=deadline)
     if len(pulls) != 1:
         return {"ambiguous_pull_requests": len(pulls)}
     pr = pulls[0]
+    if not isinstance(pr, dict) or not isinstance(pr.get("number"), int):
+        raise GitHubSchemaError("commit pull association schema invalid")
     number = pr.get("number")
     pr = github_api_json(f"pulls/{number}", deadline=deadline)
-    checks = github_api_json(f"commits/{pr.get('head', {}).get('sha', '')}/check-runs?per_page=100", paginate=True, deadline=deadline)
+    if not isinstance(pr, dict):
+        raise GitHubSchemaError("pull request schema invalid")
+    head_sha = pr.get("head", {}).get("sha", "") if isinstance(pr.get("head"), dict) else ""
+    checks = github_api_json_until(f"commits/{head_sha}/check-runs?per_page=100", lambda value: isinstance(value, list) and bool(value), paginate=True, deadline=deadline)
     reviews = github_api_json(f"pulls/{number}/reviews?per_page=100", paginate=True, deadline=deadline)
     timeline = github_api_json(f"issues/{number}/timeline?per_page=100", paginate=True, deadline=deadline)
     return {"pull_request": pr, "checks": checks, "reviews": reviews, "timeline": timeline}
@@ -1563,6 +1655,8 @@ def workflow_run_id_from_details(details_url: Any) -> int | None:
 def latest_check_run(checks: list[dict[str, Any]], name: str, *, head_sha: str, pr_number: int, pr_created_at: datetime, pr_merged_at: datetime, allow_empty_pull_requests: bool) -> tuple[dict[str, Any] | None, str | None]:
     matching: list[tuple[datetime, int, dict[str, Any]]] = []
     for check in checks:
+        if not isinstance(check, dict):
+            return None, "POST_MERGE_CHECK_SCHEMA_INVALID"
         if check.get("name") != name:
             continue
         if check.get("head_sha") != head_sha:
@@ -1580,9 +1674,11 @@ def latest_check_run(checks: list[dict[str, Any]], name: str, *, head_sha: str, 
         completed_at = parse_utc(str(check.get("completed_at") or ""))
         updated_at = parse_utc(str(check.get("updated_at") or ""))
         ordering_time = completed_at or updated_at
-        if started_at is None or completed_at is None or ordering_time is None:
+        if started_at is None or completed_at is None or updated_at is None or ordering_time is None:
             return None, "POST_MERGE_CHECK_TIMESTAMP_INVALID"
-        if started_at < pr_created_at or completed_at > pr_merged_at:
+        if started_at > completed_at or completed_at > updated_at:
+            return None, "POST_MERGE_CHECK_TIMESTAMP_INVALID"
+        if started_at < pr_created_at or updated_at > pr_merged_at:
             return None, "POST_MERGE_CHECK_TIME_WINDOW_INVALID"
         if workflow_run_id_from_details(check.get("details_url")) is None:
             return None, "POST_MERGE_WORKFLOW_RUN_MISSING"
@@ -1634,6 +1730,12 @@ def latest_effective_review_state(reviews: list[dict[str, Any]], login: str) -> 
     return max(matching, key=lambda item: (item[0], item[1]))[2]
 
 
+def validate_reviews_schema(reviews: Any) -> str | None:
+    if not isinstance(reviews, list) or any(not isinstance(review, dict) for review in reviews):
+        return "POST_MERGE_REVIEW_SCHEMA_INVALID"
+    return None
+
+
 def approved_review_by(reviews: list[dict[str, Any]], login: str, *, commit_id: str) -> bool:
     latest = latest_effective_review_state(reviews, login)
     return bool(latest and latest.get("state") == "APPROVED" and latest.get("commit_id") == commit_id)
@@ -1676,12 +1778,14 @@ def is_unknown_promotion_branch(branch: str) -> bool:
     return branch.startswith(SUPERSEDED_PROMOTION_PREFIX) and branch not in set(PROMOTION_CANDIDATE_BRANCHES.values())
 
 
+def is_promotion_shaped(branch: str, target_branch: str, fields: dict[str, str]) -> bool:
+    return branch.startswith(SUPERSEDED_PROMOTION_PREFIX) or target_branch in {"certificacion", "main"} or any(field in fields for field in PROMOTION_SHAPED_FIELDS)
+
+
 def classify_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) -> tuple[str, list[str]]:
     errors = validate_post_merge_promotion_push(event_path, root=root)
     if not errors:
         return "VERIFIED_PROMOTION", []
-    if errors == ["POST_MERGE_NOT_MERGE_COMMIT"]:
-        return "NOT_APPLICABLE", errors
     if errors and errors[0] == "POST_MERGE_NORMAL_PR_NOT_PROMOTION":
         return "NOT_APPLICABLE", errors
     return "BLOCKED", errors
@@ -1692,19 +1796,21 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
         event = json.loads(Path(event_path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return ["POST_MERGE_EVENT_INVALID"]
+    if not isinstance(event, dict):
+        return ["POST_MERGE_EVENT_INVALID"]
     before = str(event.get("before") or "")
     after = str(event.get("after") or "")
     ref = str(event.get("ref") or "")
-    if not HEX40.match(before) or not HEX40.match(after) or not ref.startswith("refs/heads/"):
+    if before == "0" * 40 or not HEX40.match(before) or not HEX40.match(after) or not ref.startswith("refs/heads/"):
         return ["POST_MERGE_EVENT_INVALID"]
     branch = ref.removeprefix("refs/heads/")
+    if branch not in PROTECTED_BRANCHES:
+        return ["POST_MERGE_TARGET_BRANCH_INVALID"]
     try:
         parents = git_sha(["show", "-s", "--format=%P", after], root=root).split()
     except subprocess.CalledProcessError:
         return ["POST_MERGE_COMMIT_INVALID"]
-    if len(parents) != 2:
-        return ["POST_MERGE_NOT_MERGE_COMMIT"]
-    if parents[0] != before:
+    if len(parents) == 2 and parents[0] != before:
         return ["POST_MERGE_FIRST_PARENT_MISMATCH"]
     try:
         evidence = load_post_merge_evidence(after)
@@ -1713,13 +1819,18 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     pr = evidence.get("pull_request") or {}
     if evidence.get("ambiguous_pull_requests"):
         return ["POST_MERGE_PR_AMBIGUOUS"]
-    if not pr or pr.get("merged") is not True or pr.get("merge_commit_sha") != after:
+    if not isinstance(pr, dict) or not pr or pr.get("merged") is not True or pr.get("merge_commit_sha") != after:
         return ["POST_MERGE_PR_MISMATCH"]
-    pr_number = int(pr.get("number") or 0)
+    try:
+        pr_number = int(pr.get("number") or 0)
+    except (TypeError, ValueError):
+        return ["POST_MERGE_PR_METADATA_INVALID"]
     if pr_number <= 0:
         return ["POST_MERGE_PR_METADATA_INVALID"]
     base = pr.get("base") or {}
     head = pr.get("head") or {}
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        return ["POST_MERGE_PR_SCHEMA_INVALID"]
     base_repo = base.get("repo") or {}
     head_repo = head.get("repo") or {}
     repo = pr.get("base", {}).get("repo", {}).get("full_name") or os.environ.get("GITHUB_REPOSITORY", "")
@@ -1728,22 +1839,39 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     base_ref = str(base.get("ref") or "")
     head_ref = str(head.get("ref") or "")
     head_sha = str(head.get("sha") or "")
+    if base_ref != branch:
+        return ["POST_MERGE_PR_BASE_REF_MISMATCH"]
     pr_created_at = parse_utc(pr.get("created_at"))
     pr_merged_at = parse_utc(pr.get("merged_at"))
     if pr_created_at is None or pr_merged_at is None:
         return ["POST_MERGE_PR_TIMESTAMP_INVALID"]
     fields = parse_attestation_fields(str(pr.get("body") or ""))
+    if "__DUPLICATE__" in fields:
+        return ["POST_MERGE_ATTESTATION_DUPLICATE"]
     operation = fields.get("Operation", "")
     expected_pair = PROMOTION_PAIRS.get(operation)
     expected_candidate_branch = PROMOTION_CANDIDATE_BRANCHES.get(operation)
     source_ref = fields.get("Source-Ref", "")
     source_sha = fields.get("Source-SHA", "")
-    if not expected_pair or (base_ref, source_ref) != expected_pair or head_ref != expected_candidate_branch or base_ref != branch:
-        return ["POST_MERGE_PAIR_INVALID"]
     if is_unknown_promotion_branch(head_ref):
         return ["POST_MERGE_PROMOTION_BRANCH_SUPERSEDED"]
-    if head_ref not in set(PROMOTION_CANDIDATE_BRANCHES.values()):
-        return ["POST_MERGE_NORMAL_PR_NOT_PROMOTION"]
+    route_is_promotion = expected_pair is not None and (base_ref, source_ref) == expected_pair and head_ref == expected_candidate_branch and base_ref == branch
+    if not route_is_promotion:
+        if branch == "desarrollo":
+            if is_promotion_shaped(head_ref, branch, fields):
+                return ["POST_MERGE_PAIR_INVALID"]
+            return ["POST_MERGE_NORMAL_PR_NOT_PROMOTION"]
+        if not head_ref.startswith(SUPERSEDED_PROMOTION_PREFIX) and not any(field in fields for field in PROMOTION_SHAPED_FIELDS):
+            return ["POST_MERGE_PROTECTED_BRANCH_NON_PROMOTION"]
+        if is_promotion_shaped(head_ref, branch, fields):
+            return ["POST_MERGE_PAIR_INVALID"]
+        return ["POST_MERGE_PROTECTED_BRANCH_NON_PROMOTION"]
+    if len(parents) != 2:
+        return ["POST_MERGE_NOT_MERGE_COMMIT"]
+    if parents[0] != before:
+        return ["POST_MERGE_FIRST_PARENT_MISMATCH"]
+    if not expected_pair or (base_ref, source_ref) != expected_pair or head_ref != expected_candidate_branch or base_ref != branch:
+        return ["POST_MERGE_PAIR_INVALID"]
     if str(base.get("sha") or "") != before:
         return ["POST_MERGE_PR_BASE_SHA_MISMATCH"]
     if parents[1] != head_sha:
@@ -1779,6 +1907,8 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
             return ["POST_MERGE_APPROVAL_GRANT_ID_MISMATCH"]
     if pr_number in PROMOTION_BLOCKED_PR_NUMBERS or grant_id in PROMOTION_CONSUMED_GRANTS:
         return ["POST_MERGE_GRANT_CONSUMED"]
+    if grant_id in PROMOTION_SUPERSEDED_GRANTS:
+        return ["POST_MERGE_GRANT_SUPERSEDED"]
     if fields.get("Approval-Level") != "R3 JIT single-use":
         return ["POST_MERGE_APPROVAL_LEVEL_INVALID"]
     approval_ref = fields.get("Approval-Reference", "")
@@ -1821,6 +1951,9 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     checks = evidence.get("checks") or []
     if not isinstance(checks, list):
         return ["POST_MERGE_CHECK_SCHEMA_INVALID"]
+    timeline = evidence.get("timeline") or []
+    if not isinstance(timeline, list) or any(not isinstance(item, dict) for item in timeline):
+        return ["POST_MERGE_TIMELINE_SCHEMA_INVALID"]
     allow_empty_pull_requests = True
     promotion_check, check_error = latest_check_run(checks, "Promotion Boundary", head_sha=head_sha, pr_number=pr_number, pr_created_at=pr_created_at, pr_merged_at=pr_merged_at, allow_empty_pull_requests=allow_empty_pull_requests)
     if check_error:
@@ -1842,14 +1975,22 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     run_error = require_workflow_run(run, run_id=promotion_run_id, head_sha=head_sha, head_branch=head_ref, pr_created_at=pr_created_at, pr_merged_at=pr_merged_at)
     if run_error:
         return [run_error]
-    latest_attestation = last_attestation_mutation_at(pr, evidence.get("timeline") or [])
+    latest_attestation = last_attestation_mutation_at(pr, timeline)
     run_created_at = parse_utc(run.get("created_at"))
     if latest_attestation is None or run_created_at is None or run_created_at < latest_attestation:
         return ["POST_MERGE_ATTESTATION_STALE"]
     reviews = evidence.get("reviews") or []
+    review_schema_error = validate_reviews_schema(reviews)
+    if review_schema_error:
+        return [review_schema_error]
     latest_review = latest_effective_review_state(reviews, "romelhc95-approver")
     if latest_review is None:
         return ["POST_MERGE_REVIEW_MISSING"]
+    review_submitted_at = parse_utc(latest_review.get("submitted_at"))
+    if review_submitted_at is None or review_submitted_at < pr_created_at or review_submitted_at > pr_merged_at:
+        return ["POST_MERGE_REVIEW_TIME_WINDOW_INVALID"]
+    if latest_attestation is None or review_submitted_at < latest_attestation:
+        return ["POST_MERGE_REVIEW_STALE"]
     if latest_review.get("commit_id") != head_sha:
         return ["POST_MERGE_REVIEW_COMMIT_INVALID"]
     if latest_review.get("state") != "APPROVED":
@@ -1863,18 +2004,21 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT, GOV_CI8_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False, gov_ci4_transition: bool = False, gov_ci5_transition: bool = False, gov_ci6_transition: bool = False, gov_ci7_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False, gov_ci4_transition: bool = False, gov_ci5_transition: bool = False, gov_ci6_transition: bool = False, gov_ci7_transition: bool = False, gov_ci8_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if gov_ci7_transition:
+    if gov_ci8_transition:
+        allowed = GOV_CI8_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_ci7_transition:
         allowed = GOV_CI7_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif gov_ci6_transition:
@@ -1948,12 +2092,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
     errors: list[str] = []
-    if len(manifests) != 15:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3/CI4/CI5/CI6/CI7 manifests")
+    if len(manifests) != 16:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3/CI4/CI5/CI6/CI7/CI8 manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     errors.extend(validate_static_promotion_requests(root=ROOT))
     if args.post_merge_push_event:
+        if errors:
+            print("BLOCKED")
+            for error in errors:
+                print(error)
+            return 1
         state, post_merge_errors = classify_post_merge_promotion_push(args.post_merge_push_event, root=ROOT)
         print(state)
         if state == "VERIFIED_PROMOTION":
@@ -1982,6 +2131,7 @@ def main(argv: list[str] | None = None) -> int:
             gov_ci5_transition=changed_from == GOV_CI5_BASE_COMMIT,
             gov_ci6_transition=changed_from == GOV_CI6_BASE_COMMIT,
             gov_ci7_transition=changed_from == GOV_CI7_BASE_COMMIT,
+            gov_ci8_transition=changed_from == GOV_CI8_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

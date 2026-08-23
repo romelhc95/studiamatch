@@ -120,6 +120,7 @@ F10.11 GOV-HOM candidate produce T_HOM
 -> GOV-CI5 valida pushes post-merge de promociones fail-closed
 -> GOV-CI6 publica promociones target-aware y congela F9.7 automatico
 -> GOV-CI7 valida evidencia post-merge fail-closed y HOM-007
+-> GOV-CI8 clasifica rutas post-merge fail-closed y HOM-008
 -> R3 re-O2 JIT desarrollo -> certificacion
 -> R3 O3 JIT certificacion -> main
 -> R3 O4 JIT main -> certificacion
@@ -140,7 +141,7 @@ F12.1 local H2-CA2 bajo WP/digest R1
 - `security-audit` valida attestation, manifest, digest, `Base-SHA`, `Candidate-SHA`, paths y co-change.
 - Para PR normales, `Canonical Path Boundary` sigue usando el diff incremental y el WP vigente.
 - Para promociones O2-O5, `Canonical Path Boundary` usa `Promotion Attestation` y valida same-repo, operacion, `Grant-ID`, par, ancestry, tree, `D_FINAL`, `T_FINAL`, `Final-WP`, nivel R3 JIT, referencia de aprobacion y expiry.
-- Para pushes post-merge de promociones O2-O5, `Canonical Path Boundary` clasifica `VERIFIED_PROMOTION`, `NOT_APPLICABLE` o `BLOCKED`; solo `NOT_APPLICABLE` puede volver al boundary incremental.
+- Para pushes post-merge, `Canonical Path Boundary` clasifica `VERIFIED_PROMOTION`, `NOT_APPLICABLE` o `BLOCKED`; solo un PR ordinario unico a `desarrollo` puede ser `NOT_APPLICABLE` y volver al boundary incremental.
 - Las solicitudes `.context/r3_grants/*.json` son `REQUESTED_JIT_SINGLE_USE` con bindings simbolicos; no contienen `candidate_sha`, `t_final`, approvals, expiry ni consumo falso.
 - Cada PR requiere review humano por branch protection; la review no dispara CI y no necesita rerun manual.
 - Push y PR requieren R2 separado.
@@ -151,7 +152,8 @@ F12.1 local H2-CA2 bajo WP/digest R1
 - PR #428 fallo O2 y dejo `O2_CONSUMED_BY_FAILURE`; no autoriza retry ni nuevo O2 sin grant JIT separado posterior.
 - PR #428 y PR #431 quedaron cerrados/fallidos sin merge; no autorizan retry ni nuevo O2 sin grant JIT separado posterior.
 - PR #433 completo O2 y consumio `R3-GOV-HOM-004-O2-REQ1`, pero el push post-merge fallo; no autoriza O3 hasta publicar GOV-CI5 y ejecutar nuevo re-O2.
-- PR #437 completo O2 y consumio `R3-GOV-HOM-006-O2-REQ1`, pero el push post-merge fallo; HOM-006 O3-O5 queda superseded y no autoriza O3 hasta publicar GOV-CI7 y ejecutar nuevo re-O2 HOM-007.
+- PR #437 completo O2 y consumio `R3-GOV-HOM-006-O2-REQ1`, pero el push post-merge fallo; HOM-006 O3-O5 queda superseded y no autoriza O3 hasta publicar GOV-CI7.
+- PR #438 publico GOV-CI7 a `desarrollo`, pero el push post-merge fallo `POST_MERGE_PAIR_INVALID`; HOM-007 queda superseded y no autoriza O2/O3 hasta publicar GOV-CI8 y ejecutar nuevo re-O2 HOM-008.
 - Cualquier DB, Supabase, RLS/grants, backfill, writer, schedule, deploy,
   Certification, Main o produccion requiere R3 JIT separado.
 
