@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F10.11_GOV_CI4_PROMOTION_ENV_PENDING_R2_WP_H2_ACTIVE_R1_NO_IMPLEMENTATION`
+`F10.11_GOV_CI6_TARGET_AWARE_PENDING_R2_WP_H2_ACTIVE_R1_NO_IMPLEMENTATION`
 
 | Control | Estado |
 |---|---|
@@ -23,10 +23,14 @@
 | PR #428 O2 retry | `FAILED_NOT_MERGED`, `O2_CONSUMED_BY_FAILURE`, Canonical Path Boundary FAIL, pendiente de cierre administrativo futuro |
 | PR #430 CI3 bootstrap | `MERGED_TO_DESARROLLO@235c2329eb5fd8903c31785640a63466b23f0dd8`, tree `cc774746d21cb6649f7018da3049fc811a3f294b`, digest `60c1fc0978208742597f17ef6f4c1fe5741f59b5de0739accbce24fa613ab9c7`, security-audit PASS |
 | PR #431 O2 retry CI3 | `FAILED_NOT_MERGED`, `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, Promotion Boundary pre-run FAIL por Environment `Certification` |
-| Desarrollo commit | `235c2329eb5fd8903c31785640a63466b23f0dd8` |
-| Desarrollo tree | `cc774746d21cb6649f7018da3049fc811a3f294b` |
-| Certificacion commit | `fe7b27abf18c096f674948b4f30f815aea4aef08` |
-| Certificacion tree | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` |
+| PR #432 CI4 Promotion Environment | `MERGED_TO_DESARROLLO@32dc50c2a26f0d8cf34c5a39a4f10a821bf821aa`, tree `acabd0965d4aa716904917caab691b3867aa5798`, digest `e267fd204eb818674f382b72497be25e7a32706ff7061bb080eda4293fa40e86`, security-audit PASS |
+| PR #433 O2 retry CI4 | `MERGED_TO_CERTIFICACION@3682d0af8c16ed0476663e6727b14f03ec14ed78`, tree `acabd0965d4aa716904917caab691b3867aa5798`, `R3-GOV-HOM-004-O2-REQ1_CONSUMED`, push post-merge run `32615044699` FAIL `Canonical Path Boundary` |
+| PR #434 CI5 post-merge boundary | `MERGED_TO_DESARROLLO@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845`, tree `fc9ff315d20648e87d049d5fb244a09ea214bfb8`, digest `3912d0b7798068c700facfb054360c531b768f251644fef0dbe456ce4b0567cf`, security-audit PASS |
+| PR #435 O2 retry CI5 | `FAILED_NOT_MERGED`, run `32619372008`, job `97145052119`, `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, F9.7 legacy gate automatico |
+| Desarrollo commit | `9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845` |
+| Desarrollo tree | `fc9ff315d20648e87d049d5fb244a09ea214bfb8` |
+| Certificacion commit | `3682d0af8c16ed0476663e6727b14f03ec14ed78` |
+| Certificacion tree | `acabd0965d4aa716904917caab691b3867aa5798` |
 | Main commit | `9b486146962bd2a092acfd649fdcf716e922de89` |
 | Main tree | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` |
 | Work package activo | `WP-H2-001` |
@@ -36,7 +40,9 @@
 | Work package CI/review | `WP-GOV-CI-001=CONSUMED_EXTERNALLY_BY_PR_427` |
 | Work package CI2 boundary | `WP-GOV-CI-002=CONSUMED_EXTERNALLY_BY_PR_429` |
 | Work package CI3 bootstrap | `WP-GOV-CI-003=CONSUMED_EXTERNALLY_BY_PR_430` |
-| Work package CI4 Promotion Environment | `WP-GOV-CI-004=PROPOSED` |
+| Work package CI4 Promotion Environment | `WP-GOV-CI-004=CONSUMED_EXTERNALLY_BY_PR_432` |
+| Work package CI5 post-merge boundary | `WP-GOV-CI-005=CONSUMED_EXTERNALLY_BY_PR_434` |
+| Work package CI6 target-aware | `WP-GOV-CI-006=PROPOSED` |
 | Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
 | Implementation status | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` |
@@ -45,7 +51,7 @@
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` |
 | Subfase tecnica activa | `F10.11` |
 | F12.1 | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` |
-| Proximo gate unico | `PREPARE_WP_GOV_CI_004_R2_APPROVAL` |
+| Proximo gate unico | `PREPARE_WP_GOV_CI_006_R2_APPROVAL` |
 
 ## Porcentaje De Avance
 
@@ -70,11 +76,11 @@
 
 ### Homologacion
 
-`O0-O5 historicos completados; D0-D10 homologado; PR #424, PR #425, PR #426, PR #427, PR #429 y PR #430 publicados en desarrollo; PR #428 y PR #431 fallaron O2 y consumieron sus grants; Etapa 1 Obsidian pendiente de GOV-CI4, nuevo R3 JIT y convergencia final; WP-H2-001 activo hasta R1 sin implementacion funcional iniciada.`
+`O0-O5 historicos completados; D0-D10 homologado; PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432 y PR #434 publicados en desarrollo; PR #428, PR #431 y PR #435 fallaron O2 y consumieron sus grants; PR #433 completo O2 pero fallo el CI post-merge; Etapa 1 Obsidian pendiente de GOV-CI6, nuevo O2 target-aware R3 JIT y convergencia final; WP-H2-001 activo hasta R1 sin implementacion funcional iniciada.`
 
 ## Porcentaje De Desviacion
 
-`F10_11_GOV_CI4_PROMOTION_ENV_PENDING_R2`.
+`F10_11_GOV_CI6_TARGET_AWARE_PENDING_R2`.
 
 La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y, tras PR #425, drift documental entre `desarrollo`, `certificacion` y `main`. La desviacion se registra como homologacion no recursiva para evitar repetir promociones.
 
@@ -92,10 +98,10 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 
 - PR #425 quedo mergeado a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b` y consume `WP-GOV-ARCH-001` externamente; ese manifest no se muta.
 - `main` y `certificacion` comparten el tree `fcb59095e48441bb4486ccc196aee61e2e1e0fe3`; `desarrollo` avanzo a `ac16b545b74a03b149aac538062def20101187fb` por PR #425.
-- El unico siguiente gate permitido es `PREPARE_WP_GOV_CI_004_R2_APPROVAL`.
+- El unico siguiente gate permitido es `PREPARE_WP_GOV_CI_006_R2_APPROVAL`.
 - GOV-CI ya separo `security-audit` de review mediante PR #427; GOV-CI2 separo boundary incremental y boundary estructural de promociones O2-O5 mediante PR #429.
 - PR #428 no se reintenta: `O2_CONSUMED_BY_FAILURE` exige cierre administrativo futuro y nuevo R3 JIT posterior a GOV-CI3.
-- GOV-CI3 elimino la autorreferencia de solicitudes R3 versionadas; GOV-CI4 corrige el Environment de Promotion Boundary despues del fallo pre-run de PR #431.
+- GOV-CI3 elimino la autorreferencia de solicitudes R3 versionadas; GOV-CI4 corrigio el Environment de Promotion Boundary despues del fallo pre-run de PR #431; GOV-CI5 corrigio la validacion post-merge despues del fallo de run `32615044699`; GOV-CI6 corrige PR #435 con ramas target-aware y retiro F9.7 automatico.
 - No implementar H2 sin homologacion final, rebaseline y autorizacion posterior.
 - O3 debe decidir explicitamente Cloudflare Pages Production rebuild y DB Sync fail-closed sin cambios.
 
@@ -113,12 +119,16 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 - PR #429 fusionado a `desarrollo` para publicar `WP-GOV-CI-002` hasta R2.
 - PR #430 fusionado a `desarrollo` para publicar `WP-GOV-CI-003` hasta R2.
 - PR #431 fallo O2 sin merge; `R3-GOV-HOM-003-O2-REQ1` quedo consumido por fallo.
+- PR #432 fusionado a `desarrollo` para publicar `WP-GOV-CI-004` hasta R2.
+- PR #433 fusionado a `certificacion` para O2; `R3-GOV-HOM-004-O2-REQ1` quedo consumido y el push post-merge fallo `Canonical Path Boundary`.
+- PR #434 fusionado a `desarrollo` para publicar `WP-GOV-CI-005` hasta R2.
+- PR #435 fallo O2 sin merge; `R3-GOV-HOM-005-O2-REQ1` quedo consumido por fallo F9.7 legacy.
 - `WP-H2-001` aprobado y activado localmente hasta R1; no hay implementacion iniciada.
 - Etapa 1 Obsidian reconciliada como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`.
 
 ## Siguientes Pasos
 
-1. Preparar aprobacion humana por digest de `WP-GOV-CI-004` hasta R2.
+1. Preparar aprobacion humana por digest de `WP-GOV-CI-006` hasta R2.
 2. Mantener `active_work_package = WP-H2-001` sin ejecutar H2 hasta cierre efectivo y rebaseline.
 3. No ejecutar DDL/DML, Supabase, backfill, RLS/grants, writers, schedules ni produccion sin R3 JIT separado.
 4. No iniciar H2-CA3 antes de cerrar H2-CA2 local.
@@ -130,13 +140,13 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 ## Proximo Prompt Cavernicola
 
 ```text
-Apruebo WP-GOV-CI-004 de TASK-GOV-CI-004 segun manifest sha256:<D_CI4> contenido en candidate commit:<C_CI4>, hasta R2 y hasta 2026-08-29T23:59:59Z.
-Alcance exclusivo y orden obligatorio: cerrar PR #431 sin merge y sin reintento; luego push, PR y merge a desarrollo del candidate GOV-CI4 que usa Environment Promotion para Promotion Boundary; no Certification, no Main y no R3.
-Base: desarrollo@235c2329eb5fd8903c31785640a63466b23f0dd8, tree cc774746d21cb6649f7018da3049fc811a3f294b.
-Orden obligatorio: verificar status limpio, verificar WP-GOV-CI-004 aprobado por digest, cerrar PR #431 sin editar body ni reabrir/reintentar, publicar a desarrollo mediante PR protegido, registrar Governance Attestation con Base-SHA y Candidate-SHA en el body y detenerse ante Certification, Main o gate superior.
+Apruebo WP-GOV-CI-006 de TASK-GOV-CI-006 segun manifest sha256:<D_CI6> contenido en candidate commit:<C_CI6>, hasta R2 y hasta 2026-08-29T23:59:59Z.
+Alcance exclusivo y orden obligatorio: push, PR y merge a desarrollo del candidate GOV-CI6 que retira F9.7 automatico y valida promociones target-aware O2-O5; no Certification, no Main y no R3.
+Base: desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845, tree fc9ff315d20648e87d049d5fb244a09ea214bfb8.
+Orden obligatorio: verificar status limpio, verificar WP-GOV-CI-006 aprobado por digest, publicar a desarrollo mediante PR protegido, registrar Governance Attestation con Base-SHA y Candidate-SHA en el body y detenerse ante Certification, Main o gate superior.
 Denylist: produccion, Supabase Free, Supabase Pro, workflow_dispatch, writers, schedules, lead_capture, egress, DDL/DML/migraciones/backfill/RLS/grants sin R3 JIT, fuentes privadas, .env*, secretos.
 Validaciones: credential scan, Python compile, manifest digest, markdown links, Context Graph semantico, Governance Preflight, source artifact guard, path boundary, lint, typecheck, static build.
-Stop conditions: status sucio inesperado, digest no coincide, CI fail, path fuera de allowlist, secreto/PII, PR #431 requiere reintento o edicion, cierre F10.11 declarado sin predicado, H2 iniciado, requerimiento R3 no autorizado.
-Salida esperada: PR #431 cerrado sin merge, GOV-CI4 en desarrollo, Promotion Boundary usando Environment Promotion, H2-CA2/H2-CA3 NOT_STARTED y sin gate superior automatico.
+Stop conditions: status sucio inesperado, digest no coincide, CI fail, path fuera de allowlist, secreto/PII, PR #435 requiere reintento o edicion, cierre F10.11 declarado sin predicado, H2 iniciado, requerimiento R3 no autorizado.
+Salida esperada: GOV-CI6 en desarrollo, F9.7 manual frozen-only, promociones target-aware validables, H2-CA2/H2-CA3 NOT_STARTED y sin gate superior automatico.
 Proximo gate unico posterior: congelar D_FINAL/T_FINAL y solicitar nuevo R3 JIT separado para O2 certificacion si corresponde.
 ```

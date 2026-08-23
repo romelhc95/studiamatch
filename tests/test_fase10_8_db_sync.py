@@ -228,9 +228,9 @@ def test_postgres_regression_script_is_local_only_guarded() -> None:
 
 def test_f9_7_boundary_allows_exact_f10_8_db_remediation_only() -> None:
     allowed = F97_WORKFLOW.split("allowed_statuses = {", 1)[1].split("allowed = set(allowed_statuses)", 1)[0]
-    trigger_paths = F97_WORKFLOW.split("pull_request:", 1)[1].split("push:", 1)[0]
-    assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql'" in trigger_paths
-    assert "'db/restore_full_schema.sql'" in trigger_paths
+    assert "workflow_dispatch:" in F97_WORKFLOW
+    assert "pull_request:" not in F97_WORKFLOW.split("permissions:", 1)[0]
+    assert "push:" not in F97_WORKFLOW.split("permissions:", 1)[0]
     assert "'db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql': {'A'}" in allowed
     assert "'db/restore_full_schema.sql': {'M'}" in allowed
     assert "'scripts/maintenance/db_migrate.py': {'M'}" in allowed
@@ -239,13 +239,10 @@ def test_f9_7_boundary_allows_exact_f10_8_db_remediation_only() -> None:
 
 
 def test_security_audit_supports_f10_8_cleansing_provenance_certification_baseline() -> None:
-    assert "F108_CLEANSING_PROVENANCE_CERT_BASELINE: 12e270166c26d4bc93c1c609c23045a6b6720d96" in SECURITY_WORKFLOW
-    assert "github.event.pull_request.base.sha == '12e270166c26d4bc93c1c609c23045a6b6720d96'" in SECURITY_WORKFLOW
-    assert "github.event.before == '12e270166c26d4bc93c1c609c23045a6b6720d96'" in SECURITY_WORKFLOW
-    assert '"db/migrations/20260808_fase10_8_atomic_cleansing_provenance.sql": ("A", "100644")' in SECURITY_WORKFLOW
-    assert '"scripts/maintenance/db_migrate.py": ("M", "100644")' in SECURITY_WORKFLOW
-    assert '"tests/sql/run_fase10_8_atomic_cleansing_postgres.sh": ("A", "100755")' in SECURITY_WORKFLOW
-    assert "F108_CERT_REQUIRED" in SECURITY_WORKFLOW
+    assert "Promotion Boundary" in SECURITY_WORKFLOW
+    assert "promote/gov-hom-006-o3-req1" in SECURITY_WORKFLOW
+    assert "F108_CLEANSING_PROVENANCE_CERT_BASELINE" not in SECURITY_WORKFLOW
+    assert "f108-main-gate-update" not in SECURITY_WORKFLOW
 
 
 if __name__ == "__main__":

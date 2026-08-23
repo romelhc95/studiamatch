@@ -45,7 +45,21 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 def parse_attestation(body: str) -> dict[str, str]:
     fields: dict[str, str] = {}
-    for line in body.splitlines():
+    lines = body.splitlines()
+    if any(line.strip() == "## Governance Attestation" for line in lines):
+        section_lines: list[str] = []
+        in_section = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped == "## Governance Attestation":
+                in_section = True
+                continue
+            if in_section and stripped.startswith("## "):
+                break
+            if in_section:
+                section_lines.append(line)
+        lines = section_lines
+    for line in lines:
         if ":" not in line:
             continue
         key, value = line.split(":", 1)

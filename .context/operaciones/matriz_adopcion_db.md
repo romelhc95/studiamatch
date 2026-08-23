@@ -7,6 +7,8 @@ Snapshot GOV-CI: `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e
 Snapshot GOV-CI2: `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`, tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; sin cambios DB.
 Snapshot GOV-CI3: `desarrollo@1ac74f78fec6290e214444e9d2f18619ae3fd3b6`, tree `8191790192580f2e9fb1ddb48d85ab28714720f9`; sin cambios DB.
 Snapshot GOV-CI4: `desarrollo@235c2329eb5fd8903c31785640a63466b23f0dd8`, tree `cc774746d21cb6649f7018da3049fc811a3f294b`; sin cambios DB.
+Snapshot GOV-CI5: `desarrollo@32dc50c2a26f0d8cf34c5a39a4f10a821bf821aa`, tree `acabd0965d4aa716904917caab691b3867aa5798`; sin cambios DB.
+Snapshot GOV-CI6: `desarrollo@9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845`, tree `fc9ff315d20648e87d049d5fb244a09ea214bfb8`; sin cambios DB.
 
 ## Ambientes
 
@@ -51,6 +53,8 @@ flowchart LR
 - GOV-CI2 solo cambia controles de promocion en CI; no cambia schema, migraciones, ambientes, writers, RLS, grants ni adoption state.
 - GOV-CI3 solo corrige bootstrap de solicitudes R3 versionadas para promociones; no cambia schema, migraciones, ambientes, writers, RLS, grants ni adoption state.
 - GOV-CI4 solo corrige el Environment de `Promotion Boundary` para promociones O2-O5; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state.
+- GOV-CI5 solo corrige la validacion CI post-merge de promociones; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state.
+- GOV-CI6 solo corrige promociones target-aware y retira F9.7 automatico; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
 
 ## Writers Por Ambiente
 
