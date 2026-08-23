@@ -3,7 +3,7 @@
 > Fuente canonica del modelo de datos, RLS, RPC, escritores y adopcion por ambiente. No autoriza DDL/DML ni operaciones remotas.
 
 Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`.
-Snapshot GOV-CI8: `desarrollo@16045d45811cbe12299ce2ba66f6afd75a93d1ee`, tree `29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df`; sin cambios DB. O3 posterior requiere R3 JIT explicito, reconoce Cloudflare Pages Production rebuild automatico y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`.
+Snapshot GOV-CI9: `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`, tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`; sin cambios DB. PR #440 dejo `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076` con el mismo tree, pero fallo por identidad de merger. O3 posterior requiere R3 JIT explicito, reconoce Cloudflare Pages Production rebuild automatico y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`.
 
 ## Modelo De Datos
 
