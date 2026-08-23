@@ -1,4 +1,11 @@
-# Evidencia Hito 002
+# Evidencia Hito 002 Legacy
+
+Estado: `SUPERSEDED_TOMBSTONE`. No acredita PASS.
+
+La evidencia canonica de Hito 2 vive en
+[Evidencia Hito 002 Canonica](../req_est_001_sprint_1/evidencia_hito_002.md).
+
+## Snapshot Legacy
 
 Estado: `TEMPLATE_ONLY`. No acredita PASS.
 

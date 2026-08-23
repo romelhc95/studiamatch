@@ -31,7 +31,7 @@ Los archivos fuente privados no deben versionarse. Solo se versiona esta trazabi
 6. `SRC-UI-HOME-001` y `SRC-UI-RESULTS-001` como referencia visual.
 7. Codigo existente solo como compatibilidad tecnica.
 
-Cualquier conflicto se resuelve a favor de la fuente superior. Esta nota no autoriza ejecucion; la frase decimal exacta de fase y el work package vigente siguen siendo obligatorios.
+Cualquier conflicto se resuelve a favor de la fuente superior. Esta nota no autoriza ejecucion; tras F10.11 la frase decimal queda como trazabilidad y la autorizacion operativa requiere work package aprobado por digest y commit candidate.
 
 ## Mapa Contractual Vigente
 

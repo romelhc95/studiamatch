@@ -29,7 +29,7 @@ EXPIRED
 Formato de aprobacion futura:
 
 ```text
-Apruebo WP-H2-001 segun manifest sha256:<digest>.
+Apruebo WP-H2-001 de TASK-H2-001 segun manifest sha256:<digest> contenido en candidate commit:<commit>, hasta <nivel> y hasta <expiry_utc>.
 ```
 
 ## Convergencia
@@ -69,3 +69,12 @@ Cada PR de homologacion debe validar ejecutablemente:
 
 Scope drift, baseline drift, paths nuevos, cambio de riesgo, cambio de ambiente,
 expiracion, cambio del manifest u operacion R3 no prevista invalidan la aprobacion.
+
+## Contrato R3 JIT
+
+Toda operacion R3 futura debe registrar un grant single-use con actor,
+aprobador humano distinto, ambiente/project ref exacto, operacion exacta, hash
+del SQL o comando, timestamp UTC, expiracion entre 15 y 60 minutos, limites de
+filas cuando aplique y modo dry-run cuando sea posible. El grant se consume por
+exito, fallo, timeout o cancelacion; cualquier retry requiere una nueva
+aprobacion. Free y Pro requieren grants separados.

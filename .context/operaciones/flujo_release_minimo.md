@@ -1,4 +1,9 @@
-# Flujo De Release Minimo
+# Flujo De Release Minimo Legacy
+
+> `SUPERSEDED_HISTORY`: las lineas legacy de esta seccion conservan antecedente
+> tecnico de Hito 1, pero no son autoridad viva. F10.9, F11.1, schedules y
+> observacion productiva no quedan pendientes como gate actual; fueron sustituidos
+> por F10.11, O0-O5, ADR-0026, ADR-0027 y ADR-0028.
 
 ## Principio
 
@@ -98,7 +103,7 @@ FG1, FG2 y FG3 conservan cadencia automatica declarada en YAML. Hito 1 exige que
 Los respaldos preservados se conservan fuera del repositorio, sin mover, editar o compactar hasta desplegar Hito 1 y completar observacion. Sus rutas locales no se versionan.
 
 Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
-# Flujo Release Minimo - F10.11
+# Flujo Release Minimo Vigente - Posterior A F10.11
 
 > Esta nota no crea alcance ni autoriza ejecucion por si sola. La autoridad viva
 > esta en `estado_del_proyecto.md`.
@@ -106,22 +111,41 @@ Ver [Estado](../estado_del_proyecto.md) y [Tarea 001](../backlog_tareas/req_est_
 ## Flujo Vigente Sprint 1
 
 ```text
-feature/candidate local
--> PR protegido a desarrollo
--> PR protegido desarrollo a certificacion
--> PR protegido certificacion a main
--> PR protegido main a certificacion
--> PR protegido certificacion a desarrollo
+F10.11 GOV-HOM candidate produce T_HOM
+-> R2 separado para push/PR/merge a desarrollo
+-> GOV-CI separa security-audit de review nativa
+-> GOV-CI2 separa boundary incremental y boundary estructural de promociones
+-> R3 O2 JIT desarrollo -> certificacion
+-> R3 O3 JIT certificacion -> main
+-> R3 O4 JIT main -> certificacion
+-> R3 O5 JIT certificacion -> desarrollo
+-> predicado externo de cierre F10.11
+-> rebaseline WP-H2-001
+F12.1 local H2-CA2 bajo WP/digest R1
+-> R2 separado para push/PR a desarrollo
+-> R3 JIT separado para Supabase Free, DDL/DML, RLS/grants y backfill
+-> PR protegido desarrollo a certificacion solo con gate posterior
+-> PR protegido certificacion a main solo con gate posterior
+-> R3 Pro/produccion solo con grant single-use posterior
 ```
 
 ## Reglas
 
 - `security-audit` permanece como required check.
-- Cada PR requiere review humano.
-- `web/**` y `db/**` permanecen byte-identicos a `TECH_BASE` durante homologacion.
-- `DB Sync to Production` en main debe terminar `SUCCESS_NO_DB_CHANGES_SKIPPED`.
-- Cloudflare Pages automatico se acepta solo como efecto observado, sin cambios web.
+- `security-audit` valida attestation, manifest, digest, `Base-SHA`, `Candidate-SHA`, paths y co-change.
+- Para PR normales, `Canonical Path Boundary` sigue usando el diff incremental y el WP vigente.
+- Para promociones O2-O5, `Canonical Path Boundary` usa `Promotion Attestation` y valida same-repo, operacion, `Grant-ID`, par, ancestry, tree, `D_FINAL`, `T_FINAL`, `Final-WP`, nivel R3 JIT, referencia de aprobacion y expiry.
+- Las solicitudes `.context/r3_grants/*.json` son `REQUESTED_JIT_SINGLE_USE` con bindings simbolicos; no contienen `candidate_sha`, `t_final`, approvals, expiry ni consumo falso.
+- Cada PR requiere review humano por branch protection; la review no dispara CI y no necesita rerun manual.
+- Push y PR requieren R2 separado.
 - H2-H5 requieren work package aprobado por digest.
+- H2-CA3 no inicia antes de cerrar H2-CA2 local.
+- F10.11 no cierra por prosa: requiere trees iguales a `T_HOM`, ancestry `main -> certificacion -> desarrollo`, DB Sync sin cambios y checkout ordinario actualizado.
+- Los grants `O2`, `O3`, `O4` y `O5` no se pueden agrupar; cada retry requiere grant nuevo.
+- PR #428 fallo O2 y dejo `O2_CONSUMED_BY_FAILURE`; no autoriza retry ni nuevo O2 sin grant JIT separado posterior.
+- PR #428 debe cerrarse sin merge bajo el futuro R2 de GOV-CI3 antes de volver a publicar cambios a `desarrollo`.
+- Cualquier DB, Supabase, RLS/grants, backfill, writer, schedule, deploy,
+  Certification, Main o produccion requiere R3 JIT separado.
 
 ## R3
 

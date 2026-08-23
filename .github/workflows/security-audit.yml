@@ -3,11 +3,13 @@ name: Security Audit Gate
 on:
   pull_request:
     branches: [desarrollo, certificacion, main]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
   push:
     branches: [desarrollo, certificacion, main]
 
 permissions:
   contents: read
+  pull-requests: read
 
 env:
   F1011_TECH_BASE: ad89e8ab9575b37476502d6062e22c044ad6447b
@@ -138,92 +140,118 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Enforce canonical path boundary
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF:-desarrollo}" || true
-          python3 - <<'PY'
-          import fnmatch
-          import os
-          import subprocess
-          import sys
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            base_ref="${{ github.event.pull_request.base.ref }}"
+            head_ref="${{ github.event.pull_request.head.ref }}"
+            same_repo="${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+            if [ "$same_repo" = "true" ] && \
+               { { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "desarrollo" ]; } || \
+                 { [ "$base_ref" = "main" ] && [ "$head_ref" = "certificacion" ]; } || \
+                 { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "main" ]; } || \
+                 { [ "$base_ref" = "desarrollo" ] && [ "$head_ref" = "certificacion" ]; }; }; then
+              echo "promotion path boundary handled by Promotion Boundary job"
+              exit 0
+            fi
+            git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
+            base="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
+          else
+            before="$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")"
+            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              base="$before"
+            else
+              git fetch --no-tags --depth=1 origin desarrollo
+              base="$(git merge-base HEAD origin/desarrollo)"
+            fi
+          fi
+          python3 scripts/security/validate_work_package.py --changed-from "$base"
 
-          def resolve_base() -> str:
-              base_ref = os.environ.get("GITHUB_BASE_REF")
-              before = os.environ.get("GITHUB_EVENT_BEFORE") or os.environ.get("GITHUB_SHA_BEFORE")
-              if base_ref:
-                  return subprocess.check_output(["git", "merge-base", "HEAD", f"origin/{base_ref}"], text=True).strip()
-              event_path = os.environ.get("GITHUB_EVENT_PATH")
-              if event_path:
-                  import json
-                  from pathlib import Path
-                  event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-                  before = event.get("before") or before
-              if before and set(before) != {"0"}:
-                  return before
-              return "ad89e8ab9575b37476502d6062e22c044ad6447b"
+  promotion-boundary:
+    name: Promotion Boundary
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'desarrollo') ||
+       (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'certificacion') ||
+       (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'main') ||
+       (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'certificacion'))
+    environment:
+      name: Promotion
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate protected promotion attestation
+        env:
+          R3_JIT_APPROVAL_GRANT_ID: ${{ vars.R3_JIT_APPROVAL_GRANT_ID }}
+          R3_JIT_APPROVAL_REFERENCE: ${{ secrets.R3_JIT_APPROVAL_REFERENCE }}
+          R3_JIT_APPROVAL_EXPIRY: ${{ vars.R3_JIT_APPROVAL_EXPIRY }}
+        run: |
+          set -euo pipefail
+          python3 scripts/security/validate_work_package.py \
+            --promotion-event "$GITHUB_EVENT_PATH" \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT:-0}"
 
-          base = resolve_base()
-          allowed = (
-              ".context/**",
-              "AGENTS.md",
-              ".github/pull_request_template.md",
-              ".github/workflows/f9-7-contract.yml",
-              ".github/workflows/f9_9_certification_canary.yml",
-              ".github/workflows/security-audit.yml",
-              ".gitignore",
-              "scripts/security/**",
-              "tests/test_work_package_manifest.py",
-          )
-          denied = (
-              "web/**",
-              "db/**",
-              "scripts/core/**",
-              "scripts/maintenance/**",
-              "workers/**",
-              "supabase/**",
-              ".env*",
-              "**/.env*",
-              "*.env",
-              "**/*.env",
-          )
-          source_names = {
-              "Studiamatch_MVP_Requerimientos_v5.docx",
-              "studiamatch_home.html",
-              "studiamatch_resultados.html",
-          }
-          source_extensions = (".docx", ".pdf", ".zip", ".tar", ".tar.gz", ".html")
+  governance-preflight:
+    name: Governance Preflight
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'desarrollo' &&
+      !(github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'certificacion')
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Validate PR governance attestation and co-change policy
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.head_ref || github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git cat-file -e "$BASE_SHA^{commit}" || git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          python3 scripts/security/validate_change_governance.py \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --base-ref "$BASE_REF" \
+            --head-ref "$HEAD_REF" \
+            --base-sha "$BASE_SHA" \
+            --head-sha "$HEAD_SHA" \
+            --changed-from "$BASE_SHA"
 
-          raw = subprocess.check_output(["git", "diff", "--name-status", "-z", base, "HEAD", "--"])
-          fields = raw.split(b"\0")
-          index = 0
-          failures = []
-          while index < len(fields) and fields[index]:
-              status = fields[index].decode("ascii")
-              index += 1
-              paths = []
-              if status.startswith(("R", "C")):
-                  paths.append(fields[index].decode("utf-8", "surrogateescape"))
-                  index += 1
-              paths.append(fields[index].decode("utf-8", "surrogateescape"))
-              index += 1
-              for path in paths:
-                  name = path.rsplit("/", 1)[-1]
-                  lower_path = path.lower()
-                  if name in source_names or lower_path.endswith(source_extensions):
-                      failures.append(f"source-artifact:{status}:{path}")
-                  if any(fnmatch.fnmatch(path, pattern) for pattern in denied):
-                      failures.append(f"denied-path:{status}:{path}")
-                  if not any(fnmatch.fnmatch(path, pattern) for pattern in allowed):
-                      failures.append(f"not-allowlisted:{status}:{path}")
-          if failures:
-              for failure in failures:
-                  print(f"::error::{failure}")
-              sys.exit(1)
-          print("canonical path boundary passed")
-          PY
+  governance-tests:
+    name: Governance Regression Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Run governance tests
+        run: |
+          set -euo pipefail
+          python3 -m pip install 'pytest==8.3.5'
+          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py
 
   lint:
     name: ESLint
@@ -307,8 +335,10 @@ jobs:
           set -euo pipefail
           git cat-file -e "$F1011_TECH_BASE^{commit}" || git fetch --no-tags --depth=1 origin "$F1011_TECH_BASE"
           if ! git diff --quiet "$F1011_TECH_BASE" HEAD -- db; then
-            echo "db changes detected; PostgreSQL 17 service is healthy"
+            echo "db changes detected; H2 PostgreSQL 17 contractual tests must be present before PASS"
             pg_isready -h localhost -p 5432 -U postgres
+            test -d tests/sql || { echo "::error::READY_NOT_EXECUTED:tests/sql missing for db changes"; exit 1; }
+            find tests/sql -type f -name '*h2*' | grep -q . || { echo "::error::READY_NOT_EXECUTED:H2 SQL tests missing"; exit 1; }
           else
             echo "no db changes; PostgreSQL 17 gate skipped"
           fi
@@ -316,18 +346,53 @@ jobs:
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, lint, typecheck, static-build, postgresql-17]
+    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, promotion-boundary, governance-preflight, governance-tests, lint, typecheck, static-build, postgresql-17]
     if: always()
     steps:
       - name: Aggregate required checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           set -euo pipefail
-           test '${{ needs.credential-scan.result }}' = 'success'
-           test '${{ needs.python-check.result }}' = 'success'
+          test '${{ needs.credential-scan.result }}' = 'success'
+          test '${{ needs.python-check.result }}' = 'success'
           test '${{ needs.manifest-digest.result }}' = 'success'
           test '${{ needs.markdown-links.result }}' = 'success'
-           test '${{ needs.context-graph.result }}' = 'success'
-           test '${{ needs.path-boundary.result }}' = 'success'
+          test '${{ needs.context-graph.result }}' = 'success'
+          test '${{ needs.path-boundary.result }}' = 'success'
+          promotion=false
+          if [ "$SAME_REPO" = "true" ]; then
+            case "$PR_BASE_REF:$PR_HEAD_REF" in
+              certificacion:desarrollo|main:certificacion|certificacion:main|desarrollo:certificacion)
+                promotion=true
+                ;;
+            esac
+          fi
+          if [ "$promotion" = "true" ]; then
+            test '${{ needs.promotion-boundary.result }}' = 'success'
+          else
+            test '${{ needs.promotion-boundary.result }}' = 'skipped'
+          fi
+          case "$EVENT_NAME:$PR_BASE_REF" in
+            pull_request:desarrollo)
+              if [ "$promotion" = "true" ]; then
+                test '${{ needs.governance-preflight.result }}' = 'skipped'
+              else
+                test '${{ needs.governance-preflight.result }}' = 'success'
+              fi
+              ;;
+            pull_request:certificacion|pull_request:main|push:)
+              test '${{ needs.governance-preflight.result }}' = 'skipped'
+              ;;
+            *)
+              echo "::error::unsupported governance event: $EVENT_NAME/$PR_BASE_REF"
+              exit 1
+              ;;
+          esac
+          test '${{ needs.governance-tests.result }}' = 'success'
           test '${{ needs.lint.result }}' = 'success'
           test '${{ needs.typecheck.result }}' = 'success'
           test '${{ needs.static-build.result }}' = 'success'

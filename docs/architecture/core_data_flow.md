@@ -1,5 +1,7 @@
 # 🚀 StudIAMatch: Golden Data Pipeline Documentation
 
+> Estado: `SUPERSEDED_HISTORY`. Este documento queda preservado como diagrama introductorio historico. La fuente canonica vigente es [Arquitectura Pipeline](../../.context/arquitectura_pipeline.md), [Sistema DB Supabase](../../.context/sistema_db_supabase.md) y [Matriz Adopcion DB](../../.context/operaciones/matriz_adopcion_db.md).
+
 Este documento detalla la arquitectura del motor de datos que alimenta a **StudIAMatch**, explicando la evolución desde un sistema artesanal hasta un flujo ETL (Extract, Transform, Load) de grado industrial.
 
 ---

@@ -1,0 +1,78 @@
+{
+  "id": "WP-GOV-INFRA-001",
+  "status": "PROPOSED",
+  "task_id": "TASK-GOV-INFRA-001",
+  "hito": "GOV-INFRA",
+  "risk_level": "GOVERNANCE_CI_BOUNDARY_RELEASE",
+  "target_level": "R2",
+  "baseline": {
+    "candidate_commit": "486bf420cb0d8ad250bc7b3cceb21545184b4dd5",
+    "candidate_tree": "bc521d7b030095fb1ef928923e333cb4721cda94",
+    "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
+    "main_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "desarrollo_commit": "974f9d4bde6d79230afde5c5a86ba7a3894233c6",
+    "desarrollo_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3",
+    "certificacion_commit": "fe7b27abf18c096f674948b4f30f815aea4aef08",
+    "certificacion_tree": "fcb59095e48441bb4486ccc196aee61e2e1e0fe3"
+  },
+  "environment_scope": ["local", "development"],
+  "allowed_paths": [
+    ".github/workflows/security-audit.yml",
+    "docker-compose.h2-test.yml",
+    "scripts/security/run_h2_r1_tests.sh"
+  ],
+  "denied_without_jit": [
+    "production",
+    "certification",
+    "main",
+    "supabase-free",
+    "supabase-pro",
+    "ddl-execution",
+    "dml-execution",
+    "backfill-execution",
+    "rls-grants-remote",
+    "writers",
+    "schedules",
+    "workflow_dispatch",
+    "deploys",
+    "secrets",
+    "lead_capture",
+    "egress"
+  ],
+  "dependencies": [
+    "WP-GOV-OBS-001 remains PROPOSED_R2_PENDING_DIGEST_APPROVAL",
+    "PR #424 Canonical Path Boundary failure reproduced against desarrollo@974f9d4bde6d79230afde5c5a86ba7a3894233c6",
+    "Human approval by digest for R2"
+  ],
+  "r3_operations": [
+    "certification promotion",
+    "main promotion",
+    "db operations",
+    "Supabase operations",
+    "deploys",
+    "writers",
+    "schedules",
+    "production"
+  ],
+  "expires_at": "2026-08-28T23:59:59Z",
+  "candidate_digest": "37ab7416071d6438bfeb91c876d683360ac7a58afd8f22744584f516f2b9fe58",
+  "approval_digest_source": "Human approver must approve this candidate_digest with target R2 before the infrastructure guardrails in PR #424 can merge to desarrollo.",
+  "approver_required": "human",
+  "invalidated_by": [
+    "scope drift",
+    "path drift",
+    "baseline drift",
+    "source hash drift",
+    "CI failure",
+    "review rejection",
+    "expiry",
+    "R3 operation request"
+  ],
+  "exit_criteria": [
+    "Canonical Path Boundary passes for PR #424 against desarrollo",
+    "security-audit passes",
+    "no db/web/scripts/core/scripts/maintenance changes",
+    "no Certification/Main/R3 operations",
+    "next gate is R3 JIT for certification after desarrollo merge"
+  ]
+}
