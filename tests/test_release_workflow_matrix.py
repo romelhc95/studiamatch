@@ -30,6 +30,27 @@ def test_gov_ci6_target_aware_promotions_are_documented_and_gated() -> None:
     assert "NO_DB_CHANGES" in matrix
 
 
+def test_o5_uses_promotion_boundary_and_skips_governance_preflight() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+    governance_job = workflow.split("  governance-preflight:", 1)[1].split("  governance-tests:", 1)[0]
+    aggregate = workflow.split("  security-audit:", 1)[1]
+
+    assert "github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'" in governance_job
+    assert "desarrollo:promote/gov-hom-006-o5-req1" in aggregate
+    assert "test '${{ needs.promotion-boundary.result }}' = 'success'" in aggregate
+    assert "test '${{ needs.governance-preflight.result }}' = 'skipped'" in aggregate
+
+
+def test_o2_o3_o4_promotion_pairs_remain_gated() -> None:
+    workflow = source(".github/workflows/security-audit.yml")
+    for pair in (
+        "certificacion:promote/gov-hom-006-o2-req1",
+        "main:promote/gov-hom-006-o3-req1",
+        "certificacion:promote/gov-hom-006-o4-req1",
+    ):
+        assert pair in workflow
+
+
 def test_f9_7_contract_is_manual_frozen_only() -> None:
     workflow = source(".github/workflows/f9-7-contract.yml")
     trigger_block = workflow.split("permissions:", 1)[0]

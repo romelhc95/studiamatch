@@ -75,6 +75,35 @@ class ChangeGovernanceTests(unittest.TestCase):
     def test_valid_attestation_passes(self):
         self.assertEqual(self.run_validate(), [])
 
+    def test_governance_section_ignores_empty_promotion_attestation_duplicates(self):
+        body = """## Governance Attestation
+Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194
+Estado-Snapshot: SNAPSHOT-2026-08-22-GOV-ARCH-R2-PENDING
+Requerimiento: REQ-EST-001
+Hito: GOV-ARCH
+TASK: TASK-GOV-ARCH-001
+WP: WP-GOV-ARCH-001
+WP-Digest: 0000000000000000000000000000000000000000000000000000000000000000
+Approval-Level: R2
+Approval-Expiry: 2026-08-28T23:59:59Z
+Architecture-Snapshot: desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+Data-Architecture-Snapshot: desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+Adoption-Matrix-Snapshot: desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+Architecture-Impact: updated
+Architecture-Impact-Reason: Canonical docs updated.
+Data-Impact: updated
+Data-Impact-Reason: Data architecture docs updated.
+Security-Auditor: clean
+
+## Promotion Attestation
+Base-SHA:
+Candidate-SHA:
+Approval-Level:
+Approval-Expiry:
+"""
+        self.assertEqual(self.run_validate(body=body), [])
+
     def test_missing_field_fails(self):
         body = VALID_BODY.replace("TASK: TASK-GOV-ARCH-001", "TASK:")
         self.assertTrue(any(error.startswith("GOVERNANCE_PREFLIGHT_FIELD_REQUIRED:TASK") for error in self.run_validate(body=body)))
@@ -159,6 +188,7 @@ class ChangeGovernanceTests(unittest.TestCase):
     def test_workflow_scopes_preflight_to_desarrollo(self):
         workflow = (ROOT / ".github" / "workflows" / "security-audit.yml").read_text(encoding="utf-8")
         self.assertIn("github.event.pull_request.base.ref == 'desarrollo'", workflow)
+        self.assertIn("github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'", workflow)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("--promotion-event \"$GITHUB_EVENT_PATH\"", workflow)
         self.assertIn("--run-attempt \"${GITHUB_RUN_ATTEMPT:-0}\"", workflow)
@@ -171,6 +201,13 @@ class ChangeGovernanceTests(unittest.TestCase):
         self.assertIn("unsupported governance event", workflow)
         self.assertNotIn("pull_request_review", workflow)
         self.assertNotIn("--require-approved-review", workflow)
+
+    def test_workflow_keeps_governance_preflight_for_normal_desarrollo_prs(self):
+        workflow = (ROOT / ".github" / "workflows" / "security-audit.yml").read_text(encoding="utf-8")
+        assert "governance-preflight:" in workflow
+        assert "github.event.pull_request.base.ref == 'desarrollo'" in workflow
+        assert "promote/gov-hom-006-o5-req1" in workflow
+        assert "needs.governance-preflight.result }}' = 'success'" in workflow
 
     def test_r3_level_requires_separate_jit(self):
         body = VALID_BODY.replace("Approval-Level: R2", "Approval-Level: R3")

@@ -389,6 +389,7 @@ GOV_CI6_TRANSITION_ALLOWLIST = (
     ".github/workflows/security-audit.yml",
     ".github/workflows/f9-7-contract.yml",
     ".github/pull_request_template.md",
+    "scripts/security/validate_change_governance.py",
     "scripts/security/validate_work_package.py",
     "scripts/security/validate_context_graph.py",
     "tests/test_work_package_manifest.py",

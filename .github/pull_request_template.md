@@ -1,5 +1,7 @@
 ## Governance Attestation
 
+Completar solo para PR R1/R2 normales hacia `desarrollo`. En PR O2-O5, dejar esta seccion sin valores o removerla; `security-audit` solo valida una seccion por tipo de PR.
+
 Base-SHA:
 Candidate-SHA:
 Estado-Snapshot:
@@ -20,6 +22,8 @@ Data-Impact-Reason:
 Security-Auditor: clean|findings-remediated
 
 ## Promotion Attestation
+
+Completar solo para promociones O2-O5 con ramas `promote/gov-hom-006-oN`. En PR R1/R2 normales, dejar esta seccion sin valores o removerla; sus campos no deben contaminar la Governance Attestation.
 
 Operation:
 Grant-ID: nuevo-unico-no-consumido

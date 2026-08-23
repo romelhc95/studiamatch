@@ -22,6 +22,7 @@
     ".github/workflows/security-audit.yml",
     ".github/workflows/f9-7-contract.yml",
     ".github/pull_request_template.md",
+    "scripts/security/validate_change_governance.py",
     "scripts/security/validate_work_package.py",
     "scripts/security/validate_context_graph.py",
     "tests/test_work_package_manifest.py",
@@ -170,7 +171,7 @@
     "wp_h2_001_mutation_forbidden": true
   },
   "expires_at": "2026-08-29T23:59:59Z",
-  "candidate_digest": "a026ef6728ff2ffb87d15434ce18792c093241ff56950dc4085fa816029c6124",
+  "candidate_digest": "8b5ac7981acd9d4fada938fe8363e4abfa43acd95cddbe35ab8a5235604a2b2d",
   "approval_digest_source": "Human approver must approve this candidate_digest with target R2 before publishing GOV-CI-006 to desarrollo.",
   "approver_required": "human",
   "invalidated_by": [
