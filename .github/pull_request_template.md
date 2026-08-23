@@ -1,5 +1,7 @@
 ## Governance Attestation
 
+Completar solo para PR R1/R2 normales hacia `desarrollo`. En PR O2-O5, dejar esta seccion sin valores o removerla; `security-audit` solo valida una seccion por tipo de PR.
+
 Base-SHA:
 Candidate-SHA:
 Estado-Snapshot:
@@ -21,10 +23,16 @@ Security-Auditor: clean|findings-remediated
 
 ## Promotion Attestation
 
+Completar solo para promociones O2-O5 con ramas `promote/gov-hom-006-oN`. En PR R1/R2 normales, dejar esta seccion sin valores o removerla; sus campos no deben contaminar la Governance Attestation.
+
 Operation:
 Grant-ID: nuevo-unico-no-consumido
+Base-Ref:
 Base-SHA:
+Source-Ref:
+Source-SHA:
 Candidate-SHA:
+Candidate-Tree:
 Final-WP:
 D_FINAL:
 T_FINAL:
@@ -42,7 +50,7 @@ Approval-Expiry:
 - [ ] La review humana obligatoria queda a cargo de GitHub branch protection; no necesita repetir el digest en el texto de review.
 - [ ] `active_work_package` esta coherente entre Estado, Plan Maestro, Tracker y manifest.
 - [ ] Si hay R3, existe aprobacion JIT single-use separada y vigente.
-- [ ] Si es promocion O2-O5, el PR no es #428, fue abierto una sola vez y no usa un Grant-ID consumido.
+- [ ] Si es promocion O2-O5, usa rama target-aware `promote/gov-hom-006-oN`, el PR no es #428/#431/#433/#435, fue abierto una sola vez y no usa un Grant-ID consumido.
 - [ ] No se ejecutan H2 funcional, DDL/DML, schedules, writers, deploys ni secrets sin gate separado.
 
 ### Arquitectura Y Datos
