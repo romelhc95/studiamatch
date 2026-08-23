@@ -146,17 +146,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Enforce canonical path boundary
+        env:
+          PR_BASE_REF_SAFE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_REF_SAFE: ${{ github.event.pull_request.head.ref }}
+          PR_SAME_REPO_SAFE: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           set -euo pipefail
           if [ -n "${GITHUB_BASE_REF:-}" ]; then
-            base_ref="${{ github.event.pull_request.base.ref }}"
-            head_ref="${{ github.event.pull_request.head.ref }}"
-            same_repo="${{ github.event.pull_request.head.repo.full_name == github.repository }}"
-            if [ "$same_repo" = "true" ] && \
-               { { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "desarrollo" ]; } || \
-                 { [ "$base_ref" = "main" ] && [ "$head_ref" = "certificacion" ]; } || \
-                 { [ "$base_ref" = "certificacion" ] && [ "$head_ref" = "main" ]; } || \
-                 { [ "$base_ref" = "desarrollo" ] && [ "$head_ref" = "certificacion" ]; }; }; then
+            base_ref="$PR_BASE_REF_SAFE"
+            head_ref="$PR_HEAD_REF_SAFE"
+            same_repo="$PR_SAME_REPO_SAFE"
+            promotion_pair=false
+            if [ "$same_repo" = "true" ]; then
+              case "$base_ref:$head_ref" in
+                certificacion:promote/gov-hom-006-o2-req1|main:promote/gov-hom-006-o3-req1|certificacion:promote/gov-hom-006-o4-req1|desarrollo:promote/gov-hom-006-o5-req1)
+                  promotion_pair=true
+                  ;;
+              esac
+            fi
+            if [ "$promotion_pair" = "true" ]; then
               echo "promotion path boundary handled by Promotion Boundary job"
               exit 0
             fi
@@ -226,10 +234,17 @@ jobs:
           )
           with urllib.request.urlopen(req, timeout=20) as response:
               pulls = json.loads(response.read().decode("utf-8"))
-          if not pulls:
+          if len(pulls) != 1:
               raise SystemExit("post-merge approval PR evidence missing")
+          number = pulls[0].get("number")
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/pulls/{number}",
+              headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"},
+          )
+          with urllib.request.urlopen(req, timeout=20) as response:
+              pr = json.loads(response.read().decode("utf-8"))
           fields = {}
-          for line in str(pulls[0].get("body") or "").splitlines():
+          for line in str(pr.get("body") or "").splitlines():
               if ":" in line:
                   key, value = line.split(":", 1)
                   fields[key.strip()] = value.strip()
@@ -252,10 +267,10 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'desarrollo') ||
-       (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'certificacion') ||
-       (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'main') ||
-       (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'certificacion'))
+      ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o2-req1') ||
+       (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o3-req1') ||
+       (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o4-req1') ||
+       (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'))
     environment:
       name: Promotion
     steps:
@@ -285,7 +300,9 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.base.ref == 'desarrollo' &&
-      !(github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'certificacion')
+      !(github.event.pull_request.head.repo.full_name == github.repository &&
+        (github.event.pull_request.head.ref == 'certificacion' ||
+         github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'))
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -326,7 +343,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install 'pytest==8.3.5'
-          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py
+          python3 -m pytest -q tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py
 
   lint:
     name: ESLint
@@ -453,7 +470,7 @@ jobs:
           promotion=false
           if [ "$SAME_REPO" = "true" ]; then
             case "$PR_BASE_REF:$PR_HEAD_REF" in
-              certificacion:desarrollo|main:certificacion|certificacion:main|desarrollo:certificacion)
+              certificacion:promote/gov-hom-006-o2-req1|main:promote/gov-hom-006-o3-req1|certificacion:promote/gov-hom-006-o4-req1|desarrollo:promote/gov-hom-006-o5-req1)
                 promotion=true
                 ;;
             esac

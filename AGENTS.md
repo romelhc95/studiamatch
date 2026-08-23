@@ -22,6 +22,8 @@ Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest> contenido en candida
 
 La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, workflow_dispatch, Certification, Main, produccion ni ningun R3. La primera aprobacion de `WP-H2-001` solo puede ser R1; R2 requiere revision Plan posterior y autorizacion separada. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
 
+Regla vigente GOV-CI6: despues del fallo no mergeado PR #435, F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers automaticos `pull_request`/`push`. Las promociones O2-O5 posteriores usan ramas `promote/gov-hom-006-oN`; el candidate debe tener parent 1 igual al target SHA, parent 2 igual al source SHA y `tree(candidate)=tree(source)=T_FINAL`. PR #435 y `R3-GOV-HOM-005-O2-REQ1` no se editan, reintentan ni consumen de nuevo. O3 requiere R3 JIT que autorice explicitamente push/merge a `main`, rebuild automatico de Cloudflare Pages Production y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`; apply, DDL/DML y writers siguen prohibidos sin R3 separado.
+
 ## Preflight Obligatorio Antes De Todo Cambio
 
 Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:

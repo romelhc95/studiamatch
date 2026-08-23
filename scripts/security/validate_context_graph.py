@@ -40,6 +40,7 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-GOV-CI-003.json",
     "work_packages/WP-GOV-CI-004.json",
     "work_packages/WP-GOV-CI-005.json",
+    "work_packages/WP-GOV-CI-006.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -54,12 +55,14 @@ REQUIRED_INDEX_LINKS = (
     "backlog_tareas/governance/TASK-GOV-CI-003.md",
     "backlog_tareas/governance/TASK-GOV-CI-004.md",
     "backlog_tareas/governance/TASK-GOV-CI-005.md",
+    "backlog_tareas/governance/TASK-GOV-CI-006.md",
     "decisiones/ADR-0029_homologacion_no_recursiva.md",
     "decisiones/ADR-0030_separacion_ci_y_review_gate.md",
     "decisiones/ADR-0031_boundary_homologacion_estructural.md",
     "decisiones/ADR-0032_grant_bootstrap_no_autorreferencial.md",
     "decisiones/ADR-0033_promotion_environment_para_o2_o5.md",
     "decisiones/ADR-0034_post_merge_promotion_push_boundary.md",
+    "decisiones/ADR-0035_target_aware_promotions_y_retiro_gates_legacy.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -100,6 +103,8 @@ GOV_CI4_BASE_COMMIT = "235c2329eb5fd8903c31785640a63466b23f0dd8"
 GOV_CI4_BASE_TREE = "cc774746d21cb6649f7018da3049fc811a3f294b"
 GOV_CI5_BASE_COMMIT = "32dc50c2a26f0d8cf34c5a39a4f10a821bf821aa"
 GOV_CI5_BASE_TREE = "acabd0965d4aa716904917caab691b3867aa5798"
+GOV_CI6_BASE_COMMIT = "9f265e41eb4724727e5bd4b1a5cf6ef5c75a4845"
+GOV_CI6_BASE_TREE = "fc9ff315d20648e87d049d5fb244a09ea214bfb8"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -164,6 +169,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_ci3_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-003.md")
     gov_ci4_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-004.md")
     gov_ci5_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-005.md")
+    gov_ci6_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-006.md")
     architecture = read(root, "arquitectura_pipeline.md")
     db_system = read(root, "sistema_db_supabase.md")
     db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
@@ -177,6 +183,7 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_ci3_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-003.json").read_text(encoding="utf-8"))
     gov_ci4_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-004.json").read_text(encoding="utf-8"))
     gov_ci5_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-005.json").read_text(encoding="utf-8"))
+    gov_ci6_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-006.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -251,8 +258,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_CI_005_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_005_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_005_R2_APPROVAL" not in tracker:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI5 R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_006_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_006_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_006_R2_APPROVAL" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI6 R2 approval gate must be next")
+    if "PREPARE_WP_GOV_CI_005_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV CI5 R2 gate")
     if "PREPARE_WP_GOV_CI_004_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV CI4 R2 gate")
     if "PREPARE_WP_GOV_CI_003_R2_APPROVAL" in state + plan + tracker:
@@ -277,6 +286,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI4_WP_INVALID:missing from canonical authority")
     if "WP-GOV-CI-005" not in state or "WP-GOV-CI-005" not in plan or "TASK-GOV-CI-005" not in gov_ci5_task:
         errors.append("GOV_CI5_WP_INVALID:missing from canonical authority")
+    if "WP-GOV-CI-006" not in state or "WP-GOV-CI-006" not in plan or "TASK-GOV-CI-006" not in gov_ci6_task:
+        errors.append("GOV_CI6_WP_INVALID:missing from canonical authority")
     if "EXECUTE_F12_1_LOCAL_CA2_R1" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
     if "Pendiente de aprobacion humana por digest" in plan:
@@ -293,8 +304,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if "Apruebo WP-GOV-CI-005 de TASK-GOV-CI-005 segun manifest sha256:<D_CI5>" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI5 approval prompt missing digest placeholder")
+    if "Apruebo WP-GOV-CI-006 de TASK-GOV-CI-006 segun manifest sha256:<D_CI6>" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI6 approval prompt missing digest placeholder")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV HOM prompt must be R2 only")
 
@@ -406,6 +417,20 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI5_BOOTSTRAP_INVALID")
     if "CANDIDATE_R1_LOCAL" not in gov_ci5_task:
         errors.append("GOV_CI5_TASK_INVALID:status")
+    if gov_ci6_wp.get("id") != "WP-GOV-CI-006" or gov_ci6_wp.get("task_id") != "TASK-GOV-CI-006" or gov_ci6_wp.get("status") != "PROPOSED":
+        errors.append("GOV_CI6_WP_INVALID:identity/status")
+    if gov_ci6_wp.get("target_level") != "R2":
+        errors.append("GOV_CI6_WP_INVALID:target")
+    if gov_ci6_wp.get("baseline", {}).get("candidate_commit") != GOV_CI6_BASE_COMMIT or gov_ci6_wp.get("baseline", {}).get("candidate_tree") != GOV_CI6_BASE_TREE:
+        errors.append("GOV_CI6_WP_INVALID:baseline")
+    target_aware = gov_ci6_wp.get("target_aware_promotion_model", {})
+    if target_aware.get("static_request_status") != "REQUESTED_JIT_SINGLE_USE" or target_aware.get("final_wp") != "WP-GOV-CI-006" or len(target_aware.get("grant_request_ids", [])) != 4:
+        errors.append("GOV_CI6_TARGET_AWARE_INVALID")
+    legacy_retirement = gov_ci6_wp.get("legacy_gate_retirement", {})
+    if legacy_retirement.get("mode") != "MANUAL_FROZEN_ONLY" or legacy_retirement.get("workflow") != ".github/workflows/f9-7-contract.yml":
+        errors.append("GOV_CI6_LEGACY_RETIREMENT_INVALID")
+    if "CANDIDATE_R1_LOCAL" not in gov_ci6_task:
+        errors.append("GOV_CI6_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
     if "PR #425" not in state or GOV_HOM_BASE_COMMIT not in state + tracker + plan or GOV_HOM_BASE_TREE not in state + tracker + plan:
@@ -426,6 +451,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI5_R2_HISTORY_MISSING:PR432")
     if "PR #433" not in state + tracker + plan or "R3-GOV-HOM-004-O2-REQ1" not in state + tracker + plan or "32615044699" not in state + tracker + plan:
         errors.append("GOV_CI5_FAILURE_HISTORY_MISSING:PR433")
+    if "PR #434" not in state or GOV_CI6_BASE_COMMIT not in state + tracker + plan or GOV_CI6_BASE_TREE not in state + tracker + plan:
+        errors.append("GOV_CI6_R2_HISTORY_MISSING:PR434")
+    if "PR #435" not in state + tracker + plan or "R3-GOV-HOM-005-O2-REQ1" not in state + tracker + plan or "32619372008" not in state + tracker + plan:
+        errors.append("GOV_CI6_FAILURE_HISTORY_MISSING:PR435")
     canonical_docs = (
         ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
         ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),

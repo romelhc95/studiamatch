@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI5`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430 y PR #432 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, y el proximo gate unico `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI6`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_006_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432 y PR #434 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, y el proximo gate unico `PREPARE_WP_GOV_CI_006_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, y `WP-GOV-CI-005`/`TASK-GOV-CI-005` como candidate de boundary post-merge; el siguiente gate unico es `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, `WP-GOV-CI-005`/`TASK-GOV-CI-005` como artifact consumido por PR #434, y `WP-GOV-CI-006`/`TASK-GOV-CI-006` como candidate target-aware; el siguiente gate unico es `PREPARE_WP_GOV_CI_006_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -167,6 +167,14 @@ attestation, review humano y merger esperado. La validacion post-merge es
 estructural y fail-closed; si falta evidencia, el workflow vuelve al boundary
 incremental. PR #433 y `R3-GOV-HOM-004-O2-REQ1` quedan consumidos y O3 sigue
 bloqueado hasta publicar CI5 y ejecutar nuevo re-O2 con grant JIT separado.
+
+GOV-CI6 corrige el fallo de PR #435: F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers
+automaticos `pull_request`/`push`, y O2-O5 usan ramas target-aware
+`promote/gov-hom-006-oN`. El candidate debe tener parent 1 igual al target SHA,
+parent 2 igual al source SHA y `tree(candidate)=tree(source)=T_FINAL`. PR #435 y
+`R3-GOV-HOM-005-O2-REQ1` quedan consumidos por fallo; no se editan ni reintentan.
+O3 posterior requiere R3 JIT que reconozca Cloudflare Pages Production rebuild y
+DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`.
 
 ## Semantica De Paths
 

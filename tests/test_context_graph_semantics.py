@@ -133,7 +133,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-005", "Apruebo WP-H2-001", 1)
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-006", "Apruebo WP-H2-001", 1)
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -146,12 +146,12 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
-    def test_next_gate_must_prepare_gov_ci5_r2(self):
+    def test_next_gate_must_prepare_gov_ci6_r2(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
-                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_005_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
+                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_006_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
                 path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -160,7 +160,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_005_R2_APPROVAL", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
+            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_006_R2_APPROVAL", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:stale GOV ARCH") for error in validator.validate(root)))
 
@@ -178,18 +178,18 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-005", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-CI-005")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-006", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-CI-006")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT") for error in validator.validate(root)))
 
-    def test_gov_ci5_prompt_digest_required(self):
+    def test_gov_ci6_prompt_digest_required(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-005 de TASK-GOV-CI-005", "Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-006 de TASK-GOV-CI-006", "Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001")
             path.write_text(text, encoding="utf-8")
-            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI5") for error in validator.validate(root)))
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI6") for error in validator.validate(root)))
 
     def test_canonical_architecture_docs_missing_fails(self):
         validator = load_validator()
