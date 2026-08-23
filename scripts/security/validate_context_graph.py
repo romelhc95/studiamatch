@@ -43,6 +43,8 @@ REQUIRED_INDEX_LINKS = (
     "work_packages/WP-GOV-CI-006.json",
     "work_packages/WP-GOV-CI-007.json",
     "work_packages/WP-GOV-CI-008.json",
+    "work_packages/WP-GOV-CI-009.json",
+    "work_packages/WP-GOV-CI-010.json",
     "work_packages/WP-H3-001.json",
     "work_packages/WP-H4-001.json",
     "work_packages/WP-H5-001.json",
@@ -60,6 +62,8 @@ REQUIRED_INDEX_LINKS = (
     "backlog_tareas/governance/TASK-GOV-CI-006.md",
     "backlog_tareas/governance/TASK-GOV-CI-007.md",
     "backlog_tareas/governance/TASK-GOV-CI-008.md",
+    "backlog_tareas/governance/TASK-GOV-CI-009.md",
+    "backlog_tareas/governance/TASK-GOV-CI-010.md",
     "decisiones/ADR-0029_homologacion_no_recursiva.md",
     "decisiones/ADR-0030_separacion_ci_y_review_gate.md",
     "decisiones/ADR-0031_boundary_homologacion_estructural.md",
@@ -69,6 +73,8 @@ REQUIRED_INDEX_LINKS = (
     "decisiones/ADR-0035_target_aware_promotions_y_retiro_gates_legacy.md",
     "decisiones/ADR-0036_post_merge_evidence_fail_closed.md",
     "decisiones/ADR-0037_post_merge_route_classification_fail_closed.md",
+    "decisiones/ADR-0038_owner_only_protected_branch_updates.md",
+    "decisiones/ADR-0039_attestation_section_aware_fail_closed.md",
 )
 TRACKER_SECTIONS = (
     "## Verificacion",
@@ -115,6 +121,11 @@ GOV_CI7_BASE_COMMIT = "26a44af87e4e610d905763b6a5b8c14b64607954"
 GOV_CI7_BASE_TREE = "3b956049f3535263b2fdbe3177dc7118005b7af1"
 GOV_CI8_BASE_COMMIT = "16045d45811cbe12299ce2ba66f6afd75a93d1ee"
 GOV_CI8_BASE_TREE = "29f76f029f9c1c664fd8a9fc2ebda30d75a0a4df"
+GOV_CI9_BASE_COMMIT = "1bc36ae6a4381c5ceac5e30c3970c39099965bc3"
+GOV_CI9_BASE_TREE = "7df05c52da47855d62c082f7cfbd12ee1e38b965"
+GOV_CI9_CERT_COMMIT = "df2cde3626c75fa4733bf1624fb105d8ee08c076"
+GOV_CI10_BASE_COMMIT = "17d383291a5f2877074b54b66f2a0ff48a643667"
+GOV_CI10_BASE_TREE = "e0029083e24016b97fc8896be3be2d4285414117"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -182,6 +193,8 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_ci6_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-006.md")
     gov_ci7_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-007.md")
     gov_ci8_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-008.md")
+    gov_ci9_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-009.md")
+    gov_ci10_task = read(root, "backlog_tareas/governance/TASK-GOV-CI-010.md")
     architecture = read(root, "arquitectura_pipeline.md")
     db_system = read(root, "sistema_db_supabase.md")
     db_matrix = read(root, "operaciones/matriz_adopcion_db.md")
@@ -198,6 +211,8 @@ def validate(root: Path = ROOT) -> list[str]:
     gov_ci6_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-006.json").read_text(encoding="utf-8"))
     gov_ci7_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-007.json").read_text(encoding="utf-8"))
     gov_ci8_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-008.json").read_text(encoding="utf-8"))
+    gov_ci9_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-009.json").read_text(encoding="utf-8"))
+    gov_ci10_wp = json.loads((root / ".context" / "work_packages" / "WP-GOV-CI-010.json").read_text(encoding="utf-8"))
 
     if linked_id(bullet_value(state, "Hito")) != "HITO-002":
         errors.append("GRAPH_ID_MISMATCH:state active hito must be HITO-002")
@@ -272,10 +287,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION" not in state or "COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION" not in plan or "COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION" not in tracker:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI8 R1 local validation gate must be next")
-    if "PREPARE_WP_GOV_CI_007_R2_APPROVAL" in state + plan + tracker:
-        errors.append("NEXT_GATE_MISMATCH:stale GOV CI7 R2 gate")
+    if "COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION" not in state or "COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION" not in plan or "COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION" not in tracker:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI10 R1 local validation gate must be next")
+    if "COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION" in state + plan + tracker or "PREPARE_WP_GOV_CI_007_R2_APPROVAL" in state + plan + tracker:
+        errors.append("NEXT_GATE_MISMATCH:stale GOV CI7/CI8 gate")
     if "PREPARE_WP_GOV_CI_006_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV CI6 R2 gate")
     if "PREPARE_WP_GOV_CI_005_R2_APPROVAL" in state + plan + tracker:
@@ -310,6 +325,10 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI7_WP_INVALID:missing from canonical authority")
     if "WP-GOV-CI-008" not in state or "WP-GOV-CI-008" not in plan or "TASK-GOV-CI-008" not in gov_ci8_task:
         errors.append("GOV_CI8_WP_INVALID:missing from canonical authority")
+    if "WP-GOV-CI-009" not in state or "WP-GOV-CI-009" not in plan or "TASK-GOV-CI-009" not in gov_ci9_task:
+        errors.append("GOV_CI9_WP_INVALID:missing from canonical authority")
+    if "WP-GOV-CI-010" not in state or "WP-GOV-CI-010" not in plan or "TASK-GOV-CI-010" not in gov_ci10_task:
+        errors.append("GOV_CI10_WP_INVALID:missing from canonical authority")
     if "EXECUTE_F12_1_LOCAL_CA2_R1" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
     if "Pendiente de aprobacion humana por digest" in plan:
@@ -326,8 +345,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:first H2 prompt must deny Supabase Free and Pro")
     if "Ejecuta las tareas pendientes de la Fase" in prompt:
         errors.append("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT")
-    if "Apruebo WP-GOV-CI-008 de TASK-GOV-CI-008 segun manifest sha256:<D_CI8>" not in prompt:
-        errors.append("NEXT_GATE_MISMATCH:GOV CI8 approval prompt missing digest placeholder")
+    if "Apruebo WP-GOV-CI-010 de TASK-GOV-CI-010 segun manifest sha256:<D_CI10>" not in prompt:
+        errors.append("NEXT_GATE_MISMATCH:GOV CI10 approval prompt missing digest placeholder")
     if "hasta R2" not in prompt or "no Certification, no Main y no R3" not in prompt:
         errors.append("NEXT_GATE_MISMATCH:GOV HOM prompt must be R2 only")
 
@@ -481,6 +500,44 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI8_BOOTSTRAP_INVALID")
     if "CANDIDATE_R1_LOCAL" not in gov_ci8_task:
         errors.append("GOV_CI8_TASK_INVALID:status")
+    if gov_ci9_wp.get("id") != "WP-GOV-CI-009" or gov_ci9_wp.get("task_id") != "TASK-GOV-CI-009" or gov_ci9_wp.get("status") != "PROPOSED":
+        errors.append("GOV_CI9_WP_INVALID:identity/status")
+    if gov_ci9_wp.get("target_level") != "R2":
+        errors.append("GOV_CI9_WP_INVALID:target")
+    if gov_ci9_wp.get("baseline", {}).get("candidate_commit") != GOV_CI9_BASE_COMMIT or gov_ci9_wp.get("baseline", {}).get("candidate_tree") != GOV_CI9_BASE_TREE:
+        errors.append("GOV_CI9_WP_INVALID:baseline")
+    owner_only = gov_ci9_wp.get("owner_only_protected_branch_updates", {})
+    if owner_only.get("name") != "owner-only-protected-branch-updates" or owner_only.get("refs") != ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"]:
+        errors.append("GOV_CI9_OWNER_ONLY_INVALID")
+    if owner_only.get("bypass_user") != "romelhc95" or owner_only.get("bypass_user_id") != 18040405 or owner_only.get("excluded_user") != "romelhc95-approver" or owner_only.get("excluded_user_id") != 306979205:
+        errors.append("GOV_CI9_OWNER_ONLY_ACTORS_INVALID")
+    failure9 = gov_ci9_wp.get("post_merge_merger_identity_failure", {})
+    if failure9.get("failed_pr") != 440 or failure9.get("failed_run") != 32662084712 or failure9.get("primary_failure") != "POST_MERGE_MERGER_INVALID":
+        errors.append("GOV_CI9_FAILURE_INVALID")
+    if failure9.get("reviewer") != "romelhc95-approver" or failure9.get("observed_merger") != "romelhc95-approver" or failure9.get("required_merger") != "romelhc95":
+        errors.append("GOV_CI9_IDENTITY_INVALID")
+    bootstrap9 = gov_ci9_wp.get("promotion_request_bootstrap", {})
+    if bootstrap9.get("static_request_status") != "REQUESTED_JIT_SINGLE_USE" or bootstrap9.get("final_wp") != "WP-GOV-CI-009" or len(bootstrap9.get("grant_request_ids", [])) != 4:
+        errors.append("GOV_CI9_BOOTSTRAP_INVALID")
+    if "CANDIDATE_R1_LOCAL" not in gov_ci9_task:
+        errors.append("GOV_CI9_TASK_INVALID:status")
+    if gov_ci10_wp.get("id") != "WP-GOV-CI-010" or gov_ci10_wp.get("task_id") != "TASK-GOV-CI-010" or gov_ci10_wp.get("status") != "PROPOSED":
+        errors.append("GOV_CI10_WP_INVALID:identity/status")
+    if gov_ci10_wp.get("target_level") != "R2":
+        errors.append("GOV_CI10_WP_INVALID:target")
+    if gov_ci10_wp.get("baseline", {}).get("candidate_commit") != GOV_CI10_BASE_COMMIT or gov_ci10_wp.get("baseline", {}).get("candidate_tree") != GOV_CI10_BASE_TREE:
+        errors.append("GOV_CI10_WP_INVALID:baseline")
+    failure10 = gov_ci10_wp.get("post_merge_attestation_duplicate_failure", {})
+    if failure10.get("failed_pr") != 441 or failure10.get("failed_run") != 32666126533 or failure10.get("primary_failure") != "POST_MERGE_ATTESTATION_DUPLICATE":
+        errors.append("GOV_CI10_FAILURE_INVALID")
+    section_contract = gov_ci10_wp.get("section_aware_attestation_contract", {})
+    if section_contract.get("no_body_fallback") is not True or section_contract.get("ordinary_desarrollo_result") != "NOT_APPLICABLE":
+        errors.append("GOV_CI10_SECTION_CONTRACT_INVALID")
+    bootstrap10 = gov_ci10_wp.get("promotion_request_bootstrap", {})
+    if bootstrap10.get("static_request_status") != "REQUESTED_JIT_SINGLE_USE" or bootstrap10.get("final_wp") != "WP-GOV-CI-010" or len(bootstrap10.get("grant_request_ids", [])) != 4:
+        errors.append("GOV_CI10_BOOTSTRAP_INVALID")
+    if "CANDIDATE_R1_LOCAL" not in gov_ci10_task:
+        errors.append("GOV_CI10_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
     if "PR #425" not in state or GOV_HOM_BASE_COMMIT not in state + tracker + plan or GOV_HOM_BASE_TREE not in state + tracker + plan:
@@ -511,6 +568,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI7_FAILURE_HISTORY_MISSING:PR437")
     if "PR #438" not in state + tracker + plan or GOV_CI8_BASE_COMMIT not in state + tracker + plan or GOV_CI8_BASE_TREE not in state + tracker + plan or "32655520324" not in state + tracker + plan:
         errors.append("GOV_CI8_FAILURE_HISTORY_MISSING:PR438")
+    if "PR #439" not in state + tracker + plan or GOV_CI9_BASE_COMMIT not in state + tracker + plan or GOV_CI9_BASE_TREE not in state + tracker + plan or "32659464257" not in state + tracker + plan:
+        errors.append("GOV_CI8_R2_HISTORY_MISSING:PR439")
+    if "PR #440" not in state + tracker + plan or GOV_CI9_CERT_COMMIT not in state + tracker + plan or "32662084712" not in state + tracker + plan or "POST_MERGE_MERGER_INVALID" not in state + tracker + plan:
+        errors.append("GOV_CI9_FAILURE_HISTORY_MISSING:PR440")
+    if "PR #441" not in state + tracker + plan or GOV_CI10_BASE_COMMIT not in state + tracker + plan or GOV_CI10_BASE_TREE not in state + tracker + plan or "32666126533" not in state + tracker + plan or "POST_MERGE_ATTESTATION_DUPLICATE" not in state + tracker + plan:
+        errors.append("GOV_CI10_FAILURE_HISTORY_MISSING:PR441")
+    if "owner-only-protected-branch-updates" not in state + plan + tracker + architecture + release_flow or "romelhc95-approver" not in state + plan + tracker + architecture + release_flow or "actor_id=18040405" not in state + plan + tracker + architecture + release_flow:
+        errors.append("GOV_CI9_OWNER_ONLY_HISTORY_MISSING")
     canonical_docs = (
         ("ARCHITECTURE_CANONICAL_MISSING:arquitectura_pipeline", architecture),
         ("ARCHITECTURE_CANONICAL_MISSING:sistema_db_supabase", db_system),
