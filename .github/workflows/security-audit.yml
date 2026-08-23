@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
   pull-requests: read
 
 env:
@@ -137,6 +138,7 @@ jobs:
   path-boundary:
     name: Canonical Path Boundary
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -160,16 +162,89 @@ jobs:
             fi
             git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
             base="$(git merge-base HEAD "origin/$GITHUB_BASE_REF")"
-          else
-            before="$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")"
-            if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-              base="$before"
-            else
-              git fetch --no-tags --depth=1 origin desarrollo
-              base="$(git merge-base HEAD origin/desarrollo)"
-            fi
           fi
           python3 scripts/security/validate_work_package.py --changed-from "$base"
+
+  path-boundary-push:
+    name: Canonical Path Boundary
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      post_merge_promotion: ${{ steps.boundary.outputs.post_merge_promotion }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Enforce canonical path boundary for push
+        id: boundary
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before="$(jq -r '.before // empty' "$GITHUB_EVENT_PATH")"
+          echo "post_merge_promotion=false" >> "$GITHUB_OUTPUT"
+          if POST_MERGE_SKIP_PROTECTED_APPROVAL=1 python3 scripts/security/validate_work_package.py --post-merge-push-event "$GITHUB_EVENT_PATH"; then
+            echo "post_merge_promotion=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+            base="$before"
+          else
+            git fetch --no-tags --depth=1 origin desarrollo
+            base="$(git merge-base HEAD origin/desarrollo)"
+          fi
+          python3 scripts/security/validate_work_package.py --changed-from "$base"
+
+  post-merge-approval:
+    name: Post-Merge Promotion Approval
+    runs-on: ubuntu-latest
+    needs: [path-boundary-push]
+    if: github.event_name == 'push' && needs.path-boundary-push.outputs.post_merge_promotion == 'true'
+    environment:
+      name: Promotion
+    steps:
+      - name: Revalidate protected approval values
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          R3_JIT_APPROVAL_GRANT_ID: ${{ vars.R3_JIT_APPROVAL_GRANT_ID }}
+          R3_JIT_APPROVAL_REFERENCE: ${{ secrets.R3_JIT_APPROVAL_REFERENCE }}
+          R3_JIT_APPROVAL_EXPIRY: ${{ vars.R3_JIT_APPROVAL_EXPIRY }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["GITHUB_SHA"]
+          token = os.environ["GITHUB_TOKEN"]
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/commits/{sha}/pulls",
+              headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"},
+          )
+          with urllib.request.urlopen(req, timeout=20) as response:
+              pulls = json.loads(response.read().decode("utf-8"))
+          if not pulls:
+              raise SystemExit("post-merge approval PR evidence missing")
+          fields = {}
+          for line in str(pulls[0].get("body") or "").splitlines():
+              if ":" in line:
+                  key, value = line.split(":", 1)
+                  fields[key.strip()] = value.strip()
+          expected = {
+              "Grant-ID": os.environ.get("R3_JIT_APPROVAL_GRANT_ID", ""),
+              "Approval-Reference": os.environ.get("R3_JIT_APPROVAL_REFERENCE", ""),
+              "Approval-Expiry": os.environ.get("R3_JIT_APPROVAL_EXPIRY", ""),
+          }
+          if any(not value for value in expected.values()):
+              raise SystemExit("protected approval env missing")
+          for key, value in expected.items():
+              if fields.get(key) != value:
+                  raise SystemExit(f"protected approval mismatch: {key}")
+          print("post-merge protected approval values match")
+          PY
 
   promotion-boundary:
     name: Promotion Boundary
@@ -346,7 +421,7 @@ jobs:
   security-audit:
     name: security-audit
     runs-on: ubuntu-latest
-    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, promotion-boundary, governance-preflight, governance-tests, lint, typecheck, static-build, postgresql-17]
+    needs: [credential-scan, python-check, manifest-digest, markdown-links, context-graph, path-boundary, path-boundary-push, post-merge-approval, promotion-boundary, governance-preflight, governance-tests, lint, typecheck, static-build, postgresql-17]
     if: always()
     steps:
       - name: Aggregate required checks
@@ -362,7 +437,19 @@ jobs:
           test '${{ needs.manifest-digest.result }}' = 'success'
           test '${{ needs.markdown-links.result }}' = 'success'
           test '${{ needs.context-graph.result }}' = 'success'
-          test '${{ needs.path-boundary.result }}' = 'success'
+          if [ "$EVENT_NAME" = "push" ]; then
+            test '${{ needs.path-boundary.result }}' = 'skipped'
+            test '${{ needs.path-boundary-push.result }}' = 'success'
+            if [ '${{ needs.path-boundary-push.outputs.post_merge_promotion }}' = 'true' ]; then
+              test '${{ needs.post-merge-approval.result }}' = 'success'
+            else
+              test '${{ needs.post-merge-approval.result }}' = 'skipped'
+            fi
+          else
+            test '${{ needs.path-boundary.result }}' = 'success'
+            test '${{ needs.path-boundary-push.result }}' = 'skipped'
+            test '${{ needs.post-merge-approval.result }}' = 'skipped'
+          fi
           promotion=false
           if [ "$SAME_REPO" = "true" ]; then
             case "$PR_BASE_REF:$PR_HEAD_REF" in

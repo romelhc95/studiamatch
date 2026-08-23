@@ -54,13 +54,13 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI4`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_004_R2_APPROVAL`.
-- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429 y PR #430 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, y el proximo gate unico `PREPARE_WP_GOV_CI_004_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI5`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
+- El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430 y PR #432 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, y el proximo gate unico `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.
 - El indice debe enlazar `WP-GOV-OBS-001`, `WP-GOV-INFRA-001`, `TASK-GOV-OBS-001` y `TASK-GOV-INFRA-001` como evidencia R2 ya publicada en desarrollo por PR #424.
 - El indice debe enlazar `arquitectura_pipeline.md`, `sistema_db_supabase.md` y `operaciones/matriz_adopcion_db.md` como fuentes canonicas no ejecutables.
-- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, y `WP-GOV-CI-004`/`TASK-GOV-CI-004` como candidate de Environment `Promotion`; el siguiente gate unico es `PREPARE_WP_GOV_CI_004_R2_APPROVAL`.
+- El indice debe enlazar `WP-GOV-ARCH-001` y `TASK-GOV-ARCH-001` como artifacts consumidos por PR #425, `WP-GOV-HOM-001`/`TASK-GOV-HOM-001` como artifacts consumidos por PR #426, `WP-GOV-CI-001`/`TASK-GOV-CI-001` como artifacts consumidos por PR #427, `WP-GOV-CI-002`/`TASK-GOV-CI-002` como artifact consumido por PR #429, `WP-GOV-CI-003`/`TASK-GOV-CI-003` como artifact consumido por PR #430, `WP-GOV-CI-004`/`TASK-GOV-CI-004` como artifact consumido por PR #432, y `WP-GOV-CI-005`/`TASK-GOV-CI-005` como candidate de boundary post-merge; el siguiente gate unico es `PREPARE_WP_GOV_CI_005_R2_APPROVAL`.
 - Cada WP Sprint 1 debe permanecer `PROPOSED` hasta aprobacion humana por digest; `WP-H2-001` es la excepcion vigente y debe permanecer `ACTIVE` solo hasta R1.
 - Ninguna evidencia o tracker puede marcar H2-CA2/H2-CA3 implementado, aceptado o completado antes de evidencia funcional y cualquier R3 JIT requerido.
 
@@ -159,6 +159,14 @@ contra `refs/pull/<n>/merge` en eventos `pull_request`. Las promociones O2-O5
 usan un Environment dedicado `Promotion`, con reviewer requerido y sin branch
 policy remota. Crear/configurar ese Environment es R3 separado; CI4 solo versiona
 el cambio local y bloquea PR #431 y `R3-GOV-HOM-003-O2-REQ1` como consumidos.
+
+GOV-CI5 corrige el fallo post-merge de PR #433: un push generado por merge de
+promocion protegida no debe evaluarse exclusivamente como diff incremental si
+existe evidencia read-only de PR O2-O5 asociado, checks pre-merge verdes,
+attestation, review humano y merger esperado. La validacion post-merge es
+estructural y fail-closed; si falta evidencia, el workflow vuelve al boundary
+incremental. PR #433 y `R3-GOV-HOM-004-O2-REQ1` quedan consumidos y O3 sigue
+bloqueado hasta publicar CI5 y ejecutar nuevo re-O2 con grant JIT separado.
 
 ## Semantica De Paths
 
