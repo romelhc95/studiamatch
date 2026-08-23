@@ -7,6 +7,7 @@ Reconciliacion post-PR425: arquitectura publicada en `desarrollo@4cce43a743de586
 Reconciliacion post-PR426: GOV-HOM publicado en `desarrollo@fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1`, tree `5e7d087ac45457264ea29dfc1aa7373efd909290`; GOV-CI prepara la separacion entre `security-audit` y branch protection review.
 Reconciliacion post-PR427: GOV-CI publicado en `desarrollo@b878c5764e55cb2646b60c4777e363489fe48e8b`, tree `174c18efd840fff6ce27fce9fe1dc4edcd65abe8`; PR #428 fallo O2 por `Canonical Path Boundary` y requiere GOV-CI2 antes de nuevo O2.
 Reconciliacion post-PR429: GOV-CI2 publicado en `desarrollo@1ac74f78fec6290e214444e9d2f18619ae3fd3b6`, tree `8191790192580f2e9fb1ddb48d85ab28714720f9`; PR #428 permanece bloqueado y requiere GOV-CI3 para eliminar bootstrap autorreferencial de grants antes de un nuevo O2.
+Reconciliacion post-PR430: GOV-CI3 publicado en `desarrollo@235c2329eb5fd8903c31785640a63466b23f0dd8`, tree `cc774746d21cb6649f7018da3049fc811a3f294b`; PR #431 fallo antes de runner porque `Promotion Boundary` usaba Environment `Certification` y el ref `refs/pull/431/merge` no cumple su branch policy. GOV-CI4 cambia el gate a Environment `Promotion` dedicado.
 
 ## Principios Vigentes
 
@@ -18,6 +19,7 @@ Reconciliacion post-PR429: GOV-CI2 publicado en `desarrollo@1ac74f78fec6290e2144
 - Los datos operativos no se promueven Free -> Pro como flujo normal; cada ambiente produce sus propias filas operativas.
 - `security-audit` usa boundary incremental para PR normales y boundary estructural para promociones O2-O5 entre ramas protegidas; GOV-CI2 no autoriza deploys, writers ni DB.
 - Las solicitudes versionadas en `.context/r3_grants/` son `REQUESTED_JIT_SINGLE_USE` con bindings simbolicos; no son approvals R3 ni contienen SHA/tree autorreferenciales.
+- `Promotion Boundary` para O2-O5 usa el Environment `Promotion`; no usa `Certification`, `Production` ni `Development` para evitar branch policies incompatibles con refs sinteticos de PR.
 
 ## Diagrama De Contexto
 

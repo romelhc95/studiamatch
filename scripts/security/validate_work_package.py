@@ -76,6 +76,7 @@ GOV_HOM_BASE_COMMIT = "4cce43a743de5860c4da86eecf1782efab91d26b"
 GOV_CI_BASE_COMMIT = "fddb9cea6ac44a1f7f7b31e93a7b2f2cc0eeacd1"
 GOV_CI2_BASE_COMMIT = "b878c5764e55cb2646b60c4777e363489fe48e8b"
 GOV_CI3_BASE_COMMIT = "1ac74f78fec6290e214444e9d2f18619ae3fd3b6"
+GOV_CI4_BASE_COMMIT = "235c2329eb5fd8903c31785640a63466b23f0dd8"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -333,6 +334,29 @@ GOV_CI3_TRANSITION_ALLOWLIST = (
     ".context/r3_grants/R3-GOV-HOM-003-O4-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-003-O5-REQ1.json",
 )
+GOV_CI4_TRANSITION_ALLOWLIST = (
+    ".github/workflows/security-audit.yml",
+    "scripts/security/validate_work_package.py",
+    "scripts/security/validate_context_graph.py",
+    "tests/test_change_governance.py",
+    "tests/test_work_package_manifest.py",
+    "tests/test_context_graph_semantics.py",
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/backlog_tareas/governance/TASK-GOV-CI-004.md",
+    ".context/work_packages/WP-GOV-CI-004.json",
+    ".context/decisiones/ADR-0033_promotion_environment_para_o2_o5.md",
+    ".context/r3_grants/R3-GOV-HOM-004-O2-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-004-O3-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-004-O4-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-004-O5-REQ1.json",
+)
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
     "db/**",
@@ -351,10 +375,12 @@ PROMOTION_PAIRS = {
     "O5 certificacion -> desarrollo": ("desarrollo", "certificacion"),
 }
 PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-SHA", "Candidate-SHA", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
-PROMOTION_FINAL_WP = "WP-GOV-CI-003"
+PROMOTION_FINAL_WP = "WP-GOV-CI-004"
+GOV_CI2_PROMOTION_BLOCKED_PR_NUMBERS = {428}
+GOV_CI2_PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
 PROMOTION_ALLOWED_ACTION = "opened"
-PROMOTION_BLOCKED_PR_NUMBERS = {428}
-PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
+PROMOTION_BLOCKED_PR_NUMBERS = {428, 431}
+PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1"}
 PROMOTION_GRANT_ID_PATTERN = re.compile(r"^R3-GOV-HOM-\d{3}-O[2-5]-[A-Za-z0-9][A-Za-z0-9_.-]{3,}$")
 PROMOTION_REQUEST_STATUS = "REQUESTED_JIT_SINGLE_USE"
 PROMOTION_BINDINGS = {
@@ -664,7 +690,7 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         promotion = data.get("promotion_boundary")
         if not isinstance(promotion, dict) or promotion.get("structural_pairs") != sorted(PROMOTION_PAIRS) or promotion.get("incremental_boundary_preserved") is not True:
             errors.append(f"GOV_CI2_PROMOTION_BOUNDARY_INVALID:{path.name}")
-        elif promotion.get("blocked_pr_numbers") != sorted(PROMOTION_BLOCKED_PR_NUMBERS) or promotion.get("consumed_grants_blocked") != sorted(PROMOTION_CONSUMED_GRANTS) or promotion.get("accepted_event_action") != PROMOTION_ALLOWED_ACTION or promotion.get("accepted_run_attempt") != 1:
+        elif promotion.get("blocked_pr_numbers") != sorted(GOV_CI2_PROMOTION_BLOCKED_PR_NUMBERS) or promotion.get("consumed_grants_blocked") != sorted(GOV_CI2_PROMOTION_CONSUMED_GRANTS) or promotion.get("accepted_event_action") != PROMOTION_ALLOWED_ACTION or promotion.get("accepted_run_attempt") != 1:
             errors.append(f"GOV_CI2_PROMOTION_REPLAY_GUARDS_INVALID:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_CI2_R3_DENY_MISSING:{path.name}")
@@ -692,10 +718,41 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             "R3-GOV-HOM-003-O4-REQ1",
             "R3-GOV-HOM-003-O5-REQ1",
         ]
-        if not isinstance(promotion, dict) or promotion.get("final_wp") != PROMOTION_FINAL_WP or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
+        if not isinstance(promotion, dict) or promotion.get("final_wp") != "WP-GOV-CI-003" or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
             errors.append(f"GOV_CI3_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_CI3_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-CI-004":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-CI-004" or data.get("hito") != "GOV-CI":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_CI4_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_CI4_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        if data.get("allowed_paths") != list(GOV_CI4_TRANSITION_ALLOWLIST):
+            errors.append(f"GOV_CI4_ALLOWLIST_INVALID:{path.name}")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_CI4_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_CI4_BASE_COMMIT:
+            errors.append(f"GOV_CI4_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
+        if baseline.get("candidate_tree") != "cc774746d21cb6649f7018da3049fc811a3f294b" or baseline.get("desarrollo_tree") != "cc774746d21cb6649f7018da3049fc811a3f294b":
+            errors.append(f"GOV_CI4_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
+        if data.get("supersedes_digest") != "60c1fc0978208742597f17ef6f4c1fe5741f59b5de0739accbce24fa613ab9c7":
+            errors.append(f"GOV_CI4_SUPERSEDES_INVALID:{path.name}")
+        remediation = data.get("promotion_environment_remediation", {})
+        if remediation.get("environment") != "Promotion" or remediation.get("failed_pr") != 431 or remediation.get("consumed_grant") != "R3-GOV-HOM-003-O2-REQ1":
+            errors.append(f"GOV_CI4_PROMOTION_ENVIRONMENT_INVALID:{path.name}")
+        promotion = data.get("promotion_request_bootstrap")
+        expected_grants = [
+            "R3-GOV-HOM-004-O2-REQ1",
+            "R3-GOV-HOM-004-O3-REQ1",
+            "R3-GOV-HOM-004-O4-REQ1",
+            "R3-GOV-HOM-004-O5-REQ1",
+        ]
+        if not isinstance(promotion, dict) or promotion.get("final_wp") != PROMOTION_FINAL_WP or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
+            errors.append(f"GOV_CI4_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
+        if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
+            errors.append(f"GOV_CI4_R3_DENY_MISSING:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -911,10 +968,10 @@ def validate_static_promotion_request(grant: dict[str, Any], *, grant_id: str, o
 def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     expected = {
-        "R3-GOV-HOM-003-O2-REQ1": ("O2 desarrollo -> certificacion", "certificacion", "desarrollo"),
-        "R3-GOV-HOM-003-O3-REQ1": ("O3 certificacion -> main", "main", "certificacion"),
-        "R3-GOV-HOM-003-O4-REQ1": ("O4 main -> certificacion", "certificacion", "main"),
-        "R3-GOV-HOM-003-O5-REQ1": ("O5 certificacion -> desarrollo", "desarrollo", "certificacion"),
+        "R3-GOV-HOM-004-O2-REQ1": ("O2 desarrollo -> certificacion", "certificacion", "desarrollo"),
+        "R3-GOV-HOM-004-O3-REQ1": ("O3 certificacion -> main", "main", "certificacion"),
+        "R3-GOV-HOM-004-O4-REQ1": ("O4 main -> certificacion", "certificacion", "main"),
+        "R3-GOV-HOM-004-O5-REQ1": ("O5 certificacion -> desarrollo", "desarrollo", "certificacion"),
     }
     wp = load_manifest_by_id(PROMOTION_FINAL_WP, root=root)
     d_final = str(wp.get("candidate_digest") if isinstance(wp, dict) else "")
@@ -963,7 +1020,7 @@ def validate_promotion_event(event_path: str, *, event_name: str = "", run_attem
     except (TypeError, ValueError):
         pr_number = 0
     if pr_number in PROMOTION_BLOCKED_PR_NUMBERS:
-        errors.append("PROMOTION_PR_BLOCKED:428")
+        errors.append(f"PROMOTION_PR_BLOCKED:{pr_number}")
 
     fields = parse_attestation_fields(pr.get("body") or "")
     operation = fields.get("Operation", "")
@@ -1082,18 +1139,21 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False, gov_ci4_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if gov_ci3_transition:
+    if gov_ci4_transition:
+        allowed = GOV_CI4_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_ci3_transition:
         allowed = GOV_CI3_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif gov_ci2_transition:
@@ -1154,8 +1214,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
     errors: list[str] = []
-    if len(manifests) != 11:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3 manifests")
+    if len(manifests) != 12:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3/CI4 manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     errors.extend(validate_static_promotion_requests(root=ROOT))
@@ -1175,6 +1235,7 @@ def main(argv: list[str] | None = None) -> int:
             gov_ci_transition=changed_from == GOV_CI_BASE_COMMIT,
             gov_ci2_transition=changed_from == GOV_CI2_BASE_COMMIT,
             gov_ci3_transition=changed_from == GOV_CI3_BASE_COMMIT,
+            gov_ci4_transition=changed_from == GOV_CI4_BASE_COMMIT,
         ))
     if errors:
         for error in errors:

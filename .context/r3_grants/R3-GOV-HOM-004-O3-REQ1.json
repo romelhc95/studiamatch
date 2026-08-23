@@ -1,0 +1,17 @@
+{
+  "id": "R3-GOV-HOM-004-O3-REQ1",
+  "status": "REQUESTED_JIT_SINGLE_USE",
+  "operation": "O3 certificacion -> main",
+  "repository": "romelhc95/studiamatch",
+  "base_ref": "main",
+  "head_ref": "certificacion",
+  "final_wp": "WP-GOV-CI-004",
+  "base_sha_binding": "pull_request.base.sha",
+  "candidate_sha_binding": "pull_request.head.sha",
+  "t_final_binding": "tree(pull_request.head.sha)",
+  "d_final_binding": "manifest.candidate_digest",
+  "event_action": "opened",
+  "run_attempt": 1,
+  "single_use": true,
+  "external_consumption_required": true
+}

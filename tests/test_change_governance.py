@@ -162,6 +162,8 @@ class ChangeGovernanceTests(unittest.TestCase):
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("--promotion-event \"$GITHUB_EVENT_PATH\"", workflow)
         self.assertIn("--run-attempt \"${GITHUB_RUN_ATTEMPT:-0}\"", workflow)
+        self.assertIn("name: Promotion", workflow)
+        self.assertNotIn("github.event.pull_request.base.ref == 'main' && 'Production'", workflow)
         self.assertIn("pull_request:desarrollo", workflow)
         self.assertIn("needs.governance-preflight.result }}' = 'success'", workflow)
         self.assertIn("pull_request:certificacion|pull_request:main|push:", workflow)

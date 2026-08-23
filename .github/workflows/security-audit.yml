@@ -182,7 +182,7 @@ jobs:
        (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'main') ||
        (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'certificacion'))
     environment:
-      name: ${{ github.event.pull_request.base.ref == 'main' && 'Production' || github.event.pull_request.base.ref == 'desarrollo' && 'Development' || 'Certification' }}
+      name: Promotion
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
