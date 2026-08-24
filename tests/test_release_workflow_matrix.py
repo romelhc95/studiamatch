@@ -8,24 +8,24 @@ def source(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_gov_ci10_target_aware_promotions_are_documented_and_gated() -> None:
+def test_gov_ci11_target_aware_promotions_are_documented_and_gated() -> None:
     validator = source("scripts/security/validate_work_package.py")
     workflow = source(".github/workflows/security-audit.yml")
     plan = source(".context/operaciones/plan_maestro_sprint1_h2_h5.md")
     matrix = source(".context/operaciones/matriz_adopcion_db.md")
 
     for branch in (
-        "promote/gov-hom-010-o2-req1",
-        "promote/gov-hom-010-o3-req1",
-        "promote/gov-hom-010-o4-req1",
-        "promote/gov-hom-010-o5-req1",
+        "promote/gov-hom-011-o2-req1",
+        "promote/gov-hom-011-o3-req1",
+        "promote/gov-hom-011-o4-req1",
+        "promote/gov-hom-011-o5-req1",
     ):
         assert branch in validator
         assert branch in workflow
         assert branch in plan
 
     assert "VERIFIED_PROMOTION" in validator
-    assert "POST_MERGE_ATTESTATION_DUPLICATE" in source(".context/work_packages/WP-GOV-CI-010.json")
+    assert "promotion-jit-envelope-v1" in source(".context/work_packages/WP-GOV-CI-011.json")
     assert "candidate_parents != [before, source_sha]" in validator
     assert "BLOCKED" in validator
     assert "NO_DB_CHANGES" in matrix
@@ -36,8 +36,8 @@ def test_o5_uses_promotion_boundary_and_skips_governance_preflight() -> None:
     governance_job = workflow.split("  governance-preflight:", 1)[1].split("  governance-tests:", 1)[0]
     aggregate = workflow.split("  security-audit:", 1)[1]
 
-    assert "github.event.pull_request.head.ref == 'promote/gov-hom-010-o5-req1'" in governance_job
-    assert "desarrollo:promote/gov-hom-010-o5-req1" in aggregate
+    assert "github.event.pull_request.head.ref == 'promote/gov-hom-011-o5-req1'" in governance_job
+    assert "desarrollo:promote/gov-hom-011-o5-req1" in aggregate
     assert "test '${{ needs.promotion-boundary.result }}' = 'success'" in aggregate
     assert "test '${{ needs.governance-preflight.result }}' = 'skipped'" in aggregate
 
@@ -45,9 +45,9 @@ def test_o5_uses_promotion_boundary_and_skips_governance_preflight() -> None:
 def test_o2_o3_o4_promotion_pairs_remain_gated() -> None:
     workflow = source(".github/workflows/security-audit.yml")
     for pair in (
-        "certificacion:promote/gov-hom-010-o2-req1",
-        "main:promote/gov-hom-010-o3-req1",
-        "certificacion:promote/gov-hom-010-o4-req1",
+        "certificacion:promote/gov-hom-011-o2-req1",
+        "main:promote/gov-hom-011-o3-req1",
+        "certificacion:promote/gov-hom-011-o4-req1",
     ):
         assert pair in workflow
 
@@ -67,12 +67,12 @@ def test_certification_and_main_require_exact_promotion_route() -> None:
     workflow = source(".github/workflows/security-audit.yml")
     path_boundary = workflow.split("  path-boundary:", 1)[1].split("  path-boundary-push:", 1)[0]
 
-    assert "protected branch PR requires exact HOM-010 promotion route" in path_boundary
+    assert "protected branch PR requires exact HOM-011 promotion route" in path_boundary
     assert '[ "$base_ref" = "certificacion" ] || [ "$base_ref" = "main" ]' in path_boundary
 
 
-def test_gov_ci10_records_ci9_superseded_and_owner_only_desired_state() -> None:
-    manifest = source(".context/work_packages/WP-GOV-CI-010.json")
+def test_gov_ci11_records_hom010_superseded_and_owner_only_desired_state() -> None:
+    manifest = source(".context/work_packages/WP-GOV-CI-011.json")
     state = source(".context/estado_del_proyecto.md")
     agents = source("AGENTS.md")
 
@@ -85,6 +85,20 @@ def test_gov_ci10_records_ci9_superseded_and_owner_only_desired_state() -> None:
     assert "refs/heads/desarrollo" in manifest
     assert "refs/heads/certificacion" in manifest
     assert "refs/heads/main" in manifest
+    assert "R3-GOV-HOM-010-O2-REQ1" in manifest
+    assert "can_admins_bypass" in manifest
+
+
+def test_gov_ci11_o3_requires_cloudflare_and_db_detect_only() -> None:
+    validator = source("scripts/security/validate_work_package.py")
+    workflow = source(".github/workflows/db-sync-to-pro.yml")
+    manifest = source(".context/work_packages/WP-GOV-CI-011.json")
+
+    assert "CLOUDFLARE_PAGES_APP_ID = 85455" in validator
+    assert "DB_SYNC_DETECT_ONLY_RESULT = \"NO_DB_CHANGES\"" in validator
+    assert "DB Sync Detect Only" in workflow
+    assert "NO_DB_CHANGES" in workflow
+    assert "blocked_until_o3_closed" in manifest
 
 
 def test_post_merge_tri_state_controls_fallback_and_approval_job() -> None:

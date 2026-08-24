@@ -43,7 +43,7 @@ class WorkPackageManifestTests(unittest.TestCase):
     def test_sprint1_work_packages_validate(self):
         validator = load_validator()
         manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
-        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-CI-002", "WP-GOV-CI-003", "WP-GOV-CI-004", "WP-GOV-CI-005", "WP-GOV-CI-006", "WP-GOV-CI-007", "WP-GOV-CI-008", "WP-GOV-CI-009", "WP-GOV-CI-010", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
+        self.assertEqual([path.stem for path in manifests], ["WP-GOV-ARCH-001", "WP-GOV-CI-001", "WP-GOV-CI-002", "WP-GOV-CI-003", "WP-GOV-CI-004", "WP-GOV-CI-005", "WP-GOV-CI-006", "WP-GOV-CI-007", "WP-GOV-CI-008", "WP-GOV-CI-009", "WP-GOV-CI-010", "WP-GOV-CI-011", "WP-GOV-HOM-001", "WP-GOV-INFRA-001", "WP-GOV-OBS-001", "WP-H2-001", "WP-H3-001", "WP-H4-001", "WP-H5-001"])
         for path in manifests:
             self.assertEqual(validator.validate_manifest(path, root=ROOT), [])
 
@@ -388,12 +388,12 @@ class WorkPackageManifestTests(unittest.TestCase):
                 self.assertNotIn(forbidden, data)
             self.assertEqual(data["status"], "REQUESTED_JIT_SINGLE_USE")
             self.assertEqual(data["candidate_sha_binding"], "pull_request.head.sha")
-            if data["id"].startswith(("R3-GOV-HOM-006-", "R3-GOV-HOM-007-", "R3-GOV-HOM-008-", "R3-GOV-HOM-009-", "R3-GOV-HOM-010-")):
+            if data["id"].startswith(("R3-GOV-HOM-006-", "R3-GOV-HOM-007-", "R3-GOV-HOM-008-", "R3-GOV-HOM-009-", "R3-GOV-HOM-010-", "R3-GOV-HOM-011-")):
                 self.assertEqual(data["t_final_binding"], "tree(promotion_attestation.Source-SHA)")
                 self.assertEqual(data["candidate_tree_binding"], "tree(pull_request.head.sha)")
             else:
                 self.assertEqual(data["t_final_binding"], "tree(pull_request.head.sha)")
-            if data["id"].startswith(("R3-GOV-HOM-007-", "R3-GOV-HOM-008-", "R3-GOV-HOM-009-", "R3-GOV-HOM-010-")):
+            if data["id"].startswith(("R3-GOV-HOM-007-", "R3-GOV-HOM-008-", "R3-GOV-HOM-009-", "R3-GOV-HOM-010-", "R3-GOV-HOM-011-")):
                 self.assertEqual(data["required_merger"], "romelhc95")
                 self.assertEqual(data["required_reviewer"], "romelhc95-approver")
                 self.assertIs(data["merger_reviewer_distinct"], True)
@@ -659,7 +659,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci6_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
-    def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-010-O2-REQ1", action="opened", number=500, base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-010-o2-req1", consumed=False):
+    def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-011-O2-REQ1", action="opened", number=500, base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-011-o2-req1", consumed=False):
         digest = "a" * 64
         tree = "b" * 40
         base_sha = "c" * 40
@@ -681,7 +681,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                     f"Source-SHA: {source_sha}",
                     f"Candidate-SHA: {head_sha}",
                     f"Candidate-Tree: {tree}",
-                    "Final-WP: WP-GOV-CI-010",
+                    "Final-WP: WP-GOV-CI-011",
                     f"D_FINAL: {digest}",
                     f"T_FINAL: {tree}",
                     "Approval-Level: R3 JIT single-use",
@@ -702,7 +702,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "head_ref": head_ref,
             "source_ref": source_ref,
             "candidate_branch": head_ref,
-            "final_wp": "WP-GOV-CI-010",
+            "final_wp": "WP-GOV-CI-011",
             "base_sha_binding": "pull_request.base.sha",
             "source_sha_binding": "promotion_attestation.Source-SHA",
             "candidate_sha_binding": "pull_request.head.sha",
@@ -716,7 +716,16 @@ class WorkPackageManifestTests(unittest.TestCase):
             "required_merger": "romelhc95",
             "required_reviewer": "romelhc95-approver",
             "merger_reviewer_distinct": True,
+            "approval_envelope_schema": "promotion-jit-envelope-v1",
+            "allowed_side_effects": ["certification_branch_update"],
         }
+        if operation.startswith("O3"):
+            grant.update({"allowed_side_effects": ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"], "cloudflare_pages_production_rebuild_expected": True, "db_sync_detect_only_required": True, "db_sync_expected_result": "NO_DB_CHANGES"})
+        if operation.startswith("O4"):
+            grant["allowed_side_effects"] = ["certification_branch_update"]
+            grant["blocked_until_o3_closed"] = True
+        if operation.startswith("O5"):
+            grant["allowed_side_effects"] = ["development_branch_update"]
         if consumed:
             grant["consumed"] = True
         return event, grant, digest, tree
@@ -731,15 +740,11 @@ class WorkPackageManifestTests(unittest.TestCase):
             tree = "b" * 40
             (grant_dir / f"{grant['id']}.json").write_text(json.dumps(grant), encoding="utf-8")
             path.write_text(json.dumps(event), encoding="utf-8")
-            protected_env = {
-                "R3_JIT_APPROVAL_GRANT_ID": grant["id"],
-                "R3_JIT_APPROVAL_REFERENCE": "human-jit-o2-20260822",
-                "R3_JIT_APPROVAL_EXPIRY": "2026-08-23T00:00:00Z",
-            }
             base_sha = event["pull_request"]["base"]["sha"]
             head_sha = event["pull_request"]["head"]["sha"]
             fields = load_validator().parse_attestation_fields(event["pull_request"]["body"])
             source_sha = fields["Source-SHA"]
+            protected_env = {"GITHUB_RUN_ID": "1000", "R3_JIT_APPROVAL_ENVELOPE": json.dumps({"schema": "promotion-jit-envelope-v1", "approval_id": "human-jit-o2-20260822", "grant_id": grant["id"], "repository": "romelhc95/studiamatch", "operation": fields["Operation"], "pr_number": event["pull_request"]["number"], "premerge_run_id": 1000, "event_action": "opened", "run_attempt": 1, "base_ref": event["pull_request"]["base"]["ref"], "base_sha": base_sha, "source_ref": fields["Source-Ref"], "source_sha": source_sha, "candidate_ref": event["pull_request"]["head"]["ref"], "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": "WP-GOV-CI-011", "final_digest": digest, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_merger": "romelhc95", "allowed_side_effects": grant["allowed_side_effects"], "issued_at": "2026-08-22T00:00:00Z", "expires_at": "2026-08-23T00:00:00Z"})}
             def fake_git_sha(args, root=ROOT):
                 if args[:3] == ["show", "-s", "--format=%P"]:
                     return f"{base_sha} {source_sha}"
@@ -769,16 +774,14 @@ class WorkPackageManifestTests(unittest.TestCase):
             (grant_dir / f"{grant['id']}.json").write_text(json.dumps(grant), encoding="utf-8")
             path.write_text(json.dumps(event), encoding="utf-8")
             with mock.patch.dict("os.environ", {
-                "R3_JIT_APPROVAL_GRANT_ID": "",
-                "R3_JIT_APPROVAL_REFERENCE": "",
-                "R3_JIT_APPROVAL_EXPIRY": "",
+                "R3_JIT_APPROVAL_ENVELOPE": "",
             }, clear=False), \
                  mock.patch.object(validator, "load_manifest_by_id", return_value={"candidate_digest": digest}), \
                  mock.patch.object(validator, "compute_digest", return_value=digest), \
                  mock.patch.object(validator, "git_sha", return_value=tree), \
                  mock.patch.object(validator, "git_is_ancestor", return_value=True):
                 errors = validator.validate_promotion_event(str(path), event_name="pull_request", run_attempt="1", now=datetime(2026, 8, 22, tzinfo=UTC), root=Path(tmp))
-        self.assertIn("PROMOTION_APPROVAL_ENV_REQUIRED", errors)
+        self.assertIn("PROMOTION_APPROVAL_ENVELOPE_REQUIRED", errors)
 
     def test_promotion_event_validates_structural_attestation(self):
         event, grant, _, _ = self.promotion_event_fixture()
@@ -827,10 +830,10 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_promotion_event_covers_o2_o5_pairs(self):
         cases = [
-            ("O2 desarrollo -> certificacion", "R3-GOV-HOM-010-O2-REQ1", "certificacion", "desarrollo", "promote/gov-hom-010-o2-req1"),
-            ("O3 certificacion -> main", "R3-GOV-HOM-010-O3-REQ1", "main", "certificacion", "promote/gov-hom-010-o3-req1"),
-            ("O4 main -> certificacion", "R3-GOV-HOM-010-O4-REQ1", "certificacion", "main", "promote/gov-hom-010-o4-req1"),
-            ("O5 certificacion -> desarrollo", "R3-GOV-HOM-010-O5-REQ1", "desarrollo", "certificacion", "promote/gov-hom-010-o5-req1"),
+            ("O2 desarrollo -> certificacion", "R3-GOV-HOM-011-O2-REQ1", "certificacion", "desarrollo", "promote/gov-hom-011-o2-req1"),
+            ("O3 certificacion -> main", "R3-GOV-HOM-011-O3-REQ1", "main", "certificacion", "promote/gov-hom-011-o3-req1"),
+            ("O4 main -> certificacion", "R3-GOV-HOM-011-O4-REQ1", "certificacion", "main", "promote/gov-hom-011-o4-req1"),
+            ("O5 certificacion -> desarrollo", "R3-GOV-HOM-011-O5-REQ1", "desarrollo", "certificacion", "promote/gov-hom-011-o5-req1"),
         ]
         for operation, grant_id, base_ref, source_ref, head_ref in cases:
             event, grant, _, _ = self.promotion_event_fixture(operation=operation, grant_id=grant_id, base_ref=base_ref, source_ref=source_ref, head_ref=head_ref)
@@ -841,7 +844,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         errors = self.run_promotion_validation(event, grant)
         self.assertIn("PROMOTION_PAIR_INVALID", errors)
 
-    def post_merge_fixture(self, *, operation="O2 desarrollo -> certificacion", base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-010-o2-req1", fork=False, pair_override=None, parents=None, candidate_parents=None, checks=True, reviewer="romelhc95-approver", review_state="APPROVED", merger="romelhc95", final_wp="WP-GOV-CI-010", pr_created_at="2026-08-23T01:00:00Z", pr_merged_at="2026-08-23T01:20:00Z", check_completed_at="2026-08-23T01:05:00Z", grant_id="R3-GOV-HOM-010-O2-REQ1", approval_expiry="2026-08-29T23:59:59Z", pull_requests=None):
+    def post_merge_fixture(self, *, operation="O2 desarrollo -> certificacion", base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-011-o2-req1", fork=False, pair_override=None, parents=None, candidate_parents=None, checks=True, reviewer="romelhc95-approver", review_state="APPROVED", merger="romelhc95", final_wp="WP-GOV-CI-011", pr_created_at="2026-08-23T01:00:00Z", pr_merged_at="2026-08-23T01:20:00Z", check_completed_at="2026-08-23T01:05:00Z", grant_id="R3-GOV-HOM-011-O2-REQ1", approval_expiry="2026-08-29T23:59:59Z", pull_requests=None):
         before = "a" * 40
         after = "b" * 40
         head_sha = "c" * 40
@@ -849,7 +852,7 @@ class WorkPackageManifestTests(unittest.TestCase):
         tree = "d" * 40
         repo = "romelhc95/studiamatch"
         actual_base, actual_source, actual_head = pair_override or (base_ref, source_ref, head_ref)
-        event = {"before": before, "after": after, "ref": f"refs/heads/{actual_base}"}
+        event = {"before": before, "after": after, "ref": f"refs/heads/{actual_base}", "head_commit": {"timestamp": "2026-08-23T01:30:00Z"}}
         body = "\n".join([
             "## Promotion Attestation",
             f"Operation: {operation}",
@@ -889,8 +892,20 @@ class WorkPackageManifestTests(unittest.TestCase):
             "workflow_runs": {"1000": {"id": 1000, "repository": {"full_name": repo}, "event": "pull_request", "head_sha": head_sha, "head_branch": actual_head, "run_attempt": 1, "path": ".github/workflows/security-audit.yml", "status": "completed", "conclusion": "success", "created_at": "2026-08-23T01:03:00Z", "updated_at": "2026-08-23T01:06:00Z"}},
             "reviews": [{"id": 1, "submitted_at": "2026-08-23T01:07:00Z", "user": {"login": reviewer}, "state": review_state, "commit_id": head_sha}],
             "timeline": [],
-            "protected_approval": {"grant_id": grant_id, "reference": "human-jit-o2", "expiry": approval_expiry},
+            "protected_approval": {"envelope": {"schema": "promotion-jit-envelope-v1", "approval_id": "human-jit-o2", "grant_id": grant_id, "repository": repo, "operation": operation, "pr_number": 500, "premerge_run_id": 1000, "event_action": "opened", "run_attempt": 1, "base_ref": actual_base, "base_sha": before, "source_ref": actual_source, "source_sha": source_sha, "candidate_ref": actual_head, "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": final_wp, "final_digest": "e" * 64, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_merger": "romelhc95", "allowed_side_effects": ["certification_branch_update"], "issued_at": "2026-08-23T01:01:00Z", "expires_at": approval_expiry}},
         }
+        if operation.startswith("O3"):
+            evidence["db_changed"] = False
+            evidence["checks"].extend([
+                {"id": 3, "name": "Cloudflare Pages", "status": "completed", "conclusion": "success", "head_sha": after, "started_at": "2026-08-23T01:21:00Z", "completed_at": "2026-08-23T01:22:00Z", "updated_at": "2026-08-23T01:22:00Z", "pull_requests": [], "app": {"id": 85455}, "details_url": "https://github.com/apps/cloudflare-workers-and-pages"},
+                {"id": 4, "name": "DB Sync Detect Only", "status": "completed", "conclusion": "success", "head_sha": after, "started_at": "2026-08-23T01:23:00Z", "completed_at": "2026-08-23T01:24:00Z", "updated_at": "2026-08-23T01:24:00Z", "pull_requests": [], "app": {"id": 15368}, "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/1001/job/4", "output": {"summary": "NO_DB_CHANGES"}},
+            ])
+            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"]
+        if operation.startswith("O4"):
+            evidence["o3_closure"] = {"status": "CLOSED", "cloudflare_pages_app_id": 85455, "db_sync_result": "NO_DB_CHANGES"}
+            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["certification_branch_update"]
+        if operation.startswith("O5"):
+            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["development_branch_update"]
         return event, evidence, parents or [before, head_sha], candidate_parents or [before, source_sha], tree
 
     def run_post_merge_validation(self, event, evidence, parents, candidate_parents, tree):
@@ -901,15 +916,15 @@ class WorkPackageManifestTests(unittest.TestCase):
             pr = evidence.get("pull_request") or {}
             fields = validator.parse_attestation_fields(str(pr.get("body") or ""))
             grant = {
-                "id": fields.get("Grant-ID", "R3-GOV-HOM-010-O2-REQ1"),
+                "id": fields.get("Grant-ID", "R3-GOV-HOM-011-O2-REQ1"),
                 "status": "REQUESTED_JIT_SINGLE_USE",
                 "operation": fields.get("Operation", "O2 desarrollo -> certificacion"),
                 "repository": "romelhc95/studiamatch",
                 "base_ref": (pr.get("base") or {}).get("ref", "certificacion"),
                 "head_ref": (pr.get("head") or {}).get("ref", "desarrollo"),
                 "source_ref": fields.get("Source-Ref", "desarrollo"),
-                "candidate_branch": (pr.get("head") or {}).get("ref", "promote/gov-hom-006-o2-req1"),
-                "final_wp": fields.get("Final-WP", "WP-GOV-CI-010"),
+                "candidate_branch": (pr.get("head") or {}).get("ref", "promote/gov-hom-011-o2-req1"),
+                "final_wp": fields.get("Final-WP", "WP-GOV-CI-011"),
                 "base_sha_binding": "pull_request.base.sha",
                 "source_sha_binding": "promotion_attestation.Source-SHA",
                 "candidate_sha_binding": "pull_request.head.sha",
@@ -923,7 +938,16 @@ class WorkPackageManifestTests(unittest.TestCase):
                 "required_merger": "romelhc95",
                 "required_reviewer": "romelhc95-approver",
                 "merger_reviewer_distinct": True,
+                "approval_envelope_schema": "promotion-jit-envelope-v1",
+                "allowed_side_effects": ["certification_branch_update"],
             }
+            if fields.get("Operation", "").startswith("O3"):
+                grant.update({"allowed_side_effects": ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"], "cloudflare_pages_production_rebuild_expected": True, "db_sync_detect_only_required": True, "db_sync_expected_result": "NO_DB_CHANGES"})
+            if fields.get("Operation", "").startswith("O4"):
+                grant["allowed_side_effects"] = ["certification_branch_update"]
+                grant["blocked_until_o3_closed"] = True
+            if fields.get("Operation", "").startswith("O5"):
+                grant["allowed_side_effects"] = ["development_branch_update"]
             def fake_git_sha(args, root=ROOT):
                 if args[:3] == ["show", "-s", "--format=%P"]:
                     ref = args[3]
@@ -946,10 +970,10 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_post_merge_promotion_push_accepts_o2_o5_pairs(self):
         cases = [
-            ("O2 desarrollo -> certificacion", "certificacion", "desarrollo", "promote/gov-hom-010-o2-req1"),
-            ("O3 certificacion -> main", "main", "certificacion", "promote/gov-hom-010-o3-req1"),
-            ("O4 main -> certificacion", "certificacion", "main", "promote/gov-hom-010-o4-req1"),
-            ("O5 certificacion -> desarrollo", "desarrollo", "certificacion", "promote/gov-hom-010-o5-req1"),
+            ("O2 desarrollo -> certificacion", "certificacion", "desarrollo", "promote/gov-hom-011-o2-req1"),
+            ("O3 certificacion -> main", "main", "certificacion", "promote/gov-hom-011-o3-req1"),
+            ("O4 main -> certificacion", "certificacion", "main", "promote/gov-hom-011-o4-req1"),
+            ("O5 certificacion -> desarrollo", "desarrollo", "certificacion", "promote/gov-hom-011-o5-req1"),
         ]
         for operation, base_ref, source_ref, head_ref in cases:
             event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(operation=operation, base_ref=base_ref, source_ref=source_ref, head_ref=head_ref)
@@ -980,7 +1004,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_post_merge_promotion_push_rejects_protected_approval_mismatch(self):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
-        evidence["protected_approval"]["reference"] = "other-jit"
+        evidence["protected_approval"]["envelope"]["approval_id"] = "other-jit"
         self.assertIn("POST_MERGE_APPROVAL_REFERENCE_MISMATCH", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
 
     def test_post_merge_promotion_push_rejects_unassociated_check_runs(self):

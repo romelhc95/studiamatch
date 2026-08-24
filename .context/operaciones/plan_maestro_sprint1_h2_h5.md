@@ -3,7 +3,7 @@
 ## Estado
 
 ```text
-ESTADO = F10_11_GOV_CI9_OWNER_ONLY_BRANCH_UPDATES_PENDING_R1
+ESTADO = F10_11_GOV_CI11_PROMOTION_ENVELOPE_PENDING_R2_APPROVAL
 FASE = F10.11
 O0 = COMPLETED
 O1 = COMPLETED
@@ -13,15 +13,15 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002,WP-GOV-CI-003,WP-GOV-CI-004,WP-GOV-CI-005,WP-GOV-CI-006,WP-GOV-CI-007,WP-GOV-CI-008,WP-GOV-CI-009,WP-GOV-CI-010
-next_gate = COMPLETE_WP_GOV_CI_010_R1_LOCAL_VALIDATION
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002,WP-GOV-CI-003,WP-GOV-CI-004,WP-GOV-CI-005,WP-GOV-CI-006,WP-GOV-CI-007,WP-GOV-CI-008,WP-GOV-CI-009,WP-GOV-CI-010,WP-GOV-CI-011
+next_gate = PREPARE_WP_GOV_CI_011_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
 implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #441 publico GOV-CI9 a `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`, pero su run post-merge `32666126533` fallo con `POST_MERGE_ATTESTATION_DUPLICATE`. Ahora F10.11 requiere `WP-GOV-CI-010` local R1 para publicar parsing section-aware, mantener el desired state `owner-only-protected-branch-updates`, superseder HOM-009 y preparar HOM-010 antes de cualquier nuevo O2. El desired state usa bypass exclusivo de `romelhc95` (`actor_id=18040405`) y excluye a `romelhc95-approver` (`actor_id=306979205`). Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
+Este plan no crea alcance ni autoriza R2/R3. PR #443 queda `FAILED_NOT_MERGED`; `R3-GOV-HOM-010-O2-REQ1` consumido; HOM-010 O3-O5 superseded. Ahora F10.11 requiere aprobacion R2 separada de `WP-GOV-CI-011` para publicar `promotion-jit-envelope-v1`, mantener el desired state `owner-only-protected-branch-updates`, exigir `Promotion.can_admins_bypass=false`, preparar HOM-011 y cerrar O3 solo con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
 
 ## Bases Inmutables
 
@@ -29,7 +29,7 @@ Este plan no crea alcance ni autoriza R2/R3. PR #441 publico GOV-CI9 a `desarrol
 |---|---|---|---|
 | `main` | `9b486146962bd2a092acfd649fdcf716e922de89` | `fcb59095e48441bb4486ccc196aee61e2e1e0fe3` | O3 completado |
 | `certificacion` | `df2cde3626c75fa4733bf1624fb105d8ee08c076` | `7df05c52da47855d62c082f7cfbd12ee1e38b965` | PR #440 O2 mergeado; push post-merge fallo por identidad de merger |
-| `desarrollo` | `17d383291a5f2877074b54b66f2a0ff48a643667` | `e0029083e24016b97fc8896be3be2d4285414117` | PR #441 mergeado con fallo post-merge; requiere `WP-GOV-CI-010` antes de ruleset owner-only y nuevo O2 HOM-010 |
+| `desarrollo` | `cbdfe9dab373a2b427df4864b14427f3b2358789` | `99c1cda4f0091aaee35752caec69745051c41a3a` | PR #442 mergeado; `WP-GOV-CI-010` publicado y HOM-010 O2 fallo luego en PR #443 |
 
 ## Fuentes Y Hashes
 
@@ -166,9 +166,10 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | GOV CI8 route classification | `COMPLETED` | PR #439 publico `WP-GOV-CI-008` a `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`; post-merge run `32659464257` verde con `NOT_APPLICABLE`. |
 | O2 GOV-HOM CI8 | `MERGED_WITH_POST_MERGE_CI_FAILURE` | PR #440 a `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076`; run `32662084712` fallo `POST_MERGE_MERGER_INVALID`; `R3-GOV-HOM-008-O2-REQ1_CONSUMED_BY_POST_MERGE_FAILURE`. |
 | GOV CI9 owner-only branch updates | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` | PR #441 publico `WP-GOV-CI-009` pero fallo run `32666126533` por `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 queda superseded. |
-| GOV CI10 section-aware attestations | `IN_PROGRESS_R1_LOCAL` | Candidate local `WP-GOV-CI-010` corrige parsing por seccion, mantiene owner-only desired state y reemplaza HOM-009 por HOM-010. |
+| GOV CI10 section-aware attestations | `MERGED_TO_DESARROLLO` | PR #442 publico `WP-GOV-CI-010` en `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`, digest `c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c`. |
+| GOV CI11 promotion envelope | `PREPARE_R2_APPROVAL` | Candidate local `WP-GOV-CI-011` congela PR #443, consume HOM-010 O2, supersede HOM-010 O3-O5 y reemplaza la familia runtime por HOM-011 con envelope transaccional. |
 
-Ramas target-aware HOM-010: `promote/gov-hom-010-o2-req1`, `promote/gov-hom-010-o3-req1`, `promote/gov-hom-010-o4-req1`, `promote/gov-hom-010-o5-req1`. HOM-006, HOM-007, HOM-008 y HOM-009 quedan superseded y no utilizables.
+Ramas target-aware HOM-011: `promote/gov-hom-011-o2-req1`, `promote/gov-hom-011-o3-req1`, `promote/gov-hom-011-o4-req1`, `promote/gov-hom-011-o5-req1`. HOM-006, HOM-007, HOM-008, HOM-009 y HOM-010 quedan superseded o consumidos y no utilizables.
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -346,7 +347,7 @@ Contrato de interaccion:
 - Path boundary acumulado contra baseline.
 - PostgreSQL 17 solo cuando cambie `db/**`.
 
-`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual. El `Canonical Path Boundary` conserva el modo incremental para PR normales y usa boundary estructural para promociones O2-O5, validando `Promotion Attestation` en lugar del diff historico acumulado. `Promotion Boundary` debe usar el Environment dedicado `Promotion`; no debe reutilizar `Certification`, `Production` ni `Development`, porque los eventos `pull_request` usan refs sinteticos `refs/pull/<n>/merge`. GOV-CI10 mantiene route classification post-merge, exige parser section-aware y preserva owner-only updates: `romelhc95-approver` revisa/aprueba, pero el merge de ramas protegidas lo ejecuta `romelhc95`; solo HOM-010 exacto puede ser `VERIFIED_PROMOTION`.
+`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual. El `Canonical Path Boundary` conserva el modo incremental para PR normales y usa boundary estructural para promociones O2-O5, validando `Promotion Attestation` en lugar del diff historico acumulado. `Promotion Boundary` debe usar el Environment dedicado `Promotion`; no debe reutilizar `Certification`, `Production` ni `Development`, porque los eventos `pull_request` usan refs sinteticos `refs/pull/<n>/merge`. GOV-CI11 mantiene route classification post-merge, exige envelope `promotion-jit-envelope-v1` y preserva owner-only updates: `romelhc95-approver` revisa/aprueba, pero el merge de ramas protegidas lo ejecuta `romelhc95`; solo HOM-011 exacto puede ser `VERIFIED_PROMOTION`.
 
 Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
@@ -367,7 +368,7 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI10 sea publicado a `desarrollo` con post-merge verde, el ruleset owner-only sea aplicado mediante R3 JIT, y luego se homologue mediante O2-O5 HOM-010 con grants R3 JIT separados. PR #441 quedo `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` por `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-006/HOM-007/HOM-008/HOM-009 quedan superseded. El siguiente gate es completar validacion local R1 de `WP-GOV-CI-010`. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI11 sea publicado a `desarrollo` con post-merge verde, el ruleset owner-only sea aplicado mediante R3 JIT, y luego se homologue mediante O2-O5 HOM-011 con grants R3 JIT separados. PR #443 queda `FAILED_NOT_MERGED`; HOM-010 O2 consumido y HOM-010 O3-O5 superseded. El siguiente gate es preparar aprobacion R2 de `WP-GOV-CI-011` por commit/tree/digest. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
 
 ## Predicado Externo De Cierre F10.11
 

@@ -112,6 +112,25 @@ jobs:
             exit "$diff_status"
           fi
 
+  db-sync-detect-only:
+    name: "DB Sync Detect Only"
+    needs: detect-db-changes
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert detect-only result
+        env:
+          DB_CHANGED: ${{ needs.detect-db-changes.outputs.db_changed }}
+        run: |
+          set -euo pipefail
+          if [ "$DB_CHANGED" = "false" ]; then
+            echo "NO_DB_CHANGES" >> "$GITHUB_STEP_SUMMARY"
+            echo "DB Sync Detect Only=NO_DB_CHANGES"
+            exit 0
+          fi
+          echo "::error::DB Sync Detect Only requires NO_DB_CHANGES for HOM-011 O3"
+          exit 1
+
   db-contract-preflight:
     name: "DB contract preflight"
     needs: detect-db-changes

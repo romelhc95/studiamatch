@@ -28,6 +28,8 @@ Regla vigente GOV-CI9: despues del fallo post-merge PR #440, el reviewer `romelh
 
 Regla vigente GOV-CI10: despues del fallo post-merge PR #441 en `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, run `32666126533`, `POST_MERGE_ATTESTATION_DUPLICATE`, no se edita ni rerunea PR #441. El parser de attestations debe ser section-aware, sin fallback al body completo: PR ordinarios usan solo `## Governance Attestation`; promociones O2-O5 usan solo `## Promotion Attestation`. HOM-009 queda superseded; promociones futuras usan HOM-010 despues de publicar CI10 con post-merge verde y aplicar cualquier R3 JIT separado requerido.
 
+Regla vigente GOV-CI11: despues del fallo no mergeado PR #443, PR #443 queda `FAILED_NOT_MERGED` y no se edita, cierra, reabre, rerunea ni mergea. `R3-GOV-HOM-010-O2-REQ1` queda consumido; HOM-010 O3-O5 quedan superseded. Promociones futuras usan HOM-011 y requieren el secreto protegido unico `R3_JIT_APPROVAL_ENVELOPE` con schema `promotion-jit-envelope-v1`, ligado a PR, run `opened`, `run_attempt=1`, refs, SHAs, tree, WP, digest, identidades, side effects y expiry. Eventos `edited`, `reopened`, `synchronize`, `ready_for_review` y rerun invalidan la transaccion. `Promotion.can_admins_bypass=false` es desired state obligatorio. O3 requiere Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`; O4 queda bloqueado hasta cierre O3.
+
 ## Preflight Obligatorio Antes De Todo Cambio
 
 Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:
