@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `GOV_CI12_CAUSAL_EVIDENCE_PENDING_R2_APPROVAL` | PR #443 y PR #445 quedan congelados; HOM-011 queda superseded. `WP-GOV-CI-012` esta en preparacion local R1 antes de cualquier HOM-012. |
+| `F10.11` | Cierre contractual, homologacion canonica y Obsidian Sprint 1 | `GOV_CI12_CODEQL_REMEDIATION_PENDING_R2_RETRY` | PR #443 y PR #445 quedan congelados; HOM-011 queda superseded. PR #446 queda abierto con CodeQL fail y `WP-GOV-CI-012` prepara REQ6 local antes de un nuevo R2. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 | `F12` | Implementacion local Sprint 1 posterior a F10 | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` | Macrofase futura H2-H5 gobernada por WP/digest; no ejecutable hasta cierre efectivo F10.11 y rebaseline de `WP-H2-001`. |
 
@@ -24,7 +24,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `GOV_CI12_CAUSAL_EVIDENCE_PENDING_R2_APPROVAL` | PR #443 y PR #445 quedan `FAILED_NOT_MERGED_FROZEN`; `R3-GOV-HOM-011-O2-REQ1` consumido; HOM-011 O3-O5 superseded. Falta R2 de `WP-GOV-CI-012` a `desarrollo`, post-merge verde y luego HOM-012 O2-O5 con R3 JIT separados. |
+| `F10.11` | `GOV_CI12_CODEQL_REMEDIATION_PENDING_R2_RETRY` | PR #443 y PR #445 quedan `FAILED_NOT_MERGED_FROZEN`; PR #446 queda `OPEN_BLOCKED_CODEQL_PENDING_LOCAL_REMEDIATION`; `R3-GOV-HOM-011-O2-REQ1` consumido; HOM-011 O3-O5 superseded. Falta nuevo R2 de `WP-GOV-CI-012` a `desarrollo`, post-merge verde y luego HOM-012 O2-O5 con R3 JIT separados. |
 
 ## Subfases F12
 
@@ -113,7 +113,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Work package owner-only branch updates publicado con fallo post-merge: [WP-GOV-CI-009](work_packages/WP-GOV-CI-009.json), digest `6f9d309d50b90c18a2703cd6b9170af9af9048f7d80ef749a22a95e8dd8a32ef`, PR #441.
 - Work package section-aware attestations publicado por R2: [WP-GOV-CI-010](work_packages/WP-GOV-CI-010.json), digest `c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c`, PR #442.
 - Work package promotion envelope publicado: [WP-GOV-CI-011](work_packages/WP-GOV-CI-011.json), PR #444.
-- Work package causal evidence candidate: [WP-GOV-CI-012](work_packages/WP-GOV-CI-012.json); candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` queda `NO_GO_R2_SUPERSEDED_BY_LOCAL_REMEDIATION` por `GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH`.
+- Work package causal evidence candidate: [WP-GOV-CI-012](work_packages/WP-GOV-CI-012.json); candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` queda `NO_GO_R2_SUPERSEDED_BY_LOCAL_REMEDIATION`; candidate `50a853ac4e32e60280213489d347070d79cf2580` queda `NO_GO_R2_CODEQL_CACHE_POISONING` por PR #446, check `97617739354`, alert `security/code-scanning/19`.
 - HOM-006/HOM-007/HOM-008/HOM-009 O2-O5: `SUPERSEDED_NOT_USABLE`; HOM-010 O2 consumido por PR #443 y HOM-010 O3-O5 `SUPERSEDED_NOT_USABLE`; HOM-011 O2 consumido por PR #445 y HOM-011 O3-O5 `SUPERSEDED_NOT_USABLE`; O3 bloqueado hasta HOM-012.
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
