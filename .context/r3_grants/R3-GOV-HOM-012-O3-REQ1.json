@@ -21,7 +21,7 @@
   "required_merger": "romelhc95",
   "required_reviewer": "romelhc95-approver",
   "merger_reviewer_distinct": true,
-  "approval_envelope_schema": "promotion-jit-envelope-v2",
+  "approval_envelope_schema": "promotion-jit-envelope-v3",
   "allowed_side_effects": ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"],
   "cloudflare_pages_production_rebuild_expected": true,
   "db_sync_detect_only_required": true,

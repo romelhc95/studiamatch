@@ -21,6 +21,6 @@
   "required_merger": "romelhc95",
   "required_reviewer": "romelhc95-approver",
   "merger_reviewer_distinct": true,
-  "approval_envelope_schema": "promotion-jit-envelope-v2",
+  "approval_envelope_schema": "promotion-jit-envelope-v3",
   "allowed_side_effects": ["development_branch_update"]
 }

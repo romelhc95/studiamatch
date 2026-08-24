@@ -62,19 +62,27 @@ class PromotionReadinessTests(unittest.TestCase):
 
     def test_readiness_o4_loads_real_o3_closure_gate(self):
         readiness = load_readiness()
-        body = "\n".join(["## Promotion Attestation", "Source-SHA: " + "f" * 40])
-        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_body": body}
+        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_source_sha": "f" * 40}
         with mock.patch.object(readiness, "load_o3_closure_artifact", return_value={"main_merge_sha": "f" * 40, "db_changed": False, "apply_executed": False}) as loader:
             self.assertEqual(readiness.validate_readiness(snapshot, root=ROOT), [])
         loader.assert_called_once_with("f" * 40)
 
     def test_readiness_o4_fails_without_o3_closure(self):
         readiness = load_readiness()
-        body = "\n".join(["## Promotion Attestation", "Source-SHA: " + "f" * 40])
-        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_body": body}
+        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_source_sha": "f" * 40}
         with mock.patch.object(readiness, "load_o3_closure_artifact", side_effect=RuntimeError("missing")):
             errors = readiness.validate_readiness(snapshot, root=ROOT)
         self.assertIn("READINESS_O4_O3_CLOSURE_UNAVAILABLE", errors)
+
+    def test_readiness_rejects_persisted_pr_body(self):
+        readiness = load_readiness()
+        snapshot = {**VALID_SNAPSHOT, "current_pr_body": "## Promotion Attestation"}
+        self.assertIn("READINESS_BODY_FORBIDDEN", readiness.validate_readiness(snapshot, root=ROOT))
+
+    def test_readiness_rejects_frozen_prs(self):
+        readiness = load_readiness()
+        snapshot = {**VALID_SNAPSHOT, "active_promotions": ["445"], "current_pr": "445"}
+        self.assertIn("READINESS_FROZEN_PR_INVALID", readiness.validate_readiness(snapshot, root=ROOT))
 
 
 if __name__ == "__main__":

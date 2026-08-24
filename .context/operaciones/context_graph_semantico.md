@@ -207,7 +207,7 @@ rerunean. HOM-009 queda superseded y HOM-010 reemplaza la familia runtime futura
 
 GOV-CI11 congela PR #443 como `FAILED_NOT_MERGED`, marca `R3-GOV-HOM-010-O2-REQ1` consumido y supersede HOM-010 O3-O5. HOM-011 requiere `R3_JIT_APPROVAL_ENVELOPE` con schema `promotion-jit-envelope-v1`, `opened` attempt 1, `Promotion.can_admins_bypass=false`, Cloudflare Pages app_id `85455`, `DB Sync Detect Only=NO_DB_CHANGES` para O3 y O4 bloqueado hasta cierre O3.
 
-GOV-CI12 congela PR #443 y PR #445 como `FAILED_NOT_MERGED_FROZEN`, marca `R3-GOV-HOM-011-O2-REQ1` consumido y supersede HOM-011 O3-O5. HOM-012 requiere `promotion-jit-envelope-v2`, una sola aprobacion Environment `Promotion` pre-merge, evidencia `promotion-approval-evidence.json`, post-merge sin secret ni Environment, collector REST Python testeable, `bypass_actors=UNOBSERVABLE` fail-closed, O3 asincronico con `o3-closure-evidence.json`, O4 consumidor real y O5 trees/ancestry.
+GOV-CI12 congela PR #443 y PR #445 como `FAILED_NOT_MERGED_FROZEN`, marca `R3-GOV-HOM-011-O2-REQ1` consumido y supersede HOM-011 O3-O5. HOM-012 requiere `promotion-jit-envelope-v3`, una sola aprobacion Environment `Promotion` pre-merge, evidencia `promotion-approval-evidence.json`, post-merge sin secret ni Environment, collector REST Python testeable, `bypass_actors=UNOBSERVABLE` fail-closed, O3 asincronico con `o3-closure-evidence.json`, O4 consumidor real y O5 trees/ancestry.
 
 ## Semantica De Paths
 

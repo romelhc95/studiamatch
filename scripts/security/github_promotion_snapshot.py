@@ -30,6 +30,7 @@ EXPECTED_MERGER = "romelhc95"
 EXPECTED_MERGER_ID = 18040405
 EXPECTED_REFS = {"refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"}
 UNOBSERVABLE = "UNOBSERVABLE"
+FROZEN_PROMOTION_PRS = {"443", "445"}
 
 
 class SnapshotError(RuntimeError):
@@ -93,6 +94,10 @@ class GitHubClient:
 def canonical_digest(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(raw).hexdigest()
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _required_reviewers(environment: dict[str, Any]) -> list[dict[str, Any]]:
@@ -186,6 +191,10 @@ def validate_snapshot(snapshot: dict[str, Any]) -> list[str]:
         errors.append("SNAPSHOT_RULESET_BYPASS_INVALID")
     if not EXPECTED_REFS <= set(ruleset.get("protected_refs") or []):
         errors.append("SNAPSHOT_RULESET_REFS_INVALID")
+    if str(snapshot.get("current_pr") or "") in FROZEN_PROMOTION_PRS:
+        errors.append("SNAPSHOT_FROZEN_PR_INVALID")
+    if "current_pr_body" in snapshot:
+        errors.append("SNAPSHOT_BODY_FORBIDDEN")
     return errors
 
 
@@ -198,7 +207,6 @@ def build_snapshot(environment: dict[str, Any], ruleset: dict[str, Any], pulls: 
         "active_promotions": [str(item.get("number")) for item in pulls if (item.get("head") or {}).get("ref", "").startswith("promote/gov-hom-012-")],
         "current_pr": current_pr,
         "current_pr_head_ref": (current.get("head") or {}).get("ref") if isinstance(current, dict) else None,
-        "current_pr_body": current.get("body") if isinstance(current, dict) else None,
         "cloudflare_pages_app_id": cloudflare_app.get("id"),
         "repository_id": environment.get("repository_id"),
     }
@@ -218,13 +226,132 @@ def collect_snapshot(client: GitHubClient, pr_number: str) -> dict[str, Any]:
     return build_snapshot(environment, ruleset, pulls, cloudflare_app, pr_number)
 
 
+def workflow_binding_from_source(
+    workflow_text: str,
+    *,
+    source_commit: str,
+    workflow_path: str = ".github/workflows/security-audit.yml",
+    workflow_name: str = "Security Audit Gate",
+    job_key: str = "promotion-boundary",
+    job_name: str = "Promotion Boundary",
+    environment_name: str = EXPECTED_ENVIRONMENT,
+) -> dict[str, Any]:
+    errors = validate_workflow_source(workflow_text, job_key=job_key, job_name=job_name, environment_name=environment_name)
+    if errors:
+        raise SnapshotError(",".join(errors))
+    return {
+        "schema": "github-workflow-environment-gate-binding-v1",
+        "source_commit": source_commit,
+        "workflow_path": workflow_path,
+        "workflow_name": workflow_name,
+        "job_key": job_key,
+        "api_job_name": job_name,
+        "environment_name": environment_name,
+        "artifact_producer_in_same_job": True,
+        "extraction_method": "local_workflow_structural_parser_v1",
+        "remote_request": False,
+        "historical_binding_only": False,
+        "candidate_workflow_must_produce_artifact_in_same_job": True,
+        "source_blob_sha256": sha256_text(workflow_text),
+    }
+
+
+def _job_block(workflow_text: str, job_key: str) -> str:
+    lines = workflow_text.splitlines()
+    marker = f"  {job_key}:"
+    start = next((idx for idx, line in enumerate(lines) if line == marker), None)
+    if start is None:
+        return ""
+    end = len(lines)
+    for idx in range(start + 1, len(lines)):
+        line = lines[idx]
+        if line.startswith("  ") and not line.startswith("    ") and line.endswith(":"):
+            end = idx
+            break
+    return "\n".join(lines[start:end])
+
+
+def validate_workflow_source(workflow_text: str, *, job_key: str = "promotion-boundary", job_name: str = "Promotion Boundary", environment_name: str = EXPECTED_ENVIRONMENT) -> list[str]:
+    errors: list[str] = []
+    if workflow_text.count(f"  {job_key}:") != 1:
+        errors.append("WORKFLOW_PROMOTION_JOB_COUNT_INVALID")
+        return errors
+    block = _job_block(workflow_text, job_key)
+    if f"name: {job_name}" not in block:
+        errors.append("WORKFLOW_PROMOTION_JOB_NAME_INVALID")
+    if f"name: {environment_name}" not in block:
+        errors.append("WORKFLOW_PROMOTION_ENVIRONMENT_INVALID")
+    if "R3_JIT_APPROVAL_ENVELOPE" not in block:
+        errors.append("WORKFLOW_PROMOTION_SECRET_MISSING")
+    if "promotion_evidence.py" not in block or "--write-approval-evidence" not in block:
+        errors.append("WORKFLOW_PROMOTION_PRODUCER_MISSING")
+    if "actions/upload-artifact@" not in block or "promotion-approval-evidence.json" not in block:
+        errors.append("WORKFLOW_PROMOTION_UPLOAD_MISSING")
+    post_merge = _job_block(workflow_text, "post-merge-approval")
+    if "environment:" in post_merge:
+        errors.append("WORKFLOW_POST_MERGE_ENVIRONMENT_FORBIDDEN")
+    if "R3_JIT_APPROVAL_ENVELOPE" in post_merge:
+        errors.append("WORKFLOW_POST_MERGE_SECRET_FORBIDDEN")
+    if "github.event.action == 'opened'" not in block:
+        errors.append("WORKFLOW_PROMOTION_OPENED_BINDING_MISSING")
+    return errors
+
+
+def collect_run_evidence(
+    client: GitHubClient,
+    *,
+    run_id: int,
+    output_dir: Path,
+    workflow_path: str = ".github/workflows/security-audit.yml",
+    workflow_name: str = "Security Audit Gate",
+    job_key: str = "promotion-boundary",
+    job_name: str = "Promotion Boundary",
+    environment_name: str = EXPECTED_ENVIRONMENT,
+    source_commit: str = "",
+) -> int:
+    approvals = client.get(f"/actions/runs/{run_id}/approvals")
+    run_payload = client.get(f"/actions/runs/{run_id}")
+    jobs = client.get(f"/actions/runs/{run_id}/jobs?per_page=100")
+    if not isinstance(jobs, dict) or not isinstance(jobs.get("jobs"), list) or jobs.get("total_count") != len(jobs.get("jobs")):
+        raise SnapshotError("JOBS_SCHEMA_INVALID")
+    matches = [job for job in jobs["jobs"] if isinstance(job, dict) and job.get("name") == job_name]
+    if len(matches) != 1:
+        raise SnapshotError("PROMOTION_BOUNDARY_JOB_UNOBSERVABLE")
+    workflow_text = Path(workflow_path).read_text(encoding="utf-8")
+    binding = workflow_binding_from_source(
+        workflow_text,
+        source_commit=source_commit,
+        workflow_path=workflow_path,
+        workflow_name=workflow_name,
+        job_key=job_key,
+        job_name=job_name,
+        environment_name=environment_name,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "promotion-approval-history.json").write_text(json.dumps(approvals, separators=(",", ":")), encoding="utf-8")
+    (output_dir / "promotion-run-payload.json").write_text(json.dumps(run_payload, separators=(",", ":")), encoding="utf-8")
+    (output_dir / "promotion-jobs-payload.json").write_text(json.dumps(jobs, separators=(",", ":")), encoding="utf-8")
+    (output_dir / "promotion-workflow-gate-binding.json").write_text(json.dumps(binding, separators=(",", ":")), encoding="utf-8")
+    (output_dir / "promotion-boundary-job-id.txt").write_text(str(matches[0]["id"]), encoding="utf-8")
+    return int(matches[0]["id"])
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default="readiness-snapshot.json")
     parser.add_argument("--validate", action="store_true")
     parser.add_argument("--input")
+    parser.add_argument("--collect-run-evidence", action="store_true")
+    parser.add_argument("--run-id", type=int)
+    parser.add_argument("--output-dir", default=".")
     args = parser.parse_args(argv)
     try:
+        if args.collect_run_evidence:
+            if not args.run_id:
+                raise SnapshotError("RUN_ID_REQUIRED")
+            client = GitHubClient(repo=os.environ["GH_REPOSITORY"], token=os.environ["GH_TOKEN"])
+            collect_run_evidence(client, run_id=args.run_id, output_dir=Path(args.output_dir), source_commit=os.environ.get("GITHUB_SHA", ""))
+            return 0
         if args.input:
             snapshot = json.loads(Path(args.input).read_text(encoding="utf-8"))
         else:

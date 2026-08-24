@@ -25,7 +25,7 @@ def test_gov_ci12_target_aware_promotions_are_documented_and_gated() -> None:
         assert branch in plan
 
     assert "STRUCTURAL_PROMOTION_CANDIDATE" in validator
-    assert "promotion-jit-envelope-v2" in source(".context/work_packages/WP-GOV-CI-012.json")
+    assert "promotion-jit-envelope-v3" in source(".context/work_packages/WP-GOV-CI-012.json")
     assert "promotion-jit-envelope-v1" in source(".context/work_packages/WP-GOV-CI-011.json")
     assert "candidate_parents != [before, source_sha]" in validator
     assert "BLOCKED" in validator

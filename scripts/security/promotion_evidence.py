@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 
-ENVELOPE_SCHEMA = "promotion-jit-envelope-v2"
-APPROVAL_EVIDENCE_SCHEMA = "promotion-approval-evidence-v1"
+ENVELOPE_SCHEMA_V3 = "promotion-jit-envelope-v3"
+APPROVAL_EVIDENCE_SCHEMA = "promotion-approval-evidence-v3"
 O3_CLOSURE_SCHEMA = "o3-closure-evidence-v1"
 CLOUDFLARE_PAGES_APP_ID = 85455
 DB_SYNC_RESULT = "NO_DB_CHANGES"
@@ -34,6 +34,12 @@ ENVELOPE_FIELDS = {
 def digest_json(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
+
+
+def redacted_envelope_summary(envelope: dict[str, Any]) -> dict[str, Any]:
+    redacted = {key: value for key, value in envelope.items() if key not in {"approval_id", "nonce"}}
+    redacted["approval_id_sha256"] = hashlib.sha256(str(envelope.get("approval_id") or "").encode("utf-8")).hexdigest()
+    return redacted
 
 
 def attach_payload_digest(payload: dict[str, Any]) -> dict[str, Any]:
@@ -78,7 +84,7 @@ def validate_envelope_v2(envelope: dict[str, Any], *, now: datetime | None = Non
         errors.append("ENVELOPE_UNKNOWN_FIELDS")
     if missing:
         errors.append("ENVELOPE_MISSING_FIELDS")
-    if envelope.get("schema") != ENVELOPE_SCHEMA:
+    if envelope.get("schema") != ENVELOPE_SCHEMA_V3:
         errors.append("ENVELOPE_SCHEMA_INVALID")
     if envelope.get("event_name") != "pull_request" or envelope.get("event_action") != "opened" or envelope.get("premerge_run_attempt") != 1:
         errors.append("ENVELOPE_EVENT_BINDING_INVALID")
@@ -121,6 +127,45 @@ def validate_envelope_v2(envelope: dict[str, Any], *, now: datetime | None = Non
     return errors
 
 
+def validate_workflow_gate_binding(binding: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    required = {
+        "schema",
+        "source_commit",
+        "workflow_path",
+        "workflow_name",
+        "job_key",
+        "api_job_name",
+        "environment_name",
+        "artifact_producer_in_same_job",
+        "extraction_method",
+        "remote_request",
+        "historical_binding_only",
+        "candidate_workflow_must_produce_artifact_in_same_job",
+        "source_blob_sha256",
+    }
+    if set(binding) != required:
+        errors.append("WORKFLOW_GATE_SCHEMA_INVALID")
+    if binding.get("schema") != "github-workflow-environment-gate-binding-v1":
+        errors.append("WORKFLOW_GATE_SCHEMA_INVALID")
+    if binding.get("job_key") != "promotion-boundary" or binding.get("api_job_name") != "Promotion Boundary":
+        errors.append("WORKFLOW_GATE_JOB_INVALID")
+    if binding.get("environment_name") != REQUIRED_ENVIRONMENT:
+        errors.append("WORKFLOW_GATE_ENVIRONMENT_INVALID")
+    if binding.get("workflow_path") != ".github/workflows/security-audit.yml" or binding.get("workflow_name") != "Security Audit Gate":
+        errors.append("WORKFLOW_GATE_WORKFLOW_INVALID")
+    if binding.get("artifact_producer_in_same_job") is not True or binding.get("candidate_workflow_must_produce_artifact_in_same_job") is not True:
+        errors.append("WORKFLOW_GATE_ARTIFACT_PRODUCER_INVALID")
+    if binding.get("remote_request") is not False or binding.get("historical_binding_only") is not False:
+        errors.append("WORKFLOW_GATE_PROVENANCE_INVALID")
+    if binding.get("extraction_method") not in {"local_workflow_structural_parser_v1", "local_worktree_candidate"}:
+        errors.append("WORKFLOW_GATE_EXTRACTION_INVALID")
+    digest = binding.get("source_blob_sha256")
+    if not isinstance(digest, str) or len(digest) != 64:
+        errors.append("WORKFLOW_GATE_SOURCE_DIGEST_INVALID")
+    return errors
+
+
 def normalize_environment_approval_history(history: Any, envelope: dict[str, Any], *, run_id: int, run_attempt: int, now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(UTC)
     if not isinstance(history, list):
@@ -141,23 +186,96 @@ def normalize_environment_approval_history(history: Any, envelope: dict[str, Any
     environment = environments[0]
     if environment.get("name") != REQUIRED_ENVIRONMENT or environment.get("id") != envelope.get("environment_id"):
         raise ValueError("APPROVAL_ENVIRONMENT_INVALID")
-    review_created_at = record.get("created_at")
-    submitted = parse_utc(review_created_at)
-    if submitted is None or submitted > now:
-        raise ValueError("APPROVAL_TIMESTAMP_INVALID")
+    for forbidden in ("run_id", "run_attempt", "created_at", "submitted_at", "approved_at", "deployment_approval_id", "environment_name"):
+        if forbidden in record:
+            raise ValueError("APPROVAL_OBSERVED_FORBIDDEN_FIELD")
     comment_present, comment_sha256 = _comment_fingerprint(record.get("comment"))
     normalized = {
-        "run_id": run_id,
-        "run_attempt": run_attempt,
         "state": "approved",
-        "created_at": review_created_at,
         "reviewer": {"login": user.get("login"), "id": user.get("id")},
-        "environment": {"id": environment.get("id"), "name": environment.get("name")},
+        "environment": {"id": environment.get("id"), "name": environment.get("name"), "can_admins_bypass": environment.get("can_admins_bypass")},
         "comment_present": comment_present,
     }
     if comment_sha256:
         normalized["comment_sha256"] = comment_sha256
     return normalized
+
+
+def normalize_run_payload(run_payload: dict[str, Any], envelope: dict[str, Any], *, run_id: int) -> dict[str, Any]:
+    if not isinstance(run_payload, dict):
+        raise ValueError("RUN_SCHEMA_INVALID")
+    if run_payload.get("id") != run_id or run_payload.get("id") != envelope.get("premerge_run_id"):
+        raise ValueError("RUN_ID_MISMATCH")
+    if run_payload.get("run_attempt") != envelope.get("premerge_run_attempt"):
+        raise ValueError("RUN_ATTEMPT_INVALID")
+    if run_payload.get("event") != "pull_request":
+        raise ValueError("RUN_EVENT_INVALID")
+    if run_payload.get("head_sha") != envelope.get("candidate_sha"):
+        raise ValueError("RUN_HEAD_SHA_INVALID")
+    if run_payload.get("head_branch") != envelope.get("candidate_ref"):
+        raise ValueError("RUN_HEAD_BRANCH_INVALID")
+    if run_payload.get("path") != ".github/workflows/security-audit.yml":
+        raise ValueError("RUN_WORKFLOW_PATH_INVALID")
+    if parse_utc(run_payload.get("created_at")) is None or parse_utc(run_payload.get("run_started_at")) is None:
+        raise ValueError("RUN_TIMESTAMP_INVALID")
+    repository = run_payload.get("repository") or {}
+    head_repository = run_payload.get("head_repository") or {}
+    if repository.get("full_name", "").lower() != str(envelope.get("repository", "")).lower():
+        raise ValueError("RUN_REPOSITORY_INVALID")
+    if head_repository.get("full_name", "").lower() != str(envelope.get("repository", "")).lower():
+        raise ValueError("RUN_HEAD_REPOSITORY_INVALID")
+    return {
+        "id": run_payload.get("id"),
+        "name": run_payload.get("name"),
+        "head_branch": run_payload.get("head_branch"),
+        "head_sha": run_payload.get("head_sha"),
+        "path": run_payload.get("path"),
+        "event": run_payload.get("event"),
+        "status": run_payload.get("status"),
+        "conclusion": run_payload.get("conclusion"),
+        "run_attempt": run_payload.get("run_attempt"),
+        "created_at": run_payload.get("created_at"),
+        "updated_at": run_payload.get("updated_at"),
+        "run_started_at": run_payload.get("run_started_at"),
+        "repository": {"id": repository.get("id"), "full_name": repository.get("full_name")},
+        "head_repository": {"id": head_repository.get("id"), "full_name": head_repository.get("full_name")},
+    }
+
+
+def normalize_promotion_boundary_job(jobs_payload: dict[str, Any], envelope: dict[str, Any], *, run_id: int, premerge: bool = True) -> dict[str, Any]:
+    if not isinstance(jobs_payload, dict) or not isinstance(jobs_payload.get("jobs"), list):
+        raise ValueError("JOBS_SCHEMA_INVALID")
+    jobs = jobs_payload["jobs"]
+    if jobs_payload.get("total_count") != len(jobs):
+        raise ValueError("JOBS_TOTAL_COUNT_MISMATCH")
+    matches = [job for job in jobs if isinstance(job, dict) and job.get("name") == "Promotion Boundary" and job.get("run_id") == run_id and job.get("run_attempt") == envelope.get("premerge_run_attempt") and job.get("head_sha") == envelope.get("candidate_sha")]
+    if len(matches) != 1:
+        raise ValueError("JOB_COUNT_INVALID")
+    job = matches[0]
+    if not isinstance(job.get("id"), int) or job.get("id") <= 0:
+        raise ValueError("JOB_ID_INVALID")
+    if job.get("head_branch") != envelope.get("candidate_ref"):
+        raise ValueError("JOB_HEAD_BRANCH_INVALID")
+    if job.get("workflow_name") != "Security Audit Gate":
+        raise ValueError("JOB_WORKFLOW_INVALID")
+    started = parse_utc(job.get("started_at"))
+    issued = parse_utc(envelope.get("issued_at"))
+    if started is None:
+        raise ValueError("JOB_STARTED_AT_INVALID")
+    if issued is not None and started < issued:
+        raise ValueError("JOB_ENVELOPE_ORDER_INVALID")
+    if premerge:
+        if job.get("status") != "in_progress" or job.get("conclusion") is not None or job.get("completed_at") is not None:
+            raise ValueError("JOB_PREMERGE_STATE_INVALID")
+    else:
+        completed = parse_utc(job.get("completed_at"))
+        if job.get("status") != "completed" or job.get("conclusion") != "success":
+            raise ValueError("JOB_POSTMERGE_STATE_INVALID")
+        if completed is None:
+            raise ValueError("JOB_COMPLETED_AT_INVALID")
+        if completed < started:
+            raise ValueError("JOB_TIMESTAMP_ORDER_INVALID")
+    return {key: job.get(key) for key in ("id", "run_id", "workflow_name", "head_branch", "run_attempt", "head_sha", "status", "conclusion", "created_at", "started_at", "completed_at", "name")}
 
 
 def validate_environment_approval(approval: dict[str, Any], envelope: dict[str, Any], *, run_id: int, run_attempt: int = 1) -> list[str]:
@@ -181,37 +299,53 @@ def validate_environment_approval(approval: dict[str, Any], envelope: dict[str, 
     return errors
 
 
-def approval_evidence(envelope: dict[str, Any], *, run_id: int, job_id: int, deployment_approval: Any, snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+def approval_evidence(envelope: dict[str, Any], *, run_id: int, job_id: int, deployment_approval: Any, snapshot: dict[str, Any] | None = None, run_payload: dict[str, Any] | None = None, jobs_payload: dict[str, Any] | None = None, workflow_gate_binding: dict[str, Any] | None = None) -> dict[str, Any]:
     errors = validate_envelope_v2(envelope, snapshot=snapshot)
     if errors:
         raise ValueError(",".join(errors))
     if envelope.get("premerge_run_id") != run_id:
         raise ValueError("ENVELOPE_RUN_ID_MISMATCH")
-    environment_review = normalize_environment_approval_history(deployment_approval, envelope, run_id=run_id, run_attempt=envelope["premerge_run_attempt"])
-    review_digest = digest_json(environment_review)
-    approval_record = {
-        "run_id": run_id,
-        "run_attempt": envelope["premerge_run_attempt"],
-        "state": environment_review["state"],
-        "created_at": environment_review["created_at"],
-        "environment_review": environment_review,
-        "environment_review_digest": review_digest,
+    if snapshot is None:
+        raise ValueError("READINESS_SNAPSHOT_REQUIRED")
+    if run_payload is None or jobs_payload is None or workflow_gate_binding is None:
+        raise ValueError("EVIDENCE_MISSING_FIELDS")
+    observed_approval = normalize_environment_approval_history(deployment_approval, envelope, run_id=run_id, run_attempt=envelope["premerge_run_attempt"])
+    observed_run = normalize_run_payload(run_payload, envelope, run_id=run_id)
+    observed_job = normalize_promotion_boundary_job(jobs_payload, envelope, run_id=run_id, premerge=True)
+    if observed_job["id"] != job_id:
+        raise ValueError("JOB_ID_INVALID")
+    binding_errors = validate_workflow_gate_binding(workflow_gate_binding)
+    if binding_errors:
+        raise ValueError(",".join(binding_errors))
+    snapshot_digest = digest_json(snapshot)
+    binding_digest = digest_json(workflow_gate_binding)
+    envelope_digest = digest_json(envelope)
+    envelope_summary = redacted_envelope_summary(envelope)
+    derived = {
+        "source_run_id": run_id,
+        "source_run_attempt": envelope["premerge_run_attempt"],
+        "approvals_endpoint_run_id": run_id,
+        "run_endpoint_run_id": run_id,
+        "jobs_endpoint_run_id": run_id,
+        "jit_approval_reference_sha256": envelope_summary["approval_id_sha256"],
+        "envelope_digest": envelope_digest,
+        "approval_record_digest": digest_json(observed_approval),
+        "run_record_digest": digest_json(observed_run),
+        "job_record_digest": digest_json(observed_job),
+        "readiness_snapshot_digest": snapshot_digest,
+        "workflow_gate_binding_digest": binding_digest,
+        "evidence_created_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "artifact_name": f"promotion-approval-evidence-pr-{envelope['pr_number']}-run-{run_id}.json",
     }
-    approval_errors = validate_environment_approval(approval_record, envelope, run_id=run_id, run_attempt=envelope["premerge_run_attempt"])
-    if approval_errors:
-        raise ValueError(",".join(approval_errors))
-    snapshot_digest = digest_json(snapshot) if snapshot else None
     payload = {
         "schema": APPROVAL_EVIDENCE_SCHEMA,
-        "envelope": envelope,
-        "jit_approval_reference": envelope["approval_id"],
-        "premerge_run_id": run_id,
-        "premerge_run_attempt": envelope["premerge_run_attempt"],
-        "promotion_boundary_job_id": job_id,
-        "environment_review": environment_review,
-        "environment_review_digest": review_digest,
-        "readiness_snapshot_digest": snapshot_digest,
-        "artifact_name": f"promotion-approval-evidence-pr-{envelope['pr_number']}-run-{run_id}.json",
+        "envelope_summary": envelope_summary,
+        "observed_premerge_approval": observed_approval,
+        "observed_premerge_run": observed_run,
+        "observed_premerge_job": observed_job,
+        "observed_readiness": snapshot,
+        "workflow_gate_binding": workflow_gate_binding,
+        "derived_context": derived,
     }
     return attach_payload_digest(payload)
 
@@ -240,16 +374,35 @@ def latest_check(checks: list[dict[str, Any]], *, name: str, head_sha: str, app_
     return max(matches, key=lambda item: (str(item.get("completed_at") or item.get("updated_at") or ""), int(item.get("id") or 0)))
 
 
+def exact_completed_check(checks: list[dict[str, Any]], *, name: str, head_sha: str, app_id: int | None = None) -> tuple[dict[str, Any] | None, str | None]:
+    matches = []
+    terminal_bad = {"failure", "cancelled", "timed_out", "action_required", "stale", "startup_failure", "skipped"}
+    for check in checks:
+        if check.get("name") != name or check.get("head_sha") != head_sha:
+            continue
+        if app_id is not None and (check.get("app") or {}).get("id") != app_id:
+            return None, "O3_CHECK_APP_INVALID"
+        if check.get("conclusion") in terminal_bad:
+            return None, "O3_CHECK_TERMINAL_FAILURE"
+        matches.append(check)
+    if len(matches) != 1:
+        return None, "O3_CHECK_COUNT_INVALID"
+    check = matches[0]
+    if check.get("status") != "completed" or check.get("conclusion") != "success":
+        return None, "O3_CHECK_NOT_CLOSED"
+    return check, None
+
+
 def produce_o3_closure(premerge_evidence: dict[str, Any], checks: list[dict[str, Any]], db_artifacts: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, list[str]]:
     errors: list[str] = []
-    envelope = premerge_evidence.get("envelope") or {}
+    envelope = premerge_evidence.get("envelope_summary") or {}
     main_merge_sha = premerge_evidence.get("main_merge_sha") or envelope.get("candidate_sha")
-    cf = latest_check(checks, name="Cloudflare Pages", head_sha=main_merge_sha, app_id=CLOUDFLARE_PAGES_APP_ID)
-    db = latest_check(checks, name="DB Sync Detect Only", head_sha=main_merge_sha, app_id=15368)
-    if not cf or cf.get("status") != "completed" or cf.get("conclusion") != "success":
-        errors.append("O3_CLOUDFLARE_NOT_CLOSED")
-    if not db or db.get("status") != "completed" or db.get("conclusion") != "success":
-        errors.append("O3_DB_SYNC_NOT_CLOSED")
+    cf, cf_error = exact_completed_check(checks, name="Cloudflare Pages", head_sha=main_merge_sha, app_id=CLOUDFLARE_PAGES_APP_ID)
+    db, db_error = exact_completed_check(checks, name="DB Sync Detect Only", head_sha=main_merge_sha, app_id=15368)
+    if cf_error:
+        errors.append(cf_error if cf_error != "O3_CHECK_NOT_CLOSED" else "O3_CLOUDFLARE_NOT_CLOSED")
+    if db_error:
+        errors.append(db_error if db_error != "O3_CHECK_NOT_CLOSED" else "O3_DB_SYNC_NOT_CLOSED")
     if len(db_artifacts) != 1 or db_artifacts[0].get("result") != DB_SYNC_RESULT:
         errors.append("O3_DB_ARTIFACT_INVALID")
     if db_artifacts and not payload_digest_valid(db_artifacts[0]):
@@ -322,6 +475,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--write-approval-evidence")
     parser.add_argument("--write-db-detect-only")
     parser.add_argument("--approval-history")
+    parser.add_argument("--readiness-snapshot")
+    parser.add_argument("--run-payload")
+    parser.add_argument("--jobs-payload")
+    parser.add_argument("--workflow-gate-binding")
+    parser.add_argument("--job-id", type=int)
     args = parser.parse_args(argv)
     if args.validate_envelope:
         data = json.loads(Path(args.validate_envelope).read_text(encoding="utf-8"))
@@ -329,21 +487,30 @@ def main(argv: list[str] | None = None) -> int:
         if errors:
             print("\n".join(errors))
             return 1
-        print("promotion envelope v2 valid")
+        print("promotion envelope valid")
     if args.write_approval_evidence:
         envelope = json.loads(os.environ.get("R3_JIT_APPROVAL_ENVELOPE", "{}"))
         approval_path = args.approval_history or os.environ.get("PROMOTION_ENVIRONMENT_APPROVAL_HISTORY", "")
         approval = json.loads(Path(approval_path).read_text(encoding="utf-8")) if approval_path else json.loads(os.environ.get("PROMOTION_ENVIRONMENT_APPROVAL", "[]"))
-        snapshot_raw = os.environ.get("PROMOTION_READINESS_SNAPSHOT", "")
+        snapshot_raw = args.readiness_snapshot or os.environ.get("PROMOTION_READINESS_SNAPSHOT", "")
         snapshot = json.loads(Path(snapshot_raw).read_text(encoding="utf-8")) if snapshot_raw else None
+        run_raw = args.run_payload or os.environ.get("PROMOTION_RUN_PAYLOAD", "")
+        jobs_raw = args.jobs_payload or os.environ.get("PROMOTION_JOBS_PAYLOAD", "")
+        binding_raw = args.workflow_gate_binding or os.environ.get("PROMOTION_WORKFLOW_GATE_BINDING", "")
+        run_payload = json.loads(Path(run_raw).read_text(encoding="utf-8")) if run_raw else None
+        jobs_payload = json.loads(Path(jobs_raw).read_text(encoding="utf-8")) if jobs_raw else None
+        workflow_gate_binding = json.loads(Path(binding_raw).read_text(encoding="utf-8")) if binding_raw else None
         run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))
-        job_id = int(os.environ.get("PROMOTION_BOUNDARY_JOB_ID", "0"))
+        job_id = args.job_id if args.job_id is not None else int(os.environ.get("PROMOTION_BOUNDARY_JOB_ID", "0"))
         evidence = approval_evidence(
             envelope,
             run_id=run_id,
             job_id=job_id,
             deployment_approval=approval,
             snapshot=snapshot,
+            run_payload=run_payload,
+            jobs_payload=jobs_payload,
+            workflow_gate_binding=workflow_gate_binding,
         )
         Path(args.write_approval_evidence).write_text(json.dumps(evidence, ensure_ascii=True, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         print("promotion approval evidence written")

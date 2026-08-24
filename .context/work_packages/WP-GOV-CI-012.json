@@ -39,6 +39,7 @@
     "tests/test_promotion_evidence.py",
     "tests/test_promotion_api_adapter.py",
     "tests/test_promotion_o2_o5_e2e.py",
+    "tests/test_gov_ci12_r2_readiness_contract_v3.py",
     ".context/00_INDICE.md",
     ".context/estado_del_proyecto.md",
     ".context/arquitectura_pipeline.md",
@@ -77,7 +78,7 @@
     "superseded_grants": ["R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1"]
   },
   "promotion_jit_envelope": {
-    "schema": "promotion-jit-envelope-v2",
+    "schema": "promotion-jit-envelope-v3",
     "secret_name": "R3_JIT_APPROVAL_ENVELOPE",
     "strict_json": true,
     "unknown_fields_allowed": false,
@@ -85,6 +86,31 @@
     "premerge_artifact_required": true,
     "post_merge_secret_dependency": false,
     "required_fields": ["schema", "transaction_id", "approval_id", "grant_id", "repository_id", "repository", "operation", "pr_number", "pr_node_id", "premerge_run_id", "premerge_run_attempt", "event_name", "event_action", "base_ref", "base_sha", "source_ref", "source_sha", "candidate_ref", "candidate_sha", "candidate_tree", "final_wp", "final_digest", "final_tree", "required_reviewer", "required_reviewer_id", "required_merger", "required_merger_id", "allowed_side_effects", "environment", "environment_id", "ruleset_id", "ruleset_digest", "issued_at", "expires_at", "nonce"]
+  },
+  "r2_readiness_contract_v2": {
+    "contract_id": "GOV-CI12-R2-READINESS-V2",
+    "status": "FROZEN",
+    "contract_digest": "1e60900396795e7f7562a1dc3b39be5f5f2860ab8029772ee5191750e0b7b881",
+    "path": "tests/fixtures/governance/gov-ci12/v2/r2_readiness_contract_v2.json",
+    "decision": "run_job_environment_gate_causality",
+    "v1_status": "FROZEN_REJECTED_PREIMPLEMENTATION",
+    "observed_vs_derived_separated": true,
+    "approval_timestamp_invented": false,
+    "endpoints_consumed_no_repeat": [
+      "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/approvals",
+      "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454",
+      "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/jobs?per_page=100"
+    ]
+  },
+  "r2_readiness_contract_v3": {
+    "contract_id": "GOV-CI12-R2-READINESS-V3",
+    "status": "FROZEN",
+    "contract_sha256": "7f4d14665039e05d1cb952f5f51aa6111f70d52188bf6762b2964961e451ca14",
+    "path": "tests/fixtures/governance/gov-ci12/v3/r2_readiness_contract_v3.json",
+    "digest_path": "tests/fixtures/governance/gov-ci12/v3/r2_readiness_contract_v3.sha256",
+    "supersedes_v2_reason": "FROZEN_SUPERSEDED_CONTRACT_DIGEST_NONREPRODUCIBLE",
+    "required_base_cases": 98,
+    "candidate_identity": "external_after_commit_only"
   },
   "promotion_environment_desired_state": {
     "environment": "Promotion",
@@ -99,9 +125,10 @@
   },
   "environment_approval_contract": {
     "source_endpoint": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
-    "observed_fields": ["environments", "user", "state", "comment", "created_at"],
-    "timestamp_field": "created_at",
-    "derived_identifier": "environment_review_digest",
+    "observed_fields": ["environments", "user", "state", "comment"],
+    "timestamp_field": null,
+    "environment_created_at_is_decision_time": false,
+    "derived_identifier": "approval_record_digest",
     "approval_id_semantics": "human_jit_reference_only_not_github_rest_id",
     "forbidden_fabricated_fields": ["deployment_approval_id", "approved_at", "environment_name"]
   },
@@ -147,19 +174,20 @@
     "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
   },
   "remediation_authorization": {
-    "id": "R1-REMEDIATION-GOV-CI-012-REQ2",
+    "id": "R1-REMEDIATION-GOV-CI-012-REQ5",
     "superseded_candidate_commit": "1034193d48f820bcc37f8c03aa57aca777a037ba",
     "superseded_candidate_tree": "713462b5b1a055e9c53479c1f755ab40a4a6421e",
     "superseded_candidate_digest": "5f2467269fe525ff76dbc23a43347bbec296af4ac13359f7e91e2e7875b6d824",
-    "root_cause": "GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH",
+    "supersedes_authorization": "R1-REMEDIATION-GOV-CI-012-REQ4",
+    "root_cause": "GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH_AND_SECRET_ARTIFACT_HARDENING",
     "expires_at": "2026-09-06T23:59:59Z",
     "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
   },
   "no_db_supabase_writers_schedules_or_deploys": true,
   "expires_at": "2026-09-06T23:59:59Z",
-  "candidate_digest": "c31541b4d6e6abc6eb37b7b80f0b0b92013bf730c32f271a6ed82ed18a78993e",
-  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1 and local remediation R1-REMEDIATION-GOV-CI-012-REQ2; R2 requires separate approval by candidate commit/tree/digest.",
+  "candidate_digest": "c9d3111a7fd5f20dcd2148dcac66a6c765e405ed631536552ef5774933060688",
+  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1 and local remediation R1-REMEDIATION-GOV-CI-012-REQ5; R2 requires separate approval by candidate commit/tree/digest.",
   "approver_required": "human",
   "invalidated_by": ["scope drift", "path drift", "baseline drift", "tree drift", "editing PR #443", "editing PR #445", "reusing HOM-011", "edited promotion PR", "reopened promotion PR", "synchronize promotion PR", "ready_for_review promotion PR", "rerun promotion workflow", "O4 before O3 closure", "CI failure", "expiry", "R3 operation request"],
-  "exit_criteria": ["PR #443 and PR #445 are frozen", "HOM-011 is superseded", "HOM-012 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v2 is validated", "GitHub Environment approval history uses created_at/environments/user/state raw contract", "post-merge consumes immutable pre-merge evidence", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
+  "exit_criteria": ["PR #443 and PR #445 are frozen", "HOM-011 is superseded", "HOM-012 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v3 is validated", "GitHub Environment approval history uses environments/user/state/comment raw contract without invented approval timestamp", "post-merge consumes immutable pre-merge evidence without raw JIT secret material", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
 }

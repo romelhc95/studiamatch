@@ -162,7 +162,7 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 
 ```text
 Apruebo WP-GOV-CI-012 de TASK-GOV-CI-012 segun manifest sha256:<D_CI12> contenido en candidate commit:<C_CI12>, hasta R2 y hasta 2026-09-06T23:59:59Z.
-Alcance exclusivo y orden obligatorio: push, PR y merge a desarrollo del candidate GOV-CI12 que implementa promotion-jit-envelope-v2, congela PR #443/#445 y prepara HOM-012; no Certification, no Main y no R3.
+Alcance exclusivo y orden obligatorio: push, PR y merge a desarrollo del candidate GOV-CI12 que implementa promotion-jit-envelope-v3, congela PR #443/#445 y prepara HOM-012; no Certification, no Main y no R3.
 Base: desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4, tree bb3a9084961c090adac0d390aa22fdcc84670656.
 Orden obligatorio: verificar status limpio, verificar WP-GOV-CI-012 aprobado por digest, publicar a desarrollo mediante PR protegido, registrar Governance Attestation con Base-SHA y Candidate-SHA en el body y detenerse ante Certification, Main, rulesets remotos o gate superior.
 Denylist: produccion, Supabase Free, Supabase Pro, workflow_dispatch, writers, schedules, lead_capture, egress, DDL/DML/migraciones/backfill/RLS/grants sin R3 JIT, fuentes privadas, .env*, secretos.

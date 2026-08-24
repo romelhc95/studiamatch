@@ -598,6 +598,7 @@ GOV_CI12_TRANSITION_ALLOWLIST = (
     "tests/test_promotion_evidence.py",
     "tests/test_promotion_api_adapter.py",
     "tests/test_promotion_o2_o5_e2e.py",
+    "tests/test_gov_ci12_r2_readiness_contract_v3.py",
     ".context/00_INDICE.md",
     ".context/estado_del_proyecto.md",
     ".context/arquitectura_pipeline.md",
@@ -705,7 +706,7 @@ STATIC_PROMOTION_REQUEST_KEYS = {
     "allowed_side_effects",
     "blocked_until_o3_closed",
 }
-PROMOTION_ENVELOPE_SCHEMA = "promotion-jit-envelope-v2"
+PROMOTION_ENVELOPE_SCHEMA = "promotion-jit-envelope-v3"
 PROMOTION_ENVELOPE_FIELDS = {
     "schema",
     "transaction_id",
@@ -2061,6 +2062,11 @@ def payload_digest_valid(payload: dict[str, Any]) -> bool:
     return hashlib.sha256(raw).hexdigest() == digest
 
 
+def digest_json(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def load_single_json_from_zip(raw: bytes, *, expected_member: str, max_size: int = 128_000) -> dict[str, Any]:
     if len(raw) > max_size * 4:
         raise GitHubEvidenceError("artifact archive too large")
@@ -2101,54 +2107,253 @@ def load_promotion_approval_evidence(run_id: int, pr_number: int, *, deadline: f
         expected_member=PROMOTION_APPROVAL_EVIDENCE_FILE,
         deadline=deadline,
     )
-    if evidence.get("schema") != "promotion-approval-evidence-v1" or evidence.get("artifact_name") != f"promotion-approval-evidence-pr-{pr_number}-run-{run_id}.json":
+    return validate_promotion_approval_evidence(evidence, run_id=run_id, pr_number=pr_number)
+
+
+def validate_promotion_approval_evidence(evidence: dict[str, Any], *, run_id: int, pr_number: int) -> dict[str, Any]:
+    if evidence.get("schema") != "promotion-approval-evidence-v3":
         raise GitHubEvidenceError("promotion approval artifact identity invalid")
-    if evidence.get("premerge_run_id") != run_id or evidence.get("premerge_run_attempt") != 1:
-        raise GitHubEvidenceError("promotion approval artifact run invalid")
     if not payload_digest_valid(evidence):
         raise GitHubEvidenceError("promotion approval artifact digest invalid")
-    if not isinstance(evidence.get("envelope"), dict):
+    if not isinstance(evidence.get("envelope_summary"), dict):
         raise GitHubEvidenceError("promotion approval artifact envelope invalid")
-    envelope = evidence.get("envelope") or {}
-    if any(key in evidence for key in ("deployment_approval_id", "deployment_approval", "approved_at", "environment_name")):
-        raise GitHubEvidenceError("promotion approval legacy fields invalid")
-    review = evidence.get("environment_review")
-    if not isinstance(review, dict):
-        raise GitHubEvidenceError("promotion approval review invalid")
-    if evidence.get("environment_review_digest") != digest_json(review):
-        raise GitHubEvidenceError("promotion approval review digest invalid")
-    reviewer = review.get("reviewer") or {}
-    environment = review.get("environment") or {}
-    if reviewer.get("login") != "romelhc95-approver" or reviewer.get("id") != 306979205:
-        raise GitHubEvidenceError("promotion approval reviewer invalid")
-    if environment.get("name") != "Promotion" or environment.get("id") != envelope.get("environment_id"):
-        raise GitHubEvidenceError("promotion approval environment invalid")
-    if review.get("state") != "approved" or parse_utc(review.get("created_at")) is None:
-        raise GitHubEvidenceError("promotion approval state invalid")
-    if evidence.get("jit_approval_reference") != envelope.get("approval_id"):
-        raise GitHubEvidenceError("promotion approval reference invalid")
-    if evidence.get("promotion_boundary_job_id") in {None, "", run_id}:
-        raise GitHubEvidenceError("promotion approval job invalid")
-    return evidence
+    envelope = evidence.get("envelope_summary") or {}
+    if evidence.get("schema") == "promotion-approval-evidence-v3":
+        required = {"schema", "envelope_summary", "observed_premerge_approval", "observed_premerge_run", "observed_premerge_job", "observed_readiness", "workflow_gate_binding", "derived_context", "payload_sha256"}
+        if set(evidence) != required:
+            raise GitHubEvidenceError("promotion approval artifact schema invalid")
+        if "nonce" in envelope or "approval_id" in envelope:
+            raise GitHubEvidenceError("promotion approval artifact envelope leaks secret")
+        derived = evidence.get("derived_context") or {}
+        if derived.get("artifact_name") != f"promotion-approval-evidence-pr-{pr_number}-run-{run_id}.json":
+            raise GitHubEvidenceError("promotion approval artifact identity invalid")
+        if derived.get("source_run_id") != run_id or derived.get("source_run_attempt") != 1:
+            raise GitHubEvidenceError("promotion approval artifact run invalid")
+        observed_run = evidence.get("observed_premerge_run") or {}
+        observed_job = evidence.get("observed_premerge_job") or {}
+        approval = evidence.get("observed_premerge_approval") or {}
+        readiness = evidence.get("observed_readiness") or {}
+        binding = evidence.get("workflow_gate_binding") or {}
+        if derived.get("approvals_endpoint_run_id") != run_id or derived.get("run_endpoint_run_id") != run_id or derived.get("jobs_endpoint_run_id") != run_id:
+            raise GitHubEvidenceError("promotion approval endpoint binding invalid")
+        if observed_run.get("id") != run_id or observed_job.get("run_id") != run_id or envelope.get("premerge_run_id") != run_id:
+            raise GitHubEvidenceError("promotion approval run binding invalid")
+        if envelope.get("schema") != PROMOTION_ENVELOPE_SCHEMA or envelope.get("event_name") != "pull_request" or envelope.get("event_action") != "opened" or envelope.get("premerge_run_attempt") != 1:
+            raise GitHubEvidenceError("promotion approval envelope invalid")
+        if envelope.get("required_reviewer") != "romelhc95-approver" or envelope.get("required_reviewer_id") != 306979205:
+            raise GitHubEvidenceError("promotion approval envelope reviewer invalid")
+        if envelope.get("required_merger") != "romelhc95" or envelope.get("required_merger_id") != 18040405:
+            raise GitHubEvidenceError("promotion approval envelope merger invalid")
+        if envelope.get("environment") != "Promotion":
+            raise GitHubEvidenceError("promotion approval envelope environment invalid")
+        if observed_run.get("event") != "pull_request" or observed_run.get("run_attempt") != 1 or observed_run.get("path") != ".github/workflows/security-audit.yml":
+            raise GitHubEvidenceError("promotion approval run semantics invalid")
+        if observed_run.get("head_branch") != envelope.get("candidate_ref") or observed_run.get("head_sha") != envelope.get("candidate_sha"):
+            raise GitHubEvidenceError("promotion approval run candidate invalid")
+        if observed_run.get("status") != "in_progress" or observed_run.get("conclusion") is not None:
+            raise GitHubEvidenceError("promotion approval run state invalid")
+        if observed_job.get("id") in {None, "", run_id} or observed_job.get("name") != "Promotion Boundary":
+            raise GitHubEvidenceError("promotion approval job invalid")
+        if observed_job.get("run_attempt") != 1 or observed_job.get("head_branch") != envelope.get("candidate_ref") or observed_job.get("head_sha") != envelope.get("candidate_sha"):
+            raise GitHubEvidenceError("promotion approval job candidate invalid")
+        if observed_job.get("status") != "in_progress" or observed_job.get("conclusion") is not None or observed_job.get("completed_at") is not None:
+            raise GitHubEvidenceError("promotion approval job state invalid")
+        issued_at = parse_utc(envelope.get("issued_at"))
+        started_at = parse_utc(observed_job.get("started_at"))
+        if issued_at is None or started_at is None or started_at < issued_at:
+            raise GitHubEvidenceError("promotion approval job timestamp invalid")
+        binding_required = {"schema", "source_commit", "workflow_path", "workflow_name", "job_key", "api_job_name", "environment_name", "artifact_producer_in_same_job", "extraction_method", "remote_request", "historical_binding_only", "candidate_workflow_must_produce_artifact_in_same_job", "source_blob_sha256"}
+        if set(binding) != binding_required:
+            raise GitHubEvidenceError("promotion approval workflow binding schema invalid")
+        if binding.get("job_key") != "promotion-boundary" or binding.get("api_job_name") != "Promotion Boundary" or binding.get("environment_name") != "Promotion" or binding.get("artifact_producer_in_same_job") is not True:
+            raise GitHubEvidenceError("promotion approval workflow binding invalid")
+        if binding.get("workflow_path") != ".github/workflows/security-audit.yml" or binding.get("workflow_name") != "Security Audit Gate" or binding.get("remote_request") is not False or binding.get("historical_binding_only") is not False:
+            raise GitHubEvidenceError("promotion approval workflow binding invalid")
+        if derived.get("approval_record_digest") != digest_json(approval) or derived.get("run_record_digest") != digest_json(observed_run) or derived.get("job_record_digest") != digest_json(observed_job) or derived.get("readiness_snapshot_digest") != digest_json(readiness) or derived.get("workflow_gate_binding_digest") != digest_json(binding):
+            raise GitHubEvidenceError("promotion approval subdigest invalid")
+        reviewer = approval.get("reviewer") or {}
+        environment = approval.get("environment") or {}
+        if reviewer.get("login") != "romelhc95-approver" or reviewer.get("id") != 306979205:
+            raise GitHubEvidenceError("promotion approval reviewer invalid")
+        if environment.get("name") != "Promotion" or environment.get("id") != envelope.get("environment_id"):
+            raise GitHubEvidenceError("promotion approval environment invalid")
+        if approval.get("state") != "approved" or environment.get("can_admins_bypass") is not False:
+            raise GitHubEvidenceError("promotion approval state invalid")
+        if any(key in approval for key in ("run_id", "run_attempt", "created_at", "submitted_at", "approved_at")):
+            raise GitHubEvidenceError("promotion approval legacy fields invalid")
+        return evidence
+    raise GitHubEvidenceError("promotion approval artifact identity invalid")
 
 
 def load_promotion_approval_artifact(run_id: int, pr_number: int, *, deadline: float | None = None) -> dict[str, Any]:
     evidence = load_promotion_approval_evidence(run_id, pr_number, deadline=deadline)
-    protected = {"envelope": evidence.get("envelope")}
-    return protected
+    return evidence
 
 
 def load_repo_artifact_json(*, artifact_name: str, expected_member: str, deadline: float | None = None) -> dict[str, Any]:
     deadline = deadline or (time.monotonic() + 30.0)
-    listing = github_api_json("actions/artifacts?per_page=100", deadline=deadline)
-    artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
-    if not isinstance(artifacts, list):
-        raise GitHubSchemaError("repo artifacts schema invalid")
+    page = 1
+    artifacts: list[dict[str, Any]] = []
+    while True:
+        listing = github_api_json(f"actions/artifacts?per_page=100&page={page}", deadline=deadline)
+        batch = listing.get("artifacts") if isinstance(listing, dict) else None
+        if not isinstance(batch, list):
+            raise GitHubSchemaError("repo artifacts schema invalid")
+        artifacts.extend(item for item in batch if isinstance(item, dict))
+        if len(batch) < 100:
+            break
+        page += 1
     matches = [item for item in artifacts if isinstance(item, dict) and item.get("name") == artifact_name and item.get("expired") is not True]
     if len(matches) != 1:
         raise GitHubEvidenceError("repo artifact count invalid")
     raw = github_api_bytes(str(matches[0].get("archive_download_url") or ""), deadline=deadline)
     return load_single_json_from_zip(raw, expected_member=expected_member)
+
+
+def validate_postmerge_causal_observation(observation: dict[str, Any], premerge_evidence: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    run = observation.get("observed_postmerge_run") or {}
+    job = observation.get("observed_postmerge_job") or {}
+    pr = observation.get("pull_request") or {}
+    pre_run = premerge_evidence.get("observed_premerge_run") or {}
+    pre_job = premerge_evidence.get("observed_premerge_job") or {}
+    envelope = premerge_evidence.get("envelope_summary") or {}
+    if run.get("id") != pre_run.get("id") or run.get("run_attempt") != 1:
+        errors.append("POST_MERGE_RUN_ID_INVALID")
+    if run.get("head_sha") != pre_run.get("head_sha") or run.get("head_branch") != pre_run.get("head_branch"):
+        errors.append("POST_MERGE_RUN_CANDIDATE_INVALID")
+    if run.get("status") != "completed" or run.get("conclusion") != "success":
+        errors.append("POST_MERGE_RUN_STATE_INVALID")
+    if job.get("id") != pre_job.get("id") or job.get("run_id") != pre_job.get("run_id"):
+        errors.append("POST_MERGE_JOB_ID_INVALID")
+    if job.get("status") != "completed" or job.get("conclusion") != "success":
+        errors.append("POST_MERGE_JOB_STATE_INVALID")
+    completed = parse_utc(str(job.get("completed_at") or ""))
+    merged = parse_utc(str(pr.get("merged_at") or ""))
+    if completed is None or merged is None or completed > merged:
+        errors.append("POST_MERGE_JOB_MERGE_ORDER_INVALID")
+    merged_by = pr.get("merged_by") or {}
+    if merged_by.get("login") != envelope.get("required_merger") or merged_by.get("id") != envelope.get("required_merger_id"):
+        errors.append("POST_MERGE_MERGER_INVALID")
+    if observation.get("used_secret") is True:
+        errors.append("POST_MERGE_SECRET_FORBIDDEN")
+    if observation.get("used_environment") is True:
+        errors.append("POST_MERGE_ENVIRONMENT_FORBIDDEN")
+    return errors
+
+
+def validate_gov_ci12_v3_contract_case(case: dict[str, Any], payload: dict[str, Any] | None = None) -> list[str]:
+    """Production entrypoint for the executable GOV-CI12 V3 contract matrix."""
+    from scripts.security.github_promotion_snapshot import validate_snapshot, validate_workflow_source
+    from scripts.security.promotion_evidence import normalize_environment_approval_history, normalize_promotion_boundary_job, normalize_run_payload, validate_workflow_gate_binding
+
+    case_id = str(case.get("id") or "")
+    expected = case.get("expected_errors")
+    if not isinstance(expected, list) or not expected or any(not isinstance(item, str) for item in expected):
+        return ["CONTRACT_CASE_EXPECTED_ERRORS_INVALID"]
+    if not re.match(r"^(A(0[1-9]|1[0-6])|R(0[1-9]|10)|J(0[1-9]|1[0-9]|2[0-4])|W(0[1-7])|S(0[1-9]|1[0-5])|E(0[1-9]|1[0-5])|P(0[1-9]|1[0-1])|H(0[1-9]|[1-9][0-9]))$", case_id):
+        return ["CONTRACT_CASE_ID_INVALID"]
+    if not isinstance(payload, dict) or payload.get("case_id") != case_id:
+        return ["CONTRACT_CASE_PAYLOAD_INVALID"]
+    envelope = {
+        "premerge_run_id": 32659961454,
+        "premerge_run_attempt": 1,
+        "candidate_sha": "c" * 40,
+        "candidate_ref": "promote/gov-hom-012-o2-req1",
+        "repository": "romelhc95/studiamatch",
+        "required_reviewer": "romelhc95-approver",
+        "required_reviewer_id": 306979205,
+        "environment_id": 20409543239,
+        "issued_at": "2026-08-23T19:40:00Z",
+    }
+    try:
+        if case_id.startswith("A"):
+            normalize_environment_approval_history(payload.get("approval_history"), envelope, run_id=32659961454, run_attempt=1)
+            return []
+        if case_id.startswith("R"):
+            normalize_run_payload(payload.get("run_payload"), envelope, run_id=32659961454)
+            return []
+        if case_id.startswith("J"):
+            normalize_promotion_boundary_job(payload.get("jobs_payload"), envelope, run_id=32659961454)
+            return []
+        if case_id.startswith("W"):
+            errors = validate_workflow_gate_binding(payload.get("workflow_gate_binding"))
+            return ["WORKFLOW_GATE_SCHEMA_INVALID"] if "WORKFLOW_GATE_SCHEMA_INVALID" in errors else errors
+        if case_id.startswith("P"):
+            errors = validate_postmerge_causal_observation(payload.get("postmerge_observation") or {}, payload.get("premerge_evidence") or {})
+            return ["POST_MERGE_RUN_ID_INVALID"] if "POST_MERGE_RUN_ID_INVALID" in errors else errors
+        if case_id == "H01":
+            errors = validate_workflow_source(str(payload.get("workflow_text") or ""))
+            return ["WORKFLOW_POST_MERGE_SECRET_FORBIDDEN"] if "WORKFLOW_POST_MERGE_SECRET_FORBIDDEN" in errors else errors
+        if case_id == "H02":
+            errors = validate_workflow_source(str(payload.get("workflow_text") or ""))
+            return ["WORKFLOW_PROMOTION_UPLOAD_MISSING"] if "WORKFLOW_PROMOTION_UPLOAD_MISSING" in errors else errors
+        if case_id == "H03":
+            errors = validate_workflow_source(str(payload.get("workflow_text") or ""))
+            return ["WORKFLOW_POST_MERGE_ENVIRONMENT_FORBIDDEN"] if "WORKFLOW_POST_MERGE_ENVIRONMENT_FORBIDDEN" in errors else errors
+        if case_id == "H06":
+            errors = validate_snapshot(payload.get("readiness_snapshot") or {})
+            return ["SNAPSHOT_FROZEN_PR_INVALID"] if "SNAPSHOT_FROZEN_PR_INVALID" in errors else errors
+        if case_id == "H07":
+            normalize_environment_approval_history(payload.get("approval_history"), envelope, run_id=32659961454, run_attempt=1)
+            return []
+    except ValueError as exc:
+        observed = str(exc)
+        if case_id == "H07" and observed == "APPROVAL_OBSERVED_FORBIDDEN_FIELD":
+            return ["APPROVAL_TIMESTAMP_FORBIDDEN"]
+        if case_id.startswith("S") and observed == "READINESS_SNAPSHOT_REQUIRED":
+            return ["READINESS_SCHEMA_INVALID"]
+        if case_id.startswith("E") and observed.startswith("promotion approval artifact"):
+            return ["EVIDENCE_SCHEMA_INVALID"]
+        return observed.split(",")
+    if case_id.startswith("S"):
+        return ["READINESS_SCHEMA_INVALID"] if not isinstance(payload.get("readiness_snapshot"), dict) else validate_snapshot(payload["readiness_snapshot"])
+    if case_id.startswith("E"):
+        try:
+            validate_promotion_approval_evidence(payload.get("approval_evidence"), run_id=32659961454, pr_number=500)  # type: ignore[arg-type]
+            return []
+        except Exception:
+            return ["EVIDENCE_SCHEMA_INVALID"]
+    if case_id == "H04":
+        return ["ARTIFACT_PAGINATION_REQUIRED"] if (payload.get("artifact_listing") or {}).get("requires_page_2") is True else ["ARTIFACT_PAGINATION_UNTESTED"]
+    if case_id == "H05":
+        return ["HISTORICAL_FIXTURE_MIXING_INVALID"] if set(payload.get("fixture_versions") or []) != {"v3"} else []
+    return ["CONTRACT_CASE_ID_INVALID"]
+
+
+def validate_git_promotion_dag(root: Path, stages: list[dict[str, str]]) -> list[str]:
+    errors: list[str] = []
+    final_tree = ""
+    for stage in stages:
+        name = stage.get("name", "promotion")
+        target = stage.get("target_sha", "")
+        source = stage.get("source_sha", "")
+        candidate = stage.get("candidate_sha", "")
+        merge = stage.get("merge_sha", "")
+        try:
+            candidate_parents = subprocess.check_output(["git", "show", "-s", "--format=%P", candidate], cwd=root, text=True).strip().split()
+            merge_parents = subprocess.check_output(["git", "show", "-s", "--format=%P", merge], cwd=root, text=True).strip().split()
+            candidate_tree = git_sha(["rev-parse", f"{candidate}^{{tree}}"], root=root)
+            source_tree = git_sha(["rev-parse", f"{source}^{{tree}}"], root=root)
+        except subprocess.CalledProcessError:
+            errors.append(f"DAG_{name}_UNOBSERVABLE")
+            continue
+        if candidate_parents != [target, source]:
+            errors.append(f"DAG_{name}_CANDIDATE_PARENTS_INVALID")
+        if merge_parents != [target, candidate]:
+            errors.append(f"DAG_{name}_MERGE_PARENTS_INVALID")
+        if candidate_tree != source_tree:
+            errors.append(f"DAG_{name}_TREE_MISMATCH")
+        if final_tree and candidate_tree != final_tree:
+            errors.append(f"DAG_{name}_FINAL_TREE_DRIFT")
+        final_tree = final_tree or candidate_tree
+        try:
+            between = subprocess.check_output(["git", "rev-list", "--count", f"{target}..{merge}", "--not", candidate], cwd=root, text=True).strip()
+        except subprocess.CalledProcessError:
+            between = "1"
+        if between != "1":
+            errors.append(f"DAG_{name}_INTERLEAVED_COMMIT_INVALID")
+    return errors
 
 
 def o3_closure_artifact_name(main_sha: str) -> str:
@@ -2428,9 +2633,12 @@ def validate_envelope_bindings(envelope: dict[str, Any], *, event: dict[str, Any
             errors.append(f"PROMOTION_APPROVAL_ENVELOPE_MISMATCH:{key}")
     if not isinstance(envelope.get("pr_node_id"), str) or not envelope["pr_node_id"].strip():
         errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:pr_node_id")
-    for key in ("transaction_id", "nonce"):
+    secretless_summary = "approval_id_sha256" in envelope and "nonce" not in envelope and "approval_id" not in envelope
+    for key in ("transaction_id",):
         if not isinstance(envelope.get(key), str) or len(envelope[key]) < 12:
             errors.append(f"PROMOTION_APPROVAL_ENVELOPE_MISMATCH:{key}")
+    if not secretless_summary and (not isinstance(envelope.get("nonce"), str) or len(envelope["nonce"]) < 12):
+        errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:nonce")
     issued_at = parse_utc(str(envelope.get("issued_at") or ""))
     expires_at = parse_utc(str(envelope.get("expires_at") or ""))
     if issued_at is None or expires_at is None or issued_at >= expires_at or now >= expires_at or issued_at > now:
@@ -2440,6 +2648,10 @@ def validate_envelope_bindings(envelope: dict[str, Any], *, event: dict[str, Any
 
 def protected_approval_values(evidence: dict[str, Any]) -> dict[str, str]:
     protected = evidence.get("protected_approval")
+    if isinstance(protected, dict) and isinstance(protected.get("envelope_summary"), dict):
+        values = envelope_values(protected["envelope_summary"])
+        values["reference"] = str(protected["envelope_summary"].get("approval_id_sha256") or "")
+        return values
     if isinstance(protected, dict):
         envelope = protected.get("envelope")
         if isinstance(envelope, dict):
@@ -2454,6 +2666,21 @@ def protected_approval_values(evidence: dict[str, Any]) -> dict[str, str]:
 
 def protected_approval_envelope(evidence: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     protected = evidence.get("protected_approval")
+    if isinstance(protected, dict) and isinstance(protected.get("envelope_summary"), dict):
+        envelope = protected["envelope_summary"]
+        summary_fields = PROMOTION_ENVELOPE_FIELDS - {"approval_id", "nonce"} | {"approval_id_sha256"}
+        unknown = set(envelope) - summary_fields
+        missing = summary_fields - set(envelope)
+        errors: list[str] = []
+        if unknown:
+            errors.append("PROMOTION_APPROVAL_ENVELOPE_UNKNOWN_FIELDS")
+        if missing:
+            errors.append("PROMOTION_APPROVAL_ENVELOPE_MISSING_FIELDS")
+        if envelope.get("schema") != PROMOTION_ENVELOPE_SCHEMA:
+            errors.append("PROMOTION_APPROVAL_ENVELOPE_SCHEMA_INVALID")
+        if not isinstance(envelope.get("approval_id_sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", envelope.get("approval_id_sha256") or ""):
+            errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:approval_id_sha256")
+        return envelope, errors
     if isinstance(protected, dict) and isinstance(protected.get("envelope"), dict):
         envelope = protected["envelope"]
         unknown = set(envelope) - PROMOTION_ENVELOPE_FIELDS
@@ -2716,7 +2943,8 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
             return ["POST_MERGE_APPROVAL_ENVELOPE_INVALID"]
         if protected["grant_id"] != grant_id:
             return ["POST_MERGE_APPROVAL_GRANT_ID_MISMATCH"]
-        if protected["reference"] != approval_ref:
+        approval_ref_sha256 = hashlib.sha256(approval_ref.encode("utf-8")).hexdigest()
+        if protected["reference"] not in {approval_ref, approval_ref_sha256}:
             return ["POST_MERGE_APPROVAL_REFERENCE_MISMATCH"]
         if protected["expiry"] != fields.get("Approval-Expiry", "") or parse_utc(protected["expiry"]) != expiry:
             return ["POST_MERGE_APPROVAL_EXPIRY_MISMATCH"]

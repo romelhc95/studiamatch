@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import importlib.util
 import json
 import tempfile
@@ -716,7 +717,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "required_merger": "romelhc95",
             "required_reviewer": "romelhc95-approver",
             "merger_reviewer_distinct": True,
-            "approval_envelope_schema": "promotion-jit-envelope-v2",
+            "approval_envelope_schema": "promotion-jit-envelope-v3",
             "allowed_side_effects": ["certification_branch_update"],
         }
         if operation.startswith("O3"):
@@ -744,7 +745,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             head_sha = event["pull_request"]["head"]["sha"]
             fields = load_validator().parse_attestation_fields(event["pull_request"]["body"])
             source_sha = fields["Source-SHA"]
-            protected_env = {"GITHUB_RUN_ID": "1000", "PROMOTION_RULESET_DIGEST": "sha256:" + "1" * 64, "R3_JIT_APPROVAL_ENVELOPE": json.dumps({"schema": "promotion-jit-envelope-v2", "transaction_id": "tx-hom012-test", "approval_id": "human-jit-o2-20260822", "grant_id": grant["id"], "repository_id": 1, "repository": "romelhc95/studiamatch", "operation": fields["Operation"], "pr_number": event["pull_request"]["number"], "pr_node_id": "PR_kw_test", "premerge_run_id": 1000, "premerge_run_attempt": 1, "event_name": "pull_request", "event_action": "opened", "base_ref": event["pull_request"]["base"]["ref"], "base_sha": base_sha, "source_ref": fields["Source-Ref"], "source_sha": source_sha, "candidate_ref": event["pull_request"]["head"]["ref"], "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": "WP-GOV-CI-012", "final_digest": digest, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_reviewer_id": 306979205, "required_merger": "romelhc95", "required_merger_id": 18040405, "allowed_side_effects": grant["allowed_side_effects"], "environment": "Promotion", "environment_id": 10, "ruleset_id": 21255108, "ruleset_digest": "sha256:" + "1" * 64, "issued_at": "2026-08-22T00:00:00Z", "expires_at": "2026-08-23T00:00:00Z", "nonce": "nonce-hom012-test"})}
+            protected_env = {"GITHUB_RUN_ID": "1000", "PROMOTION_RULESET_DIGEST": "sha256:" + "1" * 64, "R3_JIT_APPROVAL_ENVELOPE": json.dumps({"schema": "promotion-jit-envelope-v3", "transaction_id": "tx-hom012-test", "approval_id": "human-jit-o2-20260822", "grant_id": grant["id"], "repository_id": 1, "repository": "romelhc95/studiamatch", "operation": fields["Operation"], "pr_number": event["pull_request"]["number"], "pr_node_id": "PR_kw_test", "premerge_run_id": 1000, "premerge_run_attempt": 1, "event_name": "pull_request", "event_action": "opened", "base_ref": event["pull_request"]["base"]["ref"], "base_sha": base_sha, "source_ref": fields["Source-Ref"], "source_sha": source_sha, "candidate_ref": event["pull_request"]["head"]["ref"], "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": "WP-GOV-CI-012", "final_digest": digest, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_reviewer_id": 306979205, "required_merger": "romelhc95", "required_merger_id": 18040405, "allowed_side_effects": grant["allowed_side_effects"], "environment": "Promotion", "environment_id": 10, "ruleset_id": 21255108, "ruleset_digest": "sha256:" + "1" * 64, "issued_at": "2026-08-22T00:00:00Z", "expires_at": "2026-08-23T00:00:00Z", "nonce": "nonce-hom012-test"})}
             def fake_git_sha(args, root=ROOT):
                 if args[:3] == ["show", "-s", "--format=%P"]:
                     return f"{base_sha} {source_sha}"
@@ -883,6 +884,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "head": {"ref": actual_head, "sha": head_sha, "repo": {"full_name": "other/repo" if fork else repo}},
         }
         associated_prs = [{"number": 500}] if pull_requests is None else pull_requests
+        envelope_summary = {"schema": "promotion-jit-envelope-v3", "transaction_id": "tx-hom012-post", "approval_id_sha256": hashlib.sha256(b"human-jit-o2").hexdigest(), "grant_id": grant_id, "repository_id": 1, "repository": repo, "operation": operation, "pr_number": 500, "pr_node_id": "PR_kw_post", "premerge_run_id": 1000, "premerge_run_attempt": 1, "event_name": "pull_request", "event_action": "opened", "base_ref": actual_base, "base_sha": before, "source_ref": actual_source, "source_sha": source_sha, "candidate_ref": actual_head, "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": final_wp, "final_digest": "e" * 64, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_reviewer_id": 306979205, "required_merger": "romelhc95", "required_merger_id": 18040405, "allowed_side_effects": ["certification_branch_update"], "environment": "Promotion", "environment_id": 10, "ruleset_id": 21255108, "ruleset_digest": "sha256:" + "1" * 64, "issued_at": "2026-08-23T01:01:00Z", "expires_at": approval_expiry}
         evidence = {
             "pull_request": pr,
             "checks": [
@@ -892,7 +894,7 @@ class WorkPackageManifestTests(unittest.TestCase):
             "workflow_runs": {"1000": {"id": 1000, "repository": {"full_name": repo}, "event": "pull_request", "head_sha": head_sha, "head_branch": actual_head, "run_attempt": 1, "path": ".github/workflows/security-audit.yml", "status": "completed", "conclusion": "success", "created_at": "2026-08-23T01:03:00Z", "updated_at": "2026-08-23T01:06:00Z"}},
             "reviews": [{"id": 1, "submitted_at": "2026-08-23T01:07:00Z", "user": {"login": reviewer, "id": 306979205 if reviewer == "romelhc95-approver" else 18040405}, "state": review_state, "commit_id": head_sha}],
             "timeline": [],
-            "protected_approval": {"envelope": {"schema": "promotion-jit-envelope-v2", "transaction_id": "tx-hom012-post", "approval_id": "human-jit-o2", "grant_id": grant_id, "repository_id": 1, "repository": repo, "operation": operation, "pr_number": 500, "pr_node_id": "PR_kw_post", "premerge_run_id": 1000, "premerge_run_attempt": 1, "event_name": "pull_request", "event_action": "opened", "base_ref": actual_base, "base_sha": before, "source_ref": actual_source, "source_sha": source_sha, "candidate_ref": actual_head, "candidate_sha": head_sha, "candidate_tree": tree, "final_wp": final_wp, "final_digest": "e" * 64, "final_tree": tree, "required_reviewer": "romelhc95-approver", "required_reviewer_id": 306979205, "required_merger": "romelhc95", "required_merger_id": 18040405, "allowed_side_effects": ["certification_branch_update"], "environment": "Promotion", "environment_id": 10, "ruleset_id": 21255108, "ruleset_digest": "sha256:" + "1" * 64, "issued_at": "2026-08-23T01:01:00Z", "expires_at": approval_expiry, "nonce": "nonce-hom012-post"}},
+            "protected_approval": {"envelope_summary": envelope_summary},
         }
         if operation.startswith("O3"):
             evidence["db_changed"] = False
@@ -900,11 +902,11 @@ class WorkPackageManifestTests(unittest.TestCase):
                 {"id": 3, "name": "Cloudflare Pages", "status": "completed", "conclusion": "success", "head_sha": after, "started_at": "2026-08-23T01:21:00Z", "completed_at": "2026-08-23T01:22:00Z", "updated_at": "2026-08-23T01:22:00Z", "pull_requests": [], "app": {"id": 85455}, "details_url": "https://github.com/apps/cloudflare-workers-and-pages"},
                 {"id": 4, "name": "DB Sync Detect Only", "status": "completed", "conclusion": "success", "head_sha": after, "started_at": "2026-08-23T01:23:00Z", "completed_at": "2026-08-23T01:24:00Z", "updated_at": "2026-08-23T01:24:00Z", "pull_requests": [], "app": {"id": 15368}, "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/1001/job/4", "output": {"summary": "NO_DB_CHANGES"}},
             ])
-            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"]
+            evidence["protected_approval"]["envelope_summary"]["allowed_side_effects"] = ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"]
         if operation.startswith("O4"):
-            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["certification_branch_update"]
+            evidence["protected_approval"]["envelope_summary"]["allowed_side_effects"] = ["certification_branch_update"]
         if operation.startswith("O5"):
-            evidence["protected_approval"]["envelope"]["allowed_side_effects"] = ["development_branch_update"]
+            evidence["protected_approval"]["envelope_summary"]["allowed_side_effects"] = ["development_branch_update"]
         return event, evidence, parents or [before, head_sha], candidate_parents or [before, source_sha], tree
 
     def run_post_merge_validation(self, event, evidence, parents, candidate_parents, tree):
@@ -937,7 +939,7 @@ class WorkPackageManifestTests(unittest.TestCase):
                 "required_merger": "romelhc95",
                 "required_reviewer": "romelhc95-approver",
                 "merger_reviewer_distinct": True,
-                "approval_envelope_schema": "promotion-jit-envelope-v2",
+                "approval_envelope_schema": "promotion-jit-envelope-v3",
                 "allowed_side_effects": ["certification_branch_update"],
             }
             if fields.get("Operation", "").startswith("O3"):
@@ -1005,7 +1007,7 @@ class WorkPackageManifestTests(unittest.TestCase):
 
     def test_post_merge_promotion_push_rejects_protected_approval_mismatch(self):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture()
-        evidence["protected_approval"]["envelope"]["approval_id"] = "other-jit"
+        evidence["protected_approval"]["envelope_summary"]["approval_id_sha256"] = hashlib.sha256(b"other-jit").hexdigest()
         self.assertIn("POST_MERGE_APPROVAL_REFERENCE_MISMATCH", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
 
     def test_post_merge_promotion_push_rejects_unassociated_check_runs(self):

@@ -1,0 +1,39 @@
+[
+  {
+    "comment": "",
+    "environments": [
+      {
+        "can_admins_bypass": false,
+        "created_at": "2026-08-23T01:45:26Z",
+        "html_url": "https://github.com/romelhc95/studiamatch/deployments/activity_log?environments_filter=Promotion",
+        "id": 20409543239,
+        "name": "Promotion",
+        "node_id": "EN_kwDOSDlcnc8AAAAEwIDqRw",
+        "updated_at": "2026-08-24T03:13:25Z",
+        "url": "https://api.github.com/repos/romelhc95/studiamatch/environments/Promotion"
+      }
+    ],
+    "state": "approved",
+    "user": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/306979205?v=4",
+      "events_url": "https://api.github.com/users/romelhc95-approver/events{/privacy}",
+      "followers_url": "https://api.github.com/users/romelhc95-approver/followers",
+      "following_url": "https://api.github.com/users/romelhc95-approver/following{/other_user}",
+      "gists_url": "https://api.github.com/users/romelhc95-approver/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/romelhc95-approver",
+      "id": 306979205,
+      "login": "romelhc95-approver",
+      "node_id": "U_kgDOEkwhhQ",
+      "organizations_url": "https://api.github.com/users/romelhc95-approver/orgs",
+      "received_events_url": "https://api.github.com/users/romelhc95-approver/received_events",
+      "repos_url": "https://api.github.com/users/romelhc95-approver/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/romelhc95-approver/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/romelhc95-approver/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/romelhc95-approver",
+      "user_view_type": "public"
+    }
+  }
+]

@@ -4,7 +4,7 @@ import urllib.error
 
 import pytest
 
-from scripts.security.github_promotion_snapshot import GitHubClient, SnapshotError, build_snapshot, collect_snapshot, validate_snapshot
+from scripts.security.github_promotion_snapshot import GitHubClient, SnapshotError, build_snapshot, collect_run_evidence, collect_snapshot, validate_snapshot, validate_workflow_source
 
 
 def raw_environment():
@@ -34,7 +34,7 @@ def raw_ruleset(**updates):
 
 
 def test_collector_parses_required_reviewers_and_ruleset_digest():
-    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 445, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "445")
+    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
     assert validate_snapshot(snapshot) == []
     assert snapshot["environment"]["reviewer"] == "romelhc95-approver"
     assert snapshot["ruleset"]["canonical_digest"].startswith("sha256:")
@@ -43,7 +43,7 @@ def test_collector_parses_required_reviewers_and_ruleset_digest():
 def test_collector_treats_missing_bypass_actors_as_unobservable():
     ruleset = raw_ruleset()
     ruleset.pop("bypass_actors")
-    snapshot = build_snapshot(raw_environment(), ruleset, [{"number": 445, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "445")
+    snapshot = build_snapshot(raw_environment(), ruleset, [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
     assert "SNAPSHOT_RULESET_BYPASS_UNOBSERVABLE" in validate_snapshot(snapshot)
     assert snapshot["ruleset"]["bypass_actor_count"] == "UNOBSERVABLE"
 
@@ -52,7 +52,7 @@ def test_collector_requires_required_reviewers_protection_rule():
     environment = raw_environment()
     environment.pop("protection_rules")
     environment["reviewers"] = [{"reviewer": {"login": "romelhc95-approver", "id": 306979205}}]
-    snapshot = build_snapshot(environment, raw_ruleset(), [{"number": 445, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "445")
+    snapshot = build_snapshot(environment, raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
     assert "SNAPSHOT_REQUIRED_REVIEWER_INVALID" in validate_snapshot(snapshot)
 
 
@@ -66,6 +66,11 @@ def test_collector_rejects_extra_required_reviewer():
 def test_collector_rejects_wrong_bypass_actor():
     snapshot = build_snapshot(raw_environment(), raw_ruleset(bypass_actors=[{"actor_type": "User", "actor_id": 306979205, "bypass_mode": "always"}]), [], {"id": 85455}, "445")
     assert "SNAPSHOT_RULESET_BYPASS_INVALID" in validate_snapshot(snapshot)
+
+
+def test_collector_rejects_frozen_prs():
+    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 445, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "445")
+    assert "SNAPSHOT_FROZEN_PR_INVALID" in validate_snapshot(snapshot)
 
 
 def test_fixture_is_sanitized_and_valid():
@@ -111,7 +116,7 @@ def test_collector_paginates_rulesets(monkeypatch):
         raise AssertionError(path)
 
     monkeypatch.setattr(GitHubClient, "get", fake_get)
-    assert validate_snapshot(collect_snapshot(GitHubClient(repo="romelhc95/studiamatch", token="token"), "445")) == []
+    assert validate_snapshot(collect_snapshot(GitHubClient(repo="romelhc95/studiamatch", token="token"), "500")) == []
 
 
 @pytest.mark.parametrize(
@@ -163,3 +168,92 @@ def test_collector_invalid_json_is_diagnostic(monkeypatch):
     with pytest.raises(SnapshotError) as exc:
         GitHubClient(repo="romelhc95/studiamatch", token="token").get("/rulesets")
     assert "INVALID:json" in str(exc.value)
+
+
+def test_collect_run_evidence_writes_runtime_files(monkeypatch, tmp_path):
+    workflow = """
+name: Security Audit Gate
+on:
+  pull_request:
+    types: [opened]
+jobs:
+  post-merge-approval:
+    name: Post Merge Approval
+    runs-on: ubuntu-latest
+  promotion-boundary:
+    name: Promotion Boundary
+    if: github.event.action == 'opened'
+    environment:
+      name: Promotion
+    env:
+      R3_JIT_APPROVAL_ENVELOPE: test
+    steps:
+      - run: python3 scripts/security/promotion_evidence.py --write-approval-evidence promotion-approval-evidence.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          path: promotion-approval-evidence.json
+"""
+    workflow_path = tmp_path / ".github" / "workflows" / "security-audit.yml"
+    workflow_path.parent.mkdir(parents=True)
+    workflow_path.write_text(workflow, encoding="utf-8")
+
+    def fake_get(self, path):
+        if path.endswith("/approvals"):
+            return [{"state": "approved"}]
+        if path == "/actions/runs/100":
+            return {"id": 100}
+        if path.endswith("/jobs?per_page=100"):
+            return {"total_count": 1, "jobs": [{"id": 200, "name": "Promotion Boundary"}]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(GitHubClient, "get", fake_get)
+    job_id = collect_run_evidence(
+        GitHubClient(repo="romelhc95/studiamatch", token="token"),
+        run_id=100,
+        output_dir=tmp_path,
+        workflow_path=str(workflow_path),
+        source_commit="c" * 40,
+    )
+    assert job_id == 200
+    assert (tmp_path / "promotion-approval-history.json").exists()
+    assert (tmp_path / "promotion-run-payload.json").exists()
+    assert (tmp_path / "promotion-jobs-payload.json").exists()
+    assert (tmp_path / "promotion-workflow-gate-binding.json").exists()
+    assert (tmp_path / "promotion-boundary-job-id.txt").read_text(encoding="utf-8") == "200"
+
+
+def test_collect_run_evidence_rejects_ambiguous_jobs(monkeypatch, tmp_path):
+    def fake_get(self, path):
+        if path.endswith("/approvals"):
+            return []
+        if path == "/actions/runs/100":
+            return {"id": 100}
+        if path.endswith("/jobs?per_page=100"):
+            return {"total_count": 2, "jobs": [{"id": 1, "name": "Promotion Boundary"}, {"id": 2, "name": "Promotion Boundary"}]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(GitHubClient, "get", fake_get)
+    with pytest.raises(SnapshotError, match="PROMOTION_BOUNDARY_JOB_UNOBSERVABLE"):
+        collect_run_evidence(GitHubClient(repo="romelhc95/studiamatch", token="token"), run_id=100, output_dir=tmp_path)
+
+
+def test_workflow_source_rejects_postmerge_secret():
+    workflow = """
+jobs:
+  post-merge-approval:
+    env:
+      R3_JIT_APPROVAL_ENVELOPE: bad
+  promotion-boundary:
+    name: Promotion Boundary
+    if: github.event.action == 'opened'
+    environment:
+      name: Promotion
+    env:
+      R3_JIT_APPROVAL_ENVELOPE: ok
+    steps:
+      - run: python3 scripts/security/promotion_evidence.py --write-approval-evidence promotion-approval-evidence.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          path: promotion-approval-evidence.json
+"""
+    assert "WORKFLOW_POST_MERGE_SECRET_FORBIDDEN" in validate_workflow_source(workflow)

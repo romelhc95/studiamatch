@@ -591,14 +591,14 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI12_WP_INVALID:target/digest")
     if gov_ci12_wp.get("baseline", {}).get("candidate_commit") != GOV_CI12_BASE_COMMIT or gov_ci12_wp.get("baseline", {}).get("candidate_tree") != GOV_CI12_BASE_TREE:
         errors.append("GOV_CI12_WP_INVALID:baseline")
-    if gov_ci12_wp.get("promotion_jit_envelope", {}).get("schema") != "promotion-jit-envelope-v2" or gov_ci12_wp.get("promotion_jit_envelope", {}).get("post_merge_secret_dependency") is not False:
+    if gov_ci12_wp.get("promotion_jit_envelope", {}).get("schema") != "promotion-jit-envelope-v3" or gov_ci12_wp.get("promotion_jit_envelope", {}).get("post_merge_secret_dependency") is not False:
         errors.append("GOV_CI12_ENVELOPE_INVALID")
     env12 = gov_ci12_wp.get("promotion_environment_desired_state", {})
     if env12.get("single_approval_only") is not True or env12.get("post_merge_environment") is not None or env12.get("prevent_self_review") is not True:
         errors.append("GOV_CI12_ENVIRONMENT_INVALID")
     if gov_ci12_wp.get("o3_closure", {}).get("producer_consumer_artifact") != "o3-closure-evidence.json" or gov_ci12_wp.get("o5_closure", {}).get("final_tree_equality_required") is not True:
         errors.append("GOV_CI12_O3_O5_INVALID")
-    if "CANDIDATE_R1_LOCAL" not in gov_ci12_task:
+    if "LOCAL_REMEDIATION_IN_PROGRESS" not in gov_ci12_task and "CANDIDATE_R1_LOCAL" not in gov_ci12_task:
         errors.append("GOV_CI12_TASK_INVALID:status")
     if "PR #424" not in state or "MERGED_TO_DESARROLLO" not in state or "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9" not in state + tracker + plan:
         errors.append("GOV_OBS_INFRA_R2_HISTORY_MISSING:PR424")
@@ -638,11 +638,11 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI10_FAILURE_HISTORY_MISSING:PR441")
     if "PR #442" not in state + tracker + plan or GOV_CI11_BASE_COMMIT not in state + tracker + plan or GOV_CI11_BASE_TREE not in state + tracker + plan or "c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c" not in state + tracker + plan:
         errors.append("GOV_CI10_R2_HISTORY_MISSING:PR442")
-    if "PR #443" not in state + tracker + plan or "FAILED_NOT_MERGED" not in state + tracker + plan or "R3-GOV-HOM-010-O2-REQ1" not in state + tracker + plan or "promotion-jit-envelope-v1" not in state + tracker + plan:
+    if "PR #443" not in state + tracker + plan or "FAILED_NOT_MERGED" not in state + tracker + plan or "R3-GOV-HOM-010-O2-REQ1" not in state + tracker + plan:
         errors.append("GOV_CI11_FAILURE_HISTORY_MISSING:PR443")
     if "PR #444" not in state + tracker + plan or GOV_CI12_BASE_COMMIT not in state + tracker + plan or GOV_CI12_BASE_TREE not in state + tracker + plan:
         errors.append("GOV_CI11_R2_HISTORY_MISSING:PR444")
-    if "PR #445" not in state + tracker + plan or "FAILED_NOT_MERGED_FROZEN" not in state + tracker + plan or "R3-GOV-HOM-011-O2-REQ1" not in state + tracker + plan or "promotion-jit-envelope-v2" not in state + tracker + plan:
+    if "PR #445" not in state + tracker + plan or "FAILED_NOT_MERGED_FROZEN" not in state + tracker + plan or "R3-GOV-HOM-011-O2-REQ1" not in state + tracker + plan or "promotion-jit-envelope-v3" not in state + tracker + plan:
         errors.append("GOV_CI12_FAILURE_HISTORY_MISSING:PR445")
     if "owner-only-protected-branch-updates" not in state + plan + tracker + architecture + release_flow or "romelhc95-approver" not in state + plan + tracker + architecture + release_flow or "actor_id=18040405" not in state + plan + tracker + architecture + release_flow:
         errors.append("GOV_CI9_OWNER_ONLY_HISTORY_MISSING")

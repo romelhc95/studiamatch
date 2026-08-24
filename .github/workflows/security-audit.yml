@@ -329,40 +329,19 @@ jobs:
             --promotion-event "$GITHUB_EVENT_PATH" \
             --event-name "$GITHUB_EVENT_NAME" \
             --run-attempt "${GITHUB_RUN_ATTEMPT:-0}"
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-          import urllib.request
-
-          token = os.environ["GH_TOKEN"]
-          repo = os.environ["GH_REPOSITORY"]
-          run_id = os.environ["GITHUB_RUN_ID"]
-
-          def get(path):
-              req = urllib.request.Request(
-                  f"https://api.github.com/repos/{repo}/{path}",
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "Authorization": f"Bearer {token}",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                  },
-              )
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  return json.loads(response.read().decode("utf-8"))
-
-          approvals = get(f"actions/runs/{run_id}/approvals")
-          jobs = get(f"actions/runs/{run_id}/jobs?per_page=100")
-          matches = [job for job in jobs.get("jobs", []) if job.get("name") == "Promotion Boundary"]
-          if len(matches) != 1:
-              sys.exit("PROMOTION_BOUNDARY_JOB_UNOBSERVABLE")
-          open("promotion-approval-history.json", "w", encoding="utf-8").write(json.dumps(approvals, separators=(",", ":")))
-          open("promotion-boundary-job-id.txt", "w", encoding="utf-8").write(str(matches[0]["id"]))
-          PY
+          python3 scripts/security/github_promotion_snapshot.py \
+            --collect-run-evidence \
+            --run-id "$GITHUB_RUN_ID" \
+            --output-dir .
           PROMOTION_BOUNDARY_JOB_ID="$(cat promotion-boundary-job-id.txt)"
-          export PROMOTION_BOUNDARY_JOB_ID
-          export PROMOTION_READINESS_SNAPSHOT=readiness-snapshot.json
-          python3 scripts/security/promotion_evidence.py --approval-history promotion-approval-history.json --write-approval-evidence promotion-approval-evidence.json
+          python3 scripts/security/promotion_evidence.py \
+            --approval-history promotion-approval-history.json \
+            --readiness-snapshot readiness-snapshot.json \
+            --run-payload promotion-run-payload.json \
+            --jobs-payload promotion-jobs-payload.json \
+            --workflow-gate-binding promotion-workflow-gate-binding.json \
+            --job-id "$PROMOTION_BOUNDARY_JOB_ID" \
+            --write-approval-evidence promotion-approval-evidence.json
       - name: Upload immutable promotion approval evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -426,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install 'pytest==8.3.5'
-          python3 -m pytest -q tests/test_attestation_parser.py tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py tests/test_promotion_readiness.py tests/test_promotion_api_adapter.py tests/test_promotion_evidence.py tests/test_promotion_o2_o5_e2e.py
+          python3 -m pytest -q tests/test_gov_ci12_r2_readiness_contract_v3.py tests/test_attestation_parser.py tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py tests/test_promotion_readiness.py tests/test_promotion_api_adapter.py tests/test_promotion_evidence.py tests/test_promotion_o2_o5_e2e.py
 
   lint:
     name: ESLint

@@ -172,7 +172,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 
 PR #442 publico GOV-CI10 en `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789` con tree `99c1cda4f0091aaee35752caec69745051c41a3a`, corrigiendo el parser section-aware despues del fallo post-merge de PR #441 y preservando el desired state `owner-only-protected-branch-updates`. HOM-010 O2 fallo luego en PR #443 sin merge; PR #443 no se edita ni se rerunea. Hito 2 conserva `WP-H2-001` activo hasta R1, sin implementacion iniciada.
 
-PR #443 y PR #445 quedan congelados como `FAILED_NOT_MERGED_FROZEN`. No se editan, cierran, reabren, rerunean ni mergean. `R3-GOV-HOM-011-O2-REQ1` queda consumido y HOM-011 O3-O5 quedan superseded. `WP-GOV-CI-012` debe publicar `promotion-jit-envelope-v2`, collector Python testeable, evidencia pre-merge inmutable basada en `created_at`/`environments[]`/`user`/`state` del historial REST real de approvals, post-merge sin secret ni Environment, cierre O3 asincronico con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`, consumo real O3 por O4 y cierre O5 de trees/ancestry.
+PR #443 y PR #445 quedan congelados como `FAILED_NOT_MERGED_FROZEN`. No se editan, cierran, reabren, rerunean ni mergean. `R3-GOV-HOM-011-O2-REQ1` queda consumido y HOM-011 O3-O5 quedan superseded. `WP-GOV-CI-012` debe publicar `promotion-jit-envelope-v3`, collector Python testeable, evidencia pre-merge inmutable basada en `environments[]`/`user`/`state`/`comment` del historial REST real de approvals sin timestamp de decision inventado, post-merge sin secret ni Environment, cierre O3 asincronico con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`, consumo real O3 por O4 y cierre O5 de trees/ancestry.
 
 ## Siguiente Gate
 
