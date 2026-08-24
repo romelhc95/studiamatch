@@ -118,6 +118,13 @@ jobs:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
       - name: Assert detect-only result
         env:
           DB_CHANGED: ${{ needs.detect-db-changes.outputs.db_changed }}
@@ -126,10 +133,19 @@ jobs:
           if [ "$DB_CHANGED" = "false" ]; then
             echo "NO_DB_CHANGES" >> "$GITHUB_STEP_SUMMARY"
             echo "DB Sync Detect Only=NO_DB_CHANGES"
+            python3 scripts/security/promotion_evidence.py --write-db-detect-only db-sync-detect-only.json
             exit 0
           fi
-          echo "::error::DB Sync Detect Only requires NO_DB_CHANGES for HOM-011 O3"
+          echo "::error::DB Sync Detect Only requires NO_DB_CHANGES for HOM-012 O3"
           exit 1
+      - name: Upload DB detect-only evidence
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: db-sync-detect-only-${{ github.sha }}
+          path: db-sync-detect-only.json
+          if-no-files-found: error
+          retention-days: 30
 
   db-contract-preflight:
     name: "DB contract preflight"

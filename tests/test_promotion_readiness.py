@@ -1,6 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,8 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 VALID_SNAPSHOT = {
     "snapshot_source": "github-api",
-    "environment": {"name": "Promotion", "can_admins_bypass": False, "reviewer": "romelhc95-approver"},
-    "ruleset": {"name": "owner-only-protected-branch-updates", "enforcement": "active", "restrict_updates": True, "bypass_actor_count": 1, "protected_refs": ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"], "bypass_user": "romelhc95", "excluded_user": "romelhc95-approver"},
+    "environment": {"name": "Promotion", "can_admins_bypass": False, "prevent_self_review": True, "deployment_branch_policy": None, "reviewer": "romelhc95-approver", "reviewer_id": 306979205},
+    "ruleset": {"name": "owner-only-protected-branch-updates", "enforcement": "active", "restrict_updates": True, "bypass_actor_count": 1, "bypass_actors_observable": True, "protected_refs": ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"], "bypass_user": "romelhc95", "excluded_user": "romelhc95-approver"},
     "active_promotions": ["500"],
     "current_pr": "500",
     "cloudflare_pages_app_id": 85455,
@@ -38,7 +39,7 @@ class PromotionReadinessTests(unittest.TestCase):
 
     def test_readiness_rejects_admin_bypass(self):
         readiness = load_readiness()
-        snapshot = {**VALID_SNAPSHOT, "environment": {"name": "Promotion", "can_admins_bypass": True, "reviewer": "romelhc95-approver"}}
+        snapshot = {**VALID_SNAPSHOT, "environment": {"name": "Promotion", "can_admins_bypass": True, "prevent_self_review": True, "deployment_branch_policy": None, "reviewer": "romelhc95-approver", "reviewer_id": 306979205}}
         errors = readiness.validate_readiness(snapshot, root=ROOT)
         self.assertIn("READINESS_ENVIRONMENT_ADMIN_BYPASS_INVALID", errors)
 
@@ -52,6 +53,28 @@ class PromotionReadinessTests(unittest.TestCase):
         readiness = load_readiness()
         errors = readiness.validate_readiness(VALID_SNAPSHOT, root=ROOT)
         self.assertNotIn("READINESS_O4_NOT_BLOCKED", errors)
+
+    def test_readiness_rejects_unobservable_bypass_actors(self):
+        readiness = load_readiness()
+        snapshot = {**VALID_SNAPSHOT, "ruleset": {**VALID_SNAPSHOT["ruleset"], "bypass_actors_observable": False, "bypass_actor_count": "UNOBSERVABLE"}}
+        errors = readiness.validate_readiness(snapshot, root=ROOT)
+        self.assertIn("READINESS_RULESET_BYPASS_UNOBSERVABLE", errors)
+
+    def test_readiness_o4_loads_real_o3_closure_gate(self):
+        readiness = load_readiness()
+        body = "\n".join(["## Promotion Attestation", "Source-SHA: " + "f" * 40])
+        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_body": body}
+        with mock.patch.object(readiness, "load_o3_closure_artifact", return_value={"main_merge_sha": "f" * 40, "db_changed": False, "apply_executed": False}) as loader:
+            self.assertEqual(readiness.validate_readiness(snapshot, root=ROOT), [])
+        loader.assert_called_once_with("f" * 40)
+
+    def test_readiness_o4_fails_without_o3_closure(self):
+        readiness = load_readiness()
+        body = "\n".join(["## Promotion Attestation", "Source-SHA: " + "f" * 40])
+        snapshot = {**VALID_SNAPSHOT, "current_pr_head_ref": "promote/gov-hom-012-o4-req1", "current_pr_body": body}
+        with mock.patch.object(readiness, "load_o3_closure_artifact", side_effect=RuntimeError("missing")):
+            errors = readiness.validate_readiness(snapshot, root=ROOT)
+        self.assertIn("READINESS_O4_O3_CLOSURE_UNAVAILABLE", errors)
 
 
 if __name__ == "__main__":

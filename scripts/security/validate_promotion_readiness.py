@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only readiness preflight for HOM-011 promotions."""
+"""Read-only readiness preflight for HOM-012 promotions."""
 
 from __future__ import annotations
 
@@ -17,7 +17,9 @@ try:
         PROMOTION_ENVELOPE_SCHEMA,
         PROMOTION_FINAL_WP,
         compute_digest,
+        load_o3_closure_artifact,
         load_manifest_by_id,
+        parse_attestation_fields,
     )
 except ModuleNotFoundError:
     from validate_work_package import (  # type: ignore
@@ -27,7 +29,9 @@ except ModuleNotFoundError:
         PROMOTION_ENVELOPE_SCHEMA,
         PROMOTION_FINAL_WP,
         compute_digest,
+        load_o3_closure_artifact,
         load_manifest_by_id,
+        parse_attestation_fields,
     )
 
 
@@ -67,8 +71,14 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
             errors.append("READINESS_ENVIRONMENT_INVALID")
         if environment.get("can_admins_bypass") is not False:
             errors.append("READINESS_ENVIRONMENT_ADMIN_BYPASS_INVALID")
+        if environment.get("prevent_self_review") is not True:
+            errors.append("READINESS_ENVIRONMENT_PREVENT_SELF_REVIEW_INVALID")
+        if environment.get("deployment_branch_policy") is not None:
+            errors.append("READINESS_ENVIRONMENT_BRANCH_POLICY_INVALID")
         if environment.get("reviewer") != EXPECTED_REVIEWER:
             errors.append("READINESS_ENVIRONMENT_REVIEWER_INVALID")
+        if environment.get("reviewer_id") != 306979205:
+            errors.append("READINESS_ENVIRONMENT_REVIEWER_ID_INVALID")
 
     ruleset = snapshot.get("ruleset")
     if not isinstance(ruleset, dict):
@@ -80,6 +90,8 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
             errors.append("READINESS_RULESET_ENFORCEMENT_INVALID")
         if ruleset.get("restrict_updates") is not True:
             errors.append("READINESS_RULESET_RESTRICT_UPDATES_INVALID")
+        if ruleset.get("bypass_actors_observable") is not True:
+            errors.append("READINESS_RULESET_BYPASS_UNOBSERVABLE")
         if ruleset.get("bypass_actor_count") != 1:
             errors.append("READINESS_RULESET_BYPASS_EXCLUSIVE_INVALID")
         protected_refs = set(ruleset.get("protected_refs") or [])
@@ -97,7 +109,7 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
         errors.append("READINESS_ACTIVE_PROMOTION_CURRENT_PR_INVALID")
 
     for operation, branch in PROMOTION_CANDIDATE_BRANCHES.items():
-        grant_id = f"R3-GOV-HOM-011-{operation.split(' ', 1)[0]}-REQ1"
+        grant_id = f"R3-GOV-HOM-012-{operation.split(' ', 1)[0]}-REQ1"
         grant_path = root / ".context" / "r3_grants" / f"{grant_id}.json"
         if not grant_path.exists():
             errors.append(f"READINESS_GRANT_MISSING:{grant_id}")
@@ -113,6 +125,16 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
 
     if snapshot.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID:
         errors.append("READINESS_CLOUDFLARE_APP_INVALID")
+    if snapshot.get("current_pr_head_ref") == "promote/gov-hom-012-o4-req1":
+        fields = parse_attestation_fields(str(snapshot.get("current_pr_body") or ""))
+        source_sha = fields.get("Source-SHA", "")
+        try:
+            closure = load_o3_closure_artifact(source_sha)
+        except Exception:
+            errors.append("READINESS_O4_O3_CLOSURE_UNAVAILABLE")
+        else:
+            if closure.get("main_merge_sha") != source_sha or closure.get("db_changed") is not False or closure.get("apply_executed") is not False:
+                errors.append("READINESS_O4_O3_CLOSURE_INVALID")
     return errors
 
 

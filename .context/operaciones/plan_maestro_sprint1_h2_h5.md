@@ -13,7 +13,7 @@ O4 = COMPLETED
 O5 = COMPLETED
 H2-H5 = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 active_work_package = WP-H2-001
-governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002,WP-GOV-CI-003,WP-GOV-CI-004,WP-GOV-CI-005,WP-GOV-CI-006,WP-GOV-CI-007,WP-GOV-CI-008,WP-GOV-CI-009,WP-GOV-CI-010,WP-GOV-CI-011
+governance_work_packages = WP-GOV-OBS-001,WP-GOV-INFRA-001,WP-GOV-ARCH-001,WP-GOV-HOM-001,WP-GOV-CI-001,WP-GOV-CI-002,WP-GOV-CI-003,WP-GOV-CI-004,WP-GOV-CI-005,WP-GOV-CI-006,WP-GOV-CI-007,WP-GOV-CI-008,WP-GOV-CI-009,WP-GOV-CI-010,WP-GOV-CI-011,WP-GOV-CI-012
 next_gate = PREPARE_WP_GOV_CI_011_R2_APPROVAL
 lifecycle_stage = ACTIVE
 gate_status = APPROVED_R1
@@ -21,7 +21,7 @@ implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #443 queda `FAILED_NOT_MERGED`; `R3-GOV-HOM-010-O2-REQ1` consumido; HOM-010 O3-O5 superseded. Ahora F10.11 requiere aprobacion R2 separada de `WP-GOV-CI-011` para publicar `promotion-jit-envelope-v1`, mantener el desired state `owner-only-protected-branch-updates`, exigir `Promotion.can_admins_bypass=false`, preparar HOM-011 y cerrar O3 solo con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado.
+Este plan no crea alcance ni autoriza R2/R3. PR #443 queda congelado como `FAILED_NOT_MERGED`, consumio `R3-GOV-HOM-010-O2-REQ1` y fallo como ruta HOM-010 que intentaba `promotion-jit-envelope-v1`; PR #445 queda `FAILED_NOT_MERGED_FROZEN`; `R3-GOV-HOM-011-O2-REQ1` consumido; HOM-011 O3-O5 superseded. Ahora F10.11 requiere aprobacion R2 separada de `WP-GOV-CI-012` para publicar `promotion-jit-envelope-v2`, mantener el desired state `owner-only-protected-branch-updates`, exigir `prevent_self_review=true`, `Promotion.can_admins_bypass=false`, `deployment_branch_policy=null`, preparar HOM-012 y cerrar O3 asincronicamente con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado. Gate exacto: `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
 
 ## Bases Inmutables
 
@@ -168,8 +168,9 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | GOV CI9 owner-only branch updates | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` | PR #441 publico `WP-GOV-CI-009` pero fallo run `32666126533` por `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 queda superseded. |
 | GOV CI10 section-aware attestations | `MERGED_TO_DESARROLLO` | PR #442 publico `WP-GOV-CI-010` en `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`, digest `c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c`. |
 | GOV CI11 promotion envelope | `PREPARE_R2_APPROVAL` | Candidate local `WP-GOV-CI-011` congela PR #443, consume HOM-010 O2, supersede HOM-010 O3-O5 y reemplaza la familia runtime por HOM-011 con envelope transaccional. |
+| GOV CI12 causal evidence | `PREPARE_R2_APPROVAL` | Candidate local `WP-GOV-CI-012` congela PR #443/#445, consume HOM-011 O2, supersede HOM-011 O3-O5 y reemplaza la familia runtime por HOM-012 con evidencia causal. |
 
-Ramas target-aware HOM-011: `promote/gov-hom-011-o2-req1`, `promote/gov-hom-011-o3-req1`, `promote/gov-hom-011-o4-req1`, `promote/gov-hom-011-o5-req1`. HOM-006, HOM-007, HOM-008, HOM-009 y HOM-010 quedan superseded o consumidos y no utilizables.
+Ramas target-aware HOM-012: `promote/gov-hom-012-o2-req1`, `promote/gov-hom-012-o3-req1`, `promote/gov-hom-012-o4-req1`, `promote/gov-hom-012-o5-req1`. HOM-006, HOM-007, HOM-008, HOM-009, HOM-010 y HOM-011 quedan superseded o consumidos y no utilizables.
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -347,7 +348,7 @@ Contrato de interaccion:
 - Path boundary acumulado contra baseline.
 - PostgreSQL 17 solo cuando cambie `db/**`.
 
-`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual. El `Canonical Path Boundary` conserva el modo incremental para PR normales y usa boundary estructural para promociones O2-O5, validando `Promotion Attestation` en lugar del diff historico acumulado. `Promotion Boundary` debe usar el Environment dedicado `Promotion`; no debe reutilizar `Certification`, `Production` ni `Development`, porque los eventos `pull_request` usan refs sinteticos `refs/pull/<n>/merge`. GOV-CI11 mantiene route classification post-merge, exige envelope `promotion-jit-envelope-v1` y preserva owner-only updates: `romelhc95-approver` revisa/aprueba, pero el merge de ramas protegidas lo ejecuta `romelhc95`; solo HOM-011 exacto puede ser `VERIFIED_PROMOTION`.
+`security-audit` valida candidate/digest y no reviews: el Governance Preflight usa `Base-SHA`, `Candidate-SHA`, head real, manifest, paths y co-change solo en PR a `desarrollo`. La review humana obligatoria pertenece a GitHub branch protection, no dispara CI y no requiere rerun manual. El `Canonical Path Boundary` conserva el modo incremental para PR normales y usa boundary estructural para promociones O2-O5, validando `Promotion Attestation` en lugar del diff historico acumulado. `Promotion Boundary` debe usar el Environment dedicado `Promotion` una sola vez pre-merge. GOV-CI12 exige envelope `promotion-jit-envelope-v2`, artifact pre-merge inmutable y post-merge sin secret ni Environment; solo HOM-012 exacto puede ser `VERIFIED_PROMOTION`.
 
 Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
@@ -368,7 +369,7 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI11 sea publicado a `desarrollo` con post-merge verde, el ruleset owner-only sea aplicado mediante R3 JIT, y luego se homologue mediante O2-O5 HOM-011 con grants R3 JIT separados. PR #443 queda `FAILED_NOT_MERGED`; HOM-010 O2 consumido y HOM-010 O3-O5 superseded. El siguiente gate es preparar aprobacion R2 de `WP-GOV-CI-011` por commit/tree/digest. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI12 sea publicado a `desarrollo` con post-merge verde y luego se homologue mediante O2-O5 HOM-012 con grants R3 JIT separados. PR #443 y PR #445 quedan `FAILED_NOT_MERGED_FROZEN`; HOM-011 O2 consumido y HOM-011 O3-O5 superseded. El siguiente gate es preparar aprobacion R2 de `WP-GOV-CI-012` por commit/tree/digest. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
 
 ## Predicado Externo De Cierre F10.11
 

@@ -14,6 +14,7 @@ Snapshot GOV-CI8: `desarrollo@16045d45811cbe12299ce2ba66f6afd75a93d1ee`, tree `2
 Snapshot GOV-CI9: `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`, tree `7df05c52da47855d62c082f7cfbd12ee1e38b965`; `certificacion@df2cde3626c75fa4733bf1624fb105d8ee08c076` comparte tree; sin cambios DB.
 Snapshot GOV-CI10: `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`; PR #441 fallo post-merge con `POST_MERGE_ATTESTATION_DUPLICATE`; sin cambios DB.
 Snapshot GOV-CI11: `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`; PR #443 queda `FAILED_NOT_MERGED`; sin cambios DB.
+Snapshot GOV-CI12: `desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4`, tree `bb3a9084961c090adac0d390aa22fdcc84670656`; PR #445 queda `FAILED_NOT_MERGED_FROZEN`; sin cambios DB.
 
 ## Ambientes
 
@@ -65,6 +66,7 @@ flowchart LR
 - GOV-CI9 solo corrige gobierno de ramas protegidas y solicitudes HOM-009; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
 - GOV-CI10 solo corrige parsing section-aware de attestations y solicitudes HOM-010; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en DB Sync detect-only; apply queda prohibido sin R3 separado.
 - GOV-CI11 solo corrige envelope transaccional de promociones y solicitudes HOM-011; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en `DB Sync Detect Only`; apply/report/verify quedan skipped en la ruta no-change y cualquier apply queda prohibido sin R3 separado.
+- GOV-CI12 solo corrige evidencia causal de promociones y solicitudes HOM-012; no cambia schema, migraciones, ambientes Supabase, writers, RLS, grants ni adoption state. O3 posterior debe reportar `NO_DB_CHANGES` en `DB Sync Detect Only`; report/apply/verify, DDL/DML, Supabase y credenciales Production quedan prohibidos en la ruta no-change.
 
 ## Writers Por Ambiente
 

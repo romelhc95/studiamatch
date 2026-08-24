@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import hashlib
+import io
 import json
 import os
 import re
@@ -14,6 +15,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -93,6 +95,7 @@ GOV_CI8_BASE_COMMIT = "16045d45811cbe12299ce2ba66f6afd75a93d1ee"
 GOV_CI9_BASE_COMMIT = "1bc36ae6a4381c5ceac5e30c3970c39099965bc3"
 GOV_CI10_BASE_COMMIT = "17d383291a5f2877074b54b66f2a0ff48a643667"
 GOV_CI11_BASE_COMMIT = "cbdfe9dab373a2b427df4864b14427f3b2358789"
+GOV_CI12_BASE_COMMIT = "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -573,6 +576,45 @@ GOV_CI11_TRANSITION_ALLOWLIST = (
     ".context/r3_grants/R3-GOV-HOM-011-O4-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-011-O5-REQ1.json",
 )
+GOV_CI12_TRANSITION_ALLOWLIST = (
+    "AGENTS.md",
+    ".github/pull_request_template.md",
+    ".github/workflows/security-audit.yml",
+    ".github/workflows/db-sync-to-pro.yml",
+    ".github/workflows/o3-closure.yml",
+    "scripts/security/github_promotion_snapshot.py",
+    "scripts/security/promotion_evidence.py",
+    "scripts/security/validate_work_package.py",
+    "scripts/security/validate_context_graph.py",
+    "scripts/security/validate_promotion_readiness.py",
+    "tests/fixtures/governance/gov-ci12/**",
+    "tests/test_work_package_manifest.py",
+    "tests/test_context_graph_semantics.py",
+    "tests/test_release_workflow_matrix.py",
+    "tests/test_fase09_10_pre_main_controls.py",
+    "tests/test_fase10_main_boundary.py",
+    "tests/test_fase10_8_db_sync.py",
+    "tests/test_promotion_readiness.py",
+    "tests/test_promotion_evidence.py",
+    "tests/test_promotion_api_adapter.py",
+    "tests/test_promotion_o2_o5_e2e.py",
+    ".context/00_INDICE.md",
+    ".context/estado_del_proyecto.md",
+    ".context/arquitectura_pipeline.md",
+    ".context/sistema_db_supabase.md",
+    ".context/operaciones/context_graph_semantico.md",
+    ".context/operaciones/flujo_release_minimo.md",
+    ".context/operaciones/matriz_adopcion_db.md",
+    ".context/operaciones/plan_maestro_sprint1_h2_h5.md",
+    ".context/seguimiento/seguimiento_sprint_1_h2_h5.md",
+    ".context/backlog_tareas/governance/TASK-GOV-CI-012.md",
+    ".context/work_packages/WP-GOV-CI-012.json",
+    ".context/decisiones/ADR-0041_promociones_evidencia_causal_o2_o5.md",
+    ".context/r3_grants/R3-GOV-HOM-012-O2-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O3-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O4-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O5-REQ1.json",
+)
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
     "db/**",
@@ -591,23 +633,23 @@ PROMOTION_PAIRS = {
     "O5 certificacion -> desarrollo": ("desarrollo", "certificacion"),
 }
 PROMOTION_CANDIDATE_BRANCHES = {
-    "O2 desarrollo -> certificacion": "promote/gov-hom-011-o2-req1",
-    "O3 certificacion -> main": "promote/gov-hom-011-o3-req1",
-    "O4 main -> certificacion": "promote/gov-hom-011-o4-req1",
-    "O5 certificacion -> desarrollo": "promote/gov-hom-011-o5-req1",
+    "O2 desarrollo -> certificacion": "promote/gov-hom-012-o2-req1",
+    "O3 certificacion -> main": "promote/gov-hom-012-o3-req1",
+    "O4 main -> certificacion": "promote/gov-hom-012-o4-req1",
+    "O5 certificacion -> desarrollo": "promote/gov-hom-012-o5-req1",
 }
 SUPERSEDED_PROMOTION_PREFIX = "promote/gov-hom-"
 PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-Ref", "Base-SHA", "Source-Ref", "Source-SHA", "Candidate-SHA", "Candidate-Tree", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
 PROMOTION_SHAPED_FIELDS = {"Operation", "Grant-ID", "Source-Ref", "Source-SHA", "Final-WP", "D_FINAL", "T_FINAL", "Candidate-Tree"}
 INERT_ATTESTATION_VALUES = {"", "todo", "tbd", "n/a", "na", "none", "null", "nuevo-unico-no-consumido"}
 PROTECTED_BRANCHES = {"desarrollo", "certificacion", "main"}
-PROMOTION_FINAL_WP = "WP-GOV-CI-011"
+PROMOTION_FINAL_WP = "WP-GOV-CI-012"
 GOV_CI2_PROMOTION_BLOCKED_PR_NUMBERS = {428}
 GOV_CI2_PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
 PROMOTION_ALLOWED_ACTION = "opened"
-PROMOTION_BLOCKED_PR_NUMBERS = {428, 431, 433, 435, 437, 440, 441, 443}
-PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1"}
-PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1", "R3-GOV-HOM-007-O2-REQ1", "R3-GOV-HOM-007-O3-REQ1", "R3-GOV-HOM-007-O4-REQ1", "R3-GOV-HOM-007-O5-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-008-O3-REQ1", "R3-GOV-HOM-008-O4-REQ1", "R3-GOV-HOM-008-O5-REQ1", "R3-GOV-HOM-009-O2-REQ1", "R3-GOV-HOM-009-O3-REQ1", "R3-GOV-HOM-009-O4-REQ1", "R3-GOV-HOM-009-O5-REQ1", "R3-GOV-HOM-010-O3-REQ1", "R3-GOV-HOM-010-O4-REQ1", "R3-GOV-HOM-010-O5-REQ1"}
+PROMOTION_BLOCKED_PR_NUMBERS = {428, 431, 433, 435, 437, 440, 441, 443, 445}
+PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1", "R3-GOV-HOM-011-O2-REQ1"}
+PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1", "R3-GOV-HOM-007-O2-REQ1", "R3-GOV-HOM-007-O3-REQ1", "R3-GOV-HOM-007-O4-REQ1", "R3-GOV-HOM-007-O5-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-008-O3-REQ1", "R3-GOV-HOM-008-O4-REQ1", "R3-GOV-HOM-008-O5-REQ1", "R3-GOV-HOM-009-O2-REQ1", "R3-GOV-HOM-009-O3-REQ1", "R3-GOV-HOM-009-O4-REQ1", "R3-GOV-HOM-009-O5-REQ1", "R3-GOV-HOM-010-O3-REQ1", "R3-GOV-HOM-010-O4-REQ1", "R3-GOV-HOM-010-O5-REQ1", "R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1"}
 OWNER_ONLY_RULESET_REQUIRED = {
     "name": "owner-only-protected-branch-updates",
     "refs": ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"],
@@ -663,17 +705,21 @@ STATIC_PROMOTION_REQUEST_KEYS = {
     "allowed_side_effects",
     "blocked_until_o3_closed",
 }
-PROMOTION_ENVELOPE_SCHEMA = "promotion-jit-envelope-v1"
+PROMOTION_ENVELOPE_SCHEMA = "promotion-jit-envelope-v2"
 PROMOTION_ENVELOPE_FIELDS = {
     "schema",
+    "transaction_id",
     "approval_id",
     "grant_id",
+    "repository_id",
     "repository",
     "operation",
     "pr_number",
+    "pr_node_id",
     "premerge_run_id",
+    "premerge_run_attempt",
+    "event_name",
     "event_action",
-    "run_attempt",
     "base_ref",
     "base_sha",
     "source_ref",
@@ -685,16 +731,26 @@ PROMOTION_ENVELOPE_FIELDS = {
     "final_digest",
     "final_tree",
     "required_reviewer",
+    "required_reviewer_id",
     "required_merger",
+    "required_merger_id",
     "allowed_side_effects",
+    "environment",
+    "environment_id",
+    "ruleset_id",
+    "ruleset_digest",
     "issued_at",
     "expires_at",
+    "nonce",
 }
 GITHUB_ACTIONS_APP_ID = 15368
 CLOUDFLARE_PAGES_APP_ID = 85455
 CLOUDFLARE_PAGES_CHECK_NAME = "Cloudflare Pages"
 DB_SYNC_DETECT_ONLY_CHECK_NAME = "DB Sync Detect Only"
 DB_SYNC_DETECT_ONLY_RESULT = "NO_DB_CHANGES"
+PROMOTION_APPROVAL_EVIDENCE_FILE = "promotion-approval-evidence.json"
+O3_CLOSURE_EVIDENCE_FILE = "o3-closure-evidence.json"
+DB_SYNC_DETECT_ONLY_EVIDENCE_FILE = "db-sync-detect-only.json"
 
 
 def canonical_payload(data: dict[str, Any]) -> bytes:
@@ -1325,7 +1381,8 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         if failure.get("failed_pr") != 443 or failure.get("status") != "FAILED_NOT_MERGED" or failure.get("consumed_grant") != "R3-GOV-HOM-010-O2-REQ1":
             errors.append(f"GOV_CI11_FAILURE_TRACE_INVALID:{path.name}")
         envelope = data.get("promotion_jit_envelope", {})
-        if envelope.get("schema") != PROMOTION_ENVELOPE_SCHEMA or envelope.get("secret_name") != "R3_JIT_APPROVAL_ENVELOPE" or set(envelope.get("required_fields", [])) != PROMOTION_ENVELOPE_FIELDS:
+        ci11_fields = set(PROMOTION_ENVELOPE_FIELDS) - {"transaction_id", "repository_id", "pr_node_id", "premerge_run_attempt", "event_name", "required_reviewer_id", "required_merger_id", "environment", "environment_id", "ruleset_id", "ruleset_digest", "nonce"} | {"run_attempt"}
+        if envelope.get("schema") != "promotion-jit-envelope-v1" or envelope.get("secret_name") != "R3_JIT_APPROVAL_ENVELOPE" or set(envelope.get("required_fields", [])) != ci11_fields:
             errors.append(f"GOV_CI11_ENVELOPE_INVALID:{path.name}")
         if envelope.get("strict_json") is not True or envelope.get("unknown_fields_allowed") is not False or envelope.get("single_active_transaction") is not True:
             errors.append(f"GOV_CI11_ENVELOPE_STRICTNESS_INVALID:{path.name}")
@@ -1355,6 +1412,55 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"GOV_CI11_BOOTSTRAP_AUTH_INVALID:{path.name}")
         if any(term not in denied_terms for term in ("certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "workflow_dispatch", "deploys", "secrets")):
             errors.append(f"GOV_CI11_R3_DENY_MISSING:{path.name}")
+    elif data.get("id") == "WP-GOV-CI-012":
+        required_denies = H2_REQUIRED_DENY_TERMS | {"migration-execution"}
+        if data.get("task_id") != "TASK-GOV-CI-012" or data.get("hito") != "GOV-CI":
+            errors.append(f"GRAPH_ID_MISMATCH:{path.name}")
+        if data.get("target_level") != GOV_OBS_TARGET_LEVEL:
+            errors.append(f"GOV_CI12_TARGET_INVALID:{path.name}")
+        if data.get("status") != "PROPOSED":
+            errors.append(f"GOV_CI12_STATUS_INVALID:{path.name}:must remain PROPOSED before R2 approval")
+        if data.get("allowed_paths") != list(GOV_CI12_TRANSITION_ALLOWLIST):
+            errors.append(f"GOV_CI12_ALLOWLIST_INVALID:{path.name}")
+        baseline = data.get("baseline", {})
+        if baseline.get("candidate_commit") != GOV_CI12_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_CI12_BASE_COMMIT:
+            errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
+        if baseline.get("candidate_tree") != "bb3a9084961c090adac0d390aa22fdcc84670656" or baseline.get("desarrollo_tree") != "bb3a9084961c090adac0d390aa22fdcc84670656":
+            errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
+        if baseline.get("certificacion_commit") != "df2cde3626c75fa4733bf1624fb105d8ee08c076" or baseline.get("certificacion_tree") != "7df05c52da47855d62c082f7cfbd12ee1e38b965" or baseline.get("main_commit") != "9b486146962bd2a092acfd649fdcf716e922de89" or baseline.get("main_tree") != "fcb59095e48441bb4486ccc196aee61e2e1e0fe3":
+            errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:branch_commits")
+        failure = data.get("hom011_o2_failure", {})
+        if failure.get("failed_pr") != 445 or failure.get("status") != "FAILED_NOT_MERGED_FROZEN" or failure.get("consumed_grant") != "R3-GOV-HOM-011-O2-REQ1":
+            errors.append(f"GOV_CI12_FAILURE_TRACE_INVALID:{path.name}")
+        envelope = data.get("promotion_jit_envelope", {})
+        if envelope.get("schema") != PROMOTION_ENVELOPE_SCHEMA or envelope.get("secret_name") != "R3_JIT_APPROVAL_ENVELOPE" or set(envelope.get("required_fields", [])) != PROMOTION_ENVELOPE_FIELDS:
+            errors.append(f"GOV_CI12_ENVELOPE_INVALID:{path.name}")
+        if envelope.get("premerge_artifact_required") is not True or envelope.get("post_merge_secret_dependency") is not False:
+            errors.append(f"GOV_CI12_EVIDENCE_FLOW_INVALID:{path.name}")
+        desired = data.get("promotion_environment_desired_state", {})
+        if desired.get("environment") != "Promotion" or desired.get("single_approval_only") is not True or desired.get("post_merge_environment") is not None:
+            errors.append(f"GOV_CI12_PROMOTION_ENVIRONMENT_INVALID:{path.name}")
+        o3 = data.get("o3_closure", {})
+        if o3.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID or o3.get("db_sync_expected_result") != DB_SYNC_DETECT_ONLY_RESULT or o3.get("db_apply_allowed") is not False:
+            errors.append(f"GOV_CI12_O3_INVALID:{path.name}")
+        if o3.get("producer_consumer_artifact") != "o3-closure-evidence.json" or o3.get("clock_controlled_polling") is not True:
+            errors.append(f"GOV_CI12_O3_EVIDENCE_INVALID:{path.name}")
+        if data.get("o5_closure", {}).get("final_tree_equality_required") is not True or data.get("o5_closure", {}).get("final_ancestry_required") is not True:
+            errors.append(f"GOV_CI12_O5_INVALID:{path.name}")
+        promotion = data.get("promotion_request_bootstrap")
+        expected_grants = [
+            "R3-GOV-HOM-012-O2-REQ1",
+            "R3-GOV-HOM-012-O3-REQ1",
+            "R3-GOV-HOM-012-O4-REQ1",
+            "R3-GOV-HOM-012-O5-REQ1",
+        ]
+        if not isinstance(promotion, dict) or promotion.get("final_wp") != "WP-GOV-CI-012" or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
+            errors.append(f"GOV_CI12_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
+        historical = data.get("historical_blocks", {})
+        if 445 not in historical.get("blocked_pr_numbers", []) or "R3-GOV-HOM-011-O2-REQ1" not in historical.get("consumed_grants", []) or any(f"R3-GOV-HOM-011-O{n}-REQ1" not in historical.get("superseded_grants", []) for n in range(3, 6)):
+            errors.append(f"GOV_CI12_HISTORICAL_BLOCKS_INVALID:{path.name}")
+        if data.get("bootstrap_authorization", {}).get("id") != "R1-BOOTSTRAP-GOV-CI-012-REQ1":
+            errors.append(f"GOV_CI12_BOOTSTRAP_AUTH_INVALID:{path.name}")
     else:
         required_denies = REQUIRED_DENY_TERMS
     if not required_denies <= denied_terms:
@@ -1555,8 +1661,9 @@ def validate_static_promotion_request(grant: dict[str, Any], *, grant_id: str, o
             errors.append("PROMOTION_GRANT_MISMATCH:required_reviewer")
         if grant.get("merger_reviewer_distinct") is not True:
             errors.append("PROMOTION_GRANT_MISMATCH:merger_reviewer_distinct")
-    if final_wp_id == "WP-GOV-CI-011":
-        if grant.get("approval_envelope_schema") != PROMOTION_ENVELOPE_SCHEMA:
+    if final_wp_id in {"WP-GOV-CI-011", "WP-GOV-CI-012"}:
+        expected_schema = "promotion-jit-envelope-v1" if final_wp_id == "WP-GOV-CI-011" else PROMOTION_ENVELOPE_SCHEMA
+        if grant.get("approval_envelope_schema") != expected_schema:
             errors.append("PROMOTION_GRANT_MISMATCH:approval_envelope_schema")
         if grant.get("allowed_side_effects") != expected_allowed_side_effects(operation):
             errors.append("PROMOTION_GRANT_MISMATCH:allowed_side_effects")
@@ -1609,7 +1716,7 @@ def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
             ("O5 certificacion -> desarrollo", "O5", "desarrollo", "certificacion"),
         ):
             expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, source_ref, final_wp, source_ref, False)
-    for family in ("006", "007", "008", "009", "010", "011"):
+    for family in ("006", "007", "008", "009", "010", "011", "012"):
         final_wp = f"WP-GOV-CI-{family}"
         for op, code, base_ref, source_ref in (
             ("O2 desarrollo -> certificacion", "O2", "certificacion", "desarrollo"),
@@ -1617,7 +1724,7 @@ def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
             ("O4 main -> certificacion", "O4", "certificacion", "main"),
             ("O5 certificacion -> desarrollo", "O5", "desarrollo", "certificacion"),
         ):
-            expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req1", final_wp, source_ref, family in {"007", "008", "009", "010", "011"})
+            expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req1", final_wp, source_ref, family in {"007", "008", "009", "010", "011", "012"})
     for grant_id, (operation, base_ref, candidate_branch, final_wp_id, source_ref, require_identity) in expected.items():
         wp = load_manifest_by_id(final_wp_id, root=root)
         d_final = str(wp.get("candidate_digest") if isinstance(wp, dict) else "")
@@ -1928,6 +2035,136 @@ def github_api_json(path: str, *, paginate: bool = False, max_pages: int = 10, d
     return flattened
 
 
+def github_api_bytes(url: str, *, deadline: float | None = None) -> bytes:
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        raise GitHubEvidenceError("github api requires GITHUB_TOKEN")
+    deadline = deadline or (time.monotonic() + 30.0)
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise GitHubEvidenceError("github api retry budget exhausted")
+    request = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+    })
+    with urllib.request.urlopen(request, timeout=min(10.0, remaining)) as response:
+        return response.read()
+
+
+def payload_digest_valid(payload: dict[str, Any]) -> bool:
+    digest = payload.get("payload_sha256")
+    if not isinstance(digest, str) or not HEX64.match(digest):
+        return False
+    signed = {key: value for key, value in payload.items() if key != "payload_sha256"}
+    raw = json.dumps(signed, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest() == digest
+
+
+def load_single_json_from_zip(raw: bytes, *, expected_member: str, max_size: int = 128_000) -> dict[str, Any]:
+    if len(raw) > max_size * 4:
+        raise GitHubEvidenceError("artifact archive too large")
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        names = [name for name in archive.namelist() if not name.endswith("/")]
+        if names != [expected_member]:
+            raise GitHubEvidenceError("artifact archive member mismatch")
+        info = archive.getinfo(expected_member)
+        if info.file_size > max_size:
+            raise GitHubEvidenceError("artifact json too large")
+        data = json.loads(archive.read(expected_member).decode("utf-8"))
+    if not isinstance(data, dict):
+        raise GitHubSchemaError("artifact json root must be object")
+    return data
+
+
+def load_workflow_artifact_json(run_id: int, *, artifact_name: str, expected_member: str, deadline: float | None = None) -> dict[str, Any]:
+    deadline = deadline or (time.monotonic() + 30.0)
+    listing = github_api_json(f"actions/runs/{run_id}/artifacts?per_page=100", deadline=deadline)
+    artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
+    if not isinstance(artifacts, list):
+        raise GitHubSchemaError("workflow artifacts schema invalid")
+    matches = [item for item in artifacts if isinstance(item, dict) and item.get("name") == artifact_name and item.get("expired") is not True]
+    if len(matches) != 1:
+        raise GitHubEvidenceError("workflow artifact count invalid")
+    raw = github_api_bytes(str(matches[0].get("archive_download_url") or ""), deadline=deadline)
+    return load_single_json_from_zip(raw, expected_member=expected_member)
+
+
+def approval_artifact_name(pr_number: int, run_id: int) -> str:
+    return f"promotion-approval-evidence-pr-{pr_number}-run-{run_id}"
+
+
+def load_promotion_approval_evidence(run_id: int, pr_number: int, *, deadline: float | None = None) -> dict[str, Any]:
+    evidence = load_workflow_artifact_json(
+        run_id,
+        artifact_name=approval_artifact_name(pr_number, run_id),
+        expected_member=PROMOTION_APPROVAL_EVIDENCE_FILE,
+        deadline=deadline,
+    )
+    if evidence.get("schema") != "promotion-approval-evidence-v1" or evidence.get("artifact_name") != f"promotion-approval-evidence-pr-{pr_number}-run-{run_id}.json":
+        raise GitHubEvidenceError("promotion approval artifact identity invalid")
+    if evidence.get("premerge_run_id") != run_id or evidence.get("premerge_run_attempt") != 1:
+        raise GitHubEvidenceError("promotion approval artifact run invalid")
+    if not payload_digest_valid(evidence):
+        raise GitHubEvidenceError("promotion approval artifact digest invalid")
+    if not isinstance(evidence.get("envelope"), dict):
+        raise GitHubEvidenceError("promotion approval artifact envelope invalid")
+    approval = evidence.get("deployment_approval")
+    if not isinstance(approval, dict):
+        raise GitHubEvidenceError("promotion approval artifact deployment invalid")
+    reviewer = approval.get("reviewer") or {}
+    envelope = evidence.get("envelope") or {}
+    if reviewer.get("login") != "romelhc95-approver" or reviewer.get("id") != 306979205:
+        raise GitHubEvidenceError("promotion approval reviewer invalid")
+    if str(approval.get("approval_id") or "") != str(envelope.get("approval_id") or ""):
+        raise GitHubEvidenceError("promotion approval id invalid")
+    if evidence.get("promotion_boundary_job_id") in {None, "", run_id}:
+        raise GitHubEvidenceError("promotion approval job invalid")
+    return evidence
+
+
+def load_promotion_approval_artifact(run_id: int, pr_number: int, *, deadline: float | None = None) -> dict[str, Any]:
+    evidence = load_promotion_approval_evidence(run_id, pr_number, deadline=deadline)
+    protected = {"envelope": evidence.get("envelope")}
+    return protected
+
+
+def load_repo_artifact_json(*, artifact_name: str, expected_member: str, deadline: float | None = None) -> dict[str, Any]:
+    deadline = deadline or (time.monotonic() + 30.0)
+    listing = github_api_json("actions/artifacts?per_page=100", deadline=deadline)
+    artifacts = listing.get("artifacts") if isinstance(listing, dict) else None
+    if not isinstance(artifacts, list):
+        raise GitHubSchemaError("repo artifacts schema invalid")
+    matches = [item for item in artifacts if isinstance(item, dict) and item.get("name") == artifact_name and item.get("expired") is not True]
+    if len(matches) != 1:
+        raise GitHubEvidenceError("repo artifact count invalid")
+    raw = github_api_bytes(str(matches[0].get("archive_download_url") or ""), deadline=deadline)
+    return load_single_json_from_zip(raw, expected_member=expected_member)
+
+
+def o3_closure_artifact_name(main_sha: str) -> str:
+    return f"o3-closure-evidence-{main_sha}"
+
+
+def load_o3_closure_artifact(main_sha: str, *, deadline: float | None = None) -> dict[str, Any]:
+    closure = load_repo_artifact_json(
+        artifact_name=o3_closure_artifact_name(main_sha),
+        expected_member=O3_CLOSURE_EVIDENCE_FILE,
+        deadline=deadline,
+    )
+    if closure.get("schema") != "o3-closure-evidence-v1" or closure.get("status") != "CLOSED" or closure.get("main_merge_sha") != main_sha:
+        raise GitHubEvidenceError("o3 closure artifact identity invalid")
+    if closure.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID or closure.get("db_sync_app_id") != GITHUB_ACTIONS_APP_ID:
+        raise GitHubEvidenceError("o3 closure artifact producer invalid")
+    if closure.get("db_sync_result") != DB_SYNC_DETECT_ONLY_RESULT or closure.get("db_changed") is not False or closure.get("apply_executed") is not False:
+        raise GitHubEvidenceError("o3 closure db contract invalid")
+    if closure.get("db_sync_artifact_head_sha") != main_sha:
+        raise GitHubEvidenceError("o3 closure db artifact sha invalid")
+    if not payload_digest_valid(closure):
+        raise GitHubEvidenceError("o3 closure artifact digest invalid")
+    return closure
+
+
 def github_api_json_until(path: str, predicate, *, paginate: bool = False, deadline: float | None = None) -> Any:
     deadline = deadline or (time.monotonic() + 30.0)
     attempt = 0
@@ -2131,11 +2368,13 @@ def validate_envelope_bindings(envelope: dict[str, Any], *, event: dict[str, Any
     base = pr.get("base") or {}
     head = pr.get("head") or {}
     expected = {
+        "repository_id": (event.get("repository") or {}).get("id"),
         "repository": (event.get("repository") or {}).get("full_name"),
         "operation": fields.get("Operation"),
         "pr_number": int(pr.get("number") or event.get("number") or 0),
+        "event_name": "pull_request",
         "event_action": PROMOTION_ALLOWED_ACTION,
-        "run_attempt": 1,
+        "premerge_run_attempt": 1,
         "base_ref": base.get("ref"),
         "base_sha": base.get("sha"),
         "source_ref": fields.get("Source-Ref"),
@@ -2147,9 +2386,14 @@ def validate_envelope_bindings(envelope: dict[str, Any], *, event: dict[str, Any
         "final_digest": expected_digest,
         "final_tree": expected_tree,
         "required_reviewer": "romelhc95-approver",
+        "required_reviewer_id": 306979205,
         "required_merger": "romelhc95",
+        "required_merger_id": 18040405,
+        "environment": "Promotion",
     }
     for key, expected_value in expected.items():
+        if expected_value is None:
+            continue
         if envelope.get(key) != expected_value:
             errors.append(f"PROMOTION_APPROVAL_ENVELOPE_MISMATCH:{key}")
     if require_premerge_run:
@@ -2164,9 +2408,23 @@ def validate_envelope_bindings(envelope: dict[str, Any], *, event: dict[str, Any
             errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:premerge_run_id")
     if envelope.get("allowed_side_effects") != expected_allowed_side_effects(fields.get("Operation", "")):
         errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:allowed_side_effects")
+    ruleset_digest = str(envelope.get("ruleset_digest") or "")
+    expected_ruleset_digest = os.environ.get("PROMOTION_RULESET_DIGEST", "")
+    if not ruleset_digest.startswith("sha256:"):
+        errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:ruleset_digest")
+    if expected_ruleset_digest and ruleset_digest != expected_ruleset_digest:
+        errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:ruleset_digest")
+    for key in ("repository_id", "environment_id", "ruleset_id", "required_reviewer_id", "required_merger_id", "premerge_run_id", "pr_number"):
+        if not isinstance(envelope.get(key), int) or envelope[key] <= 0:
+            errors.append(f"PROMOTION_APPROVAL_ENVELOPE_MISMATCH:{key}")
+    if not isinstance(envelope.get("pr_node_id"), str) or not envelope["pr_node_id"].strip():
+        errors.append("PROMOTION_APPROVAL_ENVELOPE_MISMATCH:pr_node_id")
+    for key in ("transaction_id", "nonce"):
+        if not isinstance(envelope.get(key), str) or len(envelope[key]) < 12:
+            errors.append(f"PROMOTION_APPROVAL_ENVELOPE_MISMATCH:{key}")
     issued_at = parse_utc(str(envelope.get("issued_at") or ""))
     expires_at = parse_utc(str(envelope.get("expires_at") or ""))
-    if issued_at is None or expires_at is None or issued_at >= expires_at or now >= expires_at:
+    if issued_at is None or expires_at is None or issued_at >= expires_at or now >= expires_at or issued_at > now:
         errors.append("PROMOTION_APPROVAL_ENVELOPE_EXPIRED")
     return errors
 
@@ -2182,8 +2440,7 @@ def protected_approval_values(evidence: dict[str, Any]) -> dict[str, str]:
             "reference": str(protected.get("reference") or ""),
             "expiry": str(protected.get("expiry") or ""),
         }
-    envelope, _ = decode_promotion_envelope(os.environ.get("R3_JIT_APPROVAL_ENVELOPE", ""))
-    return envelope_values(envelope)
+    return envelope_values(None)
 
 
 def protected_approval_envelope(evidence: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
@@ -2200,7 +2457,7 @@ def protected_approval_envelope(evidence: dict[str, Any]) -> tuple[dict[str, Any
         if envelope.get("schema") != PROMOTION_ENVELOPE_SCHEMA:
             errors.append("PROMOTION_APPROVAL_ENVELOPE_SCHEMA_INVALID")
         return envelope, errors
-    return decode_promotion_envelope(os.environ.get("R3_JIT_APPROVAL_ENVELOPE", ""))
+    return None, ["PROMOTION_APPROVAL_ENVELOPE_REQUIRED"]
 
 
 def last_attestation_mutation_at(pr: dict[str, Any], timeline: list[dict[str, Any]]) -> datetime | None:
@@ -2232,6 +2489,8 @@ def is_promotion_shaped(branch: str, target_branch: str, fields: dict[str, str])
 def classify_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) -> tuple[str, list[str]]:
     errors = validate_post_merge_promotion_push(event_path, root=root)
     if not errors:
+        if os.environ.get("POST_MERGE_SKIP_PROTECTED_APPROVAL") == "1":
+            return "STRUCTURAL_PROMOTION_CANDIDATE", []
         return "VERIFIED_PROMOTION", []
     if errors and errors[0] == "POST_MERGE_NORMAL_PR_NOT_PROMOTION":
         return "NOT_APPLICABLE", errors
@@ -2329,8 +2588,9 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
         return ["POST_MERGE_PR_BASE_SHA_MISMATCH"]
     if parents[1] != head_sha:
         return ["POST_MERGE_SECOND_PARENT_MISMATCH"]
-    merged_by = (pr.get("merged_by") or {}).get("login")
-    if merged_by != "romelhc95":
+    merged_user = pr.get("merged_by") or {}
+    merged_by = merged_user.get("login")
+    if merged_by != "romelhc95" or merged_user.get("id") != 18040405:
         return ["POST_MERGE_MERGER_INVALID"]
     try:
         after_tree = git_sha(["rev-parse", f"{after}^{{tree}}"], root=root)
@@ -2351,16 +2611,7 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     grant_id = fields.get("Grant-ID", "")
     if not PROMOTION_GRANT_ID_PATTERN.match(grant_id):
         return ["POST_MERGE_GRANT_ID_INVALID"]
-    protected = protected_approval_values(evidence)
-    protected_envelope, protected_envelope_errors = protected_approval_envelope(evidence)
     skip_protected_approval = os.environ.get("POST_MERGE_SKIP_PROTECTED_APPROVAL") == "1"
-    if not skip_protected_approval:
-        if not protected["grant_id"] or not protected["reference"] or not protected["expiry"]:
-            return ["POST_MERGE_APPROVAL_ENV_REQUIRED"]
-        if protected_envelope_errors or protected_envelope is None:
-            return ["POST_MERGE_APPROVAL_ENVELOPE_INVALID"]
-        if protected["grant_id"] != grant_id:
-            return ["POST_MERGE_APPROVAL_GRANT_ID_MISMATCH"]
     if pr_number in PROMOTION_BLOCKED_PR_NUMBERS or grant_id in PROMOTION_CONSUMED_GRANTS:
         return ["POST_MERGE_GRANT_CONSUMED"]
     if grant_id in PROMOTION_SUPERSEDED_GRANTS:
@@ -2370,22 +2621,13 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     approval_ref = fields.get("Approval-Reference", "")
     if not approval_ref or approval_ref in {"TODO", "N/A", "none", "<approval-reference>"}:
         return ["POST_MERGE_APPROVAL_REFERENCE_REQUIRED"]
-    if not skip_protected_approval and protected["reference"] != approval_ref:
-        return ["POST_MERGE_APPROVAL_REFERENCE_MISMATCH"]
     expiry = parse_utc(fields.get("Approval-Expiry", ""))
     if expiry is None or datetime.now(UTC) >= expiry:
         return ["POST_MERGE_APPROVAL_EXPIRED"]
-    if not skip_protected_approval and (protected["expiry"] != fields.get("Approval-Expiry", "") or parse_utc(protected["expiry"]) != expiry):
-        return ["POST_MERGE_APPROVAL_EXPIRY_MISMATCH"]
     final_wp = load_manifest_by_id(fields.get("Final-WP", ""), root=root)
     d_final = fields.get("D_FINAL", "")
     if final_wp is None or final_wp.get("candidate_digest") != d_final or compute_digest(final_wp) != d_final:
         return ["POST_MERGE_DIGEST_MISMATCH"]
-    if not skip_protected_approval and protected_envelope is not None:
-        pseudo_event = {"repository": {"full_name": repo}, "number": pr_number}
-        envelope_errors = validate_envelope_bindings(protected_envelope, event=pseudo_event, fields=fields, pr=pr, expected_digest=d_final, expected_tree=fields.get("T_FINAL", ""), require_premerge_run=False)
-        if envelope_errors:
-            return ["POST_MERGE_APPROVAL_ENVELOPE_MISMATCH"]
     grant = load_promotion_grant(grant_id, root=root)
     if grant is None:
         return ["POST_MERGE_GRANT_NOT_FOUND"]
@@ -2423,12 +2665,6 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     if check_error:
         return [check_error]
     if operation.startswith("O3"):
-        cf_check, check_error = latest_check_run(checks, CLOUDFLARE_PAGES_CHECK_NAME, head_sha=after, pr_number=pr_number, pr_created_at=pr_created_at, pr_merged_at=parse_utc(str(event.get("head_commit", {}).get("timestamp") or pr_merged_at.isoformat().replace("+00:00", "Z"))) or pr_merged_at, allow_empty_pull_requests=True, app_id=CLOUDFLARE_PAGES_APP_ID)
-        if check_error:
-            return ["POST_MERGE_O3_CLOUDFLARE_CHECK_INVALID"]
-        db_check, check_error = latest_check_run(checks, DB_SYNC_DETECT_ONLY_CHECK_NAME, head_sha=after, pr_number=pr_number, pr_created_at=pr_merged_at, pr_merged_at=parse_utc(str(event.get("head_commit", {}).get("timestamp") or pr_merged_at.isoformat().replace("+00:00", "Z"))) or pr_merged_at, allow_empty_pull_requests=True)
-        if check_error or db_sync_detect_only_result(db_check or {}) != DB_SYNC_DETECT_ONLY_RESULT:
-            return ["POST_MERGE_O3_DB_SYNC_DETECT_ONLY_INVALID"]
         if evidence.get("db_changed") is not False:
             try:
                 if subprocess.check_output(["git", "diff", "--name-only", before, after, "--", "db"], cwd=root, text=True, stderr=subprocess.DEVNULL).strip():
@@ -2436,15 +2672,51 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
             except subprocess.CalledProcessError:
                 return ["POST_MERGE_O3_DB_DELTA_INVALID"]
     if operation.startswith("O4"):
-        o3 = evidence.get("o3_closure") or {}
-        if not isinstance(o3, dict) or o3.get("status") != "CLOSED" or o3.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID or o3.get("db_sync_result") != DB_SYNC_DETECT_ONLY_RESULT:
+        try:
+            o3 = load_o3_closure_artifact(source_sha)
+        except (GitHubEvidenceError, GitHubSchemaError, OSError, urllib.error.URLError, json.JSONDecodeError, zipfile.BadZipFile):
             return ["POST_MERGE_O4_BLOCKED_PENDING_O3"]
+        if o3.get("status") != "CLOSED" or o3.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID or o3.get("db_sync_result") != DB_SYNC_DETECT_ONLY_RESULT or o3.get("main_merge_sha") != source_sha or o3.get("db_changed") is not False or o3.get("apply_executed") is not False:
+            return ["POST_MERGE_O4_BLOCKED_PENDING_O3"]
+    if operation.startswith("O5"):
+        try:
+            main_tree = git_sha(["rev-parse", "origin/main^{tree}"], root=root)
+            certificacion_tree = git_sha(["rev-parse", "origin/certificacion^{tree}"], root=root)
+            desarrollo_tree = git_sha(["rev-parse", f"{after}^{{tree}}"], root=root)
+        except subprocess.CalledProcessError:
+            return ["POST_MERGE_O5_FINAL_REFS_UNAVAILABLE"]
+        if len({main_tree, certificacion_tree, desarrollo_tree, fields.get("T_FINAL", "")}) != 1:
+            return ["POST_MERGE_O5_FINAL_TREE_MISMATCH"]
+        if git_is_ancestor("origin/main", "origin/certificacion", root=root) is not True or git_is_ancestor("origin/certificacion", after, root=root) is not True:
+            return ["POST_MERGE_O5_FINAL_ANCESTRY_INVALID"]
     promotion_run_id = workflow_run_id_from_details(promotion_check.get("details_url")) if promotion_check else None
     audit_run_id = workflow_run_id_from_details(audit_check.get("details_url")) if audit_check else None
     if promotion_run_id is None or audit_run_id is None or promotion_run_id != audit_run_id:
         return ["POST_MERGE_WORKFLOW_RUN_MISMATCH"]
-    if not skip_protected_approval and protected_envelope is not None and protected_envelope.get("premerge_run_id") != promotion_run_id:
-        return ["POST_MERGE_APPROVAL_ENVELOPE_MISMATCH"]
+    if not skip_protected_approval:
+        if not isinstance(evidence.get("protected_approval"), dict):
+            try:
+                evidence["protected_approval"] = load_promotion_approval_artifact(promotion_run_id, pr_number)
+            except (GitHubEvidenceError, GitHubSchemaError, OSError, urllib.error.URLError, json.JSONDecodeError, zipfile.BadZipFile):
+                return ["POST_MERGE_APPROVAL_ARTIFACT_INVALID"]
+        protected = protected_approval_values(evidence)
+        protected_envelope, protected_envelope_errors = protected_approval_envelope(evidence)
+        if not protected["grant_id"] or not protected["reference"] or not protected["expiry"]:
+            return ["POST_MERGE_APPROVAL_ENV_REQUIRED"]
+        if protected_envelope_errors or protected_envelope is None:
+            return ["POST_MERGE_APPROVAL_ENVELOPE_INVALID"]
+        if protected["grant_id"] != grant_id:
+            return ["POST_MERGE_APPROVAL_GRANT_ID_MISMATCH"]
+        if protected["reference"] != approval_ref:
+            return ["POST_MERGE_APPROVAL_REFERENCE_MISMATCH"]
+        if protected["expiry"] != fields.get("Approval-Expiry", "") or parse_utc(protected["expiry"]) != expiry:
+            return ["POST_MERGE_APPROVAL_EXPIRY_MISMATCH"]
+        if protected_envelope.get("premerge_run_id") != promotion_run_id:
+            return ["POST_MERGE_APPROVAL_ENVELOPE_MISMATCH"]
+        pseudo_event = {"repository": {"full_name": repo}, "number": pr_number}
+        envelope_errors = validate_envelope_bindings(protected_envelope, event=pseudo_event, fields=fields, pr=pr, expected_digest=d_final, expected_tree=fields.get("T_FINAL", ""), require_premerge_run=False)
+        if envelope_errors:
+            return ["POST_MERGE_APPROVAL_ENVELOPE_MISMATCH"]
     runs = evidence.get("workflow_runs") or {}
     run = runs.get(str(promotion_run_id)) if isinstance(runs, dict) else None
     if run is None:
@@ -2466,6 +2738,9 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     latest_review = latest_effective_review_state(reviews, "romelhc95-approver")
     if latest_review is None:
         return ["POST_MERGE_REVIEW_MISSING"]
+    review_user = latest_review.get("user") or {}
+    if review_user.get("login") != "romelhc95-approver" or review_user.get("id") != 306979205:
+        return ["POST_MERGE_REVIEWER_INVALID"]
     review_submitted_at = parse_utc(latest_review.get("submitted_at"))
     if review_submitted_at is None or review_submitted_at < pr_created_at or review_submitted_at > pr_merged_at:
         return ["POST_MERGE_REVIEW_TIME_WINDOW_INVALID"]
@@ -2484,18 +2759,21 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT, GOV_CI8_BASE_COMMIT, GOV_CI9_BASE_COMMIT, GOV_CI10_BASE_COMMIT, GOV_CI11_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT, GOV_CI8_BASE_COMMIT, GOV_CI9_BASE_COMMIT, GOV_CI10_BASE_COMMIT, GOV_CI11_BASE_COMMIT, GOV_CI12_BASE_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
 
 
-def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False, gov_ci4_transition: bool = False, gov_ci5_transition: bool = False, gov_ci6_transition: bool = False, gov_ci7_transition: bool = False, gov_ci8_transition: bool = False, gov_ci9_transition: bool = False, gov_ci10_transition: bool = False, gov_ci11_transition: bool = False) -> list[str]:
+def validate_changed_paths(changed: list[tuple[str, str]], manifests: list[dict[str, Any]], *, active_work_package: str = "NONE", activation_transition: bool = False, obsidian_transition: bool = False, gov_obs_transition: bool = False, gov_arch_transition: bool = False, gov_hom_transition: bool = False, gov_ci_transition: bool = False, gov_ci2_transition: bool = False, gov_ci3_transition: bool = False, gov_ci4_transition: bool = False, gov_ci5_transition: bool = False, gov_ci6_transition: bool = False, gov_ci7_transition: bool = False, gov_ci8_transition: bool = False, gov_ci9_transition: bool = False, gov_ci10_transition: bool = False, gov_ci11_transition: bool = False, gov_ci12_transition: bool = False) -> list[str]:
     errors: list[str] = []
     active = [manifest for manifest in manifests if is_active_r1_manifest(manifest, active_work_package=active_work_package)]
     if len(active) > 1:
         errors.append("MULTIPLE_ACTIVE_WORK_PACKAGES")
-    if gov_ci11_transition:
+    if gov_ci12_transition:
+        allowed = GOV_CI12_TRANSITION_ALLOWLIST
+        denied = GOV_RELEASE_TRANSITION_DENY
+    elif gov_ci11_transition:
         allowed = GOV_CI11_TRANSITION_ALLOWLIST
         denied = GOV_RELEASE_TRANSITION_DENY
     elif gov_ci10_transition:
@@ -2575,14 +2853,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--changed-from", help="Validate changed paths from this git ref to HEAD")
     parser.add_argument("--promotion-event", help="Validate a protected branch promotion event")
-    parser.add_argument("--post-merge-push-event", help="Classify push as VERIFIED_PROMOTION(0), BLOCKED(1), or NOT_APPLICABLE(2)")
+    parser.add_argument("--post-merge-push-event", help="Classify push as VERIFIED_PROMOTION(0), STRUCTURAL_PROMOTION_CANDIDATE(0), BLOCKED(1), or NOT_APPLICABLE(2)")
     parser.add_argument("--event-name", default="")
     parser.add_argument("--run-attempt", default="", help="GitHub Actions run attempt for promotion replay protection")
     args = parser.parse_args(argv)
     manifests = sorted(MANIFEST_DIR.glob("WP-*.json"))
     errors: list[str] = []
-    if len(manifests) != 19:
-        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3/CI4/CI5/CI6/CI7/CI8/CI9/CI10/CI11 manifests")
+    if len(manifests) != 20:
+        errors.append("WP_MANIFEST_COUNT:expected four Sprint 1 manifests plus GOV OBS/INFRA/ARCH/HOM/CI/CI2/CI3/CI4/CI5/CI6/CI7/CI8/CI9/CI10/CI11/CI12 manifests")
     for manifest in manifests:
         errors.extend(validate_manifest(manifest, root=ROOT))
     errors.extend(validate_static_promotion_requests(root=ROOT))
@@ -2596,6 +2874,9 @@ def main(argv: list[str] | None = None) -> int:
         print(state)
         if state == "VERIFIED_PROMOTION":
             print("POST_MERGE_PROMOTION_STRUCTURAL_PASS")
+            return 0
+        if state == "STRUCTURAL_PROMOTION_CANDIDATE":
+            print("POST_MERGE_PROMOTION_STRUCTURAL_PASS_APPROVAL_PENDING")
             return 0
         for error in post_merge_errors:
             print(error)
@@ -2624,6 +2905,7 @@ def main(argv: list[str] | None = None) -> int:
             gov_ci9_transition=changed_from == GOV_CI9_BASE_COMMIT,
             gov_ci10_transition=changed_from == GOV_CI10_BASE_COMMIT,
             gov_ci11_transition=changed_from == GOV_CI11_BASE_COMMIT,
+            gov_ci12_transition=changed_from == GOV_CI12_BASE_COMMIT,
         ))
     if errors:
         for error in errors:
