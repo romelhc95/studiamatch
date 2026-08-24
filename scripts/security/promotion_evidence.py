@@ -61,6 +61,14 @@ def parse_utc(value: Any) -> datetime | None:
         return None
 
 
+def _comment_fingerprint(comment: Any) -> tuple[bool, str | None]:
+    if comment is None:
+        return False, None
+    if not isinstance(comment, str):
+        raise ValueError("APPROVAL_COMMENT_INVALID")
+    return True, hashlib.sha256(comment.encode("utf-8")).hexdigest()
+
+
 def validate_envelope_v2(envelope: dict[str, Any], *, now: datetime | None = None, snapshot: dict[str, Any] | None = None) -> list[str]:
     now = now or datetime.now(UTC)
     errors: list[str] = []
@@ -113,48 +121,96 @@ def validate_envelope_v2(envelope: dict[str, Any], *, now: datetime | None = Non
     return errors
 
 
-def validate_environment_approval(approval: dict[str, Any], envelope: dict[str, Any]) -> list[str]:
-    user = approval.get("user") or approval.get("reviewer") or {}
+def normalize_environment_approval_history(history: Any, envelope: dict[str, Any], *, run_id: int, run_attempt: int, now: datetime | None = None) -> dict[str, Any]:
+    now = now or datetime.now(UTC)
+    if not isinstance(history, list):
+        raise ValueError("APPROVAL_HISTORY_SCHEMA_INVALID")
+    if len(history) != 1:
+        raise ValueError("APPROVAL_HISTORY_COUNT_INVALID")
+    record = history[0]
+    if not isinstance(record, dict):
+        raise ValueError("APPROVAL_HISTORY_RECORD_INVALID")
+    if record.get("state") != "approved":
+        raise ValueError("APPROVAL_STATE_INVALID")
+    user = record.get("user") or {}
+    if not isinstance(user, dict) or user.get("login") != envelope.get("required_reviewer") or user.get("id") != envelope.get("required_reviewer_id"):
+        raise ValueError("APPROVAL_REVIEWER_INVALID")
+    environments = record.get("environments")
+    if not isinstance(environments, list) or len(environments) != 1 or not isinstance(environments[0], dict):
+        raise ValueError("APPROVAL_ENVIRONMENT_COUNT_INVALID")
+    environment = environments[0]
+    if environment.get("name") != REQUIRED_ENVIRONMENT or environment.get("id") != envelope.get("environment_id"):
+        raise ValueError("APPROVAL_ENVIRONMENT_INVALID")
+    review_created_at = record.get("created_at")
+    submitted = parse_utc(review_created_at)
+    if submitted is None or submitted > now:
+        raise ValueError("APPROVAL_TIMESTAMP_INVALID")
+    comment_present, comment_sha256 = _comment_fingerprint(record.get("comment"))
+    normalized = {
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "state": "approved",
+        "created_at": review_created_at,
+        "reviewer": {"login": user.get("login"), "id": user.get("id")},
+        "environment": {"id": environment.get("id"), "name": environment.get("name")},
+        "comment_present": comment_present,
+    }
+    if comment_sha256:
+        normalized["comment_sha256"] = comment_sha256
+    return normalized
+
+
+def validate_environment_approval(approval: dict[str, Any], envelope: dict[str, Any], *, run_id: int, run_attempt: int = 1) -> list[str]:
+    user = (approval.get("environment_review") or {}).get("reviewer") or {}
+    environment = (approval.get("environment_review") or {}).get("environment") or {}
     errors: list[str] = []
-    if approval.get("environment_name") not in {None, REQUIRED_ENVIRONMENT}:
+    if approval.get("deployment_approval_id") is not None or approval.get("approved_at") is not None or approval.get("environment_name") is not None:
+        errors.append("APPROVAL_LEGACY_FIELDS_INVALID")
+    if environment.get("name") != REQUIRED_ENVIRONMENT or environment.get("id") != envelope.get("environment_id"):
         errors.append("APPROVAL_ENVIRONMENT_INVALID")
-    if approval.get("run_id") not in {None, envelope.get("premerge_run_id")}:
+    if approval.get("run_id") != run_id or approval.get("run_attempt") != run_attempt:
         errors.append("APPROVAL_RUN_ID_INVALID")
     if user.get("login") != envelope.get("required_reviewer") or user.get("id") != envelope.get("required_reviewer_id"):
         errors.append("APPROVAL_REVIEWER_INVALID")
-    if str(approval.get("approval_id") or approval.get("id") or "") != str(envelope.get("approval_id")):
-        errors.append("APPROVAL_ID_MISMATCH")
-    if not approval.get("approved_at"):
+    if approval.get("state") != "approved":
+        errors.append("APPROVAL_STATE_INVALID")
+    if parse_utc(approval.get("created_at")) is None:
         errors.append("APPROVAL_TIMESTAMP_INVALID")
+    if approval.get("environment_review_digest") != digest_json(approval.get("environment_review") or {}):
+        errors.append("APPROVAL_REVIEW_DIGEST_INVALID")
     return errors
 
 
-def approval_evidence(envelope: dict[str, Any], *, run_id: int, job_id: int, deployment_approval: dict[str, Any], snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+def approval_evidence(envelope: dict[str, Any], *, run_id: int, job_id: int, deployment_approval: Any, snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
     errors = validate_envelope_v2(envelope, snapshot=snapshot)
     if errors:
         raise ValueError(",".join(errors))
     if envelope.get("premerge_run_id") != run_id:
         raise ValueError("ENVELOPE_RUN_ID_MISMATCH")
-    approval_errors = validate_environment_approval(deployment_approval, envelope)
+    environment_review = normalize_environment_approval_history(deployment_approval, envelope, run_id=run_id, run_attempt=envelope["premerge_run_attempt"])
+    review_digest = digest_json(environment_review)
+    approval_record = {
+        "run_id": run_id,
+        "run_attempt": envelope["premerge_run_attempt"],
+        "state": environment_review["state"],
+        "created_at": environment_review["created_at"],
+        "environment_review": environment_review,
+        "environment_review_digest": review_digest,
+    }
+    approval_errors = validate_environment_approval(approval_record, envelope, run_id=run_id, run_attempt=envelope["premerge_run_attempt"])
     if approval_errors:
         raise ValueError(",".join(approval_errors))
-    approval_id = str(deployment_approval.get("approval_id") or deployment_approval.get("id"))
+    snapshot_digest = digest_json(snapshot) if snapshot else None
     payload = {
         "schema": APPROVAL_EVIDENCE_SCHEMA,
         "envelope": envelope,
+        "jit_approval_reference": envelope["approval_id"],
         "premerge_run_id": run_id,
         "premerge_run_attempt": envelope["premerge_run_attempt"],
         "promotion_boundary_job_id": job_id,
-        "deployment_approval_id": approval_id,
-        "deployment_approval": {
-            "approval_id": approval_id,
-            "environment_name": deployment_approval.get("environment_name", REQUIRED_ENVIRONMENT),
-            "approved_at": deployment_approval.get("approved_at"),
-            "reviewer": {
-                "login": (deployment_approval.get("user") or deployment_approval.get("reviewer") or {}).get("login"),
-                "id": (deployment_approval.get("user") or deployment_approval.get("reviewer") or {}).get("id"),
-            },
-        },
+        "environment_review": environment_review,
+        "environment_review_digest": review_digest,
+        "readiness_snapshot_digest": snapshot_digest,
         "artifact_name": f"promotion-approval-evidence-pr-{envelope['pr_number']}-run-{run_id}.json",
     }
     return attach_payload_digest(payload)
@@ -265,6 +321,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--validate-envelope")
     parser.add_argument("--write-approval-evidence")
     parser.add_argument("--write-db-detect-only")
+    parser.add_argument("--approval-history")
     args = parser.parse_args(argv)
     if args.validate_envelope:
         data = json.loads(Path(args.validate_envelope).read_text(encoding="utf-8"))
@@ -275,7 +332,8 @@ def main(argv: list[str] | None = None) -> int:
         print("promotion envelope v2 valid")
     if args.write_approval_evidence:
         envelope = json.loads(os.environ.get("R3_JIT_APPROVAL_ENVELOPE", "{}"))
-        approval = json.loads(os.environ.get("PROMOTION_ENVIRONMENT_APPROVAL", "{}"))
+        approval_path = args.approval_history or os.environ.get("PROMOTION_ENVIRONMENT_APPROVAL_HISTORY", "")
+        approval = json.loads(Path(approval_path).read_text(encoding="utf-8")) if approval_path else json.loads(os.environ.get("PROMOTION_ENVIRONMENT_APPROVAL", "[]"))
         snapshot_raw = os.environ.get("PROMOTION_READINESS_SNAPSHOT", "")
         snapshot = json.loads(Path(snapshot_raw).read_text(encoding="utf-8")) if snapshot_raw else None
         run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))

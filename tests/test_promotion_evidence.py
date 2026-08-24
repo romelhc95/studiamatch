@@ -1,18 +1,18 @@
+import json
 from datetime import UTC, datetime
+from pathlib import Path
 
-from scripts.security.promotion_evidence import approval_evidence, db_detect_only_artifact, produce_o3_closure, validate_envelope_v2, validate_o4_consumes_o3, wait_for_o3_closure
+import pytest
+
+from scripts.security.promotion_evidence import approval_evidence, db_detect_only_artifact, normalize_environment_approval_history, produce_o3_closure, validate_envelope_v2, validate_o4_consumes_o3, wait_for_o3_closure
 
 
-def deployment_approval(**updates):
-    payload = {
-        "approval_id": "human-jit-o3",
-        "run_id": 1000,
-        "environment_name": "Promotion",
-        "approved_at": "2026-08-24T00:05:00Z",
-        "user": {"login": "romelhc95-approver", "id": 306979205},
-    }
-    payload.update(updates)
-    return payload
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURES = ROOT / "tests" / "fixtures" / "governance" / "gov-ci12"
+
+
+def approval_history(name="approval_history_approved_promotion.json"):
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 def envelope(**updates):
@@ -81,7 +81,7 @@ def test_envelope_v2_rejects_future_issued_at():
 
 
 def test_approval_evidence_requires_real_reviewer():
-    bad = deployment_approval(user={"login": "romelhc95", "id": 18040405})
+    bad = approval_history("approval_history_wrong_reviewer.json")
     try:
         approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=bad)
     except ValueError as exc:
@@ -90,8 +90,53 @@ def test_approval_evidence_requires_real_reviewer():
         raise AssertionError("approval should fail")
 
 
+def test_approval_history_normalizes_raw_rest_shape_and_hashes_comment():
+    normalized = normalize_environment_approval_history(approval_history(), envelope(), run_id=1000, run_attempt=1, now=datetime(2026, 8, 24, 1, tzinfo=UTC))
+    assert normalized["state"] == "approved"
+    assert normalized["created_at"] == "2026-08-24T00:05:00Z"
+    assert normalized["reviewer"] == {"login": "romelhc95-approver", "id": 306979205}
+    assert normalized["environment"] == {"id": 10, "name": "Promotion"}
+    assert normalized["comment_present"] is True
+    assert "comment_sha256" in normalized
+    assert "sanitized approval fixture" not in json.dumps(normalized)
+
+
+@pytest.mark.parametrize(
+    ("fixture", "expected"),
+    [
+        ("approval_history_rejected.json", "APPROVAL_STATE_INVALID"),
+        ("approval_history_wrong_environment.json", "APPROVAL_ENVIRONMENT_INVALID"),
+        ("approval_history_wrong_reviewer.json", "APPROVAL_REVIEWER_INVALID"),
+        ("approval_history_extra_reviewer.json", "APPROVAL_HISTORY_COUNT_INVALID"),
+        ("approval_history_multiple_records.json", "APPROVAL_HISTORY_COUNT_INVALID"),
+        ("approval_history_missing_environment.json", "APPROVAL_ENVIRONMENT_COUNT_INVALID"),
+        ("approval_history_missing_created_at.json", "APPROVAL_TIMESTAMP_INVALID"),
+        ("approval_history_invalid_state.json", "APPROVAL_STATE_INVALID"),
+    ],
+)
+def test_approval_history_negative_fixtures_fail_closed(fixture, expected):
+    with pytest.raises(ValueError) as exc:
+        normalize_environment_approval_history(approval_history(fixture), envelope(), run_id=1000, run_attempt=1, now=datetime(2026, 8, 24, 1, tzinfo=UTC))
+    assert expected in str(exc.value)
+
+
+@pytest.mark.parametrize("payload", [{}, [], ["bad"], [{"environments": None, "user": {}, "state": "approved", "created_at": "2026-08-24T00:05:00Z"}]])
+def test_approval_history_schema_negatives_fail_closed(payload):
+    with pytest.raises(ValueError):
+        normalize_environment_approval_history(payload, envelope(), run_id=1000, run_attempt=1, now=datetime(2026, 8, 24, 1, tzinfo=UTC))
+
+
+def test_approval_evidence_separates_jit_reference_from_environment_review():
+    evidence = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=approval_history())
+    assert evidence["jit_approval_reference"] == "human-jit-o3"
+    assert "deployment_approval_id" not in evidence
+    assert "approved_at" not in json.dumps(evidence)
+    assert evidence["environment_review_digest"]
+    assert evidence["environment_review"]["created_at"] == "2026-08-24T00:05:00Z"
+
+
 def test_o3_produces_closure_and_o4_consumes_loader_output():
-    approved = approval_evidence(envelope(candidate_sha="f" * 40), run_id=1000, job_id=2000, deployment_approval=deployment_approval())
+    approved = approval_evidence(envelope(candidate_sha="f" * 40), run_id=1000, job_id=2000, deployment_approval=approval_history())
     approved["main_merge_sha"] = "m" * 40
     checks = [
         {"id": 1, "name": "Cloudflare Pages", "status": "completed", "conclusion": "success", "head_sha": "m" * 40, "app": {"id": 85455}, "completed_at": "2026-08-23T00:10:00Z"},
@@ -104,7 +149,7 @@ def test_o3_produces_closure_and_o4_consumes_loader_output():
 
 
 def test_o3_rejects_db_apply_or_delta():
-    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=deployment_approval())
+    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=approval_history())
     checks = [
         {"id": 1, "name": "Cloudflare Pages", "status": "completed", "conclusion": "success", "head_sha": "c" * 40, "app": {"id": 85455}},
         {"id": 2, "name": "DB Sync Detect Only", "status": "completed", "conclusion": "success", "head_sha": "c" * 40, "app": {"id": 15368}},
@@ -114,7 +159,7 @@ def test_o3_rejects_db_apply_or_delta():
 
 
 def test_o3_polling_uses_fake_sleeper_until_checks_close():
-    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=deployment_approval())
+    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=approval_history())
     db_artifact = db_detect_only_artifact(head_sha="c" * 40, result="NO_DB_CHANGES", db_changed=False, apply_executed=False)
     calls = {"count": 0, "sleep": []}
 
@@ -134,7 +179,7 @@ def test_o3_polling_uses_fake_sleeper_until_checks_close():
 
 
 def test_o3_rejects_db_artifact_sha_mismatch():
-    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=deployment_approval())
+    approved = approval_evidence(envelope(), run_id=1000, job_id=2000, deployment_approval=approval_history())
     checks = [
         {"id": 1, "name": "Cloudflare Pages", "status": "completed", "conclusion": "success", "head_sha": "c" * 40, "app": {"id": 85455}},
         {"id": 2, "name": "DB Sync Detect Only", "status": "completed", "conclusion": "success", "head_sha": "c" * 40, "app": {"id": 15368}},

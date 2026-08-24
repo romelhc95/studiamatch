@@ -352,25 +352,17 @@ jobs:
                   return json.loads(response.read().decode("utf-8"))
 
           approvals = get(f"actions/runs/{run_id}/approvals")
-          if not isinstance(approvals, list) or len(approvals) != 1:
-              sys.exit("PROMOTION_APPROVAL_UNOBSERVABLE")
-          approval = approvals[0]
           jobs = get(f"actions/runs/{run_id}/jobs?per_page=100")
           matches = [job for job in jobs.get("jobs", []) if job.get("name") == "Promotion Boundary"]
           if len(matches) != 1:
               sys.exit("PROMOTION_BOUNDARY_JOB_UNOBSERVABLE")
-          approval["approval_id"] = approval.get("id") or approval.get("approval_id")
-          approval["run_id"] = int(run_id)
-          approval["environment_name"] = "Promotion"
-          open("promotion-approval-observed.json", "w", encoding="utf-8").write(json.dumps(approval, separators=(",", ":")))
+          open("promotion-approval-history.json", "w", encoding="utf-8").write(json.dumps(approvals, separators=(",", ":")))
           open("promotion-boundary-job-id.txt", "w", encoding="utf-8").write(str(matches[0]["id"]))
           PY
-          PROMOTION_ENVIRONMENT_APPROVAL="$(cat promotion-approval-observed.json)"
-          export PROMOTION_ENVIRONMENT_APPROVAL
           PROMOTION_BOUNDARY_JOB_ID="$(cat promotion-boundary-job-id.txt)"
           export PROMOTION_BOUNDARY_JOB_ID
           export PROMOTION_READINESS_SNAPSHOT=readiness-snapshot.json
-          python3 scripts/security/promotion_evidence.py --write-approval-evidence promotion-approval-evidence.json
+          python3 scripts/security/promotion_evidence.py --approval-history promotion-approval-history.json --write-approval-evidence promotion-approval-evidence.json
       - name: Upload immutable promotion approval evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

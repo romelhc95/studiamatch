@@ -1,0 +1,9 @@
+[
+  {
+    "environments": [{"id": 10, "name": "Promotion"}],
+    "user": {"login": "romelhc95", "id": 18040405},
+    "state": "approved",
+    "comment": null,
+    "created_at": "2026-08-24T00:05:00Z"
+  }
+]

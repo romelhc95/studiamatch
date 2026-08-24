@@ -2109,15 +2109,24 @@ def load_promotion_approval_evidence(run_id: int, pr_number: int, *, deadline: f
         raise GitHubEvidenceError("promotion approval artifact digest invalid")
     if not isinstance(evidence.get("envelope"), dict):
         raise GitHubEvidenceError("promotion approval artifact envelope invalid")
-    approval = evidence.get("deployment_approval")
-    if not isinstance(approval, dict):
-        raise GitHubEvidenceError("promotion approval artifact deployment invalid")
-    reviewer = approval.get("reviewer") or {}
     envelope = evidence.get("envelope") or {}
+    if any(key in evidence for key in ("deployment_approval_id", "deployment_approval", "approved_at", "environment_name")):
+        raise GitHubEvidenceError("promotion approval legacy fields invalid")
+    review = evidence.get("environment_review")
+    if not isinstance(review, dict):
+        raise GitHubEvidenceError("promotion approval review invalid")
+    if evidence.get("environment_review_digest") != digest_json(review):
+        raise GitHubEvidenceError("promotion approval review digest invalid")
+    reviewer = review.get("reviewer") or {}
+    environment = review.get("environment") or {}
     if reviewer.get("login") != "romelhc95-approver" or reviewer.get("id") != 306979205:
         raise GitHubEvidenceError("promotion approval reviewer invalid")
-    if str(approval.get("approval_id") or "") != str(envelope.get("approval_id") or ""):
-        raise GitHubEvidenceError("promotion approval id invalid")
+    if environment.get("name") != "Promotion" or environment.get("id") != envelope.get("environment_id"):
+        raise GitHubEvidenceError("promotion approval environment invalid")
+    if review.get("state") != "approved" or parse_utc(review.get("created_at")) is None:
+        raise GitHubEvidenceError("promotion approval state invalid")
+    if evidence.get("jit_approval_reference") != envelope.get("approval_id"):
+        raise GitHubEvidenceError("promotion approval reference invalid")
     if evidence.get("promotion_boundary_job_id") in {None, "", run_id}:
         raise GitHubEvidenceError("promotion approval job invalid")
     return evidence
@@ -2551,6 +2560,10 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
     pr_merged_at = parse_utc(pr.get("merged_at"))
     if pr_created_at is None or pr_merged_at is None:
         return ["POST_MERGE_PR_TIMESTAMP_INVALID"]
+    merged_user = pr.get("merged_by") or {}
+    merged_by = merged_user.get("login")
+    if merged_by != "romelhc95" or merged_user.get("id") != 18040405:
+        return ["POST_MERGE_MERGER_INVALID"]
     body = str(pr.get("body") or "")
     fields = parse_attestation_fields(body)
     operation = fields.get("Operation", "")
@@ -2588,10 +2601,6 @@ def validate_post_merge_promotion_push(event_path: str, *, root: Path = ROOT) ->
         return ["POST_MERGE_PR_BASE_SHA_MISMATCH"]
     if parents[1] != head_sha:
         return ["POST_MERGE_SECOND_PARENT_MISMATCH"]
-    merged_user = pr.get("merged_by") or {}
-    merged_by = merged_user.get("login")
-    if merged_by != "romelhc95" or merged_user.get("id") != 18040405:
-        return ["POST_MERGE_MERGER_INVALID"]
     try:
         after_tree = git_sha(["rev-parse", f"{after}^{{tree}}"], root=root)
         candidate_tree = git_sha(["rev-parse", f"{head_sha}^{{tree}}"], root=root)

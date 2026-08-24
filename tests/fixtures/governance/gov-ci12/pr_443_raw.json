@@ -1,0 +1,18 @@
+{
+  "pull_request": {
+    "number": 443,
+    "state": "open",
+    "merged": false,
+    "merge_commit_sha": "952e88456cfed7adac358e4ae40480d01fd529f6",
+    "base": {"ref": "certificacion", "sha": "df2cde3626c75fa4733bf1624fb105d8ee08c076", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "head": {"ref": "promote/gov-hom-010-o2-req1", "sha": "179d13199053fd02f485dd951ab8464c7a93220e", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "merged_by": null,
+    "user": {"login": "romelhc95", "id": 18040405},
+    "created_at": "2026-08-23T23:33:20Z",
+    "updated_at": "2026-08-23T23:37:41Z",
+    "merged_at": null,
+    "body": "## Promotion Attestation\n\nOperation: O2 desarrollo -> certificacion\nGrant-ID: R3-GOV-HOM-010-O2-REQ1\nBase-Ref: certificacion\nBase-SHA: df2cde3626c75fa4733bf1624fb105d8ee08c076\nSource-Ref: desarrollo\nSource-SHA: cbdfe9dab373a2b427df4864b14427f3b2358789\nCandidate-SHA: 179d13199053fd02f485dd951ab8464c7a93220e\nCandidate-Tree: 99c1cda4f0091aaee35752caec69745051c41a3a\nFinal-WP: WP-GOV-CI-010\nD_FINAL: c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c\nT_FINAL: 99c1cda4f0091aaee35752caec69745051c41a3a\nApproval-Level: R3 JIT single-use\nApproval-Reference: human-jit-hom-010-o2-20260823\nApproval-Expiry: 2026-08-24T00:30:00Z\n"
+  },
+  "reviews": [{"id": 5003663434, "user": {"login": "romelhc95-approver", "id": 306979205}, "state": "APPROVED", "commit_id": "179d13199053fd02f485dd951ab8464c7a93220e", "submitted_at": "2026-08-23T23:37:41Z"}],
+  "timeline": [{"event": "closed", "created_at": "2026-08-23T23:34:36Z", "actor": {"login": "romelhc95", "id": 18040405}, "commit_id": null, "sha": null}, {"event": "reopened", "created_at": "2026-08-23T23:34:46Z", "actor": {"login": "romelhc95", "id": 18040405}, "commit_id": null, "sha": null}, {"event": "reviewed", "created_at": null, "actor": null, "commit_id": "179d13199053fd02f485dd951ab8464c7a93220e", "sha": null}]
+}

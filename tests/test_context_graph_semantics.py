@@ -196,7 +196,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("WP-GOV-CI-012=LOCAL_CANDIDATE_PENDING_R2_APPROVAL", "WP-GOV-CI-011=PROPOSED_R1_LOCAL")
+            text = path.read_text(encoding="utf-8").replace("WP-GOV-CI-012=LOCAL_REMEDIATION_AFTER_NO_GO_R2_CANDIDATE", "WP-GOV-CI-011=PROPOSED_R1_LOCAL")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("GOV_CI11_PUBLICATION_DRIFT") for error in validator.validate(root)))
 

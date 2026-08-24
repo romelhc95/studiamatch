@@ -4,6 +4,8 @@
 
 `CANDIDATE_R1_LOCAL`
 
+Candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` queda `NO_GO_R2_SUPERSEDED_BY_LOCAL_REMEDIATION` por `GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH`.
+
 ## Objetivo
 
 Reemplazar HOM-011 por HOM-012 antes de abrir un nuevo PR, corrigiendo integralmente promociones O2-O5 con evidencia causal offline y cierre asincronico O3.
@@ -16,6 +18,7 @@ Reemplazar HOM-011 por HOM-012 antes de abrir un nuevo PR, corrigiendo integralm
 - Requerir `promotion-jit-envelope-v2` ligado a PR, run opened attempt 1, refs, SHAs, trees, WP, digest, identidades, Environment y ruleset digest.
 - Usar una sola aprobacion del Environment `Promotion`, antes del merge.
 - Convertir la aprobacion en evidencia inmutable pre-merge y eliminar dependencia post-merge del secret.
+- Procesar el contrato raw real de GitHub Environment approvals: `environments[]`, `user`, `state`, `comment` y `created_at`; `approval_id` queda solo como referencia humana/JIT, no como ID REST observado.
 - Separar el cierre estructural O3 del cierre asincronico Cloudflare Pages app_id `85455` y DB Sync Detect Only `NO_DB_CHANGES`.
 - Hacer que O4 consuma evidencia O3 producida por el loader real.
 - Exigir cierre O5 con igualdad final de trees y ancestry.
@@ -29,4 +32,5 @@ Reemplazar HOM-011 por HOM-012 antes de abrir un nuevo PR, corrigiendo integralm
 
 - `WP-GOV-CI-012` congelado localmente con digest calculado, pendiente de aprobacion R2 separada por commit/tree/digest.
 - Tests offline para collector, envelope v2, artifacts, replays #440/#443/#445, O3 productor/consumidor, polling con reloj falso y DAG Git O2-O5.
+- Tests offline para normalizador raw de approvals y `environment_review_digest` derivado.
 - Siguiente gate unico: `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.

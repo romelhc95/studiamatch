@@ -113,7 +113,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Work package owner-only branch updates publicado con fallo post-merge: [WP-GOV-CI-009](work_packages/WP-GOV-CI-009.json), digest `6f9d309d50b90c18a2703cd6b9170af9af9048f7d80ef749a22a95e8dd8a32ef`, PR #441.
 - Work package section-aware attestations publicado por R2: [WP-GOV-CI-010](work_packages/WP-GOV-CI-010.json), digest `c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c`, PR #442.
 - Work package promotion envelope publicado: [WP-GOV-CI-011](work_packages/WP-GOV-CI-011.json), PR #444.
-- Work package causal evidence candidate: [WP-GOV-CI-012](work_packages/WP-GOV-CI-012.json).
+- Work package causal evidence candidate: [WP-GOV-CI-012](work_packages/WP-GOV-CI-012.json); candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` queda `NO_GO_R2_SUPERSEDED_BY_LOCAL_REMEDIATION` por `GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH`.
 - HOM-006/HOM-007/HOM-008/HOM-009 O2-O5: `SUPERSEDED_NOT_USABLE`; HOM-010 O2 consumido por PR #443 y HOM-010 O3-O5 `SUPERSEDED_NOT_USABLE`; HOM-011 O2 consumido por PR #445 y HOM-011 O3-O5 `SUPERSEDED_NOT_USABLE`; O3 bloqueado hasta HOM-012.
 - Gate homologacion completado: `O0_O5_D0_D10_COMPLETED_HOMOLOGATED`.
 - Checkout limpio: `VERIFIED`.
@@ -172,7 +172,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 
 PR #442 publico GOV-CI10 en `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789` con tree `99c1cda4f0091aaee35752caec69745051c41a3a`, corrigiendo el parser section-aware despues del fallo post-merge de PR #441 y preservando el desired state `owner-only-protected-branch-updates`. HOM-010 O2 fallo luego en PR #443 sin merge; PR #443 no se edita ni se rerunea. Hito 2 conserva `WP-H2-001` activo hasta R1, sin implementacion iniciada.
 
-PR #443 y PR #445 quedan congelados como `FAILED_NOT_MERGED_FROZEN`. No se editan, cierran, reabren, rerunean ni mergean. `R3-GOV-HOM-011-O2-REQ1` queda consumido y HOM-011 O3-O5 quedan superseded. `WP-GOV-CI-012` debe publicar `promotion-jit-envelope-v2`, collector Python testeable, evidencia pre-merge inmutable, post-merge sin secret ni Environment, cierre O3 asincronico con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`, consumo real O3 por O4 y cierre O5 de trees/ancestry.
+PR #443 y PR #445 quedan congelados como `FAILED_NOT_MERGED_FROZEN`. No se editan, cierran, reabren, rerunean ni mergean. `R3-GOV-HOM-011-O2-REQ1` queda consumido y HOM-011 O3-O5 quedan superseded. `WP-GOV-CI-012` debe publicar `promotion-jit-envelope-v2`, collector Python testeable, evidencia pre-merge inmutable basada en `created_at`/`environments[]`/`user`/`state` del historial REST real de approvals, post-merge sin secret ni Environment, cierre O3 asincronico con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`, consumo real O3 por O4 y cierre O5 de trees/ancestry.
 
 ## Siguiente Gate
 

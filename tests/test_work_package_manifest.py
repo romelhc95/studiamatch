@@ -1028,22 +1028,31 @@ class WorkPackageManifestTests(unittest.TestCase):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95", pull_requests=[])
         self.assertEqual(self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree), [])
 
+    def raw_replay_fixture(self, name):
+        return json.loads((ROOT / "tests" / "fixtures" / "governance" / "gov-ci12" / name).read_text(encoding="utf-8"))
+
     def test_replay_pr440_detects_invalid_merger_before_closure(self):
-        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95-approver")
-        evidence["pull_request"]["number"] = 440
-        for check in evidence["checks"]:
-            check["pull_requests"] = [{"number": 440}]
+        raw = self.raw_replay_fixture("pr_440_raw.json")
+        pr = raw["pull_request"]
+        event = {"before": pr["base"]["sha"], "after": pr["merge_commit_sha"], "ref": "refs/heads/certificacion", "head_commit": {"timestamp": pr["merged_at"]}}
+        evidence = {"pull_request": pr, "checks": raw["check_runs"], "reviews": raw["reviews"], "timeline": raw["timeline"], "workflow_runs": {}}
+        parents = [pr["base"]["sha"], pr["head"]["sha"]]
+        candidate_parents = [pr["base"]["sha"], "1bc36ae6a4381c5ceac5e30c3970c39099965bc3"]
+        tree = "7df05c52da47855d62c082f7cfbd12ee1e38b965"
         self.assertIn("POST_MERGE_MERGER_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
 
     def test_replay_pr443_is_frozen_without_mutation(self):
-        event, grant, _, _ = self.promotion_event_fixture(number=443, action="edited")
+        raw = self.raw_replay_fixture("pr_443_raw.json")
+        event = {"action": "reopened", "repository": {"full_name": "romelhc95/studiamatch", "id": 1}, "pull_request": raw["pull_request"]}
+        grant = {"id": "R3-GOV-HOM-010-O2-REQ1", "operation": "O2 desarrollo -> certificacion", "base_ref": "certificacion", "source_ref": "desarrollo", "candidate_branch": "promote/gov-hom-010-o2-req1", "final_wp": "WP-GOV-CI-010", "approval_envelope_schema": "promotion-jit-envelope-v2", "allowed_side_effects": ["certification_branch_update"], "status": "REQUESTED_JIT_SINGLE_USE"}
         errors = self.run_promotion_validation(event, grant)
         self.assertIn("PROMOTION_PR_BLOCKED:443", errors)
         self.assertIn("PROMOTION_ACTION_INVALID", errors)
 
     def test_replay_pr445_is_frozen_and_hom011_consumed(self):
-        event, grant, _, _ = self.promotion_event_fixture(number=445, grant_id="R3-GOV-HOM-011-O2-REQ1", head_ref="promote/gov-hom-011-o2-req1")
-        grant["id"] = "R3-GOV-HOM-011-O2-REQ1"
+        raw = self.raw_replay_fixture("pr_445_raw.json")
+        event = {"action": "opened", "repository": {"full_name": "romelhc95/studiamatch", "id": 1}, "pull_request": raw["pull_request"]}
+        grant = {"id": "R3-GOV-HOM-011-O2-REQ1", "operation": "O2 desarrollo -> certificacion", "base_ref": "certificacion", "source_ref": "desarrollo", "candidate_branch": "promote/gov-hom-011-o2-req1", "final_wp": "WP-GOV-CI-011", "approval_envelope_schema": "promotion-jit-envelope-v1", "allowed_side_effects": ["certification_branch_update"], "status": "REQUESTED_JIT_SINGLE_USE"}
         errors = self.run_promotion_validation(event, grant)
         self.assertIn("PROMOTION_PR_BLOCKED:445", errors)
         self.assertIn("PROMOTION_GRANT_CONSUMED", errors)

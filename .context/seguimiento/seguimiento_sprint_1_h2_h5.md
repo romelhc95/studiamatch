@@ -55,7 +55,7 @@
 | Work package CI9 owner-only branch updates | `WP-GOV-CI-009=MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` |
 | Work package CI10 section-aware attestations | `WP-GOV-CI-010=CONSUMED_EXTERNALLY_BY_PR_442` |
 | Work package CI11 promotion envelope | `WP-GOV-CI-011=MERGED_TO_DESARROLLO_PR444_SUPERSEDED_BY_CI12` |
-| Work package CI12 causal evidence | `WP-GOV-CI-012=LOCAL_CANDIDATE_PENDING_R2_APPROVAL` |
+| Work package CI12 causal evidence | `WP-GOV-CI-012=LOCAL_REMEDIATION_AFTER_NO_GO_R2_CANDIDATE` |
 | Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
 | Implementation status | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` |

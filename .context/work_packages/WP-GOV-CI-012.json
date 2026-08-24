@@ -97,6 +97,14 @@
     "required_merger": "romelhc95",
     "owner_only_ruleset": "owner-only-protected-branch-updates"
   },
+  "environment_approval_contract": {
+    "source_endpoint": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
+    "observed_fields": ["environments", "user", "state", "comment", "created_at"],
+    "timestamp_field": "created_at",
+    "derived_identifier": "environment_review_digest",
+    "approval_id_semantics": "human_jit_reference_only_not_github_rest_id",
+    "forbidden_fabricated_fields": ["deployment_approval_id", "approved_at", "environment_name"]
+  },
   "o3_closure": {
     "cloudflare_check_name": "Cloudflare Pages",
     "cloudflare_pages_app_id": 85455,
@@ -138,11 +146,20 @@
     "expires_at": "2026-09-06T23:59:59Z",
     "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
   },
+  "remediation_authorization": {
+    "id": "R1-REMEDIATION-GOV-CI-012-REQ2",
+    "superseded_candidate_commit": "1034193d48f820bcc37f8c03aa57aca777a037ba",
+    "superseded_candidate_tree": "713462b5b1a055e9c53479c1f755ab40a4a6421e",
+    "superseded_candidate_digest": "5f2467269fe525ff76dbc23a43347bbec296af4ac13359f7e91e2e7875b6d824",
+    "root_cause": "GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH",
+    "expires_at": "2026-09-06T23:59:59Z",
+    "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
+  },
   "no_db_supabase_writers_schedules_or_deploys": true,
   "expires_at": "2026-09-06T23:59:59Z",
-  "candidate_digest": "5f2467269fe525ff76dbc23a43347bbec296af4ac13359f7e91e2e7875b6d824",
-  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1; R2 requires separate approval by candidate commit/tree/digest.",
+  "candidate_digest": "c31541b4d6e6abc6eb37b7b80f0b0b92013bf730c32f271a6ed82ed18a78993e",
+  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1 and local remediation R1-REMEDIATION-GOV-CI-012-REQ2; R2 requires separate approval by candidate commit/tree/digest.",
   "approver_required": "human",
   "invalidated_by": ["scope drift", "path drift", "baseline drift", "tree drift", "editing PR #443", "editing PR #445", "reusing HOM-011", "edited promotion PR", "reopened promotion PR", "synchronize promotion PR", "ready_for_review promotion PR", "rerun promotion workflow", "O4 before O3 closure", "CI failure", "expiry", "R3 operation request"],
-  "exit_criteria": ["PR #443 and PR #445 are frozen", "HOM-011 is superseded", "HOM-012 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v2 is validated", "post-merge consumes immutable pre-merge evidence", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
+  "exit_criteria": ["PR #443 and PR #445 are frozen", "HOM-011 is superseded", "HOM-012 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v2 is validated", "GitHub Environment approval history uses created_at/environments/user/state raw contract", "post-merge consumes immutable pre-merge evidence", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
 }

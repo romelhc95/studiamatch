@@ -54,7 +54,7 @@
 
 ## Validacion Semantica Minima
 
-- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI12`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1` y `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
+- `estado_del_proyecto.md` debe declarar `F10.11` en preparacion `GOV-CI12`, `F12.1` bloqueada por homologacion y rebaseline, `active_work_package = WP-H2-001`, `WP-H2-001=ACTIVE_R1`, candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` superseded localmente por `GITHUB_ENVIRONMENT_APPROVAL_API_CONTRACT_MISMATCH` y `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
 - El Plan Maestro debe mantener O0-O5 historicos completados, Etapa 1 Obsidian como `DESARROLLO_MERGED_PENDING_HOMOLOGATION`, `WP-H2-001` activo hasta R1, PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436, PR #438, PR #439, PR #441, PR #442 y PR #444 publicados en `desarrollo`, PR #428 como `O2_CONSUMED_BY_FAILURE`, PR #431 como `R3-GOV-HOM-003-O2-REQ1_CONSUMED_BY_FAILURE`, PR #433 como O2 mergeado con run post-merge `32615044699` fallido, PR #435 como `R3-GOV-HOM-005-O2-REQ1_CONSUMED_BY_FAILURE`, PR #437 como O2 mergeado con run post-merge `32650341464` fallido, PR #438 como run post-merge `32655520324` fallido, PR #440 como O2 mergeado con run post-merge `32662084712` fallido, PR #441 como run post-merge `32666126533` fallido con `POST_MERGE_ATTESTATION_DUPLICATE`, PR #443 y PR #445 como `FAILED_NOT_MERGED_FROZEN`, y el proximo gate unico `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
 - El tracker debe contener las ocho secciones operativas y el bloque terminal `Prompt Cavernicola`.
 - El indice debe enlazar Estado, Plan Maestro, tracker, retrospectiva, ADR R0-R3, matrices, evidencias y work packages H2-H5.

@@ -1,0 +1,19 @@
+{
+  "pull_request": {
+    "number": 440,
+    "state": "closed",
+    "merged": true,
+    "merge_commit_sha": "df2cde3626c75fa4733bf1624fb105d8ee08c076",
+    "base": {"ref": "certificacion", "sha": "2134ebfc1af2097b7e17a31b5376bc6942cf020b", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "head": {"ref": "promote/gov-hom-008-o2-req1", "sha": "d7417423b1918a84c1aba86a7dd4bda63853be60", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "merged_by": {"login": "romelhc95-approver", "id": 306979205},
+    "user": {"login": "romelhc95", "id": 18040405},
+    "created_at": "2026-08-23T19:02:22Z",
+    "updated_at": "2026-08-23T19:42:17Z",
+    "merged_at": "2026-08-23T19:42:17Z",
+    "body": "## Promotion Attestation\n\nOperation: O2 desarrollo -> certificacion\nGrant-ID: R3-GOV-HOM-008-O2-REQ1\nBase-Ref: certificacion\nBase-SHA: 2134ebfc1af2097b7e17a31b5376bc6942cf020b\nSource-Ref: desarrollo\nSource-SHA: 1bc36ae6a4381c5ceac5e30c3970c39099965bc3\nCandidate-SHA: d7417423b1918a84c1aba86a7dd4bda63853be60\nCandidate-Tree: 7df05c52da47855d62c082f7cfbd12ee1e38b965\nFinal-WP: WP-GOV-CI-008\nD_FINAL: 8acfacaebd45177241e1d3636430de7cd26530bf9c5fb65b7c6fb8581e50052f\nT_FINAL: 7df05c52da47855d62c082f7cfbd12ee1e38b965\nApproval-Level: R3 JIT single-use\nApproval-Reference: CHAT-R3-GOV-HOM-008-O2-REQ1-20260823\nApproval-Expiry: 2026-08-23T22:00:00Z\n"
+  },
+  "reviews": [{"id": 5003211804, "user": {"login": "romelhc95-approver", "id": 306979205}, "state": "APPROVED", "commit_id": "d7417423b1918a84c1aba86a7dd4bda63853be60", "submitted_at": "2026-08-23T19:42:11Z"}],
+  "timeline": [{"event": "reviewed", "created_at": null, "actor": null, "commit_id": "d7417423b1918a84c1aba86a7dd4bda63853be60", "sha": null}, {"event": "merged", "created_at": "2026-08-23T19:42:17Z", "actor": {"login": "romelhc95-approver", "id": 306979205}, "commit_id": "df2cde3626c75fa4733bf1624fb105d8ee08c076", "sha": null}],
+  "check_runs": [{"id": 97244495190, "name": "Promotion Boundary", "status": "completed", "conclusion": "success", "head_sha": "d7417423b1918a84c1aba86a7dd4bda63853be60", "started_at": "2026-08-23T19:41:33Z", "completed_at": "2026-08-23T19:41:42Z", "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/32659961454/job/97244495190", "app": {"id": 15368, "slug": "github-actions"}, "pull_requests": []}, {"id": 97249611115, "name": "security-audit", "status": "completed", "conclusion": "success", "head_sha": "d7417423b1918a84c1aba86a7dd4bda63853be60", "started_at": "2026-08-23T19:41:44Z", "completed_at": "2026-08-23T19:41:46Z", "details_url": "https://github.com/romelhc95/studiamatch/actions/runs/32659961454/job/97249611115", "app": {"id": 15368, "slug": "github-actions"}, "pull_requests": []}]
+}
