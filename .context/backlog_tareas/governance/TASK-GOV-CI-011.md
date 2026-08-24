@@ -29,6 +29,6 @@ Remediar durablemente el fallo no mergeado de PR #443 y reemplazar HOM-010 por H
 
 ## Salida Esperada
 
-- `WP-GOV-CI-011` congelado localmente con digest aprobado `de93b53763e0d730900cf35ad738bea3fa179f564ab180453d039baca3e0e53e`.
+- `WP-GOV-CI-011` congelado localmente con digest calculado `1b14d76273ef82a4889cdee8edea46815a88efaf66a8a16a180241f4b6e8cc88`, pendiente de aprobacion R2 separada por commit/tree/digest.
 - Tests positivos/negativos de envelope, eventos, drift, expiry, identidades, O3 Cloudflare/DB Sync y O4 bloqueado.
 - Siguiente gate unico: `PREPARE_WP_GOV_CI_011_R2_APPROVAL`.
