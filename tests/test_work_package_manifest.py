@@ -1028,6 +1028,27 @@ class WorkPackageManifestTests(unittest.TestCase):
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95", pull_requests=[])
         self.assertEqual(self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree), [])
 
+    def test_replay_pr440_detects_invalid_merger_before_closure(self):
+        event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(merger="romelhc95-approver")
+        evidence["pull_request"]["number"] = 440
+        for check in evidence["checks"]:
+            check["pull_requests"] = [{"number": 440}]
+        self.assertIn("POST_MERGE_MERGER_INVALID", self.run_post_merge_validation(event, evidence, parents, candidate_parents, tree))
+
+    def test_replay_pr443_is_frozen_without_mutation(self):
+        event, grant, _, _ = self.promotion_event_fixture(number=443, action="edited")
+        errors = self.run_promotion_validation(event, grant)
+        self.assertIn("PROMOTION_PR_BLOCKED:443", errors)
+        self.assertIn("PROMOTION_ACTION_INVALID", errors)
+
+    def test_replay_pr445_is_frozen_and_hom011_consumed(self):
+        event, grant, _, _ = self.promotion_event_fixture(number=445, grant_id="R3-GOV-HOM-011-O2-REQ1", head_ref="promote/gov-hom-011-o2-req1")
+        grant["id"] = "R3-GOV-HOM-011-O2-REQ1"
+        errors = self.run_promotion_validation(event, grant)
+        self.assertIn("PROMOTION_PR_BLOCKED:445", errors)
+        self.assertIn("PROMOTION_GRANT_CONSUMED", errors)
+        self.assertIn("PROMOTION_CANDIDATE_BRANCH_INVALID", errors)
+
     def test_post_merge_pr438_ordinary_desarrollo_merge_is_not_applicable(self):
         validator = load_validator()
         event, evidence, parents, candidate_parents, tree = self.post_merge_fixture(base_ref="desarrollo", head_ref="governance/gov-ci-007")
