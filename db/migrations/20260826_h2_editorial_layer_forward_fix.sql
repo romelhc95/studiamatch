@@ -113,6 +113,15 @@ BEGIN
         FROM public.course_editorial_audit audit
         WHERE audit.request_id = p_request_id
     ) THEN
+        IF EXISTS (
+            SELECT 1
+            FROM public.course_editorial_audit audit
+            WHERE audit.request_id = p_request_id
+              AND audit.course_id <> p_course_id
+        ) THEN
+            RAISE EXCEPTION 'request_id already exists for a different course';
+        END IF;
+
         SELECT * INTO updated_state
         FROM public.course_editorial_state es
         WHERE es.course_id = p_course_id;
@@ -193,6 +202,9 @@ REVOKE ALL ON FUNCTION public.h2_update_course_quality(UUID, TEXT[], JSONB, JSON
 GRANT EXECUTE ON FUNCTION public.h2_update_course_quality(UUID, TEXT[], JSONB, JSONB, TEXT) TO service_role;
 
 REVOKE INSERT ON TABLE public.leads FROM anon, authenticated;
+DROP POLICY IF EXISTS "Anyone can insert leads" ON public.leads;
+DROP POLICY IF EXISTS leads_insert_public ON public.leads;
+DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads;
 
 DROP POLICY IF EXISTS course_editorial_state_public_effective_select
     ON public.course_editorial_state;
@@ -204,6 +216,17 @@ CREATE POLICY course_editorial_state_public_effective_select
         editorial_status = 'published'
         AND quality_status = 'complete'
         AND availability_status = 'available'
+        AND EXISTS (
+            SELECT 1
+            FROM public.courses c
+            WHERE c.id = course_editorial_state.course_id
+              AND EXISTS (
+                  SELECT 1
+                  FROM public.institution_site_profiles p
+                  WHERE p.institution_id = c.institution_id
+                    AND p.production_enabled = true
+              )
+        )
     );
 
 REVOKE ALL ON TABLE public.course_editorial_state FROM anon, authenticated;

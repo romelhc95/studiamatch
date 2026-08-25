@@ -262,26 +262,27 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
   const fetchData = useCallback(async () => {
     try {
       const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
-      const [cRes, iRes] = await Promise.all([
-        fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, { headers }),
-        fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers })
+      const [cRes, iRes, catRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?select=${COURSE_PUBLIC_FIELDS}&order=created_at.desc`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers }),
+        fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, { headers })
       ]);
-      const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
+      const [cData, iData, catData] = await Promise.all([cRes.json(), iRes.json(), catRes.json()]);
 
-      if (Array.isArray(cData) && Array.isArray(iData)) {
+      if (Array.isArray(cData) && Array.isArray(iData) && Array.isArray(catData)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const enriched = cData.map((course: any) => ({
           ...course,
-          institution_name: course.institutions?.name || iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
-          institution_slug: course.institutions?.slug || iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
-          category: course.categories?.name || course.category
+          institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
+          institution_slug: iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
+          category: catData.find((c: { id: string; name: string }) => c.id === course.category_id)?.name || course.category
         }));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const uniqueMap = new Map<string, any>();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         enriched.forEach((course: any) => {
-          const institutionSlug = course.institutions?.slug || "general";
+            const institutionSlug = course.institution_slug || "general";
           const key = `${institutionSlug}-${course.slug}`;
           const existing = uniqueMap.get(key);
           if (!existing || (!existing.price_pen && course.price_pen) || (course.name.length > existing.name.length)) {

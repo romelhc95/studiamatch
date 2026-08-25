@@ -170,6 +170,7 @@ def test_h2_forward_fix_quality_rpc_never_publishes() -> None:
     assert "GRANT EXECUTE ON FUNCTION public.h2_update_course_quality" in text
     assert "REVOKE ALL ON FUNCTION public.h2_update_course_quality" in text
     assert "WHERE audit.request_id = p_request_id" in function_body
+    assert "request_id already exists for a different course" in function_body
     assert "RETURN updated_state" in function_body
     assert "quality_status = EXCLUDED.quality_status" in function_body
     assert "editorial_status = 'published'" not in function_body
@@ -180,6 +181,8 @@ def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns
     text = forward_fix_sql()
 
     assert "REVOKE INSERT ON TABLE public.leads FROM anon, authenticated" in text
+    assert "DROP POLICY IF EXISTS leads_insert_public ON public.leads" in text
+    assert "DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads" in text
     assert "Deprecated as publication authority in H2" in text
     assert "duplicate course slugs block idx_courses_slug_global_h2" in text
     assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" in text
@@ -203,3 +206,4 @@ def test_h2_forward_fix_public_gate_uses_editorial_state_and_environment_safety(
     assert "provider_used" not in view
     assert "is_mock_data" not in view
     assert "availability_status = 'available'" in policy
+    assert "production_enabled = true" in policy

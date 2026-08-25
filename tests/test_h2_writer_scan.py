@@ -11,6 +11,18 @@ def test_current_active_surfaces_have_no_forbidden_lead_egress_or_writers() -> N
     assert scan() == []
 
 
+def test_frontend_uses_editorial_effective_view_for_public_courses() -> None:
+    root = Path(__file__).resolve().parents[1]
+    frontend = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((root / "web/src/app").rglob("*.tsx"))
+    )
+
+    assert "/rest/v1/courses?" not in frontend
+    assert "courses_public_effective" in frontend
+    assert "increment_view_count" not in frontend
+
+
 def test_scan_detects_public_lead_post(tmp_path: Path) -> None:
     target = tmp_path / "web/src/app"
     target.mkdir(parents=True)

@@ -222,12 +222,26 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         const safeCourseSlug = encodeURIComponent(courseSlug);
         const safeInstSlug = encodeURIComponent(institutionSlug);
 
-        // Buscamos el curso que coincida con el slug Y cuya institución vinculada también coincida con el slug de la URL
-        const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`;
-        
-        const response = await fetch(url, {
-          headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-        });
+        const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+        const [instResponse, categoriesResponse] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug&slug=eq.${safeInstSlug}&limit=1`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, { headers })
+        ]);
+        if (!instResponse.ok) throw new Error(`Error cargando institución: ${instResponse.status}`);
+        const institutions = await instResponse.json();
+        const institution = Array.isArray(institutions) ? institutions[0] : null;
+        if (!institution?.id) {
+          setErrorInfo(`La institución "${institutionSlug}" no está disponible actualmente.`);
+          setLoading(false);
+          return;
+        }
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const categoryArray = Array.isArray(categories) ? categories : [];
+
+        // Buscamos solo en la vista pública H2, que aplica el gate editorial.
+        const url = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=eq.${safeCourseSlug}&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}`;
+
+        const response = await fetch(url, { headers });
         
         if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
         
@@ -238,10 +252,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           console.warn("⚠️ No encontrado por slug exacto, intentando búsqueda por URL y coincidencia parcial...");
           
           // Intentamos buscar por coincidencia en la URL (muy robusto si el slug se extrajo de ahí)
-          const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
-          const urlRes = await fetch(urlMatch, {
-            headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-          });
+          const urlMatch = `${SUPABASE_URL}/rest/v1/courses_public_effective?url=ilike.*${safeCourseSlug}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
+          const urlRes = await fetch(urlMatch, { headers });
           
           if (urlRes.ok) {
             data = await urlRes.json();
@@ -253,10 +265,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             const safeKeywords = encodeURIComponent(keywords);
             
             try {
-              const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
-              const likeRes = await fetch(likeUrl, {
-                headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-              });
+              const likeUrl = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=ilike.*${safeKeywords}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
+              const likeRes = await fetch(likeUrl, { headers });
               
               if (likeRes.ok) {
                 data = await likeRes.json();
@@ -269,14 +279,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
         if (Array.isArray(data) && data.length > 0) {
           const fetchedCourse = data[0];
-          // Mapear el nombre de la institución
-          if (fetchedCourse.institutions && fetchedCourse.institutions.name) {
-            fetchedCourse.institution_name = fetchedCourse.institutions.name;
-          }
-          // Mapear el nombre de la categoría dinámica
-          if (fetchedCourse.categories && fetchedCourse.categories.name) {
-            fetchedCourse.category = fetchedCourse.categories.name;
-          }
+          fetchedCourse.institution_name = institution.name || "StudIAMatch";
+          fetchedCourse.institution_slug = institution.slug || institutionSlug;
+          fetchedCourse.category = categoryArray.find((c: { id: string; name: string }) => c.id === fetchedCourse.category_id)?.name || fetchedCourse.category;
           // Extraer la duración si está implícita en la descripción larga
           if (!fetchedCourse.duration && fetchedCourse.description_long?.startsWith("Duración:")) {
             fetchedCourse.duration = fetchedCourse.description_long.split('\n')[0].replace("Duración:", "").trim();
@@ -314,7 +319,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           ];
 
           if (safeCatId) {
-            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses?category_id=eq.${safeCatId}&id=neq.${safeId}&is_active=eq.true&is_verified=eq.true&limit=3&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug)`, { headers }));
+            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${safeCatId}&id=neq.${safeId}&limit=3&select=${COURSE_PUBLIC_FIELDS}`, { headers }));
           }
 
           const results = await Promise.all(promises);
@@ -329,8 +334,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const enriched = relatedData.map((c: any) => ({
               ...c,
-              institution_name: c.institutions?.name || "StudIAMatch",
-              institution_slug: c.institutions?.slug || "general"
+              institution_name: course.institution_name || "StudIAMatch",
+              institution_slug: course.institution_slug || "general"
             }));
             setRelatedCourses(enriched as Course[]);
           }
@@ -341,21 +346,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       fetchSocialProofAndRelated();
     }
   }, [course]);
-
-  // Fase 82A: Increment view counter on mount
-  useEffect(() => {
-    if (!course?.id) return;
-    const increment = async () => {
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-          body: JSON.stringify({ p_course_id: course.id })
-        });
-      } catch (e) { console.warn("increment_view_count failed:", e); }
-    };
-    increment();
-  }, [course?.id]);
 
   if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
