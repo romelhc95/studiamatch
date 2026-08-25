@@ -54,7 +54,8 @@
 | Work package CI8 route classification | `WP-GOV-CI-008=CONSUMED_EXTERNALLY_BY_PR_439_AND_PR_440_FAILURE` |
 | Work package CI9 owner-only branch updates | `WP-GOV-CI-009=MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` |
 | Work package CI10 section-aware attestations | `WP-GOV-CI-010=CONSUMED_EXTERNALLY_BY_PR_442` |
-| Work package CI11 promotion envelope | `WP-GOV-CI-011=LOCAL_CANDIDATE_PENDING_R2_APPROVAL` |
+| Work package CI11 promotion envelope | `WP-GOV-CI-011=MERGED_TO_DESARROLLO_PR444_SUPERSEDED_BY_CI12` |
+| Work package CI12 causal evidence | `WP-GOV-CI-012=LOCAL_REMEDIATION_AFTER_NO_GO_R2_CANDIDATE` |
 | Lifecycle stage | `ACTIVE` |
 | Gate status | `APPROVED_R1` |
 | Implementation status | `BLOCKED_PENDING_HOMOLOGATION_AND_REBASE` |
@@ -88,7 +89,7 @@
 
 ### Homologacion
 
-`O0-O5 historicos completados; D0-D10 homologado; PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436, PR #438, PR #439, PR #441 y PR #442 publicados en desarrollo; PR #428, PR #431, PR #435, PR #437, PR #440, PR #441 y PR #443 consumieron sus rutas fallidas; PR #433, PR #437 y PR #440 completaron O2 pero fallaron CI post-merge; PR #441 fallo post-merge en desarrollo; Etapa 1 Obsidian pendiente de GOV-CI11, ruleset owner-only R3 JIT, nuevo O2 HOM-011 R3 JIT y convergencia final; WP-H2-001 activo hasta R1 sin implementacion funcional iniciada.`
+`O0-O5 historicos completados; D0-D10 homologado; PR #424, PR #425, PR #426, PR #427, PR #429, PR #430, PR #432, PR #434, PR #436, PR #438, PR #439, PR #441, PR #442 y PR #444 publicados en desarrollo; PR #428, PR #431, PR #435, PR #437, PR #440, PR #441, PR #443 y PR #445 consumieron sus rutas fallidas; Etapa 1 Obsidian pendiente de GOV-CI12, nuevo O2 HOM-012 R3 JIT y convergencia final; WP-H2-001 activo hasta R1 sin implementacion funcional iniciada.`
 
 ## Porcentaje De Desviacion
 
@@ -110,11 +111,11 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 
 - PR #425 quedo mergeado a `desarrollo@4cce43a743de5860c4da86eecf1782efab91d26b` y consume `WP-GOV-ARCH-001` externamente; ese manifest no se muta.
 - `main` y `certificacion` comparten el tree `fcb59095e48441bb4486ccc196aee61e2e1e0fe3`; `desarrollo` avanzo a `ac16b545b74a03b149aac538062def20101187fb` por PR #425.
-- El unico siguiente gate permitido es `PREPARE_WP_GOV_CI_011_R2_APPROVAL`.
+- El unico siguiente gate permitido es `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
 - Desired state CI9: ruleset `owner-only-protected-branch-updates`, bypass exclusivo `romelhc95` (`actor_id=18040405`) y `romelhc95-approver` (`actor_id=306979205`) excluido de updates/merge en ramas protegidas.
 - GOV-CI ya separo `security-audit` de review mediante PR #427; GOV-CI2 separo boundary incremental y boundary estructural de promociones O2-O5 mediante PR #429.
 - PR #428 no se reintenta: `O2_CONSUMED_BY_FAILURE` exige cierre administrativo futuro y nuevo R3 JIT posterior a GOV-CI3.
-- GOV-CI3 elimino la autorreferencia de solicitudes R3 versionadas; GOV-CI4 corrigio el Environment de Promotion Boundary despues del fallo pre-run de PR #431; GOV-CI5 corrigio la validacion post-merge despues del fallo de run `32615044699`; GOV-CI6 corrigio PR #435 con ramas target-aware y retiro F9.7 automatico; GOV-CI7 corrigio PR #437 con evidencia post-merge fail-closed y HOM-007; GOV-CI8 corrigio PR #438 con clasificacion post-merge fail-closed y HOM-008; GOV-CI9 publico owner-only pero fallo en PR #441; GOV-CI10 se publico por PR #442 con parser section-aware y HOM-010; GOV-CI11 congela PR #443 y prepara HOM-011 con envelope transaccional.
+- GOV-CI3 elimino la autorreferencia de solicitudes R3 versionadas; GOV-CI4 corrigio el Environment de Promotion Boundary despues del fallo pre-run de PR #431; GOV-CI5 corrigio la validacion post-merge despues del fallo de run `32615044699`; GOV-CI6 corrigio PR #435 con ramas target-aware y retiro F9.7 automatico; GOV-CI7 corrigio PR #437 con evidencia post-merge fail-closed y HOM-007; GOV-CI8 corrigio PR #438 con clasificacion post-merge fail-closed y HOM-008; GOV-CI9 publico owner-only pero fallo en PR #441; GOV-CI10 se publico por PR #442 con parser section-aware y HOM-010; GOV-CI11 se publico por PR #444 pero HOM-011 fallo en PR #445; GOV-CI12 prepara HOM-012 con evidencia causal.
 - No implementar H2 sin homologacion final, rebaseline y autorizacion posterior.
 - O3 debe decidir explicitamente Cloudflare Pages Production rebuild y DB Sync fail-closed sin cambios.
 
@@ -148,7 +149,7 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 
 ## Siguientes Pasos
 
-1. Preparar aprobacion R2 de `WP-GOV-CI-011` con commit/tree/digest candidate congelados.
+1. Preparar aprobacion R2 de `WP-GOV-CI-012` con commit/tree/digest candidate congelados.
 2. Mantener `active_work_package = WP-H2-001` sin ejecutar H2 hasta cierre efectivo y rebaseline.
 3. No ejecutar DDL/DML, Supabase, backfill, RLS/grants, writers, schedules ni produccion sin R3 JIT separado.
 4. No iniciar H2-CA3 antes de cerrar H2-CA2 local.
@@ -160,13 +161,13 @@ La ruta excedio la optimizacion original de cinco PR porque la auditoria detecto
 ## Proximo Prompt Cavernicola
 
 ```text
-Apruebo WP-GOV-CI-011 de TASK-GOV-CI-011 segun manifest sha256:<D_CI11> contenido en candidate commit:<C_CI11>, hasta R2 y hasta 2026-09-06T23:59:59Z.
-Alcance exclusivo y orden obligatorio: push, PR y merge a desarrollo del candidate GOV-CI11 que implementa promotion-jit-envelope-v1, congela PR #443 y prepara HOM-011; no Certification, no Main y no R3.
-Base: desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789, tree 99c1cda4f0091aaee35752caec69745051c41a3a.
-Orden obligatorio: verificar status limpio, verificar WP-GOV-CI-011 aprobado por digest, publicar a desarrollo mediante PR protegido, registrar Governance Attestation con Base-SHA y Candidate-SHA en el body y detenerse ante Certification, Main, rulesets remotos o gate superior.
+Apruebo WP-GOV-CI-012 de TASK-GOV-CI-012 segun manifest sha256:<D_CI12> contenido en candidate commit:<C_CI12>, hasta R2 y hasta 2026-09-06T23:59:59Z.
+Alcance exclusivo y orden obligatorio: push, PR y merge a desarrollo del candidate GOV-CI12 que implementa promotion-jit-envelope-v3, congela PR #443/#445 y prepara HOM-012; no Certification, no Main y no R3.
+Base: desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4, tree bb3a9084961c090adac0d390aa22fdcc84670656.
+Orden obligatorio: verificar status limpio, verificar WP-GOV-CI-012 aprobado por digest, publicar a desarrollo mediante PR protegido, registrar Governance Attestation con Base-SHA y Candidate-SHA en el body y detenerse ante Certification, Main, rulesets remotos o gate superior.
 Denylist: produccion, Supabase Free, Supabase Pro, workflow_dispatch, writers, schedules, lead_capture, egress, DDL/DML/migraciones/backfill/RLS/grants sin R3 JIT, fuentes privadas, .env*, secretos.
 Validaciones: credential scan, Python compile, manifest digest, markdown links, Context Graph semantico, Governance Preflight, source artifact guard, path boundary, lint, typecheck, static build.
 Stop conditions: status sucio inesperado, digest no coincide, CI fail, path fuera de allowlist, secreto/PII, PR #443 requiere rerun o edicion, cierre F10.11 declarado sin predicado, H2 iniciado, requerimiento R3 no autorizado.
-Salida esperada: GOV-CI11 en desarrollo con post-merge verde, owner-only branch updates preservado, HOM-011 preparado, H2-CA2/H2-CA3 NOT_STARTED y sin gate superior automatico.
-Proximo gate unico posterior: R3 JIT separado para aplicar ruleset owner-only y hardening remoto antes de iniciar O2 HOM-011.
+Salida esperada: GOV-CI12 en desarrollo con post-merge verde, owner-only branch updates preservado, HOM-012 preparado, H2-CA2/H2-CA3 NOT_STARTED y sin gate superior automatico.
+Proximo gate unico posterior: R3 JIT separado para iniciar O2 HOM-012.
 ```

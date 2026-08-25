@@ -1,0 +1,27 @@
+{
+  "active_promotions": ["500"],
+  "cloudflare_pages_app_id": 85455,
+  "current_pr": "500",
+  "environment": {
+    "can_admins_bypass": false,
+    "deployment_branch_policy": null,
+    "name": "Promotion",
+    "prevent_self_review": true,
+    "required_reviewers_observed": ["romelhc95-approver"],
+    "reviewer": "romelhc95-approver",
+    "reviewer_id": 306979205
+  },
+  "ruleset": {
+    "bypass_actor_count": 1,
+    "bypass_actors_observable": true,
+    "bypass_user": "romelhc95",
+    "canonical_digest": "sha256:fixture",
+    "enforcement": "active",
+    "excluded_user": "romelhc95-approver",
+    "id": 21255108,
+    "name": "owner-only-protected-branch-updates",
+    "protected_refs": ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"],
+    "restrict_updates": true
+  },
+  "snapshot_source": "github-api"
+}

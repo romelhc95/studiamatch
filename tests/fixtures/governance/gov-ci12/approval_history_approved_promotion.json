@@ -1,0 +1,17 @@
+[
+  {
+    "environments": [
+      {
+        "id": 10,
+        "name": "Promotion"
+      }
+    ],
+    "user": {
+      "login": "romelhc95-approver",
+      "id": 306979205
+    },
+    "state": "approved",
+    "comment": "sanitized approval fixture",
+    "created_at": "2026-08-24T00:05:00Z"
+  }
+]

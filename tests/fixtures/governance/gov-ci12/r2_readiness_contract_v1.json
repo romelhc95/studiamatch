@@ -1,0 +1,109 @@
+{
+  "contract_id": "GOV-CI12-R2-READINESS-V1",
+  "version": 1,
+  "status": "FROZEN",
+  "source_candidate": "5dc1bedd259920828eabfe42565960991095cea3",
+  "decision": "run_job_causality",
+  "contract_digest": "22d59629e46c58b54533006155aff8b07bc5b023e50d7105b53c13d4128d0380",
+  "source_endpoints": [
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/approvals",
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454",
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/jobs?per_page=100"
+  ],
+  "observed_approval_schema": {
+    "root_type": "array",
+    "required_record_fields": ["user", "state", "comment", "environments"],
+    "required_user_fields": ["login", "id", "type", "site_admin"],
+    "required_environment_fields": ["id", "name", "created_at", "updated_at", "can_admins_bypass"],
+    "approval_timestamp_field": null,
+    "must_not_invent_timestamp": true
+  },
+  "observed_run_schema": {
+    "root_type": "object",
+    "required_fields": ["id", "head_branch", "head_sha", "path", "event", "status", "conclusion", "run_attempt", "created_at", "updated_at", "run_started_at", "repository", "head_repository"]
+  },
+  "observed_job_schema": {
+    "root_type": "object",
+    "list_field": "jobs",
+    "required_job_fields": ["id", "run_id", "workflow_name", "head_branch", "run_attempt", "head_sha", "status", "conclusion", "created_at", "started_at", "completed_at", "name", "steps"]
+  },
+  "normalized_evidence_schema": {
+    "schema": "promotion-approval-evidence-v1",
+    "top_level_fields": ["schema", "envelope", "observed_approval", "observed_run", "observed_job", "observed_readiness", "derived_context", "payload_sha256"],
+    "unknown_fields_allowed": false,
+    "observed_blocks_required": true,
+    "derived_context_required": true
+  },
+  "derived_context_schema": {
+    "required_fields": ["source_run_id", "source_run_attempt", "jit_approval_reference", "approval_record_digest", "run_record_digest", "job_record_digest", "readiness_snapshot_digest", "evidence_created_at", "artifact_name"],
+    "may_contain_run_id": true,
+    "observed_approval_may_contain_run_id": false,
+    "observed_approval_may_contain_run_attempt": false
+  },
+  "causal_predicates": [
+    "run.event == pull_request",
+    "run.run_attempt == 1",
+    "run.id == envelope.premerge_run_id",
+    "run.head_sha == envelope.candidate_sha",
+    "run.head_branch == envelope.candidate_ref",
+    "run.path == .github/workflows/security-audit.yml",
+    "approval.state == approved",
+    "approval.user.login == envelope.required_reviewer",
+    "approval.user.id == envelope.required_reviewer_id",
+    "approval.environments contains exactly one Promotion environment",
+    "approval.environments[0].id == envelope.environment_id",
+    "job.name == Promotion Boundary",
+    "job.id is positive integer",
+    "job.run_id == run.id",
+    "job.run_attempt == run.run_attempt",
+    "job.head_sha == run.head_sha",
+    "run.created_at <= envelope.issued_at",
+    "envelope.issued_at <= job.started_at",
+    "job.completed_at >= job.started_at when completed_at is present",
+    "post_merge job.status == completed",
+    "post_merge job.conclusion == success",
+    "post_merge merge timestamp >= job.completed_at",
+    "readiness snapshot present and digest-valid"
+  ],
+  "forbidden_fields": [
+    "deployment_approval_id",
+    "deployment_approval",
+    "approved_at",
+    "environment_name",
+    "observed_approval.created_at",
+    "observed_approval.submitted_at",
+    "observed_approval.approved_at",
+    "observed_approval.run_id",
+    "observed_approval.run_attempt"
+  ],
+  "required_fixtures": [
+    "run_32659961454_approvals_raw.json",
+    "run_32659961454_raw.json",
+    "run_32659961454_jobs_raw.json",
+    "run_32659961454_provenance.json",
+    "readiness_valid.json"
+  ],
+  "required_tests": [
+    "approval observed-vs-derived separation",
+    "run binding negatives",
+    "job binding negatives",
+    "readiness snapshot digest mandatory",
+    "artifact strict schema",
+    "post-merge loader returns complete causal evidence"
+  ],
+  "required_commands": [
+    "python3 -m pytest -q tests/test_promotion_evidence.py tests/test_work_package_manifest.py tests/test_promotion_o2_o5_e2e.py",
+    "python3 scripts/security/validate_work_package.py",
+    "python3 scripts/security/validate_context_graph.py"
+  ],
+  "done_predicate": [
+    "real approval/run/jobs fixtures captured and sanitized",
+    "contract digest computed over canonical JSON without contract_digest",
+    "no approval timestamp is invented",
+    "observed and derived evidence are separated",
+    "readiness_snapshot_digest is non-null and recomputed",
+    "post-merge consumes complete immutable evidence",
+    "candidate commit/tree/digest are recalculated after validation"
+  ],
+  "non_blocking_hardening_policy": "New hardening that does not violate this contract, demonstrate a runtime failure, or show a concrete critical/high bypass is P2 and does not move GO to NO-GO."
+}

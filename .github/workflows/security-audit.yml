@@ -19,7 +19,7 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'promote/gov-hom-011-')) }}
+  cancel-in-progress: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.ref, 'promote/gov-hom-012-')) }}
 
 jobs:
   credential-scan:
@@ -152,6 +152,7 @@ jobs:
           PR_BASE_REF_SAFE: ${{ github.event.pull_request.base.ref }}
           PR_HEAD_REF_SAFE: ${{ github.event.pull_request.head.ref }}
           PR_SAME_REPO_SAFE: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          PR_ACTION_SAFE: ${{ github.event.action }}
         run: |
           set -euo pipefail
           if [ -n "${GITHUB_BASE_REF:-}" ]; then
@@ -161,7 +162,7 @@ jobs:
             promotion_pair=false
             if [ "$same_repo" = "true" ]; then
               case "$base_ref:$head_ref" in
-                certificacion:promote/gov-hom-011-o2-req1|main:promote/gov-hom-011-o3-req1|certificacion:promote/gov-hom-011-o4-req1|desarrollo:promote/gov-hom-011-o5-req1)
+                certificacion:promote/gov-hom-012-o2-req1|main:promote/gov-hom-012-o3-req1|certificacion:promote/gov-hom-012-o4-req1|desarrollo:promote/gov-hom-012-o5-req1)
                   promotion_pair=true
                   ;;
               esac
@@ -179,11 +180,15 @@ jobs:
               esac
             fi
             if [ "$promotion_pair" = "true" ]; then
+              if [ "$PR_ACTION_SAFE" != "opened" ]; then
+                echo "::error::HOM-012 promotion transactions only accept pull_request opened attempt 1"
+                exit 1
+              fi
               echo "promotion path boundary handled by Promotion Boundary job"
               exit 0
             fi
             if [ "$base_ref" = "certificacion" ] || [ "$base_ref" = "main" ]; then
-              echo "::error::protected branch PR requires exact HOM-011 promotion route: $base_ref <- $head_ref"
+              echo "::error::protected branch PR requires exact HOM-012 promotion route: $base_ref <- $head_ref"
               exit 1
             fi
             git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"
@@ -219,7 +224,7 @@ jobs:
           printf '%s\n' "$output"
           classification="$(printf '%s\n' "$output" | head -n 1)"
           echo "post_merge_classification=$classification" >> "$GITHUB_OUTPUT"
-          if [ "$status" -eq 0 ] && [ "$classification" = "VERIFIED_PROMOTION" ]; then
+          if [ "$status" -eq 0 ] && [ "$classification" = "STRUCTURAL_PROMOTION_CANDIDATE" ]; then
             echo "post_merge_promotion=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -235,12 +240,10 @@ jobs:
           python3 scripts/security/validate_work_package.py --changed-from "$base"
 
   post-merge-approval:
-    name: Post-Merge Promotion Approval
+    name: Post-Merge Promotion Evidence
     runs-on: ubuntu-latest
     needs: [path-boundary-push]
     if: github.event_name == 'push' && needs.path-boundary-push.outputs.post_merge_promotion == 'true'
-    environment:
-      name: Promotion
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -250,14 +253,14 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
-      - name: Revalidate protected promotion evidence and approval values
+      - name: Revalidate immutable promotion evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
-          R3_JIT_APPROVAL_ENVELOPE: ${{ secrets.R3_JIT_APPROVAL_ENVELOPE }}
         run: |
           set -euo pipefail
+          git fetch --no-tags origin main certificacion desarrollo
           python3 scripts/security/validate_work_package.py --post-merge-push-event "$GITHUB_EVENT_PATH"
 
   promotion-readiness:
@@ -265,11 +268,12 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-        ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o2-req1') ||
-         (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o3-req1') ||
-         (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o4-req1') ||
-         (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o5-req1'))
+        ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o2-req1') ||
+         (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o3-req1') ||
+         (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o4-req1') ||
+         (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o5-req1'))
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -285,85 +289,7 @@ jobs:
           GH_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          repo = os.environ["GH_REPOSITORY"]
-          token = os.environ["GH_TOKEN"]
-          pr_number = os.environ["GH_PR_NUMBER"]
-
-          def request(path):
-              req = urllib.request.Request(
-                  f"https://api.github.com/repos/{repo}{path}",
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "Authorization": f"Bearer {token}",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                  },
-              )
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  return json.loads(response.read().decode("utf-8"))
-
-          def request_url(url):
-              req = urllib.request.Request(
-                  url,
-                  headers={
-                      "Accept": "application/vnd.github+json",
-                      "Authorization": f"Bearer {token}",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                  },
-              )
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  return json.loads(response.read().decode("utf-8"))
-
-          def request_pulls():
-              items = []
-              page = 1
-              while True:
-                  batch = request(f"/pulls?state=open&per_page=100&page={page}")
-                  if not isinstance(batch, list):
-                      raise RuntimeError("GitHub pulls response must be a list")
-                  items.extend(batch)
-                  if len(batch) < 100:
-                      return items
-                  page += 1
-
-          environment = request("/environments/Promotion")
-          rulesets = request("/rulesets")
-          target_ruleset = next((item for item in rulesets if item.get("name") == "owner-only-protected-branch-updates"), {})
-          ruleset = request(f"/rulesets/{target_ruleset['id']}") if target_ruleset.get("id") else {}
-          pulls = request_pulls()
-          cloudflare_app = request_url("https://api.github.com/apps/cloudflare-workers-and-pages")
-          bypass_actors = ruleset.get("bypass_actors") or []
-          reviewer_names = [reviewer.get("reviewer", {}).get("login") or reviewer.get("reviewer", {}).get("name") for reviewer in environment.get("reviewers") or []]
-          protected_refs = ((ruleset.get("conditions") or {}).get("ref_name") or {}).get("include") or []
-          restrict_updates = any(rule.get("type") == "update" for rule in ruleset.get("rules") or [])
-          active_promotions = [str(item.get("number")) for item in pulls if (item.get("head") or {}).get("ref", "").startswith("promote/gov-hom-011-")]
-          snapshot = {
-              "snapshot_source": "github-api",
-              "environment": {
-                  "name": environment.get("name"),
-                  "can_admins_bypass": environment.get("can_admins_bypass"),
-                  "reviewer": "romelhc95-approver" if "romelhc95-approver" in reviewer_names else None,
-              },
-              "ruleset": {
-                  "name": ruleset.get("name"),
-                  "enforcement": ruleset.get("enforcement"),
-                  "restrict_updates": restrict_updates,
-                  "bypass_actor_count": len(bypass_actors),
-                  "protected_refs": protected_refs,
-                  "bypass_user": "romelhc95" if any(actor.get("actor_type") == "User" and actor.get("actor_id") == 18040405 for actor in bypass_actors) else None,
-                  "excluded_user": "romelhc95-approver" if not any(actor.get("actor_id") == 306979205 for actor in bypass_actors) else None,
-              },
-              "active_promotions": active_promotions,
-              "current_pr": pr_number,
-              "cloudflare_pages_app_id": cloudflare_app.get("id"),
-          }
-          with open("readiness-snapshot.json", "w", encoding="utf-8") as fh:
-              json.dump(snapshot, fh, sort_keys=True)
-          PY
+          python3 scripts/security/github_promotion_snapshot.py --output readiness-snapshot.json --validate
           python3 scripts/security/validate_promotion_readiness.py --require-snapshot --snapshot readiness-snapshot.json
 
   promotion-boundary:
@@ -371,11 +297,12 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-         ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o2-req1') ||
-          (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o3-req1') ||
-          (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o4-req1') ||
-          (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-011-o5-req1'))
+         ((github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o2-req1') ||
+          (github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o3-req1') ||
+          (github.event.pull_request.base.ref == 'certificacion' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o4-req1') ||
+          (github.event.pull_request.base.ref == 'desarrollo' && github.event.pull_request.head.ref == 'promote/gov-hom-012-o5-req1'))
     environment:
       name: Promotion
     steps:
@@ -390,12 +317,38 @@ jobs:
       - name: Validate protected promotion attestation
         env:
           R3_JIT_APPROVAL_ENVELOPE: ${{ secrets.R3_JIT_APPROVAL_ENVELOPE }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          python3 scripts/security/github_promotion_snapshot.py --output readiness-snapshot.json --validate
+          PROMOTION_RULESET_DIGEST="$(jq -r '.ruleset.canonical_digest' readiness-snapshot.json)"
+          export PROMOTION_RULESET_DIGEST
           python3 scripts/security/validate_work_package.py \
             --promotion-event "$GITHUB_EVENT_PATH" \
             --event-name "$GITHUB_EVENT_NAME" \
             --run-attempt "${GITHUB_RUN_ATTEMPT:-0}"
+          python3 scripts/security/github_promotion_snapshot.py \
+            --collect-run-evidence \
+            --run-id "$GITHUB_RUN_ID" \
+            --output-dir .
+          PROMOTION_BOUNDARY_JOB_ID="$(cat promotion-boundary-job-id.txt)"
+          python3 scripts/security/promotion_evidence.py \
+            --approval-history promotion-approval-history.json \
+            --readiness-snapshot readiness-snapshot.json \
+            --run-payload promotion-run-payload.json \
+            --jobs-payload promotion-jobs-payload.json \
+            --workflow-gate-binding promotion-workflow-gate-binding.json \
+            --job-id "$PROMOTION_BOUNDARY_JOB_ID" \
+            --write-approval-evidence promotion-approval-evidence.json
+      - name: Upload immutable promotion approval evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: promotion-approval-evidence-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}
+          path: promotion-approval-evidence.json
+          if-no-files-found: error
+          retention-days: 30
 
   governance-preflight:
     name: Governance Preflight
@@ -411,7 +364,7 @@ jobs:
       github.event.pull_request.base.ref == 'desarrollo' &&
       !(github.event.pull_request.head.repo.full_name == github.repository &&
         (github.event.pull_request.head.ref == 'certificacion' ||
-          github.event.pull_request.head.ref == 'promote/gov-hom-011-o5-req1'))
+          github.event.pull_request.head.ref == 'promote/gov-hom-012-o5-req1'))
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -452,7 +405,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install 'pytest==8.3.5'
-          python3 -m pytest -q tests/test_attestation_parser.py tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py tests/test_promotion_readiness.py
+          python3 -m pytest -q tests/test_gov_ci12_r2_readiness_contract_v3.py tests/test_attestation_parser.py tests/test_work_package_manifest.py tests/test_context_graph_semantics.py tests/test_change_governance.py tests/test_release_workflow_matrix.py tests/test_fase10_8_db_sync.py tests/test_fase10_main_boundary.py tests/test_promotion_readiness.py tests/test_promotion_api_adapter.py tests/test_promotion_evidence.py tests/test_promotion_o2_o5_e2e.py
 
   lint:
     name: ESLint
@@ -496,6 +449,7 @@ jobs:
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: ../tests/fixtures/governance/gov-ci12/next-font-google-mock.js
     defaults:
       run:
         working-directory: web
@@ -579,7 +533,7 @@ jobs:
           promotion=false
           if [ "$SAME_REPO" = "true" ]; then
             case "$PR_BASE_REF:$PR_HEAD_REF" in
-              certificacion:promote/gov-hom-011-o2-req1|main:promote/gov-hom-011-o3-req1|certificacion:promote/gov-hom-011-o4-req1|desarrollo:promote/gov-hom-011-o5-req1)
+              certificacion:promote/gov-hom-012-o2-req1|main:promote/gov-hom-012-o3-req1|certificacion:promote/gov-hom-012-o4-req1|desarrollo:promote/gov-hom-012-o5-req1)
                 promotion=true
                 ;;
             esac

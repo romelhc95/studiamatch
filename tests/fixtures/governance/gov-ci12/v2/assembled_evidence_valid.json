@@ -1,0 +1,136 @@
+{
+  "derived_context": {
+    "approval_record_digest": "4b0f4d49caa1b3c4f3ab8f389d409b259479a12ba60e5d3993c507e450ba9227",
+    "approvals_endpoint_run_id": 32659961454,
+    "artifact_name": "promotion-approval-evidence-pr-500-run-32659961454.json",
+    "evidence_created_at": "2026-08-23T19:41:39Z",
+    "jit_approval_reference_sha256": "0ee6c5f86e853c2c3c80bea5c86bcbad0fc29b539fd57ea6453d93f42a7b25a9",
+    "job_record_digest": "b1dc0de3de478d77a5526be1d5d5b6a9be648eaa915a5b6c61a634316e153664",
+    "jobs_endpoint_run_id": 32659961454,
+    "readiness_snapshot_digest": "8b14d226318bf378ace1b95365cd39238fed3c392b48175532853f8a4db7961a",
+    "run_endpoint_run_id": 32659961454,
+    "run_record_digest": "406a1b7c13ecf7e62ec57f8a5bc5196efcb4f1fcd96fcb4dbb8c9afa0cf14053",
+    "source_run_attempt": 1,
+    "source_run_id": 32659961454,
+    "workflow_gate_binding_digest": "24871463a36ab506cdf1417a98310f11d46042a0eade4a94a44bf82e4c742014"
+  },
+  "envelope_summary": {
+    "approval_id_sha256": "0ee6c5f86e853c2c3c80bea5c86bcbad0fc29b539fd57ea6453d93f42a7b25a9",
+    "candidate_ref": "promote/gov-hom-012-o2-req1",
+    "candidate_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "environment_id": 20409543239,
+    "issued_at": "2026-08-23T19:40:00Z",
+    "premerge_run_attempt": 1,
+    "premerge_run_id": 32659961454,
+    "required_reviewer": "romelhc95-approver",
+    "required_reviewer_id": 306979205,
+    "schema": "promotion-jit-envelope-v2"
+  },
+  "observed_premerge_approval": {
+    "comment_present": false,
+    "environment": {
+      "can_admins_bypass": false,
+      "id": 20409543239,
+      "name": "Promotion"
+    },
+    "reviewer": {
+      "id": 306979205,
+      "login": "romelhc95-approver"
+    },
+    "state": "approved"
+  },
+  "observed_premerge_job": {
+    "completed_at": null,
+    "conclusion": null,
+    "created_at": "2026-08-23T19:02:25Z",
+    "head_branch": "promote/gov-hom-012-o2-req1",
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "id": 97244495190,
+    "name": "Promotion Boundary",
+    "run_attempt": 1,
+    "run_id": 32659961454,
+    "started_at": "2026-08-23T19:41:33Z",
+    "status": "in_progress",
+    "workflow_name": "Security Audit Gate"
+  },
+  "observed_premerge_run": {
+    "conclusion": null,
+    "created_at": "2026-08-23T19:02:25Z",
+    "event": "pull_request",
+    "head_branch": "promote/gov-hom-012-o2-req1",
+    "head_repository": {
+      "full_name": "romelhc95/studiamatch",
+      "id": 1211718813
+    },
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "id": 32659961454,
+    "name": "Security Audit Gate",
+    "path": ".github/workflows/security-audit.yml",
+    "repository": {
+      "full_name": "romelhc95/studiamatch",
+      "id": 1211718813
+    },
+    "run_attempt": 1,
+    "run_started_at": "2026-08-23T19:02:25Z",
+    "status": "in_progress",
+    "updated_at": "2026-08-23T19:41:33Z"
+  },
+  "observed_readiness": {
+    "active_promotions": [
+      "500"
+    ],
+    "cloudflare_pages_app_id": 85455,
+    "current_pr": "500",
+    "current_pr_head_ref": "promote/gov-hom-012-o2-req1",
+    "environment": {
+      "can_admins_bypass": false,
+      "deployment_branch_policy": null,
+      "id": 20409543239,
+      "name": "Promotion",
+      "prevent_self_review": true,
+      "required_reviewer_ids_observed": [
+        306979205
+      ],
+      "required_reviewers_observed": [
+        "romelhc95-approver"
+      ],
+      "reviewer": "romelhc95-approver",
+      "reviewer_id": 306979205
+    },
+    "repository_id": 1211718813,
+    "ruleset": {
+      "bypass_actor_count": 1,
+      "bypass_actors_observable": true,
+      "bypass_user": "romelhc95",
+      "canonical_digest": "sha256:fixture",
+      "enforcement": "active",
+      "excluded_user": "romelhc95-approver",
+      "id": 21255108,
+      "name": "owner-only-protected-branch-updates",
+      "protected_refs": [
+        "refs/heads/desarrollo",
+        "refs/heads/certificacion",
+        "refs/heads/main"
+      ],
+      "restrict_updates": true
+    },
+    "snapshot_source": "github-api"
+  },
+  "payload_sha256": "ddf64ae210623c6ac6f11aa2a14e67a5c8dd0d20cef9be86c3e50ea378bbdb11",
+  "schema": "promotion-approval-evidence-v2",
+  "workflow_gate_binding": {
+    "api_job_name": "Promotion Boundary",
+    "artifact_producer_in_same_job": true,
+    "candidate_workflow_must_produce_artifact_in_same_job": true,
+    "environment_name": "Promotion",
+    "extraction_method": "local_worktree_candidate",
+    "historical_binding_only": false,
+    "job_key": "promotion-boundary",
+    "remote_request": false,
+    "schema": "github-workflow-environment-gate-binding-v1",
+    "source_blob_sha256": "95cb0dbfcd613fc5c92cd533c2ac6cecf1cd716005d4da27e3d956204cc2fd18",
+    "source_commit": "5dc1bedd259920828eabfe42565960991095cea3",
+    "workflow_name": "Security Audit Gate",
+    "workflow_path": ".github/workflows/security-audit.yml"
+  }
+}
