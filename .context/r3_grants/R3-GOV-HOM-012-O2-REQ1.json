@@ -1,6 +1,6 @@
 {
   "id": "R3-GOV-HOM-012-O2-REQ1",
-  "status": "REQUESTED_JIT_SINGLE_USE",
+  "status": "CONSUMED_BY_FAILURE",
   "operation": "O2 desarrollo -> certificacion",
   "repository": "romelhc95/studiamatch",
   "base_ref": "certificacion",
@@ -22,5 +22,9 @@
   "required_reviewer": "romelhc95-approver",
   "merger_reviewer_distinct": true,
   "approval_envelope_schema": "promotion-jit-envelope-v3",
-  "allowed_side_effects": ["certification_branch_update"]
+  "allowed_side_effects": ["certification_branch_update"],
+  "failed_pr": 447,
+  "failed_run": 32796093059,
+  "failed_candidate": "5fb39b870206742b20d904ee73589d9b61adff3b",
+  "failure_status": "FAILED_NOT_MERGED_FROZEN"
 }

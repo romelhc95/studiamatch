@@ -108,11 +108,11 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
         errors.append("READINESS_ACTIVE_PROMOTION_COUNT_INVALID")
     elif snapshot.get("current_pr") and active[0] != str(snapshot.get("current_pr")):
         errors.append("READINESS_ACTIVE_PROMOTION_CURRENT_PR_INVALID")
-    if str(snapshot.get("current_pr") or "") in {"443", "445"}:
+    if str(snapshot.get("current_pr") or "") in {"443", "445", "447"}:
         errors.append("READINESS_FROZEN_PR_INVALID")
 
     for operation, branch in PROMOTION_CANDIDATE_BRANCHES.items():
-        grant_id = f"R3-GOV-HOM-012-{operation.split(' ', 1)[0]}-REQ1"
+        grant_id = f"R3-GOV-HOM-012-{operation.split(' ', 1)[0]}-REQ2"
         grant_path = root / ".context" / "r3_grants" / f"{grant_id}.json"
         if not grant_path.exists():
             errors.append(f"READINESS_GRANT_MISSING:{grant_id}")
@@ -128,7 +128,7 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
 
     if snapshot.get("cloudflare_pages_app_id") != CLOUDFLARE_PAGES_APP_ID:
         errors.append("READINESS_CLOUDFLARE_APP_INVALID")
-    if snapshot.get("current_pr_head_ref") == "promote/gov-hom-012-o4-req1":
+    if snapshot.get("current_pr_head_ref") == "promote/gov-hom-012-o4-req2":
         source_sha = str(snapshot.get("current_pr_source_sha") or "")
         try:
             closure = load_o3_closure_artifact(source_sha)

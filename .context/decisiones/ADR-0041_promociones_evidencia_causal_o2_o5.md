@@ -2,7 +2,7 @@
 
 ## Estado
 
-Aceptada localmente como candidate CI12; REQ5 en remediacion local con contrato V3 congelado.
+Aceptada como GOV-CI12; REQ7 prepara HOM-012 REQ2 despues de PR #447 fallido y PR #448 publicado.
 
 ## Contexto
 
@@ -20,7 +20,7 @@ La causalidad V3 no depende de inventar un timestamp de approval. Se prueba por 
 
 La evidencia no inventa campos no observables. El historial REST de approvals se procesa desde `environments[]`, `user`, `state` y `comment`; `environment.created_at` es metadata del Environment y no decision time. `approval_id` dentro del envelope es solo referencia humana/JIT. El comentario libre no se persiste: se conserva solo `comment_present` y, si aplica, `comment_sha256`.
 
-El collector GitHub REST vive en `scripts/security/github_promotion_snapshot.py`. `bypass_actors` ausente es `UNOBSERVABLE` y falla cerrado. Los reviewers se obtienen desde `protection_rules[type=required_reviewers].reviewers`; `prevent_self_review=true`, `can_admins_bypass=false` y `deployment_branch_policy=null` son obligatorios.
+El collector GitHub REST vive en `scripts/security/github_promotion_snapshot.py`. `bypass_actors` ausente es `UNOBSERVABLE` por permisos del token de workflow y no se interpreta como lista vacia ni como drift por si solo; si GitHub expone `bypass_actors`, el bypass debe ser exclusivo de `romelhc95` y excluir `romelhc95-approver`. Los reviewers y `prevent_self_review=true` se obtienen desde `protection_rules[type=required_reviewers]`; `can_admins_bypass=false` y `deployment_branch_policy=null` son obligatorios.
 
 O3 se cierra de forma asincronica: Cloudflare Pages debe terminar success con app_id `85455` sobre el merge SHA exacto y DB Sync Detect Only debe producir artifact `NO_DB_CHANGES`, `db_changed=false`, `apply_executed=false`. Report/apply/verify, DDL/DML, Supabase y credenciales Production quedan prohibidos en ruta no-change.
 
@@ -30,7 +30,8 @@ O4 consume `o3-closure-evidence.json` mediante el loader real; O5 demuestra `tre
 
 - PR #443 y PR #445 quedan congelados.
 - HOM-011 queda superseded; no se reutilizan grants, ramas, runs ni secrets.
-- HOM-012 O2-O5 requieren R3 JIT separados y single-use.
+- PR #447 queda `FAILED_NOT_MERGED_FROZEN`; `R3-GOV-HOM-012-O2-REQ1` queda consumido y HOM-012 REQ1 O3-O5 quedan superseded.
+- HOM-012 REQ2 O2-O5 requieren R3 JIT separados y single-use.
 - R1 solo prepara codigo, documentos y pruebas offline; no autoriza operaciones remotas.
 - Candidate `1034193d48f820bcc37f8c03aa57aca777a037ba` queda superseded localmente por mismatch del contrato REST de approvals antes de solicitar R2.
 - Los GET historicos V2 usados para congelar el contrato ya fueron consumidos y no deben repetirse sin autorizacion nueva.

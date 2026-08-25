@@ -33,7 +33,7 @@ def raw_ruleset(**updates):
 
 
 def test_collector_parses_required_reviewers_and_ruleset_digest():
-    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
+    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req2"}}], {"id": 85455}, "500")
     assert validate_snapshot(snapshot) == []
     assert snapshot["environment"]["reviewer"] == "romelhc95-approver"
     assert snapshot["ruleset"]["canonical_digest"].startswith("sha256:")
@@ -42,7 +42,7 @@ def test_collector_parses_required_reviewers_and_ruleset_digest():
 def test_collector_allows_missing_bypass_actors_as_unobservable():
     ruleset = raw_ruleset()
     ruleset.pop("bypass_actors")
-    snapshot = build_snapshot(raw_environment(), ruleset, [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
+    snapshot = build_snapshot(raw_environment(), ruleset, [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req2"}}], {"id": 85455}, "500")
     assert validate_snapshot(snapshot) == []
     assert snapshot["ruleset"]["bypass_actor_count"] == "UNOBSERVABLE"
 
@@ -51,7 +51,7 @@ def test_collector_requires_required_reviewers_protection_rule():
     environment = raw_environment()
     environment.pop("protection_rules")
     environment["reviewers"] = [{"reviewer": {"login": "romelhc95-approver", "id": 306979205}}]
-    snapshot = build_snapshot(environment, raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
+    snapshot = build_snapshot(environment, raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req2"}}], {"id": 85455}, "500")
     assert "SNAPSHOT_REQUIRED_REVIEWER_INVALID" in validate_snapshot(snapshot)
     assert "SNAPSHOT_PREVENT_SELF_REVIEW_INVALID" in validate_snapshot(snapshot)
 
@@ -69,7 +69,7 @@ def test_collector_rejects_wrong_bypass_actor():
 
 
 def test_collector_rejects_frozen_prs():
-    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 445, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "445")
+    snapshot = build_snapshot(raw_environment(), raw_ruleset(), [{"number": 447, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "447")
     assert "SNAPSHOT_FROZEN_PR_INVALID" in validate_snapshot(snapshot)
 
 
@@ -91,7 +91,7 @@ def test_collector_paginates_all_open_pull_requests(monkeypatch):
         if path == "/pulls?state=open&per_page=100&page=1":
             return [{"number": number, "head": {"ref": "feature"}} for number in range(100)]
         if path == "/pulls?state=open&per_page=100&page=2":
-            return [{"number": 777, "head": {"ref": "promote/gov-hom-012-o3-req1"}}]
+            return [{"number": 777, "head": {"ref": "promote/gov-hom-012-o3-req2"}}]
         raise AssertionError(path)
 
     monkeypatch.setattr(GitHubClient, "get", fake_get)

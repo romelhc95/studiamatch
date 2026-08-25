@@ -21,7 +21,7 @@ implementation_status = BLOCKED_PENDING_HOMOLOGATION_AND_REBASE
 criteria_status = H2-CA2:NOT_STARTED,H2-CA3:NOT_STARTED
 ```
 
-Este plan no crea alcance ni autoriza R2/R3. PR #443 y PR #445 quedan congelados como `FAILED_NOT_MERGED_FROZEN`; `R3-GOV-HOM-010-O2-REQ1` y `R3-GOV-HOM-011-O2-REQ1` quedan consumidos; HOM-011 O3-O5 superseded. Candidate CI12 `1034193d48f820bcc37f8c03aa57aca777a037ba` queda `NO_GO_R2_SUPERSEDED_BY_LOCAL_REMEDIATION` por mismatch del contrato REST de approvals. Ahora F10.11 requiere aprobacion R2 separada de `WP-GOV-CI-012` para publicar `promotion-jit-envelope-v3`, mantener el desired state `owner-only-protected-branch-updates`, exigir `prevent_self_review=true`, `Promotion.can_admins_bypass=false`, `deployment_branch_policy=null`, preparar HOM-012 y cerrar O3 asincronicamente con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado. Gate exacto: `PREPARE_WP_GOV_CI_012_R2_APPROVAL`.
+Este plan no crea alcance ni autoriza R2/R3. PR #443, PR #445 y PR #447 quedan congelados como `FAILED_NOT_MERGED_FROZEN`; `R3-GOV-HOM-010-O2-REQ1`, `R3-GOV-HOM-011-O2-REQ1` y `R3-GOV-HOM-012-O2-REQ1` quedan consumidos; HOM-011 O3-O5 y HOM-012 REQ1 O3-O5 superseded. Ahora F10.11 requiere aprobacion R2 separada de `WP-GOV-CI-012` para publicar REQ7, preparar HOM-012 REQ2 con `promotion-jit-envelope-v3`, mantener el desired state `owner-only-protected-branch-updates`, exigir `prevent_self_review=true`, `Promotion.can_admins_bypass=false`, `deployment_branch_policy=null`, y cerrar O3 asincronicamente con Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`. Etapa 1 solo queda cerrada cuando el predicado externo de cierre se cumpla y el checkout ordinario StudIAMatch consuma ese estado validado. Gate exacto: `PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL`.
 
 ## Bases Inmutables
 
@@ -168,9 +168,9 @@ La optimizacion original de cinco PR queda desviada por remediacion documental o
 | GOV CI9 owner-only branch updates | `MERGED_TO_DESARROLLO_WITH_POST_MERGE_CI_FAILURE` | PR #441 publico `WP-GOV-CI-009` pero fallo run `32666126533` por `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 queda superseded. |
 | GOV CI10 section-aware attestations | `MERGED_TO_DESARROLLO` | PR #442 publico `WP-GOV-CI-010` en `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`, digest `c64a12f0a3208664db4575471bf3425d38c692807debf648db0bc157e091d31c`. |
 | GOV CI11 promotion envelope | `PREPARE_R2_APPROVAL` | Candidate local `WP-GOV-CI-011` congela PR #443, consume HOM-010 O2, supersede HOM-010 O3-O5 y reemplaza la familia runtime por HOM-011 con envelope transaccional. |
-| GOV CI12 causal evidence | `PREPARE_R2_APPROVAL` | Candidate local `WP-GOV-CI-012` congela PR #443/#445, consume HOM-011 O2, supersede HOM-011 O3-O5 y reemplaza la familia runtime por HOM-012 con evidencia causal. |
+| GOV CI12 causal evidence | `PREPARE_REQ7_R2_APPROVAL` | Candidate local `WP-GOV-CI-012` congela PR #443/#445/#447, consume HOM-012 O2 REQ1, supersede HOM-012 REQ1 O3-O5 y prepara HOM-012 REQ2 con evidencia causal. |
 
-Ramas target-aware HOM-012: `promote/gov-hom-012-o2-req1`, `promote/gov-hom-012-o3-req1`, `promote/gov-hom-012-o4-req1`, `promote/gov-hom-012-o5-req1`. HOM-006, HOM-007, HOM-008, HOM-009, HOM-010 y HOM-011 quedan superseded o consumidos y no utilizables.
+Ramas target-aware HOM-012 REQ2: `promote/gov-hom-012-o2-req2`, `promote/gov-hom-012-o3-req2`, `promote/gov-hom-012-o4-req2`, `promote/gov-hom-012-o5-req2`. HOM-006, HOM-007, HOM-008, HOM-009, HOM-010, HOM-011 y HOM-012 REQ1 quedan superseded o consumidos y no utilizables.
 | Etapa 1 Obsidian | `DESARROLLO_MERGED_PENDING_HOMOLOGATION` | Vault, enlaces canonicos, evidencia H2, taxonomia y arquitectura existen en `desarrollo`; cierre efectivo pendiente de `T_HOM`, R3 JIT y convergencia final. |
 
 ## D0-D10 Correctivo
@@ -369,7 +369,7 @@ Playwright se documenta como gate de H3 en adelante; no se activa en D0-D10.
 
 ## Proximo Gate
 
-F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI12 sea publicado a `desarrollo` con post-merge verde y luego se homologue mediante O2-O5 HOM-012 con grants R3 JIT separados. PR #443 y PR #445 quedan `FAILED_NOT_MERGED_FROZEN`; HOM-011 O2 consumido y HOM-011 O3-O5 superseded. El siguiente gate es preparar aprobacion R2 de `WP-GOV-CI-012` por commit/tree/digest. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
+F10.11 esta publicada parcialmente en `desarrollo` y `certificacion`, pero Etapa 1 Obsidian sigue como `DESARROLLO_MERGED_PENDING_HOMOLOGATION` hasta que GOV-CI12 REQ7 sea publicado a `desarrollo` con post-merge verde y luego se homologue mediante O2-O5 HOM-012 REQ2 con grants R3 JIT separados. PR #443, PR #445 y PR #447 quedan `FAILED_NOT_MERGED_FROZEN`; HOM-012 O2 REQ1 consumido y HOM-012 REQ1 O3-O5 superseded. El siguiente gate es preparar aprobacion R2 de `WP-GOV-CI-012` por commit/tree/digest. Hito 2, H2-CA2, H2-CA3, Main, DB, Supabase, backfill remoto, RLS/grants remotos, writers, schedules o produccion requieren gates posteriores separados.
 
 ## Predicado Externo De Cierre F10.11
 

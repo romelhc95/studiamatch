@@ -16,7 +16,7 @@
   },
   "envelope_summary": {
     "approval_id_sha256": "0ee6c5f86e853c2c3c80bea5c86bcbad0fc29b539fd57ea6453d93f42a7b25a9",
-    "candidate_ref": "promote/gov-hom-012-o2-req1",
+    "candidate_ref": "promote/gov-hom-012-o2-req2",
     "candidate_sha": "cccccccccccccccccccccccccccccccccccccccc",
     "environment_id": 20409543239,
     "issued_at": "2026-08-23T19:40:00Z",
@@ -43,7 +43,7 @@
     "completed_at": null,
     "conclusion": null,
     "created_at": "2026-08-23T19:02:25Z",
-    "head_branch": "promote/gov-hom-012-o2-req1",
+    "head_branch": "promote/gov-hom-012-o2-req2",
     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
     "id": 97244495190,
     "name": "Promotion Boundary",
@@ -57,7 +57,7 @@
     "conclusion": null,
     "created_at": "2026-08-23T19:02:25Z",
     "event": "pull_request",
-    "head_branch": "promote/gov-hom-012-o2-req1",
+    "head_branch": "promote/gov-hom-012-o2-req2",
     "head_repository": {
       "full_name": "romelhc95/studiamatch",
       "id": 1211718813
@@ -81,7 +81,7 @@
     ],
     "cloudflare_pages_app_id": 85455,
     "current_pr": "500",
-    "current_pr_head_ref": "promote/gov-hom-012-o2-req1",
+    "current_pr_head_ref": "promote/gov-hom-012-o2-req2",
     "environment": {
       "can_admins_bypass": false,
       "deployment_branch_policy": null,

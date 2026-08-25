@@ -95,8 +95,8 @@ GOV_CI8_BASE_COMMIT = "16045d45811cbe12299ce2ba66f6afd75a93d1ee"
 GOV_CI9_BASE_COMMIT = "1bc36ae6a4381c5ceac5e30c3970c39099965bc3"
 GOV_CI10_BASE_COMMIT = "17d383291a5f2877074b54b66f2a0ff48a643667"
 GOV_CI11_BASE_COMMIT = "cbdfe9dab373a2b427df4864b14427f3b2358789"
-GOV_CI12_BASE_COMMIT = "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4"
-GOV_CI12_PUBLISHED_COMMIT = "57715daa4cc5d91bcd408d5832dd448da7b665fe"
+GOV_CI12_BASE_COMMIT = "34fb06d552ea4d052bd3f942948a192a7e44a5eb"
+GOV_CI12_PUBLISHED_COMMIT = "34fb06d552ea4d052bd3f942948a192a7e44a5eb"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -616,6 +616,10 @@ GOV_CI12_TRANSITION_ALLOWLIST = (
     ".context/r3_grants/R3-GOV-HOM-012-O3-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-012-O4-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-012-O5-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O2-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O3-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O4-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O5-REQ2.json",
 )
 GOV_RELEASE_TRANSITION_DENY = ABSOLUTE_DENY + (
     "web/**",
@@ -635,10 +639,10 @@ PROMOTION_PAIRS = {
     "O5 certificacion -> desarrollo": ("desarrollo", "certificacion"),
 }
 PROMOTION_CANDIDATE_BRANCHES = {
-    "O2 desarrollo -> certificacion": "promote/gov-hom-012-o2-req1",
-    "O3 certificacion -> main": "promote/gov-hom-012-o3-req1",
-    "O4 main -> certificacion": "promote/gov-hom-012-o4-req1",
-    "O5 certificacion -> desarrollo": "promote/gov-hom-012-o5-req1",
+    "O2 desarrollo -> certificacion": "promote/gov-hom-012-o2-req2",
+    "O3 certificacion -> main": "promote/gov-hom-012-o3-req2",
+    "O4 main -> certificacion": "promote/gov-hom-012-o4-req2",
+    "O5 certificacion -> desarrollo": "promote/gov-hom-012-o5-req2",
 }
 SUPERSEDED_PROMOTION_PREFIX = "promote/gov-hom-"
 PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-Ref", "Base-SHA", "Source-Ref", "Source-SHA", "Candidate-SHA", "Candidate-Tree", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
@@ -649,9 +653,9 @@ PROMOTION_FINAL_WP = "WP-GOV-CI-012"
 GOV_CI2_PROMOTION_BLOCKED_PR_NUMBERS = {428}
 GOV_CI2_PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2"}
 PROMOTION_ALLOWED_ACTION = "opened"
-PROMOTION_BLOCKED_PR_NUMBERS = {428, 431, 433, 435, 437, 440, 441, 443, 445}
-PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1", "R3-GOV-HOM-011-O2-REQ1"}
-PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1", "R3-GOV-HOM-007-O2-REQ1", "R3-GOV-HOM-007-O3-REQ1", "R3-GOV-HOM-007-O4-REQ1", "R3-GOV-HOM-007-O5-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-008-O3-REQ1", "R3-GOV-HOM-008-O4-REQ1", "R3-GOV-HOM-008-O5-REQ1", "R3-GOV-HOM-009-O2-REQ1", "R3-GOV-HOM-009-O3-REQ1", "R3-GOV-HOM-009-O4-REQ1", "R3-GOV-HOM-009-O5-REQ1", "R3-GOV-HOM-010-O3-REQ1", "R3-GOV-HOM-010-O4-REQ1", "R3-GOV-HOM-010-O5-REQ1", "R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1"}
+PROMOTION_BLOCKED_PR_NUMBERS = {428, 431, 433, 435, 437, 440, 441, 443, 445, 447}
+PROMOTION_CONSUMED_GRANTS = {"R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1", "R3-GOV-HOM-011-O2-REQ1", "R3-GOV-HOM-012-O2-REQ1"}
+PROMOTION_SUPERSEDED_GRANTS = {"R3-GOV-HOM-006-O3-REQ1", "R3-GOV-HOM-006-O4-REQ1", "R3-GOV-HOM-006-O5-REQ1", "R3-GOV-HOM-007-O2-REQ1", "R3-GOV-HOM-007-O3-REQ1", "R3-GOV-HOM-007-O4-REQ1", "R3-GOV-HOM-007-O5-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-008-O3-REQ1", "R3-GOV-HOM-008-O4-REQ1", "R3-GOV-HOM-008-O5-REQ1", "R3-GOV-HOM-009-O2-REQ1", "R3-GOV-HOM-009-O3-REQ1", "R3-GOV-HOM-009-O4-REQ1", "R3-GOV-HOM-009-O5-REQ1", "R3-GOV-HOM-010-O3-REQ1", "R3-GOV-HOM-010-O4-REQ1", "R3-GOV-HOM-010-O5-REQ1", "R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1", "R3-GOV-HOM-012-O3-REQ1", "R3-GOV-HOM-012-O4-REQ1", "R3-GOV-HOM-012-O5-REQ1"}
 OWNER_ONLY_RULESET_REQUIRED = {
     "name": "owner-only-protected-branch-updates",
     "refs": ["refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"],
@@ -706,6 +710,12 @@ STATIC_PROMOTION_REQUEST_KEYS = {
     "approval_envelope_schema",
     "allowed_side_effects",
     "blocked_until_o3_closed",
+    "failed_pr",
+    "failed_run",
+    "failed_candidate",
+    "failure_status",
+    "superseded_by",
+    "superseded_reason",
 }
 PROMOTION_ENVELOPE_SCHEMA = "promotion-jit-envelope-v3"
 PROMOTION_ENVELOPE_FIELDS = {
@@ -1427,7 +1437,7 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
         baseline = data.get("baseline", {})
         if baseline.get("candidate_commit") != GOV_CI12_BASE_COMMIT or baseline.get("desarrollo_commit") != GOV_CI12_BASE_COMMIT:
             errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:candidate/desarrollo_commit")
-        if baseline.get("candidate_tree") != "bb3a9084961c090adac0d390aa22fdcc84670656" or baseline.get("desarrollo_tree") != "bb3a9084961c090adac0d390aa22fdcc84670656":
+        if baseline.get("candidate_tree") != "d53e81717a4c44d59177591c3ce69392072ec716" or baseline.get("desarrollo_tree") != "d53e81717a4c44d59177591c3ce69392072ec716":
             errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:candidate/desarrollo_tree")
         if baseline.get("certificacion_commit") != "df2cde3626c75fa4733bf1624fb105d8ee08c076" or baseline.get("certificacion_tree") != "7df05c52da47855d62c082f7cfbd12ee1e38b965" or baseline.get("main_commit") != "9b486146962bd2a092acfd649fdcf716e922de89" or baseline.get("main_tree") != "fcb59095e48441bb4486ccc196aee61e2e1e0fe3":
             errors.append(f"GOV_CI12_BASELINE_INVALID:{path.name}:branch_commits")
@@ -1451,15 +1461,15 @@ def validate_manifest(path: Path, *, now: datetime | None = None, root: Path | N
             errors.append(f"GOV_CI12_O5_INVALID:{path.name}")
         promotion = data.get("promotion_request_bootstrap")
         expected_grants = [
-            "R3-GOV-HOM-012-O2-REQ1",
-            "R3-GOV-HOM-012-O3-REQ1",
-            "R3-GOV-HOM-012-O4-REQ1",
-            "R3-GOV-HOM-012-O5-REQ1",
+            "R3-GOV-HOM-012-O2-REQ2",
+            "R3-GOV-HOM-012-O3-REQ2",
+            "R3-GOV-HOM-012-O4-REQ2",
+            "R3-GOV-HOM-012-O5-REQ2",
         ]
         if not isinstance(promotion, dict) or promotion.get("final_wp") != "WP-GOV-CI-012" or promotion.get("static_request_status") != PROMOTION_REQUEST_STATUS or promotion.get("symbolic_bindings") != PROMOTION_BINDINGS or promotion.get("grant_request_ids") != expected_grants:
             errors.append(f"GOV_CI12_PROMOTION_REQUEST_BOOTSTRAP_INVALID:{path.name}")
         historical = data.get("historical_blocks", {})
-        if 445 not in historical.get("blocked_pr_numbers", []) or "R3-GOV-HOM-011-O2-REQ1" not in historical.get("consumed_grants", []) or any(f"R3-GOV-HOM-011-O{n}-REQ1" not in historical.get("superseded_grants", []) for n in range(3, 6)):
+        if 447 not in historical.get("blocked_pr_numbers", []) or "R3-GOV-HOM-012-O2-REQ1" not in historical.get("consumed_grants", []) or any(f"R3-GOV-HOM-012-O{n}-REQ1" not in historical.get("superseded_grants", []) for n in range(3, 6)):
             errors.append(f"GOV_CI12_HISTORICAL_BLOCKS_INVALID:{path.name}")
         if data.get("bootstrap_authorization", {}).get("id") != "R1-BOOTSTRAP-GOV-CI-012-REQ1":
             errors.append(f"GOV_CI12_BOOTSTRAP_AUTH_INVALID:{path.name}")
@@ -1634,9 +1644,17 @@ def validate_static_promotion_request(grant: dict[str, Any], *, grant_id: str, o
     unknown_keys = set(grant) - STATIC_PROMOTION_REQUEST_KEYS
     if unknown_keys:
         errors.append(f"PROMOTION_GRANT_UNKNOWN_FIELDS:{sorted(unknown_keys)}")
+    historical_statuses = {PROMOTION_REQUEST_STATUS}
+    if grant_id in PROMOTION_CONSUMED_GRANTS:
+        historical_statuses.add("CONSUMED_BY_FAILURE")
+    if grant_id in PROMOTION_SUPERSEDED_GRANTS:
+        historical_statuses.add("SUPERSEDED_NOT_USABLE")
+    expected_status = grant.get("status") if grant_id in PROMOTION_CONSUMED_GRANTS | PROMOTION_SUPERSEDED_GRANTS else PROMOTION_REQUEST_STATUS
+    if grant.get("status") not in historical_statuses:
+        errors.append("PROMOTION_GRANT_MISMATCH:status")
     expected = {
         "id": grant_id,
-        "status": PROMOTION_REQUEST_STATUS,
+        "status": expected_status,
         "operation": operation,
         "repository": repo_name,
         "base_ref": base_ref,
@@ -1727,6 +1745,8 @@ def validate_static_promotion_requests(root: Path = ROOT) -> list[str]:
             ("O5 certificacion -> desarrollo", "O5", "desarrollo", "certificacion"),
         ):
             expected[f"R3-GOV-HOM-{family}-{code}-REQ1"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req1", final_wp, source_ref, family in {"007", "008", "009", "010", "011", "012"})
+            if family == "012":
+                expected[f"R3-GOV-HOM-{family}-{code}-REQ2"] = (op, base_ref, f"promote/gov-hom-{family}-{code.lower()}-req2", final_wp, source_ref, True)
     for grant_id, (operation, base_ref, candidate_branch, final_wp_id, source_ref, require_identity) in expected.items():
         wp = load_manifest_by_id(final_wp_id, root=root)
         d_final = str(wp.get("candidate_digest") if isinstance(wp, dict) else "")
@@ -2260,7 +2280,7 @@ def validate_gov_ci12_v3_contract_case(case: dict[str, Any], payload: dict[str, 
         "premerge_run_id": 32659961454,
         "premerge_run_attempt": 1,
         "candidate_sha": "c" * 40,
-        "candidate_ref": "promote/gov-hom-012-o2-req1",
+        "candidate_ref": "promote/gov-hom-012-o2-req2",
         "repository": "romelhc95/studiamatch",
         "required_reviewer": "romelhc95-approver",
         "required_reviewer_id": 306979205,
