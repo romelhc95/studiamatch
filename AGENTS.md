@@ -1,53 +1,24 @@
 # StudIAMatch — Developer Guide
 
-## Regla De Ejecucion De Fases Y Work Packages
+## Regla De Ejecucion
 
-La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. La transicion F10.11 permanece como homologacion canonica con documentacion Obsidian candidate pendiente de main; desde F12.1 la fase decimal queda solo como trazabilidad/seleccion de tareas y no reemplaza el modelo WP/digest para trabajo posterior. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion. La frase legacy `Ejecuta las tareas pendientes de la Fase FNN.n` deja de ser microautorizacion operativa posterior a F10.11; la autorizacion vigente usa WP/digest y niveles R0-R3. La taxonomia legacy `ADR-0003` queda superseded por [ADR-0027](.context/decisiones/ADR-0027_work_packages_y_convergencia.md), [ADR-0028](.context/decisiones/ADR-0028_context_graph_semantico_y_autorizacion_r0_r3.md) y su tombstone [ADR-0003](.context/decisiones/ADR-0003_taxonomia_macrofases_subfases.md).
+La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md) y, durante la transicion actual, en [`REDEFINICION.md`](REDEFINICION.md). Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
 
-El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles R0-R3:
-
-| Nivel | Operacion | Autorizacion |
-|---|---|---|
-| `R0` | Lectura y planificacion local | Ninguna |
-| `R1` | Edicion local y tests Docker | Grant persistente WP/digest |
-| `R2` | Push, PR y merge a `desarrollo` | WP/digest, CI y review |
-| `R3` | Certification/Main, DB, deploys, schedules, writers, secrets | JIT single-use |
-| `R3+` | Destruccion o recuperacion productiva | JIT y doble aprobacion |
-
-Formato operativo posterior a F10.11:
+Flujo normal:
 
 ```text
-Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest> contenido en candidate commit:<commit>, hasta <nivel> y hasta <expiry_utc>.
+feat/* o docs/* desde desarrollo
+-> PR protegido a desarrollo
+-> PR protegido desarrollo a certificacion
+-> PR protegido certificacion a main
 ```
 
-La aprobacion de un WP por digest no autoriza por si sola DDL/DML, Supabase, backfill, RLS/grants, schedules, writers, workflow_dispatch, Certification, Main, produccion ni ningun R3. La primera aprobacion de `WP-H2-001` solo puede ser R1; R2 requiere revision Plan posterior y autorizacion separada. R3 continua siendo JIT single-use. No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
+Reglas obligatorias:
 
-Regla vigente GOV-CI6: despues del fallo no mergeado PR #435, F9.7 queda `MANUAL_FROZEN_ONLY` sin triggers automaticos `pull_request`/`push`. Las promociones O2-O5 posteriores usan ramas `promote/gov-hom-006-oN`; el candidate debe tener parent 1 igual al target SHA, parent 2 igual al source SHA y `tree(candidate)=tree(source)=T_FINAL`. PR #435 y `R3-GOV-HOM-005-O2-REQ1` no se editan, reintentan ni consumen de nuevo. O3 requiere R3 JIT que autorice explicitamente push/merge a `main`, rebuild automatico de Cloudflare Pages Production y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`; apply, DDL/DML y writers siguen prohibidos sin R3 separado.
-
-Regla vigente GOV-CI9: despues del fallo post-merge PR #440, el reviewer `romelhc95-approver` conserva su rol de aprobador pero no debe actualizar ni mergear `desarrollo`, `certificacion` ni `main`. El desired state es un ruleset permanente `owner-only-protected-branch-updates` con `Restrict updates` para esas tres ramas y bypass exclusivo del usuario `romelhc95` (`actor_id=18040405`); `romelhc95-approver` (`actor_id=306979205`) queda excluido del bypass. HOM-006, HOM-007 y HOM-008 quedan superseded; promociones futuras usan HOM-009 con `required_reviewer=romelhc95-approver`, `required_merger=romelhc95` y `merger_reviewer_distinct=true`.
-
-Regla vigente GOV-CI10: despues del fallo post-merge PR #441 en `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, run `32666126533`, `POST_MERGE_ATTESTATION_DUPLICATE`, no se edita ni rerunea PR #441. El parser de attestations debe ser section-aware, sin fallback al body completo: PR ordinarios usan solo `## Governance Attestation`; promociones O2-O5 usan solo `## Promotion Attestation`. HOM-009 queda superseded; promociones futuras usan HOM-010 despues de publicar CI10 con post-merge verde y aplicar cualquier R3 JIT separado requerido.
-
-Regla vigente GOV-CI11: despues del fallo no mergeado PR #443, PR #443 queda `FAILED_NOT_MERGED` y no se edita, cierra, reabre, rerunea ni mergea. `R3-GOV-HOM-010-O2-REQ1` queda consumido; HOM-010 O3-O5 quedan superseded. Promociones futuras usan HOM-011 y requieren el secreto protegido unico `R3_JIT_APPROVAL_ENVELOPE` con schema `promotion-jit-envelope-v1`, ligado a PR, run `opened`, `run_attempt=1`, refs, SHAs, tree, WP, digest, identidades, side effects y expiry. Eventos `edited`, `reopened`, `synchronize`, `ready_for_review` y rerun invalidan la transaccion. `Promotion.can_admins_bypass=false` es desired state obligatorio. O3 requiere Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`; O4 queda bloqueado hasta cierre O3.
-
-Regla vigente GOV-CI12: despues del fallo no mergeado PR #445, PR #443 y PR #445 quedan `FAILED_NOT_MERGED_FROZEN` y no se editan, cierran, reabren, rerunean ni mergean. `R3-GOV-HOM-011-O2-REQ1` queda consumido; HOM-011 O3-O5 quedan `SUPERSEDED_NOT_USABLE`. Promociones futuras usan HOM-012 con `promotion-jit-envelope-v3`, una sola aprobacion Environment `Promotion` pre-merge, evidencia inmutable `promotion-approval-evidence.json` sin material secreto crudo (`nonce`/`approval_id`) y post-merge sin secret ni Environment. El collector REST debe ser Python testeable, reviewers salen de `protection_rules[type=required_reviewers]`, `bypass_actors` ausente es `UNOBSERVABLE`, y `prevent_self_review=true`, `can_admins_bypass=false`, `deployment_branch_policy=null` son obligatorios. O3 se cierra asincronicamente con Cloudflare Pages app_id `85455`, DB Sync Detect Only `NO_DB_CHANGES`, sin report/apply/verify, DDL/DML, Supabase ni credenciales Production en ruta no-change. O4 consume evidencia O3 real; O5 valida igualdad final de trees y ancestry.
-
-## Preflight Obligatorio Antes De Todo Cambio
-
-Antes de implementar cualquier cambio, ejecuta este preflight documental en orden:
-
-1. Leer `AGENTS.md`.
-2. Leer [`.context/00_INDICE.md`](.context/00_INDICE.md).
-3. Leer [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md).
-4. Resolver requerimiento, hito, TASK y WP vigente.
-5. Verificar digest, nivel `R0-R3`, expiry, `allowed_paths` y operaciones denegadas.
-6. Leer [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md) para cambios en `web/**`, pipeline, workflows, runtime, infraestructura o deploy.
-7. Leer [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) para cambios DB, Supabase, tablas, RLS, RPC, grants, lectores o escritores.
-8. Leer [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md) para cambios de schema, migraciones, ambientes, promocion o drift.
-9. Confirmar que la rama nace del HEAD vigente de `desarrollo`.
-10. Detenerse ante drift, documentacion ausente, WP incorrecto o autorizacion insuficiente.
-
-Leer un enlace no concede autorizacion. La disponibilidad tecnica de `workflow_dispatch`, writers o Supabase no concede permiso. Toda entrega inicial `R2` va por PR a `desarrollo`. `Certification`, `Main`, DB, deploys, writers y schedules requieren `R3` JIT separado.
+1. Toda edicion local debe respetar el alcance vigente y pasar validaciones en Docker cuando aplique.
+2. Push, PR, merge, deploys, schedules y cambios de ramas protegidas requieren instruccion humana separada.
+3. Cambios DB, migraciones SQL, DDL/DML, writes Supabase, writers productivos, secretos, backup/restore y acciones destructivas requieren aprobacion JIT separada.
+4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -71,8 +42,6 @@ Reglas adicionales (además de la detección automática):
 ## Arquitectura Cloud-Only (Supabase)
 
 Este proyecto NO tiene base de datos local. Todo el desarrollo usa la instancia Supabase Free tier apuntada por `.env.local`. Los scripts Python y el frontend Next.js comparten la misma base de datos cloud.
-
-La topologia canonica de aplicacion, pipeline, Supabase y adopcion por ambiente se mantiene en [`.context/arquitectura_pipeline.md`](.context/arquitectura_pipeline.md), [`.context/sistema_db_supabase.md`](.context/sistema_db_supabase.md) y [`.context/operaciones/matriz_adopcion_db.md`](.context/operaciones/matriz_adopcion_db.md). Esta guia no sustituye esos documentos.
 
 ## Contenedor Docker (Obligatorio)
 
@@ -243,27 +212,18 @@ PR abierto → corre automáticamente: credential-scan + lint + typecheck + pyth
 2. **Limpiar historial** con `git filter-repo`
 3. **Force push** con historial limpio (coordinar con el equipo)
 
-### Flujo completo obligatorio (NO es opcional)
+### Flujo completo obligatorio
 
-```
-Usuario: "Ejecuta las tareas pendientes de la Fase FNN.n" para la subfase decimal activa o aprobacion WP/digest vigente segun R0-R3
-  → AI ejecuta cambios de código
-  → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
-  → Si hay hallazgos → AI remedia automáticamente
-  → Si limpio → commit local; push/PR solo con autorizacion R2 o prompt separado
-      → pre-commit hook escanea (bloquea si detecta credencial)
-      → pre-push hook escanea (bloquea si detecta credencial)
-  → AI crea PR a desarrollo
-  → CI "security-audit" corre (bloquea merge si falla)
-  → Humano revisa y aprueba el PR
-  → Merge a desarrollo
-
-[SOLO si se solicita explícitamente]
-  → PR a certificacion (mismo enforcement)
-  → PR a main (@SDLC-Chief approval requerido)
+```text
+Rama feature/docs local
+  -> validaciones locales y @security-auditor
+  -> PR protegido a desarrollo con security-audit verde
+  -> review humano y merge
+  -> PR protegido desarrollo a certificacion
+  -> PR protegido certificacion a main
 ```
 
-**NOTA**: La transición `desarrollo → certificacion → main` NO es automática. Solo avanza cuando el usuario lo diga explícitamente.
+La transicion `desarrollo -> certificacion -> main` no es automatica. Solo avanza cuando el usuario lo pida explicitamente. DB Sync, Production Canary, schedules, writers y deploys fuera del despliegue normal de la rama requieren aprobacion separada.
 
 ### Instalación de hooks (una vez por clon)
 ```bash
@@ -287,13 +247,11 @@ Esto hace que Git use `.githooks/` del repo en vez de `.git/hooks/`. Como está 
 > Todo cambio de código DEBE pasar por: **Desarrollo → @security-auditor → Certificación → Producción**.
 > Todo cambio SQL/Datos DEBE pasar por: **Free → @security-auditor → Certificación → Pro (tras aprobación @SDLC-Chief)**.
 
-### @security-auditor: Ahora es obligatorio y automatizado
-- **Qué cambió**: Antes era una regla documentada que se saltaba. Ahora:
-  1. El AI invoca @security-auditor automáticamente después de cada cambio de código
-  2. El pre-commit hook bloquea commits con credenciales hardcodeadas
-  3. El CI check `security-audit` bloquea PRs que no pasen los escaneos
-  4. Branch protection impide mergear sin el check aprobado
-- **No hay excusa**: Las capas 0-3 son mecánicas. No se pueden "olvidar" o "saltar" accidentalmente.
+### @security-auditor
+- El AI invoca @security-auditor despues de cada cambio de codigo.
+- El pre-commit hook bloquea commits con credenciales hardcodeadas.
+- El pre-push hook bloquea pushes con credenciales en commits nuevos.
+- El CI check `security-audit` bloquea PRs que no pasen los escaneos y validaciones tecnicas.
 
 ### Python: db_client.py
 ```python
