@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install test runner
-        run: python3 -m pip install pytest
+        run: python3 -m pip install pytest requests python-dotenv
       - name: Compile Python scripts
         run: find scripts -name '*.py' -exec python3 -m py_compile {} \;
       - name: Run offline security tests
