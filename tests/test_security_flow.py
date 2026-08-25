@@ -67,3 +67,17 @@ def test_db_sync_is_manual_only():
     assert "push:" not in header
     assert "PGRST202" in agents
     assert "aprobación JIT DDL separada" in agents
+
+
+def test_h2_jit_approval_is_scoped_to_free_ddl():
+    request = read(".context/operaciones/ddl_authorizations/DDL-H2-EDITORIAL-LAYER-FREE.md")
+    inventory = read(".context/operaciones/h2_editorial_layer_inventory.md")
+
+    assert "Status: CONSUMED_BY_FREE_DDL" in request
+    assert "Authorized migrations: `20260825_h2_editorial_layer.sql`, `20260825_h2_editorial_layer_grants_fix.sql`, `20260825_h2_editorial_layer_start_date_view_fix.sql`, `20260825_h2_editorial_layer_allowlist_fix.sql`" in request
+    normalized_request = " ".join(request.split())
+    assert "No autoriza Pro, backfill, writers, schedules, canaries ni deploys" in normalized_request
+    assert "No autoriza DDL, DML, Supabase MCP" in inventory
+    assert "Cualquier accion adicional requiere nueva JIT" in normalized_request
+    status_line = next(line for line in request.splitlines() if line.startswith("Status:"))
+    assert status_line == "Status: CONSUMED_BY_FREE_DDL"

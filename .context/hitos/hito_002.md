@@ -2,14 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` |
+| Estado | `FREE_DDL_APPLIED_BACKFILL_BLOCKED` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | PR H2 separado y aprobacion DB JIT para cualquier DDL/DML |
+| Gate | PR H2 separado; backfill/Pro/writers requieren nueva JIT |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. Es el siguiente alcance tecnico despues del PR documental, pero no autoriza DDL/DML sin aprobacion JIT separada.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free de capa editorial fue aplicada bajo JIT consumida; backfill, Pro, writers y DDL/DML adicional requieren aprobacion JIT separada.
 
 ## Contrato Editorial
 
@@ -63,4 +63,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-Puede planificarse despues del PR documental. Requiere aprobacion JIT separada para cualquier DDL/DML, Supabase, backfill o writer.
+DDL Free inicial aplicada bajo JIT consumida. Requiere aprobacion JIT separada para backfill, Pro, writers, schedules, canaries, deploys o cualquier DDL/DML adicional.

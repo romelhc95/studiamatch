@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` |
+| Estado | `FREE_DDL_APPLIED_BACKFILL_BLOCKED` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Bloqueo | Aprobacion JIT para DB, Supabase, backfill o writers |
@@ -14,6 +14,11 @@
 3. Autorizar DDL/DML Pro JIT solo despues de certificacion y aprobacion separada.
 4. Ejecutar migracion forward-only, pruebas RLS/grants, backfill idempotente y segundo run `NOOP`.
 
+## Preparacion Actual
+
+- Inventario y diseno no operativo: [H2 Editorial Layer Inventory](../../operaciones/h2_editorial_layer_inventory.md).
+- Solicitud JIT Free consumida y acotada: [DDL-H2-EDITORIAL-LAYER-FREE](../../operaciones/ddl_authorizations/DDL-H2-EDITORIAL-LAYER-FREE.md).
+
 ## Criterios De Implementacion Futura
 
 - CA2 debe entregar contrato editorial, diccionario, estados, `missing_fields`, `field_sources`, ownership, writers, RLS/grants, migracion y backfill.
@@ -21,4 +26,6 @@
 - Leads se limitan a schema/flags y CTA visual; cero captura, almacenamiento o egress.
 - Schedules y writers continuan pausados hasta JIT R3 posterior a H2.
 
-H2 es el siguiente alcance tecnico, pero cualquier DB/Supabase/backfill/writer queda bloqueado sin aprobacion JIT separada.
+H2 tiene DDL Free aplicada para la capa editorial. Backfill, Pro, writers,
+schedules, canaries, deploys y cualquier DDL/DML adicional quedan bloqueados sin
+aprobacion JIT separada.

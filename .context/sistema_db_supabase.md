@@ -6,6 +6,7 @@ Snapshot de investigacion: `desarrollo@96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9`
 Snapshot GOV-CI10: `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`; sin cambios DB. PR #441 publico CI9 pero fallo post-merge con `POST_MERGE_ATTESTATION_DUPLICATE`; CI10 solo corrige gobierno CI y attestations. O3 posterior requiere R3 JIT explicito, reconoce Cloudflare Pages Production rebuild automatico y DB Sync detect-only con resultado obligatorio `NO_DB_CHANGES`.
 Snapshot GOV-CI11: `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`; sin cambios DB. CI11 solo corrige gobierno CI/promocion. O3 posterior requiere R3 JIT explicito, Cloudflare Pages app_id `85455` y `DB Sync Detect Only=NO_DB_CHANGES`; apply, DDL/DML y writers siguen prohibidos sin R3 separado.
 Snapshot GOV-CI12: `desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4`, tree `bb3a9084961c090adac0d390aa22fdcc84670656`; sin cambios DB. CI12 solo corrige gobierno CI/promocion. La ruta O3 no-change exige `DB Sync Detect Only=NO_DB_CHANGES`, `db_changed=false`, `apply_executed=false` y prohibe report/apply/verify, DDL/DML, Supabase y credenciales Production.
+Snapshot H2 Free DDL: rama local `feat/h2-editorial-model`; capa editorial H2 aplicada solo en Supabase Free con `editorial_field_definitions`, `course_editorial_state`, `course_editorial_audit` y `courses_public_effective`; sin Pro, backfill, writers, schedules ni deploys.
 
 ## Modelo De Datos
 
@@ -16,6 +17,8 @@ erDiagram
     institutions ||--o{ cleansed_programs : owns
     institutions ||--o{ enriched_programs : owns
     institutions ||--o{ courses : publishes
+    courses ||--o| course_editorial_state : editorial_state
+    courses ||--o{ course_editorial_audit : audits
     categories ||--o{ category_rules : classifies
     categories ||--o{ market_salaries : prices
     categories ||--o{ courses : groups
@@ -58,6 +61,9 @@ flowchart LR
 | `cleansed_programs` | Silver/clean | `staging_id`, `institution_id`, `url`, clean fields, `status` | `cleansing_worker.py`, enrichment status |
 | `enriched_programs` | Gold/pre-public | `cleansed_id`, 14 pilares, provider metadata, `status` | `enrichment_worker.py`, sync status |
 | `courses` | Producto publico | `institution_id`, `category_id`, `url`, `slug`, precio, modalidad, fechas, ROI, `is_active`, `is_verified` | `sync_vector_worker.py`, `integrity_ping.py` |
+| `course_editorial_state` | Estado editorial H2 | `course_id`, `editorial_status`, `quality_status`, `manual_overrides`, `missing_fields`, `field_sources`, patrocinio, CTA y version | Backfill/admin futuro con JIT |
+| `course_editorial_audit` | Auditoria editorial H2 | `course_id`, actor, accion, valores previos/nuevos, motivo y timestamp | RPC/admin futuro con JIT |
+| `editorial_field_definitions` | Diccionario editorial H2 | `field_key`, `target_column`, ownership, required/public flags | Migracion/admin futuro con JIT |
 | `leads` | Captura comercial | contacto, `course_id`, `lead_type`, campos de formulario | frontend publico si RLS permite |
 | `ratings` | Rating social | `course_id`, `rating`, nickname, timestamp | frontend publico/autenticado segun RLS |
 | `reviews` | Review social | `course_id`, contenido validado, timestamp | frontend publico/autenticado segun RLS |

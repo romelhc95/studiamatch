@@ -57,7 +57,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | `TASK-H2-001` |
+| `HITO-002` | `FREE_DDL_APPLIED_BACKFILL_BLOCKED` | `TASK-H2-001` |
 | `HITO-003` | `PLANNED_AFTER_H2_ACCEPTED` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
@@ -73,7 +73,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | Soporte temporal raiz | `REMOVED` | `REDEFINICION.md` eliminado definitivamente; no debe recrearse. |
 | Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
-| Base de datos | `BLOCKED` | Sin DDL, DML, Supabase MCP ni DB Sync apply. |
+| Base de datos | `FREE_H2_DDL_CONSUMED` | DDL Free consumida para capa editorial H2; DML/backfill, Pro, writers, schedules y DB Sync siguen bloqueados. |
 
 ## Alcance Inmediato
 
@@ -81,8 +81,9 @@ El alcance inmediato es documental: consolidar autoridad en `AGENTS.md` y Obsidi
 eliminar el soporte temporal raiz y preparar el PR documental hacia `desarrollo`.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
-salvo autorizacion separada. H2 queda como siguiente alcance tecnico, pero cualquier
-DDL/DML, Supabase, writer o backfill requiere aprobacion JIT separada.
+salvo autorizacion separada. H2 inicio con DDL Free consumida para capa editorial,
+pero cualquier DML/backfill, Pro, writer, schedule o nueva DDL requiere aprobacion
+JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
 
@@ -97,7 +98,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es abrir PR documental protegido hacia `desarrollo` con las
-validaciones de seguridad aplicables. Despues, H2 puede planificarse como PR
-separado, pero DB, Supabase, writers, schedules, produccion, deploys y cambios
-remotos siguen bloqueados hasta aprobacion JIT separada.
+El siguiente gate es completar PR H2 con las migraciones versionadas, evidencia de
+apply Free y validaciones. Backfill, Pro, writers, schedules, produccion, deploys
+y cambios remotos adicionales siguen bloqueados hasta aprobacion JIT separada.
