@@ -1,0 +1,30 @@
+{
+  "derived_postmerge_context": {
+    "merge_timestamp": "2026-08-23T19:42:00Z",
+    "premerge_run_id": 32659961454,
+    "promotion_boundary_job_id": 97244495190
+  },
+  "fixture_kind": "synthetic_postmerge_observation",
+  "immutable_premerge_artifact": "assembled_evidence_valid.json",
+  "observed_postmerge_job": {
+    "completed_at": "2026-08-23T19:41:42Z",
+    "conclusion": "success",
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "id": 97244495190,
+    "name": "Promotion Boundary",
+    "run_attempt": 1,
+    "run_id": 32659961454,
+    "started_at": "2026-08-23T19:41:33Z",
+    "status": "completed"
+  },
+  "observed_postmerge_run": {
+    "conclusion": "success",
+    "head_branch": "promote/gov-hom-012-o2-req2",
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "id": 32659961454,
+    "run_attempt": 1,
+    "status": "completed"
+  },
+  "raw_github_rest_capture": false,
+  "schema": "promotion-postmerge-causal-observation-v1"
+}

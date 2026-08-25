@@ -133,7 +133,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-008", "Apruebo WP-H2-001", 1)
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-012", "Apruebo WP-H2-001", 1)
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -146,21 +146,66 @@ class ContextGraphSemanticsTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
-    def test_next_gate_must_complete_gov_ci8_r1(self):
+    def test_next_gate_must_prepare_gov_ci12_r2(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
-                text = path.read_text(encoding="utf-8").replace("COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION", "EXECUTE_F12_1_LOCAL_CA2_R1")
+                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
                 path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
+
+    def test_stale_gov_ci12_r1_gate_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "estado_del_proyecto.md"
+            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "COMPLETE_WP_GOV_CI_011_R1_LOCAL_VALIDATION")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:stale GOV CI11 R1 gate") for error in validator.validate(root)))
+
+    def test_gov_ci12_prompt_requires_pr444_baseline(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
+            text = path.read_text(encoding="utf-8").replace("Base: desarrollo@34fb06d552ea4d052bd3f942948a192a7e44a5eb, tree d53e81717a4c44d59177591c3ce69392072ec716", "Base: desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667, tree e0029083e24016b97fc8896be3be2d4285414117")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI12 prompt baseline invalid") for error in validator.validate(root)))
+
+    def test_stale_gov_ci10_candidate_status_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
+            text = path.read_text(encoding="utf-8").replace("WP-GOV-CI-010=CONSUMED_EXTERNALLY_BY_PR_442", "WP-GOV-CI-010=PROPOSED_R1_LOCAL")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("GOV_CI10_PUBLICATION_DRIFT") for error in validator.validate(root)))
+
+    def test_missing_pr442_history_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md", root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"):
+                text = path.read_text(encoding="utf-8").replace("cbdfe9dab373a2b427df4864b14427f3b2358789", "cbdfe9dab373a2b427df4864b14427f3b2358780")
+                path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("GOV_CI10_R2_HISTORY_MISSING:PR442") for error in validator.validate(root)))
+
+    def test_stale_gov_ci12_r1_status_fails(self):
+        validator = load_validator()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = copy_repo_context(Path(tmp))
+            path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
+            text = path.read_text(encoding="utf-8").replace("WP-GOV-CI-012=LOCAL_REMEDIATION_AFTER_NO_GO_R2_CANDIDATE", "WP-GOV-CI-011=PROPOSED_R1_LOCAL")
+            path.write_text(text, encoding="utf-8")
+            self.assertTrue(any(error.startswith("GOV_CI11_PUBLICATION_DRIFT") for error in validator.validate(root)))
 
     def test_stale_gov_arch_gate_fails(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
+            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:stale GOV ARCH") for error in validator.validate(root)))
 
@@ -178,18 +223,18 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-008", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-CI-008")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-012", "Ejecuta las tareas pendientes de la Fase F12.1\nApruebo WP-GOV-CI-012")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("LEGACY_PHASE_PROMPT_AUTHORITY_DRIFT") for error in validator.validate(root)))
 
-    def test_gov_ci8_prompt_digest_required(self):
+    def test_gov_ci12_prompt_digest_required(self):
         validator = load_validator()
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-008 de TASK-GOV-CI-008", "Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001")
+            text = path.read_text(encoding="utf-8").replace("Apruebo WP-GOV-CI-012 de TASK-GOV-CI-012", "Apruebo WP-GOV-ARCH-001 de TASK-GOV-ARCH-001")
             path.write_text(text, encoding="utf-8")
-            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI8") for error in validator.validate(root)))
+            self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI12") for error in validator.validate(root)))
 
     def test_canonical_architecture_docs_missing_fails(self):
         validator = load_validator()

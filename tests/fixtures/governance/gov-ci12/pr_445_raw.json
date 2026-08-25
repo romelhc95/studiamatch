@@ -1,0 +1,18 @@
+{
+  "pull_request": {
+    "number": 445,
+    "state": "open",
+    "merged": false,
+    "merge_commit_sha": "0e6b6565bcbdee1932fcd07862f6251a83caa6a5",
+    "base": {"ref": "certificacion", "sha": "df2cde3626c75fa4733bf1624fb105d8ee08c076", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "head": {"ref": "promote/gov-hom-011-o2-req1", "sha": "5a6565f4ee0facd4bd5a180665e391f9abf070ed", "repo": {"full_name": "romelhc95/studiamatch"}},
+    "merged_by": null,
+    "user": {"login": "romelhc95", "id": 18040405},
+    "created_at": "2026-08-24T03:20:54Z",
+    "updated_at": "2026-08-24T03:22:09Z",
+    "merged_at": null,
+    "body": "## Governance Attestation\n\nBase-SHA:\nCandidate-SHA:\nEstado-Snapshot:\nRequerimiento:\nHito:\nTASK:\nWP:\nWP-Digest:\nApproval-Level:\nApproval-Expiry:\nArchitecture-Snapshot:\nData-Architecture-Snapshot:\nAdoption-Matrix-Snapshot:\nArchitecture-Impact:\nArchitecture-Impact-Reason:\nData-Impact:\nData-Impact-Reason:\nSecurity-Auditor:\n\n## Promotion Attestation\n\nOperation: O2 desarrollo -> certificacion\nGrant-ID: R3-GOV-HOM-011-O2-REQ1\nBase-Ref: certificacion\nBase-SHA: df2cde3626c75fa4733bf1624fb105d8ee08c076\nSource-Ref: desarrollo\nSource-SHA: 793a2fb5aabc9e23bba2e3d36b47d6826444c5d4\nCandidate-SHA: 5a6565f4ee0facd4bd5a180665e391f9abf070ed\nCandidate-Tree: bb3a9084961c090adac0d390aa22fdcc84670656\nFinal-WP: WP-GOV-CI-011\nD_FINAL: 1b14d76273ef82a4889cdee8edea46815a88efaf66a8a16a180241f4b6e8cc88\nT_FINAL: bb3a9084961c090adac0d390aa22fdcc84670656\nApproval-Level: R3 JIT single-use\nApproval-Reference: R3-GOV-HOM-011-O2-REQ1\nApproval-Expiry: 2026-08-24T04:30:00Z\n"
+  },
+  "reviews": [],
+  "timeline": [{"event": "mentioned", "created_at": "2026-08-24T03:20:56Z", "actor": {"login": "security-auditor", "id": 145699762}, "commit_id": null, "sha": null}, {"event": "deployed", "created_at": "2026-08-24T03:20:58Z", "actor": {"login": "romelhc95", "id": 18040405}, "commit_id": null, "sha": null}]
+}
