@@ -2,8 +2,8 @@
 
 | Unidad | Gate status | Implementation status | Criteria status | Evidencia requerida |
 |---|---|---|---|---|
-| `H2-CA2` | `FREE_DDL_CONSUMED` | `FREE_DDL_APPLIED_BACKFILL_BLOCKED` | `PARTIAL_SCHEMA_APPLIED_FREE` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
-| `H2-CA3` | `BACKFILL_JIT_REQUIRED` | `BACKFILL_BLOCKED` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
+| `H2-CA2` | `FORWARD_FIX_JIT_REQUIRED` | `LOCAL_VALIDATED` | `LOCAL_PASS_REMOTE_PENDING` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
+| `H2-CA3` | `BACKFILL_JIT_REQUIRED` | `LOCAL_DRY_RUN_READY` | `LOCAL_PASS_REMOTE_PENDING` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
 
 ## Enlaces Canonicos
 

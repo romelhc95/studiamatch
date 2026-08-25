@@ -2,14 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `FREE_DDL_APPLIED_BACKFILL_BLOCKED` |
+| Estado | `LOCAL_VALIDATED_FREE_FORWARD_DDL_PENDING` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | PR H2 separado; backfill/Pro/writers requieren nueva JIT |
+| Gate | JIT DDL Free para forward-fix; backfill/Pro/writers requieren nueva JIT |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free de capa editorial fue aplicada bajo JIT consumida; backfill, Pro, writers y DDL/DML adicional requieren aprobacion JIT separada.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free inicial de capa editorial fue aplicada bajo JIT consumida; el forward-fix y el backfill estan validados localmente pero requieren aprobacion JIT separada para Free.
 
 ## Contrato Editorial
 
@@ -63,4 +63,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-DDL Free inicial aplicada bajo JIT consumida. Requiere aprobacion JIT separada para backfill, Pro, writers, schedules, canaries, deploys o cualquier DDL/DML adicional.
+DDL Free inicial aplicada bajo JIT consumida. El payload local `20260826_h2_editorial_layer_forward_fix.sql` requiere nueva JIT DDL Free. Backfill, Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.
