@@ -6,6 +6,7 @@ MIGRATION = ROOT / "db/migrations/20260825_h2_editorial_layer.sql"
 GRANTS_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_grants_fix.sql"
 START_DATE_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql"
 ALLOWLIST_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_allowlist_fix.sql"
+FORWARD_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_forward_fix.sql"
 
 
 def sql() -> str:
@@ -22,6 +23,10 @@ def start_date_fix_sql() -> str:
 
 def allowlist_fix_sql() -> str:
     return ALLOWLIST_FIX.read_text(encoding="utf-8")
+
+
+def forward_fix_sql() -> str:
+    return FORWARD_FIX.read_text(encoding="utf-8")
 
 
 def test_h2_migration_creates_editorial_layer_objects() -> None:
@@ -127,3 +132,48 @@ def test_h2_allowlist_fix_keeps_start_date_pipeline_owned() -> None:
     assert "- 'start_date_text'" in text
     assert "- 'start_date'" not in text
     assert "INSERT INTO" not in text.upper()
+
+
+def test_h2_forward_fix_adds_typed_contract_fields() -> None:
+    text = forward_fix_sql()
+
+    assert "ADD COLUMN IF NOT EXISTS manual_start_date DATE" in text
+    assert "ADD COLUMN IF NOT EXISTS sponsored_priority INTEGER" in text
+    assert "ADD COLUMN IF NOT EXISTS sponsorship_label TEXT" in text
+    assert "ADD COLUMN IF NOT EXISTS availability_status TEXT" in text
+    assert "ADD COLUMN IF NOT EXISTS field_timestamps JSONB" in text
+    assert "availability_status IN ('available', 'unavailable', 'unknown')" in text
+    assert "COALESCE(es.manual_start_date, c.start_date) AS start_date" in text
+
+
+def test_h2_forward_fix_makes_audit_append_only_and_idempotent() -> None:
+    text = forward_fix_sql()
+
+    assert "ON DELETE RESTRICT" in text
+    assert "prevent_course_editorial_audit_update" in text
+    assert "prevent_course_editorial_audit_delete" in text
+    assert "idx_course_editorial_audit_request_id" in text
+    assert "ON CONFLICT (request_id) WHERE request_id IS NOT NULL DO NOTHING" in text
+    assert "REVOKE ALL ON FUNCTION public.prevent_course_editorial_audit_mutation() FROM PUBLIC, anon, authenticated" in text
+
+
+def test_h2_forward_fix_quality_rpc_never_publishes() -> None:
+    text = forward_fix_sql()
+    function_body = text.split("CREATE OR REPLACE FUNCTION public.h2_update_course_quality", 1)[1].split(
+        "REVOKE ALL ON FUNCTION public.prevent_course_editorial_audit_mutation", 1
+    )[0]
+
+    assert "GRANT EXECUTE ON FUNCTION public.h2_update_course_quality" in text
+    assert "REVOKE ALL ON FUNCTION public.h2_update_course_quality" in text
+    assert "quality_status = EXCLUDED.quality_status" in function_body
+    assert "editorial_status = 'published'" not in function_body
+    assert "SET editorial_status" not in function_body.upper()
+
+
+def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns() -> None:
+    text = forward_fix_sql()
+
+    assert "REVOKE INSERT ON TABLE public.leads FROM anon, authenticated" in text
+    assert "Deprecated as publication authority in H2" in text
+    assert "duplicate course slugs block idx_courses_slug_global_h2" in text
+    assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" in text
