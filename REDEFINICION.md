@@ -2,16 +2,22 @@
 
 ## Estado
 
-`VALIDACION_LOCAL`
+`TEMPORARY_SUPPORT_PENDING_CLIENT_GO`
+
+Este documento fue creado como soporte temporal para la transicion al flujo
+simplificado. La autoridad viva permanece en `.context/estado_del_proyecto.md`
+y las reglas operativas en `AGENTS.md`. Este archivo no crea autoridad
+independiente y se conserva hasta recibir el GO para nuevos pedidos del cliente.
 
 ## Baseline
 
 - Fuente: `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`.
 - Rama local de trabajo: `recovery/simple-flow-source-local`.
 - No se preserva el WIP previo al baseline.
-- No se autorizan acciones remotas, cambios de base de datos, nuevos pedidos ni cambios de producto.
+- La promocion `desarrollo -> certificacion -> main` fue completada mediante PRs protegidos #451, #452 y #453.
+- No se autorizan cambios de base de datos, nuevos pedidos ni cambios de producto.
 
-## Alcance Permitido
+## Alcance Que Tuvo La Transicion
 
 - `AGENTS.md`
 - `REDEFINICION.md`
@@ -65,7 +71,7 @@ feat/* o docs/* desde desarrollo
 ## Stop Conditions
 
 - Aparece un secreto o valor credential-like.
-- El baseline local deja de ser `9b486146962bd2a092acfd649fdcf716e922de89`.
+- El estado vivo en `.context/estado_del_proyecto.md` contradice el flujo simplificado.
 - Una ruta protegida cambia contra el baseline.
 - Una validacion tecnica requerida falla sin remediacion local posible.
-- Se requiere accion remota, mutacion Supabase o decision humana adicional.
+- Se requiere mutacion Supabase, DB Sync, canary, writer, schedule o decision humana adicional.
