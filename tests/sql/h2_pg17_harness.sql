@@ -69,6 +69,8 @@ CREATE TABLE public.leads (
 
 GRANT SELECT ON public.institutions, public.institution_site_profiles, public.categories, public.courses TO anon, authenticated, service_role;
 GRANT INSERT ON public.leads TO anon, authenticated;
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read for courses" ON public.courses FOR SELECT USING (true);
 
 CREATE OR REPLACE FUNCTION public.increment_view_count(p_course_id UUID)
 RETURNS void

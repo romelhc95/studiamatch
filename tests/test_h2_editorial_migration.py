@@ -185,6 +185,7 @@ def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns
     assert "DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads" in text
     assert "REVOKE EXECUTE ON FUNCTION public.increment_view_count(UUID) FROM PUBLIC, anon, authenticated" in text
     assert "ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY" in text
+    assert 'DROP POLICY IF EXISTS "Public read for courses" ON public.courses' in text
     assert "Deprecated as publication authority in H2" in text
     assert "duplicate course slugs block idx_courses_slug_global_h2" in text
     assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" in text

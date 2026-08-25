@@ -210,6 +210,7 @@ REVOKE EXECUTE ON FUNCTION public.increment_view_count(UUID) FROM PUBLIC, anon, 
 
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read for courses" ON public.courses;
 DROP POLICY IF EXISTS courses_select_public ON public.courses;
 CREATE POLICY courses_select_public ON public.courses
     FOR SELECT TO anon
