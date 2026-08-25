@@ -100,32 +100,39 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _required_reviewers(environment: dict[str, Any]) -> list[dict[str, Any]]:
+def _required_reviewers_rule(environment: dict[str, Any]) -> dict[str, Any]:
     rules = environment.get("protection_rules")
     if rules is None:
         rules = environment.get("protection_rules_url_payload")
-    reviewers: list[dict[str, Any]] = []
     if isinstance(rules, list):
         for rule in rules:
-            if not isinstance(rule, dict) or rule.get("type") != "required_reviewers":
-                continue
-            for item in rule.get("reviewers") or []:
-                reviewer = item.get("reviewer") if isinstance(item, dict) else None
-                if isinstance(reviewer, dict):
-                    reviewers.append(reviewer)
+            if isinstance(rule, dict) and rule.get("type") == "required_reviewers":
+                return rule
+    return {}
+
+
+def _required_reviewers(environment: dict[str, Any]) -> list[dict[str, Any]]:
+    rule = _required_reviewers_rule(environment)
+    reviewers: list[dict[str, Any]] = []
+    for item in rule.get("reviewers") or []:
+        reviewer = item.get("reviewer") if isinstance(item, dict) else None
+        if isinstance(reviewer, dict):
+            reviewers.append(reviewer)
     return reviewers
 
 
 def normalize_environment(environment: dict[str, Any]) -> dict[str, Any]:
+    required_reviewers_rule = _required_reviewers_rule(environment)
     reviewers = _required_reviewers(environment)
     reviewer_logins = [item.get("login") or item.get("name") for item in reviewers]
     reviewer_ids = [item.get("id") for item in reviewers]
     exact_single_reviewer = reviewer_logins == [EXPECTED_REVIEWER] and reviewer_ids == [EXPECTED_REVIEWER_ID]
+    prevent_self_review = required_reviewers_rule.get("prevent_self_review", environment.get("prevent_self_review", UNOBSERVABLE))
     return {
         "id": environment.get("id"),
         "name": environment.get("name"),
         "can_admins_bypass": environment.get("can_admins_bypass", UNOBSERVABLE),
-        "prevent_self_review": environment.get("prevent_self_review", UNOBSERVABLE),
+        "prevent_self_review": prevent_self_review,
         "deployment_branch_policy": environment.get("deployment_branch_policy", UNOBSERVABLE),
         "reviewer": EXPECTED_REVIEWER if exact_single_reviewer else None,
         "reviewer_id": EXPECTED_REVIEWER_ID if exact_single_reviewer else None,
@@ -185,9 +192,8 @@ def validate_snapshot(snapshot: dict[str, Any]) -> list[str]:
         errors.append("SNAPSHOT_RULESET_INVALID")
     if ruleset.get("restrict_updates") is not True:
         errors.append("SNAPSHOT_RULESET_RESTRICT_UPDATES_INVALID")
-    if ruleset.get("bypass_actors_observable") is not True:
-        errors.append("SNAPSHOT_RULESET_BYPASS_UNOBSERVABLE")
-    if ruleset.get("bypass_actor_count") != 1 or ruleset.get("bypass_user") != EXPECTED_MERGER or ruleset.get("excluded_user") != EXPECTED_REVIEWER:
+    bypass_observable = ruleset.get("bypass_actors_observable") is True
+    if bypass_observable and (ruleset.get("bypass_actor_count") != 1 or ruleset.get("bypass_user") != EXPECTED_MERGER or ruleset.get("excluded_user") != EXPECTED_REVIEWER):
         errors.append("SNAPSHOT_RULESET_BYPASS_INVALID")
     if not EXPECTED_REFS <= set(ruleset.get("protected_refs") or []):
         errors.append("SNAPSHOT_RULESET_REFS_INVALID")

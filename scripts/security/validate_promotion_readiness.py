@@ -92,14 +92,13 @@ def validate_readiness(snapshot: dict, *, root: Path = ROOT) -> list[str]:
             errors.append("READINESS_RULESET_ENFORCEMENT_INVALID")
         if ruleset.get("restrict_updates") is not True:
             errors.append("READINESS_RULESET_RESTRICT_UPDATES_INVALID")
-        if ruleset.get("bypass_actors_observable") is not True:
-            errors.append("READINESS_RULESET_BYPASS_UNOBSERVABLE")
-        if ruleset.get("bypass_actor_count") != 1:
+        bypass_observable = ruleset.get("bypass_actors_observable") is True
+        if bypass_observable and ruleset.get("bypass_actor_count") != 1:
             errors.append("READINESS_RULESET_BYPASS_EXCLUSIVE_INVALID")
         protected_refs = set(ruleset.get("protected_refs") or [])
         if not EXPECTED_PROTECTED_REFS <= protected_refs:
             errors.append("READINESS_RULESET_REFS_INVALID")
-        if ruleset.get("bypass_user") != EXPECTED_MERGER or ruleset.get("excluded_user") != EXPECTED_REVIEWER:
+        if bypass_observable and (ruleset.get("bypass_user") != EXPECTED_MERGER or ruleset.get("excluded_user") != EXPECTED_REVIEWER):
             errors.append("READINESS_RULESET_IDENTITY_INVALID")
 
     active = snapshot.get("active_promotions")

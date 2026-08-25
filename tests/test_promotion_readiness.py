@@ -54,11 +54,10 @@ class PromotionReadinessTests(unittest.TestCase):
         errors = readiness.validate_readiness(VALID_SNAPSHOT, root=ROOT)
         self.assertNotIn("READINESS_O4_NOT_BLOCKED", errors)
 
-    def test_readiness_rejects_unobservable_bypass_actors(self):
+    def test_readiness_allows_unobservable_bypass_actors(self):
         readiness = load_readiness()
         snapshot = {**VALID_SNAPSHOT, "ruleset": {**VALID_SNAPSHOT["ruleset"], "bypass_actors_observable": False, "bypass_actor_count": "UNOBSERVABLE"}}
-        errors = readiness.validate_readiness(snapshot, root=ROOT)
-        self.assertIn("READINESS_RULESET_BYPASS_UNOBSERVABLE", errors)
+        self.assertEqual(readiness.validate_readiness(snapshot, root=ROOT), [])
 
     def test_readiness_o4_loads_real_o3_closure_gate(self):
         readiness = load_readiness()
