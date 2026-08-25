@@ -4,17 +4,44 @@
 
 ALTER TABLE public.course_editorial_state
     ADD COLUMN IF NOT EXISTS manual_start_date DATE,
-    ADD COLUMN IF NOT EXISTS sponsored_priority INTEGER NOT NULL DEFAULT 0 CHECK (sponsored_priority >= 0),
+    ADD COLUMN IF NOT EXISTS sponsored_priority INTEGER NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS sponsorship_label TEXT,
-    ADD COLUMN IF NOT EXISTS availability_status TEXT NOT NULL DEFAULT 'unknown' CHECK (
-        availability_status IN ('available', 'unavailable', 'unknown')
-    ),
+    ADD COLUMN IF NOT EXISTS availability_status TEXT NOT NULL DEFAULT 'unknown',
     ADD COLUMN IF NOT EXISTS field_timestamps JSONB NOT NULL DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS editorial_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    ADD CONSTRAINT course_editorial_state_field_timestamps_object
-        CHECK (jsonb_typeof(field_timestamps) = 'object'),
-    ADD CONSTRAINT course_editorial_state_editorial_metadata_object
-        CHECK (jsonb_typeof(editorial_metadata) = 'object');
+    ADD COLUMN IF NOT EXISTS editorial_metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'course_editorial_state_sponsored_priority_nonnegative'
+    ) THEN
+        ALTER TABLE public.course_editorial_state
+            ADD CONSTRAINT course_editorial_state_sponsored_priority_nonnegative
+            CHECK (sponsored_priority >= 0);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'course_editorial_state_availability_status_valid'
+    ) THEN
+        ALTER TABLE public.course_editorial_state
+            ADD CONSTRAINT course_editorial_state_availability_status_valid
+            CHECK (availability_status IN ('available', 'unavailable', 'unknown'));
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'course_editorial_state_field_timestamps_object'
+    ) THEN
+        ALTER TABLE public.course_editorial_state
+            ADD CONSTRAINT course_editorial_state_field_timestamps_object
+            CHECK (jsonb_typeof(field_timestamps) = 'object');
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'course_editorial_state_editorial_metadata_object'
+    ) THEN
+        ALTER TABLE public.course_editorial_state
+            ADD CONSTRAINT course_editorial_state_editorial_metadata_object
+            CHECK (jsonb_typeof(editorial_metadata) = 'object');
+    END IF;
+END;
+$$;
 
 ALTER TABLE public.course_editorial_audit
     DROP CONSTRAINT IF EXISTS course_editorial_audit_course_id_fkey;
@@ -156,6 +183,7 @@ GRANT SELECT (
     course_id,
     editorial_status,
     quality_status,
+    manual_overrides,
     missing_fields,
     field_sources,
     field_timestamps,
@@ -168,7 +196,9 @@ GRANT SELECT (
     updated_at
 ) ON TABLE public.course_editorial_state TO anon, authenticated;
 
-CREATE OR REPLACE VIEW public.courses_public_effective
+DROP VIEW IF EXISTS public.courses_public_effective;
+
+CREATE VIEW public.courses_public_effective
 WITH (security_invoker = true)
 AS
 SELECT

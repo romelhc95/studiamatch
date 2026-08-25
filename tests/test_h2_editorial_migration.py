@@ -142,8 +142,12 @@ def test_h2_forward_fix_adds_typed_contract_fields() -> None:
     assert "ADD COLUMN IF NOT EXISTS sponsorship_label TEXT" in text
     assert "ADD COLUMN IF NOT EXISTS availability_status TEXT" in text
     assert "ADD COLUMN IF NOT EXISTS field_timestamps JSONB" in text
+    assert "course_editorial_state_availability_status_valid" in text
     assert "availability_status IN ('available', 'unavailable', 'unknown')" in text
     assert "COALESCE(es.manual_start_date, c.start_date) AS start_date" in text
+    assert "DROP VIEW IF EXISTS public.courses_public_effective" in text
+    assert "manual_overrides," in text.split("GRANT SELECT (", 1)[1].split(") ON TABLE public.course_editorial_state", 1)[0]
+    assert "manual_updated_by" not in text.split("GRANT SELECT (", 1)[1].split(") ON TABLE public.course_editorial_state", 1)[0]
 
 
 def test_h2_forward_fix_makes_audit_append_only_and_idempotent() -> None:
