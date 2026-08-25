@@ -135,7 +135,6 @@ APPROVED_BEARER_TEST_LITERALS = {
 
 DIRECT_SUPABASE_CONSUMERS = {
     "tests/test_fase10_production_canary.py": "supabase-data-api-test",
-    "tests/test_fase10_8_db_sync.py": "supabase-data-api-test",
     "tests/test_harvester.py": "supabase-data-api-test",
     "scripts/core/cleansing_worker.py": "supabase-data-api",
     "scripts/core/certification_canary_manifest.py": "supabase-data-api",
