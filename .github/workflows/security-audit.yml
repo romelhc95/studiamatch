@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [desarrollo, certificacion, main]
   push:
-    branches: [desarrollo, certificacion, main]
+    branches: [desarrollo, certificacion, main, transition/simple-flow-desarrollo]
 
 permissions:
   contents: read
