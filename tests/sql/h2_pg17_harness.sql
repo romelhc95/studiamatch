@@ -215,10 +215,12 @@ BEGIN
         RAISE EXCEPTION 'expected exactly one editorially public and production-enabled course, got %', visible_count;
     END IF;
 
-    SELECT count(*) INTO visible_count FROM public.courses;
-    IF visible_count <> 1 THEN
-        RAISE EXCEPTION 'expected direct courses RLS to expose one gated course, got %', visible_count;
-    END IF;
+    BEGIN
+        SELECT count(*) INTO visible_count FROM public.courses;
+        RAISE EXCEPTION 'anon direct courses read unexpectedly succeeded';
+    EXCEPTION WHEN insufficient_privilege THEN
+        NULL;
+    END;
 
     SELECT name, start_date INTO effective_name, effective_start_date
       FROM public.courses_public_effective

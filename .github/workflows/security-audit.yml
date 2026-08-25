@@ -57,15 +57,16 @@ jobs:
           set -euo pipefail
           git cat-file -e "$PROTECTED_BASELINE_SHA^{commit}"
           changed=$(git diff --name-only "$PROTECTED_BASELINE_SHA" HEAD -- \
-            web db supabase scripts/core scripts/shared scripts/maintenance config \
+            web db supabase scripts/core scripts/shared scripts/maintenance config .github/workflows/security-audit.yml \
             Dockerfile docker-compose.yml docker-compose.yaml package.json package-lock.json \
             requirements.txt requirements-*.txt web/package.json web/package-lock.json || true)
           if [ -n "$changed" ]; then
-            if git diff --name-only "$PROTECTED_BASELINE_SHA" HEAD -- db/migrations tests scripts web .github/workflows/security-audit.yml | grep -qE '(^db/migrations/2026082[56]_h2_editorial_layer|^tests/test_h2_|^tests/sql/h2_pg17_harness.sql|^scripts/(shared/|core/|maintenance/h2_)|^web/src/)'; then
+            disallowed=$(printf '%s\n' "$changed" | grep -Ev '^(db/migrations/2026082[56]_h2_editorial_layer.*\.sql|scripts/(shared/editorial_contract\.py|core/(cleansing_worker|enrichment_worker|sync_vector_worker)\.py|maintenance/h2_(backfill_editorial_state|scan_unauthorized_writers)\.py)|web/src/(lib/supabase\.ts|app/(page\.tsx|HomeContent\.tsx|compare/CompareContent\.tsx|courses/\[institution\]/\[slug\]/(page\.tsx|CourseDetailClient\.tsx)))|\.github/workflows/security-audit\.yml)$' || true)
+            if [ -z "$disallowed" ]; then
               echo "protected H2 paths changed with editorial safeguards present"
               exit 0
             fi
-            printf '%s\n' "$changed" | sed 's/^/::error::protected path changed: /'
+            printf '%s\n' "$disallowed" | sed 's/^/::error::protected path changed: /'
             exit 1
           fi
           echo "protected paths match baseline"

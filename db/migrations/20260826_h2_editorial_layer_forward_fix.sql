@@ -209,47 +209,11 @@ DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads;
 REVOKE EXECUTE ON FUNCTION public.increment_view_count(UUID) FROM PUBLIC, anon, authenticated;
 
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+REVOKE SELECT ON TABLE public.courses FROM anon, authenticated;
 
 DROP POLICY IF EXISTS "Public read for courses" ON public.courses;
 DROP POLICY IF EXISTS courses_select_public ON public.courses;
-CREATE POLICY courses_select_public ON public.courses
-    FOR SELECT TO anon
-    USING (
-        EXISTS (
-            SELECT 1
-            FROM public.course_editorial_state es
-            WHERE es.course_id = courses.id
-              AND es.editorial_status = 'published'
-              AND es.quality_status = 'complete'
-              AND es.availability_status = 'available'
-        )
-        AND EXISTS (
-            SELECT 1
-            FROM public.institution_site_profiles p
-            WHERE p.institution_id = courses.institution_id
-              AND p.production_enabled = true
-        )
-    );
-
 DROP POLICY IF EXISTS courses_select_authenticated ON public.courses;
-CREATE POLICY courses_select_authenticated ON public.courses
-    FOR SELECT TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1
-            FROM public.course_editorial_state es
-            WHERE es.course_id = courses.id
-              AND es.editorial_status = 'published'
-              AND es.quality_status = 'complete'
-              AND es.availability_status = 'available'
-        )
-        AND EXISTS (
-            SELECT 1
-            FROM public.institution_site_profiles p
-            WHERE p.institution_id = courses.institution_id
-              AND p.production_enabled = true
-        )
-    );
 
 DROP POLICY IF EXISTS course_editorial_state_public_effective_select
     ON public.course_editorial_state;
@@ -283,9 +247,7 @@ GRANT SELECT (
 
 DROP VIEW IF EXISTS public.courses_public_effective;
 
-CREATE VIEW public.courses_public_effective
-WITH (security_invoker = true)
-AS
+CREATE VIEW public.courses_public_effective AS
 SELECT
     c.id,
     c.institution_id,
@@ -351,3 +313,5 @@ COMMENT ON COLUMN public.courses.is_verified IS
     'Deprecated as publication authority in H2. Technical verification only; public publication is gated by course_editorial_state.';
 COMMENT ON FUNCTION public.h2_update_course_quality(UUID, TEXT[], JSONB, JSONB, TEXT) IS
     'H2 bounded quality recomputation RPC. Updates quality fields only and never sets editorial_status to published.';
+COMMENT ON VIEW public.courses_public_effective IS
+    'H2 public effective course view. Definer view is the only public course read surface; direct courses SELECT is revoked from public roles.';

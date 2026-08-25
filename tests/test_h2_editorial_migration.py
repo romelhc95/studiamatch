@@ -185,6 +185,7 @@ def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns
     assert "DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads" in text
     assert "REVOKE EXECUTE ON FUNCTION public.increment_view_count(UUID) FROM PUBLIC, anon, authenticated" in text
     assert "ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY" in text
+    assert "REVOKE SELECT ON TABLE public.courses FROM anon, authenticated" in text
     assert 'DROP POLICY IF EXISTS "Public read for courses" ON public.courses' in text
     assert "Deprecated as publication authority in H2" in text
     assert "duplicate course slugs block idx_courses_slug_global_h2" in text
@@ -211,18 +212,11 @@ def test_h2_forward_fix_public_gate_uses_editorial_state_and_environment_safety(
     assert "availability_status = 'available'" in policy
 
 
-def test_h2_forward_fix_direct_courses_policy_uses_editorial_gate() -> None:
+def test_h2_forward_fix_blocks_direct_public_courses_reads() -> None:
     text = forward_fix_sql()
-    public_policy = text.split("CREATE POLICY courses_select_public", 1)[1].split(
-        "DROP POLICY IF EXISTS courses_select_authenticated", 1
-    )[0]
-    auth_policy = text.split("CREATE POLICY courses_select_authenticated", 1)[1].split(
-        "DROP POLICY IF EXISTS course_editorial_state_public_effective_select", 1
-    )[0]
 
-    for policy in (public_policy, auth_policy):
-        assert "public.course_editorial_state es" in policy
-        assert "es.editorial_status = 'published'" in policy
-        assert "es.quality_status = 'complete'" in policy
-        assert "es.availability_status = 'available'" in policy
-        assert "production_enabled = true" in policy
+    assert "DROP POLICY IF EXISTS courses_select_public ON public.courses" in text
+    assert "DROP POLICY IF EXISTS courses_select_authenticated ON public.courses" in text
+    assert "CREATE POLICY courses_select_public" not in text
+    assert "CREATE POLICY courses_select_authenticated" not in text
+    assert "CREATE VIEW public.courses_public_effective AS" in text
