@@ -81,7 +81,18 @@ jobs:
       - name: Compile Python scripts
         run: find scripts -name '*.py' -exec python3 -m py_compile {} \;
       - name: Run offline security tests
-        run: python3 -m pytest tests/test_supabase_credentials_contract.py tests/test_security_flow.py -q
+        run: |
+          set -euo pipefail
+          python3 scripts/maintenance/h2_scan_unauthorized_writers.py
+          python3 -m pytest \
+            tests/test_supabase_credentials_contract.py \
+            tests/test_security_flow.py \
+            tests/test_editorial_contract.py \
+            tests/test_h2_backfill_editorial_state.py \
+            tests/test_h2_editorial_migration.py \
+            tests/test_h2_pipeline_contract.py \
+            tests/test_h2_writer_scan.py \
+            -q
 
   lint:
     name: ESLint
@@ -195,7 +206,9 @@ jobs:
             exit 0
           fi
           pg_isready -h localhost -p 5432 -U postgres
-          echo "db changes detected; isolated PostgreSQL service is healthy"
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=postgres psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f tests/sql/h2_pg17_harness.sql
 
   security-audit:
     name: security-audit
