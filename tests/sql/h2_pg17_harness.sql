@@ -197,8 +197,8 @@ DECLARE
     effective_start_date DATE;
 BEGIN
     SELECT count(*) INTO visible_count FROM public.courses_public_effective;
-    IF visible_count <> 1 THEN
-        RAISE EXCEPTION 'expected exactly one public effective course, got %', visible_count;
+    IF visible_count <> 2 THEN
+        RAISE EXCEPTION 'expected exactly two editorially public courses, got %', visible_count;
     END IF;
 
     SELECT name, start_date INTO effective_name, effective_start_date

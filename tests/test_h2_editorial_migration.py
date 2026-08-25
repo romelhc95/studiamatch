@@ -181,3 +181,21 @@ def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns
     assert "Deprecated as publication authority in H2" in text
     assert "duplicate course slugs block idx_courses_slug_global_h2" in text
     assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" in text
+
+
+def test_h2_forward_fix_public_gate_depends_on_editorial_state() -> None:
+    text = forward_fix_sql()
+    view = text.split("CREATE VIEW public.courses_public_effective", 1)[1].split(
+        "REVOKE ALL ON TABLE public.courses_public_effective", 1
+    )[0]
+    policy = text.split("CREATE POLICY course_editorial_state_public_effective_select", 1)[1].split(
+        "REVOKE ALL ON TABLE public.course_editorial_state", 1
+    )[0]
+
+    assert "es.editorial_status = 'published'" in view
+    assert "es.quality_status = 'complete'" in view
+    assert "es.availability_status = 'available'" in view
+    assert "c.is_active = true" not in view
+    assert "c.is_verified = true" not in view
+    assert "production_enabled = true" not in view
+    assert "availability_status = 'available'" in policy

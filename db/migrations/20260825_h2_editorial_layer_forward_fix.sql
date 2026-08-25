@@ -178,6 +178,18 @@ GRANT EXECUTE ON FUNCTION public.h2_update_course_quality(UUID, TEXT[], JSONB, J
 
 REVOKE INSERT ON TABLE public.leads FROM anon, authenticated;
 
+DROP POLICY IF EXISTS course_editorial_state_public_effective_select
+    ON public.course_editorial_state;
+CREATE POLICY course_editorial_state_public_effective_select
+    ON public.course_editorial_state
+    FOR SELECT
+    TO anon, authenticated
+    USING (
+        editorial_status = 'published'
+        AND quality_status = 'complete'
+        AND availability_status = 'available'
+    );
+
 REVOKE ALL ON TABLE public.course_editorial_state FROM anon, authenticated;
 GRANT SELECT (
     course_id,
@@ -251,14 +263,7 @@ FROM public.courses c
 JOIN public.course_editorial_state es ON es.course_id = c.id
 WHERE es.editorial_status = 'published'
   AND es.quality_status = 'complete'
-  AND c.is_active = true
-  AND c.is_verified = true
-  AND EXISTS (
-      SELECT 1
-      FROM public.institution_site_profiles p
-      WHERE p.institution_id = c.institution_id
-        AND p.production_enabled = true
-  );
+  AND es.availability_status = 'available';
 
 REVOKE ALL ON TABLE public.courses_public_effective FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.courses_public_effective TO anon, authenticated, service_role;

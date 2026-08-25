@@ -18,6 +18,7 @@ except ImportError:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.utils import slugify, setup_lima_logging, TimeGuard, parse_start_date
 from shared.db_client import get_db_client
+from shared.editorial_contract import compute_editorial_state
 from integrity_ping import is_safe_public_url
 from shared.roi_engine import (
     compute_roi,
@@ -364,8 +365,8 @@ class SyncVectorWorker:
             "seniority_level": seniority_level,
             "course_type": enriched.get('degree_type'),
             "category": main_category,
-            "is_active": course_is_active,
-            "is_verified": True,
+            "is_active": False,
+            "is_verified": False,
             "last_scraped_at": datetime.now(timezone.utc).isoformat(),
             "provider_used": _mark_canary_provider(enriched.get('provider_used', 'mock')),
             "is_mock_data": not is_real_enrichment,
@@ -436,6 +437,17 @@ class SyncVectorWorker:
                     roi_payload["roi_months"] = roi_months
                 course_id = synced_course.get('id')
                 if course_id:
+                    editorial_state = compute_editorial_state(
+                        {**course_data, **synced_course},
+                        pipeline_timestamp=course_data["last_scraped_at"],
+                    )
+                    self.db.rpc_raise('h2_update_course_quality', {
+                        "p_course_id": str(course_id),
+                        "p_missing_fields": editorial_state.missing_fields,
+                        "p_field_sources": editorial_state.field_sources,
+                        "p_field_timestamps": editorial_state.field_timestamps,
+                        "p_request_id": f"sync-vector:{e_id}",
+                    })
                     try:
                         self.db.patch_exact_one_raise(
                             'courses',
