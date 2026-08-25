@@ -2,8 +2,8 @@
 
 | Unidad | Gate status | Implementation status | Criteria status | Evidencia requerida |
 |---|---|---|---|---|
-| `H2-CA2` | `APPROVED_R1` | `BLOCKED_PENDING_OBSIDIAN_MAIN` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
-| `H2-CA3` | `APPROVED_R1` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
+| `H2-CA2` | `BLOCKED_NEW_REQUEST_REQUIRED` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Migracion forward-only, diccionario, RLS/grants, writer inventory, auditoria y tests por rol. |
+| `H2-CA3` | `BLOCKED_NEW_REQUEST_REQUIRED` | `PLANNED_NOT_ACTIVE` | `NOT_STARTED` | Registros incompletos preservados, `missing_fields`, pipeline tolerante, backfill reanudable y segundo run `NOOP`. |
 
 ## Enlaces Canonicos
 
@@ -12,10 +12,10 @@
 - Hito: [HITO-002](../hitos/hito_002.md)
 - TASK: [TASK-H2-001](../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
 - Evidencia: [Evidencia Hito 002](../evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md)
-- Work package: [WP-H2-001](../work_packages/WP-H2-001.json)
 
 ## Validaciones Minimas Futuras
 
 - `pytest` para validador/backfill cuando exista codigo.
 - Pruebas SQL en PostgreSQL 17 cuando cambie `db/**`.
 - Evidencia por ambiente antes de promover.
+- Nuevo pedido explicito y aprobacion JIT separada para cualquier DDL/DML.

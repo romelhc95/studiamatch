@@ -13,7 +13,7 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS.
 |---|---|
 | Commit/tree | Pendiente de ejecucion H2 |
 | Ambiente | Free primero; Certification/Pro solo tras gates |
-| Work package | `WP-H2-001` aprobado por digest |
+| Work package | `SUPERSEDED`; requiere nuevo pedido explicito |
 | Criterios | `H2-CA2`, `H2-CA3` |
 | Comandos | Migracion, pruebas RLS/grants, backfill primer run, segundo run `NOOP` |
 | Resultado esperado | Estados editoriales/calidad, `missing_fields`, `field_sources`, auditoria y preservacion manual |
