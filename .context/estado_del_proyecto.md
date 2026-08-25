@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-25-F10.11-SIMPLE-FLOW-LOCAL`.
+Snapshot: `SNAPSHOT-2026-08-25-F10.11-SIMPLE-FLOW-MAIN`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Redefinicion local de flujo simple | `SIMPLE_FLOW_LOCAL_VALIDATION` | Baseline `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`; sin acciones remotas, sin DB y sin nuevo pedido. |
+| `F10.11` | Redefinicion de flujo simple | `SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; sin DB y sin nuevo pedido. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 
 ## Subfases F10
@@ -23,7 +23,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `SIMPLE_FLOW_LOCAL_VALIDATION` | Redefinicion local desde `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`; reemplaza WP/digest/Context Graph por flujo simple protegido. |
+| `F10.11` | `SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO` | Reemplaza WP/digest/Context Graph por flujo simple protegido; `REDEFINICION.md` queda como soporte temporal sin autoridad independiente. |
 
 ## Bases Vinculantes
 
@@ -49,8 +49,8 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Subfase tecnica activa: `F10.11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate local: `SIMPLE_FLOW_REDEFINITION_LOCAL_ONLY`.
-- Proximo gate unico: `REMOTE_ACTIONS_REQUIRE_SEPARATE_AUTHORIZATION`.
+- Gate vigente: `SIMPLE_FLOW_ACTIVE_PENDING_CLIENT_GO`.
+- Proximo gate unico: `CLIENT_GO_FOR_NEXT_SCOPE`.
 
 ## Estado De Hitos Sprint 1
 
@@ -68,20 +68,20 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 |---|---|---|
 | Baseline local | `COMPLETED` | `origin/main@9b486146962bd2a092acfd649fdcf716e922de89` |
 | WIP previo | `DISCARDED_BY_AUTHORIZATION` | No se preserva WIP fuera del baseline. |
-| Flujo simple | `LOCAL_CANDIDATE` | Ver [`REDEFINICION.md`](../REDEFINICION.md). |
-| Acciones remotas | `BLOCKED` | Push, PR, merge, closures y workflows remotos requieren autorizacion separada. |
+| Flujo simple | `DEPLOYED_TO_MAIN` | PR #451 a `desarrollo`, PR #452 a `certificacion`, PR #453 a `main`. |
+| `REDEFINICION.md` | `TEMPORARY_SUPPORT` | Se mantiene hasta el GO para nuevos pedidos; no crea autoridad independiente. |
+| Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
 | Base de datos | `BLOCKED` | Sin DDL, DML, Supabase MCP ni DB Sync apply. |
 
 ## Alcance Inmediato
 
-La ejecucion autorizada se limita a crear `REDEFINICION.md` y remediar el flujo
-local desde `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`.
+La redefinicion del flujo simple ya fue promovida por PR protegido hasta `main`.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
-`scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen
+`scripts/maintenance/**`, `config/**`, dependencias y Docker permanecieron
 protegidos contra el baseline. Hito 2 no esta activo.
 
 ## Siguiente Gate
 
-El siguiente gate requiere autorizacion humana separada para cualquier accion
-remota. Hito 2 solo inicia con un nuevo pedido explicito posterior al cierre de
-esta redefinicion.
+El siguiente gate requiere GO explicito del cliente para definir el proximo
+alcance. Hito 2 o cualquier nuevo pedido solo inicia con ese GO y, si aplica,
+aprobacion JIT separada para DB, Supabase, writers, schedules o produccion.
