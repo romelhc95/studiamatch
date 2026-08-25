@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | ID | `TASK-H1-001` |
-| Estado | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` |
+| Estado | `REDEFINED_ACTIVE_AFTER_H2_H3` |
 | Requerimiento | `REQ-EST-001` |
 | Hito | [HITO-001](../../hitos/hito_001.md) |
 | Cutoff contractual | PR #291 / `64e4ed895d43121c5683e26a355993f18e528a5c` |
@@ -12,6 +12,7 @@
 ## Disposicion
 
 - `H1-CA1=ACCEPTED_WITH_WAIVERS`.
+- `H1-CA1` del nuevo pedido requiere evidencia nueva y no puede cerrarse con waivers historicos.
 - `EVID-H1-011=WAIVED_NOT_VERIFIED`.
 - `EVID-H1-012=WAIVED_NOT_VERIFIED`.
 - `EVID-H1-013=WAIVED_NOT_VERIFIED`.
@@ -24,5 +25,6 @@
 - `H1-CA2P` se transfiere a [TASK-H2-001](./tarea_002_hito_2.md) como `H2-CA2`.
 - `H1-CA7P` se transfiere a [TASK-H4-001](./tarea_004_hito_4.md) como `H4-CA7`.
 
-Esta tarea queda congelada. Hitos 2 a 5 se ejecutan solo mediante work packages
-persistentes aprobados por digest.
+La historia contractual queda congelada. Para el nuevo pedido, H1 se ejecuta
+despues de H2 y H3 aceptados, con autorizacion JIT separada para workflows,
+writers, schedules o produccion.

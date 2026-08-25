@@ -2,10 +2,10 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PENDING` |
+| Estado | `PLANNED_AFTER_H2_ACCEPTED` |
 | Work package | `SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Gate | H2 aceptado y nuevo pedido explicito |
+| Gate | H2 aceptado |
 
 ## Alcance
 
@@ -29,4 +29,4 @@
 
 ## Gate
 
-No inicia antes de aceptar Hito 2 y recibir un nuevo pedido explicito. Playwright se habilita desde este hito para UAT y regresion visual/interactiva.
+No inicia antes de aceptar Hito 2. Playwright se habilita desde este hito para UAT y regresion visual/interactiva.

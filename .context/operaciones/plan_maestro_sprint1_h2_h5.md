@@ -1,17 +1,17 @@
 # Plan Maestro Sprint 1 H2-H5
 
 > Esta nota no crea alcance ni autoriza ejecucion. La autoridad viva esta en
-> [`estado_del_proyecto.md`](../estado_del_proyecto.md). [`REDEFINICION.md`](../../REDEFINICION.md)
-> se conserva como soporte temporal sin autoridad independiente.
+> [`estado_del_proyecto.md`](../estado_del_proyecto.md) y el nuevo plan activo
+> esta en [Plan Vinculante Nuevo Pedido](plan_vinculante_nuevo_pedido_2026_08_25.md).
 
 ## Estado
 
 ```text
-FASE = F10.11
-ESTADO = SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO
-H2-H5 = PLANNED_NOT_ACTIVE
+FASE = F11
+ESTADO = DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED
+H2-H5 = REDEFINED_PLANNED_SEQUENCE
 active_work_package = NONE_SUPERSEDED
-next_gate = CLIENT_GO_FOR_NEXT_SCOPE
+next_gate = PR_DOCUMENTAL_A_DESARROLLO
 DB = BLOCKED_NO_DDL_DML_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
@@ -27,7 +27,7 @@ feat/* o docs/* desde desarrollo
 
 ## Reglas
 
-- H2-H5 no inician durante F10.11.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 es el siguiente alcance tecnico tras el PR documental.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.
@@ -45,14 +45,14 @@ feat/* o docs/* desde desarrollo
 
 | Hito | Estado | Gate futuro |
 |---|---|---|
-| H2 | `PLANNED_NOT_ACTIVE` | Nuevo pedido explicito y aprobacion JIT para DB si aplica. |
-| H3 | `PENDING` | H2 aceptado y nuevo pedido explicito. |
-| H4 | `PENDING` | Nuevo pedido explicito. |
-| H5 | `PENDING` | Nuevo pedido explicito. |
+| H2 | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | PR H2 separado y aprobacion JIT para DB. |
+| H3 | `PLANNED_AFTER_H2_ACCEPTED` | H2 aceptado. |
+| H4 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
+| H5 | `PLANNED_AFTER_H2_CONTRACT_STABLE` | Contrato H2 estable. |
 
 ## Stop Conditions
 
 - Aparece un secreto o valor credential-like.
 - Cambia una ruta protegida sin aprobacion separada.
 - Se intenta ejecutar DB Sync, DDL/DML o writer productivo.
-- Se intenta iniciar nuevo alcance sin GO del cliente.
+- Se intenta iniciar H2 con DDL/DML, Supabase o backfill sin aprobacion JIT separada.

@@ -34,6 +34,7 @@
 
 ## Operaciones
 
+- [Plan Vinculante Nuevo Pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md)
 - [Plan Maestro Sprint 1 H2-H5](operaciones/plan_maestro_sprint1_h2_h5.md)
 - [Baseline, preservacion y homologacion](operaciones/baseline_preservacion_homologacion_sprint1.md)
 - [Flujo release minimo](operaciones/flujo_release_minimo.md)
