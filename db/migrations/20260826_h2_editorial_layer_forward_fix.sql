@@ -206,6 +206,50 @@ DROP POLICY IF EXISTS "Anyone can insert leads" ON public.leads;
 DROP POLICY IF EXISTS leads_insert_public ON public.leads;
 DROP POLICY IF EXISTS leads_insert_authenticated ON public.leads;
 
+REVOKE EXECUTE ON FUNCTION public.increment_view_count(UUID) FROM PUBLIC, anon, authenticated;
+
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS courses_select_public ON public.courses;
+CREATE POLICY courses_select_public ON public.courses
+    FOR SELECT TO anon
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.course_editorial_state es
+            WHERE es.course_id = courses.id
+              AND es.editorial_status = 'published'
+              AND es.quality_status = 'complete'
+              AND es.availability_status = 'available'
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM public.institution_site_profiles p
+            WHERE p.institution_id = courses.institution_id
+              AND p.production_enabled = true
+        )
+    );
+
+DROP POLICY IF EXISTS courses_select_authenticated ON public.courses;
+CREATE POLICY courses_select_authenticated ON public.courses
+    FOR SELECT TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.course_editorial_state es
+            WHERE es.course_id = courses.id
+              AND es.editorial_status = 'published'
+              AND es.quality_status = 'complete'
+              AND es.availability_status = 'available'
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM public.institution_site_profiles p
+            WHERE p.institution_id = courses.institution_id
+              AND p.production_enabled = true
+        )
+    );
+
 DROP POLICY IF EXISTS course_editorial_state_public_effective_select
     ON public.course_editorial_state;
 CREATE POLICY course_editorial_state_public_effective_select
@@ -216,17 +260,6 @@ CREATE POLICY course_editorial_state_public_effective_select
         editorial_status = 'published'
         AND quality_status = 'complete'
         AND availability_status = 'available'
-        AND EXISTS (
-            SELECT 1
-            FROM public.courses c
-            WHERE c.id = course_editorial_state.course_id
-              AND EXISTS (
-                  SELECT 1
-                  FROM public.institution_site_profiles p
-                  WHERE p.institution_id = c.institution_id
-                    AND p.production_enabled = true
-              )
-        )
     );
 
 REVOKE ALL ON TABLE public.course_editorial_state FROM anon, authenticated;

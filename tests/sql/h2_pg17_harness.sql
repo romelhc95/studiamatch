@@ -70,6 +70,18 @@ CREATE TABLE public.leads (
 GRANT SELECT ON public.institutions, public.institution_site_profiles, public.categories, public.courses TO anon, authenticated, service_role;
 GRANT INSERT ON public.leads TO anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.increment_view_count(p_course_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = public
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE public.courses SET view_count = view_count + 1 WHERE id = p_course_id;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.increment_view_count(UUID) TO anon, authenticated, service_role;
+
 \i /repo/db/migrations/20260825_h2_editorial_layer.sql
 \i /repo/db/migrations/20260825_h2_editorial_layer_grants_fix.sql
 \i /repo/db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql
@@ -201,6 +213,11 @@ BEGIN
         RAISE EXCEPTION 'expected exactly one editorially public and production-enabled course, got %', visible_count;
     END IF;
 
+    SELECT count(*) INTO visible_count FROM public.courses;
+    IF visible_count <> 1 THEN
+        RAISE EXCEPTION 'expected direct courses RLS to expose one gated course, got %', visible_count;
+    END IF;
+
     SELECT name, start_date INTO effective_name, effective_start_date
       FROM public.courses_public_effective
      WHERE id = '20000000-0000-0000-0000-000000000001';
@@ -295,6 +312,12 @@ BEGIN
     END IF;
     IF has_table_privilege('authenticated', 'public.leads', 'INSERT') THEN
         RAISE EXCEPTION 'authenticated still has INSERT on leads';
+    END IF;
+    IF has_function_privilege('anon', 'public.increment_view_count(UUID)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'anon can still execute increment_view_count';
+    END IF;
+    IF has_function_privilege('authenticated', 'public.increment_view_count(UUID)', 'EXECUTE') THEN
+        RAISE EXCEPTION 'authenticated can still execute increment_view_count';
     END IF;
 END;
 $$;
