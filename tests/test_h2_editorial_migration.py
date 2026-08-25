@@ -6,7 +6,7 @@ MIGRATION = ROOT / "db/migrations/20260825_h2_editorial_layer.sql"
 GRANTS_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_grants_fix.sql"
 START_DATE_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql"
 ALLOWLIST_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_allowlist_fix.sql"
-FORWARD_FIX = ROOT / "db/migrations/20260825_h2_editorial_layer_forward_fix.sql"
+FORWARD_FIX = ROOT / "db/migrations/20260826_h2_editorial_layer_forward_fix.sql"
 
 
 def sql() -> str:
@@ -169,6 +169,8 @@ def test_h2_forward_fix_quality_rpc_never_publishes() -> None:
 
     assert "GRANT EXECUTE ON FUNCTION public.h2_update_course_quality" in text
     assert "REVOKE ALL ON FUNCTION public.h2_update_course_quality" in text
+    assert "WHERE audit.request_id = p_request_id" in function_body
+    assert "RETURN updated_state" in function_body
     assert "quality_status = EXCLUDED.quality_status" in function_body
     assert "editorial_status = 'published'" not in function_body
     assert "SET editorial_status" not in function_body.upper()
@@ -183,7 +185,7 @@ def test_h2_forward_fix_closes_lead_capture_and_marks_legacy_publication_columns
     assert "CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_slug_global_h2" in text
 
 
-def test_h2_forward_fix_public_gate_depends_on_editorial_state() -> None:
+def test_h2_forward_fix_public_gate_uses_editorial_state_and_environment_safety() -> None:
     text = forward_fix_sql()
     view = text.split("CREATE VIEW public.courses_public_effective", 1)[1].split(
         "REVOKE ALL ON TABLE public.courses_public_effective", 1
@@ -197,5 +199,7 @@ def test_h2_forward_fix_public_gate_depends_on_editorial_state() -> None:
     assert "es.availability_status = 'available'" in view
     assert "c.is_active = true" not in view
     assert "c.is_verified = true" not in view
-    assert "production_enabled = true" not in view
+    assert "production_enabled = true" in view
+    assert "provider_used" not in view
+    assert "is_mock_data" not in view
     assert "availability_status = 'available'" in policy

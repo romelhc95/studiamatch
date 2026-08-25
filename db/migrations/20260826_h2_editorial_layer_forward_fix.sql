@@ -108,6 +108,22 @@ DECLARE
     previous_state JSONB;
     updated_state public.course_editorial_state;
 BEGIN
+    IF p_request_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM public.course_editorial_audit audit
+        WHERE audit.request_id = p_request_id
+    ) THEN
+        SELECT * INTO updated_state
+        FROM public.course_editorial_state es
+        WHERE es.course_id = p_course_id;
+
+        IF updated_state.course_id IS NULL THEN
+            RAISE EXCEPTION 'request_id already exists but course state is missing';
+        END IF;
+
+        RETURN updated_state;
+    END IF;
+
     IF p_course_id IS NULL THEN
         RAISE EXCEPTION 'p_course_id is required';
     END IF;
@@ -242,8 +258,6 @@ SELECT
     c.expected_monthly_salary,
     c.seniority_level,
     c.roi_months,
-    c.provider_used,
-    c.is_mock_data,
     c.view_count,
     c.comparison_count,
     es.editorial_status,
@@ -263,7 +277,13 @@ FROM public.courses c
 JOIN public.course_editorial_state es ON es.course_id = c.id
 WHERE es.editorial_status = 'published'
   AND es.quality_status = 'complete'
-  AND es.availability_status = 'available';
+  AND es.availability_status = 'available'
+  AND EXISTS (
+      SELECT 1
+      FROM public.institution_site_profiles p
+      WHERE p.institution_id = c.institution_id
+        AND p.production_enabled = true
+  );
 
 REVOKE ALL ON TABLE public.courses_public_effective FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.courses_public_effective TO anon, authenticated, service_role;

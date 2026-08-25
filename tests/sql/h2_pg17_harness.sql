@@ -74,7 +74,7 @@ GRANT INSERT ON public.leads TO anon, authenticated;
 \i /repo/db/migrations/20260825_h2_editorial_layer_grants_fix.sql
 \i /repo/db/migrations/20260825_h2_editorial_layer_start_date_view_fix.sql
 \i /repo/db/migrations/20260825_h2_editorial_layer_allowlist_fix.sql
-\i /repo/db/migrations/20260825_h2_editorial_layer_forward_fix.sql
+\i /repo/db/migrations/20260826_h2_editorial_layer_forward_fix.sql
 
 INSERT INTO public.institutions (id, name, website_url)
 VALUES
@@ -197,8 +197,8 @@ DECLARE
     effective_start_date DATE;
 BEGIN
     SELECT count(*) INTO visible_count FROM public.courses_public_effective;
-    IF visible_count <> 2 THEN
-        RAISE EXCEPTION 'expected exactly two editorially public courses, got %', visible_count;
+    IF visible_count <> 1 THEN
+        RAISE EXCEPTION 'expected exactly one editorially public and production-enabled course, got %', visible_count;
     END IF;
 
     SELECT name, start_date INTO effective_name, effective_start_date
@@ -299,6 +299,6 @@ BEGIN
 END;
 $$;
 
-\i /repo/db/migrations/20260825_h2_editorial_layer_forward_fix.sql
+\i /repo/db/migrations/20260826_h2_editorial_layer_forward_fix.sql
 
 SELECT 'h2_pg17_harness_ok' AS result;
