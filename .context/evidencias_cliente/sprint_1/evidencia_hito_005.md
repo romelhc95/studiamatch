@@ -6,7 +6,7 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS.
 |---|---|
 | Commit/tree | Pendiente de ejecucion H5 |
 | Ambiente | Development y Certification |
-| Work package | `WP-H5-001` aprobado por digest |
+| Work package | `SUPERSEDED`; requiere nuevo pedido explicito |
 | Criterios | `H5-CA8`, `H5-CA9/CA12`, `H5-CA10`, `H5-CA11`, `H5-CA13R` |
 | Comandos | Static build, lint/typecheck, URL/back-forward tests, mobile panel checks |
 | Resultado esperado | Seis filtros, URL/history, chips, contador, paginacion, cuatro cards, estados loading/empty/error, `/programas/[slug]` |

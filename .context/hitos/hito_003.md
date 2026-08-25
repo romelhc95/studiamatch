@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Estado | `PENDING` |
-| Work package | `WP-H3-001` |
+| Work package | `SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Gate | H2 aceptado y aprobacion digest `WP-H3-001` |
+| Gate | H2 aceptado y nuevo pedido explicito |
 
 ## Alcance
 
@@ -29,4 +29,4 @@
 
 ## Gate
 
-No inicia antes de aceptar Hito 2 y aprobar `WP-H3-001`. Playwright se habilita desde este hito para UAT y regresion visual/interactiva.
+No inicia antes de aceptar Hito 2 y recibir un nuevo pedido explicito. Playwright se habilita desde este hito para UAT y regresion visual/interactiva.

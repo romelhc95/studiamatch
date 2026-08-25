@@ -6,7 +6,7 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS.
 |---|---|
 | Commit/tree | Pendiente de ejecucion H3 |
 | Ambiente | Development y Certification |
-| Work package | `WP-H3-001` aprobado por digest |
+| Work package | `SUPERSEDED`; requiere nuevo pedido explicito |
 | Criterio | `H3-CA4` |
 | Comandos | Tests auth, tests acceso negativo, static build, Playwright/UAT |
 | Resultado esperado | Admin protegido, cola paginada, edicion allowlisted, optimistic locking y auditoria |
