@@ -1,5 +1,7 @@
 # Documento Detallado de Pipeline Workflow (Macro/Micro) y Diccionario de Datos - StudIAMatch
 
+> Estado: `SUPERSEDED_HISTORY`. Este documento queda preservado como antecedente parcial. La fuente canonica vigente es [Arquitectura Pipeline](../../.context/arquitectura_pipeline.md), [Sistema DB Supabase](../../.context/sistema_db_supabase.md) y [Matriz Adopcion DB](../../.context/operaciones/matriz_adopcion_db.md).
+
 Este documento detalla el pipeline de automatización ejecutado en **GitHub Actions**, especificando los scripts involucrados, las tablas impactadas en cada etapa y el flujo operativo vigente de **FG1**, **FG2** y **FG3**.
 
 > Estado documental consolidado a 2026-05-24:

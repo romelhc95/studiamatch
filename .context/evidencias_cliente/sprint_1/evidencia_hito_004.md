@@ -6,7 +6,7 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS.
 |---|---|
 | Commit/tree | Pendiente de ejecucion H4 |
 | Ambiente | Development y Certification |
-| Work package | `WP-H4-001` aprobado por digest |
+| Work package | `SUPERSEDED`; requiere nuevo pedido explicito |
 | Criterios | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` |
 | Comandos | Static build, lint/typecheck, responsive checks, scan lead/ROI |
 | Resultado esperado | 6 patrocinados, 3 abiertos, 3 paises, Inter/paleta, logos/fallback, CTA sin captura, ROI ausente |

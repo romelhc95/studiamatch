@@ -1,26 +1,24 @@
 # StudIAMatch — Developer Guide
 
-## Regla De Ejecucion De Fases Y Work Packages
+## Regla De Ejecucion
 
-La macrofase, subfase y tareas autorizables se obtienen exclusivamente de [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), del requerimiento vigente y de la TASK activa enlazada desde ese estado. Durante la transicion F10.11, **solo ejecuta tareas cuando el usuario lo apruebe explicitamente diciendo `Ejecuta las tareas pendientes de la Fase FNN.n`** y `FNN.n` coincida exactamente con la subfase decimal activa. Una macrofase `FNN`, un alias historico `FASE-NN` o una autorizacion anterior no autoriza ejecucion.
+La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md) y, durante la transicion actual, en [`REDEFINICION.md`](REDEFINICION.md). Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
 
-El modelo objetivo aprobado para requerimientos futuros usa WP/digest y niveles R0-R3:
-
-| Nivel | Operacion | Autorizacion |
-|---|---|---|
-| `R0` | Lectura y planificacion local | Ninguna |
-| `R1` | Edicion local y tests Docker | Grant persistente WP/digest |
-| `R2` | Push, PR y merge a `desarrollo` | WP/digest, CI y review |
-| `R3` | Certification/Main, DB, deploys, schedules, writers, secrets | JIT single-use |
-| `R3+` | Destruccion o recuperacion productiva | JIT y doble aprobacion |
-
-Formato objetivo:
+Flujo normal:
 
 ```text
-Apruebo WP-<ID> de TASK-<ID> segun manifest sha256:<digest>, hasta R2 y hasta <expiry>.
+feat/* o docs/* desde desarrollo
+-> PR protegido a desarrollo
+-> PR protegido desarrollo a certificacion
+-> PR protegido certificacion a main
 ```
 
-No ejecutes cambios de codigo, eliminaciones, red remota, migraciones SQL, DDL/DML, schedules, writers, deploys, backup/restore, ni acciones destructivas sin el gate correspondiente. El paso de plan a build no sustituye la frase decimal exacta ni concede R3. Si aparece drift de scope, source, baseline, risk o ambiente, detente y consulta.
+Reglas obligatorias:
+
+1. Toda edicion local debe respetar el alcance vigente y pasar validaciones en Docker cuando aplique.
+2. Push, PR, merge, deploys, schedules y cambios de ramas protegidas requieren instruccion humana separada.
+3. Cambios DB, migraciones SQL, DDL/DML, writes Supabase, writers productivos, secretos, backup/restore y acciones destructivas requieren aprobacion JIT separada.
+4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -214,27 +212,18 @@ PR abierto → corre automáticamente: credential-scan + lint + typecheck + pyth
 2. **Limpiar historial** con `git filter-repo`
 3. **Force push** con historial limpio (coordinar con el equipo)
 
-### Flujo completo obligatorio (NO es opcional)
+### Flujo completo obligatorio
 
-```
-Usuario: "Ejecuta las tareas pendientes de la Fase FNN.n" para la subfase decimal activa o aprobacion WP/digest vigente segun R0-R3
-  → AI ejecuta cambios de código
-  → AI invoca @security-auditor sobre todos los cambios (AUTOMÁTICO)
-  → Si hay hallazgos → AI remedia automáticamente
-  → Si limpio → commit local; push/PR solo con autorizacion R2 o prompt separado
-      → pre-commit hook escanea (bloquea si detecta credencial)
-      → pre-push hook escanea (bloquea si detecta credencial)
-  → AI crea PR a desarrollo
-  → CI "security-audit" corre (bloquea merge si falla)
-  → Humano revisa y aprueba el PR
-  → Merge a desarrollo
-
-[SOLO si se solicita explícitamente]
-  → PR a certificacion (mismo enforcement)
-  → PR a main (@SDLC-Chief approval requerido)
+```text
+Rama feature/docs local
+  -> validaciones locales y @security-auditor
+  -> PR protegido a desarrollo con security-audit verde
+  -> review humano y merge
+  -> PR protegido desarrollo a certificacion
+  -> PR protegido certificacion a main
 ```
 
-**NOTA**: La transición `desarrollo → certificacion → main` NO es automática. Solo avanza cuando el usuario lo diga explícitamente.
+La transicion `desarrollo -> certificacion -> main` no es automatica. Solo avanza cuando el usuario lo pida explicitamente. DB Sync, Production Canary, schedules, writers y deploys fuera del despliegue normal de la rama requieren aprobacion separada.
 
 ### Instalación de hooks (una vez por clon)
 ```bash
@@ -258,13 +247,11 @@ Esto hace que Git use `.githooks/` del repo en vez de `.git/hooks/`. Como está 
 > Todo cambio de código DEBE pasar por: **Desarrollo → @security-auditor → Certificación → Producción**.
 > Todo cambio SQL/Datos DEBE pasar por: **Free → @security-auditor → Certificación → Pro (tras aprobación @SDLC-Chief)**.
 
-### @security-auditor: Ahora es obligatorio y automatizado
-- **Qué cambió**: Antes era una regla documentada que se saltaba. Ahora:
-  1. El AI invoca @security-auditor automáticamente después de cada cambio de código
-  2. El pre-commit hook bloquea commits con credenciales hardcodeadas
-  3. El CI check `security-audit` bloquea PRs que no pasen los escaneos
-  4. Branch protection impide mergear sin el check aprobado
-- **No hay excusa**: Las capas 0-3 son mecánicas. No se pueden "olvidar" o "saltar" accidentalmente.
+### @security-auditor
+- El AI invoca @security-auditor despues de cada cambio de codigo.
+- El pre-commit hook bloquea commits con credenciales hardcodeadas.
+- El pre-push hook bloquea pushes con credenciales en commits nuevos.
+- El CI check `security-audit` bloquea PRs que no pasen los escaneos y validaciones tecnicas.
 
 ### Python: db_client.py
 ```python

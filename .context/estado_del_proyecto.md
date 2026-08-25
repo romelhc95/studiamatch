@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-21-F10.11-DOC-CONFORMANCE-LOCAL`.
+Snapshot: `SNAPSHOT-2026-08-25-F10.11-SIMPLE-FLOW-LOCAL`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -12,7 +12,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F0`-`F8` | Historia contractual y tecnica | `COMPLETED` | Preservada como antecedente. |
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
-| `F10.11` | Cierre contractual y homologacion canonica Sprint 1 | `DOC_CONFORMANCE_COMPLETED_LOCAL_BEFORE_O3` | O1/O2 completados; D0-D10 completado localmente; O3 bloqueado hasta PR correctivo y autorizacion separada. |
+| `F10.11` | Redefinicion local de flujo simple | `SIMPLE_FLOW_LOCAL_VALIDATION` | Baseline `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`; sin acciones remotas, sin DB y sin nuevo pedido. |
 | `F11` | Cierre fisico legacy | `SUPERSEDED_BY_F10_11` | Cualquier limpieza fisica futura requiere autorizacion separada. |
 
 ## Subfases F10
@@ -23,7 +23,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F10.8` | `COMPLETED_PRODUCTION_CANARY_VERIFIED` | Evidencia tecnica historica preservada; no ejecutable. |
 | `F10.9` | `SUPERSEDED_BY_O0_B` | WP2B queda superseded; PR #413 cerrado sin merge y excluido. |
 | `F10.10` | `HISTORICAL_NON_PROMOTABLE` | M3 reader/DDL queda congelado; no autoriza DDL/DML ni payloads. |
-| `F10.11` | `DOC_CONFORMANCE_COMPLETED_LOCAL_BEFORE_O3` | O1/O2 completados; paquete correctivo D0-D10 listo localmente antes de O3. |
+| `F10.11` | `SIMPLE_FLOW_LOCAL_VALIDATION` | Redefinicion local desde `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`; reemplaza WP/digest/Context Graph por flujo simple protegido. |
 
 ## Bases Vinculantes
 
@@ -47,10 +47,10 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 - Hito: [HITO-001](hitos/hito_001.md).
 - Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
 - Subfase tecnica activa: `F10.11`.
-- Work package activo: `NONE`.
-- Work package completado: `WP-O0-A=COMPLETED_READ_ONLY`.
-- Gate local completado: `D0-D10_DOC_GOVERNANCE_CONFORMANCE_COMPLETED_LOCAL_VERIFIED`.
-- Proximo gate unico: `R2_PUSH_PR_DESARROLLO_REQUIRES_SEPARATE_AUTHORIZATION`.
+- Work package activo: `NONE_SUPERSEDED`.
+- Work package completado: `NONE_APPLICABLE`.
+- Gate local: `SIMPLE_FLOW_REDEFINITION_LOCAL_ONLY`.
+- Proximo gate unico: `REMOTE_ACTIONS_REQUIRE_SEPARATE_AUTHORIZATION`.
 
 ## Estado De Hitos Sprint 1
 
@@ -62,26 +62,26 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `HITO-004` | `PENDING` | `TASK-H4-001` |
 | `HITO-005` | `PENDING` | `TASK-H5-001` |
 
-## Homologacion
+## Redefinicion
 
 | Etapa | Estado | Evidencia |
 |---|---|---|
-| O1 `candidate -> desarrollo` | `COMPLETED` | PR #414 mergeado; luego PR #415 reconciliacion post-O1 |
-| O2 `desarrollo -> certificacion` | `COMPLETED` | PR #416 mergeado con commit `4e7e41a9fac08e657308849701b4b1f70b994e3b` |
-| D0-D10 conformidad documental y gobierno | `COMPLETED_LOCAL_VERIFIED` | Paquete correctivo listo localmente; sin push ni PR en este gate |
-| O3 `certificacion -> main` | `BLOCKED` | Requiere D0-D10 mergeado y prompt protegido separado |
-| O4 `main -> certificacion` | `PENDING` | Requiere prompt y PR protegido separado |
-| O5 `certificacion -> desarrollo` | `PENDING` | Requiere prompt y PR protegido separado |
+| Baseline local | `COMPLETED` | `origin/main@9b486146962bd2a092acfd649fdcf716e922de89` |
+| WIP previo | `DISCARDED_BY_AUTHORIZATION` | No se preserva WIP fuera del baseline. |
+| Flujo simple | `LOCAL_CANDIDATE` | Ver [`REDEFINICION.md`](../REDEFINICION.md). |
+| Acciones remotas | `BLOCKED` | Push, PR, merge, closures y workflows remotos requieren autorizacion separada. |
+| Base de datos | `BLOCKED` | Sin DDL, DML, Supabase MCP ni DB Sync apply. |
 
 ## Alcance Inmediato
 
-La ejecucion autorizada para preparar localmente el paquete correctivo D0-D10
-esta completada y verificada. El proximo gate unico requiere autorizacion R2
-separada para push y PR protegido hacia `desarrollo`. `web/**` y `db/**`
-permanecen sin cambios de producto y Hito 2 no esta activo.
+La ejecucion autorizada se limita a crear `REDEFINICION.md` y remediar el flujo
+local desde `origin/main@9b486146962bd2a092acfd649fdcf716e922de89`.
+`web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
+`scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen
+protegidos contra el baseline. Hito 2 no esta activo.
 
 ## Siguiente Gate
 
-Antes de O3 se requiere merge del paquete correctivo en `desarrollo` y
-`certificacion`, mas decision humana separada. Hito 2 solo inicia tras O5,
-checkout limpio homologado y aprobacion explicita de `WP-H2-001` por digest.
+El siguiente gate requiere autorizacion humana separada para cualquier accion
+remota. Hito 2 solo inicia con un nuevo pedido explicito posterior al cierre de
+esta redefinicion.

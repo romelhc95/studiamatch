@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Estado | `PLANNED_NOT_ACTIVE` |
-| Work package | `WP-H2-001` |
+| Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | O5, checkout limpio y aprobacion digest `WP-H2-001` |
+| Gate | Nuevo pedido explicito y aprobacion DB JIT cuando corresponda |
 
 ## Alcance
 
@@ -63,4 +63,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia hasta completar O5, tener checkout limpio homologado y aprobar `WP-H2-001` por digest verificable.
+No inicia durante F10.11. Requiere nuevo pedido explicito, alcance actualizado y aprobacion JIT separada para cualquier DDL/DML.
