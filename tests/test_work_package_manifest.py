@@ -660,6 +660,19 @@ class WorkPackageManifestTests(unittest.TestCase):
             errors = validator.validate_changed_paths([("M", path)], [data], active_work_package="WP-H2-001", gov_ci6_transition=True)
             self.assertTrue(any(error.startswith("DENIED_PATH") or error.startswith("CHANGED_PATH_NOT_ALLOWED") for error in errors), path)
 
+    def test_gov_ci12_transition_allows_readiness_remediation_controls(self):
+        validator = load_validator()
+        data = load_h2()
+        allowed = validator.validate_changed_paths([
+            ("M", "scripts/security/github_promotion_snapshot.py"),
+            ("M", "scripts/security/validate_promotion_readiness.py"),
+            ("M", "scripts/security/validate_work_package.py"),
+            ("M", "tests/test_promotion_api_adapter.py"),
+            ("M", "tests/test_promotion_readiness.py"),
+            ("M", "tests/test_work_package_manifest.py"),
+        ], [data], active_work_package="WP-H2-001", gov_ci12_transition=True)
+        self.assertEqual(allowed, [])
+
     def promotion_event_fixture(self, *, operation="O2 desarrollo -> certificacion", grant_id="R3-GOV-HOM-012-O2-REQ1", action="opened", number=500, base_ref="certificacion", source_ref="desarrollo", head_ref="promote/gov-hom-012-o2-req1", consumed=False):
         digest = "a" * 64
         tree = "b" * 40
