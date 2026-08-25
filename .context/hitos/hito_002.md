@@ -2,14 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PLANNED_NOT_ACTIVE` |
+| Estado | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | Nuevo pedido explicito y aprobacion DB JIT cuando corresponda |
+| Gate | PR H2 separado y aprobacion DB JIT para cualquier DDL/DML |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. No hay ejecucion activa en F10.11.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. Es el siguiente alcance tecnico despues del PR documental, pero no autoriza DDL/DML sin aprobacion JIT separada.
 
 ## Contrato Editorial
 
@@ -63,4 +63,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-No inicia durante F10.11. Requiere nuevo pedido explicito, alcance actualizado y aprobacion JIT separada para cualquier DDL/DML.
+Puede planificarse despues del PR documental. Requiere aprobacion JIT separada para cualquier DDL/DML, Supabase, backfill o writer.
