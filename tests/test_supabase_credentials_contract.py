@@ -170,6 +170,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/maintenance/fix_taxonomy_roi.py": "supabase-data-api",
     "scripts/maintenance/force_harvest_up.py": "supabase-data-api",
     "scripts/maintenance/generate_sitemap.py": "supabase-data-api",
+    "scripts/maintenance/h2_backfill_editorial_state.py": "supabase-data-api-h2-jit-backfill",
     "scripts/maintenance/lightweight_ping.py": "supabase-data-api",
     "scripts/maintenance/merge_exclusions_to_profiles.py": "supabase-data-api",
     "scripts/maintenance/metadata_quality_report.py": "supabase-data-api",
@@ -192,6 +193,7 @@ DIRECT_SUPABASE_CONSUMERS = {
     "scripts/deprecated/add_exclusion.py": "supabase-data-api",
     "scripts/deprecated/fase32b_migrate_free_to_pro.py": "supabase-data-and-management-api",
     "scripts/deprecated/seed_crawler_exclusions.py": "supabase-data-api",
+    "tests/test_h2_writer_scan.py": "supabase-pattern-test-only",
     "scripts/deprecated/harvesters/continental_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/idat_harvester.py": "supabase-data-api",
     "scripts/deprecated/harvesters/nacional_harvester.py": "supabase-data-api",
@@ -872,6 +874,8 @@ def test_direct_supabase_consumer_inventory_is_complete():
         "supabase-edge-function",
         "supabase-ci",
         "supabase-data-api-test",
+        "supabase-data-api-h2-jit-backfill",
+        "supabase-pattern-test-only",
     }
 
 
