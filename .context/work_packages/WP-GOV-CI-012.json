@@ -7,10 +7,10 @@
   "risk_level": "GOVERNANCE_PROMOTION_CAUSAL_EVIDENCE_O2_O5_FAIL_CLOSED",
   "target_level": "R2",
   "baseline": {
-    "candidate_commit": "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4",
-    "candidate_tree": "bb3a9084961c090adac0d390aa22fdcc84670656",
-    "desarrollo_commit": "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4",
-    "desarrollo_tree": "bb3a9084961c090adac0d390aa22fdcc84670656",
+    "candidate_commit": "34fb06d552ea4d052bd3f942948a192a7e44a5eb",
+    "candidate_tree": "d53e81717a4c44d59177591c3ce69392072ec716",
+    "desarrollo_commit": "34fb06d552ea4d052bd3f942948a192a7e44a5eb",
+    "desarrollo_tree": "d53e81717a4c44d59177591c3ce69392072ec716",
     "certificacion_commit": "df2cde3626c75fa4733bf1624fb105d8ee08c076",
     "certificacion_tree": "7df05c52da47855d62c082f7cfbd12ee1e38b965",
     "main_commit": "9b486146962bd2a092acfd649fdcf716e922de89",
@@ -55,7 +55,11 @@
     ".context/r3_grants/R3-GOV-HOM-012-O2-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-012-O3-REQ1.json",
     ".context/r3_grants/R3-GOV-HOM-012-O4-REQ1.json",
-    ".context/r3_grants/R3-GOV-HOM-012-O5-REQ1.json"
+    ".context/r3_grants/R3-GOV-HOM-012-O5-REQ1.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O2-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O3-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O4-REQ2.json",
+    ".context/r3_grants/R3-GOV-HOM-012-O5-REQ2.json"
   ],
   "denied_without_jit": [
     "production", "certification", "main", "supabase-free", "supabase-pro", "ddl-execution", "dml-execution", "migration-execution", "backfill-execution", "rls-grants-remote", "writers", "schedules", "workflow_dispatch", "deploys", "secrets", "lead_capture", "egress"
@@ -65,17 +69,26 @@
     "PR #445 queda FAILED_NOT_MERGED_FROZEN sin edicion, cierre, reapertura, rerun ni merge",
     "R3-GOV-HOM-011-O2-REQ1 queda consumido por fallo",
     "HOM-011 O3-O5 queda SUPERSEDED_NOT_USABLE",
-    "PR #444 publicado en desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4"
+    "PR #446 y PR #448 publicados en desarrollo@34fb06d552ea4d052bd3f942948a192a7e44a5eb"
   ],
   "r3_operations": [
     "certification promotion", "main promotion", "Cloudflare Pages Production rebuild", "DB sync detect-only", "branch protection remote changes", "ruleset remote changes", "environment remote changes", "db operations", "Supabase operations", "DDL/DML execution", "migration execution", "backfill execution", "deploys", "writers", "schedules", "production"
   ],
-  "supersedes_digest": "1b14d76273ef82a4889cdee8edea46815a88efaf66a8a16a180241f4b6e8cc88",
+  "supersedes_digest": "018b7cd21b12b05d939d37505cad8d38155554f790ed0930eb665fd3d65fce5d",
   "hom011_o2_failure": {
     "failed_pr": 445,
     "status": "FAILED_NOT_MERGED_FROZEN",
     "consumed_grant": "R3-GOV-HOM-011-O2-REQ1",
     "superseded_grants": ["R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1"]
+  },
+  "hom012_o2_req1_failure": {
+    "failed_pr": 447,
+    "status": "FAILED_NOT_MERGED_FROZEN",
+    "consumed_grant": "R3-GOV-HOM-012-O2-REQ1",
+    "failed_run": 32796093059,
+    "failed_candidate": "5fb39b870206742b20d904ee73589d9b61adff3b",
+    "superseded_grants": ["R3-GOV-HOM-012-O3-REQ1", "R3-GOV-HOM-012-O4-REQ1", "R3-GOV-HOM-012-O5-REQ1"],
+    "successor_grants": ["R3-GOV-HOM-012-O2-REQ2", "R3-GOV-HOM-012-O3-REQ2", "R3-GOV-HOM-012-O4-REQ2", "R3-GOV-HOM-012-O5-REQ2"]
   },
   "promotion_jit_envelope": {
     "schema": "promotion-jit-envelope-v3",
@@ -158,14 +171,14 @@
       "t_final_binding": "tree(promotion_attestation.Source-SHA)",
       "d_final_binding": "manifest.candidate_digest"
     },
-    "grant_request_ids": ["R3-GOV-HOM-012-O2-REQ1", "R3-GOV-HOM-012-O3-REQ1", "R3-GOV-HOM-012-O4-REQ1", "R3-GOV-HOM-012-O5-REQ1"],
+    "grant_request_ids": ["R3-GOV-HOM-012-O2-REQ2", "R3-GOV-HOM-012-O3-REQ2", "R3-GOV-HOM-012-O4-REQ2", "R3-GOV-HOM-012-O5-REQ2"],
     "external_consumption_required": true,
     "no_internal_ledger": true
   },
   "historical_blocks": {
-    "blocked_pr_numbers": [428, 431, 433, 435, 437, 440, 441, 443, 445],
-    "consumed_grants": ["R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1", "R3-GOV-HOM-011-O2-REQ1"],
-    "superseded_grants": ["R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1"]
+    "blocked_pr_numbers": [428, 431, 433, 435, 437, 440, 441, 443, 445, 447],
+    "consumed_grants": ["R3-GOV-HOM-001-O2", "R3-GOV-HOM-003-O2-REQ1", "R3-GOV-HOM-004-O2-REQ1", "R3-GOV-HOM-005-O2-REQ1", "R3-GOV-HOM-006-O2-REQ1", "R3-GOV-HOM-008-O2-REQ1", "R3-GOV-HOM-010-O2-REQ1", "R3-GOV-HOM-011-O2-REQ1", "R3-GOV-HOM-012-O2-REQ1"],
+    "superseded_grants": ["R3-GOV-HOM-011-O3-REQ1", "R3-GOV-HOM-011-O4-REQ1", "R3-GOV-HOM-011-O5-REQ1", "R3-GOV-HOM-012-O3-REQ1", "R3-GOV-HOM-012-O4-REQ1", "R3-GOV-HOM-012-O5-REQ1"]
   },
   "bootstrap_authorization": {
     "id": "R1-BOOTSTRAP-GOV-CI-012-REQ1",
@@ -174,25 +187,25 @@
     "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
   },
   "remediation_authorization": {
-    "id": "R1-REMEDIATION-GOV-CI-012-REQ6",
-    "superseded_candidate_commit": "50a853ac4e32e60280213489d347070d79cf2580",
-    "superseded_candidate_tree": "d544b7b341c355ba97d1ff29413cfc745a928df8",
-    "superseded_candidate_digest": "c9d3111a7fd5f20dcd2148dcac66a6c765e405ed631536552ef5774933060688",
-    "supersedes_authorization": "R1-REMEDIATION-GOV-CI-012-REQ5",
-    "root_cause": "CODEQL_CACHE_POISONING_UNTRUSTED_CANDIDATE_CHECKOUT_IN_DB_SYNC_DETECT_ONLY",
-    "failed_pr": 446,
-    "failed_check_id": 97617739354,
-    "failed_security_audit_run": 32785885240,
-    "code_scanning_alert": "security/code-scanning/19",
+    "id": "R1-REMEDIATION-GOV-CI-012-REQ7",
+    "baseline_desarrollo_commit": "34fb06d552ea4d052bd3f942948a192a7e44a5eb",
+    "superseded_candidate_commit": "5fb39b870206742b20d904ee73589d9b61adff3b",
+    "superseded_candidate_tree": "6a258b9713f0358bc57ac490e1a0cf7d9e2c1610",
+    "superseded_candidate_digest": "018b7cd21b12b05d939d37505cad8d38155554f790ed0930eb665fd3d65fce5d",
+    "supersedes_authorization": "R1-REMEDIATION-GOV-CI-012-REQ6",
+    "root_cause": "PROMOTION_READINESS_COLLECTOR_RULESET_VISIBILITY_AND_REQ1_TRANSACTION_CONSUMED",
+    "failed_pr": 447,
+    "failed_run": 32796093059,
+    "failed_job": 97647590296,
     "previous_r2_reusable": false,
     "expires_at": "2026-09-06T23:59:59Z",
     "does_not_authorize": ["R2", "R3", "push", "PR", "merge", "Certification", "Main", "DB", "Supabase", "deploys", "writers", "schedules", "rulesets", "branch protection"]
   },
   "no_db_supabase_writers_schedules_or_deploys": true,
   "expires_at": "2026-09-06T23:59:59Z",
-  "candidate_digest": "018b7cd21b12b05d939d37505cad8d38155554f790ed0930eb665fd3d65fce5d",
-  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1 and local remediation R1-REMEDIATION-GOV-CI-012-REQ6; R2 requires separate approval by candidate commit/tree/digest.",
+  "candidate_digest": "29f6c92fa714f1f8097220bfd7cc2fa0ab1f9a0e8cf0497e1f3d432e5658cd75",
+  "approval_digest_source": "Exceptional bootstrap payload approved by human as R1-BOOTSTRAP-GOV-CI-012-REQ1 and local remediation R1-REMEDIATION-GOV-CI-012-REQ7; R2 requires separate approval by candidate commit/tree/digest.",
   "approver_required": "human",
-  "invalidated_by": ["scope drift", "path drift", "baseline drift", "tree drift", "editing PR #443", "editing PR #445", "reusing HOM-011", "edited promotion PR", "reopened promotion PR", "synchronize promotion PR", "ready_for_review promotion PR", "rerun promotion workflow", "O4 before O3 closure", "CI failure", "expiry", "R3 operation request"],
-  "exit_criteria": ["PR #443 and PR #445 are frozen", "HOM-011 is superseded", "HOM-012 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v3 is validated", "GitHub Environment approval history uses environments/user/state/comment raw contract without invented approval timestamp", "post-merge consumes immutable pre-merge evidence without raw JIT secret material", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
+  "invalidated_by": ["scope drift", "path drift", "baseline drift", "tree drift", "editing PR #443", "editing PR #445", "editing PR #447", "reusing HOM-011", "reusing HOM-012 REQ1", "edited promotion PR", "reopened promotion PR", "synchronize promotion PR", "ready_for_review promotion PR", "rerun promotion workflow", "O4 before O3 closure", "CI failure", "expiry", "R3 operation request"],
+  "exit_criteria": ["PR #443, PR #445 and PR #447 are frozen", "HOM-011 is superseded", "HOM-012 REQ1 is consumed or superseded", "HOM-012 REQ2 O2-O5 grants exist as REQUESTED_JIT_SINGLE_USE only", "promotion-jit-envelope-v3 is validated", "GitHub Environment approval history uses environments/user/state/comment raw contract without invented approval timestamp", "post-merge consumes immutable pre-merge evidence without raw JIT secret material", "O3 closure evidence is produced and consumed by O4", "O5 validates final tree equality and ancestry", "No functional, DB, deployment, writer, schedule or remote operation changes"]
 }

@@ -18,7 +18,7 @@ def approval_history(name="v2/run_32659961454_approvals_raw.json"):
 
 def run_payload():
     data = json.loads((FIXTURES / "v2" / "run_32659961454_raw.json").read_text(encoding="utf-8"))
-    data.update({"head_branch": "promote/gov-hom-012-o2-req1", "head_sha": "c" * 40, "status": "in_progress", "conclusion": None})
+    data.update({"head_branch": "promote/gov-hom-012-o2-req2", "head_sha": "c" * 40, "status": "in_progress", "conclusion": None})
     return data
 
 
@@ -48,7 +48,7 @@ def envelope(**updates):
         "schema": "promotion-jit-envelope-v3",
         "transaction_id": "tx-hom012-o3-0001",
         "approval_id": "human-jit-o3",
-        "grant_id": "R3-GOV-HOM-012-O3-REQ1",
+        "grant_id": "R3-GOV-HOM-012-O3-REQ2",
         "repository_id": 1211718813,
         "repository": "romelhc95/studiamatch",
         "operation": "O3 certificacion -> main",
@@ -62,7 +62,7 @@ def envelope(**updates):
         "base_sha": "a" * 40,
         "source_ref": "certificacion",
         "source_sha": "b" * 40,
-        "candidate_ref": "promote/gov-hom-012-o2-req1",
+        "candidate_ref": "promote/gov-hom-012-o2-req2",
         "candidate_sha": "c" * 40,
         "candidate_tree": "d" * 40,
         "final_wp": "WP-GOV-CI-012",

@@ -19,7 +19,7 @@
   },
   "observed_postmerge_run": {
     "conclusion": "success",
-    "head_branch": "promote/gov-hom-012-o2-req1",
+    "head_branch": "promote/gov-hom-012-o2-req2",
     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
     "id": 32659961454,
     "run_attempt": 1,

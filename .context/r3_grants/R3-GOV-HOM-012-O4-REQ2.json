@@ -1,12 +1,12 @@
 {
-  "id": "R3-GOV-HOM-012-O3-REQ1",
-  "status": "SUPERSEDED_NOT_USABLE",
-  "operation": "O3 certificacion -> main",
+  "id": "R3-GOV-HOM-012-O4-REQ2",
+  "status": "REQUESTED_JIT_SINGLE_USE",
+  "operation": "O4 main -> certificacion",
   "repository": "romelhc95/studiamatch",
-  "base_ref": "main",
-  "head_ref": "promote/gov-hom-012-o3-req1",
-  "source_ref": "certificacion",
-  "candidate_branch": "promote/gov-hom-012-o3-req1",
+  "base_ref": "certificacion",
+  "head_ref": "promote/gov-hom-012-o4-req2",
+  "source_ref": "main",
+  "candidate_branch": "promote/gov-hom-012-o4-req2",
   "final_wp": "WP-GOV-CI-012",
   "base_sha_binding": "pull_request.base.sha",
   "source_sha_binding": "promotion_attestation.Source-SHA",
@@ -22,10 +22,6 @@
   "required_reviewer": "romelhc95-approver",
   "merger_reviewer_distinct": true,
   "approval_envelope_schema": "promotion-jit-envelope-v3",
-  "allowed_side_effects": ["main_branch_update", "cloudflare_pages_production_rebuild", "db_sync_detect_only"],
-  "cloudflare_pages_production_rebuild_expected": true,
-  "db_sync_detect_only_required": true,
-  "db_sync_expected_result": "NO_DB_CHANGES",
-  "superseded_by": "R3-GOV-HOM-012-O3-REQ2",
-  "superseded_reason": "O2 REQ1 consumed by PR #447 pre-merge failure"
+  "allowed_side_effects": ["certification_branch_update"],
+  "blocked_until_o3_closed": true
 }

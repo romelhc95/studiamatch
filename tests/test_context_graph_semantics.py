@@ -151,7 +151,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             for path in (root / ".context" / "estado_del_proyecto.md", root / ".context" / "operaciones" / "plan_maestro_sprint1_h2_h5.md"):
-                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
+                text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "EXECUTE_F12_1_LOCAL_CA2_R1")
                 path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH") for error in validator.validate(root)))
 
@@ -160,7 +160,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_R2_APPROVAL", "COMPLETE_WP_GOV_CI_011_R1_LOCAL_VALIDATION")
+            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "COMPLETE_WP_GOV_CI_011_R1_LOCAL_VALIDATION")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:stale GOV CI11 R1 gate") for error in validator.validate(root)))
 
@@ -169,7 +169,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "seguimiento" / "seguimiento_sprint_1_h2_h5.md"
-            text = path.read_text(encoding="utf-8").replace("Base: desarrollo@793a2fb5aabc9e23bba2e3d36b47d6826444c5d4, tree bb3a9084961c090adac0d390aa22fdcc84670656", "Base: desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667, tree e0029083e24016b97fc8896be3be2d4285414117")
+            text = path.read_text(encoding="utf-8").replace("Base: desarrollo@34fb06d552ea4d052bd3f942948a192a7e44a5eb, tree d53e81717a4c44d59177591c3ce69392072ec716", "Base: desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667, tree e0029083e24016b97fc8896be3be2d4285414117")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:GOV CI12 prompt baseline invalid") for error in validator.validate(root)))
 
@@ -205,7 +205,7 @@ class ContextGraphSemanticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = copy_repo_context(Path(tmp))
             path = root / ".context" / "estado_del_proyecto.md"
-            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_R2_APPROVAL", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
+            text = path.read_text(encoding="utf-8").replace("PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL", "PREPARE_WP_GOV_ARCH_R2_APPROVAL")
             path.write_text(text, encoding="utf-8")
             self.assertTrue(any(error.startswith("NEXT_GATE_MISMATCH:stale GOV ARCH") for error in validator.validate(root)))
 

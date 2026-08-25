@@ -30,7 +30,7 @@ EXPECTED_MERGER = "romelhc95"
 EXPECTED_MERGER_ID = 18040405
 EXPECTED_REFS = {"refs/heads/desarrollo", "refs/heads/certificacion", "refs/heads/main"}
 UNOBSERVABLE = "UNOBSERVABLE"
-FROZEN_PROMOTION_PRS = {"443", "445"}
+FROZEN_PROMOTION_PRS = {"443", "445", "447"}
 
 
 class SnapshotError(RuntimeError):
@@ -210,7 +210,7 @@ def build_snapshot(environment: dict[str, Any], ruleset: dict[str, Any], pulls: 
         "snapshot_source": "github-api",
         "environment": normalize_environment(environment),
         "ruleset": normalize_ruleset(ruleset),
-        "active_promotions": [str(item.get("number")) for item in pulls if (item.get("head") or {}).get("ref", "").startswith("promote/gov-hom-012-")],
+        "active_promotions": [str(item.get("number")) for item in pulls if str(item.get("number")) not in FROZEN_PROMOTION_PRS and (item.get("head") or {}).get("ref", "").startswith("promote/gov-hom-012-")],
         "current_pr": current_pr,
         "current_pr_head_ref": (current.get("head") or {}).get("ref") if isinstance(current, dict) else None,
         "cloudflare_pages_app_id": cloudflare_app.get("id"),

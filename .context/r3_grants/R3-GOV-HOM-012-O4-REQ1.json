@@ -1,6 +1,6 @@
 {
   "id": "R3-GOV-HOM-012-O4-REQ1",
-  "status": "REQUESTED_JIT_SINGLE_USE",
+  "status": "SUPERSEDED_NOT_USABLE",
   "operation": "O4 main -> certificacion",
   "repository": "romelhc95/studiamatch",
   "base_ref": "certificacion",
@@ -23,5 +23,7 @@
   "merger_reviewer_distinct": true,
   "approval_envelope_schema": "promotion-jit-envelope-v3",
   "allowed_side_effects": ["certification_branch_update"],
-  "blocked_until_o3_closed": true
+  "blocked_until_o3_closed": true,
+  "superseded_by": "R3-GOV-HOM-012-O4-REQ2",
+  "superseded_reason": "O2 REQ1 consumed by PR #447 pre-merge failure"
 }

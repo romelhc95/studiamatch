@@ -139,8 +139,8 @@ GOV_CI10_BASE_COMMIT = "17d383291a5f2877074b54b66f2a0ff48a643667"
 GOV_CI10_BASE_TREE = "e0029083e24016b97fc8896be3be2d4285414117"
 GOV_CI11_BASE_COMMIT = "cbdfe9dab373a2b427df4864b14427f3b2358789"
 GOV_CI11_BASE_TREE = "99c1cda4f0091aaee35752caec69745051c41a3a"
-GOV_CI12_BASE_COMMIT = "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4"
-GOV_CI12_BASE_TREE = "bb3a9084961c090adac0d390aa22fdcc84670656"
+GOV_CI12_BASE_COMMIT = "34fb06d552ea4d052bd3f942948a192a7e44a5eb"
+GOV_CI12_BASE_TREE = "d53e81717a4c44d59177591c3ce69392072ec716"
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
@@ -306,7 +306,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("APPROVAL_EVIDENCE_INVALID:wp")
     if not wp.get("activated_at") or not UTC_TS.match(str(wp.get("activated_at"))):
         errors.append("ACTIVATION_METADATA_REQUIRED:wp")
-    if "PREPARE_WP_GOV_CI_012_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_012_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_012_R2_APPROVAL" not in tracker:
+    if "PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL" not in state or "PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL" not in plan or "PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL" not in tracker:
         errors.append("NEXT_GATE_MISMATCH:GOV CI12 R2 approval gate must be next")
     if "COMPLETE_WP_GOV_CI_008_R1_LOCAL_VALIDATION" in state + plan + tracker or "PREPARE_WP_GOV_CI_007_R2_APPROVAL" in state + plan + tracker:
         errors.append("NEXT_GATE_MISMATCH:stale GOV CI7/CI8 gate")
@@ -356,7 +356,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("NEXT_GATE_MISMATCH:F12.1 must remain blocked pending main")
     if "COMPLETE_WP_GOV_CI_011_R1_LOCAL_VALIDATION" in state + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
         errors.append("NEXT_GATE_MISMATCH:stale GOV CI11 R1 gate")
-    if "PREPARE_WP_GOV_CI_012_R2_APPROVAL" not in state + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
+    if "PREPARE_WP_GOV_CI_012_REQ7_R2_APPROVAL" not in state + plan + tracker + read(root, "operaciones/context_graph_semantico.md"):
         errors.append("NEXT_GATE_MISMATCH:GOV CI12 R2 approval gate missing")
     if "WP-GOV-CI-010=PROPOSED_R1_LOCAL" in state + plan + tracker or "pendiente de GOV-CI10" in state + plan + tracker:
         errors.append("GOV_CI10_PUBLICATION_DRIFT:stale candidate status")
@@ -640,8 +640,8 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("GOV_CI10_R2_HISTORY_MISSING:PR442")
     if "PR #443" not in state + tracker + plan or "FAILED_NOT_MERGED" not in state + tracker + plan or "R3-GOV-HOM-010-O2-REQ1" not in state + tracker + plan:
         errors.append("GOV_CI11_FAILURE_HISTORY_MISSING:PR443")
-    if "PR #444" not in state + tracker + plan or GOV_CI12_BASE_COMMIT not in state + tracker + plan or GOV_CI12_BASE_TREE not in state + tracker + plan:
-        errors.append("GOV_CI11_R2_HISTORY_MISSING:PR444")
+    if "PR #444" not in state + tracker + plan or "PR #446" not in state + tracker + plan or "PR #448" not in state + tracker + plan or GOV_CI12_BASE_COMMIT not in state + tracker + plan or GOV_CI12_BASE_TREE not in state + tracker + plan:
+        errors.append("GOV_CI11_R2_HISTORY_MISSING:PR444_PR446_PR448")
     if "PR #445" not in state + tracker + plan or "FAILED_NOT_MERGED_FROZEN" not in state + tracker + plan or "R3-GOV-HOM-011-O2-REQ1" not in state + tracker + plan or "promotion-jit-envelope-v3" not in state + tracker + plan:
         errors.append("GOV_CI12_FAILURE_HISTORY_MISSING:PR445")
     if "owner-only-protected-branch-updates" not in state + plan + tracker + architecture + release_flow or "romelhc95-approver" not in state + plan + tracker + architecture + release_flow or "actor_id=18040405" not in state + plan + tracker + architecture + release_flow:
