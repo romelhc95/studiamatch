@@ -1,0 +1,25 @@
+{
+  "fixture_kind": "synthetic_runtime_premerge_job_observation",
+  "jobs_payload": {
+    "jobs": [
+      {
+        "completed_at": null,
+        "conclusion": null,
+        "created_at": "2026-08-23T19:02:25Z",
+        "head_branch": "promote/gov-hom-012-o2-req1",
+        "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "id": 97244495190,
+        "name": "Promotion Boundary",
+        "run_attempt": 1,
+        "run_id": 32659961454,
+        "started_at": "2026-08-23T19:41:33Z",
+        "status": "in_progress",
+        "workflow_name": "Security Audit Gate"
+      }
+    ],
+    "total_count": 1
+  },
+  "purpose": "Validates the required artifact-time job state that cannot be recaptured after a completed historical run.",
+  "raw_github_rest_capture": false,
+  "schema": "synthetic-contract-fixture-v1"
+}

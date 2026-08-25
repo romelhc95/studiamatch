@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE_SHA = "96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9"
 HEAD_SHA = "2eb8fcdda1224146c8013d6a050f56edf4e63194"
 SYNTHETIC_MERGE_SHA = "3" * 40
-VALID_BODY = """Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
+VALID_BODY = """## Governance Attestation
+Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9
 Candidate-SHA: 2eb8fcdda1224146c8013d6a050f56edf4e63194
 Estado-Snapshot: SNAPSHOT-2026-08-22-GOV-ARCH-R2-PENDING
 Requerimiento: REQ-EST-001
@@ -104,6 +105,23 @@ Approval-Expiry:
 """
         self.assertEqual(self.run_validate(body=body), [])
 
+    def test_governance_section_rejects_duplicate_within_section(self):
+        body = VALID_BODY.replace("Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9", "Base-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9\nBase-SHA: 96c6e7e97a1a6c703eb3b5a3a22f6f6d21aa28e9")
+        body = "## Governance Attestation\n" + body
+        self.assertIn("GOVERNANCE_ATTESTATION_DUPLICATE:Base-SHA", self.run_validate(body=body))
+
+    def test_governance_section_rejects_populated_promotion_section(self):
+        body = "## Governance Attestation\n" + VALID_BODY + "\n## Promotion Attestation\nOperation: O2 desarrollo -> certificacion\n"
+        self.assertIn("GOVERNANCE_PROMOTION_SECTION_POPULATED", self.run_validate(body=body))
+
+    def test_governance_section_rejects_unknown_populated_promotion_field(self):
+        body = VALID_BODY + "\n## Promotion Attestation\nUnexpected-Key: populated\n"
+        self.assertIn("GOVERNANCE_PROMOTION_SECTION_POPULATED", self.run_validate(body=body))
+
+    def test_governance_section_missing_fails_closed(self):
+        body = VALID_BODY.replace("## Governance Attestation", "### Governance Attestation")
+        self.assertIn("GOVERNANCE_ATTESTATION_SECTION_MISSING", self.run_validate(body=body))
+
     def test_missing_field_fails(self):
         body = VALID_BODY.replace("TASK: TASK-GOV-ARCH-001", "TASK:")
         self.assertTrue(any(error.startswith("GOVERNANCE_PREFLIGHT_FIELD_REQUIRED:TASK") for error in self.run_validate(body=body)))
@@ -188,7 +206,7 @@ Approval-Expiry:
     def test_workflow_scopes_preflight_to_desarrollo(self):
         workflow = (ROOT / ".github" / "workflows" / "security-audit.yml").read_text(encoding="utf-8")
         self.assertIn("github.event.pull_request.base.ref == 'desarrollo'", workflow)
-        self.assertIn("github.event.pull_request.head.ref == 'promote/gov-hom-006-o5-req1'", workflow)
+        self.assertIn("github.event.pull_request.head.ref == 'promote/gov-hom-010-o5-req1'", workflow)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("--promotion-event \"$GITHUB_EVENT_PATH\"", workflow)
         self.assertIn("--run-attempt \"${GITHUB_RUN_ATTEMPT:-0}\"", workflow)
@@ -206,7 +224,7 @@ Approval-Expiry:
         workflow = (ROOT / ".github" / "workflows" / "security-audit.yml").read_text(encoding="utf-8")
         assert "governance-preflight:" in workflow
         assert "github.event.pull_request.base.ref == 'desarrollo'" in workflow
-        assert "promote/gov-hom-006-o5-req1" in workflow
+        assert "promote/gov-hom-010-o5-req1" in workflow
         assert "needs.governance-preflight.result }}' = 'success'" in workflow
 
     def test_r3_level_requires_separate_jit(self):

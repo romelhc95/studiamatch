@@ -121,6 +121,9 @@ F10.11 GOV-HOM candidate produce T_HOM
 -> GOV-CI6 publica promociones target-aware y congela F9.7 automatico
 -> GOV-CI7 valida evidencia post-merge fail-closed y HOM-007
 -> GOV-CI8 clasifica rutas post-merge fail-closed y HOM-008
+-> GOV-CI9 owner-only branch updates y HOM-009
+-> GOV-CI10 attestation section-aware y HOM-010
+-> R3 ruleset owner-only para ramas protegidas
 -> R3 re-O2 JIT desarrollo -> certificacion
 -> R3 O3 JIT certificacion -> main
 -> R3 O4 JIT main -> certificacion
@@ -154,6 +157,9 @@ F12.1 local H2-CA2 bajo WP/digest R1
 - PR #433 completo O2 y consumio `R3-GOV-HOM-004-O2-REQ1`, pero el push post-merge fallo; no autoriza O3 hasta publicar GOV-CI5 y ejecutar nuevo re-O2.
 - PR #437 completo O2 y consumio `R3-GOV-HOM-006-O2-REQ1`, pero el push post-merge fallo; HOM-006 O3-O5 queda superseded y no autoriza O3 hasta publicar GOV-CI7.
 - PR #438 publico GOV-CI7 a `desarrollo`, pero el push post-merge fallo `POST_MERGE_PAIR_INVALID`; HOM-007 queda superseded y no autoriza O2/O3 hasta publicar GOV-CI8 y ejecutar nuevo re-O2 HOM-008.
+- PR #440 completo O2 HOM-008 y consumio `R3-GOV-HOM-008-O2-REQ1`, pero el push post-merge fallo `POST_MERGE_MERGER_INVALID`; HOM-008 queda superseded.
+- PR #441 publico GOV-CI9 a `desarrollo`, pero el push post-merge fallo `POST_MERGE_ATTESTATION_DUPLICATE`; HOM-009 queda superseded y no autoriza O2/O3 hasta publicar GOV-CI10, aplicar owner-only mediante R3 JIT y ejecutar nuevo re-O2 HOM-010.
+- `romelhc95-approver` revisa/aprueba; `romelhc95` ejecuta el merge. Esta separacion debe estar reforzada por ruleset antes del proximo O2.
 - Cualquier DB, Supabase, RLS/grants, backfill, writer, schedule, deploy,
   Certification, Main o produccion requiere R3 JIT separado.
 

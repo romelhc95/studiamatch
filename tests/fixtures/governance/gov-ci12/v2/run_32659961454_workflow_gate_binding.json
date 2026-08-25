@@ -1,0 +1,15 @@
+{
+  "api_job_name": "Promotion Boundary",
+  "artifact_producer_in_same_job": false,
+  "candidate_workflow_must_produce_artifact_in_same_job": true,
+  "environment_name": "Promotion",
+  "extraction_method": "local_git_object",
+  "historical_binding_only": true,
+  "job_key": "promotion-boundary",
+  "remote_request": false,
+  "schema": "github-workflow-environment-gate-binding-v1",
+  "source_blob_sha256": "576d2e034bd29fcc1bb71a6854e15d8a2f94133711f4e1c96cae63c4226d9d93",
+  "source_commit": "d7417423b1918a84c1aba86a7dd4bda63853be60",
+  "workflow_name": "Security Audit Gate",
+  "workflow_path": ".github/workflows/security-audit.yml"
+}

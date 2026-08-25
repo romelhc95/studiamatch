@@ -1,0 +1,47 @@
+{
+  "schema": "github-actions-run-rest-fixture-provenance-v1",
+  "repository": "romelhc95/StudIAMatch",
+  "run_id": 32659961454,
+  "captured_at": "2026-08-24T00:00:00Z",
+  "authorized_request": "R1-REMEDIATION-GOV-CI-012-REQ3",
+  "source_endpoints": [
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/approvals",
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454",
+    "GET /repos/romelhc95/StudIAMatch/actions/runs/32659961454/jobs?per_page=100"
+  ],
+  "sanitization_applied": true,
+  "fields_redacted": [
+    "avatar_url",
+    "url",
+    "html_url",
+    "followers_url",
+    "following_url",
+    "gists_url",
+    "starred_url",
+    "subscriptions_url",
+    "organizations_url",
+    "repos_url",
+    "events_url",
+    "received_events_url",
+    "jobs_url",
+    "logs_url",
+    "check_suite_url",
+    "artifacts_url",
+    "cancel_url",
+    "rerun_url",
+    "workflow_url",
+    "run_url",
+    "check_run_url"
+  ],
+  "fixture_sha256": {
+    "run_32659961454_approvals_raw.json": "0944abce603b2494367a083602dadf4f028bfaaaf913274abeebdefa1fc14f2b",
+    "run_32659961454_raw.json": "271df564494348527d96e6a87b7834cefe3ebab62b7e0c276e40eedc8607443f",
+    "run_32659961454_jobs_raw.json": "e9eeace1c529e6648fb5f231561b2b067bc0703f8ba8b926587032982b3b3ecd"
+  },
+  "observations": [
+    "approval records do not expose an approval-level timestamp",
+    "approval records expose user, state, comment, and environments[]",
+    "environment objects expose created_at and updated_at for the Environment object, not for the approval decision",
+    "jobs expose run_id, run_attempt, head_sha, started_at, completed_at, status, and conclusion"
+  ]
+}

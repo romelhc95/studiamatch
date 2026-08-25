@@ -13,6 +13,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+try:
+    from scripts.security.attestation_parser import parse_attestation_section
+except ModuleNotFoundError:
+    from attestation_parser import parse_attestation_section
+
 
 ROOT = Path(__file__).resolve().parents[2]
 LEVELS = {"R0": 0, "R1": 1, "R2": 2, "R3": 3, "R3+": 4}
@@ -36,6 +41,7 @@ REQUIRED_FIELDS = (
     "Data-Impact-Reason",
     "Security-Auditor",
 )
+PROMOTION_FIELDS = ("Operation", "Grant-ID", "Base-Ref", "Base-SHA", "Source-Ref", "Source-SHA", "Candidate-SHA", "Candidate-Tree", "Final-WP", "D_FINAL", "T_FINAL", "Approval-Level", "Approval-Reference", "Approval-Expiry")
 BRANCH_PATTERNS = ("feat/", "fix/", "docs/", "governance/", "chore/")
 PLACEHOLDER_VALUES = {"", "todo", "tbd", "n/a", "na", "none", "null", "<todo>", "<commit>", "<digest>"}
 UTC_TS = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -44,33 +50,16 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def parse_attestation(body: str) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    lines = body.splitlines()
-    if any(line.strip() == "## Governance Attestation" for line in lines):
-        section_lines: list[str] = []
-        in_section = False
-        for line in lines:
-            stripped = line.strip()
-            if stripped == "## Governance Attestation":
-                in_section = True
-                continue
-            if in_section and stripped.startswith("## "):
-                break
-            if in_section:
-                section_lines.append(line)
-        lines = section_lines
-    for line in lines:
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        key = key.strip()
-        if key in REQUIRED_FIELDS:
-            fields[key] = value.strip()
-    return fields
+    return parse_attestation_section(body, "Governance Attestation", REQUIRED_FIELDS).fields
 
 
 def is_placeholder(value: str) -> bool:
     return value.strip().lower() in PLACEHOLDER_VALUES or value.strip().startswith("<")
+
+
+def promotion_section_populated(body: str) -> bool:
+    section = parse_attestation_section(body, "Promotion Attestation", PROMOTION_FIELDS)
+    return any(not is_placeholder(value) and value.strip().lower() != "nuevo-unico-no-consumido" for value in section.nonempty_fields().values())
 
 
 def load_manifest(wp_id: str, root: Path = ROOT) -> dict[str, Any] | None:
@@ -136,8 +125,18 @@ def validate(
     event_path: str = "",
 ) -> list[str]:
     errors: list[str] = []
-    fields = parse_attestation(body)
+    section = parse_attestation_section(body, "Governance Attestation", REQUIRED_FIELDS)
+    fields = section.fields
     now = now or datetime.now(UTC)
+
+    if not section.present:
+        errors.append("GOVERNANCE_ATTESTATION_SECTION_MISSING")
+    if section.duplicate_section:
+        errors.append("GOVERNANCE_ATTESTATION_SECTION_DUPLICATE")
+    for duplicate in section.duplicates:
+        errors.append(f"GOVERNANCE_ATTESTATION_DUPLICATE:{duplicate}")
+    if promotion_section_populated(body):
+        errors.append("GOVERNANCE_PROMOTION_SECTION_POPULATED")
 
     for field in REQUIRED_FIELDS:
         value = fields.get(field, "")

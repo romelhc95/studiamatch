@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
+
+from scripts.security.promotion_evidence import db_detect_only_artifact
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +19,12 @@ def job_section(workflow: str, job_id: str) -> str:
     match = re.search(pattern, workflow, re.M | re.S)
     assert match, f"job {job_id} not found"
     return match.group(0)
+
+
+def python_inline_command(section: str) -> str:
+    match = re.search(r"python3 -c '(?P<body>[^']+)'", section)
+    assert match, "python3 -c inline artifact writer not found"
+    return match.group("body")
 
 
 WORKFLOW = source(".github/workflows/db-sync-to-pro.yml")
@@ -50,6 +59,45 @@ def test_push_main_without_db_changes_skips_production_jobs() -> None:
     assert "github.event_name == 'workflow_dispatch'" in apply
     assert "github.event_name == 'workflow_dispatch'" in verify
     assert "inputs.operation == 'verify'" in verify
+
+
+def test_db_sync_detect_only_avoids_untrusted_candidate_checkout() -> None:
+    detect_only = job_section(WORKFLOW, "db-sync-detect-only")
+
+    assert "actions/checkout" not in detect_only
+    assert "ref: ${{ needs.detect-db-changes.outputs.candidate_sha }}" not in detect_only
+    assert "scripts/security/promotion_evidence.py" not in detect_only
+    assert "python3 scripts/" not in detect_only
+    assert "python3 - <<" not in detect_only
+    assert "CANDIDATE_SHA: ${{ needs.detect-db-changes.outputs.candidate_sha }}" in detect_only
+    assert "DB_CHANGED: ${{ needs.detect-db-changes.outputs.db_changed }}" in detect_only
+    assert "printf '%s' \"$CANDIDATE_SHA\" | grep -Eq '^[0-9a-f]{40}$'" in detect_only
+    assert 'test "$CANDIDATE_SHA" != "0000000000000000000000000000000000000000"' in detect_only
+    assert 'test "$CANDIDATE_SHA" = "$GITHUB_SHA"' in detect_only
+    assert 'if [ "$DB_CHANGED" = "false" ]; then' in detect_only
+    assert "DB Sync Detect Only=NO_DB_CHANGES" in detect_only
+    assert "db-sync-detect-only-v1" in detect_only
+    assert "payload_sha256" in detect_only
+    assert "db-sync-detect-only-${{ github.sha }}" in detect_only
+    assert "path: db-sync-detect-only.json" in detect_only
+    assert "if-no-files-found: error" in detect_only
+    assert "retention-days: 30" in detect_only
+    for forbidden in ("secrets.", "SUPABASE_URL", "NEXT_SUPABASE_SECRET_KEY", "--dry-run", "db_migrate.py", "Apply pending migrations", "Verify target schema"):
+        assert forbidden not in detect_only
+
+
+def test_db_sync_detect_only_inline_artifact_matches_productive_digest(tmp_path, monkeypatch) -> None:
+    detect_only = job_section(WORKFLOW, "db-sync-detect-only")
+    code = python_inline_command(detect_only)
+    head_sha = "1" * 40
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CANDIDATE_SHA", head_sha)
+    exec(compile(code, "db-sync-detect-only-inline", "exec"), {})
+
+    inline = json.loads((tmp_path / "db-sync-detect-only.json").read_text(encoding="utf-8"))
+    expected = db_detect_only_artifact(head_sha=head_sha, db_changed=False, apply_executed=False, result="NO_DB_CHANGES")
+    assert inline == expected
 
 
 def test_detector_and_preflight_do_not_load_production_or_secrets() -> None:
