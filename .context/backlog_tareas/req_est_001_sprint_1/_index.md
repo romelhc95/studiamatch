@@ -39,7 +39,7 @@ Cualquier conflicto se resuelve a favor de la fuente superior. Esta nota no auto
 |---|---|---|
 | [HITO-001](../../hitos/hito_001.md) | `H1-CA1` | Cerrado contractualmente con waivers por O0-B. |
 | [HITO-002](../../hitos/hito_002.md) | `H2-CA2`, `H2-CA3` | CA2 completo antes de CA3; requiere digest y JIT R3 para DDL/DML. |
-| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin bloqueado por H2 aceptado y `WP-H3-001`. |
+| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin bloqueado por H2 aceptado y nuevo pedido explicito. |
 | [HITO-004](../../hitos/hito_004.md) | `H4-CA5`, `H4-CA6`, `H4-CA7`, `H4-CA13H` | Home publica fiel a HTML; cero captura/egress. |
 | [HITO-005](../../hitos/hito_005.md) | `H5-CA8`, `H5-CA9/CA12`, `H5-CA10`, `H5-CA11`, `H5-CA13R` | Resultados y filtros fieles a HTML; CA12 absorbido por CA9. |
 

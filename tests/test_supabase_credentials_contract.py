@@ -211,12 +211,12 @@ DIRECT_SUPABASE_CONSUMERS = {
     "web/src/app/courses/[institution]/[slug]/CourseDetailClient.tsx": "supabase-data-api",
     "web/src/app/courses/[institution]/[slug]/page.tsx": "supabase-data-api",
     "supabase/functions/send-lead-emails/index.ts": "supabase-edge-function",
-    ".github/workflows/f9_9_certification_canary.yml": "supabase-ci",
     ".github/workflows/production_canary.yml": "supabase-ci",
     ".github/workflows/production_pipeline.yml": "supabase-ci",
     ".github/workflows/fg1_inventory.yml": "supabase-ci",
     ".github/workflows/fg3_integrity.yml": "supabase-ci",
     ".github/workflows/db-sync-to-pro.yml": "supabase-ci",
+    ".github/workflows/security-audit.yml": "supabase-ci",
     "db/migrations/apply_cleansing_fix_pro.py": "supabase-management-api",
 }
 
@@ -877,15 +877,13 @@ def test_direct_supabase_consumer_inventory_is_complete():
 
 
 def test_credential_scanners_block_real_supabase_publishable_keys():
-    scanner_paths = [
-        ROOT / ".github/workflows/security-audit.yml",
-        ROOT / "scripts/security/scan_credentials.sh",
-    ]
+    scanner = (ROOT / "scripts/security/scan_credentials.sh").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/security-audit.yml").read_text(encoding="utf-8")
 
-    for path in scanner_paths:
-        source = path.read_text(encoding="utf-8")
-        assert "sb_publishable_[A-Za-z0-9_-]{20,}" in source
-        assert "sb_secret_[A-Za-z0-9_-]{10,}" in source
-        assert "sk-(proj-)?[A-Za-z0-9_-]{20,}" in source
-        assert "opencode_[A-Za-z0-9_-]{20,}" in source
-        assert "OPENCODE_API_KEY" in source
+    assert "sb_publishable_[A-Za-z0-9_-]{20,}" in scanner
+    assert "sb_secret_[A-Za-z0-9_-]{10,}" in scanner
+    assert "sk-(proj-)?[A-Za-z0-9_-]{20,}" in scanner
+    assert "opencode_[A-Za-z0-9_-]{20,}" in scanner
+    assert "OPENCODE_API_KEY" in scanner
+    assert "scripts/security/scan_credentials.sh --tree" in workflow
+    assert "scripts/security/scan_credentials.sh --diff" in workflow

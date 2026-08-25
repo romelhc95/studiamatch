@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Estado | `PENDING` |
-| Work package | `WP-H5-001` |
+| Work package | `SUPERSEDED` |
 | Criterios | `H5-CA8`, `H5-CA9/CA12`, `H5-CA10`, `H5-CA11`, `H5-CA13R` |
-| Gate | Aprobacion digest `WP-H5-001` |
+| Gate | Nuevo pedido explicito |
 
 ## Alcance
 

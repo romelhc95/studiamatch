@@ -1,12 +1,10 @@
 name: DB Sync to Production
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       operation:
-        description: "report runs dry-run only; apply requires separate DDL authorization; verify runs target schema only"
+        description: "manual only; report is dry-run, apply requires separate DDL authorization, verify checks target schema"
         required: true
         default: report
         type: choice
