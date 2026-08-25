@@ -96,6 +96,7 @@ GOV_CI9_BASE_COMMIT = "1bc36ae6a4381c5ceac5e30c3970c39099965bc3"
 GOV_CI10_BASE_COMMIT = "17d383291a5f2877074b54b66f2a0ff48a643667"
 GOV_CI11_BASE_COMMIT = "cbdfe9dab373a2b427df4864b14427f3b2358789"
 GOV_CI12_BASE_COMMIT = "793a2fb5aabc9e23bba2e3d36b47d6826444c5d4"
+GOV_CI12_PUBLISHED_COMMIT = "57715daa4cc5d91bcd408d5832dd448da7b665fe"
 GOV_OBS_TARGET_LEVEL = "R2"
 H2_SIGNED_FIELDS = {
     "digest_schema",
@@ -2996,7 +2997,7 @@ def resolve_git_ref(ref: str, root: Path = ROOT) -> str:
     try:
         return subprocess.check_output(["git", "rev-parse", ref], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
-        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT, GOV_CI8_BASE_COMMIT, GOV_CI9_BASE_COMMIT, GOV_CI10_BASE_COMMIT, GOV_CI11_BASE_COMMIT, GOV_CI12_BASE_COMMIT):
+        for known_ref in (H2_ACTIVATION_BASE_COMMIT, H2_OBSIDIAN_BASE_COMMIT, GOV_OBS_BASE_COMMIT, PR424_BASE_COMMIT, GOV_ARCH_BASE_COMMIT, GOV_HOM_BASE_COMMIT, GOV_CI_BASE_COMMIT, GOV_CI2_BASE_COMMIT, GOV_CI3_BASE_COMMIT, GOV_CI4_BASE_COMMIT, GOV_CI5_BASE_COMMIT, GOV_CI6_BASE_COMMIT, GOV_CI7_BASE_COMMIT, GOV_CI8_BASE_COMMIT, GOV_CI9_BASE_COMMIT, GOV_CI10_BASE_COMMIT, GOV_CI11_BASE_COMMIT, GOV_CI12_BASE_COMMIT, GOV_CI12_PUBLISHED_COMMIT):
             if known_ref.startswith(ref):
                 return known_ref
         return ref
@@ -3142,7 +3143,7 @@ def main(argv: list[str] | None = None) -> int:
             gov_ci9_transition=changed_from == GOV_CI9_BASE_COMMIT,
             gov_ci10_transition=changed_from == GOV_CI10_BASE_COMMIT,
             gov_ci11_transition=changed_from == GOV_CI11_BASE_COMMIT,
-            gov_ci12_transition=changed_from == GOV_CI12_BASE_COMMIT,
+            gov_ci12_transition=changed_from in {GOV_CI12_BASE_COMMIT, GOV_CI12_PUBLISHED_COMMIT},
         ))
     if errors:
         for error in errors:

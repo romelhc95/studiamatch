@@ -12,10 +12,9 @@ def raw_environment():
         "id": 10,
         "name": "Promotion",
         "can_admins_bypass": False,
-        "prevent_self_review": True,
         "deployment_branch_policy": None,
         "protection_rules": [
-            {"type": "required_reviewers", "reviewers": [{"reviewer": {"login": "romelhc95-approver", "id": 306979205}}]}
+            {"type": "required_reviewers", "prevent_self_review": True, "reviewers": [{"reviewer": {"login": "romelhc95-approver", "id": 306979205}}]}
         ],
     }
 
@@ -40,11 +39,11 @@ def test_collector_parses_required_reviewers_and_ruleset_digest():
     assert snapshot["ruleset"]["canonical_digest"].startswith("sha256:")
 
 
-def test_collector_treats_missing_bypass_actors_as_unobservable():
+def test_collector_allows_missing_bypass_actors_as_unobservable():
     ruleset = raw_ruleset()
     ruleset.pop("bypass_actors")
     snapshot = build_snapshot(raw_environment(), ruleset, [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
-    assert "SNAPSHOT_RULESET_BYPASS_UNOBSERVABLE" in validate_snapshot(snapshot)
+    assert validate_snapshot(snapshot) == []
     assert snapshot["ruleset"]["bypass_actor_count"] == "UNOBSERVABLE"
 
 
@@ -54,6 +53,7 @@ def test_collector_requires_required_reviewers_protection_rule():
     environment["reviewers"] = [{"reviewer": {"login": "romelhc95-approver", "id": 306979205}}]
     snapshot = build_snapshot(environment, raw_ruleset(), [{"number": 500, "head": {"ref": "promote/gov-hom-012-o2-req1"}}], {"id": 85455}, "500")
     assert "SNAPSHOT_REQUIRED_REVIEWER_INVALID" in validate_snapshot(snapshot)
+    assert "SNAPSHOT_PREVENT_SELF_REVIEW_INVALID" in validate_snapshot(snapshot)
 
 
 def test_collector_rejects_extra_required_reviewer():
