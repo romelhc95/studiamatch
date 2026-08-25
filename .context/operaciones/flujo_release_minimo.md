@@ -1,8 +1,8 @@
 # Flujo Release Minimo
 
 > Esta nota no crea alcance ni autoriza ejecucion por si sola. La autoridad viva
-> esta en `estado_del_proyecto.md` y, durante la transicion local, en
-> `../../REDEFINICION.md`.
+> esta en `estado_del_proyecto.md`; `../../REDEFINICION.md` queda como soporte
+> temporal sin autoridad independiente hasta el GO para nuevos pedidos.
 
 ## Flujo Vigente
 
@@ -21,10 +21,11 @@ feat/* o docs/* desde desarrollo
   `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen
   protegidos salvo aprobacion explicita posterior.
 - `DB Sync to Production` es manual-only y no corre por push.
-- Cloudflare Pages automatico se acepta solo como efecto normal de `main`, no
+- Cloudflare Pages automatico se acepta solo como efecto normal de merge a `main`, no
   como autorizacion para mutar producto o DB.
 - H2-H5 requieren un nuevo pedido explicito; los Work Packages/digests
   historicos quedan superseded.
+- `REDEFINICION.md` se conserva temporalmente hasta el GO del cliente y luego se archiva o elimina por PR normal.
 
 ## Stop Conditions
 

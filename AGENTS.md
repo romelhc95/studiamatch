@@ -2,7 +2,7 @@
 
 ## Regla De Ejecucion
 
-La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md) y, durante la transicion actual, en [`REDEFINICION.md`](REDEFINICION.md). Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
+La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), con estas reglas de ejecucion como contrato operativo. [`REDEFINICION.md`](REDEFINICION.md) es soporte temporal hasta el GO para nuevos pedidos del cliente; no crea autoridad independiente. Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
 
 Flujo normal:
 
