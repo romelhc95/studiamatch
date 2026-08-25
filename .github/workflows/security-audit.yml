@@ -157,7 +157,9 @@ jobs:
           sudo apt-get install -y shellcheck
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Run actionlint
-        run: "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
+        run: |
+          set -euo pipefail
+          "$(go env GOPATH)/bin/actionlint" .github/workflows/security-audit.yml .github/workflows/db-sync-to-pro.yml
       - name: Run shellcheck
         run: shellcheck scripts/security/scan_credentials.sh .githooks/pre-commit .githooks/pre-push
 
