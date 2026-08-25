@@ -67,10 +67,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
-  const [formError, setFormError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
 
   // SOCIAL PROOF STATE
@@ -206,62 +202,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       alert(error?.message || "Ocurrió un error al enviar tu reseña.");
     } finally {
       setIsSocialSubmitting(false);
-    }
-  };
-
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!course) return;
-    setFormError(null);
-
-    if (!formData.first_name.trim()) {
-      setFormError("Ingresa tu nombre.");
-      return;
-    }
-    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setFormError("Ingresa un correo electrónico válido.");
-      return;
-    }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) {
-      setFormError("Ingresa un número de contacto válido (mín. 9 dígitos).");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      // Sanitización básica: trim de espacios
-      const leadData = {
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        whatsapp: formData.whatsapp.trim(),
-        type: 'info',
-        course_id: course.id,
-        source_page: 'detail',
-        area_interest: formData.area_interest || course.category || '',
-        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
-        modality: formData.modality_pref || course.mode || '',
-        is_late_enrollment_request: true
-      };
-
-      const url = `${SUPABASE_URL}/rest/v1/leads`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(leadData)
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-      }
-    } catch (error) {
-      console.error("Error submitting lead:", error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -859,85 +799,12 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 </p>
               </div>
 
-              {!submitted ? (
-                <form className="space-y-4" onSubmit={handleSubmitLead}>
-                   {formError && (
-                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
-                   )}
-                   <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
-                      <Input 
-                        required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.first_name}
-                        onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp de Contacto</label>
-                      <Input 
-                        required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.whatsapp}
-                        onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
-                      <Input 
-                        required
-                        type="email" 
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
-                      <select
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.budget}
-                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                      >
-                        <option value="">Selecciona un rango</option>
-                        <option value="5000">S/ 0 - 5,000</option>
-                        <option value="15000">S/ 5,000 - 15,000</option>
-                        <option value="30000">S/ 15,000 - 30,000</option>
-                        <option value="999999">S/ 30,000+</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
-                      <select
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.modality_pref}
-                        onChange={(e) => setFormData({...formData, modality_pref: e.target.value})}
-                      >
-                        <option value="">Sin preferencia</option>
-                        <option value="Presencial">Presencial</option>
-                        <option value="Remoto">Remoto</option>
-                        <option value="Híbrido">Híbrido</option>
-                      </select>
-                    </div>
-                  
-                  <Button 
-                    disabled={isSubmitting}
-                    type="submit" 
-                    className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-2 active:scale-95"
-                  >
-                    {isSubmitting ? "Tramitando..." : "Confirmar Solicitud"}
-                  </Button>
-                  <p className="text-[8px] text-slate-300 text-center uppercase font-bold tracking-widest mt-4">Respuesta estimada: 2 horas</p>
-                </form>
-              ) : (
-                <div className="py-12 text-center animate-in zoom-in duration-500">
-                  <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="h-10 w-10 text-emerald-500" />
-                  </div>
-                  <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">Solicitud enviada</h3>
-                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
-                </div>
-              )}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Canal cerrado temporalmente</p>
+                <p className="mt-3 text-[12px] leading-6 font-semibold text-amber-800/80">
+                  StudIAMatch no está capturando datos personales ni enviando solicitudes comerciales mientras se completa la validación editorial H2.
+                </p>
+              </div>
             <div className="mt-6">
               <button
                 onClick={() => toggleCompare(course)}

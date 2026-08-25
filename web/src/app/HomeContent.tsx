@@ -257,10 +257,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     });
   };
 
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -335,54 +331,6 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchData]);
-
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) { setFormError("Por favor, ingresa un email válido."); return; }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) { setFormError("Por favor, ingresa un WhatsApp válido (mín. 9 dígitos)."); return; }
-    if (!formData.first_name.trim()) { setFormError("Por favor, ingresa tu nombre."); return; }
-    setIsSubmitting(true);
-    try {
-      const leadData = {
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        whatsapp: formData.whatsapp,
-        source_page: 'home',
-        type: modalType,
-        course_id: selectedCourseForInfo?.id || null,
-        area_interest: formData.area_interest || (modalType === 'info' ? selectedCourseForInfo?.category : ""),
-        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
-        modality: formData.modality,
-        description: formData.description
-      };
-
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(leadData)
-      });
-
-      if (response.ok) {
-        setIsSuccess(true);
-        setTimeout(() => {
-          setIsModalOpen(false);
-          setIsSuccess(false);
-          setFormData({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality: "Remoto", description: "" });
-        }, 2500);
-      }
-    } catch (error) {
-      console.error("Error submitting lead:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const filteredCourses = useMemo(() => {
     let result = [...allCourses];
@@ -1206,87 +1154,20 @@ export default function HomeContent({ initialCourses = [] }: { initialCourses: C
 
             <div className="max-h-[70vh] overflow-y-auto p-6">
 
-              {isSuccess ? (
-                <div className="py-10 text-center animate-in zoom-in duration-300">
-                  <div className="h-14 w-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-brand-slate">Enviado con éxito</h3>
-                  <p className="text-[13px] text-slate-400 mt-1">Un asesor te contactará pronto.</p>
+              <div className="space-y-4 text-center">
+                <h3 className="text-xl font-bold text-brand-slate tracking-tight leading-tight">
+                  {modalType === 'info' ? selectedCourseForInfo?.name : 'Asesoría temporalmente deshabilitada'}
+                </h3>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-left">
+                  <p className="text-[13px] font-semibold text-amber-900">Canal de solicitudes cerrado</p>
+                  <p className="mt-2 text-[12px] leading-5 text-amber-800/80">
+                    StudIAMatch no está capturando datos personales ni enviando solicitudes comerciales mientras se completa la capa editorial H2.
+                  </p>
                 </div>
-              ) : (
-                <form onSubmit={handleSubmitLead} className="space-y-3.5">
-                  {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
-                  )}
-                  <h3 className="text-xl font-bold mb-2 text-brand-slate tracking-tight leading-tight">
-                    {modalType === 'info' ? selectedCourseForInfo?.name : 'Obtén tu ruta educativa.'}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">Nombre</label>
-                      <Input required className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">WhatsApp</label>
-                      <Input required className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Email</label>
-                    <Input required type="email" className="h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px]" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Área de interés</label>
-                    <select
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.area_interest}
-                      onChange={(e) => setFormData({ ...formData, area_interest: e.target.value })}
-                    >
-                      <option value="">Selecciona un área</option>
-                      {Array.from(new Set(allCourses.map(c => c.category).filter(Boolean))).sort().map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Presupuesto estimado</label>
-                    <select
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.budget}
-                      onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    >
-                      <option value="">Selecciona un rango</option>
-                      <option value="5000">S/ 0 - 5,000</option>
-                      <option value="15000">S/ 5,000 - 15,000</option>
-                      <option value="30000">S/ 15,000 - 30,000</option>
-                      <option value="999999">S/ 30,000+</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[12px] font-medium text-slate-400 mb-1 block">Modalidad preferida</label>
-                    <select
-                      className="w-full h-10 rounded-lg bg-slate-50 border-0 px-3 text-[13px] appearance-none focus:ring-1 focus:ring-brand-blue/30"
-                      value={formData.modality}
-                      onChange={(e) => setFormData({ ...formData, modality: e.target.value })}
-                    >
-                      <option value="Remoto">Remoto</option>
-                      <option value="Presencial">Presencial</option>
-                      <option value="Híbrido">Híbrido</option>
-                      <option value="Sin preferencia">Sin preferencia</option>
-                    </select>
-                  </div>
-                  {modalType === 'recommendation' && (
-                    <div>
-                      <label className="text-[12px] font-medium text-slate-400 mb-1 block">Tus objetivos</label>
-                      <textarea className="w-full h-20 rounded-lg bg-slate-50 border-0 p-3 text-[13px] focus:ring-1 focus:ring-brand-blue/30 resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-                    </div>
-                  )}
-                  <Button disabled={isSubmitting} type="submit" className="w-full h-10 bg-brand-slate hover:bg-black text-white font-medium rounded-lg border-0 text-[13px] mt-2 transition-all active:scale-[0.98]">
-                    {isSubmitting ? "Enviando…" : "Confirmar solicitud"}
-                  </Button>
-                </form>
-              )}
+                <Button type="button" onClick={() => setIsModalOpen(false)} className="w-full h-10 bg-brand-slate hover:bg-black text-white font-medium rounded-lg border-0 text-[13px] mt-2 transition-all active:scale-[0.98]">
+                  Entendido
+                </Button>
+              </div>
             </div>
           </div>
         </div>
