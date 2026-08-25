@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F10.11_SIMPLE_FLOW_LOCAL_VALIDATION_REMOTE_BLOCKED_DB_BLOCKED`
+`F10.11_SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO_DB_BLOCKED`
 
 | Control | Estado |
 |---|---|
@@ -21,12 +21,12 @@
 | O2 certificacion | `COMPLETED` mediante PR #416 |
 | Certificacion commit | `4e7e41a9fac08e657308849701b4b1f70b994e3b` |
 | Certificacion tree | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` |
-| Redefinicion de flujo | `LOCAL_VALIDATION` |
-| Acciones remotas | `BLOCKED_UNTIL_SEPARATE_AUTHORIZATION` |
+| Redefinicion de flujo | `DEPLOYED_TO_MAIN` |
+| Acciones remotas | `NORMAL_FLOW_RESTORED` |
 | DB | `BLOCKED_NO_DDL_DML` |
-| Checkout limpio H2 | `PENDING` |
+| GO cliente | `PENDING` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `REMOTE_ACTIONS_REQUIRE_SEPARATE_AUTHORIZATION` |
+| Proximo gate unico | `CLIENT_GO_FOR_NEXT_SCOPE` |
 
 ## Porcentaje De Avance
 
@@ -51,11 +51,11 @@
 
 ### Homologacion
 
-`Flujo simple redefinido localmente desde origin/main@9b48614; acciones remotas bloqueadas hasta autorizacion separada.`
+`Flujo simple promovido por PR protegido a desarrollo, certificacion y main. Nuevos alcances esperan GO del cliente.`
 
 ## Porcentaje De Desviacion
 
-`SIMPLE_FLOW_REDEFINITION_LOCAL_ONLY`.
+`SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos y trazabilidad insuficiente. La desviacion queda registrada como remediacion documental obligatoria antes de O3.
 
@@ -66,7 +66,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 - Hitos 3-5: `PENDING`.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
-- Redefinicion: `LOCAL_VALIDATION`.
+- Redefinicion: `DEPLOYED_TO_MAIN`.
 - Rutas protegidas: sin cambios frente a `origin/main@9b48614`.
 - Leads: schema/flags y CTA visual solamente; cero captura/egress.
 - Schedules: requieren autorizacion separada para cambios de estado.
@@ -74,7 +74,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Hallazgos Y Backlog
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
-- Acciones remotas quedan bloqueadas hasta autorizacion separada.
+- El flujo normal de PR protegido queda restaurado para cambios futuros.
 - No iniciar H2-H5 sin nuevo pedido explicito.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
@@ -88,16 +88,16 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 - Archives de desarrollo y certificacion preservados.
 - Fuentes locales verificadas y hasheadas sin versionar contenido.
 - T_CANONICO construido desde PR #327.
-- Flujo simple local definido en `REDEFINICION.md`.
+- Flujo simple desplegado; `REDEFINICION.md` queda como soporte temporal sin autoridad independiente.
 - WP/digest/Context Graph dejan de ser autoridad ejecutable.
 - PR #413 cerrado sin merge y excluido.
 - PR #414, #415 y #416 fusionados.
 
 ## Siguientes Pasos
 
-1. Ejecutar validaciones locales en Docker.
-2. Solicitar autorizacion separada antes de cualquier push, PR, merge o workflow remoto.
-3. No tocar DB ni activar H2-H5.
+1. Esperar GO explicito del cliente para el siguiente alcance.
+2. Archivar o eliminar `REDEFINICION.md` por PR normal cuando exista ese GO.
+3. No tocar DB ni activar H2-H5 sin aprobacion JIT separada cuando aplique.
 
 ## Fecha
 
@@ -106,6 +106,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Solicita autorizacion remota separada para publicar la redefinicion simple de F10.11.
-No autoriza DB, produccion, schedules, writers ni nuevos pedidos.
+Solicita GO explicito del cliente para el siguiente alcance.
+No autoriza DB, Supabase, schedules, writers ni produccion sin aprobacion JIT separada.
 ```

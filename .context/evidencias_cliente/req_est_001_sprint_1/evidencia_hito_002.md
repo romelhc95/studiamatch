@@ -24,9 +24,11 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.
 
 | Campo | Valor |
 |---|---|
-| F10.11 | `SIMPLE_FLOW_LOCAL_VALIDATION` |
-| Proximo gate | `REMOTE_ACTIONS_REQUIRE_SEPARATE_AUTHORIZATION` |
+| F10.11 | `SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO` |
+| Proximo gate | `CLIENT_GO_FOR_NEXT_SCOPE` |
 | PR #451 | `MERGED_TO_DESARROLLO@8ed8e36259af53a16e1f473ad906b5beadd5b09c` |
+| PR #452 | `MERGED_TO_CERTIFICACION@8b843ac3714866dbce7b44958362fe7243ae06b9` |
+| PR #453 | `MERGED_TO_MAIN@6128e5861ade426840a650335f7f859c803e5431` |
 
 ## Evidencia Funcional Futura
 
@@ -34,9 +36,9 @@ Estado: `TEMPLATE_ONLY`. No acredita PASS funcional.
 |---|---|
 | H2-CA2 | `NOT_STARTED` |
 | H2-CA3 | `NOT_STARTED` |
-| Migracion | Pendiente de ejecucion local F12.1 |
-| RLS/grants | Pendiente de artifacts locales F12.1; ejecucion remota requiere R3 |
-| Backfill | Pendiente de artifact local; ejecucion remota requiere R3 |
+| Migracion | Pendiente de nuevo pedido explicito; ejecucion remota requiere JIT |
+| RLS/grants | Pendiente de nuevo pedido explicito; ejecucion remota requiere JIT |
+| Backfill | Pendiente de nuevo pedido explicito; ejecucion remota requiere JIT |
 | Segundo run `NOOP` | Pendiente |
 | Valores manuales preservados | Pendiente |
 | Pipeline no publica automaticamente | Pendiente |

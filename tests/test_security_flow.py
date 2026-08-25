@@ -8,12 +8,25 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_redefinition_declares_simple_flow_and_boundaries():
-    text = read("REDEFINICION.md")
-    assert "origin/main@9b486146962bd2a092acfd649fdcf716e922de89" in text
+def test_agents_declares_simple_flow_and_boundaries():
+    text = read("AGENTS.md")
     assert "feat/* o docs/* desde desarrollo" in text
-    assert "DB Sync to Production` queda manual-only" in text
-    assert "Work Packages, grants persistentes, digests documentales" in text
+    assert "DB Sync" in text
+    assert "workflow_dispatch" in read(".github/workflows/db-sync-to-pro.yml").split("permissions:", 1)[0]
+    assert "Work Packages" in text
+    assert "grants persistentes" in text
+    assert "digests documentales" in text
+    assert "REDEFINICION.md) es soporte temporal" in text
+
+
+def test_obsidian_is_living_authority_and_redefinition_is_temporary_support():
+    state = read(".context/estado_del_proyecto.md")
+    redefinition = read("REDEFINICION.md")
+
+    assert "Esta nota es la autoridad exclusiva del estado vivo" in state
+    assert "SIMPLE_FLOW_DEPLOYED_PENDING_CLIENT_GO" in state
+    assert "TEMPORARY_SUPPORT_PENDING_CLIENT_GO" in redefinition
+    assert "no crea autoridad\nindependiente" in redefinition
 
 
 def test_agents_no_longer_uses_wp_digest_as_authority():
