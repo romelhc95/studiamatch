@@ -2,17 +2,17 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `MERGED_TO_DESARROLLO_CI_GREEN` |
+| Estado | `MERGED_TO_CERTIFICACION_CI_GREEN` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Bloqueo | Promocion protegida a certificacion pendiente de instruccion humana separada; Pro/writers siguen bloqueados |
+| Bloqueo | QA read-only en certificacion pendiente de instruccion humana separada; Pro/writers siguen bloqueados |
 
 ## Pendiente
 
-1. Preparar PR protegido `desarrollo -> certificacion` para H2 cuando el usuario lo instruya.
-2. Mantener evidencia Free aplicada/verificada como anexo de promocion.
+1. Ejecutar QA read-only H2 en `certificacion` cuando el usuario lo instruya.
+2. Mantener evidencia Free aplicada/verificada como anexo de certificacion.
 3. Autorizar DDL/DML Pro JIT solo despues de certificacion y aprobacion separada.
-4. Preservar veredicto `MERGED_TO_DESARROLLO_CI_GREEN` y grado documental `A` en CI.
+4. Preservar veredicto `MERGED_TO_CERTIFICACION_CI_GREEN`, grado documental `A` y validacion contra fuente cliente sanitizada en CI.
 
 ## Preparacion Actual
 
@@ -30,5 +30,8 @@ H2 tiene DDL Free aplicada para la capa editorial, forward-fix, remediacion
 Security Advisor, backfill editorial Free con segundo `NOOP` validado y seed
 `editorial_field_definitions` aplicado/verificado y fix de vista publica Free
 aplicado/verificado con `0` campos privados expuestos. PR #458 fue aprobado y
-mergeado a `desarrollo` con CI verde. Pro, writers, schedules, canaries, deploys
-y cualquier DDL/DML adicional quedan bloqueados sin aprobacion JIT separada.
+mergeado a `desarrollo` con CI verde; PR #459 y PR #460 tambien fueron mergeados
+con CI verde, dejando H2 en `certificacion`. El cierre se valida contra
+`SRC-REQ-002` mediante `ADENDA-REQ-EST-001-001`. Pro, writers, schedules,
+canaries, deploys y cualquier DDL/DML adicional quedan bloqueados sin aprobacion
+JIT separada.

@@ -2,17 +2,17 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `PLANNED_AFTER_H2_ACCEPTED` |
+| Estado | `PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION` |
 | Work package | `SUPERSEDED` |
 | Criterio | `H3-CA4` |
-| Bloqueo | H2 aceptado |
+| Bloqueo | Ejecucion requiere instruccion humana separada despues del gate fuente cliente |
 
 ## Pendiente
 
-1. Confirmar H2 aceptado.
-2. Implementar `/admin/` compatible con static export.
+1. Confirmar gate fuente cliente contra `SRC-REQ-002` via `ADENDA-REQ-EST-001-001`.
+2. Implementar `/admin/` compatible con static export solo tras instruccion humana separada.
 3. Probar acceso negativo anon/auth no admin.
 4. Probar edicion allowlisted, optimistic locking, publicar/despublicar y auditoria.
 5. Ejecutar UAT en Certification con evidencia Playwright desde H3.
 
-Bloqueada por Hito 2 aceptado.
+Bloqueada para ejecucion hasta instruccion humana separada. El pre-arranque documental queda validado contra fuente cliente.

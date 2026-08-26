@@ -2,7 +2,9 @@
 
 Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`.
 
-Veredicto PR: `MERGED_TO_DESARROLLO_CI_GREEN`.
+Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`.
+
+Fuente cliente validada: `SRC-REQ-002` via `ADENDA-REQ-EST-001-001`.
 
 Grado de evidencia: `A`.
 
@@ -23,7 +25,8 @@ Grado de evidencia: `A`.
 | `H2-CA3` | Idempotencia de backfill | `PASS_IN_DEVELOPMENT` | Segundo run `NOOP=350`. | Reejecutar el proceso no duplica ni rompe datos. |
 | `H2-CA3` | Escalabilidad de lote | `PASS_IN_DEVELOPMENT` | Tests cubren batches hasta mas de `1000` registros y escenarios de `10000`. | El proceso esta preparado para crecer sin depender de una carga manual unica. |
 | `H2-CA3` | Validacion automatizada | `PASS_IN_DEVELOPMENT` | Suite H2 `91 passed`; harness PG17 `h2_pg17_harness_ok`; credential scan `PASS`. | La entrega esta respaldada por pruebas repetibles, no solo revision manual. |
-| `H2-PR` | PR protegido a desarrollo | `MERGED_TO_DESARROLLO_CI_GREEN` | PR #458 aprobado y mergeado a `desarrollo`; checks requeridos verdes. | H2 ya entro a la rama de desarrollo y queda listo para promocion a certificacion. |
+| `H2-CLIENT` | Validacion contra fuente cliente | `PASS_CLIENT_SOURCE_ATTESTED` | `SRC-REQ-002` contrastado mediante `ADENDA-REQ-EST-001-001`; CA2 completo y CA3 presentes. | La entrega responde a los criterios aprobados por el cliente sin exponer el documento privado. |
+| `H2-PR` | PR protegido a certificacion | `MERGED_TO_CERTIFICACION_CI_GREEN` | PR #458, PR #459 y PR #460 aprobados/mergeados; checks requeridos verdes. | H2 ya esta en la rama de certificacion y queda listo para QA read-only. |
 
 ## Enlaces Canonicos
 
