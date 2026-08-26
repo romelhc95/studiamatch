@@ -19,6 +19,15 @@ trazabilidad.
 Si este gate documental falla, no se puede ejecutar codigo, DB, UI, pipeline ni
 PR del hito siguiente hasta corregir la atestacion sanitizada.
 
+Todo cambio funcional, DB, UI, pipeline o despliegue debe incluir una transicion
+transparente obligatoria: `expand -> compatibilidad -> deploy -> contract`.
+Durante construccion y promocion se debe preservar el comportamiento legacy
+necesario para que la aplicacion siga funcionando; luego de estabilizar en
+produccion se debe retirar la funcionalidad legacy y dejar activo el nuevo
+contrato solicitado. Ningun hito, task o PR puede cerrarse ni promoverse sin
+documentar compatibilidad, contraccion, rollback y evidencia de no degradacion
+funcional.
+
 ## Fases
 
 | ID | Fase | Estado | Resultado vigente |

@@ -85,6 +85,28 @@ def test_required_pillars_include_functionality_for_critical_changes() -> None:
     assert "| Funcionalidad | `PENDIENTE/APROBADO` |" in pr_template
 
 
+def test_transparent_transition_is_required_for_all_future_changes() -> None:
+    agents = read("AGENTS.md")
+    state = read(".context/estado_del_proyecto.md")
+    plan = read(".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md")
+    master_plan = read(".context/operaciones/plan_maestro_sprint1_h2_h5.md")
+    pr_template = read(".github/pull_request_template.md")
+
+    for text in [agents, state, plan, master_plan, pr_template]:
+        normalized = " ".join(text.split())
+        assert "expand -> compatibilidad -> deploy -> contract" in normalized
+        assert "rollback" in normalized.lower()
+
+    for text in [agents, state, plan, master_plan]:
+        normalized = " ".join(text.split()).lower()
+        assert "transicion transparente" in normalized
+        assert "funcionalidad" in normalized
+        assert "legacy" in normalized
+        assert "produccion" in normalized
+
+    assert "No degradacion funcional" in pr_template
+
+
 def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> None:
     attestation = read(SANITIZED_ATTESTATION_PATH)
     evidence = read(".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
