@@ -23,7 +23,7 @@ def read(path: Path) -> str:
 def test_h2_development_compatibility_closes_hito_acceptance_criteria() -> None:
     text = read(EVIDENCE)
 
-    assert "Estado: `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`" in text
+    assert "Estado: `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`" in text
     assert "`H2-CA2` Modelo editorial separado | `GO`" in text
     assert "`H2-CA3` Pipeline tolerante a incompletos | `GO`" in text
     assert "Compatibilidad funcional Desarrollo local/mock | `GO`" in text
@@ -39,7 +39,7 @@ def test_h2_development_compatibility_does_not_overstate_required_pillars() -> N
         assert f"| {pillar} | `GO` |" in text
 
     assert "| Funcionalidad | `GO_AFTER_FREE_MIGRATION` |" in text
-    assert "| Calidad | `PENDING_REMOTE_VERIFICATION` |" in text
+    assert "| Calidad | `GO` |" in text
     assert "Desarrollo remoto muestra `227` programas" in text
     assert "llamadas legacy `ratings`/`reviews` retiradas" in text
     assert "No hay fallback frontend a `courses`" in text
@@ -105,7 +105,17 @@ def test_h2_development_readonly_preflight_records_remote_delta() -> None:
     assert "Vista efectiva actual | `227` cursos" in text
     assert "Missing legacy IDs | `0`" in text
     assert "Unexpected effective IDs | `0`" in text
-    assert "PR #466 no debe mergearse sin validacion local" in text
+    assert "PR #466 no debe mergearse sin revision humana" in text
+
+
+def test_h2_quality_gate_records_remote_preview_verification() -> None:
+    text = read(EVIDENCE)
+
+    assert "## Validacion Remota Calidad 2026-08-26" in text
+    assert "https://be52f883.studiamatch-aty.pages.dev/" in text
+    assert "sin React #418" in text
+    assert "Bundle publicado | `PASS`" in text
+    assert "Relacionados | `PASS`" in text
 
 
 def test_h2_development_compatibility_documents_transparent_transition() -> None:

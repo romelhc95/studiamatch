@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-26-F11-H2-QUALITY-CLEANUP-LOCAL-PENDING`.
+Snapshot: `SNAPSHOT-2026-08-26-F11-H2-QUALITY-CLEANUP-REMOTE-VERIFIED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -36,7 +36,7 @@ funcional.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` | H2 base fue promovido a `certificacion`; PR #466 aplico/verifico compatibilidad legacy en Free bajo JIT y la web real muestra `227` cursos. Correccion local de calidad retira rewrites rotos y social proof fuera de alcance; pendiente validacion Docker, preview remoto, revision humana y CI requerido antes de merge. |
+| `F11` | Activacion documental del nuevo pedido | `H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | H2 base fue promovido a `certificacion`; PR #466 aplico/verifico compatibilidad legacy en Free bajo JIT y la web real muestra `227` cursos. Correccion de calidad validada en Docker, CI y preview Cloudflare `be52f883`; pendiente revision humana antes de merge. |
 
 ## Subfases F10
 
@@ -72,15 +72,15 @@ funcional.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H2_QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`.
-- Proximo gate unico: `LOCAL_QUALITY_VALIDATION_THEN_PR_466_REVIEW_AND_CI_BEFORE_MERGE`.
+- Gate vigente: `H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`.
+- Proximo gate unico: `PR_466_REVIEW_REQUIRED_BEFORE_MERGE`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` | `TASK-H2-001` |
+| `HITO-002` | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | `TASK-H2-001` |
 | `HITO-003` | `NEXT_AFTER_H2_CERTIFICATION_QA` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
@@ -98,14 +98,13 @@ funcional.
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
 | Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
 | Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada y PRs #458/#459/#460 mergeados. |
-| Compatibilidad Desarrollo | `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Correccion local de calidad elimina rewrites de detalle, llamadas legacy `ratings`/`reviews` y defaults fabricados; falta preview remoto nuevo. |
+| Compatibilidad Desarrollo | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Preview `be52f883` valida Home, detalle, comparador, HTML inicial correcto, bundle sin `ratings`/`reviews` y rutas relacionadas `200`. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es validar localmente la correccion de calidad de PR #466,
-generar preview remoto nuevo solo tras commit/push autorizados y revisar sus
-checks antes de merge a `desarrollo`; cualquier nueva promocion queda bloqueada
-hasta merge protegido y QA posterior.
+El alcance inmediato es revision humana de PR #466 antes de merge a
+`desarrollo`; cualquier nueva promocion queda bloqueada hasta merge protegido y
+QA posterior.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
 salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo`, PR #459
@@ -113,7 +112,7 @@ agrego gate documental post-merge y PR #460 lo promovio a `certificacion`, todos
 con CI verde. Forward-fix, remediacion Security Advisor, backfill editorial,
 seed, fix de vista publica y compatibilidad legacy aplicados/verificados en
 Supabase Free. La web real de Desarrollo muestra `227` cursos; la limpieza de
-calidad queda pendiente de validacion remota en un preview nuevo. Pro, writer,
+calidad quedo validada remotamente en preview Cloudflare `be52f883`. Pro, writer,
 schedule o nueva accion remota requiere aprobacion JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
@@ -129,6 +128,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es validar la limpieza local de calidad, luego revision humana
-y CI del PR #466 antes de merge a `desarrollo`. Pro, writers, schedules,
-produccion, deploys y cambios remotos adicionales siguen bloqueados.
+El siguiente gate es revision humana del PR #466 antes de merge a `desarrollo`.
+Pro, writers, schedules, produccion, deploys y cambios remotos adicionales
+siguen bloqueados.

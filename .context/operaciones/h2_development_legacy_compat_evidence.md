@@ -1,6 +1,6 @@
 # H2 Development Legacy Compatibility Evidence
 
-Estado: `QUALITY_CLEANUP_LOCAL_PENDING_REMOTE_VERIFICATION`.
+Estado: `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`.
 
 Ambiente objetivo: `desarrollo` / Supabase Free.
 
@@ -27,7 +27,7 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Escalabilidad | `GO` | La cohorte es una tabla indexada por `course_id`; el lector mantiene filtros por `active`, `verified` y `production_enabled`. |
 | Seguridad | `GO` | No hay fallback frontend a `courses`; la cohorte queda en schema `private`, sin grants publicos, y la vista expone solo campos publicos. |
 | Mantenimiento | `GO` | La compatibilidad es forward-only, versionada y separa expansion temporal de contraccion futura. |
-| Calidad | `PENDING_REMOTE_VERIFICATION` | Correccion local retira rewrites que servian HTML fallback en detalles, llamadas legacy `ratings`/`reviews` retiradas y defaults fabricados del comparador. Falta preview remoto nuevo sin React #418, 401 ni 404 de rutas exportadas antes de declarar `GO`. |
+| Calidad | `GO` | Correccion validada en Docker, CI y preview Cloudflare `be52f883`: detalle sin React #418, bundle sin llamadas legacy `ratings`/`reviews`, recursos RSC criticos `200`, rutas relacionadas `200` y comparador sin defaults fabricados. |
 | Rendimiento | `GO` | La cohorte usa PK por `course_id`; el lector filtra por columnas existentes y conserva una superficie de 28 columnas. |
 
 ## Preflight Read-Only Free 2026-08-26
@@ -80,7 +80,22 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 | Relacionados | Carga desacoplada de social proof y filtrada por `category_id` + `institution_id`, para que los href usen el `institution_slug` real del curso actual. |
 | Comparador | Precio, salario y ROI desconocidos se muestran como `Consultar`/`No disponible`; no se fabrican `Gratis`, `S/ 4,500` ni `12.0` meses. |
 | Pruebas | Regresiones estaticas agregadas para rewrites, social proof, relacionados y defaults fabricados; smoke mock falla ante endpoints REST inesperados. |
-| Estado calidad | `PENDING_REMOTE_VERIFICATION`: requiere build/preview nuevo y consola/red limpias antes de subir a `GO`. |
+| Estado calidad | `GO`: preview Cloudflare `be52f883` validado sin React #418, sin 401 de `ratings`/`reviews` y sin 404 de rutas exportadas criticas. |
+
+## Validacion Remota Calidad 2026-08-26
+
+| Control | Resultado |
+|---|---|
+| Commit validado | `4b66837dd238a048980fbc81a3e8cf9b8a07709f` |
+| Preview Cloudflare | `https://be52f883.studiamatch-aty.pages.dev/` |
+| CI requerido | `security-audit` y CodeQL `PASS`; Cloudflare Pages `PASS`. |
+| Home/listado | `PASS`: `227` resultados y `14` instituciones. |
+| Detalle directo | `PASS`: `/courses/dmc/big-data-12b2f4dc/` carga `Big data`; HTML inicial contiene JSON-LD y no contiene `Ruta de programa no válida`. |
+| Recursos RSC detalle | `PASS`: `index.txt`, `__next._tree.txt` y `__next._full.txt` responden `200`. |
+| Bundle publicado | `PASS`: no contiene `/rest/v1/ratings` ni `/rest/v1/reviews`. |
+| Comparador | `PASS`: `/compare/?ids=cafd93b2-4a2b-403e-b289-d7fd135316c7` carga `Big data`. |
+| Relacionados | `PASS`: `databricks-associate-cf7986c4`, `diploma-devops-engineer-9ff7e7ea` y `azure-data-engineering-13efdc78` responden `200` sin fallback. |
+| Consola navegador | `PASS_WITH_FONT_WARNINGS`: sin React #418 ni 401; solo warnings de preload de fonts no bloqueantes. |
 
 ## Reglas De Cohorte
 
@@ -96,7 +111,7 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 |---|---|
 | `expand` | Crear `private.h2_legacy_public_course_cohort` y reemplazar el lector acotado sin reabrir lectura publica directa a `courses`. |
 | `compatibilidad` | Mantener visibles los cursos legacy que ya cumplian `active + verified + production_enabled`; retirar solo social proof roto/fuera de alcance sin tocar DB ni datos existentes. |
-| `deploy` | Validar Home, listado, detalle, comparador, build static y smoke web contra `courses_public_effective`; preview nuevo debe quedar sin React #418, 401 de `ratings`/`reviews` ni 404 de rutas exportadas. |
+| `deploy` | Home, listado, detalle, comparador, build static y smoke web validados contra `courses_public_effective`; preview `be52f883` queda sin React #418, 401 de `ratings`/`reviews` ni 404 de rutas exportadas criticas. |
 | `contract` | Retirar la cohorte legacy cuando los cursos requeridos esten publicados por el contrato H2 estricto `published + complete + available`; social proof real futuro debe entrar como modulo autenticado/moderado separado. |
 | Rollback | Frontend-only para limpieza de calidad; revertir commit restauraria UI previa sin DDL, sin perdida de datos y sin modificar Supabase. |
 | No degradacion funcional | `courses_public_effective=0` era `NO-GO`; post-apply Free queda `227`; limpieza local preserva catalogo, detalle y comparador sin llamadas fuera del contrato publico H2. |
@@ -106,4 +121,4 @@ Corregir la transicion H2 para que la web de Desarrollo conserve los cursos que 
 - No autoriza Supabase Pro, produccion, schedules, canaries, deploys, merge a `main` ni publicacion masiva.
 - La aplicacion en Free requiere JIT separada para aplicar la migracion y verificar equivalencia real contra datos remotos.
 - Si el inventario remoto no encuentra cursos elegibles, se permite un seeder condicionado de fixtures solo en Free para validar comportamiento, no como evidencia de catalogo real.
-- PR #466 no debe mergearse sin validacion local, preview remoto nuevo, revision humana y CI requerido. Calidad no sube a `GO` hasta comprobar consola/red limpias en el preview nuevo.
+- PR #466 no debe mergearse sin revision humana. CI requerido, Cloudflare Pages y calidad remota ya estan verificados para `4b66837`.
