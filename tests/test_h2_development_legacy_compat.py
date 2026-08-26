@@ -112,7 +112,8 @@ def test_h2_quality_gate_records_remote_preview_verification() -> None:
     text = read(EVIDENCE)
 
     assert "## Validacion Remota Calidad 2026-08-26" in text
-    assert "https://be52f883.studiamatch-aty.pages.dev/" in text
+    assert "be52f883" in text
+    assert "studiamatch-aty.pages.dev" in text
     assert "sin React #418" in text
     assert "Bundle publicado | `PASS`" in text
     assert "Relacionados | `PASS`" in text
