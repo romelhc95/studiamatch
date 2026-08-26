@@ -7,8 +7,8 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 
 ## Pilares Transversales Obligatorios
 
-Todo desarrollo futuro del producto debe preservar continuamente escalabilidad,
-seguridad, mantenimiento, calidad y rendimiento. Ningun hito, task o
+Todo desarrollo futuro del producto debe preservar continuamente funcionalidad,
+escalabilidad, seguridad, mantenimiento, calidad y rendimiento. Ningun hito, task o
 requerimiento puede cerrarse sin validar estas premisas frente al alcance
 ejecutado.
 

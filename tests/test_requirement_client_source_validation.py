@@ -69,6 +69,22 @@ def test_client_source_gate_is_generic_for_new_client_development() -> None:
         assert "no se versiona" in text
 
 
+def test_required_pillars_include_functionality_for_critical_changes() -> None:
+    agents = read("AGENTS.md")
+    state = read(".context/estado_del_proyecto.md")
+    pr_template = read(".github/pull_request_template.md")
+
+    for text in [agents, state]:
+        assert "funcionalidad" in text.lower()
+        assert "escalabilidad" in text.lower()
+        assert "seguridad" in text.lower()
+        assert "mantenimiento" in text.lower()
+        assert "calidad" in text.lower()
+        assert "rendimiento" in text.lower()
+
+    assert "| Funcionalidad | `PENDIENTE/APROBADO` |" in pr_template
+
+
 def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> None:
     attestation = read(SANITIZED_ATTESTATION_PATH)
     evidence = read(".context/evidencias_cliente/req_est_001_sprint_1/evidencia_hito_002.md")
