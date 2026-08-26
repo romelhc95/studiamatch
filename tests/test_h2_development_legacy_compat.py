@@ -24,7 +24,7 @@ def test_h2_development_compatibility_closes_hito_acceptance_criteria() -> None:
     assert "`H2-CA2` Modelo editorial separado | `GO`" in text
     assert "`H2-CA3` Pipeline tolerante a incompletos | `GO`" in text
     assert "Compatibilidad funcional Desarrollo local/mock | `GO`" in text
-    assert "Compatibilidad funcional Desarrollo remoto | `NO-GO_PENDING_FREE_MIGRATION`" in text
+    assert "Compatibilidad funcional Desarrollo remoto | `GO_AFTER_FREE_MIGRATION`" in text
     assert "Privacidad de datos editoriales | `GO`" in text
     assert "Transparencia para futuro main | `GO_CONDICIONADO`" in text
 
@@ -35,9 +35,10 @@ def test_h2_development_compatibility_does_not_overstate_required_pillars() -> N
     for pillar in ["Escalabilidad", "Seguridad", "Mantenimiento", "Rendimiento"]:
         assert f"| {pillar} | `GO` |" in text
 
-    assert "| Funcionalidad | `NO-GO_PENDING_FREE_MIGRATION` |" in text
-    assert "| Calidad | `NO-GO_PENDING_REMOTE_EVIDENCE` |" in text
-    assert "Desarrollo remoto aun devuelve `courses_public_effective=[]`" in text
+    assert "| Funcionalidad | `GO_AFTER_FREE_MIGRATION` |" in text
+    assert "| Calidad | `GO_WITH_OBSERVATIONS` |" in text
+    assert "Desarrollo remoto muestra `227` programas" in text
+    assert "401 manejados en ratings/reviews" in text
     assert "No hay fallback frontend a `courses`" in text
 
 
@@ -50,7 +51,12 @@ def test_h2_development_readonly_preflight_records_remote_delta() -> None:
     assert "Vista efectiva actual | `0` cursos" in text
     assert "`227` cursos legacy faltan" in text
     assert "ordered IDs md5 `b2a88ca4af2075f9796365acec1904c8`" in text
-    assert "PR #466 no debe mergearse" in text
+    assert "Post-Apply Free 2026-08-26" in text
+    assert "Cohorte legacy | `227` cursos" in text
+    assert "Vista efectiva actual | `227` cursos" in text
+    assert "Missing legacy IDs | `0`" in text
+    assert "Unexpected effective IDs | `0`" in text
+    assert "PR #466 no debe mergearse sin revision humana" in text
 
 
 def test_h2_development_compatibility_documents_transparent_transition() -> None:
@@ -60,7 +66,8 @@ def test_h2_development_compatibility_documents_transparent_transition() -> None
     for phase in ["`expand`", "`compatibilidad`", "`deploy`", "`contract`", "Rollback", "No degradacion funcional"]:
         assert phase in text
     assert "Retirar la cohorte legacy" in text
-    assert "courses_public_effective=0` es `NO-GO`" in text
+    assert "courses_public_effective=0` era `NO-GO`" in text
+    assert "post-apply Free queda `227`" in text
 
 
 def test_h2_legacy_cohort_is_private_and_conditioned_to_business_visible_courses() -> None:

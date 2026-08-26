@@ -42,7 +42,7 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Definiciones privadas | 16 | Campos internos protegidos. |
 | Columnas de vista publica | 28 | Superficie publica acotada. |
 | Campos privados expuestos | 0 | No se publica estado interno ni auditoria. |
-| Compatibilidad visual Desarrollo | `NO-GO_PENDING_FREE_MIGRATION` | El diseno local/mock preserva cursos legacy, pero Desarrollo remoto sigue devolviendo `courses_public_effective=[]`; requiere aplicar/verificar cohorte Free con JIT separada. |
+| Compatibilidad visual Desarrollo | `GO_AFTER_FREE_MIGRATION` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte y `227` visibles en `courses_public_effective`; preview #466 muestra catalogo, detalle y comparador. |
 
 ## Evidencia Tecnica Resumida
 
@@ -73,7 +73,7 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Static build | `PASS`. |
 | Credential scan | `PASS`. |
 | Security-auditor pre-merge | `GO emitido antes de abrir PR #458`. |
-| Compatibilidad desarrollo | `PREPARED_FOR_FREE_DEVELOPMENT_JIT`: corrige el criterio funcional para que `courses_public_effective=0` sea NO-GO si existen cursos legacy elegibles. |
+| Compatibilidad desarrollo | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW`: `courses_public_effective=0` queda NO-GO si existen legacy elegibles; post-apply Free queda `227`. |
 | PR #458 | `APPROVED_AND_MERGED_TO_DESARROLLO@0c9e40f81f2a38141c9c2af170e26ab594b7533d`. |
 | PR #459 | `APPROVED_AND_MERGED_CONTEXT_GATE@4f7061585202301760d8068e13edc5c93b0f94e2`. |
 | PR #460 | `APPROVED_AND_MERGED_TO_CERTIFICACION@0ed6afeec741c698f1111c2ea27357160fa77279`. |

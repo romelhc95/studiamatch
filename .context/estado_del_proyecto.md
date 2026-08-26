@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-26-F11-H2-DEVELOPMENT-COMPAT-PREFLIGHT`.
+Snapshot: `SNAPSHOT-2026-08-26-F11-H2-DEVELOPMENT-COMPAT-REMOTE-VERIFIED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -36,7 +36,7 @@ funcional.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_DEVELOPMENT_COMPAT_NO_GO_PENDING_FREE_MIGRATION` | H2 base fue promovido a `certificacion`, pero la web real de Desarrollo quedo en `0` cursos porque `courses_public_effective` devuelve `[]`; PR #466 prepara compatibilidad legacy y requiere JIT Free para aplicacion/verificacion antes de merge. |
+| `F11` | Activacion documental del nuevo pedido | `H2_DEVELOPMENT_COMPAT_REMOTE_VERIFIED_PENDING_REVIEW` | H2 base fue promovido a `certificacion`; PR #466 aplico/verifico compatibilidad legacy en Free bajo JIT y la web real muestra `227` cursos. Pendiente revision humana, CI requerido y aceptacion de observaciones UI antes de merge. |
 
 ## Subfases F10
 
@@ -72,15 +72,15 @@ funcional.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H2_DEVELOPMENT_COMPAT_NO_GO_PENDING_FREE_MIGRATION`.
-- Proximo gate unico: `FREE_H2_COMPAT_JIT_APPLY_AND_REAL_WEB_VALIDATION`.
+- Gate vigente: `H2_DEVELOPMENT_COMPAT_REMOTE_VERIFIED_PENDING_REVIEW`.
+- Proximo gate unico: `PR_466_REVIEW_AND_CI_BEFORE_MERGE`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `NO-GO_PENDING_FREE_COMPAT_MIGRATION` | `TASK-H2-001` |
+| `HITO-002` | `REMOTE_COMPAT_VERIFIED_PENDING_REVIEW` | `TASK-H2-001` |
 | `HITO-003` | `NEXT_AFTER_H2_CERTIFICATION_QA` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
@@ -98,19 +98,20 @@ funcional.
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
 | Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
 | Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada y PRs #458/#459/#460 mergeados. |
-| Compatibilidad Desarrollo | `NO-GO_PENDING_FREE_MIGRATION` | Preflight read-only Free: `227` cursos legacy elegibles, `0` H2 estrictos y `0` en `courses_public_effective`; PR #466 no debe mergearse hasta aplicar/verificar compatibilidad en Free con JIT separada. |
+| Compatibilidad Desarrollo | `REMOTE_VERIFIED_PENDING_REVIEW` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes, `0` inesperados y web preview #466 muestra catalogo/detalle/comparador. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es corregir y verificar la compatibilidad funcional H2 en
-Desarrollo antes de cualquier nueva promocion.
+El alcance inmediato es revisar PR #466 y sus checks antes de merge a
+`desarrollo`; cualquier nueva promocion queda bloqueada hasta merge protegido y
+QA posterior.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
 salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo`, PR #459
 agrego gate documental post-merge y PR #460 lo promovio a `certificacion`, todos
 con CI verde. Forward-fix, remediacion Security Advisor, backfill editorial,
-seed y fix de vista publica aplicados/verificados en Supabase Free. La web real
-de Desarrollo muestra `0` cursos hasta aplicar la cohorte legacy. Pro, writer,
+seed, fix de vista publica y compatibilidad legacy aplicados/verificados en
+Supabase Free. La web real de Desarrollo muestra `227` cursos. Pro, writer,
 schedule o nueva accion remota requiere aprobacion JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
@@ -126,7 +127,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es aplicar/verificar compatibilidad H2 en Supabase Free con
-JIT separada y validar la web real de Desarrollo con cursos visibles. Pro,
-writers, schedules, produccion, deploys y cambios remotos adicionales siguen
-bloqueados.
+El siguiente gate es revision humana y CI del PR #466 antes de merge a
+`desarrollo`. Pro, writers, schedules, produccion, deploys y cambios remotos
+adicionales siguen bloqueados.
