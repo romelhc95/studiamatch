@@ -1,14 +1,14 @@
 # Acta Ejecutiva Canonica Hito 002
 
-Estado: `MERGED_TO_CERTIFICACION_CI_GREEN`.
+Estado: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
 
-Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_DEVELOPMENT`.
+Veredicto: `IMPLEMENTED_AND_VALIDATED_IN_CERTIFICATION_NO_MAIN_YET`.
 
-Veredicto PR: `MERGED_TO_CERTIFICACION_CI_GREEN`.
+Veredicto PR: `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`.
 
 Grado de evidencia: `A`.
 
-Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo, mergeado a `desarrollo` por PR #458 y promovido a `certificacion` por PR #460 con checks verdes. No acredita produccion ni aceptacion contractual final sin QA de certificacion, validaciones CI y aprobacion humana posterior.
+Esta acta acredita que H2, compuesto por `H2-CA2` y `H2-CA3`, esta implementado y validado tecnicamente en el ambiente Supabase Free de desarrollo, mergeado a `desarrollo` por PR #458, promovido a `certificacion` por PR #460, corregido por compatibilidad/calidad en PR #466 y promovido nuevamente a `certificacion` por PR #467 con checks verdes y deployment estable. No acredita produccion ni aceptacion contractual final sin remediacion Pro `expand + compatibilidad`, validaciones CI, aprobacion JIT y PR protegido posterior a `main`.
 
 ## Validacion Contra Fuente Cliente
 
@@ -43,6 +43,8 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | Columnas de vista publica | 28 | Superficie publica acotada. |
 | Campos privados expuestos | 0 | No se publica estado interno ni auditoria. |
 | Compatibilidad visual Desarrollo | `GO_AFTER_FREE_MIGRATION` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte y `227` visibles en `courses_public_effective`; preview #466 muestra catalogo, detalle y comparador. |
+| Compatibilidad Certificacion | `GO_AFTER_PR_467` | PR #467 mergeado a `certificacion` en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; Cloudflare `4cc2e34c`; host de certificacion muestra Home, detalle y comparador. |
+| Baseline Pro pre-main | `NO_GO_UNTIL_PRO_EXPAND` | Pro read-only: `350` cursos totales, `224` activos/verificados elegibles; H2 schema ausente. |
 
 ## Evidencia Tecnica Resumida
 
@@ -77,13 +79,16 @@ En terminos practicos, StudIAMatch ya puede distinguir entre informacion captura
 | PR #458 | `APPROVED_AND_MERGED_TO_DESARROLLO@0c9e40f81f2a38141c9c2af170e26ab594b7533d`. |
 | PR #459 | `APPROVED_AND_MERGED_CONTEXT_GATE@4f7061585202301760d8068e13edc5c93b0f94e2`. |
 | PR #460 | `APPROVED_AND_MERGED_TO_CERTIFICACION@0ed6afeec741c698f1111c2ea27357160fa77279`. |
+| PR #466 | `APPROVED_AND_MERGED_TO_DESARROLLO@e8376035d8d5c3e1b7893cbb1ede14f735ccd05d`. |
+| PR #467 | `APPROVED_AND_MERGED_TO_CERTIFICACION@2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment `4cc2e34c` estable. |
 | Fuente cliente | `SRC-REQ-002` validada via `ADENDA-REQ-EST-001-001`. |
 | Gate fuente privada | `tests/test_requirement_client_source_validation.py` con `STUDIAMATCH_PRIVATE_SOURCE_DIR`: `6 passed`. |
-| Veredicto PR | `MERGED_TO_CERTIFICACION_CI_GREEN`. |
+| Veredicto PR | `PR_467_MERGED_TO_CERTIFICACION_CI_GREEN_DEPLOY_STABLE`. |
+| Remediacion productiva | `PLAN_READY_NO_PRO_APPLY_NO_MAIN_PROMOTION`: ver [Plan De Remediacion Productiva H2](../../operaciones/h2_production_remediation_plan.md). |
 
 ## Alcance No Incluido
 
-Este hito no despliega produccion, no habilita schedules, no ejecuta writers productivos, no sincroniza Supabase Pro y no abre capturas reales de leads. Esas acciones requieren aprobacion separada.
+Este hito no despliega produccion, no habilita schedules, no ejecuta writers productivos, no sincroniza Supabase Pro y no abre capturas reales de leads. Pro y `main` quedan bloqueados hasta remediacion productiva con aprobacion separada.
 
 ## Enlaces Canonicos
 
@@ -94,9 +99,10 @@ Este hito no despliega produccion, no habilita schedules, no ejecuta writers pro
 - TASK: [TASK-H2-001](../../backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md)
 - Matriz: [Matriz Hito 002](../../matrices/matriz_hito_002.md)
 - Evidencia tecnica: [H2 Local Acceptance Evidence](../../operaciones/h2_local_acceptance_evidence.md)
+- Remediacion productiva: [Plan De Remediacion Productiva H2](../../operaciones/h2_production_remediation_plan.md)
 - JIT Security Advisor: [DDL-H2-SECURITY-ADVISOR-REMEDIATION-FREE](../../operaciones/ddl_authorizations/DDL-H2-SECURITY-ADVISOR-REMEDIATION-FREE.md)
 - JIT Vista Publica: [DDL-H2-PUBLIC-EFFECTIVE-VIEW-FIELDS-FIX-FREE](../../operaciones/ddl_authorizations/DDL-H2-PUBLIC-EFFECTIVE-VIEW-FIELDS-FIX-FREE.md)
 
 ## Decision Solicitada
 
-Con esta evidencia, el siguiente paso es autorizar QA read-only de H2 en `certificacion`. La promocion a `certificacion` no autoriza Supabase Pro, produccion, writers, schedules, canaries, deploys ni DDL/DML adicional.
+Con esta evidencia, el siguiente paso es versionar y aprobar la remediacion productiva H2. La promocion a `main` sigue en `NO-GO` hasta ejecutar y verificar Pro `expand + compatibilidad` bajo JIT separada.

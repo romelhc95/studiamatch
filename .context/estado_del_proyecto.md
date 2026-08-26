@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-26-F11-H2-QUALITY-CLEANUP-REMOTE-VERIFIED`.
+Snapshot: `SNAPSHOT-2026-08-26-F11-H2-CERTIFICATION-STABLE-PRO-REMEDIATION-PLANNED`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -28,6 +28,23 @@ contrato solicitado. Ningun hito, task o PR puede cerrarse ni promoverse sin
 documentar compatibilidad, contraccion, rollback y evidencia de no degradacion
 funcional.
 
+Todo prompt futuro de desarrollo queda bajo `PROMPT_RETROALIMENTADO_REQUIRED`
+segun [Estandar De Prompts Retroalimentados](operaciones/estandar_prompts_retroalimentados.md).
+Un prompt retroalimentado mantiene un ciclo de analizar, implementar, validar,
+revisar, convertir cada fallo, hallazgo, drift o gate incompleto en tareas,
+corregir y revalidar hasta cumplir sus criterios de GO. No se declara GO por
+intencion, implementacion parcial o pruebas locales cuando el alcance exige
+evidencia remota. Si se requiere JIT, push, PR, merge, deploy,
+workflow_dispatch, Supabase writes, ramas protegidas o acciones destructivas,
+la ejecucion se detiene y se pide aprobacion humana separada con opciones
+concretas, recomendacion y consecuencias. Cada aprobacion recibida obliga a
+reevaluar estado, actualizar el plan y continuar desde el gate detenido. El
+cierre exige evidencia canonica, criterios cliente, pruebas completas,
+revisiones especializadas y ausencia de hallazgos HIGH/CRITICAL. No se pueden
+ocultar fallos como historicos o fuera de alcance sin demostrar baseline; cada
+waiver requiere causa, evidencia reproducible, owner, riesgo, vencimiento y
+aprobacion humana.
+
 ## Fases
 
 | ID | Fase | Estado | Resultado vigente |
@@ -36,7 +53,7 @@ funcional.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | H2 base fue promovido a `certificacion`; PR #466 aplico/verifico compatibilidad legacy en Free bajo JIT y la web real muestra `227` cursos. Correccion de calidad validada en Docker, CI y preview Cloudflare `be52f883`; pendiente revision humana antes de merge. |
+| `F11` | Activacion documental del nuevo pedido | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | H2 compat fue aprobado y mergeado a `certificacion` por PR #467 en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; Cloudflare `4cc2e34c`, CI verde y smoke post-merge estable. Promocion a `main` queda en `NO-GO` hasta ejecutar la remediacion productiva Pro documentada y verificar `expand + compatibilidad` antes del deploy frontend. |
 
 ## Subfases F10
 
@@ -72,15 +89,15 @@ funcional.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`.
-- Proximo gate unico: `PR_466_REVIEW_REQUIRED_BEFORE_MERGE`.
+- Gate vigente: `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
+- Proximo gate unico: `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | `TASK-H2-001` |
+| `HITO-002` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | `TASK-H2-001` |
 | `HITO-003` | `NEXT_AFTER_H2_CERTIFICATION_QA` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
@@ -96,23 +113,27 @@ funcional.
 | Soporte temporal raiz | `REMOVED` | `REDEFINICION.md` eliminado definitivamente; no debe recrearse. |
 | Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
-| Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
-| Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada y PRs #458/#459/#460 mergeados. |
-| Compatibilidad Desarrollo | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | Post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Preview `be52f883` valida Home, detalle, comparador, HTML inicial correcto, bundle sin `ratings`/`reviews` y rutas relacionadas `200`. |
+| Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED_PRO_EXPAND_PENDING` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed, fix de vista y compatibilidad aplicados/verificados en Supabase Free. Pro read-only confirma que H2 schema aun no existe y que el baseline elegible productivo es `224`. |
+| Evidencia cliente | `GRADE_A_CLIENT_SOURCE_VALIDATED_H2_CERTIFICACION` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, validacion contra `SRC-REQ-002` via adenda sanitizada, PRs #458/#459/#460 mergeados y QA read-only definida. |
+| QA certificacion previa | `PASS_CERTIFICATION_READ_ONLY_QA` | [QA H2/H3 read-only](operaciones/h2_h3_certification_readonly_qa.md) ejecutada antes de la compatibilidad legacy: suite `108 passed`, build/static smoke PASS, vista publica sin privados y advisors sin bloqueantes H2. |
+| Compatibilidad Desarrollo | `MERGED_TO_DESARROLLO_READY_FOR_CERTIFICATION_PROMOTION` | PR #466 mergeado a `desarrollo` en `e8376035d8d5c3e1b7893cbb1ede14f735ccd05d`; post-apply Free: `227` cursos legacy elegibles, `227` en cohorte, `227` en `courses_public_effective`, `0` faltantes y `0` inesperados. Preview final `af2ac376` valida Home, detalle, comparador, HTML inicial correcto, bundle sin `ratings`/`reviews` y rutas relacionadas `200`. |
+| Compatibilidad Certificacion | `MERGED_AND_DEPLOYED_STABLE` | PR #467 mergeado a `certificacion` en `2d499324bb21e750d9bc7c94cb80e7a193062b50`; deployment `4cc2e34c`; checks verdes; host `https://certificacion.studiamatch-aty.pages.dev/` con Home, detalle y comparador `200`. |
+| Remediacion productiva | `PLAN_IMPLEMENTED_LOCALLY_NO_PRO_APPLY_NO_MAIN_PROMOTION` | [Plan De Remediacion Productiva H2](operaciones/h2_production_remediation_plan.md) define `expand -> compatibilidad -> deploy -> contract`, baseline Pro `224`, migraciones Pro separadas, manifiestos cerrados en DB Sync y gates previos a `main`. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es revision humana de PR #466 antes de merge a
-`desarrollo`; cualquier nueva promocion queda bloqueada hasta merge protegido y
-QA posterior.
+El alcance inmediato es versionar la remediacion productiva H2 y habilitar el
+flujo protegido hacia `main` sin ejecutarlo. Pro, `main`, writers, schedules,
+deploys manuales o DML adicional requieren aprobacion JIT separada. La secuencia
+obligatoria para produccion es expandir y verificar Pro antes del deploy frontend.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
 salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo`, PR #459
 agrego gate documental post-merge y PR #460 lo promovio a `certificacion`, todos
 con CI verde. Forward-fix, remediacion Security Advisor, backfill editorial,
 seed, fix de vista publica y compatibilidad legacy aplicados/verificados en
-Supabase Free. La web real de Desarrollo muestra `227` cursos; la limpieza de
-calidad quedo validada remotamente en preview Cloudflare `be52f883`. Pro, writer,
+Supabase Free. La web real de Certificacion muestra cursos reales; la limpieza de
+calidad quedo validada remotamente en preview Cloudflare `4cc2e34c`. Pro, writer,
 schedule o nueva accion remota requiere aprobacion JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
@@ -128,6 +149,8 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es revision humana del PR #466 antes de merge a `desarrollo`.
-Pro, writers, schedules, produccion, deploys y cambios remotos adicionales
-siguen bloqueados.
+El siguiente gate es remediacion productiva H2 por flujo protegido: aplicar y
+verificar el manifiesto `h2-expand-compat` en Pro de forma aditiva,
+validar backup/PITR y verificar Pro antes de cualquier PR efectivo a `main`.
+Pro, writers, schedules, produccion, deploys manuales y cambios remotos
+adicionales siguen bloqueados sin JIT separada.

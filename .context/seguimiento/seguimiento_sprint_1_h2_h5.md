@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`
+`F11_H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`
 
 | Control | Estado |
 |---|---|
@@ -31,7 +31,12 @@
 | Validacion fuente cliente | `SRC-REQ-002_VALIDATED_VIA_ADENDA_SANITIZADA` |
 | Gate fuente privada local | `PASSED_6_TESTS_HASH_MATCH` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `PR_466_REVIEW_REQUIRED_BEFORE_MERGE` |
+| QA read-only H2/H3 previa | `PASS_CERTIFICATION_READ_ONLY_QA` |
+| PR H2 compat desarrollo | `APPROVED_AND_MERGED_466@e8376035d8d5c3e1b7893cbb1ede14f735ccd05d` |
+| PR H2 compat certificacion | `APPROVED_AND_MERGED_467@2d499324bb21e750d9bc7c94cb80e7a193062b50` |
+| Certificacion deployment | `STABLE_4cc2e34c` |
+| Pro remediacion | `PLAN_READY_NO_PRO_APPLY_NO_MAIN_PROMOTION` |
+| Proximo gate unico | `PRODUCTION_REMEDIATION_PRO_EXPAND_COMPAT_BEFORE_MAIN` |
 
 ## Porcentaje De Avance
 
@@ -39,8 +44,8 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | 97 |
-| `H2-CA3` | `QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW` | 97 |
+| `H2-CA2` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
+| `H2-CA3` | `H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED` | 99 |
 | `H3-CA4` | `NEXT_AFTER_H2_CERTIFICATION_QA` | 0 |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -52,7 +57,7 @@
 | `H5-CA11` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H5-CA13R` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 
-`Progreso H2-H5 = 194 / 1200 x 100 = 16.17%`
+`Progreso H2-H5 = 198 / 1200 x 100 = 16.50%`
 
 ### Homologacion
 
@@ -60,14 +65,14 @@
 
 ## Porcentaje De Desviacion
 
-`H2_QUALITY_CLEANUP_REMOTE_VERIFIED_PENDING_REVIEW`.
+`H2_CERTIFICATION_STABLE_PRO_REMEDIATION_PLANNED`.
 
 La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459 y PR #460 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; preview #466 `be52f883` muestra catalogo, detalle y comparador sin React #418, 401 ni 404 de rutas exportadas criticas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
+- Hito 2: DDL Free remediada, backfill editorial, seed diccionario, fix de vista publica y compatibilidad legacy aplicados/verificados; PR #458, PR #459, PR #460, PR #466 y PR #467 aprobados/mergeados con CI verde; post-apply Free detecto `227` cursos legacy elegibles, `227` efectivos, `0` faltantes y `0` inesperados; certificacion `4cc2e34c` muestra catalogo, detalle y comparador sin React #418, 401 ni 404 de rutas exportadas criticas; criterios contrastados contra `SRC-REQ-002` via adenda sanitizada.
 - Hitos 3-5: planificados segun dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
@@ -80,7 +85,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 - PR #414, #415 y #416 fueron fusionados mediante PR protegidos.
 - El flujo normal de PR protegido queda restaurado para cambios futuros.
-- H2 base esta mergeado en `certificacion`; PR #466 queda pendiente de revision humana antes de merge a `desarrollo`. Cualquier DDL/DML adicional requiere JIT separada.
+- H2 compat esta mergeado en `certificacion` por PR #467 y el despliegue esta estable. La siguiente accion es remediacion productiva Pro/main: `expand + compatibilidad` aditivo, DB Sync H2 por manifest y verificacion de baseline Pro `224` antes de cualquier PR efectivo a `main`. Cualquier DDL/DML adicional requiere JIT separada.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
 - H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
@@ -111,7 +116,7 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Revisar/mergear PR #466 a `desarrollo` solo tras revision humana.
+1. Preparar remediacion productiva H2 para Pro/main mediante flujo protegido, sin aplicar Pro ni abrir PR efectivo a `main` hasta tener `expand + compatibilidad` verificado.
 2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
 3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
@@ -122,6 +127,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Revisar PR #466 H2 compat con calidad remota verificada; no mergear sin revision humana.
-No autoriza Supabase Pro, schedules, writers, deploys ni produccion sin aprobacion JIT separada.
+Preparar remediacion productiva H2: DB Sync H2 por manifest, expand+compat Pro y gates para PR protegido certificacion a main.
+No autoriza Supabase Pro, schedules, writers, deploys manuales, main ni produccion sin aprobacion JIT separada.
 ```

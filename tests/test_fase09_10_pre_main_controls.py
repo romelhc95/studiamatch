@@ -98,11 +98,12 @@ def test_fg1_and_fg3_check_writer_pause_before_mutation() -> None:
 def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
     workflow = source(".github/workflows/db-sync-to-pro.yml")
 
-    assert "push:" in workflow
-    assert "branches: [main]" in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "migration_manifest:" in workflow
     assert "operation:" in workflow
     assert "backup_pitr_verified:" in workflow
     assert "ddl_authorization_id:" in workflow
+    assert "payload_sha:" in workflow
     assert "Report pending migrations dry-run" in workflow
     assert "Confirm report-only mode" in workflow
     assert "github.event_name == 'workflow_dispatch'" in workflow
@@ -113,14 +114,16 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
     assert "fromJSON(needs.report.outputs.pending_count) > 0" in workflow
     assert ".context/operaciones/ddl_authorizations/${DDL_AUTHORIZATION_ID}.md" in workflow
     assert "APPROVED_FOR_PRODUCTION_DDL" in workflow
-    assert 'test "$(git rev-parse origin/main)" = "$CANDIDATE_SHA"' in workflow
+    assert 'test "$(git rev-parse "origin/${GITHUB_REF_NAME}")" = "$CANDIDATE_SHA"' in workflow
+    assert 'h2-expand-compat)' in workflow
+    assert 'test "${GITHUB_REF_NAME}" = "certificacion"' in workflow
+    assert 'h2-contract-public-reader|h2-contract-legacy-cohort|h2-rollback-public-reader-contract)' in workflow
+    assert 'test "${GITHUB_REF_NAME}" = "main"' in workflow
     assert "production_control_preflight.sh DB-SYNC --enforce" in workflow
-    assert "python3 scripts/maintenance/db_migrate.py --env pro --only" in workflow
-    assert "--manifest" not in workflow
+    assert "python3 scripts/maintenance/db_migrate.py --env pro --manifest" in workflow
 
     report_section = workflow.split("  report:", 1)[1].split("  apply:", 1)[0]
-    assert "--dry-run --only" in report_section
-    assert "--manifest" not in report_section
+    assert "--dry-run --manifest" in report_section
     assert "Apply migrations to Pro" not in report_section
     assert not re.search(r"if:\s*github\.ref_name == 'main' && inputs\.apply_authorized", workflow)
 
@@ -128,11 +131,11 @@ def test_db_sync_main_push_is_report_only_and_manual_apply_is_guarded() -> None:
 def test_f910_certification_transition_is_exact_baseline_and_allowlisted() -> None:
     workflow = source(".github/workflows/security-audit.yml")
 
-    assert "Promotion Boundary" in workflow
-    assert "promote/gov-hom-011-o2-req1" in workflow
-    assert "promote/gov-hom-011-o3-req1" in workflow
-    assert "promote/gov-hom-011-o4-req1" in workflow
-    assert "promote/gov-hom-011-o5-req1" in workflow
+    assert "h2-main-production-expand-gate:" in workflow
+    assert "H2 Main Production Expand Gate" in workflow
+    assert "h2_main_production_expand_evidence.json" in workflow
+    assert "api.github.com/repos/${REPOSITORY}/actions/runs/${run_id}/artifacts" in workflow
+    assert "allowed_after_candidate" in workflow
     assert "f910-pre-main-controls:" not in workflow
     assert "F9.10 Pre-Main Repository Controls" not in workflow
     assert "F910_CERTIFICATION_BASELINE" not in workflow
