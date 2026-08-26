@@ -25,20 +25,24 @@ async function fetchCourses(): Promise<Course[]> {
       'apikey': SUPABASE_PUBLISHABLE_KEY
     };
 
-    const [cRes, iRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/courses?is_active=eq.true&is_verified=eq.true&select=${COURSE_PUBLIC_FIELDS},categories(name),institutions(name,slug)&order=created_at.desc`, {
+    const [cRes, iRes, catRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?select=${COURSE_PUBLIC_FIELDS}&order=created_at.desc`, {
         headers,
         next: { revalidate: 3600 }
       }),
       fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, {
         headers,
         next: { revalidate: 3600 }
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, {
+        headers,
+        next: { revalidate: 3600 }
       })
     ]);
 
-    const [cData, iData] = await Promise.all([cRes.json(), iRes.json()]);
+    const [cData, iData, catData] = await Promise.all([cRes.json(), iRes.json(), catRes.json()]);
 
-    if (!Array.isArray(cData) || !Array.isArray(iData)) return [];
+    if (!Array.isArray(cData) || !Array.isArray(iData) || !Array.isArray(catData)) return [];
 
 type CourseApiRecord = {
   id: string; name: string; slug: string; url: string;
@@ -46,15 +50,13 @@ type CourseApiRecord = {
   price_status: string; mode: string; course_type: string;
   category_id: string; duration: string; start_date_text: string;
   category: string;
-  institutions?: { name: string; slug: string };
-  categories?: { name: string };
 };
 
     return cData.map((course: CourseApiRecord) => ({
       ...course,
-      institution_name: course.institutions?.name || iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
-      institution_slug: course.institutions?.slug || iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
-      category: course.categories?.name || course.category
+      institution_name: iData.find((i: Institution) => i.id === course.institution_id)?.name || "StudIAMatch",
+      institution_slug: iData.find((i: Institution) => i.id === course.institution_id)?.slug || "general",
+      category: catData.find((c: { id: string; name: string }) => c.id === course.category_id)?.name || course.category
     })) as unknown as Course[];
   } catch {
     return [];

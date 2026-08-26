@@ -20,6 +20,7 @@ Reglas obligatorias:
 3. Cambios DB, migraciones SQL, DDL/DML, writes Supabase, writers productivos, secretos, backup/restore y acciones destructivas requieren aprobacion JIT separada.
 4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
 5. El pedido nuevo de Sprint 1 queda gobernado por `.context/estado_del_proyecto.md` y el plan vinculante Obsidian; `REDEFINICION.md` fue retirado definitivamente y no debe recrearse.
+6. Todo desarrollo futuro del producto debe preservar continuamente escalabilidad, seguridad, mantenimiento, calidad y rendimiento; ningun hito, task o requerimiento puede cerrarse sin validar esas premisas frente al alcance ejecutado.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 

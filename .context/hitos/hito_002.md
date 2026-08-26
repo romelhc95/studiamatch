@@ -2,14 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` |
+| Estado | `FREE_DDL_DML_PUBLIC_SURFACE_VALIDATED_PR_READY` |
 | Work package | `SUPERSEDED` |
 | Criterios | `H2-CA2`, `H2-CA3` |
-| Gate | PR H2 separado y aprobacion DB JIT para cualquier DDL/DML |
+| Gate | GO tecnico para PR H2 limpio hacia desarrollo; Pro/writers requieren nueva JIT |
 
 ## Alcance
 
-Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. Es el siguiente alcance tecnico despues del PR documental, pero no autoriza DDL/DML sin aprobacion JIT separada.
+Hito 2 implementa CA2 completo antes de integrar CA3: schema editorial/calidad, estados, faltantes, fuentes por campo, timestamps manuales, auditoria append-only, RLS/grants, pipeline tolerante y backfill idempotente. La DDL Free inicial, el forward-fix, la remediacion Security Advisor, el backfill editorial, el seed versionado de `editorial_field_definitions` y el fix `20260826_h2_public_effective_view_public_fields_fix.sql` fueron aplicados/verificados en Supabase Free bajo JIT consumidas. PR H2 queda con veredicto `GO_TECHNICAL_FOR_PROTECTED_PR`, pendiente solo de instruccion humana separada para commit/push/PR.
 
 ## Contrato Editorial
 
@@ -63,4 +63,4 @@ El diseno debe clasificar cada campo como `pipeline_owned`, `manual_owned`, `com
 
 ## Gate
 
-Puede planificarse despues del PR documental. Requiere aprobacion JIT separada para cualquier DDL/DML, Supabase, backfill o writer.
+DDL Free inicial, forward-fix `20260826_h2_editorial_layer_forward_fix.sql`, remediacion `20260826_h2_security_advisor_remediation.sql`, backfill H2, seed `20260826_h2_seed_editorial_field_definitions.sql` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados bajo JIT consumidas. Security Advisor H2 critico/warn resuelto. Segundo run `NOOP` validado. Vista publica efectiva verificada con `0` campos privados, grants explicitos y `security_invoker=true`. Pro, writers, schedules, canaries, deploys o cualquier DML adicional requieren aprobacion separada.

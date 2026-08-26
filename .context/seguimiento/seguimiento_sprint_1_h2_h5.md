@@ -4,7 +4,7 @@
 
 ## Verificacion
 
-`F11_DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED`
+`F11_FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY`
 
 | Control | Estado |
 |---|---|
@@ -23,10 +23,11 @@
 | Certificacion tree | `a03681d271475e8ccbf6061ce63bc4ee5990cd5c` |
 | Redefinicion de flujo | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` |
 | Acciones remotas | `NORMAL_FLOW_RESTORED` |
-| DB | `BLOCKED_NO_DDL_DML` |
+| DB | `FREE_H2_PUBLIC_SURFACE_VALIDATED` |
 | GO documental | `RECEIVED` |
+| GO tecnico PR H2 | `GO_TECHNICAL_FOR_PROTECTED_PR` |
 | Work package activo | `NONE_SUPERSEDED` |
-| Proximo gate unico | `PR_DOCUMENTAL_A_DESARROLLO` |
+| Proximo gate unico | `PR_H2_A_DESARROLLO` |
 
 ## Porcentaje De Avance
 
@@ -34,8 +35,8 @@
 
 | Unidad | Estado | Puntos |
 |---|---|---:|
-| `H2-CA2` | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | 0 |
-| `H2-CA3` | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | 0 |
+| `H2-CA2` | `FREE_DDL_REMEDIATED_READONLY_VERIFIED` | 0 |
+| `H2-CA3` | `FREE_BACKFILL_AND_SEED_VALIDATED` | 0 |
 | `H3-CA4` | `PLANNED_AFTER_H2_ACCEPTED` | 0 |
 | `H4-CA5` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
 | `H4-CA6` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | 0 |
@@ -55,14 +56,14 @@
 
 ## Porcentaje De Desviacion
 
-`DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED`.
+`FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY`.
 
-La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos y trazabilidad insuficiente. La desviacion queda registrada como remediacion documental obligatoria antes de O3.
+La ruta excede la optimizacion original de cinco PR porque la auditoria detecto autoridad faltante, enlaces rotos, trazabilidad insuficiente y endurecimiento H2 adicional. La desviacion queda registrada como remediacion obligatoria previa al PR H2.
 
 ## Cumplimiento De Criterios
 
 - Hito 1: `COMPLETED_CONTRACTUALLY_WITH_WAIVERS`.
-- Hito 2: siguiente alcance tecnico tras PR documental; no ejecutable con DB sin aprobacion JIT.
+- Hito 2: DDL Free remediada, backfill editorial, seed diccionario y fix de vista publica aplicados/verificados; PR listo con veredicto `GO_TECHNICAL_FOR_PROTECTED_PR` bajo instruccion humana separada.
 - Hitos 3-5: planificados segun dependencias del nuevo plan vinculante.
 - Evidencia historica: no reutilizable como PASS.
 - `active_work_package = NONE_SUPERSEDED`.
@@ -78,6 +79,16 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 - H2 es el siguiente alcance tecnico despues del PR documental y requiere JIT DB para cualquier DDL/DML.
 - API de tipo de cambio permanece backlog.
 - Ruta canonica contractual futura: `/programas/[slug]`.
+- H2 remediacion Free: `20260826_h2_security_advisor_remediation.sql` aplicado y verificado read-only; backfill Free aplicado con segundo `NOOP`; seed `editorial_field_definitions` aplicado con 41 definiciones y visibilidad publica acotada; `20260826_h2_public_effective_view_public_fields_fix.sql` aplicado y verificado con `0` campos privados en `courses_public_effective` remoto.
+
+### Backlog Tecnico Post Requerimiento 1
+
+- `BACKLOG-HIGIENE-EOL-001`: se detectaron nueve archivos con ruido exclusivo CRLF/LF; `git diff --ignore-space-at-eol` no mostro cambios funcionales y fueron restaurados a HEAD para no contaminar H2. Si reaparece el ruido, normalizar EOL en tarea separada.
+- `BACKLOG-MAINT-WRITERS-001`: `scripts/maintenance/lightweight_ping.py` y `scripts/maintenance/preventive_cleanup.py` son herramientas manuales con capacidad de escritura/borrado sobre datos; quedan fuera del alcance H2 actual y deben revisarse despues de cerrar el requerimiento 1 antes de conservarlas, retirarlas o endurecerlas.
+- `BACKLOG-MAINT-REPORTS-001`: reportes legacy en `scripts/maintenance/*audit*.py` y `metadata_quality_report.py` siguen leyendo `courses` directamente; deben evaluarse frente al contrato H2 `courses_public_effective`, RLS/grants y pipeline tolerante antes de reutilizarlos.
+- `BACKLOG-TEST-LEGACY-001`: `tests/test_harvester.py` contiene pruebas de integracion vivas contra Supabase y supuestos legacy sobre `courses`; requiere clasificacion posterior para mantenerlo, aislarlo o migrarlo al contrato H2.
+- `BACKLOG-UTILS-ACTIVE-001`: `scripts/shared/utils.py` es dependencia activa de workers core; no debe eliminarse como basura. Solo corresponde normalizar EOL o modificarlo con alcance tecnico explicito.
+- Estos hallazgos no autorizan cambios de codigo, DB, writers, backfill, schedules ni limpieza destructiva durante H2; se revisaran al finalizar el requerimiento 1.
 
 ## Avances
 
@@ -96,9 +107,9 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 
 ## Siguientes Pasos
 
-1. Crear rama documental desde `origin/desarrollo` y abrir PR protegido a `desarrollo` cuando el usuario lo instruya.
+1. Preparar PR H2 limpio hacia `desarrollo` cuando el usuario lo instruya.
 2. Verificar/publicar las tres fuentes solo si los archivos locales estan disponibles, inspeccionados y sus hashes coinciden.
-3. Preparar PR H2 separado; no tocar DB, Supabase, writers ni backfill sin aprobacion JIT separada.
+3. No tocar Supabase Pro, writers, schedules ni deploys sin aprobacion JIT separada posterior.
 
 ## Fecha
 
@@ -107,6 +118,6 @@ La ruta excede la optimizacion original de cinco PR porque la auditoria detecto 
 ## Proximo Prompt Cavernicola
 
 ```text
-Preparar PR documental hacia desarrollo.
-No autoriza DB, Supabase, schedules, writers, deploys ni produccion sin aprobacion JIT separada.
+Preparar PR H2 hacia desarrollo.
+No autoriza Supabase Pro, schedules, writers, deploys ni produccion sin aprobacion JIT separada.
 ```

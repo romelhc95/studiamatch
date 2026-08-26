@@ -35,6 +35,9 @@
 ## Operaciones
 
 - [Plan Vinculante Nuevo Pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md)
+- [H2 Editorial Layer Inventory](operaciones/h2_editorial_layer_inventory.md)
+- [H2 Local Acceptance Evidence](operaciones/h2_local_acceptance_evidence.md)
+- [DDL H2 Security Advisor Remediation Free](operaciones/ddl_authorizations/DDL-H2-SECURITY-ADVISOR-REMEDIATION-FREE.md)
 - [Plan Maestro Sprint 1 H2-H5](operaciones/plan_maestro_sprint1_h2_h5.md)
 - [Baseline, preservacion y homologacion](operaciones/baseline_preservacion_homologacion_sprint1.md)
 - [Flujo release minimo](operaciones/flujo_release_minimo.md)

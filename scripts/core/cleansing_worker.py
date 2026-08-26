@@ -504,7 +504,6 @@ class CleansingWorker:
                 continue
         if is_soft_404(f"{name} {clean_text}"): return "soft_404_detected"
         if not name or len(name) < 3: return "name_too_short"
-        if not description or len(description) < 20: return "description_too_short"
         return None
 
     def process_batch(self, batch: List[Dict[str, Any]]) -> int:

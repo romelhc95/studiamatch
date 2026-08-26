@@ -5,6 +5,13 @@ Snapshot: `SNAPSHOT-2026-08-25-F11-DOC-AUTHORITY-ACTIVE`.
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
 
+## Pilares Transversales Obligatorios
+
+Todo desarrollo futuro del producto debe preservar continuamente escalabilidad,
+seguridad, mantenimiento, calidad y rendimiento. Ningun hito, task o
+requerimiento puede cerrarse sin validar estas premisas frente al alcance
+ejecutado.
+
 ## Fases
 
 | ID | Fase | Estado | Resultado vigente |
@@ -13,7 +20,7 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED` | GO documental recibido; `REDEFINICION.md` eliminado; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
+| `F11` | Activacion documental del nuevo pedido | `FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY` | GO documental recibido; H2 Free aplicado/verificado; GO tecnico para PR protegido; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
 
 ## Subfases F10
 
@@ -44,20 +51,20 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 ## Tarea Activa
 
 - Requerimiento: `REQ-EST-001`.
-- Hito: [HITO-001](hitos/hito_001.md).
-- Tarea: [TASK-H1-001](backlog_tareas/req_est_001_sprint_1/tarea_001_hito_1.md).
+- Hito: [HITO-002](hitos/hito_002.md).
+- Tarea: [TASK-H2-001](backlog_tareas/req_est_001_sprint_1/tarea_002_hito_2.md).
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `DOCUMENTATION_AUTHORITY_ACTIVE_DB_BLOCKED`.
-- Proximo gate unico: `PR_DOCUMENTAL_A_DESARROLLO`.
+- Gate vigente: `FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY` con veredicto `GO_TECHNICAL_FOR_PROTECTED_PR`.
+- Proximo gate unico: `PR_H2_A_DESARROLLO`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `NEXT_ACTIVE_SCOPE_PENDING_PR_AND_JIT_DB` | `TASK-H2-001` |
+| `HITO-002` | `FREE_DDL_DML_PUBLIC_SURFACE_VALIDATED_PR_READY` | `TASK-H2-001` |
 | `HITO-003` | `PLANNED_AFTER_H2_ACCEPTED` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
@@ -73,16 +80,19 @@ Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta 
 | Soporte temporal raiz | `REMOVED` | `REDEFINICION.md` eliminado definitivamente; no debe recrearse. |
 | Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
-| Base de datos | `BLOCKED` | Sin DDL, DML, Supabase MCP ni DB Sync apply. |
+| Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
+| Evidencia cliente | `GRADE_A_GO_TECHNICAL_FOR_PROTECTED_PR` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables y test documental local. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es documental: consolidar autoridad en `AGENTS.md` y Obsidian,
-eliminar el soporte temporal raiz y preparar el PR documental hacia `desarrollo`.
+El alcance inmediato es preparar H2 para PR protegido hacia `desarrollo` bajo
+instruccion humana separada.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
-salvo autorizacion separada. H2 queda como siguiente alcance tecnico, pero cualquier
-DDL/DML, Supabase, writer o backfill requiere aprobacion JIT separada.
+salvo autorizacion separada. H2 tiene commits locales, validacion Docker/PG17,
+forward-fix, remediacion Security Advisor, backfill editorial, seed y fix de
+vista publica aplicados/verificados en Supabase Free. Pro, writer, schedule o
+nueva accion remota requiere aprobacion JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
 
@@ -97,7 +107,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es abrir PR documental protegido hacia `desarrollo` con las
-validaciones de seguridad aplicables. Despues, H2 puede planificarse como PR
-separado, pero DB, Supabase, writers, schedules, produccion, deploys y cambios
-remotos siguen bloqueados hasta aprobacion JIT separada.
+El siguiente gate es preparar push/PR H2 limpio hacia `desarrollo` cuando exista
+instruccion humana separada. Pro, writers, schedules, produccion, deploys y
+cambios remotos adicionales siguen bloqueados.
