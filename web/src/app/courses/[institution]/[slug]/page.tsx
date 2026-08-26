@@ -1,21 +1,24 @@
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, cleanSlug, type Course } from "@/lib/supabase";
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, COURSE_PUBLIC_FIELDS, cleanSlug, type Course } from "@/lib/supabase";
 import type { Metadata } from "next";
 import CourseDetailClientWrapper from "./CourseDetailClientWrapper";
 
-async function fetchCourseMeta(slug: string) {
+async function fetchCourseMeta(institution: string, slug: string) {
   try {
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return null;
+    const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+    const instRes = await fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug&slug=eq.${encodeURIComponent(institution)}&limit=1`, { headers });
+    if (!instRes.ok) return null;
+    const institutions = await instRes.json();
+    const inst = Array.isArray(institutions) ? institutions[0] : null;
+    if (!inst?.id) return null;
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/courses?select=name,description_long,url,price_pen,mode,course_type,institutions(name)&slug=eq.${encodeURIComponent(slug)}&is_active=eq.true&is_verified=eq.true&limit=1`,
-      {
-        headers: {
-          'apikey': SUPABASE_PUBLISHABLE_KEY
-        }
-      }
+      `${SUPABASE_URL}/rest/v1/courses_public_effective?select=${COURSE_PUBLIC_FIELDS}&institution_id=eq.${encodeURIComponent(inst.id)}&slug=eq.${encodeURIComponent(slug)}&limit=1`,
+      { headers }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data?.[0] || null;
+    const course = data?.[0] || null;
+    return course ? { ...course, institution_name: inst.name, institutions: { name: inst.name } } : null;
   } catch {
     return null;
   }
@@ -23,7 +26,7 @@ async function fetchCourseMeta(slug: string) {
 
 export async function generateMetadata({ params }: { params: Promise<{ institution: string, slug: string }> }): Promise<Metadata> {
   const { institution, slug } = await params;
-  const course = await fetchCourseMeta(slug);
+  const course = await fetchCourseMeta(institution, slug);
 
   const courseName = course?.name || slug;
   const instName = course?.institutions?.name || institution;
@@ -56,21 +59,23 @@ export async function generateStaticParams() {
       return defaultPath;
     }
 
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?select=slug,url,institutions(slug)`, {
-      headers: {
-        'apikey': SUPABASE_PUBLISHABLE_KEY
-      }
-    });
+    const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+    const [response, institutionsResponse] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?select=id,institution_id,slug,url`, { headers }),
+      fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,slug`, { headers })
+    ]);
 
-    if (!response.ok) return defaultPath;
+    if (!response.ok || !institutionsResponse.ok) return defaultPath;
 
     const courses = await response.json();
+    const institutions = await institutionsResponse.json();
     if (!Array.isArray(courses) || courses.length === 0) return defaultPath;
+    const institutionArray = Array.isArray(institutions) ? institutions : [];
 
     const paths = courses
-      .filter((c: { slug: string; institutions?: { slug: string } }) => c.slug && c.institutions?.slug)
-      .map((c: { slug: string; institutions?: { slug: string } }) => ({
-        institution: cleanSlug(c.institutions?.slug || 'general'),
+      .filter((c: { slug: string; institution_id: string }) => c.slug && institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug)
+      .map((c: { slug: string; institution_id: string }) => ({
+        institution: cleanSlug(institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug || 'general'),
         slug: c.slug
       }));
 
@@ -117,7 +122,7 @@ export default async function CourseDetailPage({
   params: Promise<{ institution: string; slug: string }> 
 }) {
   const { institution, slug } = await params;
-  const courseMeta = await fetchCourseMeta(slug);
+  const courseMeta = await fetchCourseMeta(institution, slug);
 
   return (
     <>

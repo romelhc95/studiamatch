@@ -2,7 +2,7 @@
 
 ## Regla De Ejecucion
 
-La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), con estas reglas de ejecucion como contrato operativo. [`REDEFINICION.md`](REDEFINICION.md) es soporte temporal hasta el GO para nuevos pedidos del cliente; no crea autoridad independiente. Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
+La autoridad viva del proyecto esta en [`.context/estado_del_proyecto.md`](.context/estado_del_proyecto.md), con estas reglas de ejecucion como contrato operativo. La documentacion Obsidian versionada bajo [`.context/`](.context/) conserva alcance, decisiones, planes y trazabilidad; ningun documento raiz temporal crea autoridad independiente. Los Work Packages, digests documentales, grants persistentes, Context Graph y promotion gates historicos no autorizan ejecucion.
 
 Flujo normal:
 
@@ -19,6 +19,8 @@ Reglas obligatorias:
 2. Push, PR, merge, deploys, schedules y cambios de ramas protegidas requieren instruccion humana separada.
 3. Cambios DB, migraciones SQL, DDL/DML, writes Supabase, writers productivos, secretos, backup/restore y acciones destructivas requieren aprobacion JIT separada.
 4. Si aparece drift de scope, baseline, ambiente, secreto o ruta protegida, detente y consulta.
+5. El pedido nuevo de Sprint 1 queda gobernado por `.context/estado_del_proyecto.md` y el plan vinculante Obsidian; `REDEFINICION.md` fue retirado definitivamente y no debe recrearse.
+6. Todo desarrollo futuro del producto debe preservar continuamente escalabilidad, seguridad, mantenimiento, calidad y rendimiento; ningun hito, task o requerimiento puede cerrarse sin validar esas premisas frente al alcance ejecutado.
 
 ## Auditoría de Credenciales (Obligatorio — ahora automatizado)
 
@@ -93,7 +95,7 @@ python3 scripts/maintenance/<script>.py
 | Free (Desarrollo/Certificación) | `aqrldlmlszjtgpqiegaa` | `https://aqrldlmlszjtgpqiegaa.supabase.co` | `.env.local` / `.env.gitdesa` | `Development` / `Certification` |
 | Pro (Producción) | `xwhtiqmboljkshrtviyw` | `https://xwhtiqmboljkshrtviyw.supabase.co` | `.env.gitprod` | `Production` |
 
-**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, crear la función manualmente en Supabase Dashboard → SQL Editor:
+**Requisito crítico para Pro**: La función RPC `public.exec_sql(sql_text text)` debe existir en el proyecto Pro para que `db_migrate.py` pueda aplicar migrations. Si `db-sync-to-pro.yml` falla con `PGRST202`, primero se debe detener la operación y solicitar aprobación JIT DDL separada. Solo con esa aprobación humana explícita se puede crear o reemplazar la función manualmente en Supabase Dashboard → SQL Editor:
 ```sql
 CREATE OR REPLACE FUNCTION public.exec_sql(sql_text text)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$

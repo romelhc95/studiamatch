@@ -758,10 +758,10 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             if modality_norm.lower() in modality_map:
                 enriched["modality"] = modality_map[modality_norm.lower()]
             elif modality_norm and modality_norm not in ("Presencial", "Remoto", "Híbrido"):
-                logger.warning(f"Unknown modality '{modality_norm}', defaulting to Presencial")
-                enriched["modality"] = "Presencial"
+                logger.warning(f"Unknown modality '{modality_norm}', leaving modality unset")
+                enriched["modality"] = None
             elif not modality_norm or modality_norm.lower() in ('none', 'null', 'nan', ''):
-                enriched["modality"] = "Presencial"
+                enriched["modality"] = None
 
             # Fase 94: Fallback a WooCommerce structured data si LLM no pudo extraer
             if woo_data.get('price') and (enriched.get("total_cost_est") is None or str(enriched.get("total_cost_est")).strip().lower() in ('none', 'null', 'nan', '')):
@@ -937,8 +937,8 @@ Esquema: {{"official_name": "", "duration_text": "", "duration_months": 0, "tota
             ai_summary = clean_desc[:500] + "..." if len(clean_desc) > 500 else clean_desc
 
         # Extract duration and modality from sections if available
-        duration_text = "Consultar"
-        modality = "Presencial"
+        duration_text = None
+        modality = None
         curriculum = {}
 
         if extracted_sections and inst_id:

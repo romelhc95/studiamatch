@@ -1,8 +1,8 @@
 # Flujo Release Minimo
 
 > Esta nota no crea alcance ni autoriza ejecucion por si sola. La autoridad viva
-> esta en `estado_del_proyecto.md`; `../../REDEFINICION.md` queda como soporte
-> temporal sin autoridad independiente hasta el GO para nuevos pedidos.
+> esta en `estado_del_proyecto.md` y el plan activo esta en
+> `plan_vinculante_nuevo_pedido_2026_08_25.md`.
 
 ## Flujo Vigente
 
@@ -23,9 +23,8 @@ feat/* o docs/* desde desarrollo
 - `DB Sync to Production` es manual-only y no corre por push.
 - Cloudflare Pages automatico se acepta solo como efecto normal de merge a `main`, no
   como autorizacion para mutar producto o DB.
-- H2-H5 requieren un nuevo pedido explicito; los Work Packages/digests
-  historicos quedan superseded.
-- `REDEFINICION.md` se conserva temporalmente hasta el GO del cliente y luego se archiva o elimina por PR normal.
+- El nuevo pedido documental activa la secuencia Intake -> H2 -> H3 -> H1 -> H4 -> H5; los Work Packages/digests historicos quedan superseded.
+- El soporte temporal raiz fue eliminado definitivamente y no debe recrearse.
 
 ## Stop Conditions
 

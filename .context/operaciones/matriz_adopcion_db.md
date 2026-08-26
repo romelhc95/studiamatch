@@ -15,6 +15,7 @@ Snapshot GOV-CI9: `desarrollo@1bc36ae6a4381c5ceac5e30c3970c39099965bc3`, tree `7
 Snapshot GOV-CI10: `desarrollo@17d383291a5f2877074b54b66f2a0ff48a643667`, tree `e0029083e24016b97fc8896be3be2d4285414117`; PR #441 fallo post-merge con `POST_MERGE_ATTESTATION_DUPLICATE`; sin cambios DB.
 Snapshot GOV-CI11: `desarrollo@cbdfe9dab373a2b427df4864b14427f3b2358789`, tree `99c1cda4f0091aaee35752caec69745051c41a3a`; PR #443 queda `FAILED_NOT_MERGED_FROZEN`; sin cambios DB.
 Snapshot GOV-CI12 REQ7: `desarrollo@34fb06d552ea4d052bd3f942948a192a7e44a5eb`, tree `d53e81717a4c44d59177591c3ce69392072ec716`; PR #443, PR #445 y PR #447 quedan `FAILED_NOT_MERGED_FROZEN`; PR #446 y PR #448 fueron publicados en `desarrollo`; REQ7 prepara HOM-012 REQ2; sin cambios DB.
+Snapshot H2 Free DDL: rama local `feat/h2-editorial-model`; migraciones Free aplicadas `20260825205937/20260825_h2_editorial_layer`, `20260825210119/20260825_h2_editorial_layer_grants_fix`, `20260825210927/20260825_h2_editorial_layer_start_date_view_fix` y `20260825211309/20260825_h2_editorial_layer_allowlist_fix`; sin Pro, backfill, writers, schedules ni deploys.
 
 ## Ambientes
 

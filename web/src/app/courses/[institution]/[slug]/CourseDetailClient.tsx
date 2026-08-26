@@ -67,10 +67,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ first_name: "", last_name: "", email: "", whatsapp: "", area_interest: "", budget: "", modality_pref: "" });
-  const [formError, setFormError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'requisitos' | 'reviews'>('info');
 
   // SOCIAL PROOF STATE
@@ -209,62 +205,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
     }
   };
 
-  const handleSubmitLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!course) return;
-    setFormError(null);
-
-    if (!formData.first_name.trim()) {
-      setFormError("Ingresa tu nombre.");
-      return;
-    }
-    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setFormError("Ingresa un correo electrónico válido.");
-      return;
-    }
-    if (formData.whatsapp.replace(/\D/g, '').length < 9) {
-      setFormError("Ingresa un número de contacto válido (mín. 9 dígitos).");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      // Sanitización básica: trim de espacios
-      const leadData = {
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        whatsapp: formData.whatsapp.trim(),
-        type: 'info',
-        course_id: course.id,
-        source_page: 'detail',
-        area_interest: formData.area_interest || course.category || '',
-        budget: formData.budget ? parseFloat(formData.budget.replace(/[^0-9.]/g, '')) : null,
-        modality: formData.modality_pref || course.mode || '',
-        is_late_enrollment_request: true
-      };
-
-      const url = `${SUPABASE_URL}/rest/v1/leads`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_PUBLISHABLE_KEY,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(leadData)
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-      }
-    } catch (error) {
-      console.error("Error submitting lead:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   useEffect(() => {
     const fetchCourse = async () => {
       try {
@@ -282,12 +222,26 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
         const safeCourseSlug = encodeURIComponent(courseSlug);
         const safeInstSlug = encodeURIComponent(institutionSlug);
 
-        // Buscamos el curso que coincida con el slug Y cuya institución vinculada también coincida con el slug de la URL
-        const url = `${SUPABASE_URL}/rest/v1/courses?slug=eq.${safeCourseSlug}&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`;
-        
-        const response = await fetch(url, {
-          headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-        });
+        const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+        const [instResponse, categoriesResponse] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug&slug=eq.${safeInstSlug}&limit=1`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, { headers })
+        ]);
+        if (!instResponse.ok) throw new Error(`Error cargando institución: ${instResponse.status}`);
+        const institutions = await instResponse.json();
+        const institution = Array.isArray(institutions) ? institutions[0] : null;
+        if (!institution?.id) {
+          setErrorInfo(`La institución "${institutionSlug}" no está disponible actualmente.`);
+          setLoading(false);
+          return;
+        }
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const categoryArray = Array.isArray(categories) ? categories : [];
+
+        // Buscamos solo en la vista pública H2, que aplica el gate editorial.
+        const url = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=eq.${safeCourseSlug}&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}`;
+
+        const response = await fetch(url, { headers });
         
         if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
         
@@ -298,10 +252,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           console.warn("⚠️ No encontrado por slug exacto, intentando búsqueda por URL y coincidencia parcial...");
           
           // Intentamos buscar por coincidencia en la URL (muy robusto si el slug se extrajo de ahí)
-          const urlMatch = `${SUPABASE_URL}/rest/v1/courses?url=ilike.*${safeCourseSlug}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
-          const urlRes = await fetch(urlMatch, {
-            headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-          });
+          const urlMatch = `${SUPABASE_URL}/rest/v1/courses_public_effective?url=ilike.*${safeCourseSlug}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
+          const urlRes = await fetch(urlMatch, { headers });
           
           if (urlRes.ok) {
             data = await urlRes.json();
@@ -313,10 +265,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             const safeKeywords = encodeURIComponent(keywords);
             
             try {
-              const likeUrl = `${SUPABASE_URL}/rest/v1/courses?slug=ilike.*${safeKeywords}*&institutions.slug=eq.${safeInstSlug}&select=${COURSE_PUBLIC_FIELDS},institutions!inner(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true&limit=1`;
-              const likeRes = await fetch(likeUrl, {
-                headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
-              });
+              const likeUrl = `${SUPABASE_URL}/rest/v1/courses_public_effective?slug=ilike.*${safeKeywords}*&institution_id=eq.${encodeURIComponent(institution.id)}&select=${COURSE_PUBLIC_FIELDS}&limit=1`;
+              const likeRes = await fetch(likeUrl, { headers });
               
               if (likeRes.ok) {
                 data = await likeRes.json();
@@ -329,14 +279,9 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
 
         if (Array.isArray(data) && data.length > 0) {
           const fetchedCourse = data[0];
-          // Mapear el nombre de la institución
-          if (fetchedCourse.institutions && fetchedCourse.institutions.name) {
-            fetchedCourse.institution_name = fetchedCourse.institutions.name;
-          }
-          // Mapear el nombre de la categoría dinámica
-          if (fetchedCourse.categories && fetchedCourse.categories.name) {
-            fetchedCourse.category = fetchedCourse.categories.name;
-          }
+          fetchedCourse.institution_name = institution.name || "StudIAMatch";
+          fetchedCourse.institution_slug = institution.slug || institutionSlug;
+          fetchedCourse.category = categoryArray.find((c: { id: string; name: string }) => c.id === fetchedCourse.category_id)?.name || fetchedCourse.category;
           // Extraer la duración si está implícita en la descripción larga
           if (!fetchedCourse.duration && fetchedCourse.description_long?.startsWith("Duración:")) {
             fetchedCourse.duration = fetchedCourse.description_long.split('\n')[0].replace("Duración:", "").trim();
@@ -374,7 +319,7 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
           ];
 
           if (safeCatId) {
-            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses?category_id=eq.${safeCatId}&id=neq.${safeId}&is_active=eq.true&is_verified=eq.true&limit=3&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug)`, { headers }));
+            promises.push(fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?category_id=eq.${safeCatId}&id=neq.${safeId}&limit=3&select=${COURSE_PUBLIC_FIELDS}`, { headers }));
           }
 
           const results = await Promise.all(promises);
@@ -389,8 +334,8 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const enriched = relatedData.map((c: any) => ({
               ...c,
-              institution_name: c.institutions?.name || "StudIAMatch",
-              institution_slug: c.institutions?.slug || "general"
+              institution_name: course.institution_name || "StudIAMatch",
+              institution_slug: course.institution_slug || "general"
             }));
             setRelatedCourses(enriched as Course[]);
           }
@@ -401,21 +346,6 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
       fetchSocialProofAndRelated();
     }
   }, [course]);
-
-  // Fase 82A: Increment view counter on mount
-  useEffect(() => {
-    if (!course?.id) return;
-    const increment = async () => {
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-          body: JSON.stringify({ p_course_id: course.id })
-        });
-      } catch (e) { console.warn("increment_view_count failed:", e); }
-    };
-    increment();
-  }, [course?.id]);
 
   if (loading || !mounted) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-slate text-white">
@@ -859,85 +789,12 @@ export default function CourseDetailClient({ institutionSlug, courseSlug }: { in
                 </p>
               </div>
 
-              {!submitted ? (
-                <form className="space-y-4" onSubmit={handleSubmitLead}>
-                   {formError && (
-                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold">{formError}</div>
-                   )}
-                   <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</label>
-                      <Input 
-                        required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.first_name}
-                        onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp de Contacto</label>
-                      <Input 
-                        required
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.whatsapp}
-                        onChange={(e) => setFormData({...formData, whatsapp: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
-                      <Input 
-                        required
-                        type="email" 
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner" 
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Presupuesto estimado</label>
-                      <select
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.budget}
-                        onChange={(e) => setFormData({...formData, budget: e.target.value})}
-                      >
-                        <option value="">Selecciona un rango</option>
-                        <option value="5000">S/ 0 - 5,000</option>
-                        <option value="15000">S/ 5,000 - 15,000</option>
-                        <option value="30000">S/ 15,000 - 30,000</option>
-                        <option value="999999">S/ 30,000+</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Modalidad preferida</label>
-                      <select
-                        className="h-11 rounded-xl bg-slate-50 border-0 px-4 font-bold text-xs shadow-inner w-full appearance-none"
-                        value={formData.modality_pref}
-                        onChange={(e) => setFormData({...formData, modality_pref: e.target.value})}
-                      >
-                        <option value="">Sin preferencia</option>
-                        <option value="Presencial">Presencial</option>
-                        <option value="Remoto">Remoto</option>
-                        <option value="Híbrido">Híbrido</option>
-                      </select>
-                    </div>
-                  
-                  <Button 
-                    disabled={isSubmitting}
-                    type="submit" 
-                    className="w-full bg-brand-blue hover:bg-brand-blue/90 h-14 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-brand-blue/10 border-0 mt-2 active:scale-95"
-                  >
-                    {isSubmitting ? "Tramitando..." : "Confirmar Solicitud"}
-                  </Button>
-                  <p className="text-[8px] text-slate-300 text-center uppercase font-bold tracking-widest mt-4">Respuesta estimada: 2 horas</p>
-                </form>
-              ) : (
-                <div className="py-12 text-center animate-in zoom-in duration-500">
-                  <div className="h-20 w-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle className="h-10 w-10 text-emerald-500" />
-                  </div>
-                  <h3 className="text-sm font-black text-brand-slate uppercase tracking-widest">Solicitud enviada</h3>
-                  <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">Un asesor se pondrá en contacto pronto.</p>
-                </div>
-              )}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Canal cerrado temporalmente</p>
+                <p className="mt-3 text-[12px] leading-6 font-semibold text-amber-800/80">
+                  StudIAMatch no está capturando datos personales ni enviando solicitudes comerciales mientras se completa la validación editorial H2.
+                </p>
+              </div>
             <div className="mt-6">
               <button
                 onClick={() => toggleCompare(course)}

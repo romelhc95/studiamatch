@@ -76,16 +76,21 @@ export default function CompareContent() {
       try {
         setLoading(true);
         const queryIds = ids.join(',');
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/courses?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS},institutions(name,slug),categories(name)&is_active=eq.true&is_verified=eq.true`, {
-          headers: {
-            'apikey': SUPABASE_PUBLISHABLE_KEY
-          }
-        });
+        const headers = { 'apikey': SUPABASE_PUBLISHABLE_KEY };
+        const [response, institutionsResponse, categoriesResponse] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/courses_public_effective?id=in.(${queryIds})&select=${COURSE_PUBLIC_FIELDS}`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/institutions?select=id,name,slug`, { headers }),
+          fetch(`${SUPABASE_URL}/rest/v1/categories?select=id,name`, { headers })
+        ]);
 
         if (!response.ok) throw new Error("Failed to fetch courses");
 
         const rawData = await response.json();
+        const institutions = institutionsResponse.ok ? await institutionsResponse.json() : [];
+        const categories = categoriesResponse.ok ? await categoriesResponse.json() : [];
         const dataArray = Array.isArray(rawData) ? rawData : [];
+        const institutionArray = Array.isArray(institutions) ? institutions : [];
+        const categoryArray = Array.isArray(categories) ? categories : [];
 
         const enriched = dataArray.map(c => {
           // Cálculo seguro de ROI en el frontend si falla el backend
@@ -96,22 +101,14 @@ export default function CompareContent() {
           return {
             ...c,
             roi_months: c.roi_months || calculatedRoi || 12,
-            institution_name: c.institutions?.name || "StudIAMatch",
-            institution_slug: c.institutions?.slug || "general",
-            category: c.categories?.name || c.category
+            institution_name: institutionArray.find((i: { id: string; name: string }) => i.id === c.institution_id)?.name || "StudIAMatch",
+            institution_slug: institutionArray.find((i: { id: string; slug: string }) => i.id === c.institution_id)?.slug || "general",
+            category: categoryArray.find((category: { id: string; name: string }) => category.id === c.category_id)?.name || c.category
           };
         });
 
         setCourses(enriched);
 
-        // Fase 82A: Increment comparison_count for each loaded course
-        enriched.forEach((c: Course) => {
-          fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_view_count`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_PUBLISHABLE_KEY },
-            body: JSON.stringify({ p_course_id: c.id })
-          }).catch((e) => console.warn("increment_view_count failed:", e));
-        });
       } catch (error) {
         console.error("Error fetching courses for comparison:", error);
       } finally {
