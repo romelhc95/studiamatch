@@ -1,6 +1,6 @@
 # Estado Del Proyecto
 
-Snapshot: `SNAPSHOT-2026-08-25-F11-DOC-AUTHORITY-ACTIVE`.
+Snapshot: `SNAPSHOT-2026-08-26-F11-H2-MERGED-DESARROLLO`.
 
 Esta nota es la autoridad exclusiva del estado vivo del proyecto y de sus fases.
 Ningun documento historico crea alcance ni autoriza ejecucion por fuera de esta nota.
@@ -20,7 +20,7 @@ ejecutado.
 | `F9` | Certificacion Hito 1 CA1-only | `COMPLETED_BY_CONTRACT_REBASELINE` | Historia superseded para ejecucion; no autoriza remediacion operacional historica. |
 | `F10` | Produccion CA1-only | `COMPLETED_CONTRACTUALLY_WITH_WAIVERS` | Hito 1 cerrado por decision humana O0-B; F10.9/WP2B y F10.10/M3 quedan historicos no promocionables. |
 | `F10.11` | Redefinicion de flujo simple | `DEPLOYED_TO_MAIN_SUPERSEDED_BY_NEW_GO` | Flujo simplificado validado en `desarrollo`, `certificacion` y `main`; preservado como historia no ejecutable. |
-| `F11` | Activacion documental del nuevo pedido | `FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY` | GO documental recibido; H2 Free aplicado/verificado; GO tecnico para PR protegido; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
+| `F11` | Activacion documental del nuevo pedido | `H2_MERGED_TO_DESARROLLO_CI_GREEN` | GO documental recibido; H2 Free aplicado/verificado; PR #458 mergeado a `desarrollo` con checks verdes; autoridad exclusiva en `AGENTS.md` y Obsidian `.context/**`. |
 
 ## Subfases F10
 
@@ -56,16 +56,16 @@ ejecutado.
 - Subfase tecnica activa: `F11`.
 - Work package activo: `NONE_SUPERSEDED`.
 - Work package completado: `NONE_APPLICABLE`.
-- Gate vigente: `FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY` con veredicto `GO_TECHNICAL_FOR_PROTECTED_PR`.
-- Proximo gate unico: `PR_H2_A_DESARROLLO`.
+- Gate vigente: `H2_MERGED_TO_DESARROLLO_CI_GREEN`.
+- Proximo gate unico: `PROMOTE_DESARROLLO_TO_CERTIFICACION_FOR_H2`.
 
 ## Estado De Hitos Sprint 1
 
 | Hito | Estado | Tarea |
 |---|---|---|
 | `HITO-001` | `REDEFINED_ACTIVE_AFTER_H2_H3` | `TASK-H1-001` |
-| `HITO-002` | `FREE_DDL_DML_PUBLIC_SURFACE_VALIDATED_PR_READY` | `TASK-H2-001` |
-| `HITO-003` | `PLANNED_AFTER_H2_ACCEPTED` | `TASK-H3-001` |
+| `HITO-002` | `MERGED_TO_DESARROLLO_CI_GREEN` | `TASK-H2-001` |
+| `HITO-003` | `NEXT_AFTER_H2_CERTIFICATION_GATE` | `TASK-H3-001` |
 | `HITO-004` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H4-001` |
 | `HITO-005` | `PLANNED_AFTER_H2_CONTRACT_STABLE` | `TASK-H5-001` |
 
@@ -81,17 +81,17 @@ ejecutado.
 | Plan vinculante | `MOVED_TO_OBSIDIAN` | [Plan vinculante nuevo pedido](operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md). |
 | Acciones remotas | `FLOW_NORMALIZED` | Nuevos cambios siguen PR protegido `desarrollo -> certificacion -> main`. |
 | Base de datos | `FREE_H2_DDL_DML_PUBLIC_SURFACE_VALIDATED` | DDL Free inicial, forward-fix, remediacion Security Advisor, backfill editorial, seed `editorial_field_definitions` y fix `20260826_h2_public_effective_view_public_fields_fix.sql` aplicados/verificados en Supabase Free. Pro, writers, schedules y DB Sync siguen bloqueados. |
-| Evidencia cliente | `GRADE_A_GO_TECHNICAL_FOR_PROTECTED_PR` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables y test documental local. |
+| Evidencia cliente | `GRADE_A_H2_MERGED_TO_DESARROLLO` | Acta ejecutiva y matriz H2 con veredicto, metricas verificables, test documental local y PR #458 mergeado. |
 
 ## Alcance Inmediato
 
-El alcance inmediato es preparar H2 para PR protegido hacia `desarrollo` bajo
-instruccion humana separada.
+El alcance inmediato es preparar la promocion protegida de H2 desde `desarrollo`
+hacia `certificacion` bajo instruccion humana separada.
 `web/**`, `db/**`, `supabase/**`, `scripts/core/**`, `scripts/shared/**`,
 `scripts/maintenance/**`, `config/**`, dependencias y Docker permanecen protegidos
-salvo autorizacion separada. H2 tiene commits locales, validacion Docker/PG17,
-forward-fix, remediacion Security Advisor, backfill editorial, seed y fix de
-vista publica aplicados/verificados en Supabase Free. Pro, writer, schedule o
+salvo autorizacion separada. H2 fue mergeado por PR #458 a `desarrollo` con CI
+verde; forward-fix, remediacion Security Advisor, backfill editorial, seed y fix
+de vista publica aplicados/verificados en Supabase Free. Pro, writer, schedule o
 nueva accion remota requiere aprobacion JIT separada.
 
 ## Orden Vinculante Nuevo Pedido
@@ -107,6 +107,6 @@ Intake documental
 
 ## Siguiente Gate
 
-El siguiente gate es preparar push/PR H2 limpio hacia `desarrollo` cuando exista
-instruccion humana separada. Pro, writers, schedules, produccion, deploys y
-cambios remotos adicionales siguen bloqueados.
+El siguiente gate es preparar promocion protegida de `desarrollo` a
+`certificacion` para H2 cuando exista instruccion humana separada. Pro, writers,
+schedules, produccion, deploys y cambios remotos adicionales siguen bloqueados.

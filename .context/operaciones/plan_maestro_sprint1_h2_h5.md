@@ -8,10 +8,10 @@
 
 ```text
 FASE = F11
-ESTADO = FREE_H2_PUBLIC_SURFACE_VALIDATED_PR_READY
+ESTADO = H2_MERGED_TO_DESARROLLO_CI_GREEN
 H2-H5 = REDEFINED_ACTIVE_SEQUENCE
 active_work_package = NONE_SUPERSEDED
-next_gate = PR_H2_A_DESARROLLO
+next_gate = PROMOTE_DESARROLLO_TO_CERTIFICACION_FOR_H2
 DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
@@ -27,7 +27,7 @@ feat/* o docs/* desde desarrollo
 
 ## Reglas
 
-- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 es el alcance tecnico listo para PR protegido.
+- H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458 y queda pendiente de promocion protegida a `certificacion`.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.
