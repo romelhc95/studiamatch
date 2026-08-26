@@ -28,7 +28,7 @@ feat/* o docs/* desde desarrollo
 ## Reglas
 
 - H2-H5 quedan redefinidos por el nuevo plan vinculante; H2 fue mergeado a `desarrollo` mediante PR #458, el gate documental por PR #459 y promocionado a `certificacion` por PR #460. Queda pendiente QA read-only en `certificacion`.
-- Todo cierre de hito/task debe validar criterios contra la fuente privada cliente usando su atestacion sanitizada versionada.
+- Antes de iniciar y al cerrar todo hito/task debe validarse contra la fuente privada cliente usando su atestacion sanitizada versionada; si falla, se corrige primero la documentacion y no se ejecuta el siguiente hito.
 - Work Packages, grants R3, digests documentales, Context Graph y promotion gates historicos quedan superseded y no autorizan ejecucion.
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.

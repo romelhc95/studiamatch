@@ -12,10 +12,12 @@ seguridad, mantenimiento, calidad y rendimiento. Ningun hito, task o
 requerimiento puede cerrarse sin validar estas premisas frente al alcance
 ejecutado.
 
-Todo cierre de hito o task vinculado a un requerimiento debe validar criterios de aceptacion contra el documento privado del cliente mediante atestacion sanitizada versionada.
+Para cualquier nuevo desarrollo con requerimiento cliente, antes de iniciar y al cerrar un hito o task vinculado a un requerimiento se debe validar criterios de aceptacion contra el documento privado del cliente mediante atestacion sanitizada versionada.
 El documento privado no se versiona y no se expone en PRs;
 la evidencia versionada solo registra el identificador de fuente, resultado y
 trazabilidad.
+Si este gate documental falla, no se puede ejecutar codigo, DB, UI, pipeline ni
+PR del hito siguiente hasta corregir la atestacion sanitizada.
 
 ## Fases
 

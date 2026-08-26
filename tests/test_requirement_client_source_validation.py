@@ -42,6 +42,8 @@ def test_closing_rule_requires_client_source_validation() -> None:
         "atestacion sanitizada versionada",
         "El documento privado no se versiona",
         "criterios de aceptacion",
+        "antes de iniciar",
+        "cualquier nuevo desarrollo con requerimiento cliente",
     ]
 
     for term in required_terms:
@@ -50,6 +52,21 @@ def test_closing_rule_requires_client_source_validation() -> None:
 
     assert "fuente privada cliente" in plan
     assert "documento privado no se versiona" in plan
+    assert "no se ejecuta el hito siguiente" in plan
+    assert "cualquier nuevo desarrollo con requerimiento cliente" in plan
+
+
+def test_client_source_gate_is_generic_for_new_client_development() -> None:
+    agents = read("AGENTS.md")
+    state = read(".context/estado_del_proyecto.md")
+    plan = read(".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md")
+
+    for text in [agents, state, plan]:
+        assert "cualquier nuevo desarrollo con requerimiento cliente" in text
+        assert "antes de iniciar" in text
+        assert "al cerrar" in text
+        assert "atestacion sanitizada versionada" in text
+        assert "no se versiona" in text
 
 
 def test_h2_closed_evidence_validates_against_sanitized_client_attestation() -> None:
@@ -122,6 +139,34 @@ def test_sanitized_client_attestation_maps_all_sprint_1_acceptance_criteria() ->
     assert "registros incompletos marcados pendientes" in attestation
     assert "sin detener pipeline" in attestation
     assert "`HITO-002` | Implementado y promovido a `certificacion`" in attestation
+
+
+def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
+    attestation = read(SANITIZED_ATTESTATION_PATH)
+    plan = read(".context/operaciones/plan_vinculante_nuevo_pedido_2026_08_25.md")
+    backlog_index = read(".context/backlog_tareas/req_est_001_sprint_1/_index.md")
+    state = read(".context/estado_del_proyecto.md")
+
+    hito3 = read(".context/hitos/hito_003.md")
+    task3 = read(".context/backlog_tareas/req_est_001_sprint_1/tarea_003_hito_3.md")
+    matrix3 = read(".context/matrices/matriz_hito_003.md")
+    evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
+
+    assert "CERTIFICATION_QA_H2_READ_ONLY" in state
+    assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
+    assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
+    assert "`CA4` | Panel `/admin`" in attestation
+    assert "cola de pendientes" in attestation
+    assert "edicion manual" in attestation
+    assert "publicacion" in attestation
+    assert CLIENT_SOURCE_ID in attestation
+    assert SANITIZED_ATTESTATION_ID in attestation
+
+    for text in [hito3, task3, matrix3, evidence3]:
+        assert "PRESTART_CLIENT_SOURCE_ATTESTED_AFTER_H2_CERTIFICATION" in text
+        assert "H3-CA4" in text
+        assert CLIENT_SOURCE_ID in text
+        assert SANITIZED_ATTESTATION_ID in text
 
 
 def test_closed_h2_does_not_expose_private_client_document() -> None:

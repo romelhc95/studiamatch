@@ -15,9 +15,9 @@ DB = FREE_H2_VALIDATED_BLOCKED_FOR_NEW_DDL_DML_WITHOUT_JIT
 PRODUCTION_MUTATIONS = BLOCKED_WITHOUT_JIT
 ```
 
-Todo cierre de hito o task vinculado al requerimiento debe validar sus criterios
-contra la fuente privada cliente mediante atestacion sanitizada versionada. El
-documento privado no se versiona ni se expone en PRs.
+Para cualquier nuevo desarrollo con requerimiento cliente, antes de iniciar y al cerrar un hito o task vinculado al requerimiento debe validar sus criterios contra la fuente privada cliente mediante atestacion sanitizada versionada.
+El documento privado no se versiona ni se expone en PRs.
+Si el gate falla, se corrige primero la atestacion sanitizada y no se ejecuta el hito siguiente.
 
 ## Hitos Redefinidos
 
