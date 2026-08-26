@@ -168,7 +168,7 @@ def test_next_hito_pre_start_gate_is_backed_by_client_source_mapping() -> None:
     matrix3 = read(".context/matrices/matriz_hito_003.md")
     evidence3 = read(".context/evidencias_cliente/sprint_1/evidencia_hito_003.md")
 
-    assert "CERTIFICATION_QA_H2_READ_ONLY" in state
+    assert "H2_CERTIFICATION_QA_READ_ONLY_PASSED" in state
     assert "| H3 | Administracion editorial autenticada | CA4 | H2 aceptado |" in plan
     assert "| [HITO-003](../../hitos/hito_003.md) | `H3-CA4` | Panel admin despues de H2 aceptado. |" in backlog_index
     assert "`CA4` | Panel `/admin`" in attestation
