@@ -10,6 +10,7 @@ FORWARD_FIX = ROOT / "db/migrations/20260826_h2_editorial_layer_forward_fix.sql"
 SECURITY_REMEDIATION = ROOT / "db/migrations/20260826_h2_security_advisor_remediation.sql"
 FIELD_DEFINITIONS_SEED = ROOT / "db/migrations/20260826_h2_seed_editorial_field_definitions.sql"
 PUBLIC_VIEW_FIELDS_FIX = ROOT / "db/migrations/20260826_h2_public_effective_view_public_fields_fix.sql"
+LEGACY_COMPAT = ROOT / "db/migrations/20260826_h2_development_legacy_public_compat.sql"
 
 PRIVATE_PUBLIC_SURFACE_FIELDS = (
     "editorial_status",
@@ -56,6 +57,10 @@ def field_definitions_seed_sql() -> str:
 
 def public_view_fields_fix_sql() -> str:
     return PUBLIC_VIEW_FIELDS_FIX.read_text(encoding="utf-8")
+
+
+def legacy_compat_sql() -> str:
+    return LEGACY_COMPAT.read_text(encoding="utf-8")
 
 
 def test_h2_migration_creates_editorial_layer_objects() -> None:
@@ -334,10 +339,43 @@ def test_h2_public_view_fields_fix_removes_private_fields() -> None:
     assert_no_private_public_surface_fields(text)
 
 
+def test_h2_legacy_compat_creates_private_frozen_cohort() -> None:
+    text = legacy_compat_sql()
+
+    assert "CREATE TABLE IF NOT EXISTS private.h2_legacy_public_course_cohort" in text
+    assert "course_id UUID PRIMARY KEY REFERENCES public.courses(id) ON DELETE RESTRICT" in text
+    assert "REVOKE ALL ON TABLE private.h2_legacy_public_course_cohort FROM PUBLIC, anon, authenticated, service_role" in text
+    assert "INSERT INTO private.h2_legacy_public_course_cohort" in text
+    assert "ON CONFLICT (course_id) DO NOTHING" in text
+    assert "c.is_active = true" in text
+    assert "c.is_verified = true" in text
+    assert "p.production_enabled = true" in text
+
+
+def test_h2_legacy_compat_preserves_legacy_visible_courses_without_frontend_fallback() -> None:
+    text = legacy_compat_sql()
+    reader = text.split("CREATE OR REPLACE FUNCTION private.h2_public_courses_effective()", 1)[1].split("$$;", 1)[0]
+
+    assert "LEFT JOIN public.course_editorial_state es ON es.course_id = c.id" in reader
+    assert "is_strict_h2_public" in reader
+    assert "is_legacy_public" in reader
+    assert "WHERE c.is_strict_h2_public = true" in reader
+    assert "OR c.is_legacy_public = true" in reader
+    assert "CASE WHEN c.is_strict_h2_public THEN COALESCE(c.manual_overrides ->> 'name', c.name) ELSE c.name END AS name" in reader
+    assert "FROM private.h2_legacy_public_course_cohort cohort" in reader
+    assert "SELECT * FROM private.h2_public_courses_effective()" in text
+    assert "GRANT SELECT ON TABLE public.courses TO anon" not in text
+    assert_no_private_public_surface_fields(text)
+
+
 def assert_no_private_public_surface_fields(text: str) -> None:
     reader = text.split("CREATE OR REPLACE FUNCTION private.h2_public_courses_effective()", 1)[1].split("$$;", 1)[0]
     signature = reader.split(")\nLANGUAGE sql", 1)[0]
-    select_list = reader.split("AS $$", 1)[1].split("FROM public.courses c", 1)[0]
+    body = reader.split("AS $$", 1)[1]
+    if "FROM eligible_courses c" in body:
+        select_list = body.rsplit("    SELECT", 1)[1].split("FROM eligible_courses c", 1)[0]
+    else:
+        select_list = body.split("FROM public.courses c", 1)[0]
     for field in PRIVATE_PUBLIC_SURFACE_FIELDS:
         assert field not in signature
         assert field not in select_list

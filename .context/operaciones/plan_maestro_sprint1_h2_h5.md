@@ -33,6 +33,7 @@ feat/* o docs/* desde desarrollo
 - Cambios DB, DDL/DML, Supabase, writers, schedules, deploys, produccion, backups y acciones destructivas requieren aprobacion JIT separada.
 - `security-audit` permanece como check requerido.
 - DB Sync permanece manual-only.
+- Todo cambio debe documentar transicion transparente `expand -> compatibilidad -> deploy -> contract`, preservando funcionalidad legacy durante construccion/promocion y retirandola tras estabilizar produccion.
 
 ## Bases De Transicion
 
@@ -57,3 +58,4 @@ feat/* o docs/* desde desarrollo
 - Cambia una ruta protegida sin aprobacion separada.
 - Se intenta ejecutar DB Sync, DDL/DML o writer productivo.
 - Se intenta iniciar H2 con DDL/DML, Supabase o backfill sin aprobacion JIT separada.
+- Falta evidencia de compatibilidad, rollback o contraccion legacy para un cambio funcional, DB, UI, pipeline o despliegue.

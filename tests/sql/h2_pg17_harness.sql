@@ -270,6 +270,8 @@ VALUES
         'available'
     );
 
+\ir ../../db/migrations/20260826_h2_development_legacy_public_compat.sql
+
 SET ROLE anon;
 
 DO $$
@@ -279,8 +281,8 @@ DECLARE
     effective_start_date DATE;
 BEGIN
     SELECT count(*) INTO visible_count FROM public.courses_public_effective;
-    IF visible_count <> 1 THEN
-        RAISE EXCEPTION 'expected exactly one editorially public and production-enabled course, got %', visible_count;
+    IF visible_count <> 2 THEN
+        RAISE EXCEPTION 'expected one strict H2 course plus one legacy public course, got %', visible_count;
     END IF;
 
     BEGIN
@@ -299,6 +301,23 @@ BEGIN
     END IF;
     IF effective_start_date <> DATE '2026-10-01' THEN
         RAISE EXCEPTION 'manual_start_date was not preferred';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.courses_public_effective
+        WHERE id = '20000000-0000-0000-0000-000000000002'
+          AND name = 'Curso Pendiente'
+    ) THEN
+        RAISE EXCEPTION 'legacy public pending course was not preserved by compatibility cohort';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM public.courses_public_effective
+        WHERE id = '20000000-0000-0000-0000-000000000003'
+    ) THEN
+        RAISE EXCEPTION 'non-production course leaked through compatibility cohort';
     END IF;
 END;
 $$;
@@ -419,5 +438,6 @@ $$;
 \ir ../../db/migrations/20260826_h2_security_advisor_remediation.sql
 \ir ../../db/migrations/20260826_h2_seed_editorial_field_definitions.sql
 \ir ../../db/migrations/20260826_h2_public_effective_view_public_fields_fix.sql
+\ir ../../db/migrations/20260826_h2_development_legacy_public_compat.sql
 
 SELECT 'h2_pg17_harness_ok' AS result;

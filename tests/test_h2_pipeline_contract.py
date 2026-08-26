@@ -39,12 +39,13 @@ def test_enrichment_does_not_fabricate_modality_or_duration() -> None:
     assert 'modality = "Presencial"' not in text
 
 
-def test_sync_vector_never_publishes_with_legacy_course_flags() -> None:
+def test_sync_vector_preserves_technical_visibility_flags_without_editorial_publication() -> None:
     text = read("scripts/core/sync_vector_worker.py")
 
-    assert '"is_active": False' in text
-    assert '"is_verified": False' in text
-    assert '"is_active": course_is_active' not in text
+    assert '"is_active": course_is_active' in text
+    assert '"is_verified": is_real_enrichment' in text
+    assert '"is_active": False' not in text
+    assert '"is_verified": False' not in text
     assert "h2_update_course_quality" in text
     assert "compute_editorial_state" in text
     assert "canonical_quality_hash" in text

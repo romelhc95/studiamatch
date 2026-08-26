@@ -27,6 +27,17 @@
 | Calidad | `PENDIENTE/APROBADO` |  |
 | Rendimiento | `PENDIENTE/APROBADO` |  |
 
+## Transicion Transparente
+
+| Fase | Evidencia |
+|---|---|
+| `expand` |  |
+| `compatibilidad` |  |
+| `deploy` |  |
+| `contract` |  |
+| Rollback |  |
+| No degradacion funcional |  |
+
 ## Evidencia Para Cliente
 
 - Acta ejecutiva:
@@ -66,6 +77,7 @@
 - [ ] No se versionan fuentes privadas, `.env*`, artifacts ni salidas generadas.
 - [ ] Si toca rutas protegidas, la justificacion y aprobacion estan en el PR.
 - [ ] Este PR no autoriza acciones fuera del alcance declarado.
+- [ ] El PR documenta `expand -> compatibilidad -> deploy -> contract`, rollback y retiro futuro de legacy cuando aplique.
 
 ## Checklist Tecnico
 
